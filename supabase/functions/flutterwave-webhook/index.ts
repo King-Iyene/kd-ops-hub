@@ -130,6 +130,27 @@ async function audit(
   });
 }
 
+async function alertWalletDesync(
+  supabase: Supabase,
+  op: "debit" | "refund",
+  scope: "company_disbursement",
+  reference: string,
+  detail: string,
+): Promise<void> {
+  const description =
+    `Wallet ${op} failed for ${scope} (ref ${reference}): ${detail}. ` +
+    `The Flutterwave transfer already resolved — the wallet balance may now ` +
+    `be out of sync and needs manual reconciliation.`;
+  await audit(supabase, "principal_wallet_desync", description);
+  await notifyFinance(
+    supabase,
+    "wallet_desync",
+    `Wallet ${op} failed — balance may be out of sync`,
+    description,
+    "high",
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Main handler
 // ─────────────────────────────────────────────────────────────────────────
@@ -310,6 +331,135 @@ Deno.serve(async (req) => {
     }
   } catch (e) {
     console.warn("[webhook] post-txn side-effect failed (non-fatal):", e);
+  }
+
+  // Principal Disbursements wallet — only Company Disbursement batches (the
+  // 3 director-only payment_category values) touch the wallet; ordinary
+  // payroll/vendor/contractor batch_items never do. Debit on confirmed
+  // success; credit back on a later reversal. Best-effort — the real
+  // Flutterwave transfer has already resolved regardless. Mirrors
+  // paystack-webhook's identical block exactly — Personal Transfers have no
+  // Flutterwave path today (no flutterwave_reference column, no dispatch
+  // code in flutterwave-transfer), so unlike paystack-webhook there is no
+  // separate personal_transfers branch to replicate here.
+  if (normalised === "transfer.success" || normalised === "transfer.reversed") {
+    try {
+      const { data: isDirectorBatch } = await supabase.rpc("is_director_disbursement_batch", {
+        p_batch_id: item.batch_id,
+      });
+      if (isDirectorBatch) {
+        if (normalised === "transfer.success") {
+          const { error: debitErr } = await supabase.rpc("debit_principal_wallet", {
+            p_amount_ngn: item.amount_ngn,
+            p_source: "company_disbursement",
+            p_reference: reference,
+            p_related_batch_item_id: item.id,
+            p_related_personal_transfer_id: null,
+          });
+          if (debitErr) {
+            console.warn("[webhook] wallet debit failed (company_disbursement):", debitErr.message, reference);
+            await alertWalletDesync(supabase, "debit", "company_disbursement", reference, debitErr.message);
+          }
+        } else {
+          const { error: refundErr } = await supabase.rpc("credit_back_principal_wallet", {
+            p_amount_ngn: item.amount_ngn,
+            p_reference: reference,
+          });
+          if (refundErr) {
+            console.warn("[webhook] wallet refund failed (company_disbursement):", refundErr.message, reference);
+            await alertWalletDesync(supabase, "refund", "company_disbursement", reference, refundErr.message);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[webhook] wallet effect threw (company_disbursement):", e, reference);
+      await alertWalletDesync(
+        supabase,
+        normalised === "transfer.success" ? "debit" : "refund",
+        "company_disbursement",
+        reference,
+        String(e),
+      );
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Sync payment_status on any linked expense (expense reimbursement flow).
+  // Runs after batch recalc so the batch is already settled first. For
+  // expenses linked to a fuel_request we also propagate the state to the
+  // fuel_request row so Fleet's status matches reality without a manual
+  // "Mark Payment Sent" click. Mirrors paystack-webhook's identical block —
+  // without this, an expense/fuel reimbursement paid via Flutterwave never
+  // leaves payment_status='pending', which left it eligible for a second
+  // real batch dispatch through create_expense_payment_batch.
+  // ------------------------------------------------------------------
+  const { data: linkedExpense, error: expLookupErr } = await supabase
+    .from("expenses")
+    .select("id, submitted_by, amount_ngn, fuel_request_id")
+    .eq("payment_reference", item.batch_id)
+    .maybeSingle();
+
+  if (expLookupErr) {
+    console.error("[webhook] expense lookup error:", expLookupErr.message);
+  }
+
+  if (linkedExpense) {
+    const fuelRequestId = (linkedExpense as any).fuel_request_id as string | null;
+
+    if (normalised === "transfer.success") {
+      await supabase
+        .from("expenses")
+        .update({ payment_status: "processed", processed_at: now })
+        .eq("id", linkedExpense.id);
+
+      await supabase.from("notifications").insert({
+        user_id: linkedExpense.submitted_by,
+        type: "expense_paid",
+        module: "expenses",
+        priority: "normal",
+        title: "Expense Reimbursement Processed",
+        body: `Your expense of ₦${Number(linkedExpense.amount_ngn).toLocaleString()} has been paid.`,
+      });
+
+      if (fuelRequestId) {
+        await supabase
+          .from("fuel_requests")
+          .update({ status: "payment_sent", payment_sent_at: now })
+          .eq("id", fuelRequestId)
+          .in("status", ["pending", "approved"]);
+
+        await supabase.from("notifications").insert({
+          user_id: linkedExpense.submitted_by,
+          type: "fuel_payment_sent",
+          module: "fleet",
+          priority: "normal",
+          title: "Fuel payment sent",
+          body: `₦${Number(linkedExpense.amount_ngn).toLocaleString()} has been sent. Please upload your receipt.`,
+        });
+      }
+    } else if (normalised === "transfer.failed" || normalised === "transfer.reversed") {
+      await supabase
+        .from("expenses")
+        .update({ payment_status: "failed" })
+        .eq("id", linkedExpense.id);
+
+      await supabase.from("notifications").insert({
+        user_id: linkedExpense.submitted_by,
+        type: "expense_payment_failed",
+        module: "expenses",
+        priority: "high",
+        title: "Expense Payment Failed",
+        body: `Payment of ₦${Number(linkedExpense.amount_ngn).toLocaleString()} could not be processed. Please contact Finance.`,
+      });
+
+      if (fuelRequestId) {
+        await supabase
+          .from("fuel_requests")
+          .update({ status: "approved" })
+          .eq("id", fuelRequestId)
+          .eq("status", "payment_sent");
+      }
+    }
   }
 
   return new Response("ok", { status: 200, headers: corsHeaders });
