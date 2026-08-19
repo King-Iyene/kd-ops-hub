@@ -16234,6 +16234,15 @@ export type Database = {
         Args: { event: Json }
         Returns: Json
       }
+      increment_chatbot_usage: {
+        Args: {
+          p_messages?: number
+          p_tokens?: number
+          p_usage_date: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       is_device_trusted: { Args: { p_device_id: string }; Returns: boolean }
       is_director_disbursement_batch: {
         Args: { p_batch_id: string }
