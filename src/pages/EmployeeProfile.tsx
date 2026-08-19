@@ -652,8 +652,10 @@ const EmployeeProfile = () => {
       if (isSelf || (callerIsAdmin && targetRoleIsAdminOrAbove)) {
         delete payload.role;
         toast({ title: 'Role not changed', description: 'You do not have permission to set that role.', variant: 'destructive' });
-        setSectionSaving(false);
-        return;
+        if (Object.keys(payload).length === 0) {
+          setSectionSaving(false);
+          return;
+        }
       }
     }
     // .select() lets us tell a real save apart from an RLS-silent no-op —
