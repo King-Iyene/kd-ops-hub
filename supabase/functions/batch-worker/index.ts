@@ -72,18 +72,42 @@ function dispatchMode(): "per_item" | "bulk" {
 // ──────────────────────────────────────────────────────────────────────────
 // Paystack helpers
 // ──────────────────────────────────────────────────────────────────────────
+// Mode-aware like every sibling caller (paystack-transfer, paystack-webhook,
+// paystack-reconciliation) — this was previously the one function that
+// skipped the paystack_mode/prefix check, meaning a stray live key in
+// PAYSTACK_SECRET_KEY while paystack_mode='test' would dispatch real money
+// with no guard. The DB-stored key fallback
+// (company_settings.paystack_secret_key_enc) was removed entirely — the
+// column shipped the live secret to every finance/admin browser via
+// Settings.tsx on every page load. Confirmed unused in production (the
+// column was empty) before removal.
 async function getPaystackSecret(svc: SupabaseClient): Promise<string> {
-  const env = Deno.env.get("PAYSTACK_SECRET_KEY");
-  if (env) return env;
   const { data } = await svc
     .from("company_settings")
-    .select("paystack_secret_key_enc")
+    .select("paystack_mode")
     .eq("id", "00000000-0000-0000-0000-000000000001")
     .maybeSingle();
-  const v = (data as any)?.paystack_secret_key_enc;
-  if (!v) throw new Error("PAYSTACK_SECRET_KEY not configured");
-  console.warn("[batch-worker] DEPRECATED: reading Paystack secret from company_settings. Set PAYSTACK_SECRET_KEY env var instead.");
-  return v;
+  const mode = ((data as any)?.paystack_mode || "live") as "test" | "live";
+
+  const envName = mode === "live" ? "PAYSTACK_SECRET_KEY_LIVE" : "PAYSTACK_SECRET_KEY_TEST";
+  const secret = Deno.env.get(envName) ?? Deno.env.get("PAYSTACK_SECRET_KEY");
+  if (!secret) {
+    throw new Error(`No Paystack secret key found. Set ${envName} or PAYSTACK_SECRET_KEY.`);
+  }
+
+  // Sanity: test-mode key must start with sk_test_; live must start with
+  // sk_live_. Guards against a paste error where a live key lands under the
+  // _TEST env var and vice versa. Matches paystack-transfer's identical check.
+  const looksTest = secret.startsWith("sk_test_");
+  const looksLive = secret.startsWith("sk_live_");
+  if (mode === "test" && !looksTest && looksLive) {
+    throw new Error("Mode is TEST but the key starts with sk_live_. Refusing to make an accidental live call.");
+  }
+  if (mode === "live" && !looksLive && looksTest) {
+    throw new Error("Mode is LIVE but the key starts with sk_test_. Refusing to fire with a test key.");
+  }
+
+  return secret;
 }
 
 function generateRef(itemId: string): string {

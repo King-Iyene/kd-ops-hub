@@ -1,0 +1,17 @@
+-- Removes the deprecated DB-stored Paystack secret fallback entirely.
+--
+-- company_settings.paystack_secret_key_enc was added (20260503100000) as a
+-- "use this if the env var isn't set" resilience fallback, deliberately —
+-- but every full security review since has re-flagged it, because
+-- Settings.tsx selected the raw value into every finance/admin/super_admin
+-- browser's JS state on every page load to show the "Configured" badge.
+-- Confirmed via `select paystack_secret_key_enc is not null from
+-- company_settings` immediately before this migration: the column was
+-- already empty in production, meaning every edge function reading it has
+-- been running entirely off PAYSTACK_SECRET_KEY_LIVE/_TEST env vars — the
+-- DB fallback was provably dead weight, not load-bearing. All five read
+-- sites (paystack-transfer, paystack-webhook, paystack-reconciliation,
+-- batch-worker, provider-switch) and the Settings.tsx UI were updated in
+-- the same change to stop referencing the column before this migration
+-- runs.
+ALTER TABLE public.company_settings DROP COLUMN IF EXISTS paystack_secret_key_enc;

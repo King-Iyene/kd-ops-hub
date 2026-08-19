@@ -44,22 +44,20 @@ async function getPaystackSecret(): Promise<string | null> {
     );
     const { data } = await serviceClient
       .from("company_settings")
-      .select("paystack_mode, paystack_secret_key_enc")
+      .select("paystack_mode")
       .eq("id", "00000000-0000-0000-0000-000000000001")
       .maybeSingle();
     const mode = ((data as any)?.paystack_mode || "live") as "test" | "live";
 
-    // Mode-specific env vars first, then legacy fallback, then DB.
+    // Mode-specific env vars first, then legacy fallback. The DB-stored key
+    // fallback (company_settings.paystack_secret_key_enc) was removed — the
+    // column shipped the live secret to every finance/admin browser via
+    // Settings.tsx on every page load. Confirmed unused in production (the
+    // column was empty) before removal.
     const envName = mode === "live"
       ? "PAYSTACK_SECRET_KEY_LIVE"
       : "PAYSTACK_SECRET_KEY_TEST";
-    const fromEnv = Deno.env.get(envName) ?? Deno.env.get("PAYSTACK_SECRET_KEY");
-    if (fromEnv) return fromEnv;
-    const fromDb = (data as any)?.paystack_secret_key_enc ?? null;
-    if (fromDb) {
-      console.warn("[webhook] DEPRECATED: reading Paystack secret from company_settings. Set PAYSTACK_SECRET_KEY_LIVE / _TEST env vars instead.");
-    }
-    return fromDb;
+    return Deno.env.get(envName) ?? Deno.env.get("PAYSTACK_SECRET_KEY") ?? null;
   } catch {
     return Deno.env.get("PAYSTACK_SECRET_KEY") ?? null;
   }

@@ -106,7 +106,7 @@ async function getPaystackSecret(serviceClient?: any): Promise<string> {
 
   const { data } = await svc
     .from("company_settings")
-    .select("paystack_mode, paystack_secret_key_enc")
+    .select("paystack_mode")
     .eq("id", "00000000-0000-0000-0000-000000000001")
     .maybeSingle();
   const mode = ((data as any)?.paystack_mode || "live") as "test" | "live";
@@ -122,12 +122,10 @@ async function getPaystackSecret(serviceClient?: any): Promise<string> {
     secret = Deno.env.get("PAYSTACK_SECRET_KEY");
   }
 
-  // Last resort: DB-stored key (deprecated).
-  if (!secret) {
-    secret = (data as any)?.paystack_secret_key_enc || null;
-    if (secret) console.warn("[paystack-transfer] DEPRECATED: reading Paystack secret from company_settings. Set PAYSTACK_SECRET_KEY_LIVE / _TEST env vars instead.");
-  }
-
+  // The DB-stored key fallback (company_settings.paystack_secret_key_enc)
+  // was removed — the column shipped the live secret to every finance/admin
+  // browser via Settings.tsx on every page load. Confirmed unused in
+  // production (the column was empty) before removal.
   if (!secret) {
     throw new Error(
       `No Paystack secret key found. Set ${envName} via 'supabase secrets set ${envName}=sk_...' and redeploy.`,

@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       advance_requests: {
@@ -1802,7 +1777,6 @@ export type Database = {
           paystack_mode: string | null
           paystack_public_key: string | null
           paystack_secret_configured: boolean
-          paystack_secret_key_enc: string | null
           paystack_webhook_url: string | null
           pencom_employer_code: string | null
           probation_period_days: number
@@ -1906,7 +1880,6 @@ export type Database = {
           paystack_mode?: string | null
           paystack_public_key?: string | null
           paystack_secret_configured?: boolean
-          paystack_secret_key_enc?: string | null
           paystack_webhook_url?: string | null
           pencom_employer_code?: string | null
           probation_period_days?: number
@@ -2010,7 +1983,6 @@ export type Database = {
           paystack_mode?: string | null
           paystack_public_key?: string | null
           paystack_secret_configured?: boolean
-          paystack_secret_key_enc?: string | null
           paystack_webhook_url?: string | null
           pencom_employer_code?: string | null
           probation_period_days?: number
@@ -17238,9 +17210,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

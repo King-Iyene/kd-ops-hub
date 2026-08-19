@@ -18,7 +18,7 @@
 //
 // Env required:
 //   SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
-//   PAYSTACK_SECRET_KEY  (or company_settings.paystack_secret_key_enc)
+//   PAYSTACK_SECRET_KEY_LIVE / _TEST (or legacy PAYSTACK_SECRET_KEY)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -35,19 +35,19 @@ const MAX_ITEMS_PER_RUN = 200;
 async function getPaystackSecret(service: any): Promise<string> {
   const { data } = await service
     .from("company_settings")
-    .select("paystack_mode, paystack_secret_key_enc")
+    .select("paystack_mode")
     .eq("id", "00000000-0000-0000-0000-000000000001")
     .maybeSingle();
   const mode = ((data as any)?.paystack_mode || "live") as "test" | "live";
 
+  // The DB-stored key fallback (company_settings.paystack_secret_key_enc)
+  // was removed — the column shipped the live secret to every finance/admin
+  // browser via Settings.tsx on every page load. Confirmed unused in
+  // production (the column was empty) before removal.
   const envName = mode === "live"
     ? "PAYSTACK_SECRET_KEY_LIVE"
     : "PAYSTACK_SECRET_KEY_TEST";
-  const fromEnv = Deno.env.get(envName) ?? Deno.env.get("PAYSTACK_SECRET_KEY");
-  const secret = fromEnv ?? (data as any)?.paystack_secret_key_enc;
-  if (!fromEnv && secret) {
-    console.warn("[reconciliation] DEPRECATED: reading Paystack secret from company_settings. Set PAYSTACK_SECRET_KEY_LIVE / _TEST env vars instead.");
-  }
+  const secret = Deno.env.get(envName) ?? Deno.env.get("PAYSTACK_SECRET_KEY");
   if (!secret) throw new Error(`No Paystack secret key found. Set ${envName} or PAYSTACK_SECRET_KEY.`);
   return secret;
 }

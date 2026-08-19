@@ -64,18 +64,13 @@ async function probeFlutterwave(mode: "test" | "live"): Promise<{ ok: boolean; b
 }
 
 async function probePaystack(mode: "test" | "live"): Promise<{ ok: boolean; balance?: number; error?: string }> {
-  // Mode-specific env vars first, then legacy fallback, then DB.
+  // Mode-specific env vars first, then legacy fallback. The DB-stored key
+  // fallback (company_settings.paystack_secret_key_enc) was removed — the
+  // column shipped the live secret to every finance/admin browser via
+  // Settings.tsx on every page load. Confirmed unused in production (the
+  // column was empty) before removal.
   const envName = mode === "live" ? "PAYSTACK_SECRET_KEY_LIVE" : "PAYSTACK_SECRET_KEY_TEST";
-  let secret = Deno.env.get(envName) ?? Deno.env.get("PAYSTACK_SECRET_KEY");
-  if (!secret) {
-    try {
-      const svc = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      const { data } = await svc.from("company_settings")
-        .select("paystack_secret_key_enc").eq("id", "00000000-0000-0000-0000-000000000001").maybeSingle();
-      secret = (data as any)?.paystack_secret_key_enc;
-      if (secret) console.warn("[provider-switch] DEPRECATED: reading Paystack secret from company_settings. Set PAYSTACK_SECRET_KEY_LIVE / _TEST env vars instead.");
-    } catch { /* fall through */ }
-  }
+  const secret = Deno.env.get(envName) ?? Deno.env.get("PAYSTACK_SECRET_KEY");
   if (!secret) {
     return { ok: false, error: `${envName} (or PAYSTACK_SECRET_KEY) is not set.` };
   }

@@ -162,13 +162,6 @@ const SettingsPage = () => {
   const [saving, setSaving] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [settings, setSettings] = useState<CompanySettings | null>(null);
-  // Snapshot of the Paystack mode/keys as loaded from the DB, so save() can
-  // tell whether the operator actually touched that section THIS session.
-  // Without this, saving an unrelated field (e.g. session timeout) re-runs
-  // live/test key-prefix validation against whatever was already stored —
-  // blocking the entire save on a pre-existing value nobody is editing.
-  const loadedPaystackRef = useRef<{ sec: string } | null>(null);
-
   // Notification preferences are per-user, not company-wide.
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
   const [digest, setDigest] = useState<'immediate' | 'hourly' | 'daily' | 'never'>('immediate');
@@ -187,7 +180,7 @@ const SettingsPage = () => {
     const [settingsRes, notifRes, mfaStatusRes] = await Promise.all([
       supabase
         .from('company_settings')
-        .select('company_name, rc_number, tin, address, website, logo_url, fiscal_year_preset, currency_code, usd_rate, cash_on_hand_ngn, external_monthly_burn_ngn, monthly_revenue_estimate_ngn, cash_updated_at, expense_limits, dual_approval_threshold_ngn, paystack_secret_key_enc, airtable_base_id, airtable_income_table_id, airtable_expenses_table_id, airtable_sync_enabled, paystack_funding_bank, paystack_funding_account_name, paystack_funding_account_number, resend_from_address, resend_api_key_configured, termii_sender_id, termii_api_key_configured, whatsapp_enabled, sms_enabled, smtp_host, smtp_port, smtp_username, smtp_from_address, session_timeout_minutes, audit_log_retention_days, mfa_required_for_all_users, approval_step_up_required, fuel_weekly_budgets, website_url, linkedin_url, instagram_url, facebook_url, twitter_url, timezone, state_of_business, pencom_employer_code, nhf_employer_code, nsitf_employer_code, itf_employer_code, leave_carryover_max_days')
+        .select('company_name, rc_number, tin, address, website, logo_url, fiscal_year_preset, currency_code, usd_rate, cash_on_hand_ngn, external_monthly_burn_ngn, monthly_revenue_estimate_ngn, cash_updated_at, expense_limits, dual_approval_threshold_ngn, paystack_secret_configured, airtable_base_id, airtable_income_table_id, airtable_expenses_table_id, airtable_sync_enabled, paystack_funding_bank, paystack_funding_account_name, paystack_funding_account_number, resend_from_address, resend_api_key_configured, termii_sender_id, termii_api_key_configured, whatsapp_enabled, sms_enabled, smtp_host, smtp_port, smtp_username, smtp_from_address, session_timeout_minutes, audit_log_retention_days, mfa_required_for_all_users, approval_step_up_required, fuel_weekly_budgets, website_url, linkedin_url, instagram_url, facebook_url, twitter_url, timezone, state_of_business, pencom_employer_code, nhf_employer_code, nsitf_employer_code, itf_employer_code, leave_carryover_max_days')
         .eq('id', SINGLETON_ID)
         .maybeSingle(),
       profile?.id
@@ -209,9 +202,6 @@ const SettingsPage = () => {
     }
     const s = (settingsRes.data as CompanySettings) || null;
     setSettings(s);
-    loadedPaystackRef.current = s
-      ? { sec: (s as any).paystack_secret_key_enc || '' }
-      : null;
     if (s?.timezone) setTimezoneCache(s.timezone);
     if ((notifRes as any).data) {
       const d = (notifRes as any).data;
@@ -238,20 +228,6 @@ const SettingsPage = () => {
   const save = async () => {
     if (!settings) return;
 
-    // Validate Paystack secret key prefix if the key was changed this session.
-    const sec = (settings as any).paystack_secret_key_enc || '';
-    const loaded = loadedPaystackRef.current;
-    if (sec && loaded && loaded.sec !== sec) {
-      if (!sec.startsWith('sk_test_') && !sec.startsWith('sk_live_')) {
-        toast({
-          title: 'Invalid Paystack secret key',
-          description: 'Secret key must start with sk_test_ or sk_live_.',
-          variant: 'destructive',
-        });
-        return;
-      }
-    }
-
     setSaving(true);
     const { error } = await supabase
       .from('company_settings')
@@ -271,7 +247,7 @@ const SettingsPage = () => {
         cash_updated_at: settings.cash_updated_at,
         expense_limits: settings.expense_limits,
         dual_approval_threshold_ngn: settings.dual_approval_threshold_ngn,
-        paystack_secret_key_enc: (settings as any).paystack_secret_key_enc || null,
+        paystack_secret_configured: !!(settings as any).paystack_secret_configured,
         airtable_base_id: settings.airtable_base_id,
         airtable_income_table_id: settings.airtable_income_table_id,
         airtable_expenses_table_id: settings.airtable_expenses_table_id,
@@ -772,25 +748,19 @@ const SettingsPage = () => {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-1">
-                <Label>Secret key (fallback)</Label>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs font-medium px-2 py-1 rounded ${(settings as any).paystack_secret_key_enc ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-muted text-muted-foreground'}`}>
-                    {(settings as any).paystack_secret_key_enc ? 'Configured' : 'Not configured'}
-                  </span>
-                  {(settings as any).paystack_secret_key_enc && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs text-destructive"
-                      onClick={async () => { if (await confirm({ title: 'Remove Paystack key?', description: 'Remove the stored Paystack key? The env-var key will still be used if set.' })) patch({ paystack_secret_key_enc: null } as any); }}
-                    >
-                      Remove
-                    </Button>
-                  )}
-                </div>
+                <label className="flex items-center gap-3">
+                  <Switch
+                    checked={!!(settings as any).paystack_secret_configured}
+                    onCheckedChange={(v) => patch({ paystack_secret_configured: v } as any)}
+                  />
+                  <span className="text-sm">Secret key configured</span>
+                </label>
                 <p className="text-[11px] text-muted-foreground">
-                  Manage via PAYSTACK_SECRET_KEY environment variable or Supabase vault.
+                  The secret key itself lives only in Supabase's edge function environment variables
+                  (<code className="text-[11px] bg-muted px-1 py-0.5 rounded">PAYSTACK_SECRET_KEY_LIVE</code> /{' '}
+                  <code className="text-[11px] bg-muted px-1 py-0.5 rounded">_TEST</code>) — it is never stored in
+                  the database or sent to the browser. Set or rotate it via <code className="text-[11px] bg-muted px-1 py-0.5 rounded">supabase secrets set</code>,
+                  then flip this toggle so the team can see at a glance that it's set up.
                 </p>
               </div>
               <Separator />
