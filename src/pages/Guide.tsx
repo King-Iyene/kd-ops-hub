@@ -19,6 +19,9 @@ import { GrowthWellbeingSection } from '@/components/guide/sections/GrowthWellbe
 import { FinanceOpsSection } from '@/components/guide/sections/FinanceOps';
 import { PeopleOpsSection } from '@/components/guide/sections/PeopleOps';
 import { FleetOpsSection } from '@/components/guide/sections/FleetOps';
+import { AdminToolsSection } from '@/components/guide/sections/AdminTools';
+import { CrmOutreachSection } from '@/components/guide/sections/CrmOutreach';
+import { ShiftsSchedulingSection } from '@/components/guide/sections/ShiftsScheduling';
 import { FaqSection } from '@/components/guide/sections/Faq';
 
 import { TechOverviewSection } from '@/components/guide/sections/technical/Overview';
@@ -46,6 +49,9 @@ const NAV: NavGroup[] = [
     { id: 'how-to/finance', label: 'Finance' },
     { id: 'how-to/people-operations', label: 'People Operations' },
     { id: 'how-to/fleet-assets', label: 'Fleet & Assets' },
+    { id: 'how-to/crm-outreach', label: 'CRM & Outreach' },
+    { id: 'how-to/shifts-scheduling', label: 'Shifts & Scheduling' },
+    { id: 'how-to/admin-tools', label: 'Admin Tools' },
   ] },
   { id: 'technical', group: 'Technical Reference', icon: Shield, items: [
     { id: 'technical/overview', label: 'Change History & Overview' },
@@ -169,6 +175,9 @@ function GuideBody() {
           <Route path="how-to/finance" element={<FinanceOpsSection />} />
           <Route path="how-to/people-operations" element={<PeopleOpsSection />} />
           <Route path="how-to/fleet-assets" element={<FleetOpsSection />} />
+          <Route path="how-to/crm-outreach" element={<CrmOutreachSection />} />
+          <Route path="how-to/shifts-scheduling" element={<ShiftsSchedulingSection />} />
+          <Route path="how-to/admin-tools" element={<AdminToolsSection />} />
           <Route path="technical/overview" element={<TechnicalPageWrapper><TechOverviewSection /></TechnicalPageWrapper>} />
           <Route path="technical/payments" element={<TechnicalPageWrapper><TechPaymentsSection /></TechnicalPageWrapper>} />
           <Route path="technical/finance" element={<TechnicalPageWrapper><TechFinanceSection /></TechnicalPageWrapper>} />
