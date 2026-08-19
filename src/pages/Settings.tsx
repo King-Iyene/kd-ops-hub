@@ -370,12 +370,16 @@ const SettingsPage = () => {
         <TabsList className="flex md:flex-col h-auto items-stretch md:items-start gap-1 bg-card md:bg-transparent border md:border-0 rounded-lg md:rounded-none p-2 md:p-0 md:sticky md:top-20 md:self-start overflow-x-auto md:overflow-visible">
           <p className="hidden md:block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2">Configuration</p>
           <TabsTrigger value="company" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Building2 className="mr-2 h-4 w-4" /> Company</TabsTrigger>
-          <TabsTrigger value="integrations" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><LinkIcon className="mr-2 h-4 w-4" /> Integrations</TabsTrigger>
+          {profile?.role === 'super_admin' && (
+            <TabsTrigger value="integrations" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><LinkIcon className="mr-2 h-4 w-4" /> Integrations</TabsTrigger>
+          )}
           <TabsTrigger value="policy" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><CreditCard className="mr-2 h-4 w-4" /> Expense policy</TabsTrigger>
           <TabsTrigger value="leave" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><CalendarDays className="mr-2 h-4 w-4" /> Leave</TabsTrigger>
           <TabsTrigger value="exchange_rate" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><ArrowRightLeft className="mr-2 h-4 w-4" /> Exchange rate</TabsTrigger>
           <TabsTrigger value="notifications" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Bell className="mr-2 h-4 w-4" /> Notifications</TabsTrigger>
-          <TabsTrigger value="security" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><ShieldCheck className="mr-2 h-4 w-4" /> Security</TabsTrigger>
+          {profile?.role === 'super_admin' && (
+            <TabsTrigger value="security" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><ShieldCheck className="mr-2 h-4 w-4" /> Security</TabsTrigger>
+          )}
           {profile?.role === 'super_admin' && (
             <TabsTrigger value="transfer_auth" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Wallet className="mr-2 h-4 w-4" /> Transfer Authorization</TabsTrigger>
           )}
@@ -386,7 +390,7 @@ const SettingsPage = () => {
             <TabsTrigger value="departments" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Network className="mr-2 h-4 w-4" /> Departments</TabsTrigger>
           )}
           <TabsTrigger value="tags" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Tags className="mr-2 h-4 w-4" /> Tags</TabsTrigger>
-          {(profile?.role === 'super_admin' || profile?.role === 'admin') && (
+          {profile?.role === 'super_admin' && (
             <TabsTrigger value="retention" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Database className="mr-2 h-4 w-4" /> Data Retention</TabsTrigger>
           )}
         </TabsList>
@@ -737,7 +741,8 @@ const SettingsPage = () => {
           </Card>
         </TabsContent>
 
-        {/* INTEGRATIONS -------------------------------------------------- */}
+        {/* INTEGRATIONS (super_admin only) --------------------------------- */}
+        {profile?.role === 'super_admin' && (
         <TabsContent value="integrations" className="mt-4 space-y-4">
           {/* Payment Rails: super_admin-only toggle between Paystack and
               Flutterwave, with preflight + typed confirmation + audit trail. */}
@@ -1008,6 +1013,7 @@ const SettingsPage = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        )}
 
         {/* POLICY -------------------------------------------------------- */}
         <TabsContent value="policy" className="mt-4 space-y-4">
@@ -1257,7 +1263,8 @@ const SettingsPage = () => {
           )}
         </TabsContent>
 
-        {/* SECURITY ----------------------------------------------------- */}
+        {/* SECURITY (super_admin only) ------------------------------------- */}
+        {profile?.role === 'super_admin' && (
         <TabsContent value="security" className="mt-4 space-y-4">
           {/* Platform-wide 2FA policy. Toggle is super_admin only —
               admins shouldn't be able to relax their own 2FA
@@ -1455,7 +1462,7 @@ const SettingsPage = () => {
                       { module: 'Goals',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
                       { module: 'Documents',             sa: true,  ad: true,  fi: true,  op: false, fs: false },
                       { module: 'Audit Log',             sa: true,  ad: true,  fi: false, op: false, fs: false },
-                      { module: 'Settings',              sa: true,  ad: false, fi: false, op: false, fs: false },
+                      { module: 'Settings',              sa: true,  ad: true,  fi: false, op: false, fs: false },
                     ].map(({ module, sa, ad, fi, op, fs }) => (
                       <tr key={module} className="hover:bg-muted/30 transition-colors">
                         <td className="py-1.5 pr-4 font-medium">{module}</td>
@@ -1512,6 +1519,7 @@ const SettingsPage = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        )}
 
         {/* DEPARTMENTS -------------------------------------------------- */}
         <TabsContent value="departments" className="mt-4 space-y-4">
@@ -1523,10 +1531,12 @@ const SettingsPage = () => {
           <TagsManager />
         </TabsContent>
 
-        {/* DATA RETENTION ---------------------------------------------- */}
+        {/* DATA RETENTION (super_admin only) ------------------------------- */}
+        {profile?.role === 'super_admin' && (
         <TabsContent value="retention" className="mt-4 space-y-4">
           <DataRetentionPanel />
         </TabsContent>
+        )}
 
         {/* SYSTEM REFERENCE -------------------------------------------- */}
         </div>

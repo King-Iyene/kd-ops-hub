@@ -152,7 +152,7 @@ export const ALL_NAV: NavItem[] = [
   // Admin — strict role only (see comment block above).
   { title: 'Approval Workflows', url: '/approval-workflows', icon: GitBranch,    roles: ['super_admin', 'admin'] },
   { title: 'Audit Log',        url: '/audit',             icon: ScrollText,      roles: ['super_admin', 'admin'] },
-  { title: 'Settings',         url: '/settings',          icon: Settings,        roles: ['super_admin'] },
+  { title: 'Settings',         url: '/settings',          icon: Settings,        roles: ['super_admin', 'admin'] },
   { title: 'Principal Disbursements', url: '/principal-disbursements', icon: Landmark, roles: ['super_admin'] },
   // Workspace addition (Assistant)
   { title: 'Assistant',        url: '/assistant',         icon: Bot,             roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
