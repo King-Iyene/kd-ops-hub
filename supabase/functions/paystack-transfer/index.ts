@@ -556,6 +556,33 @@ Deno.serve(async (req) => {
           });
         }
 
+        // Server-side wallet sufficiency check for personal transfers.
+        // The browser also checks, but a direct API call could bypass it.
+        if (isPersonalTransfer) {
+          const { data: walletBalance } = await serviceClient.rpc(
+            "principal_wallet_balance",
+          );
+          const balance = Number(walletBalance ?? 0);
+          if (balance < dbAmountNgn) {
+            await writeTransferAudit(serviceClient, {
+              actor_id: user.id,
+              actor_role: actorRole,
+              action: "wallet_insufficient",
+              outcome: "denied",
+              amount_ngn: dbAmountNgn,
+              recipient_code: dbRecipientCode,
+              reference: params.reference,
+              ip_hash: ipHash,
+              user_agent: userAgent,
+              reason: `Wallet balance ${balance} < transfer amount ${dbAmountNgn}`,
+            });
+            return new Response(
+              JSON.stringify({ ok: false, error: "Insufficient wallet balance", wallet_blocked: true }),
+              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+        }
+
         // Initiate at Paystack using DB-authoritative values.
         try {
           const body = await paystackFetch("/transfer", {
