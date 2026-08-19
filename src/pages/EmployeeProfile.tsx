@@ -22,6 +22,7 @@ import LeaveBalancesPanel from '@/components/hr/LeaveBalancesPanel';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { MaskedAccountNumber } from '@/components/ui-kit/MaskedAccountNumber';
+import { MaskedNin } from '@/components/ui-kit/MaskedNin';
 import { displayName, initialsOf } from '@/lib/name';
 import { computePayslip, PENSION_EMPLOYER_RATE, PENSION_EMPLOYEE_RATE } from '@/lib/tax';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -114,6 +115,7 @@ interface EmployeeData {
   employee_category: string | null;
   start_date: string | null;
   nin: string | null;
+  nin_last4: string | null;
   nhf_number: string | null;
   nhis_number: string | null;
   tin: string | null;
@@ -357,13 +359,13 @@ const EmployeeProfile = () => {
     // department display, not the entire profile.
     let { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, first_name, last_name, email, phone, role, status, job_title, salary_ngn, next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, bank_name, bank_account_number, bank_account_name, pension_pin, annual_leave_days, department_id, photo_url, date_of_birth, gender, marital_status, address, next_of_kin_email, employee_number, employment_type, employee_category, start_date, nin, nhf_number, nhis_number, tin, pension_enabled, nhf_enabled, nhis_enabled, paye_enabled, tax_id, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, reporting_manager_id, contract_end_date, pfa_name, pfa_code, state_of_residence, pay_group_id, notice_period_days, voluntary_pension_pct, permissions, departments(name)')
+      .select('id, full_name, first_name, last_name, email, phone, role, status, job_title, salary_ngn, next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, bank_name, bank_account_number, bank_account_name, pension_pin, annual_leave_days, department_id, photo_url, date_of_birth, gender, marital_status, address, next_of_kin_email, employee_number, employment_type, employee_category, start_date, nin, nin_last4, nhf_number, nhis_number, tin, pension_enabled, nhf_enabled, nhis_enabled, paye_enabled, tax_id, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, reporting_manager_id, contract_end_date, pfa_name, pfa_code, state_of_residence, pay_group_id, notice_period_days, voluntary_pension_pct, permissions, departments(name)')
       .eq('id', id)
       .single();
     if (error) {
       const fallback = await supabase
         .from('profiles')
-        .select('id, full_name, first_name, last_name, email, phone, role, status, job_title, salary_ngn, next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, bank_name, bank_account_number, bank_account_name, pension_pin, annual_leave_days, department_id, photo_url, date_of_birth, gender, marital_status, address, next_of_kin_email, employee_number, employment_type, employee_category, start_date, nin, nhf_number, nhis_number, tin, pension_enabled, nhf_enabled, nhis_enabled, paye_enabled, tax_id, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, reporting_manager_id, contract_end_date, pfa_name, pfa_code, state_of_residence, pay_group_id, notice_period_days, voluntary_pension_pct, permissions')
+        .select('id, full_name, first_name, last_name, email, phone, role, status, job_title, salary_ngn, next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, bank_name, bank_account_number, bank_account_name, pension_pin, annual_leave_days, department_id, photo_url, date_of_birth, gender, marital_status, address, next_of_kin_email, employee_number, employment_type, employee_category, start_date, nin, nin_last4, nhf_number, nhis_number, tin, pension_enabled, nhf_enabled, nhis_enabled, paye_enabled, tax_id, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, reporting_manager_id, contract_end_date, pfa_name, pfa_code, state_of_residence, pay_group_id, notice_period_days, voluntary_pension_pct, permissions')
         .eq('id', id)
         .single();
       data = fallback.data;
@@ -2633,7 +2635,14 @@ const EmployeeProfile = () => {
                 <dl className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-8 text-sm">
                   <div className="flex items-center justify-between">
                     <dt className="text-muted-foreground">NIN</dt>
-                    <dd className="font-mono">{employee.nin || <span className="text-muted-foreground">Not set</span>}</dd>
+                    <dd>
+                      <MaskedNin
+                        profileId={employee.id}
+                        last4={employee.nin_last4}
+                        canReveal={canManage}
+                        className="text-sm"
+                      />
+                    </dd>
                   </div>
                   <div className="flex items-center justify-between">
                     <dt className="text-muted-foreground">TIN</dt>

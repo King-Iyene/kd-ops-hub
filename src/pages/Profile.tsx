@@ -78,6 +78,7 @@ interface EmploymentRow {
   tax_id: string | null;
   tin: string | null;
   nin: string | null;
+  nin_last4: string | null;
   pension_pin: string | null;
   pension_enabled: boolean | null;
   nhf_number: string | null;
@@ -310,7 +311,7 @@ const ProfilePage = () => {
       supabase.from('profiles')
         .select(`
           job_title, employee_number, employment_type, start_date, annual_leave_days,
-          salary_ngn, tax_id, tin, nin, pension_pin, pension_enabled,
+          salary_ngn, tax_id, tin, nin, nin_last4, pension_pin, pension_enabled,
           nhf_number, nhf_enabled, nhis_number, nhis_enabled, paye_enabled, voluntary_pension_pct,
           bank_name, bank_account_number, bank_account_name,
           date_of_birth, gender, marital_status, address,
@@ -1108,7 +1109,11 @@ const ProfilePage = () => {
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 pt-2">
                   <Field label="Tax ID (TIN)">{employment.tin || employment.tax_id || '—'}</Field>
-                  <Field label="NIN">{employment.nin || '—'}</Field>
+                  <Field label="NIN">
+                    {employment.nin_last4
+                      ? <span className="font-mono">{'•'.repeat(7)}{employment.nin_last4}</span>
+                      : '—'}
+                  </Field>
                   <Field label="PAYE">
                     <EnrolBadge on={employment.paye_enabled !== false} />
                   </Field>

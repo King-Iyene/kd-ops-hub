@@ -9777,6 +9777,7 @@ export type Database = {
           nhis_enabled: boolean | null
           nhis_number: string | null
           nin: string | null
+          nin_enc: string | null
           nin_last4: string | null
           notice_period_days: number | null
           onboarding_complete: boolean | null
@@ -9862,6 +9863,7 @@ export type Database = {
           nhis_enabled?: boolean | null
           nhis_number?: string | null
           nin?: string | null
+          nin_enc?: string | null
           nin_last4?: string | null
           notice_period_days?: number | null
           onboarding_complete?: boolean | null
@@ -9947,6 +9949,7 @@ export type Database = {
           nhis_enabled?: boolean | null
           nhis_number?: string | null
           nin?: string | null
+          nin_enc?: string | null
           nin_last4?: string | null
           notice_period_days?: number | null
           onboarding_complete?: boolean | null
