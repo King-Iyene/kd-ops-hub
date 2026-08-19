@@ -7321,6 +7321,27 @@ export type Database = {
           },
         ]
       }
+      password_failed_verification_attempts: {
+        Row: {
+          attempts: number
+          last_failed_at: string
+          user_id: string
+          window_started_at: string
+        }
+        Insert: {
+          attempts?: number
+          last_failed_at?: string
+          user_id: string
+          window_started_at?: string
+        }
+        Update: {
+          attempts?: number
+          last_failed_at?: string
+          user_id?: string
+          window_started_at?: string
+        }
+        Relationships: []
+      }
       pay_groups: {
         Row: {
           created_at: string
@@ -16001,6 +16022,7 @@ export type Database = {
           }
       current_tenant_id: { Args: never; Returns: string }
       current_user_is_active: { Args: never; Returns: boolean }
+      current_user_is_hr_admin: { Args: never; Returns: boolean }
       current_user_role: { Args: never; Returns: string }
       debit_principal_wallet: {
         Args: {
@@ -16017,6 +16039,7 @@ export type Database = {
         Args: { ciphertext: string }
         Returns: string
       }
+      decrypt_nin: { Args: { ciphertext: string }; Returns: string }
       delete_transfer_limit: {
         Args: { p_id: string; p_ip_hash?: string; p_user_agent?: string }
         Returns: undefined
@@ -16035,6 +16058,7 @@ export type Database = {
         Args: { plaintext: string }
         Returns: string
       }
+      encrypt_nin: { Args: { plaintext: string }; Returns: string }
       ewa_max_draw_percent: { Args: never; Returns: number }
       ewa_min_draw_amount: { Args: never; Returns: number }
       finalize_batch: {
@@ -16167,6 +16191,7 @@ export type Database = {
         Args: { p_entity_id: string; p_entity_type: string }
         Returns: string
       }
+      get_decrypted_nin: { Args: { p_profile_id: string }; Returns: string }
       get_effective_approver: {
         Args: { p_approval_type: string; p_employee_id: string }
         Returns: string
@@ -16189,6 +16214,10 @@ export type Database = {
       get_outstanding_ewa_for_period: {
         Args: { p_employee_id: string; p_period: string }
         Returns: number
+      }
+      hook_password_verification_attempt: {
+        Args: { event: Json }
+        Returns: Json
       }
       is_device_trusted: { Args: { p_device_id: string }; Returns: boolean }
       is_director_disbursement_batch: {
