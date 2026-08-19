@@ -270,7 +270,7 @@ Deno.serve(async (req) => {
     const today = new Date().toISOString().slice(0, 10);
     const { data: usage } = await adminClient
       .from("chatbot_usage")
-      .select("message_count")
+      .select("message_count, tokens_total")
       .eq("user_id", user.id)
       .eq("usage_date", today)
       .maybeSingle();
@@ -310,14 +310,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Load conversation history (last 10 messages)
+    // Load conversation history (last 20 messages, most recent first, then reverse to chronological)
     const { data: historyRows } = await adminClient
       .from("chatbot_messages")
       .select("role, content")
       .eq("conversation_id", convId!)
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
       .limit(20);
-    const history = (historyRows ?? []).map((r) => ({
+    const history = (historyRows ?? []).reverse().map((r) => ({
       role: r.role,
       content: r.content,
     }));
@@ -469,12 +469,12 @@ Deno.serve(async (req) => {
     }
 
     // Bump usage counter
-    const newTokens = (usage?.message_count ? 0 : 0) + result.tokens_in + result.tokens_out;
+    const newTokens = (usage?.tokens_total ?? 0) + result.tokens_in + result.tokens_out;
     if (usage) {
       await adminClient.from("chatbot_usage")
         .update({
           message_count: currentCount + 1,
-          tokens_total: result.tokens_in + result.tokens_out,
+          tokens_total: newTokens,
         })
         .eq("user_id", user.id)
         .eq("usage_date", today);

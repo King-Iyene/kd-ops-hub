@@ -7,6 +7,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO, differenceInDays } from 'date-fns';
+import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -186,15 +187,13 @@ export default function Training() {
   });
 
   const exportCSV = () => {
-    const header = 'Employee,Type,Title,Provider,Category,Mandatory,Start,Completion,Expiry,Score,Status,Cost (₦)';
+    const header = ['Employee', 'Type', 'Title', 'Provider', 'Category', 'Mandatory', 'Start', 'Completion', 'Expiry', 'Score', 'Status', 'Cost (₦)'];
     const rows = filtered.map(r => [
       nameOf(r.employee_id), r.record_type, r.title, r.provider ?? '', CATEGORY_LABEL[r.category],
       r.is_mandatory ? 'Yes' : 'No', r.start_date, r.completion_date ?? '', r.expiry_date ?? '',
       r.score ?? '', effectiveStatus(r), r.cost_ngn ?? '',
-    ].map(c => `"${String(c).replace(/"/g, '""')}"`).join(','));
-    const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `training-${format(new Date(), 'yyyy-MM-dd')}.csv`; a.click();
+    ]);
+    downloadCsv(`training-${format(new Date(), 'yyyy-MM-dd')}.csv`, toCsv(header, rows));
   };
 
   const expiring = records.filter(r => r.expiry_date && differenceInDays(parseISO(r.expiry_date), new Date()) <= 30 && differenceInDays(parseISO(r.expiry_date), new Date()) >= 0).length;

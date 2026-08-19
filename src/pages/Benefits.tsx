@@ -6,6 +6,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO, differenceInDays } from 'date-fns';
+import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -210,6 +211,7 @@ export default function Benefits() {
   });
 
   function exportCSV() {
+    const header = ['Employee', 'Type', 'Provider', 'Plan', 'Policy No', 'RSA PIN', 'Premium (₦)', 'Frequency', 'Enrolled', 'Expires', 'Status'];
     const rows = filtered.map(b => {
       const emp = profiles.find(p => p.id === b.employee_id);
       return [
@@ -224,11 +226,9 @@ export default function Benefits() {
         b.enrollment_date ?? '',
         b.expiry_date ?? '',
         b.status,
-      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+      ];
     });
-    const csv = ['Employee,Type,Provider,Plan,Policy No,RSA PIN,Premium (₦),Frequency,Enrolled,Expires,Status', ...rows].join('\n');
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = 'benefits.csv'; a.click();
+    downloadCsv('benefits.csv', toCsv(header, rows));
   }
 
   function expiryBadge(expiry: string | null) {

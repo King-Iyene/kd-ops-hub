@@ -172,6 +172,7 @@ export default function Assistant() {
       const { data } = await supabase
         .from('chatbot_conversations')
         .select('id, title, pinned, updated_at')
+        .eq('user_id', profile.id)
         .order('pinned', { ascending: false })
         .order('updated_at', { ascending: false })
         .limit(50);

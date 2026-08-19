@@ -6,6 +6,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
+import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -196,6 +197,7 @@ export default function Grievances() {
   });
 
   function exportCSV() {
+    const header = ['Subject', 'Category', 'Severity', 'Status', 'Reporter', 'Assigned To', 'Created', 'Resolution Notes'];
     const rows = filtered.map(g => [
       g.subject,
       CATEGORY_CONFIG[g.category].label,
@@ -205,11 +207,8 @@ export default function Grievances() {
       profileName(g.assigned_to),
       format(parseISO(g.created_at), 'yyyy-MM-dd'),
       g.resolution_notes ?? '',
-    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
-    const csv = ['Subject,Category,Severity,Status,Reporter,Assigned To,Created,Resolution Notes', ...rows].join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = 'grievances.csv'; a.click();
+    ]);
+    downloadCsv('grievances.csv', toCsv(header, rows));
   }
 
   const totalCount = grievances.length;

@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatNaira } from '@/lib/format';
 import { format, parseISO, differenceInDays, addDays } from 'date-fns';
+import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { MobileFilterBar } from '@/components/ui-kit/MobileFilterBar';
@@ -191,16 +192,14 @@ export default function Vendors() {
   });
 
   const exportCSV = () => {
-    const header = 'Name,Category,Status,Contact,Email,Phone,Payment Terms,Contract Value,Contract End,RC Number,TIN,Bank';
+    const header = ['Name', 'Category', 'Status', 'Contact', 'Email', 'Phone', 'Payment Terms', 'Contract Value', 'Contract End', 'RC Number', 'TIN', 'Bank'];
     const rows = filtered.map(v => [
       v.name, CATEGORY_LABEL[v.category], v.status, v.contact_name ?? '',
       v.contact_email ?? '', v.contact_phone ?? '', v.payment_terms,
       v.contract_value_ngn ?? '', v.contract_end ?? '', v.rc_number ?? '',
       v.tin ?? '', v.bank_name ?? '',
-    ].map(c => `"${String(c).replace(/"/g, '""')}"`).join(','));
-    const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `vendors-${format(new Date(), 'yyyy-MM-dd')}.csv`; a.click();
+    ]);
+    downloadCsv(`vendors-${format(new Date(), 'yyyy-MM-dd')}.csv`, toCsv(header, rows));
   };
 
   const expiringCount = vendors.filter(v =>

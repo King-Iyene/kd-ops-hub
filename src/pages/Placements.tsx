@@ -831,44 +831,46 @@ function Placements() {
 
   // ── Export ──
   function exportCsv() {
-    const rows = filtered.map((p) => ({
-      Employee: p.employee_name,
-      Client: p.client_name,
-      Category: CATEGORY_LABELS[p.placement_category],
-      'Payment Direction': TYPE_SHORT[p.placement_type],
-      'Commission %': p.commission_pct,
-      'Client Rate (USD)': p.client_rate_usd ?? '',
-      'FX Rate': p.fx_rate_used ?? '',
-      'Client Rate (NGN)': p.client_rate_ngn,
-      'Employee Rate (NGN)': p.employee_rate_ngn,
-      'Commission (NGN)': p.commission_ngn,
-      'Start Date': p.start_date,
-      'End Date': p.end_date ?? 'Ongoing',
-      Status: STATUS_LABELS[p.status],
-    }));
-    downloadCsv(toCsv(rows), 'placements-export.csv');
+    const header = ['Employee', 'Client', 'Category', 'Payment Direction', 'Commission %', 'Client Rate (USD)', 'FX Rate', 'Client Rate (NGN)', 'Employee Rate (NGN)', 'Commission (NGN)', 'Start Date', 'End Date', 'Status'];
+    const rows = filtered.map((p) => [
+      p.employee_name,
+      p.client_name,
+      CATEGORY_LABELS[p.placement_category],
+      TYPE_SHORT[p.placement_type],
+      p.commission_pct,
+      p.client_rate_usd ?? '',
+      p.fx_rate_used ?? '',
+      p.client_rate_ngn,
+      p.employee_rate_ngn,
+      p.commission_ngn,
+      p.start_date,
+      p.end_date ?? 'Ongoing',
+      STATUS_LABELS[p.status],
+    ]);
+    downloadCsv('placements-export.csv', toCsv(header, rows));
     toast({ title: 'Exported', description: `${rows.length} placements exported.` });
   }
 
   function exportPaymentsCsv() {
-    const rows = filteredPayments.map((pp) => ({
-      Employee: pp.employee_name,
-      Client: pp.client_name,
-      Month: monthLabel(pp.month),
-      'Gross (USD)': pp.gross_amount_usd ?? '',
-      'FX Rate': pp.fx_rate_used ?? '',
-      'Gross (NGN)': pp.gross_amount_ngn,
-      'Commission (NGN)': pp.commission_ngn,
-      'Operator Net (NGN)': pp.net_employee_ngn,
-      'Client Paid': pp.client_paid ? 'Yes' : 'No',
-      'Client Paid At': pp.client_paid_at ? formatDate(pp.client_paid_at) : '',
-      'Client Paid Ref': pp.client_paid_ref ?? '',
-      'Operator Paid': pp.operator_paid ? 'Yes' : 'No',
-      'Operator Paid At': pp.operator_paid_at ? formatDate(pp.operator_paid_at) : '',
-      'Operator Paid Ref': pp.operator_paid_ref ?? '',
-      Status: pp.status,
-    }));
-    downloadCsv(toCsv(rows), 'placement-payments-export.csv');
+    const header = ['Employee', 'Client', 'Month', 'Gross (USD)', 'FX Rate', 'Gross (NGN)', 'Commission (NGN)', 'Operator Net (NGN)', 'Client Paid', 'Client Paid At', 'Client Paid Ref', 'Operator Paid', 'Operator Paid At', 'Operator Paid Ref', 'Status'];
+    const rows = filteredPayments.map((pp) => [
+      pp.employee_name,
+      pp.client_name,
+      monthLabel(pp.month),
+      pp.gross_amount_usd ?? '',
+      pp.fx_rate_used ?? '',
+      pp.gross_amount_ngn,
+      pp.commission_ngn,
+      pp.net_employee_ngn,
+      pp.client_paid ? 'Yes' : 'No',
+      pp.client_paid_at ? formatDate(pp.client_paid_at) : '',
+      pp.client_paid_ref ?? '',
+      pp.operator_paid ? 'Yes' : 'No',
+      pp.operator_paid_at ? formatDate(pp.operator_paid_at) : '',
+      pp.operator_paid_ref ?? '',
+      pp.status,
+    ]);
+    downloadCsv('placement-payments-export.csv', toCsv(header, rows));
     toast({ title: 'Exported', description: `${rows.length} payment records exported.` });
   }
 

@@ -2319,16 +2319,40 @@ const Fleet = () => {
       expErr = error;
       expenseIdForApproval = (inserted as any)?.id;
     }
+    let expenseResult: { status: string } | null = null;
     if (expenseIdForApproval && (existingExp as any)?.status !== 'approved') {
-      try { await approveExpense(expenseIdForApproval); }
+      try { expenseResult = await approveExpense(expenseIdForApproval); }
       catch (err: any) { expErr = { message: err?.message || 'approve_expense failed' }; }
     }
-    if (expErr) {
+    // If the expense came back needing a second approval (high-value cap),
+    // revert the fuel request to 'pending' so it doesn't appear fully
+    // approved while the expense is still waiting on a co-approver.
+    if (expenseResult && expenseResult.status !== 'approved') {
+      await supabase
+        .from('fuel_requests')
+        .update({ status: 'pending' })
+        .eq('id', request.id);
       toast({
-        title: 'Approved, but expense entry failed',
+        title: 'Awaiting second approval',
+        description: 'This expense requires a second approver before the fuel request can be fully approved.',
+      });
+      await fetchData();
+      return;
+    }
+    if (expErr) {
+      // Expense entry failed — revert fuel request to pending so the
+      // two records don't get out of sync.
+      await supabase
+        .from('fuel_requests')
+        .update({ status: 'pending' })
+        .eq('id', request.id);
+      toast({
+        title: 'Approval rolled back — expense entry failed',
         description: expErr.message,
         variant: 'destructive',
       });
+      await fetchData();
+      return;
     }
     burst({ palette: 'success', count: 50 });
     await logAudit(
@@ -2346,17 +2370,10 @@ const Fleet = () => {
       });
     }
 
-    // Update vehicle fuel balance when a vehicle was specified on the request
-    if ((request as any).vehicle_id && request.litres_est && request.litres_est > 0) {
-      const veh = vehicles.find((v) => v.id === (request as any).vehicle_id);
-      if (veh) {
-        const newBalance = Math.min(veh.current_fuel_litres + request.litres_est, veh.tank_capacity_litres);
-        await supabase
-          .from('vehicles')
-          .update({ current_fuel_litres: newBalance, last_refuel_at: now })
-          .eq('id', veh.id);
-      }
-    }
+    // NOTE: Vehicle fuel level is NOT updated here at approval time.
+    // The actual litres filled are added once at receipt upload (see
+    // "bump vehicle fuel level from actual litres filled" below) to
+    // avoid double-counting the estimate and the receipt amount.
 
     // Phase 2 — fuel-reimbursement batch lands in pending_approval and waits
     // for an explicit approver action in BatchDetail. Auto-funding here used

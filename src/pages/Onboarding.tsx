@@ -7,6 +7,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
+import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -287,6 +288,7 @@ export default function Onboarding() {
 
   function exportCSV() {
     const rows: string[] = [];
+    const header = ['Employee', 'Type', 'Target Date', 'Progress', 'Completed', 'Total'];
     for (const cl of filtered) {
       const emp = profiles.find(p => p.id === cl.employee_id);
       const items = itemsMap[cl.id] ?? [];
@@ -298,12 +300,9 @@ export default function Onboarding() {
         `${status.pct}%`,
         items.filter(i => i.is_completed).length,
         items.length,
-      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+      ]);
     }
-    const csv = ['Employee,Type,Target Date,Progress,Completed,Total', ...rows].join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = 'onboarding.csv'; a.click();
+    downloadCsv('onboarding.csv', toCsv(header, rows));
   }
 
   const empName = (id: string) => profiles.find(p => p.id === id)?.full_name ?? '—';

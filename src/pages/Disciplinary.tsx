@@ -7,6 +7,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
+import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -233,6 +234,7 @@ export default function Disciplinary() {
   });
 
   function exportCSV() {
+    const header = ['Employee', 'Date', 'Type', 'Subject', 'Outcome', 'Expunged', 'Acknowledged'];
     const rows = filtered.map(r => {
       const emp = profiles.find(p => p.id === r.employee_id);
       return [
@@ -243,12 +245,9 @@ export default function Disciplinary() {
         r.outcome ?? '',
         r.is_expunged ? 'Yes' : 'No',
         r.acknowledged_at ? 'Yes' : 'No',
-      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+      ];
     });
-    const csv = ['Employee,Date,Type,Subject,Outcome,Expunged,Acknowledged', ...rows].join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = 'disciplinary.csv'; a.click();
+    downloadCsv('disciplinary.csv', toCsv(header, rows));
   }
 
   const empName = (id: string | null) => id ? (profiles.find(p => p.id === id)?.full_name ?? '—') : '—';

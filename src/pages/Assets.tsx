@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatNaira } from '@/lib/format';
 import { format, parseISO, differenceInDays, differenceInMonths } from 'date-fns';
+import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { MobileFilterBar } from '@/components/ui-kit/MobileFilterBar';
@@ -237,16 +238,14 @@ export default function Assets() {
   });
 
   const exportCSV = () => {
-    const header = 'Asset No,Name,Category,Status,Purchase Date,Cost (₦),Book Value (₦),Depreciation (₦),Assigned To,Insurance Expiry';
+    const header = ['Asset No', 'Name', 'Category', 'Status', 'Purchase Date', 'Cost (₦)', 'Book Value (₦)', 'Depreciation (₦)', 'Assigned To', 'Insurance Expiry'];
     const nameOf = (id: string | null) => id ? (profiles.find(p => p.id === id)?.full_name ?? '') : '';
     const rows = filtered.map(a => [
       a.asset_number, a.name, CATEGORY_META[a.category].label, a.status,
       a.purchase_date, a.cost_ngn, bookValue(a).toFixed(2), totalDepreciation(a).toFixed(2),
       nameOf(a.assigned_to), a.insurance_expiry ?? '',
-    ].map(c => `"${String(c).replace(/"/g, '""')}"`).join(','));
-    const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `assets-${format(new Date(), 'yyyy-MM-dd')}.csv`; a.click();
+    ]);
+    downloadCsv(`assets-${format(new Date(), 'yyyy-MM-dd')}.csv`, toCsv(header, rows));
   };
 
   const totalCost = assets.filter(a => a.status === 'active').reduce((s, a) => s + a.cost_ngn, 0);

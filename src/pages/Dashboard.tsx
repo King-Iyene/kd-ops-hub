@@ -388,7 +388,7 @@ const Dashboard = () => {
         // Used only by the Budget Utilization chart below (buckets actual
         // spend into each budget's period_start/period_end window).
         supabase.from('payment_batches').select('id, total_amount, payment_date, status').in('status', ['processed', 'partially_processed']).is('deleted_at', null).limit(500),
-        supabase.from('payment_batches').select('id, name, total_amount, scheduled_date, status').gte('scheduled_date', today).lte('scheduled_date', sevenDaysFromNow).eq('status', 'scheduled').is('deleted_at', null).order('scheduled_date', { ascending: true }).limit(5),
+        supabase.from('payment_batches').select('id, name, total_amount, scheduled_date, status').gte('scheduled_date', today).lte('scheduled_date', sevenDaysFromNow).not('status', 'in', '("rejected","cancelled")').is('deleted_at', null).order('scheduled_date', { ascending: true }).limit(5),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'active').neq('is_anonymised', true),
       ]);
 

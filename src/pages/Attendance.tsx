@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
+import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import ClockInWidget from '@/components/hr/ClockInWidget';
@@ -216,6 +217,7 @@ export default function Attendance() {
   });
 
   function exportCSV() {
+    const header = ['Employee', 'Date', 'Status', 'Clock In', 'Clock Out', 'Overtime (min)', 'Notes'];
     const rows = filtered.map(r => {
       const emp = profiles.find(p => p.id === r.employee_id);
       return [
@@ -226,12 +228,9 @@ export default function Attendance() {
         r.clock_out ?? '',
         r.overtime_minutes,
         r.notes ?? '',
-      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+      ];
     });
-    const csv = ['Employee,Date,Status,Clock In,Clock Out,Overtime (min),Notes', ...rows].join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = `attendance-${monthStart.slice(0, 7)}.csv`; a.click();
+    downloadCsv(`attendance-${monthStart.slice(0, 7)}.csv`, toCsv(header, rows));
   }
 
   // Summary counts for the current filtered month

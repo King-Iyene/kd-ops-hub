@@ -165,11 +165,16 @@ export const NOTIFICATION_TEMPLATES = {
     };
   },
 
-  fleet_anomaly_critical: (p: { driver_name: string; station: string; severity: string; flags: string }): RenderedTemplate => {
+  fleet_anomaly_critical: (p: { driver_name: string; station?: string; description?: string; severity: string; flags: string }): RenderedTemplate => {
+    const context = p.station
+      ? `receipt at ${p.station}`
+      : p.description
+        ? p.description
+        : 'repair request';
     return {
-      title: `Fleet alert: ${p.severity} anomaly on fuel receipt`,
+      title: `Fleet alert: ${p.severity} anomaly on ${p.station ? 'fuel receipt' : 'repair request'}`,
       body: clamp(
-        `KD Squares Fleet: ${p.driver_name}'s receipt at ${p.station} flagged ${p.severity}. ` +
+        `KD Squares Fleet: ${p.driver_name}'s ${context} flagged ${p.severity}. ` +
         `${p.flags}. Review immediately in Fleet → Anomalies.`,
       ),
     };

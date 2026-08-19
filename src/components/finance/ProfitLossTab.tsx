@@ -43,7 +43,6 @@ export default function ProfitLossTab() {
   const [loading, setLoading] = useState(true);
   const [monthsBack, setMonthsBack] = useState('12');
   const [rows, setRows] = useState<MonthlyRow[]>([]);
-  const [monthlyRevenue, setMonthlyRevenue] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -54,35 +53,49 @@ export default function ProfitLossTab() {
         cutoff.setMonth(cutoff.getMonth() - n);
         const cutoffStr = cutoff.toISOString().slice(0, 10);
 
-        const [settingsRes, payrollRes, subsRes, expensesRes, transfersRes] = await Promise.all([
+        const [revenueRes, payrollRes, subsRes, expensesRes, transfersRes] = await Promise.all([
           supabase
-            .from('company_settings')
-            .select('monthly_revenue_estimate_ngn')
-            .eq('id', '00000000-0000-0000-0000-000000000001')
-            .maybeSingle(),
+            .from('revenue_entries')
+            .select('month, amount_ngn')
+            .gte('month', cutoffStr.slice(0, 7))
+            .order('month', { ascending: true }),
           supabase
-            .from('payroll_runs' as any)
-            .select('run_month, total_net_pay')
-            .gte('run_month', cutoffStr)
-            .order('run_month'),
+            .from('payroll_runs')
+            .select('period, total_burn_ngn')
+            .in('status', ['approved', 'paid'])
+            .gte('period', cutoffStr)
+            .order('period'),
           supabase
-            .from('subscriptions' as any)
-            .select('billing_period, amount_ngn, next_billing_date, status')
+            .from('subscriptions')
+            .select('billing_cycle, amount_ngn, next_renewal_date, status')
             .in('status', ['active', 'trial']),
           supabase
-            .from('expenses' as any)
-            .select('amount, created_at, status')
-            .gte('created_at', cutoffStr)
-            .in('status', ['approved', 'reimbursed']),
+            .from('expenses')
+            .select('amount_ngn, date, status')
+            .eq('status', 'approved')
+            .is('deleted_at', null)
+            .gte('date', cutoffStr),
           supabase
-            .from('payment_batches' as any)
-            .select('total_amount, created_at, status')
-            .gte('created_at', cutoffStr)
-            .in('status', ['completed', 'processing']),
+            .from('payment_batches')
+            .select('total_amount, payment_date, status')
+            .in('status', ['processed', 'partially_processed'])
+            .is('deleted_at', null)
+            .gte('payment_date', cutoffStr),
         ]);
 
-        const rev = (settingsRes.data as any)?.monthly_revenue_estimate_ngn ?? 0;
-        setMonthlyRevenue(rev);
+        // Fail loudly on query errors — silent fallbacks hid wrong columns for months
+        if (revenueRes.error) throw revenueRes.error;
+        if (payrollRes.error) throw payrollRes.error;
+        if (subsRes.error) throw subsRes.error;
+        if (expensesRes.error) throw expensesRes.error;
+        if (transfersRes.error) throw transfersRes.error;
+
+        // Build a lookup of actual monthly revenue from revenue_entries
+        const revenueByMonth = new Map<string, number>();
+        for (const re of (revenueRes.data ?? []) as any[]) {
+          const key = String(re.month).slice(0, 7);
+          revenueByMonth.set(key, (revenueByMonth.get(key) ?? 0) + Number(re.amount_ngn ?? 0));
+        }
 
         const monthMap = new Map<string, MonthlyRow>();
         for (let i = 0; i < n; i++) {
@@ -92,7 +105,7 @@ export default function ProfitLossTab() {
           const label = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
           monthMap.set(key, {
             month: label,
-            revenue: rev,
+            revenue: revenueByMonth.get(key) ?? 0,
             payroll: 0,
             subscriptions: 0,
             expenses: 0,
@@ -105,27 +118,27 @@ export default function ProfitLossTab() {
         }
 
         for (const pr of (payrollRes.data ?? []) as any[]) {
-          const key = String(pr.run_month).slice(0, 7);
+          const key = String(pr.period).slice(0, 7);
           const row = monthMap.get(key);
-          if (row) row.payroll += Number(pr.total_net_pay ?? 0);
+          if (row) row.payroll += Number(pr.total_burn_ngn ?? 0);
         }
 
         const monthlySubs = ((subsRes.data ?? []) as any[]).reduce((sum: number, s: any) => {
           const amt = Number(s.amount_ngn ?? 0);
-          return sum + (s.billing_period === 'yearly' ? amt / 12 : s.billing_period === 'quarterly' ? amt / 3 : amt);
+          return sum + (s.billing_cycle === 'yearly' ? amt / 12 : s.billing_cycle === 'quarterly' ? amt / 3 : amt);
         }, 0);
         for (const row of monthMap.values()) {
           row.subscriptions = monthlySubs;
         }
 
         for (const exp of (expensesRes.data ?? []) as any[]) {
-          const key = String(exp.created_at).slice(0, 7);
+          const key = String(exp.date).slice(0, 7);
           const row = monthMap.get(key);
-          if (row) row.expenses += Number(exp.amount ?? 0);
+          if (row) row.expenses += Number(exp.amount_ngn ?? 0);
         }
 
         for (const tx of (transfersRes.data ?? []) as any[]) {
-          const key = String(tx.created_at).slice(0, 7);
+          const key = String(tx.payment_date).slice(0, 7);
           const row = monthMap.get(key);
           if (row) row.transfers += Number(tx.total_amount ?? 0);
         }
@@ -380,7 +393,7 @@ export default function ProfitLossTab() {
       </Card>
 
       <p className="text-[10px] text-muted-foreground text-center">
-        Revenue uses the monthly estimate from Company Settings. For accurate P&amp;L, update revenue monthly or connect an invoicing integration.
+        Revenue is pulled from the revenue ledger (Reports &gt; Revenue). Months with no entries show &#8358;0.
       </p>
     </div>
   );

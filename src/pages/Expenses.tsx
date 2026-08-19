@@ -1025,9 +1025,11 @@ const Expenses = () => {
     try {
       for (const e of pending) {
         try {
-          await approveExpense(e.id);
+          const result = await approveExpense(e.id);
           succeeded++;
-          if (e.fuel_request_id) await syncFuelRequest(e.fuel_request_id, 'approved');
+          if (e.fuel_request_id && result?.status === 'approved') {
+            await syncFuelRequest(e.fuel_request_id, 'approved');
+          }
         } catch (err: any) {
           failures.push({
             title: `${e.category.replace(/_/g, ' ')} (${formatNaira(e.amount_ngn || 0)})`,
@@ -1070,9 +1072,11 @@ const Expenses = () => {
     try {
       for (const e of rows) {
         try {
-          await approveExpense(e.id);
+          const result = await approveExpense(e.id);
           succeeded++;
-          if (e.fuel_request_id) await syncFuelRequest(e.fuel_request_id, 'approved');
+          if (e.fuel_request_id && result?.status === 'approved') {
+            await syncFuelRequest(e.fuel_request_id, 'approved');
+          }
         } catch (err: any) {
           failures.push({
             title: `${e.category.replace(/_/g, ' ')} (${formatNaira(e.amount_ngn || 0)})`,

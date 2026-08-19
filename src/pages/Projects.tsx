@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { formatNaira, formatDate, daysUntil } from '@/lib/format';
 import { format, parseISO, isPast } from 'date-fns';
+import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -344,18 +345,15 @@ export default function Projects() {
   };
 
   const exportCSV = () => {
-    const header = 'Name,Space,Client,Owner,Status,Priority,Budget,Start,End,Milestones,Tasks';
+    const header = ['Name', 'Space', 'Client', 'Owner', 'Status', 'Priority', 'Budget', 'Start', 'End', 'Milestones', 'Tasks'];
     const rows = filtered.map(p => {
       const ms = milestones.filter(m => m.project_id === p.id).length;
       const ts = taskCountsByProject.get(p.id)?.total ?? 0;
       const space = p.space_id ? spaces.find(s => s.id === p.space_id)?.name ?? '' : '';
       return [p.name, space, clientOf(p.client_id), nameOf(p.owner_id), p.status, p.priority,
-        p.budget_ngn ?? '', p.start_date ?? '', p.end_date ?? '', ms, ts]
-        .map(c => `"${String(c).replace(/"/g, '""')}"`).join(',');
+        p.budget_ngn ?? '', p.start_date ?? '', p.end_date ?? '', ms, ts];
     });
-    const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `projects-${format(new Date(), 'yyyy-MM-dd')}.csv`; a.click();
+    downloadCsv(`projects-${format(new Date(), 'yyyy-MM-dd')}.csv`, toCsv(header, rows));
   };
 
   const activeSpaceName = selectedSpace

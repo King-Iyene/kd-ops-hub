@@ -10,6 +10,7 @@ import { FileSignature } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
+import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -330,21 +331,18 @@ export default function Recruitment() {
   });
 
   function exportCSV() {
-    const rows: string[] = [];
-    for (const o of filteredOpenings) {
+    const header = ['Title', 'Department', 'Type', 'Status', 'Openings', 'Applicants', 'Hired', 'Closing Date'];
+    const rows = filteredOpenings.map(o => {
       const dept = departments.find(d => d.id === o.department_id);
       const oApps = applicants.filter(a => a.opening_id === o.id);
-      rows.push([
+      return [
         o.title, dept?.name ?? '', EMP_TYPE_LABEL[o.employment_type],
         o.status, o.opening_count, oApps.length,
         oApps.filter(a => a.stage === 'hired').length,
         o.closing_date ?? '',
-      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
-    }
-    const csv = ['Title,Department,Type,Status,Openings,Applicants,Hired,Closing Date', ...rows].join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = 'recruitment.csv'; a.click();
+      ];
+    });
+    downloadCsv('recruitment.csv', toCsv(header, rows));
   }
 
   const deptName = (id: string | null) => departments.find(d => d.id === id)?.name ?? '—';

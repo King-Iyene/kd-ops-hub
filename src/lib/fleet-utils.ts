@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { reverseGeocode as googleReverseGeocode } from '@/lib/maps';
+import { toCsv, downloadCsv } from '@/lib/csv';
 
 export interface FieldStaff {
   id: string;
@@ -325,28 +326,8 @@ export async function getReceiptDebt(employeeId: string): Promise<ReceiptDebt> {
 export function exportCsv<T extends Record<string, unknown>>(rows: T[], filename: string): void {
   if (rows.length === 0) return;
   const headers = Object.keys(rows[0]);
-  const escape = (v: unknown) => {
-    if (v == null) return '';
-    let s = String(v);
-    // Formula injection guard — see src/lib/csv.ts's csvEscape for why.
-    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-    return s.includes(',') || s.includes('"') || s.includes('\n')
-      ? `"${s.replace(/"/g, '""')}"`
-      : s;
-  };
-  const lines = [
-    headers.join(','),
-    ...rows.map((r) => headers.map((h) => escape(r[h])).join(',')),
-  ];
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const data = rows.map((r) => headers.map((h) => r[h]));
+  downloadCsv(filename, toCsv(headers, data));
 }
 
 export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {

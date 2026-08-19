@@ -932,10 +932,22 @@ const Payroll = () => {
           .lte('start_date', periodEndDate)
           .gte('end_date', periodStartDate);
         if (unpaidLeaveErr) throw unpaidLeaveErr;
+        const MS_PER_DAY = 86_400_000;
         for (const r of (unpaidLeaveRows || []) as any[]) {
-          if (!r.employee_id) continue;
+          if (!r.employee_id || !r.start_date || !r.end_date) continue;
+          // Clip leave interval to the payroll period so cross-month
+          // requests are only charged for the days that fall within this
+          // period (fixes double-deduction when leave spans a month boundary).
+          const leaveStart = new Date(r.start_date + 'T00:00:00').getTime();
+          const leaveEnd   = new Date(r.end_date   + 'T00:00:00').getTime();
+          const pStart     = new Date(periodStartDate + 'T00:00:00').getTime();
+          const pEnd       = new Date(periodEndDate   + 'T00:00:00').getTime();
+          const overlapDays = Math.max(0,
+            Math.floor((Math.min(leaveEnd, pEnd) - Math.max(leaveStart, pStart)) / MS_PER_DAY) + 1,
+          );
+          if (overlapDays <= 0) continue;
           const prev = unpaidLeaveDaysByEmployee.get(r.employee_id) || 0;
-          unpaidLeaveDaysByEmployee.set(r.employee_id, prev + Number(r.days_requested || 0));
+          unpaidLeaveDaysByEmployee.set(r.employee_id, prev + overlapDays);
         }
       } catch (leaveErr: any) {
         console.warn('[KDOps] unpaid leave lookup failed, proceeding with 0 unpaid days:', leaveErr?.message || leaveErr);
