@@ -15477,6 +15477,15 @@ export type Database = {
         Returns: undefined
       }
       activate_my_profile: { Args: never; Returns: undefined }
+      adjust_vehicle_fuel_level: {
+        Args: {
+          p_delta_litres: number
+          p_last_refuel_at?: string
+          p_set_absolute?: number
+          p_vehicle_id: string
+        }
+        Returns: number
+      }
       approve_advance_request: {
         Args: { p_request_id: string }
         Returns: {
