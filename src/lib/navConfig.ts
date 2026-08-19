@@ -170,7 +170,7 @@ export const ALL_NAV: NavItem[] = [
 export const NAV_GROUPS = [
   { key: 'moneyOut',   label: 'Money Out',           titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Cards', 'Expenses'] },
   { key: 'moneyIn',    label: 'Money In & Treasury',  titles: ['Invoices', 'Assets', 'Cash Flow', 'Clients'] },
-  { key: 'risk',       label: 'Risk & Controls',     titles: ['Budgets', 'Compliance', 'Anomalies', 'Audit Log'] },
+  { key: 'risk',       label: 'Risk & Controls',     titles: ['Budgets', 'Compliance', 'Anomalies'] },
   { key: 'coreHr',     label: 'Core HR',              titles: ['Employees', 'Contractors', 'Placements', 'Attendance'] },
   { key: 'timeLeave',  label: 'Time & Leave',         titles: ['Leave', 'Shifts', 'Timesheets'] },
   { key: 'talent',     label: 'Talent',               titles: ['Recruitment', 'Onboarding', 'Training', 'Performance', 'Succession'] },
@@ -181,7 +181,7 @@ export const NAV_GROUPS = [
   { key: 'comms',      label: 'Communication',        titles: ['Assistant', 'Messages'] },
   { key: 'intel',      label: 'Intelligence',         titles: ['Reports', 'HR Analytics', 'Knowledge', 'Documents'] },
   { key: 'crm',        label: 'CRM',                 titles: ['Contacts', 'Referrals', 'Public Links', 'Communications'] },
-  { key: 'admin',      label: 'Admin',               titles: ['Approval Workflows', 'Settings', 'Principal Disbursements'] },
+  { key: 'admin',      label: 'Admin',               titles: ['Audit Log', 'Approval Workflows', 'Settings', 'Principal Disbursements'] },
 ] as const;
 
 export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];
