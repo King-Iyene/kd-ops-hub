@@ -35,6 +35,7 @@ import {
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { BeneficiaryCsvImport, type ImportedBeneficiary } from '@/components/BeneficiaryCsvImport';
 import { heyreachDisplayStatus } from '@/lib/heyreach-status';
+import { computePayslip } from '@/lib/tax';
 
 type BatchType = 'contractor' | 'employee_salary' | 'advance' | 'prize';
 
@@ -87,6 +88,14 @@ interface Employee {
   bank_account_name: string | null;
   salary_ngn: number | null;
   job_title: string | null;
+  pension_enabled: boolean | null;
+  nhf_enabled: boolean | null;
+  paye_enabled: boolean | null;
+  use_salary_components: boolean | null;
+  basic_ngn: number | null;
+  housing_ngn: number | null;
+  transport_ngn: number | null;
+  other_allowances_ngn: number | null;
 }
 
 const BATCH_TYPES: {
@@ -219,7 +228,7 @@ const NewPaymentBatch = () => {
   useEffect(() => {
     supabase
       .from('profiles')
-      .select('id, full_name, first_name, last_name, bank_name, bank_account_number, bank_account_name, salary_ngn, job_title')
+      .select('id, full_name, first_name, last_name, bank_name, bank_account_number, bank_account_name, salary_ngn, job_title, pension_enabled, nhf_enabled, paye_enabled, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn')
       .eq('status', 'active')
       .order('full_name')
       .limit(500)
@@ -433,6 +442,22 @@ const NewPaymentBatch = () => {
     }
   };
 
+  const employeeNetSalary = (e: Employee): number => {
+    const gross = e.salary_ngn || 0;
+    if (gross <= 0) return 0;
+    const slip = computePayslip({
+      grossMonthlyNgn: gross,
+      pensionEnabled: e.pension_enabled !== false,
+      nhfEnabled: e.nhf_enabled === true,
+      payeEnabled: e.paye_enabled !== false,
+      useComponents: e.use_salary_components === true,
+      basicMonthlyNgn: e.basic_ngn || 0,
+      housingMonthlyNgn: e.housing_ngn || 0,
+      transportMonthlyNgn: e.transport_ngn || 0,
+    });
+    return slip.netMonthlyNgn;
+  };
+
   // Employee helpers
   const selectedEmployeeIds = useMemo(
     () => new Set(items.map((i) => i.employee_id).filter(Boolean)),
@@ -452,7 +477,7 @@ const NewPaymentBatch = () => {
           full_name: empDisplayName(e),
           bank_name: e.bank_name || '',
           account_number: e.bank_account_number || '',
-          amount_ngn: batchType === 'employee_salary' ? (e.salary_ngn || 0) : 0,
+          amount_ngn: batchType === 'employee_salary' ? employeeNetSalary(e) : 0,
           reference: '',
           employee_id: e.id,
           item_type: 'employee',
@@ -914,7 +939,7 @@ const NewPaymentBatch = () => {
                   </CardTitle>
                   {batchType === 'employee_salary' && (
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Amounts pre-filled from each employee's monthly salary
+                      Amounts pre-filled as net pay (after PAYE, pension, NHF deductions)
                     </p>
                   )}
                 </div>
@@ -1351,6 +1376,18 @@ const NewPaymentBatch = () => {
               <div><p className="text-xs text-muted-foreground">Beneficiaries</p><p className="font-medium text-sm">{items.length}</p></div>
               <div><p className="text-xs text-muted-foreground">Total Amount</p><p className="font-bold text-lg currency">{formatNaira(totalAmount)}</p></div>
             </div>
+
+            {items.some((i) => i.item_type === 'adhoc' && !i.account_name) && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 p-3 text-sm">
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium text-amber-800 dark:text-amber-300">Unverified bank accounts</p>
+                  <p className="text-amber-700 dark:text-amber-400 text-xs mt-0.5">
+                    {items.filter((i) => i.item_type === 'adhoc' && !i.account_name).length} CSV-imported beneficiar{items.filter((i) => i.item_type === 'adhoc' && !i.account_name).length === 1 ? 'y has' : 'ies have'} not been bank-verified. Payments may fail or reach the wrong account. Consider verifying accounts before submitting.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto">

@@ -135,14 +135,15 @@ export default function Assistant() {
       .from('chatbot_messages')
       .select('id, role, content, attachments, tools_used')
       .eq('conversation_id', convId)
-      .order('created_at', { ascending: true });
+      .eq('user_id', profile.id)
+      .order('created_at', { ascending: false })
+      .limit(100);
     if (error) {
       console.error('fetchMessages error:', error);
       toast({ title: 'Could not load messages', description: error.message, variant: 'destructive' });
     }
-    const dbMsgs = (data ?? []) as Message[];
+    const dbMsgs = ((data ?? []) as Message[]).reverse();
     if (dbMsgs.length > 0) {
-      // DB has data — use it and refresh the cache
       cacheSet(convId, dbMsgs);
       setMessages(dbMsgs);
     } else {

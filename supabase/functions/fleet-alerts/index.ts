@@ -118,7 +118,7 @@ async function handleBudgetAlerts(
     return; // no budget configured — nothing to check
   }
 
-  const plate: string = vehicle.plate_number;
+  const plate: string = vehicle.plate_number || "Unknown";
   const budget: number = vehicle.weekly_budget_ngn;
   const weekStart = thisWeekMondayUtc();
 
@@ -196,7 +196,7 @@ async function handleFuelLevelAlert(
 
   if (!vehicle || !vehicle.tank_capacity_litres) return;
 
-  const plate: string = vehicle.plate_number;
+  const plate: string = vehicle.plate_number || "Unknown";
   const capacity: number = vehicle.tank_capacity_litres;
   const current: number = vehicle.current_fuel_litres ?? 0;
   const ratio = current / capacity;
@@ -282,7 +282,7 @@ async function handleComplianceCheck(db: SupabaseClient): Promise<number> {
 
         const isExpired = daysLeft <= 0;
         const priority = isExpired || threshold <= 7 ? "high" : "normal";
-        const plate = v.plate_number || v.name;
+        const plate = v.plate_number || v.name || "Unknown";
         const title = isExpired
           ? `🚨 ${plate} ${doc.label} EXPIRED`
           : `⚠️ ${plate} ${doc.label} expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
