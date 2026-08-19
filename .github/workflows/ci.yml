@@ -25,13 +25,22 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # Pre-existing debt: ~150 tsc errors across unrelated files (Transactions,
-      # Recruitment, ContractorApplications, etc.), predating this workflow and
-      # out of scope for the security hardening in this change. Non-blocking
-      # until that debt is paid down; lint above stays a hard gate.
+      # Pre-existing debt: ~205 tsc errors across unrelated files (Fleet,
+      # EmployeeProfile, useOfflineQueue, Placements, etc. — confirmed count
+      # as of the 2026-08 forensic review, drifting from the "~150" this
+      # comment previously said, which nothing was tracking), predating this
+      # workflow and out of scope for the security hardening in this change.
+      # Non-blocking until that debt is paid down; lint/test/build above and
+      # below stay hard gates.
       - name: Type-check
         run: npm run typecheck
         continue-on-error: true
+
+      # Unit tests (payroll/tax/money arithmetic — exactly the math this app
+      # exists to get right) previously ran nowhere in CI. Confirmed all 253
+      # tests across 20 files pass before adding this as a hard gate.
+      - name: Test
+        run: npm run test
 
       - name: Build
         run: npm run build
