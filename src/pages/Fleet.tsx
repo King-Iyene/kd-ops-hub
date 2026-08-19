@@ -2973,16 +2973,27 @@ const Fleet = () => {
       return;
     }
     const r = rejectingFuel;
-    const { error } = await supabase
+    const { data: claimed, error } = await supabase
       .from('fuel_requests')
       .update({
         status: 'rejected',
         rejection_reason: fuelRejectReason.trim(),
         admin_note: fuelRejectReason.trim(),
       })
-      .eq('id', r.id);
+      .eq('id', r.id)
+      .eq('status', 'pending')
+      .select('id');
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    if (!claimed || claimed.length === 0) {
+      toast({
+        title: 'Request already actioned',
+        description: 'Someone else may have already approved or rejected this. Refreshing…',
+        variant: 'destructive',
+      });
+      await fetchData();
       return;
     }
     // Mirror the rejection onto the linked expense row so finance no

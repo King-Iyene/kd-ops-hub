@@ -1033,17 +1033,19 @@ const Payroll = () => {
       const yearPrefix = run.period.split('-')[0] + '-';
       const { data: ytdRows } = await supabase
         .from('payslips')
-        .select('employee_id, gross_ngn, paye_ngn, pension_ngn, nhf_ngn, net_ngn, period, payroll_run_id')
+        .select('employee_id, gross_ngn, paye_ngn, pension_ngn, nhf_ngn, nhis_ngn, avc_ngn, net_ngn, period, payroll_run_id')
         .like('period', `${yearPrefix}%`)
         .neq('payroll_run_id', run.id);
-      const ytdByEmployee = new Map<string, { gross: number; paye: number; pension: number; nhf: number; net: number }>();
+      const ytdByEmployee = new Map<string, { gross: number; paye: number; pension: number; nhf: number; nhis: number; avc: number; net: number }>();
       for (const r of (ytdRows || []) as any[]) {
         if (!r.employee_id) continue;
-        const acc = ytdByEmployee.get(r.employee_id) ?? { gross: 0, paye: 0, pension: 0, nhf: 0, net: 0 };
+        const acc = ytdByEmployee.get(r.employee_id) ?? { gross: 0, paye: 0, pension: 0, nhf: 0, nhis: 0, avc: 0, net: 0 };
         acc.gross   += Number(r.gross_ngn   || 0);
         acc.paye    += Number(r.paye_ngn    || 0);
         acc.pension += Number(r.pension_ngn || 0);
         acc.nhf     += Number(r.nhf_ngn     || 0);
+        acc.nhis    += Number(r.nhis_ngn    || 0);
+        acc.avc     += Number(r.avc_ngn     || 0);
         acc.net     += Number(r.net_ngn     || 0);
         ytdByEmployee.set(r.employee_id, acc);
       }
@@ -1115,11 +1117,12 @@ const Payroll = () => {
             otherAllowancesMonthlyNgn: compOther,
             unpaidLeaveDays: empUnpaidLeaveDays,
           });
-          // Pension/NHF bases fall back to the post-unpaid-leave payable
-          // gross (computed inside computePayslip) so leave days reduce
-          // statutory contributions proportionally, same as PAYE.
-          const pensionBaseM  = useComps ? (compBasic + compHousing + compTransport) : empBreak.payableGrossMonthlyNgn;
-          const nhfBaseM      = useComps ? compBasic : empBreak.payableGrossMonthlyNgn;
+          // Read the already-correct (and leave-prorated) statutory bases
+          // from computePayslip instead of recomputing them inline — keeps
+          // one source of truth and avoids the prior bug where the
+          // components-plan path used the full unreduced sum.
+          const pensionBaseM  = empBreak.pensionBaseMonthlyNgn;
+          const nhfBaseM      = empBreak.nhfBaseMonthlyNgn;
           const empUnpaidLeaveDeduction = empBreak.unpaidLeaveDeductionMonthlyNgn;
           const empPaye    = e.paye_enabled    !== false ? empBreak.payeMonthlyNgn          : 0;
           const empPension = e.pension_enabled !== false ? pensionBaseM * PENSION_RATE      : 0;
@@ -1249,6 +1252,8 @@ const Payroll = () => {
               paye_ngn:    ytd.paye    + empPaye,
               pension_ngn: ytd.pension + empPension,
               nhf_ngn:     ytd.nhf     + empNhf,
+              nhis_ngn:    ytd.nhis    + empNhis,
+              avc_ngn:     ytd.avc     + empAvc,
               net_ngn:     ytd.net     + empNet,
             } : undefined,
 
@@ -1285,6 +1290,8 @@ const Payroll = () => {
               paye_ngn: empPaye,
               pension_ngn: empPension,
               nhf_ngn: empNhf,
+              nhis_ngn: empNhis,
+              avc_ngn: empAvc,
               net_ngn: empNet,
               deductions_ngn: empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal + empUnpaidLeaveDeduction,
               deductions_json: (() => {

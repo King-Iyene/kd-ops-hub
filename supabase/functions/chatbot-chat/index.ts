@@ -469,12 +469,22 @@ Deno.serve(async (req) => {
     }
 
     // Bump usage counter
-    const newTokens = (usage?.tokens_total ?? 0) + result.tokens_in + result.tokens_out;
+    const msgTokens = result.tokens_in + result.tokens_out;
     if (usage) {
+      // Re-fetch the current totals right before updating so we add to the
+      // live running total, not the stale snapshot read before the LLM call.
+      // Without this, concurrent messages overwrite each other's tokens
+      // (last writer wins with its stale baseline).
+      const { data: freshUsage } = await adminClient
+        .from("chatbot_usage")
+        .select("message_count, tokens_total")
+        .eq("user_id", user.id)
+        .eq("usage_date", today)
+        .single();
       await adminClient.from("chatbot_usage")
         .update({
-          message_count: currentCount + 1,
-          tokens_total: newTokens,
+          message_count: (freshUsage?.message_count ?? currentCount) + 1,
+          tokens_total: (freshUsage?.tokens_total ?? 0) + msgTokens,
         })
         .eq("user_id", user.id)
         .eq("usage_date", today);
@@ -483,7 +493,7 @@ Deno.serve(async (req) => {
         user_id: user.id,
         usage_date: today,
         message_count: 1,
-        tokens_total: newTokens,
+        tokens_total: msgTokens,
       });
     }
 

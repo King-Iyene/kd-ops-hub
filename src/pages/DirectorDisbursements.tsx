@@ -994,7 +994,7 @@ function RecurringSchedulesCard({ profile, toast }: { profile: any; toast: Retur
     const byId = new Map((batches ?? []).map((b: any) => [b.id, b]));
     const { data: sched, error } = await supabase
       .from('recurring_schedules')
-      .select('id, frequency, day_of_month, next_run_date, status, source_batch_id')
+      .select('id, frequency, day_of_month, next_run_date, last_run_date, status, source_batch_id')
       .in('source_batch_id', batchIds)
       .order('next_run_date', { ascending: true });
     if (!error) {
@@ -1031,7 +1031,12 @@ function RecurringSchedulesCard({ profile, toast }: { profile: any; toast: Retur
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">{s.batch?.name ?? 'Batch removed'}</p>
               <p className="text-xs text-muted-foreground">
-                Monthly, day {s.day_of_month} · Next: {s.next_run_date ? formatDateTime(s.next_run_date) : '—'} · {formatNaira(s.batch?.total_amount ?? 0)}
+                Monthly, day {s.day_of_month} · Next: {s.next_run_date ? formatDateTime(s.next_run_date) : '—'}
+                {s.next_run_date && new Date(s.next_run_date) < new Date() && s.status === 'active' && (
+                  <span className="ml-1 text-destructive font-medium">Overdue</span>
+                )}
+                {s.last_run_date && <> · Last ran: {formatDateTime(s.last_run_date)}</>}
+                {' '}· {formatNaira(s.batch?.total_amount ?? 0)}
               </p>
             </div>
             <div className="flex items-center gap-1 shrink-0">

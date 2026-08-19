@@ -249,11 +249,21 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
   const housingComp   = Math.max(0, input.housingMonthlyNgn    || 0);
   const transportComp = Math.max(0, input.transportMonthlyNgn  || 0);
 
+  // When the employee is on the salary-components plan, prorate the
+  // components sum by the same leave factor that already reduced the
+  // flat-gross path via payableGrossMonthlyNgn. Without this, a
+  // components-plan employee taking unpaid leave would have pension/NHF
+  // calculated on the full unreduced components sum even though PAYE
+  // correctly prorates — over-deducting roughly ₦10k per 5-day absence.
+  const leaveFactor = grossMonthlyNgn > 0
+    ? payableGrossMonthlyNgn / grossMonthlyNgn
+    : 1;
+
   const pensionBaseMonthlyNgn = usedComponents
-    ? basicComp + housingComp + transportComp
+    ? (basicComp + housingComp + transportComp) * leaveFactor
     : payableGrossMonthlyNgn;
   const nhfBaseMonthlyNgn = usedComponents
-    ? basicComp
+    ? basicComp * leaveFactor
     : payableGrossMonthlyNgn;
 
   const pensionEmployeeMonthlyNgn = input.pensionEnabled !== false
@@ -273,8 +283,9 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
     : 0;
 
   // NHIS employee/employer is calculated on basic salary when components
-  // are active; otherwise gross (legacy behavior).
-  const nhisBase = usedComponents ? basicComp : payableGrossMonthlyNgn;
+  // are active; otherwise gross (legacy behavior). Prorated by leave
+  // factor so unpaid leave reduces the NHIS base consistently.
+  const nhisBase = usedComponents ? basicComp * leaveFactor : payableGrossMonthlyNgn;
   const nhisEmployeeMonthlyNgn = input.nhisEnabled
     ? nhisBase * NHIS_EMPLOYEE_RATE
     : 0;

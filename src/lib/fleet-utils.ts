@@ -312,6 +312,7 @@ export async function getReceiptDebt(employeeId: string): Promise<ReceiptDebt> {
       .select('created_at')
       .eq('submitted_by', employeeId)
       .eq('category', 'repair')
+      .eq('status', 'approved')
       .is('receipt_url', null)
       .is('deleted_at', null)
       .order('created_at', { ascending: true }),
