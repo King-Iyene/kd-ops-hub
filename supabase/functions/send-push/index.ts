@@ -252,9 +252,13 @@ Deno.serve(async (req) => {
     // depend on this call succeeding, and a 500 just clutters every operator's
     // browser console with a red error. Log the real cause to the function
     // log and return ok:false 200 instead.
+    // Full message + stack stay server-side only — this function is callable
+    // by any active staff JWT (see the auth comment above), so returning raw
+    // internal detail here would leak file paths and call structure to any
+    // logged-in account.
     const message = err instanceof Error ? `${err.message}${err.stack ? "\n" + err.stack : ""}` : String(err);
     console.error("[send-push] fatal:", message);
-    return new Response(JSON.stringify({ ok: false, error: message }), {
+    return new Response(JSON.stringify({ ok: false, error: "Could not send notification." }), {
       status: 200,
       headers: { ...headers, "Content-Type": "application/json" },
     });

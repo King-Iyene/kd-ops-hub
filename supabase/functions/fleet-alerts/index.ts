@@ -479,8 +479,8 @@ Deno.serve(async (req: Request) => {
   } catch (err) {
     console.error("[fleet-alerts]", err);
     return new Response(
-      JSON.stringify({ ok: false, error: String(err) }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      JSON.stringify({ ok: false, error: "Something went wrong processing this alert." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

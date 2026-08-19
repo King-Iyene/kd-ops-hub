@@ -327,7 +327,9 @@ export function exportCsv<T extends Record<string, unknown>>(rows: T[], filename
   const headers = Object.keys(rows[0]);
   const escape = (v: unknown) => {
     if (v == null) return '';
-    const s = String(v);
+    let s = String(v);
+    // Formula injection guard — see src/lib/csv.ts's csvEscape for why.
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return s.includes(',') || s.includes('"') || s.includes('\n')
       ? `"${s.replace(/"/g, '""')}"`
       : s;
