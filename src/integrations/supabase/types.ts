@@ -16497,6 +16497,7 @@ export type Database = {
           total_amount: number
         }[]
       }
+      principal_wallet_balance: { Args: never; Returns: number }
       process_flutterwave_webhook: {
         Args: {
           p_event: string
