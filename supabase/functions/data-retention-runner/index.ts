@@ -27,6 +27,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { constantTimeEquals } from "../_shared/timing.ts";
 
 const ALLOWED_TYPES = new Set(["audit_logs", "notifications", "receipts"]);
 
@@ -79,7 +80,7 @@ Deno.serve(async (req) => {
     //    require a valid JWT from an admin/super_admin user. ──────────────
     const authHeader = req.headers.get("Authorization") ?? "";
     const bearer = authHeader.replace("Bearer ", "");
-    const isServiceRole = bearer && bearer === SERVICE_ROLE;
+    const isServiceRole = constantTimeEquals(bearer, SERVICE_ROLE);
 
     let triggeredBy: string | null = null;
     if (!isServiceRole) {

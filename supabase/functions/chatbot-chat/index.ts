@@ -468,34 +468,14 @@ Deno.serve(async (req) => {
         .eq("id", convId!);
     }
 
-    // Bump usage counter
+    // Atomic usage counter via upsert RPC (prevents concurrent read-then-write races)
     const msgTokens = result.tokens_in + result.tokens_out;
-    if (usage) {
-      // Re-fetch the current totals right before updating so we add to the
-      // live running total, not the stale snapshot read before the LLM call.
-      // Without this, concurrent messages overwrite each other's tokens
-      // (last writer wins with its stale baseline).
-      const { data: freshUsage } = await adminClient
-        .from("chatbot_usage")
-        .select("message_count, tokens_total")
-        .eq("user_id", user.id)
-        .eq("usage_date", today)
-        .single();
-      await adminClient.from("chatbot_usage")
-        .update({
-          message_count: (freshUsage?.message_count ?? currentCount) + 1,
-          tokens_total: (freshUsage?.tokens_total ?? 0) + msgTokens,
-        })
-        .eq("user_id", user.id)
-        .eq("usage_date", today);
-    } else {
-      await adminClient.from("chatbot_usage").insert({
-        user_id: user.id,
-        usage_date: today,
-        message_count: 1,
-        tokens_total: msgTokens,
-      });
-    }
+    await adminClient.rpc("increment_chatbot_usage", {
+      p_user_id: user.id,
+      p_usage_date: today,
+      p_messages: 1,
+      p_tokens: msgTokens,
+    });
 
     return new Response(
       JSON.stringify({
@@ -510,8 +490,8 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
-    const msg = (err as Error).message ?? "Unknown error";
-    console.error("chatbot-chat error:", msg);
+    const rawMsg = (err as Error).message ?? "Unknown error";
+    console.error("chatbot-chat error:", rawMsg.slice(0, 120).replace(/sk-[a-zA-Z0-9_-]+/g, "sk-***"));
     return new Response(
       JSON.stringify({ error: "Something went wrong. Please try again." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },

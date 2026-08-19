@@ -1239,6 +1239,9 @@ function makeInitialsBubble(initials: string, size: number, fontSize: number): H
   div.style.height = `${size}px`;
   div.style.width = `${size}px`;
   div.style.background = 'linear-gradient(135deg, #006994 0%, #0481ad 100%)';
-  div.innerHTML = `<span style="font-size:${fontSize}px;font-weight:700;color:#fff;">${initials.replace(/[<>"&]/g, '')}</span>`;
+  const span = document.createElement('span');
+  span.style.cssText = `font-size:${fontSize}px;font-weight:700;color:#fff;`;
+  span.textContent = initials;
+  div.appendChild(span);
   return div;
 }
