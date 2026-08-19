@@ -236,6 +236,31 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: authError?.message || "Not authenticated" }, 401);
     }
 
+    // Rate limit: max 30 OCR scans per user per 60 seconds. This is a paid,
+    // per-call external API (Google Document AI) with no cap otherwise — any
+    // authenticated user could run up billing/quota by repeatedly calling
+    // this function. Mirrors send-email's identical audit-log-based limiter.
+    try {
+      const service = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const since = new Date(Date.now() - 60_000).toISOString();
+      const { count } = await service
+        .from("audit_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("action", "extract_receipt")
+        .gte("created_at", since);
+      if ((count ?? 0) >= 30) {
+        return json({ ok: false, error: "Rate limit exceeded — max 30 receipt scans per minute" }, 429);
+      }
+      await service.from("audit_logs").insert({
+        user_id: user.id,
+        action: "extract_receipt",
+        table_name: "receipts",
+      });
+    } catch (_) {
+      // Fail open — don't block a legitimate scan on rate-limit check failure.
+    }
+
     const apiKey = Deno.env.get("GOOGLE_DOC_AI_API_KEY");
     const projectId = Deno.env.get("GOOGLE_DOC_AI_PROJECT_ID");
     const processorId = Deno.env.get("GOOGLE_DOC_AI_PROCESSOR_ID");
@@ -270,6 +295,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         rawDocument: { content: image_base64, mimeType: mime_type },
       }),
+      signal: AbortSignal.timeout(30_000),
     });
 
     const rawText = await res.text();

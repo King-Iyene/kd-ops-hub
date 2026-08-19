@@ -20,7 +20,11 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
-      "@typescript-eslint/no-unused-vars": "off",
+      // "warn" not "error" — `npm run lint` (the CI gate) has no
+      // --max-warnings flag, so this surfaces dead code/imports in output
+      // without blocking the build. Was fully "off"; re-enabling as a warning
+      // per the forensic review's code-health finding.
+      "@typescript-eslint/no-unused-vars": "warn",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-empty-object-type": "off",

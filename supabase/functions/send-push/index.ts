@@ -125,6 +125,35 @@ Deno.serve(async (req) => {
         });
       }
       authorized = true;
+
+      // Rate limit: max 20 push sends per staff user per 60 seconds.
+      // Cron/service-role callers skip this (trusted backend code). Any
+      // active staff JWT can target any teammate (see the comment above),
+      // so without a limit here a phished or abused low-privilege account
+      // could blast every subscribed device — mirrors send-email's
+      // identical audit-log-based limiter.
+      try {
+        const since = new Date(Date.now() - 60_000).toISOString();
+        const { count } = await service
+          .from("audit_logs")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userRes.user.id)
+          .eq("action", "send_push")
+          .gte("created_at", since);
+        if ((count ?? 0) >= 20) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded — max 20 push sends per minute" }), {
+            status: 429,
+            headers: { ...headers, "Content-Type": "application/json" },
+          });
+        }
+        await service.from("audit_logs").insert({
+          user_id: userRes.user.id,
+          action: "send_push",
+          table_name: "push_subscriptions",
+        });
+      } catch (_) {
+        // Fail open — don't block a legitimate push on rate-limit check failure.
+      }
     }
 
     // VAPID keys live on company_settings — single-tenant for now.
