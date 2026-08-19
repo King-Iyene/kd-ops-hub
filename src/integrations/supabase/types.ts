@@ -8446,6 +8446,7 @@ export type Database = {
       }
       payslips: {
         Row: {
+          avc_ngn: number | null
           batch_item_id: string | null
           created_at: string
           deductions_json: Json | null
@@ -8459,6 +8460,7 @@ export type Database = {
           id: string
           net_ngn: number
           nhf_ngn: number
+          nhis_ngn: number | null
           paye_ngn: number
           payroll_run_id: string | null
           pension_ngn: number
@@ -8467,6 +8469,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          avc_ngn?: number | null
           batch_item_id?: string | null
           created_at?: string
           deductions_json?: Json | null
@@ -8480,6 +8483,7 @@ export type Database = {
           id?: string
           net_ngn?: number
           nhf_ngn?: number
+          nhis_ngn?: number | null
           paye_ngn?: number
           payroll_run_id?: string | null
           pension_ngn?: number
@@ -8488,6 +8492,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          avc_ngn?: number | null
           batch_item_id?: string | null
           created_at?: string
           deductions_json?: Json | null
@@ -8501,6 +8506,7 @@ export type Database = {
           id?: string
           net_ngn?: number
           nhf_ngn?: number
+          nhis_ngn?: number | null
           paye_ngn?: number
           payroll_run_id?: string | null
           pension_ngn?: number
