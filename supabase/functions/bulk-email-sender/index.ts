@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (["sent","failed","cancelled"].includes((campaign as any).status)) {
+    if (["sent","failed","cancelled","sending"].includes((campaign as any).status)) {
       return new Response(JSON.stringify({ ok: false, error: `Campaign already ${(campaign as any).status}` }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

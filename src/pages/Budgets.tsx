@@ -14,6 +14,7 @@ import {
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
+import { ACTUAL_DISBURSED_STATUSES, actualDisbursedForBatch, fetchSucceededBatchSums } from '@/lib/cfo-dashboard';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { APPROVER_ROLES, MANAGER_ROLES, hasRole } from '@/lib/roles';
@@ -181,8 +182,8 @@ const Budgets = () => {
           .limit(2000),
         supabase
           .from('payment_batches')
-          .select('total_amount, payment_date, status')
-          .in('status', ['processed', 'funded'])
+          .select('id, total_amount, payment_date, status')
+          .in('status', [...ACTUAL_DISBURSED_STATUSES])
           .is('deleted_at', null)
           .limit(500),
       ]);
@@ -191,11 +192,12 @@ const Budgets = () => {
       setRows((budgetsRes.data as BudgetRow[]) || []);
       setDepartments((depsRes.data as Department[]) || []);
 
-      // Actual spend = approved expenses + processed/funded batches that fall
+      // Actual spend = approved expenses + actually-disbursed batches that fall
       // between the budget's period_start and period_end.
       const spendMap: Record<string, number> = {};
       const expenses = (expensesRes.data || []) as any[];
       const batches = (batchesRes.data || []) as any[];
+      const succeededByBatch = await fetchSucceededBatchSums(batches);
 
       for (const b of (budgetsRes.data as BudgetRow[]) || []) {
         const start = new Date(b.period_start).getTime();
@@ -207,7 +209,7 @@ const Budgets = () => {
         }
         for (const bx of batches) {
           const t = new Date(bx.payment_date).getTime();
-          if (t >= start && t <= end) total += Number(bx.total_amount || 0);
+          if (t >= start && t <= end) total += actualDisbursedForBatch(bx, succeededByBatch);
         }
         spendMap[b.id] = total;
       }

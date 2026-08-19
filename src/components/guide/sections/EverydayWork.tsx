@@ -141,16 +141,21 @@ export function EverydayWorkSection() {
 
       <ModuleCard title="The AI Assistant" route="/assistant" roles={['everyone']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          The Assistant is a chatbot trained on the company's own Knowledge Base articles and, where relevant, live data from
-          your own KDOps account — things like your current leave balance or your approval limits — rather than a generic
-          scripted FAQ bot. Because it reads real platform data, its answers are specific to you and to the moment you ask, not a
-          static help page. You could ask it things like:
+          The Assistant is an AI chatbot that can answer general knowledge questions, look up live FX rates, run web searches,
+          and — most usefully — give answers grounded in the company's own Knowledge Base articles. When it finds a matching
+          Knowledge Base article, it cites the source, so you can verify the answer yourself. You could ask it things like:
         </p>
         <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
-          <li>"How many annual leave days do I have left?"</li>
           <li>"What's the process for submitting a compassionate leave request?"</li>
-          <li>"What's my approval limit for expenses?"</li>
+          <li>"What permissions does a fleet manager have?"</li>
+          <li>"What is the current Naira to Dollar rate?"</li>
         </ul>
+        <Callout tone="warn">
+          The Assistant does <strong>not</strong> have access to your personal account data — it cannot look up your leave
+          balance, approval limits, or any other record specific to you. For that information, use the relevant module directly
+          (e.g. Leave for your balance, Expenses for your limits). If you ask the Assistant a question like that, it may
+          generate a plausible-sounding but incorrect answer.
+        </Callout>
       </ModuleCard>
 
       <ModuleCard title="Knowledge Base" route="/knowledge" roles={['everyone']}>

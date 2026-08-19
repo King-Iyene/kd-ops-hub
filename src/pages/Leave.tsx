@@ -28,8 +28,8 @@ import { usePermission } from '@/hooks/usePermission';
 import { burst } from '@/components/Burst';
 import { logAudit } from '@/lib/audit';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
-import { notifyUser, notifyRoles } from '@/lib/notify';
-import { notifyRequestApproved, notifyRequestRejected } from '@/lib/notify-events';
+import { notifyUser, notifyRoles, notifyChannels } from '@/lib/notify';
+import { notifyRequestApproved } from '@/lib/notify-events';
 import { useApprovalStore } from '@/store/approvalStore';
 import { MANAGER_ROLES, hasRole } from '@/lib/roles';
 import { formatDate, toIsoDate } from '@/lib/format';
@@ -681,6 +681,7 @@ const Leave = () => {
         })
         .eq('id', showReject.id);
       if (error) throw error;
+      const rejProfile = profiles.get(showReject.employee_id);
       await writeRejectionNotification({
         entity: 'leave',
         entityLabel: 'leave request',
@@ -688,32 +689,26 @@ const Leave = () => {
         submitterId: showReject.employee_id,
         actor: profile,
         auditType: 'leave_rejected',
-        auditDescription: `Leave rejected for ${profiles.get(showReject.employee_id)?.full_name || showReject.employee_id}: ${rejectReason.trim()}`,
+        auditDescription: `Leave rejected for ${rejProfile?.full_name || showReject.employee_id}: ${rejectReason.trim()}`,
       });
-      // Best-effort SMS — never blocks if Termii key is missing or phone is null.
-      try {
-        const phone = profiles.get(showReject.employee_id)?.phone;
-        if (phone) {
-          await supabase.functions.invoke('send-email', {
-            body: {
-              channel: 'sms',
-              to: phone.replace(/^\+/, ''),
-              message: `Your leave request has been rejected. Reason: ${rejectReason.trim()}. – KDOps`,
-            },
-          });
-        }
-      } catch { /* SMS is best-effort */ }
-      // Best-effort templated email to the requester.
-      const rejProfile = profiles.get(showReject.employee_id);
-      void notifyRequestRejected({
-        requesterEmail: rejProfile?.email ?? null,
-        requesterName: rejProfile?.full_name || 'there',
-        kind: `${showReject.leave_type} leave`,
-        summary: `${showReject.days_requested} day${showReject.days_requested === 1 ? '' : 's'} · ${showReject.start_date} → ${showReject.end_date}`,
-        approverName: profile?.full_name || 'Manager',
-        reason: rejectReason.trim(),
-        link: `${window.location.origin}/leave`,
-      });
+      // SMS / WhatsApp via the shared multi-channel dispatcher — uses the
+      // proper phone normaliser and respects the employee's opt-out prefs.
+      // In-app + email are already handled by writeRejectionNotification above,
+      // so we disable the in-app channel here to avoid a duplicate row.
+      if (rejProfile) {
+        void notifyChannels({
+          user: {
+            id: showReject.employee_id,
+            full_name: rejProfile.full_name,
+            email: rejProfile.email,
+            phone: rejProfile.phone,
+          },
+          category: 'leave',
+          kind: 'leave_rejected',
+          payload: { name: rejProfile.full_name, reason: rejectReason.trim() },
+          forceChannels: { in_app: false },
+        });
+      }
       toast({ title: 'Leave rejected' });
       setShowReject(null);
       setRejectReason('');

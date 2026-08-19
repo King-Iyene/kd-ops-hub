@@ -390,10 +390,13 @@ const Expenses = () => {
       // 'payment_sent' so the employee sees the "Upload Receipt" prompt and
       // the admin no longer sees a stale "Mark Payment Sent" / "Pay" button.
       if (expense.fuel_request_id) {
-        await supabase
+        const { error: fuelSyncErr } = await supabase
           .from('fuel_requests')
           .update({ status: 'payment_sent', payment_sent_at: new Date().toISOString() })
           .eq('id', expense.fuel_request_id);
+        if (fuelSyncErr) {
+          toast({ title: 'Fuel request sync failed', description: friendlyDbError(fuelSyncErr), variant: 'destructive' });
+        }
       }
 
       // Auto-approve the new batch on the operator's behalf — the underlying
@@ -682,7 +685,10 @@ const Expenses = () => {
     status: 'approved' | 'rejected' | 'paid',
   ) => {
     if (!fuelRequestId) return;
-    await supabase.from('fuel_requests').update({ status }).eq('id', fuelRequestId);
+    const { error: syncErr } = await supabase.from('fuel_requests').update({ status }).eq('id', fuelRequestId);
+    if (syncErr) {
+      toast({ title: 'Fuel request sync failed', description: friendlyDbError(syncErr), variant: 'destructive' });
+    }
   };
 
   /**
@@ -798,18 +804,6 @@ const Expenses = () => {
       auditType: 'expense_rejected',
       auditDescription: `Expense rejected: ${e.category} — ${formatNaira(e.amount_ngn || 0)} — ${rejectReason.trim()}`,
     });
-    // Email the submitter as well — rejections are high-stakes and easily
-    // missed in the in-app feed alone.
-    if (e.submitted_by) {
-      await notifyApprovalDecision({
-        userId: e.submitted_by,
-        decision: 'rejected',
-        entity: 'expense',
-        entityLabel: `${e.category.replace(/_/g, ' ')} — ${formatNaira(e.amount_ngn || 0)}`,
-        reason: rejectReason.trim(),
-        module: 'expenses',
-      });
-    }
     toast({ title: 'Expense rejected' });
     setRejectingExpense(null);
     setRejectReason('');

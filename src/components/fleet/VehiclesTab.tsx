@@ -214,7 +214,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
     setLoading(true);
     try {
       const [vRes, dRes] = await Promise.all([
-        supabase.from('vehicles').select('id, name, plate_number, make_model, year, color, vin, assigned_driver_id, weekly_budget_ngn, tank_capacity_litres, avg_km_per_litre, current_fuel_litres, last_refuel_at, insurance_expiry, road_worthiness_expiry, last_service_date, next_service_date, notes, status, out_of_service_until').order('name'),
+        supabase.from('vehicles').select('id, name, plate_number, make_model, year, color, vin, assigned_driver_id, weekly_budget_ngn, tank_capacity_litres, avg_km_per_litre, current_fuel_litres, last_refuel_at, insurance_expiry, road_worthiness_expiry, last_service_date, next_service_date, notes, status, total_mileage_km, out_of_service_until').order('name'),
         supabase
           .from('profiles_directory')
           .select('id, full_name, email')
@@ -820,8 +820,22 @@ const RECURRENCE_OPTIONS: { value: string; label: string }[] = [
   { value: 'custom',         label: 'Custom' },
 ];
 
-function effectiveMaintStatus(item: MaintenanceRecord): 'done' | 'overdue' | 'upcoming' | 'pending' {
+function effectiveMaintStatus(
+  item: MaintenanceRecord,
+  vehicleMileage?: number | null,
+): 'done' | 'overdue' | 'upcoming' | 'pending' {
   if (item.status === 'done') return 'done';
+
+  // Mileage-based overdue: if a mileage threshold is set and the vehicle's
+  // current mileage meets or exceeds it, the item is overdue.
+  if (
+    item.due_mileage_km != null &&
+    vehicleMileage != null &&
+    vehicleMileage >= item.due_mileage_km
+  ) {
+    return 'overdue';
+  }
+
   if (item.due_date) {
     const days = Math.ceil((new Date(item.due_date).getTime() - Date.now()) / 86_400_000);
     if (days < 0) return 'overdue';
@@ -921,19 +935,23 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
 
   const handleMarkDone = async (item: MaintenanceRecord) => {
     const today = new Date().toISOString().slice(0, 10);
+    const currentMileage = vehicle.total_mileage_km ?? null;
+
     // Calculate next due from recurrence
     let nextDueDate: string | null = null;
     let nextDueMileage: number | null = null;
-    const baseMileage = item.last_done_mileage_km || 0;
     switch (item.recurrence) {
       case 'every_3_months': nextDueDate = addMonths(today, 3); break;
       case 'every_6_months': nextDueDate = addMonths(today, 6); break;
-      case 'every_10000_km': nextDueMileage = baseMileage + 10_000; break;
+      case 'every_10000_km':
+        nextDueMileage = (currentMileage ?? item.last_done_mileage_km ?? 0) + 10_000;
+        break;
     }
     const isRecurring = item.recurrence !== 'one_time' && item.recurrence !== 'custom';
     const { error } = await supabase.from('vehicle_maintenance').update({
       status: isRecurring ? 'pending' : 'done',
       last_done_date: today,
+      last_done_mileage_km: currentMileage ?? item.last_done_mileage_km ?? null,
       due_date: isRecurring ? nextDueDate : item.due_date,
       due_mileage_km: isRecurring ? nextDueMileage : item.due_mileage_km,
     }).eq('id', item.id);
@@ -947,8 +965,8 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
     loadRecords();
   };
 
-  const pending = records.filter((r) => effectiveMaintStatus(r) !== 'done');
-  const done    = records.filter((r) => effectiveMaintStatus(r) === 'done');
+  const pending = records.filter((r) => effectiveMaintStatus(r, vehicle.total_mileage_km) !== 'done');
+  const done    = records.filter((r) => effectiveMaintStatus(r, vehicle.total_mileage_km) === 'done');
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -992,7 +1010,7 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
                       </TableHeader>
                       <TableBody>
                         {pending.map((item) => {
-                          const st = effectiveMaintStatus(item);
+                          const st = effectiveMaintStatus(item, vehicle.total_mileage_km);
                           return (
                             <TableRow key={item.id}>
                               <TableCell className="font-medium text-sm">{item.service_type}</TableCell>

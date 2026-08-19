@@ -296,7 +296,12 @@ export interface BudgetUtilization {
   utilization_pct: number | null;
 }
 
-function actualDisbursedForBatch(
+// Statuses that mean money was actually moved (or partially moved). 'funded'
+// is intentionally excluded — it means the wallet is funded but transfers
+// haven't all completed, so it should not show as "disbursed" in actuals.
+export const ACTUAL_DISBURSED_STATUSES = ['processed', 'partially_processed'] as const;
+
+export function actualDisbursedForBatch(
   batch: { id: string; status: string; total_amount: number },
   succeededByBatch: Map<string, number>,
 ): number {
@@ -305,7 +310,7 @@ function actualDisbursedForBatch(
   return 0;
 }
 
-async function fetchSucceededBatchSums(
+export async function fetchSucceededBatchSums(
   batches: Array<{ id: string; status: string }>,
 ): Promise<Map<string, number>> {
   const partialIds = batches.filter((b) => b.status === 'partially_processed').map((b) => b.id);

@@ -1,15 +1,15 @@
-import { supabase } from '@/lib/supabase';
 import { logAudit, type AuditActionType } from '@/lib/audit';
 import type { Profile } from '@/store/authStore';
 import { formatNaira } from '@/lib/format';
+import { notifyApprovalDecision } from '@/lib/approval-notify';
 
 /**
  * Record a rejection for any approvable entity.
  *
  * - Persists `rejection_reason` on the target row (the entity table is caller's
  *   responsibility — we just build the notification + audit trail).
- * - Writes an in-app notification to the submitter so they see "Your X was
- *   rejected" in the bell dropdown, with the reason body.
+ * - Sends the submitter an in-app notification **and** a branded email via
+ *   {@link notifyApprovalDecision} so rejections are never missed.
  * - Writes an audit entry with the rejection reason.
  */
 export async function writeRejectionNotification(opts: {
@@ -23,20 +23,18 @@ export async function writeRejectionNotification(opts: {
   auditDescription: string;
 }): Promise<void> {
   if (opts.submitterId) {
-    try {
-      await supabase.from('notifications').insert({
-        user_id: opts.submitterId,
-        type: `${opts.entity}_rejected`,
-        module: opts.entity,
-        priority: 'high',
-        title: `Your ${opts.entityLabel} was rejected`,
-        body: opts.amount
-          ? `${formatNaira(opts.amount)} · ${opts.reason}`
-          : opts.reason,
-      });
-    } catch {
-      // best-effort
-    }
+    // Unified in-app + email — delegates to the approval-decision notifier so
+    // every rejection gets the same branded email that approvals already use.
+    await notifyApprovalDecision({
+      userId: opts.submitterId,
+      decision: 'rejected',
+      entity: opts.entity,
+      entityLabel: opts.amount
+        ? `${opts.entityLabel} — ${formatNaira(opts.amount)}`
+        : opts.entityLabel,
+      reason: opts.reason,
+      module: opts.entity,
+    });
   }
   await logAudit(opts.auditType, opts.auditDescription, opts.actor);
 }

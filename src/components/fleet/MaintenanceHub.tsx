@@ -104,8 +104,23 @@ const STATUS_CONFIG: Record<EffectiveStatus, { label: string; className: string 
   done: { label: 'Done', className: 'bg-green-600 hover:bg-green-700 text-white' },
 };
 
-function computeEffectiveStatus(item: MaintenanceItem): EffectiveStatus {
+function computeEffectiveStatus(
+  item: MaintenanceItem,
+  vehicleMileage?: number | null,
+): EffectiveStatus {
   if (item.status === 'done') return 'done';
+
+  // Check mileage-based overdue: if a mileage threshold is set and the
+  // vehicle's current mileage exceeds it, the item is overdue regardless
+  // of the calendar due date.
+  if (
+    item.due_mileage_km != null &&
+    vehicleMileage != null &&
+    vehicleMileage >= item.due_mileage_km
+  ) {
+    return 'overdue';
+  }
+
   if (item.due_date) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -129,6 +144,12 @@ function getWeekLabel(dateStr: string): string {
   if (diffDays <= 21) return 'In 2 Weeks';
   if (diffDays <= 28) return 'In 3 Weeks';
   return 'Later';
+}
+
+function addMonths(dateStr: string, months: number): string {
+  const d = new Date(dateStr);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
 }
 
 const INITIAL_FORM = {
@@ -180,7 +201,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
     try {
       const { data, error: fetchErr } = await supabase
         .from('vehicle_maintenance')
-        .select('id, vehicle_id, service_type, due_date, due_mileage_km, status, last_done_date, cost_ngn, vendor')
+        .select('id, vehicle_id, service_type, due_date, due_mileage_km, recurrence, status, last_done_date, last_done_mileage_km, cost_ngn, vendor')
         .order('due_date', { ascending: true, nullsFirst: false });
 
       if (fetchErr) throw fetchErr;
@@ -199,11 +220,14 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
 
   const enrichedItems = useMemo(
     () =>
-      items.map((item) => ({
-        ...item,
-        effectiveStatus: computeEffectiveStatus(item),
-        vehicle: vehicleMap.get(item.vehicle_id),
-      })),
+      items.map((item) => {
+        const vehicle = vehicleMap.get(item.vehicle_id);
+        return {
+          ...item,
+          effectiveStatus: computeEffectiveStatus(item, vehicle?.total_mileage_km),
+          vehicle,
+        };
+      }),
     [items, vehicleMap],
   );
 
@@ -344,12 +368,31 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
     try {
       const today = new Date().toISOString().split('T')[0];
       const vehicle = vehicleMap.get(markDoneItem.vehicle_id);
+      const currentMileage = vehicle?.total_mileage_km ?? null;
+
+      // Determine if this is a recurring item — recurring items stay
+      // "pending" with an updated due date/mileage rather than being
+      // permanently retired.
+      const isRecurring =
+        markDoneItem.recurrence !== 'one_time' && markDoneItem.recurrence !== 'custom';
+
+      let nextDueDate: string | null = null;
+      let nextDueMileage: number | null = null;
+      if (markDoneItem.recurrence === 'every_3_months') nextDueDate = addMonths(today, 3);
+      if (markDoneItem.recurrence === 'every_6_months') nextDueDate = addMonths(today, 6);
+      if (markDoneItem.recurrence === 'every_10000_km') {
+        nextDueMileage =
+          (currentMileage ?? markDoneItem.last_done_mileage_km ?? 0) + 10_000;
+      }
+
       const { error: updateErr } = await supabase
         .from('vehicle_maintenance')
         .update({
-          status: 'done',
+          status: isRecurring ? 'pending' : 'done',
           last_done_date: today,
-          last_done_mileage_km: vehicle?.total_mileage_km ?? null,
+          last_done_mileage_km: currentMileage ?? markDoneItem.last_done_mileage_km ?? null,
+          due_date: isRecurring ? nextDueDate : markDoneItem.due_date,
+          due_mileage_km: isRecurring ? nextDueMileage : markDoneItem.due_mileage_km,
           cost_ngn: markDoneCost ? Number(markDoneCost) : markDoneItem.cost_ngn,
           vendor: markDoneVendor || markDoneItem.vendor,
         })
@@ -357,7 +400,9 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
 
       if (updateErr) throw updateErr;
 
-      toast({ title: 'Marked as done' });
+      toast({
+        title: 'Marked as done' + (isRecurring ? ' — next due date set' : ''),
+      });
       setShowMarkDoneDialog(false);
       setMarkDoneItem(null);
       await fetchMaintenance();

@@ -913,7 +913,7 @@ function MakeRecurringDialog({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (row) setDay(new Date(row.payment_date || row.created_at).getDate() || 1);
+    if (row) setDay(Math.min(28, new Date(row.payment_date || row.created_at).getDate() || 1));
   }, [row]);
 
   const save = async () => {
@@ -972,7 +972,7 @@ function MakeRecurringDialog({
         </Alert>
         <div className="space-y-1">
           <Label>Day of month</Label>
-          <Input type="number" min={1} max={31} value={day} onChange={(e) => setDay(Number(e.target.value) || 1)} />
+          <Input type="number" min={1} max={28} value={day} onChange={(e) => setDay(Math.max(1, Math.min(28, Number(e.target.value) || 1)))} />
         </div>
       </div>
     </ResponsiveDialog>

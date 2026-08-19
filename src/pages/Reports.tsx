@@ -33,6 +33,7 @@ import {
   Legend,
 } from 'recharts';
 import { supabase } from '@/lib/supabase';
+import { ACTUAL_DISBURSED_STATUSES, actualDisbursedForBatch, fetchSucceededBatchSums } from '@/lib/cfo-dashboard';
 import { formatNaira, formatNairaCompact, toIsoDate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -66,29 +67,10 @@ const thisYearRange = (): DateRange => {
   };
 };
 
-// Statuses that mean money was actually moved (or partially moved). 'funded'
-// is intentionally excluded — it means the wallet is funded but transfers
-// haven't all completed, so it should not show as "disbursed" in actuals.
-const ACTUAL_DISBURSED_STATUSES = ['processed', 'partially_processed'] as const;
-
-/**
- * Returns the amount that actually left the bank for a batch.
- *  - status='processed'  → all items succeeded; use total_amount.
- *  - status='partially_processed' → some failed; need to subtract failed items.
- *  - other statuses → 0 (not disbursed yet).
- *
- * Pass a Map<batchId, succeededSum> built from a single batch_items query.
- */
-function actualDisbursed(
-  batch: { id: string; status: string; total_amount: number },
-  succeededByBatch: Map<string, number>,
-): number {
-  if (batch.status === 'processed') return Number(batch.total_amount || 0);
-  if (batch.status === 'partially_processed') {
-    return succeededByBatch.get(batch.id) ?? 0;
-  }
-  return 0;
-}
+// Re-exported locally for call-site brevity — the canonical definitions live
+// in cfo-dashboard.ts (ACTUAL_DISBURSED_STATUSES, actualDisbursedForBatch,
+// fetchSucceededBatchSums are imported above).
+const actualDisbursed = actualDisbursedForBatch;
 
 /**
  * Fetches batch_items for the given batches whose status indicates partial
@@ -123,23 +105,7 @@ async function fetchFeesByBatch(batchIds: string[]): Promise<Map<string, number>
   return sums;
 }
 
-async function fetchSucceededSums(batches: Array<{ id: string; status: string }>): Promise<Map<string, number>> {
-  const partialIds = batches
-    .filter((b) => b.status === 'partially_processed')
-    .map((b) => b.id);
-  if (partialIds.length === 0) return new Map();
-  const { data: items } = await supabase
-    .from('batch_items')
-    .select('batch_id, amount_ngn, status')
-    .in('batch_id', partialIds);
-  const sums = new Map<string, number>();
-  for (const it of (items || []) as any[]) {
-    if (it.status === 'succeeded') {
-      sums.set(it.batch_id, (sums.get(it.batch_id) ?? 0) + Number(it.amount_ngn || 0));
-    }
-  }
-  return sums;
-}
+const fetchSucceededSums = fetchSucceededBatchSums;
 
 const Reports = () => {
   usePageTitle('Reports');

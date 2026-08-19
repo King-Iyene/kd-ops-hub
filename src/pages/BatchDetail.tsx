@@ -2863,9 +2863,9 @@ const BatchDetail = () => {
                 <Input
                   type="number"
                   min={1}
-                  max={31}
+                  max={28}
                   value={recurDay || new Date(batch?.payment_date || '').getDate() || 1}
-                  onChange={(e) => setRecurDay(Number(e.target.value))}
+                  onChange={(e) => setRecurDay(Math.max(1, Math.min(28, Number(e.target.value) || 1)))}
                 />
               </div>
             )}

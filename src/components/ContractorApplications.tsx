@@ -62,6 +62,7 @@ interface Application {
   heyreach_password_enc: string | null;
   default_amount_ngn: number | null;
   additional_info: string | null;
+  contractor_id: string | null;
   status: 'pending' | 'pending_review' | 'approved' | 'rejected';
   rejection_reason: string | null;
   created_at: string;
@@ -126,29 +127,42 @@ export function ContractorApplications() {
       const linkedIn = linkedInUrl(app) ?? '';
       const linkedinHandle = linkedIn.replace(/\/$/, '').split('/').pop() || linkedIn;
 
-      // Create the contractor record.
-      const { data: contractor, error: cErr } = await supabase
-        .from('contractors')
-        .insert({
-          full_name: app.linkedin_full_name || applicantName(app),
-          first_name: app.first_name,
-          last_name: app.last_name,
-          email: app.email,
-          phone: app.phone,
-          bank_name: app.bank_name,
-          bank_code: app.bank_code || '',
-          account_number: app.account_number,
-          account_name: app.account_name,
-          linkedin_url: app.linkedin_url || app.linkedin_profile_url,
-          heyreach_email: app.linkedin_email,
-          heyreach_password_enc: app.heyreach_password_enc,
-          default_amount: app.default_amount_ngn || 0,
-          default_amount_ngn: app.default_amount_ngn || 0,
-          status: 'active',
-        })
-        .select('id')
-        .single();
-      if (cErr) throw cErr;
+      let contractorId = app.contractor_id;
+
+      // If a contractor already exists for this application, re-activate it
+      // instead of inserting a duplicate row.
+      if (contractorId) {
+        const { error: reactivateErr } = await supabase
+          .from('contractors')
+          .update({ status: 'active' })
+          .eq('id', contractorId);
+        if (reactivateErr) throw reactivateErr;
+      } else {
+        // Create the contractor record.
+        const { data: contractor, error: cErr } = await supabase
+          .from('contractors')
+          .insert({
+            full_name: app.linkedin_full_name || applicantName(app),
+            first_name: app.first_name,
+            last_name: app.last_name,
+            email: app.email,
+            phone: app.phone,
+            bank_name: app.bank_name,
+            bank_code: app.bank_code || '',
+            account_number: app.account_number,
+            account_name: app.account_name,
+            linkedin_url: app.linkedin_url || app.linkedin_profile_url,
+            heyreach_email: app.linkedin_email,
+            heyreach_password_enc: app.heyreach_password_enc,
+            default_amount: app.default_amount_ngn || 0,
+            default_amount_ngn: app.default_amount_ngn || 0,
+            status: 'active',
+          })
+          .select('id')
+          .single();
+        if (cErr) throw cErr;
+        contractorId = (contractor as any).id;
+      }
 
       // Mark application as approved — error is checked so a failed update
       // surfaces immediately rather than being silently swallowed.
@@ -159,7 +173,7 @@ export function ContractorApplications() {
         .update({
           status: 'approved',
           approved_by: profile?.id,
-          contractor_id: (contractor as any).id,
+          contractor_id: contractorId,
         })
         .eq('id', app.id);
       if (appUpdateErr) throw appUpdateErr;
@@ -202,6 +216,15 @@ export function ContractorApplications() {
     }
     setRejecting(true);
     try {
+      // If revoking an approved application, deactivate the linked contractor.
+      if (rejectTarget.status === 'approved' && rejectTarget.contractor_id) {
+        const { error: deactivateErr } = await supabase
+          .from('contractors')
+          .update({ status: 'inactive' })
+          .eq('id', rejectTarget.contractor_id);
+        if (deactivateErr) throw deactivateErr;
+      }
+
       // contractor_applications has no reviewed_by/reviewed_at columns —
       // status + rejection_reason is all it tracks for a rejection.
       const { error: rejectErr } = await supabase

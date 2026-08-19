@@ -80,8 +80,9 @@ export function FinanceOpsSection() {
           ]}
         />
         <Callout tone="warn">
-          Once a run is approved, it cannot be edited directly. A correction requires reverting the run to draft first, and
-          that reversion is itself a logged, auditable action — there is no quiet way to change an approved payroll number.
+          A run that is still pending approval can be <strong>recalled to draft</strong> for editing before it's re-submitted —
+          that recall is a logged, auditable action. Once a run is approved, however, it cannot be reverted to draft or edited
+          in place; a correction at that point means creating a new payroll run with the corrected figures for the same period.
         </Callout>
       </ModuleCard>
 

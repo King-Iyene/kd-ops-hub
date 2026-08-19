@@ -954,7 +954,7 @@ const Fleet = () => {
     if (item?.recurrence === 'every_3_months') nextDueDate = addMonths(today, 3);
     if (item?.recurrence === 'every_6_months') nextDueDate = addMonths(today, 6);
     if (item?.recurrence === 'every_10000_km') nextDueMileage = (odometerKm ?? item.last_done_mileage_km ?? 0) + 10_000;
-    await supabase.from('vehicle_maintenance').update({
+    const { error: maintErr } = await supabase.from('vehicle_maintenance').update({
       status: isRecurring ? 'pending' : 'done',
       last_done_date: today,
       last_done_mileage_km: odometerKm ?? item?.last_done_mileage_km ?? null,
@@ -963,6 +963,9 @@ const Fleet = () => {
       expense_id: expenseId,
       receipt_url: receiptUrl,
     }).eq('id', itemId);
+    if (maintErr) {
+      toast({ title: 'Maintenance item update failed', description: friendlyDbError(maintErr), variant: 'destructive' });
+    }
   };
 
   const submitRepairRequest = async () => {
@@ -1592,7 +1595,10 @@ const Fleet = () => {
         const newBalance = Math.min(cap, levelAfterConsume + litresPurchased);
         const vPayload: Record<string, unknown> = { current_fuel_litres: newBalance };
         if (litresPurchased > 0) vPayload.last_refuel_at = now.toISOString();
-        await supabase.from('vehicles').update(vPayload).eq('id', veh.id);
+        const { error: fuelLevelErr } = await supabase.from('vehicles').update(vPayload).eq('id', veh.id);
+        if (fuelLevelErr) {
+          toast({ title: 'Fuel level sync failed', description: fuelLevelErr.message, variant: 'destructive' });
+        }
         if (consumed > 0) {
           await supabase.from('fuel_level_logs').insert({
             vehicle_id: veh.id,
@@ -1919,10 +1925,13 @@ const Fleet = () => {
           if (upErr) throw upErr;
           if (upData) {
             const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
-            await supabase
+            const { error: docUrlErr } = await supabase
               .from('fuel_requests')
               .update({ request_doc_url: urlData.publicUrl })
               .eq('id', inserted.id);
+            if (docUrlErr) {
+              toast({ title: 'Document link failed to save', description: docUrlErr.message, variant: 'destructive' });
+            }
           }
         } catch (docErr: any) {
           // Don't fail the whole submission — the request is already logged.
@@ -2028,10 +2037,13 @@ const Fleet = () => {
           if (veh) {
             const cap = veh.tank_capacity_litres || 60;
             const newLevel = Math.min(cap, (veh.current_fuel_litres || 0) + litresFilled);
-            await supabase.from('vehicles').update({
+            const { error: extFuelErr } = await supabase.from('vehicles').update({
               current_fuel_litres: newLevel,
               last_refuel_at: paidAt,
             }).eq('id', logExternalForm.vehicle_id);
+            if (extFuelErr) {
+              toast({ title: 'Fuel level sync failed', description: extFuelErr.message, variant: 'destructive' });
+            }
             await supabase.from('fuel_level_logs').insert({
               vehicle_id: logExternalForm.vehicle_id,
               event_type: 'fuel_added',
@@ -2116,7 +2128,10 @@ const Fleet = () => {
           const newBalance = Math.min(cap, Math.max(0, (veh.current_fuel_litres || 0) - consumed + litresPurchased));
           const updatePayload: Record<string, unknown> = { current_fuel_litres: newBalance };
           if (litresPurchased > 0) updatePayload.last_refuel_at = new Date().toISOString();
-          await supabase.from('vehicles').update(updatePayload).eq('id', veh.id);
+          const { error: tripFuelErr } = await supabase.from('vehicles').update(updatePayload).eq('id', veh.id);
+          if (tripFuelErr) {
+            toast({ title: 'Fuel level sync failed', description: tripFuelErr.message, variant: 'destructive' });
+          }
         }
       }
       await logAudit(
@@ -2232,7 +2247,10 @@ const Fleet = () => {
           if (Math.abs(delta) > 0.01) {
             const cap = veh.tank_capacity_litres || 60;
             const newBalance = Math.min(cap, Math.max(0, (veh.current_fuel_litres || 0) + delta));
-            await supabase.from('vehicles').update({ current_fuel_litres: newBalance }).eq('id', veh.id);
+            const { error: adjErr } = await supabase.from('vehicles').update({ current_fuel_litres: newBalance }).eq('id', veh.id);
+            if (adjErr) {
+              toast({ title: 'Fuel level sync failed', description: adjErr.message, variant: 'destructive' });
+            }
             await logAudit(
               'trip_fuel_adjusted',
               `Trip edit adjusted ${veh.plate_number} fuel balance by ${delta > 0 ? '+' : ''}${delta.toFixed(1)} L (now ${newBalance.toFixed(1)} L)`,
@@ -2328,10 +2346,14 @@ const Fleet = () => {
     // revert the fuel request to 'pending' so it doesn't appear fully
     // approved while the expense is still waiting on a co-approver.
     if (expenseResult && expenseResult.status !== 'approved') {
-      await supabase
+      const { error: revertErr } = await supabase
         .from('fuel_requests')
         .update({ status: 'pending' })
         .eq('id', request.id);
+      if (revertErr) {
+        toast({ title: 'Fuel request revert failed', description: revertErr.message, variant: 'destructive' });
+        return;
+      }
       toast({
         title: 'Awaiting second approval',
         description: 'This expense requires a second approver before the fuel request can be fully approved.',
@@ -2342,13 +2364,13 @@ const Fleet = () => {
     if (expErr) {
       // Expense entry failed — revert fuel request to pending so the
       // two records don't get out of sync.
-      await supabase
+      const { error: rollbackErr } = await supabase
         .from('fuel_requests')
         .update({ status: 'pending' })
         .eq('id', request.id);
       toast({
-        title: 'Approval rolled back — expense entry failed',
-        description: expErr.message,
+        title: rollbackErr ? 'Approval failed and rollback failed' : 'Approval rolled back — expense entry failed',
+        description: rollbackErr ? `${expErr.message}; rollback error: ${rollbackErr.message}` : expErr.message,
         variant: 'destructive',
       });
       await fetchData();
@@ -2403,7 +2425,10 @@ const Fleet = () => {
             item_type: 'adhoc',
             status: 'pending',
           });
-          await supabase.from('fuel_requests').update({ batch_id: batch.id }).eq('id', request.id);
+          const { error: batchLinkErr } = await supabase.from('fuel_requests').update({ batch_id: batch.id }).eq('id', request.id);
+          if (batchLinkErr) {
+            toast({ title: 'Batch link failed', description: batchLinkErr.message, variant: 'destructive' });
+          }
           await notifyRoles({
             roles: ['super_admin', 'admin', 'finance'],
             type: 'batch_submitted',
@@ -2464,9 +2489,12 @@ const Fleet = () => {
       .maybeSingle();
     let exceptionExpenseId: string | undefined = (expExisting as any)?.id;
     if (exceptionExpenseId) {
-      await supabase.from('expenses').update({
+      const { error: expUpdErr } = await supabase.from('expenses').update({
         description: `Fuel — ${r.station_name || 'Station'} — ${r.reason || 'Fuel request'} [Budget Exception]`,
       }).eq('id', exceptionExpenseId);
+      if (expUpdErr) {
+        toast({ title: 'Expense sync failed', description: expUpdErr.message, variant: 'destructive' });
+      }
     } else {
       const { data: inserted } = await supabase.from('expenses').insert({
         fuel_request_id: r.id,
@@ -2820,10 +2848,13 @@ const Fleet = () => {
       }
       // Propagate receipt_url to the linked expense row so finance can see
       // it on the Expenses page without switching to Fleet.
-      await supabase
+      const { error: expSyncErr } = await supabase
         .from('expenses')
         .update({ receipt_url: urlData.publicUrl, receipt_sha256: receiptSha256 })
         .eq('fuel_request_id', uploadingReceiptFor.id);
+      if (expSyncErr) {
+        toast({ title: 'Expense receipt sync failed', description: expSyncErr.message, variant: 'destructive' });
+      }
       // CHANGE 2 — bump vehicle fuel level from actual litres filled
       const litresFilledNum = parseFloat(receiptForm.litres_filled) || 0;
       const receiptVehicleId = (uploadingReceiptFor as any).vehicle_id as string | null;
@@ -2832,10 +2863,13 @@ const Fleet = () => {
         if (veh) {
           const cap = veh.tank_capacity_litres || 60;
           const newLevel = Math.min(cap, (veh.current_fuel_litres || 0) + litresFilledNum);
-          await supabase.from('vehicles').update({
+          const { error: rcptFuelErr } = await supabase.from('vehicles').update({
             current_fuel_litres: newLevel,
             last_refuel_at: new Date().toISOString(),
           }).eq('id', receiptVehicleId);
+          if (rcptFuelErr) {
+            toast({ title: 'Fuel level sync failed', description: rcptFuelErr.message, variant: 'destructive' });
+          }
           await supabase.from('fuel_level_logs').insert({
             vehicle_id: receiptVehicleId,
             event_type: 'fuel_added',
@@ -3044,6 +3078,24 @@ const Fleet = () => {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
       return;
     }
+
+    // Also soft-delete the paired expense row (created at submission) so it
+    // doesn't linger as an orphaned pending claim in Expenses / reports.
+    const { data: pairedExp } = await supabase
+      .from('expenses')
+      .select('id, status')
+      .eq('fuel_request_id', r.id)
+      .maybeSingle();
+    if (pairedExp?.id) {
+      const { error: expError } = await supabase
+        .from('expenses')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', pairedExp.id);
+      if (expError) {
+        console.warn('[Fleet] soft-delete paired expense failed:', expError);
+      }
+    }
+
     await logAudit('fuel_request_deleted', `Fuel request for ${r.employee_name} deleted (${formatNaira(r.amount_ngn || 0)})`, profile);
     toast({ title: 'Fuel request deleted' });
     setConfirmDeleteFuel(null);

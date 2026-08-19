@@ -157,6 +157,7 @@ export interface Vehicle {
   next_service_date: string | null;
   notes: string | null;
   status: string;
+  total_mileage_km: number | null;
   out_of_service_until: string | null;
   created_at: string;
 }
