@@ -626,6 +626,13 @@ const ProfilePage = () => {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
+      // Revoke every other session on this account — same reasoning as
+      // ResetPassword.tsx's identical call. Best-effort.
+      try {
+        await supabase.auth.signOut({ scope: 'others' });
+      } catch (signOutErr) {
+        console.warn('[Profile] signOut(others) failed:', signOutErr);
+      }
       await logAudit('profile_password_changed', 'Password changed', profile);
       toast({ title: 'Password updated' });
       setNewPassword(''); setConfirmPassword('');

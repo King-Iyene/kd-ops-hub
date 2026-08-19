@@ -390,6 +390,7 @@ const Fleet = () => {
   const [fuelStatusFilter, setFuelStatusFilter] = useState<string>('all');
   const [tripLogs, setTripLogs] = useState<TripLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const hasFetchedRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -793,6 +794,7 @@ const Fleet = () => {
   // (Same crash pattern that took down the Payments page in 4/2026.)
   async function fetchData() {
     if (!hasFetchedRef.current) setLoading(true);
+    setLoadError(false);
     try {
       // Managers (admin/finance/super_admin/operations) see all records.
       // Field staff and drivers only pull their own records from the DB.
@@ -874,6 +876,11 @@ const Fleet = () => {
       void refreshMyReceiptDebt();
     } catch (err) {
       console.error('[Fleet] fetchData failed:', err);
+      // Only surface a blocking error screen for the initial load — this
+      // function also runs on every background auto-refresh
+      // (useAutoRefresh(fetchData) below), and a transient failure there
+      // shouldn't wipe an already-populated page out from under the user.
+      if (!hasFetchedRef.current) setLoadError(true);
     } finally {
       hasFetchedRef.current = true;
       setLoading(false);
@@ -3097,6 +3104,28 @@ const Fleet = () => {
   }, [isAdmin, fuelRequests, myFuelRequests, fuelStatusFilter]);
 
   if (loading) return <TableSkeleton rows={5} />;
+
+  if (loadError) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="text-center space-y-4 max-w-sm">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10">
+            <AlertTriangle className="h-7 w-7 text-destructive" />
+          </div>
+          <h2 className="text-lg font-semibold text-foreground">Fleet data failed to load</h2>
+          <p className="text-sm text-muted-foreground">
+            There was a problem fetching fleet data. Check your connection and try again.
+          </p>
+          <button
+            onClick={() => { setLoadError(false); setLoading(true); fetchData(); }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 kd-transition"
+          >
+            <RefreshCw className="h-4 w-4" /> Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Phase 4 — service alerts (vehicles with expiries within 30 days)
   const todayStr = new Date().toISOString().slice(0, 10);

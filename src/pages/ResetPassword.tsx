@@ -124,6 +124,15 @@ const ResetPassword = () => {
     if (error) {
       toast({ title: 'Reset failed', description: error.message, variant: 'destructive' });
     } else {
+      // Revoke every other session on this account — if someone else had a
+      // hijacked/stale session open before this reset, this is the moment
+      // that access should end. Best-effort: a failure here shouldn't block
+      // the user from reaching their own freshly-secured account.
+      try {
+        await supabase.auth.signOut({ scope: 'others' });
+      } catch (signOutErr) {
+        console.warn('[ResetPassword] signOut(others) failed:', signOutErr);
+      }
       toast({ title: 'Password set', description: 'Welcome! Taking you to your dashboard.' });
       navigate('/dashboard', { replace: true });
     }
