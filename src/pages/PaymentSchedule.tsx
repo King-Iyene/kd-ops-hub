@@ -215,14 +215,14 @@ export default function PaymentSchedule() {
       supabase
         .from('payment_batches')
         .select('id, name, total_amount, scheduled_date, status')
-        .eq('status', 'scheduled')
+        .not('status', 'in', '("rejected","cancelled","failed")')
         .is('deleted_at', null)
         .gte('scheduled_date', today)
         .order('scheduled_date', { ascending: true }),
       supabase
         .from('payment_batches')
         .select('id, name, total_amount, scheduled_date, status')
-        .eq('status', 'scheduled')
+        .not('status', 'in', '("rejected","cancelled","failed")')
         .is('deleted_at', null)
         .lt('scheduled_date', today)
         .order('scheduled_date', { ascending: true }),

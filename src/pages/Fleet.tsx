@@ -1587,24 +1587,22 @@ const Fleet = () => {
           ? veh.fuel_consumption_rate_lkm
           : (veh.avg_km_per_litre > 0 ? 1 / veh.avg_km_per_litre : null);
         const consumed = distanceKm && distanceKm > 0 && rate ? distanceKm * rate : 0;
-        const cap = veh.tank_capacity_litres || 60;
-        const startLevel = veh.current_fuel_litres || 0;
-        const afterConsume = startLevel - consumed;
-        const floored = afterConsume < 0;
-        const levelAfterConsume = Math.max(0, afterConsume);
-        const newBalance = Math.min(cap, levelAfterConsume + litresPurchased);
-        const vPayload: Record<string, unknown> = { current_fuel_litres: newBalance };
-        if (litresPurchased > 0) vPayload.last_refuel_at = now.toISOString();
-        const { error: fuelLevelErr } = await supabase.from('vehicles').update(vPayload).eq('id', veh.id);
+        const netDelta = -consumed + litresPurchased;
+        const { data: newLevel, error: fuelLevelErr } = await supabase.rpc('adjust_vehicle_fuel_level', {
+          p_vehicle_id: veh.id,
+          p_delta_litres: netDelta,
+          p_last_refuel_at: litresPurchased > 0 ? now.toISOString() : null,
+        });
         if (fuelLevelErr) {
           toast({ title: 'Fuel level sync failed', description: fuelLevelErr.message, variant: 'destructive' });
         }
+        const resultLevel = newLevel ?? Math.max(0, (veh.current_fuel_litres || 0) + netDelta);
         if (consumed > 0) {
           await supabase.from('fuel_level_logs').insert({
             vehicle_id: veh.id,
             event_type: 'trip_consumed',
             amount_litres: consumed,
-            resulting_level_litres: levelAfterConsume,
+            resulting_level_litres: Math.max(0, resultLevel - litresPurchased),
             reference_id: activeTrip.id,
           });
         }
@@ -1613,11 +1611,11 @@ const Fleet = () => {
             vehicle_id: veh.id,
             event_type: 'fuel_added',
             amount_litres: litresPurchased,
-            resulting_level_litres: newBalance,
+            resulting_level_litres: resultLevel,
             reference_id: activeTrip.id,
           });
         }
-        if (floored) {
+        if (consumed > (veh.current_fuel_litres || 0)) {
           await notifyRoles({
             roles: ['super_admin', 'admin', 'operations'],
             type: 'fuel_level_critical',
@@ -2033,24 +2031,20 @@ const Fleet = () => {
         if (error) throw error;
 
         if (logExternalForm.vehicle_id && litresFilled > 0) {
-          const veh = vehicles.find((v) => v.id === logExternalForm.vehicle_id);
-          if (veh) {
-            const cap = veh.tank_capacity_litres || 60;
-            const newLevel = Math.min(cap, (veh.current_fuel_litres || 0) + litresFilled);
-            const { error: extFuelErr } = await supabase.from('vehicles').update({
-              current_fuel_litres: newLevel,
-              last_refuel_at: paidAt,
-            }).eq('id', logExternalForm.vehicle_id);
-            if (extFuelErr) {
-              toast({ title: 'Fuel level sync failed', description: extFuelErr.message, variant: 'destructive' });
-            }
-            await supabase.from('fuel_level_logs').insert({
-              vehicle_id: logExternalForm.vehicle_id,
-              event_type: 'fuel_added',
-              amount_litres: litresFilled,
-              resulting_level_litres: newLevel,
-            });
+          const { data: newLevel, error: extFuelErr } = await supabase.rpc('adjust_vehicle_fuel_level', {
+            p_vehicle_id: logExternalForm.vehicle_id,
+            p_delta_litres: litresFilled,
+            p_last_refuel_at: paidAt,
+          });
+          if (extFuelErr) {
+            toast({ title: 'Fuel level sync failed', description: extFuelErr.message, variant: 'destructive' });
           }
+          await supabase.from('fuel_level_logs').insert({
+            vehicle_id: logExternalForm.vehicle_id,
+            event_type: 'fuel_added',
+            amount_litres: litresFilled,
+            resulting_level_litres: newLevel,
+          });
         }
         await logAudit('fuel_logged_externally', `Fuel purchase logged as paid outside the platform for ${employeeName} (${formatNaira(amount)}), receipt attached`, profile);
       } else {
@@ -2117,18 +2111,18 @@ const Fleet = () => {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      // Update vehicle fuel balance: deduct estimated consumption, add any litres purchased
       if (tripForm.vehicle_id) {
         const veh = vehicles.find((v) => v.id === tripForm.vehicle_id);
         if (veh) {
           const eff = veh.avg_km_per_litre > 0 ? veh.avg_km_per_litre : null;
           const consumed = km && km > 0 && eff ? km / eff : 0;
           const litresPurchased = parseFloat(tripForm.litres) || 0;
-          const cap = veh.tank_capacity_litres || 60;
-          const newBalance = Math.min(cap, Math.max(0, (veh.current_fuel_litres || 0) - consumed + litresPurchased));
-          const updatePayload: Record<string, unknown> = { current_fuel_litres: newBalance };
-          if (litresPurchased > 0) updatePayload.last_refuel_at = new Date().toISOString();
-          const { error: tripFuelErr } = await supabase.from('vehicles').update(updatePayload).eq('id', veh.id);
+          const netDelta = -consumed + litresPurchased;
+          const { error: tripFuelErr } = await supabase.rpc('adjust_vehicle_fuel_level', {
+            p_vehicle_id: veh.id,
+            p_delta_litres: netDelta,
+            p_last_refuel_at: litresPurchased > 0 ? new Date().toISOString() : null,
+          });
           if (tripFuelErr) {
             toast({ title: 'Fuel level sync failed', description: tripFuelErr.message, variant: 'destructive' });
           }
@@ -2245,15 +2239,16 @@ const Fleet = () => {
           const newBought    = newLitres || 0;
           const delta = (-newConsumed + newBought) - (-origConsumed + origBought);
           if (Math.abs(delta) > 0.01) {
-            const cap = veh.tank_capacity_litres || 60;
-            const newBalance = Math.min(cap, Math.max(0, (veh.current_fuel_litres || 0) + delta));
-            const { error: adjErr } = await supabase.from('vehicles').update({ current_fuel_litres: newBalance }).eq('id', veh.id);
+            const { data: newBalance, error: adjErr } = await supabase.rpc('adjust_vehicle_fuel_level', {
+              p_vehicle_id: veh.id,
+              p_delta_litres: delta,
+            });
             if (adjErr) {
               toast({ title: 'Fuel level sync failed', description: adjErr.message, variant: 'destructive' });
             }
             await logAudit(
               'trip_fuel_adjusted',
-              `Trip edit adjusted ${veh.plate_number} fuel balance by ${delta > 0 ? '+' : ''}${delta.toFixed(1)} L (now ${newBalance.toFixed(1)} L)`,
+              `Trip edit adjusted ${veh.plate_number} fuel balance by ${delta > 0 ? '+' : ''}${delta.toFixed(1)} L (now ${(newBalance ?? 0).toFixed(1)} L)`,
               profile,
             );
           }
@@ -2859,25 +2854,21 @@ const Fleet = () => {
       const litresFilledNum = parseFloat(receiptForm.litres_filled) || 0;
       const receiptVehicleId = (uploadingReceiptFor as any).vehicle_id as string | null;
       if (receiptVehicleId && litresFilledNum > 0) {
-        const veh = vehicles.find((v) => v.id === receiptVehicleId);
-        if (veh) {
-          const cap = veh.tank_capacity_litres || 60;
-          const newLevel = Math.min(cap, (veh.current_fuel_litres || 0) + litresFilledNum);
-          const { error: rcptFuelErr } = await supabase.from('vehicles').update({
-            current_fuel_litres: newLevel,
-            last_refuel_at: new Date().toISOString(),
-          }).eq('id', receiptVehicleId);
-          if (rcptFuelErr) {
-            toast({ title: 'Fuel level sync failed', description: rcptFuelErr.message, variant: 'destructive' });
-          }
-          await supabase.from('fuel_level_logs').insert({
-            vehicle_id: receiptVehicleId,
-            event_type: 'fuel_added',
-            amount_litres: litresFilledNum,
-            resulting_level_litres: newLevel,
-            reference_id: uploadingReceiptFor.id,
-          });
+        const { data: newLevel, error: rcptFuelErr } = await supabase.rpc('adjust_vehicle_fuel_level', {
+          p_vehicle_id: receiptVehicleId,
+          p_delta_litres: litresFilledNum,
+          p_last_refuel_at: new Date().toISOString(),
+        });
+        if (rcptFuelErr) {
+          toast({ title: 'Fuel level sync failed', description: rcptFuelErr.message, variant: 'destructive' });
         }
+        await supabase.from('fuel_level_logs').insert({
+          vehicle_id: receiptVehicleId,
+          event_type: 'fuel_added',
+          amount_litres: litresFilledNum,
+          resulting_level_litres: newLevel,
+          reference_id: uploadingReceiptFor.id,
+        });
       }
       await logAudit(
         'fuel_receipt_uploaded',

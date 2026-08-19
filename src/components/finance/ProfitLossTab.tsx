@@ -68,7 +68,7 @@ export default function ProfitLossTab() {
           supabase
             .from('subscriptions')
             .select('billing_cycle, amount_ngn, next_renewal_date, status')
-            .in('status', ['active', 'trial']),
+            .eq('status', 'active'),
           supabase
             .from('expenses')
             .select('amount_ngn, date, status')

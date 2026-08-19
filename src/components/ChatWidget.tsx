@@ -187,7 +187,7 @@ export function ChatWidget() {
     // visible to anyone who inspects the page source.  This webhook secret must
     // be validated server-side via a proxy route (e.g. /api/chat) so the real
     // secret never leaves the backend.
-    const n8nSecret: string | undefined = '' as string | undefined;
+    const n8nSecret = import.meta.env.VITE_N8N_CHAT_SECRET as string | undefined;
     const routeToN8n = useAdvanced && !!n8nUrl;
 
     try {

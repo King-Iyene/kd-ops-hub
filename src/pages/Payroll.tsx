@@ -491,7 +491,7 @@ const Payroll = () => {
           .lte('date', end.toISOString()),
         supabase
           .from('profiles')
-          .select('id, salary_ngn, pension_enabled, nhf_enabled, paye_enabled, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, voluntary_pension_pct, department_id, employee_category, employment_type, pay_group_id')
+          .select('id, salary_ngn, pension_enabled, nhf_enabled, paye_enabled, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, voluntary_pension_pct, department_id, employee_category, employment_type, pay_group_id, start_date')
           .eq('status', 'active')
           .neq('role', 'driver'),
         supabase
@@ -1102,7 +1102,25 @@ const Payroll = () => {
           const compHousing   = Number(e.housing_ngn || 0);
           const compTransport = Number(e.transport_ngn || 0);
           const compOther     = Number(e.other_allowances_ngn || 0);
-          const empUnpaidLeaveDays = unpaidLeaveDaysByEmployee.get(e.id) || 0;
+          let empUnpaidLeaveDays = unpaidLeaveDaysByEmployee.get(e.id) || 0;
+
+          // Pro-rate for mid-period hires: treat calendar days before the
+          // employee's start_date (that fall within this payroll period) as
+          // additional unpaid days so gross, PAYE, pension, and NHF all
+          // scale down through the same leave-deduction path.
+          if (e.start_date) {
+            const hireDate = new Date(e.start_date + 'T00:00:00');
+            const pStartDate = new Date(periodStartDate + 'T00:00:00');
+            const pEndDate = new Date(periodEndDate + 'T00:00:00');
+            if (hireDate > pStartDate && hireDate <= pEndDate) {
+              const msPerDay = 86_400_000;
+              const preHireDays = Math.floor((hireDate.getTime() - pStartDate.getTime()) / msPerDay);
+              if (preHireDays > 0) {
+                empUnpaidLeaveDays += preHireDays;
+              }
+            }
+          }
+
           const payeBase   = empGross + taxableEarningsAdd + recurTaxable;
           const empBreak   = computePayslip({
             grossMonthlyNgn: payeBase,
