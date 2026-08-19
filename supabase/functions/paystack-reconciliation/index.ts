@@ -32,6 +32,9 @@ const STUCK_THRESHOLD_HOURS = 1;
 /** Cap per run — protects against accidentally hitting Paystack 1000 times. */
 const MAX_ITEMS_PER_RUN = 200;
 
+/** A hung verify call would otherwise stall the whole per-item loop. */
+const PAYSTACK_FETCH_TIMEOUT_MS = 20_000;
+
 async function getPaystackSecret(service: any): Promise<string> {
   const { data } = await service
     .from("company_settings")
@@ -134,7 +137,7 @@ Deno.serve(async (req) => {
         try {
           const res = await fetch(
             `${PAYSTACK_BASE}/transfer/verify/${encodeURIComponent(it.paystack_reference)}`,
-            { headers: { Authorization: `Bearer ${secret}` } },
+            { headers: { Authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(PAYSTACK_FETCH_TIMEOUT_MS) },
           );
           const body = await res.json();
           if (!res.ok || body?.status === false) {
@@ -314,7 +317,7 @@ Deno.serve(async (req) => {
           lastCallAt = Date.now();
           const res = await fetch(
             `${PAYSTACK_BASE}/transfer/verify/${encodeURIComponent(it.paystack_reference)}`,
-            { headers: { Authorization: `Bearer ${secret}` } },
+            { headers: { Authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(PAYSTACK_FETCH_TIMEOUT_MS) },
           );
           if (res.status === 429) {
             // Rate-limited even with the pacing. Sleep the Retry-After (Paystack

@@ -37,6 +37,11 @@ import { constantTimeEquals } from "../_shared/timing.ts";
 
 const FLUTTERWAVE_BASE = "https://api.flutterwave.com/v3";
 
+// A hung cross-verify call would otherwise consume this function's entire
+// execution budget with no visible failure — fail fast (the caller already
+// treats a failed cross-verify as "untrusted" and safely 401s).
+const FLUTTERWAVE_FETCH_TIMEOUT_MS = 30_000;
+
 type Supabase = ReturnType<typeof createClient>;
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -75,7 +80,7 @@ async function fetchLiveStatus(
   try {
     const res = await fetch(
       `${FLUTTERWAVE_BASE}/transfers?reference=${encodeURIComponent(reference)}`,
-      { headers: { Authorization: `Bearer ${secret}` } },
+      { headers: { Authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(FLUTTERWAVE_FETCH_TIMEOUT_MS) },
     );
     if (!res.ok) {
       console.warn(`[webhook] cross-verify HTTP ${res.status} for ${reference}`);

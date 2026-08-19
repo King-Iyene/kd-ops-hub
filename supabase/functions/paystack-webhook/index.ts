@@ -32,6 +32,12 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 
 type Supabase = ReturnType<typeof createClient>;
 
+// A hung outbound call (Paystack fee-verify, our own send-email fn) would
+// otherwise consume this function's entire execution budget with no visible
+// failure — these are all best-effort side-effects, so failing fast and
+// logging beats hanging.
+const EXTERNAL_FETCH_TIMEOUT_MS = 30_000;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -268,6 +274,7 @@ async function sendRecipientPaymentEmail(
             company_name: "KD Squares",
           },
         }),
+        signal: AbortSignal.timeout(EXTERNAL_FETCH_TIMEOUT_MS),
       },
     );
   } catch (e) {
@@ -398,7 +405,7 @@ Deno.serve(async (req) => {
       if (secret) {
         const feeRes = await fetch(
           `https://api.paystack.co/transfer/verify/${encodeURIComponent(reference)}`,
-          { headers: { Authorization: `Bearer ${secret}` } },
+          { headers: { Authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(EXTERNAL_FETCH_TIMEOUT_MS) },
         );
         const feeBody = await feeRes.json();
         const feeKobo = Number(feeBody.data?.fee) || 0;

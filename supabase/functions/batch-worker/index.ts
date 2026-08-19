@@ -40,6 +40,10 @@ import { constantTimeEquals } from "../_shared/timing.ts";
 // Config
 // ──────────────────────────────────────────────────────────────────────────
 const PAYSTACK_BASE      = "https://api.paystack.co";
+// A hung Paystack/Flutterwave call would otherwise sit until the platform's
+// hard 150s deadline kills the whole invocation, losing every in-flight
+// item's progress rather than just the one call. Fail fast per-call instead.
+const PROVIDER_FETCH_TIMEOUT_MS = 20_000;
 const TIME_BUDGET_MS     = 120_000;    // stay under 150 s edge timeout
 const CHUNK_SIZE         = 50;          // items per pull (per-item dispatch path)
 const CONCURRENCY        = 8;           // parallel dispatches per chunk (per-item path)
@@ -147,6 +151,7 @@ async function paystackPost(
         "Content-Type":  "application/json",
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
 
     if (res.status === 429 && attempt < PAYSTACK_MAX_RETRIES) {
@@ -303,6 +308,7 @@ async function loadPaystackBanks(secret: string): Promise<BankRow[]> {
   try {
     const res = await fetch('https://api.paystack.co/bank?country=nigeria&perPage=300', {
       headers: { Authorization: `Bearer ${secret}` },
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     if (res.ok) {
       const json = await res.json();
@@ -385,6 +391,7 @@ async function verifyPaystackTransfer(secret: string, reference: string): Promis
   try {
     const res = await fetch(`${PAYSTACK_BASE}/transfer/verify/${encodeURIComponent(reference)}`, {
       headers: { Authorization: `Bearer ${secret}` },
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     if (!res.ok) return null;
     const json = await res.json();
@@ -1167,6 +1174,7 @@ async function loadFlutterwaveBanks(secret: string): Promise<FwBankRow[]> {
   try {
     const res = await fetch(`${FLUTTERWAVE_BASE}/banks/NG`, {
       headers: { Authorization: `Bearer ${secret}` },
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     if (res.ok) {
       const json = await res.json();
@@ -1224,6 +1232,7 @@ async function flutterwavePost(secret: string, path: string, body: unknown): Pro
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     if (res.status === 429 && attempt < PAYSTACK_MAX_RETRIES) {
       const waitMs = retryDelayMs(res, attempt);

@@ -20,6 +20,9 @@ import { constantTimeEquals } from "../_shared/timing.ts";
 const FLUTTERWAVE_BASE = "https://api.flutterwave.com/v3";
 const STUCK_THRESHOLD_HOURS = 1;
 const MAX_ITEMS_PER_RUN = 200;
+
+/** A hung verify call would otherwise stall the whole per-item loop. */
+const FLUTTERWAVE_FETCH_TIMEOUT_MS = 20_000;
 const FW_MIN_MS = 700;   // ~85 req/min — well below FW's per-endpoint limit
 
 async function getFwSecret(service: any): Promise<string> {
@@ -106,7 +109,7 @@ Deno.serve(async (req) => {
         lastCall = Date.now();
         const res = await fetch(
           `${FLUTTERWAVE_BASE}/transfers?reference=${encodeURIComponent(it.flutterwave_reference)}`,
-          { headers: { Authorization: `Bearer ${secret}` } },
+          { headers: { Authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(FLUTTERWAVE_FETCH_TIMEOUT_MS) },
         );
         if (res.status === 429) {
           const retryAfter = Math.min(60, Math.max(1, Number(res.headers.get("retry-after")) || 5));

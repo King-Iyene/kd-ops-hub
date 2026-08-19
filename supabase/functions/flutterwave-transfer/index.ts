@@ -176,6 +176,11 @@ function retryDelayMs(res: Response, attempt: number): number {
   return base + Math.floor(Math.random() * 250);
 }
 
+// A hung Flutterwave call would otherwise consume this function's entire
+// execution budget with no visible failure — fail fast and let the caller
+// (or a retry) handle it instead.
+const FLUTTERWAVE_FETCH_TIMEOUT_MS = 30_000;
+
 async function flutterwaveFetch(
   serviceClient: any,
   path: string,
@@ -191,6 +196,7 @@ async function flutterwaveFetch(
         "Content-Type": "application/json",
         ...(init.headers || {}),
       },
+      signal: AbortSignal.timeout(FLUTTERWAVE_FETCH_TIMEOUT_MS),
     });
 
     if (res.status === 429 && attempt < FW_MAX_RETRIES) {
