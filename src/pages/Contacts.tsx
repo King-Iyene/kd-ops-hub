@@ -24,6 +24,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { formatDate } from '@/lib/format';
+import { safeHref } from '@/lib/safe-href';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -898,9 +899,9 @@ export function WhatsAppGroupsTab() {
                       </TableCell>
                       <TableCell className="text-right">{g.member_count}</TableCell>
                       <TableCell>
-                        {g.invite_link ? (
+                        {g.invite_link && safeHref(g.invite_link) ? (
                           <a
-                            href={g.invite_link}
+                            href={safeHref(g.invite_link)!}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-primary hover:underline inline-flex items-center gap-1"

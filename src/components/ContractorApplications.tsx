@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { isValidRejectionReason } from '@/lib/rejections';
 import { formatDate, maskAccountNumber } from '@/lib/format';
+import { safeHref } from '@/lib/safe-href';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -335,9 +336,9 @@ export function ContractorApplications() {
                             {a.phone && <p className="text-xs text-muted-foreground">{a.phone}</p>}
                           </TableCell>
                           <TableCell>
-                            {li ? (
+                            {li && safeHref(li) ? (
                               <a
-                                href={li}
+                                href={safeHref(li)!}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-xs text-primary hover:underline inline-flex items-center gap-1"

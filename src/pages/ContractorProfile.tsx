@@ -31,6 +31,7 @@ import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { MaskedAccountNumber } from '@/components/ui-kit/MaskedAccountNumber';
 import { logAudit } from '@/lib/audit';
 import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/lib/format';
+import { safeHref } from '@/lib/safe-href';
 import { displayName, initialsOf } from '@/lib/name';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -752,9 +753,9 @@ const ContractorProfile = () => {
                       onChange={(e) => patch({ linkedin_url: e.target.value })}
                       placeholder="https://linkedin.com/in/..."
                     />
-                  ) : contractor.linkedin_url ? (
+                  ) : contractor.linkedin_url && safeHref(contractor.linkedin_url) ? (
                     <a
-                      href={contractor.linkedin_url}
+                      href={safeHref(contractor.linkedin_url)!}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-primary hover:underline break-all py-2 inline-block"
@@ -762,7 +763,7 @@ const ContractorProfile = () => {
                       {contractor.linkedin_url}
                     </a>
                   ) : (
-                    <p className="text-sm py-2">—</p>
+                    <p className="text-sm py-2">{contractor.linkedin_url || '—'}</p>
                   )}
                 </div>
 

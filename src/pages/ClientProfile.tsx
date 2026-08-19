@@ -15,6 +15,7 @@ import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { logAudit } from '@/lib/audit';
 import { MANAGER_ROLES, hasRole } from '@/lib/roles';
 import { formatDate, formatNaira } from '@/lib/format';
+import { safeHref } from '@/lib/safe-href';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { chartTheme, chartPalette, ChartGradients, GlassTooltip, axisTick, chartAnim } from '@/components/ChartKit';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -360,9 +361,13 @@ const ClientProfile = () => {
               {client.website && (
                 <p className="text-sm flex items-center gap-2 text-muted-foreground">
                   <Globe className="h-3.5 w-3.5 shrink-0" />
-                  <a href={client.website} target="_blank" rel="noopener noreferrer" className="hover:underline truncate">
-                    {client.website}
-                  </a>
+                  {safeHref(client.website) ? (
+                    <a href={safeHref(client.website)!} target="_blank" rel="noopener noreferrer" className="hover:underline truncate">
+                      {client.website}
+                    </a>
+                  ) : (
+                    <span className="truncate">{client.website}</span>
+                  )}
                 </p>
               )}
               {client.address && (
