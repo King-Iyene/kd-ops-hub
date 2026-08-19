@@ -619,7 +619,7 @@ Deno.serve(async (req) => {
         const bulkRefs = transfers.map((t: any) => String(t.reference));
         const { data: dbItems, error: dbBulkErr } = await serviceClient
           .from("batch_items")
-          .select("paystack_reference, amount_ngn, paystack_recipient_code")
+          .select("paystack_reference, amount_ngn, paystack_recipient_code, paystack_transfer_code")
           .in("paystack_reference", bulkRefs);
         if (dbBulkErr) {
           console.error("[INTEGRITY] bulk DB lookup failed:", dbBulkErr);
@@ -631,29 +631,50 @@ Deno.serve(async (req) => {
         const dbMap = new Map(
           ((dbItems || []) as any[]).map((r: any) => [r.paystack_reference, r]),
         );
-        const verifiedTransfers = transfers.map((t: any) => {
-          const dbRow = dbMap.get(t.reference);
-          if (!dbRow) {
-            console.warn("[INTEGRITY] bulk ref not found in DB:", t.reference);
-            return t;
-          }
-          const dbAmountKobo = Math.round(Number(dbRow.amount_ngn) * 100);
-          const dbRecipient = dbRow.paystack_recipient_code;
-          if (Number(t.amount) !== dbAmountKobo || t.recipient !== dbRecipient) {
-            console.warn("[INTEGRITY] bulk mismatch:", {
-              ref: t.reference,
-              clientAmount: t.amount,
-              dbAmountKobo,
-              clientRecipient: t.recipient,
-              dbRecipient,
-            });
-          }
-          return {
-            ...t,
-            amount: dbAmountKobo,
-            recipient: dbRecipient || t.recipient,
-          };
-        });
+        // Skip anything already dispatched — initiate_transfer has this same
+        // check-before-send guard; bulk_transfer didn't, so a caller that
+        // (re-)submits a stale/replayed payload including an already-sent
+        // item would resend it under the same reference. batch-worker (the
+        // only real caller) always pre-filters to undispatched items before
+        // building this payload, so this is defense-in-depth, not a fix for
+        // a currently-reachable path.
+        const alreadyDispatched = transfers.filter((t: any) => dbMap.get(t.reference)?.paystack_transfer_code);
+        if (alreadyDispatched.length > 0) {
+          console.warn(
+            "[INTEGRITY] bulk: skipping already-dispatched refs:",
+            alreadyDispatched.map((t: any) => t.reference),
+          );
+        }
+        const verifiedTransfers = transfers
+          .filter((t: any) => !dbMap.get(t.reference)?.paystack_transfer_code)
+          .map((t: any) => {
+            const dbRow = dbMap.get(t.reference);
+            if (!dbRow) {
+              console.warn("[INTEGRITY] bulk ref not found in DB:", t.reference);
+              return t;
+            }
+            const dbAmountKobo = Math.round(Number(dbRow.amount_ngn) * 100);
+            const dbRecipient = dbRow.paystack_recipient_code;
+            if (Number(t.amount) !== dbAmountKobo || t.recipient !== dbRecipient) {
+              console.warn("[INTEGRITY] bulk mismatch:", {
+                ref: t.reference,
+                clientAmount: t.amount,
+                dbAmountKobo,
+                clientRecipient: t.recipient,
+                dbRecipient,
+              });
+            }
+            return {
+              ...t,
+              amount: dbAmountKobo,
+              recipient: dbRecipient || t.recipient,
+            };
+          });
+
+        if (verifiedTransfers.length === 0) {
+          result = { transfers: [], skipped_already_dispatched: alreadyDispatched.map((t: any) => t.reference) };
+          break;
+        }
 
         const body = await paystackFetch("/transfer/bulk", {
           method: "POST",

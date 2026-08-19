@@ -590,7 +590,7 @@ Deno.serve(async (req) => {
         const fwBulkRefs = transfers.map((t: any) => String(t.reference));
         const { data: fwDbItems, error: fwDbBulkErr } = await serviceClient
           .from("batch_items")
-          .select("flutterwave_reference, amount_ngn, account_number, bank_code")
+          .select("flutterwave_reference, amount_ngn, account_number, bank_code, flutterwave_transfer_id")
           .in("flutterwave_reference", fwBulkRefs);
         if (fwDbBulkErr) {
           console.error("[INTEGRITY] FW bulk DB lookup failed:", fwDbBulkErr);
@@ -603,8 +603,27 @@ Deno.serve(async (req) => {
           ((fwDbItems || []) as any[]).map((r: any) => [r.flutterwave_reference, r]),
         );
 
+        // Skip anything already dispatched — mirrors the same check
+        // initiate_transfer does before sending. batch-worker (the only
+        // real caller) always pre-filters to undispatched items, so this is
+        // defense-in-depth against a stale/replayed payload, not a fix for
+        // a currently-reachable path.
+        const fwAlreadyDispatched = transfers.filter((t: any) => fwDbMap.get(t.reference)?.flutterwave_transfer_id);
+        if (fwAlreadyDispatched.length > 0) {
+          console.warn(
+            "[INTEGRITY] FW bulk: skipping already-dispatched refs:",
+            fwAlreadyDispatched.map((t: any) => t.reference),
+          );
+        }
+        const fwPendingTransfers = transfers.filter((t: any) => !fwDbMap.get(t.reference)?.flutterwave_transfer_id);
+
+        if (fwPendingTransfers.length === 0) {
+          result = { batch_id: null, skipped_already_dispatched: fwAlreadyDispatched.map((t: any) => t.reference) };
+          break;
+        }
+
         const title = String(params.title || "KDOps bulk").slice(0, 100);
-        const bulk_data = transfers.map((t: any) => {
+        const bulk_data = fwPendingTransfers.map((t: any) => {
           const dbRow = fwDbMap.get(t.reference);
           const amount = dbRow ? Number(dbRow.amount_ngn) : Number(t.amount);
           const account = dbRow ? String(dbRow.account_number || "").replace(/\D/g, "") : String(t.account_number || "").replace(/\D/g, "");
