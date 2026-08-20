@@ -652,7 +652,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       }
       toast({ title: 'Repair request submitted' });
       setShowRepairForm(false);
-      setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '', vehicle_id: '', service_type: '', odometer: '', vendor_name: '', repair_date: new Date().toISOString().slice(0, 10) });
+      setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '', vehicle_id: '', service_type: '', odometer: '', vendor_name: '', repair_date: new Date().toISOString().slice(0, 10), priority: 'routine' as const, parts_replaced: '', labour_hours: '' });
       setRepairBank(EMPTY_REPAIR_BANK);
       setRepairReceipt(null);
       setRepairReceiptOcrAmount('');
