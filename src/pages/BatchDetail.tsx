@@ -41,13 +41,15 @@ import {
   narrationForBatchItem,
 } from '@/lib/paystack';
 import { fetchFlutterwaveBanks, getFlutterwaveBankCode, resolveFlutterwaveAccount } from '@/lib/flutterwave-banks';
-import { providerLabel as providerLabelFor, itemFeeNgn, itemFeeSource } from '@/lib/payments/item-facade';
+import { itemFeeNgn, itemFeeSource } from '@/lib/payments/item-facade';
 import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
 import { ReceiptModal } from '@/components/ReceiptModal';
 import { RecurringScheduleDialog } from '@/components/RecurringScheduleDialog';
 import { ArchiveBatchDialog } from '@/components/ArchiveBatchDialog';
 import { CancelBatchDialog } from '@/components/CancelBatchDialog';
 import { RenameBatchDialog } from '@/components/RenameBatchDialog';
+import { ResolveItemDialog } from '@/components/ResolveItemDialog';
+import { DiagnosisDialog } from '@/components/DiagnosisDialog';
 import { BatchRiskFlags } from '@/components/BatchRiskFlags';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -57,7 +59,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { usePermission } from '@/hooks/usePermission';
 import { burst } from '@/components/Burst';
@@ -166,48 +167,10 @@ const BatchDetail = () => {
   // row's `status` column stays on 'failed' for audit.
   const [resolveItem, setResolveItem] = useState<any | null>(null);
   const [resolveMode, setResolveMode] = useState<'paid' | 'cancel'>('paid');
-  const [resolveMethod, setResolveMethod] = useState<string>('bank_transfer');
-  const [resolveNote, setResolveNote] = useState<string>('');
-  const [resolving, setResolving] = useState(false);
 
   const openResolve = (item: any, mode: 'paid' | 'cancel') => {
     setResolveItem(item);
     setResolveMode(mode);
-    setResolveMethod(mode === 'cancel' ? 'cancelled' : 'bank_transfer');
-    setResolveNote('');
-  };
-
-  const submitResolve = async () => {
-    if (!resolveItem) return;
-    setResolving(true);
-    try {
-      const method = resolveMode === 'cancel' ? 'cancelled' : resolveMethod;
-      const { error } = await supabase.rpc('mark_batch_item_resolved', {
-        p_item_id: resolveItem.id,
-        p_method:  method,
-        p_note:    resolveNote.trim() || null,
-      });
-      if (error) throw error;
-      await logAudit(
-        resolveMode === 'cancel' ? 'batch_item_cancelled' : 'batch_item_resolved',
-        resolveMode === 'cancel'
-          ? `${resolveItem.full_name || 'Item'} cancelled — closed without payment`
-          : `${resolveItem.full_name || 'Item'} marked as paid manually (${method})`,
-        profile,
-      );
-      toast({
-        title: resolveMode === 'cancel' ? 'Item cancelled' : 'Marked as resolved',
-        description: 'Batch status will update shortly.',
-      });
-      setResolveItem(null);
-      setResolveNote('');
-      setResolveMethod('bank_transfer');
-      await fetchBatch();
-    } catch (err: unknown) {
-      toast({ title: 'Resolve failed', description: errorMessage(err) ?? '', variant: 'destructive' });
-    } finally {
-      setResolving(false);
-    }
   };
 
   // Undo a manual resolution. Clears the four resolution columns
@@ -2421,44 +2384,7 @@ const BatchDetail = () => {
 
       {id && <ApprovalCommentThread entityType="batch" entityId={id} title="Batch discussion" />}
 
-      <Dialog open={!!diagnosis} onOpenChange={(v) => { if (!v) setDiagnosis(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{diagnosis ? providerLabelFor(diagnosis.provider) : 'Provider'} resolve diagnostic</DialogTitle>
-            <DialogDescription>
-              Verbatim response from {diagnosis ? providerLabelFor(diagnosis.provider) : 'the provider'}'s <code className="text-xs">/bank/resolve</code> endpoint
-              for the exact bank code and account number we send. Compare this with what the provider's own
-              dashboard returns for the same details.
-            </DialogDescription>
-          </DialogHeader>
-          {diagnosis && (
-            <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
-                <span className="text-muted-foreground">Bank:</span>
-                <span className="font-mono">{diagnosis.bank}</span>
-                <span className="text-muted-foreground">Bank code sent:</span>
-                <span className="font-mono">{diagnosis.bankCode}</span>
-                <span className="text-muted-foreground">Account sent:</span>
-                <span className="font-mono">{diagnosis.account} <span className="text-muted-foreground">({diagnosis.account.length} digits)</span></span>
-              </div>
-              <div className={`rounded-md border p-3 ${diagnosis.ok ? 'border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/20' : 'border-destructive/40 bg-destructive/5'}`}>
-                <p className={`text-xs font-semibold mb-1 ${diagnosis.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'}`}>
-                  {diagnosis.ok ? `${providerLabelFor(diagnosis.provider)} RESOLVED the account ✓` : `${providerLabelFor(diagnosis.provider)} REJECTED the request ✗`}
-                </p>
-                <p className="font-mono text-xs break-all">{diagnosis.result}</p>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {diagnosis.ok
-                  ? `If resolve works but the actual transfer fails, the issue is downstream (recipient/account cache, wallet balance, or ${providerLabelFor(diagnosis.provider)} rate limits).`
-                  : `Try the same bank code + account on ${providerLabelFor(diagnosis.provider)}'s own dashboard. If it succeeds there but fails here, the parameters we send differ — copy this raw error and share with engineering.`}
-              </p>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setDiagnosis(null)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DiagnosisDialog diagnosis={diagnosis} onClose={() => setDiagnosis(null)} />
 
       <Dialog open={showReject} onOpenChange={setShowReject}>
         <DialogContent>
@@ -2517,57 +2443,18 @@ const BatchDetail = () => {
         batchStatus={batch?.status}
       />
 
-      {/* Resolution dialog — handles both close-out flavours:
-            • paid   — money moved off-rail. Pick method + optional
-                       proof note. Closes the row, batch lifts to
-                       'processed'.
-            • cancel — money will not move (wrong details, account
-                       closed, etc.). Note is required so audit has
-                       a paper trail of WHY we wrote the item off.
-          The same RPC handles both — the method value differentiates
-          ('cancelled' vs 'bank_transfer'/'cash'/etc.). */}
       {/* Cancel-only dialog. Mark-as-paid was retired — KDOps tracks
           Paystack transfers; off-rail payments belong in the bank's
-          reconciliation, not here. The dual-mode dialog state stays
-          in case we ever bring Mark paid back, but only the cancel
-          path is reachable. */}
-      <Dialog open={!!resolveItem} onOpenChange={(v) => { if (!v && !resolving) setResolveItem(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cancel this transfer</DialogTitle>
-            <DialogDescription>
-              Close <span className="font-semibold text-foreground">{resolveItem?.full_name}</span> ({formatNaira(resolveItem?.amount_ngn || 0)}) without paying.
-              Use this when the transfer can't be retried — wrong account, dormant, recipient unreachable.
-              The batch can then close out. If you paid this person another way, record it in your bank reconciliation rather than here.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Reason (required)</Label>
-              <Textarea
-                value={resolveNote}
-                onChange={(e) => setResolveNote(e.target.value)}
-                placeholder="e.g. Account number incorrect, contractor confirmed they no longer use this bank"
-                className="min-h-[70px]"
-              />
-            </div>
-            <div className="rounded-md border border-muted-foreground/20 bg-muted/30 p-2.5 text-[11px] leading-snug text-muted-foreground">
-              No money will be sent. The original failed status stays on the row for audit; the row drops out of pending and the batch closes. Cancellations are reversible — use the Undo button if you change your mind.
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setResolveItem(null)} disabled={resolving}>Back</Button>
-            <Button
-              onClick={submitResolve}
-              disabled={resolving || !resolveNote.trim()}
-              variant="secondary"
-            >
-              {resolving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Cancel transfer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          reconciliation, not here. The dual-mode state stays in case
+          we ever bring Mark paid back, but only the cancel path is
+          reachable (openResolve is always called with 'cancel'). */}
+      <ResolveItemDialog
+        item={resolveItem}
+        mode={resolveMode}
+        profile={profile}
+        onClose={() => setResolveItem(null)}
+        onResolved={fetchBatch}
+      />
 
       <CancelBatchDialog
         open={cancelBatchOpen}
