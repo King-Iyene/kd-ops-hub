@@ -2290,7 +2290,10 @@ function PersonalTransferBatchDialog({
     });
   };
 
-  const selectedBeneficiaries = beneficiaries.filter((b) => selected.has(b.id));
+  const selectedBeneficiaries = useMemo(
+    () => beneficiaries.filter((b) => selected.has(b.id)),
+    [beneficiaries, selected],
+  );
   const totalAmount = selectedBeneficiaries.reduce((sum, b) => sum + (parseFloat(amounts[b.id]) || 0), 0);
   const allAmountsValid = selectedBeneficiaries.length > 0
     && selectedBeneficiaries.every((b) => Number.isFinite(parseFloat(amounts[b.id])) && parseFloat(amounts[b.id]) > 0);
@@ -2306,8 +2309,7 @@ function PersonalTransferBatchDialog({
 
   const riskFlags = useMemo(
     () => computeBatchRiskFlags(selectedBeneficiaries, amounts, history),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selected, amounts, history],
+    [selectedBeneficiaries, amounts, history],
   );
 
   const executeBatch = async (customNarration?: string) => {

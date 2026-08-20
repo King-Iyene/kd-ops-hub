@@ -22,7 +22,7 @@ import {
 import {
   Download, Printer, Share2, X, FileImage, FileText, ChevronDown,
 } from 'lucide-react';
-import { formatReceiptDateTime } from '@/lib/format';
+import { formatNaira, formatReceiptDateTime } from '@/lib/format';
 import { paystackTransferFee, stampDutyFor } from '@/lib/paystack';
 import { useToast } from '@/hooks/use-toast';
 import { receiptTheme, hexToRgba } from '@/lib/receipt-theme';
@@ -39,7 +39,7 @@ interface Props {
   bold?: boolean;
 }
 
-const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+
 
 function statusInfo(status: string) {
   if (status === 'succeeded') return { label: 'SUCCESSFUL', dot: receiptTheme.success, tone: 'success' as const };
@@ -155,9 +155,9 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
       const mime = kind === 'pdf' ? 'application/pdf' : 'image/png';
       const file = blob ? new File([blob], filenameFor(kind), { type: mime }) : null;
       if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ title: `Personal Transfer Receipt — ${recipient}`, text: `${fmtNgn(amount)} to ${recipient}`, files: [file] });
+        await navigator.share({ title: `Personal Transfer Receipt — ${recipient}`, text: `${formatNaira(amount)} to ${recipient}`, files: [file] });
       } else if (navigator.share) {
-        await navigator.share({ title: `Personal Transfer Receipt — ${recipient}`, text: `${fmtNgn(amount)} to ${recipient} (${certId})` });
+        await navigator.share({ title: `Personal Transfer Receipt — ${recipient}`, text: `${formatNaira(amount)} to ${recipient} (${certId})` });
       } else if (blob) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -346,7 +346,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
                     {row.memo && <div style={{ fontSize: '11.5px', color: '#8194a0', fontStyle: 'italic', marginTop: '2px' }}>{row.memo}</div>}
                     {row.batch_label && <div style={{ fontSize: '11px', color: BRAND, marginTop: '2px' }}>Batch: {row.batch_label}</div>}
                   </div>
-                  <div style={{ width: '120px', textAlign: 'right', fontWeight: 600, fontSize: '13px' }}>{fmtNgn(amount)}</div>
+                  <div style={{ width: '120px', textAlign: 'right', fontWeight: 600, fontSize: '13px' }}>{formatNaira(amount)}</div>
                 </div>
 
                 {isSucceeded && (
@@ -354,19 +354,19 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
                     {duty > 0 && (
                       <div style={{ display: 'flex', padding: '8px 0', fontSize: '12.5px', color: '#71717a' }}>
                         <div style={{ flex: 1 }}>Stamp duty</div>
-                        <div style={{ width: '120px', textAlign: 'right' }}>{fmtNgn(duty)}</div>
+                        <div style={{ width: '120px', textAlign: 'right' }}>{formatNaira(duty)}</div>
                       </div>
                     )}
                     <div style={{ display: 'flex', padding: '8px 0', fontSize: '12.5px', color: '#71717a' }}>
                       <div style={{ flex: 1 }}>Transfer fee</div>
-                      <div style={{ width: '120px', textAlign: 'right' }}>{fmtNgn(fee)}</div>
+                      <div style={{ width: '120px', textAlign: 'right' }}>{formatNaira(fee)}</div>
                     </div>
                     <div style={{
                       display: 'flex', justifyContent: 'flex-end', alignItems: 'baseline', gap: '32px',
                       padding: '14px 0 4px', borderTop: `2px solid ${BRAND}`, marginTop: '4px',
                     }}>
                       <div style={{ fontWeight: 800, fontSize: '14px', color: '#111' }}>TOTAL</div>
-                      <div style={{ fontWeight: 900, fontSize: '19px', color: BRAND }}>{fmtNgn(total)}</div>
+                      <div style={{ fontWeight: 900, fontSize: '19px', color: BRAND }}>{formatNaira(total)}</div>
                     </div>
                   </>
                 )}
@@ -509,7 +509,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '26px', fontWeight: 800, color: '#111', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtNgn(amount)}</div>
+                <div style={{ fontSize: '26px', fontWeight: 800, color: '#111', letterSpacing: '-0.02em', lineHeight: 1 }}>{formatNaira(amount)}</div>
                 <div style={{ fontSize: '10px', color: '#aaa', marginTop: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Settlement amount</div>
               </div>
             </div>
@@ -553,12 +553,12 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
 
             {isSucceeded && (
               <Section brand={BRAND} title="Debit Breakdown">
-                <Row k="Transfer amount" v={fmtNgn(amount)} />
-                {duty > 0 && <Row k="Stamp duty" v={fmtNgn(duty)} />}
-                <Row k="Transfer fee" v={fmtNgn(fee)} />
+                <Row k="Transfer amount" v={formatNaira(amount)} />
+                {duty > 0 && <Row k="Stamp duty" v={formatNaira(duty)} />}
+                <Row k="Transfer fee" v={formatNaira(fee)} />
                 <div style={{ borderTop: '1px solid #e4e4e7', paddingTop: '10px', marginTop: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '15px' }}>
                   <span style={{ fontWeight: 600, color: '#111' }}>Total debit</span>
-                  <span style={{ fontWeight: 700, color: '#111' }}>{fmtNgn(total)}</span>
+                  <span style={{ fontWeight: 700, color: '#111' }}>{formatNaira(total)}</span>
                 </div>
               </Section>
             )}

@@ -152,7 +152,7 @@ export default function FxExposureTab() {
                     <CartesianGrid {...GRID} />
                     <XAxis dataKey="label" {...AXIS_TICK} />
                     <YAxis {...AXIS_TICK} tickFormatter={fmtMillions} />
-                    <ReTooltip content={<ChartTooltip valueFormatter={formatNgn} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
+                    <ReTooltip content={<ChartTooltip valueFormatter={formatNairaCompact} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
                     <Bar dataKey="monthly_ngn" name="Monthly cost" radius={[4, 4, 0, 0]}>
                       {sensitivityData.map((d, i) => (
                         <Cell key={i} fill={d.shock === 0 ? SERIES[0] : d.shock > 0 ? SERIES[1] : SERIES[2]} />

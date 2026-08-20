@@ -31,7 +31,7 @@ import {
 import {
   Download, Printer, Share2, X, FileImage, FileText, ChevronDown,
 } from 'lucide-react';
-import { formatReceiptDateTime } from '@/lib/format';
+import { formatNaira, formatReceiptDateTime } from '@/lib/format';
 import { stampDutyFor } from '@/lib/paystack';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -59,7 +59,7 @@ interface Props {
   bold?: boolean;
 }
 
-const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+
 
 // Same palette as the print receipts (BatchDetail.tsx / Payroll.tsx) so a
 // batch's PDF summary and its individual item receipts read as one document
@@ -288,13 +288,13 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
       if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: `KDOps Receipt — ${item.full_name || ''}`,
-          text: `Payment receipt for ${item.full_name || ''} — ${fmtNgn(amount)}`,
+          text: `Payment receipt for ${item.full_name || ''} — ${formatNaira(amount)}`,
           files: [file],
         });
       } else if (navigator.share) {
         await navigator.share({
           title: `KDOps Receipt — ${item.full_name || ''}`,
-          text: `Payment receipt for ${item.full_name || ''} — ${fmtNgn(amount)} (${certId})`,
+          text: `Payment receipt for ${item.full_name || ''} — ${formatNaira(amount)} (${certId})`,
         });
       } else if (blob) {
         // Desktop browser without Web Share — fall back to download
@@ -511,7 +511,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '26px', fontWeight: 800, color: bold ? '#fff' : '#111', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtNgn(amount)}</div>
+                <div style={{ fontSize: '26px', fontWeight: 800, color: bold ? '#fff' : '#111', letterSpacing: '-0.02em', lineHeight: 1 }}>{formatNaira(amount)}</div>
                 <div style={{ fontSize: '10px', color: bold ? 'rgba(255,255,255,0.7)' : '#aaa', marginTop: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Settlement amount</div>
               </div>
             </div>
@@ -571,12 +571,12 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
                     — the principal sum being moved. "Principal" was the
                     word a developer would use; "Transfer amount" is what
                     every Nigerian bank prints on a real statement. */}
-                <Row k="Transfer amount" v={fmtNgn(amount)} />
-                {duty > 0 && <Row k="Stamp duty" v={fmtNgn(duty)} />}
-                <Row k="Transfer fee" v={fmtNgn(psFee)} />
+                <Row k="Transfer amount" v={formatNaira(amount)} />
+                {duty > 0 && <Row k="Stamp duty" v={formatNaira(duty)} />}
+                <Row k="Transfer fee" v={formatNaira(psFee)} />
                 <div style={{ borderTop: '1px solid #e4e4e7', paddingTop: '10px', marginTop: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '15px' }}>
                   <span style={{ fontWeight: 600, color: '#111' }}>Total debit</span>
-                  <span style={{ fontWeight: 700, color: '#111' }}>{fmtNgn(total)}</span>
+                  <span style={{ fontWeight: 700, color: '#111' }}>{formatNaira(total)}</span>
                 </div>
               </Section>
             )}
