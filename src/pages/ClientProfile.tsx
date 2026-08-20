@@ -17,7 +17,7 @@ import { MANAGER_ROLES, hasRole } from '@/lib/roles';
 import { formatDate, formatNaira } from '@/lib/format';
 import { safeHref } from '@/lib/safe-href';
 import { StatCard } from '@/components/ui-kit/StatCard';
-import { chartTheme, chartPalette, ChartGradients, GlassTooltip, axisTick, chartAnim } from '@/components/ChartKit';
+import { chartTheme, chartPalette, ChartGradients, GlassTooltip, axisTick, chartAnim, fmtNairaTick } from '@/components/ChartKit';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -615,7 +615,7 @@ const ClientProfile = () => {
                     <XAxis dataKey="label" tick={axisTick} />
                     <YAxis
                       tick={axisTick}
-                      tickFormatter={(v: number) => v >= 1_000_000 ? `₦${(v / 1_000_000).toFixed(1)}M` : `₦${(v / 1_000).toFixed(0)}K`}
+                      tickFormatter={fmtNairaTick}
                     />
                     <Tooltip content={<GlassTooltip formatter={(v: number) => formatNaira(v)} />} />
                     <Legend />
@@ -666,7 +666,7 @@ const ClientProfile = () => {
                     <XAxis
                       type="number"
                       tick={axisTick}
-                      tickFormatter={(v: number) => v >= 1_000_000 ? `₦${(v / 1_000_000).toFixed(1)}M` : `₦${(v / 1_000).toFixed(0)}K`}
+                      tickFormatter={fmtNairaTick}
                     />
                     <YAxis type="category" dataKey="name" tick={axisTick} width={120} />
                     <Tooltip content={<GlassTooltip formatter={(v: number) => formatNaira(v)} />} />

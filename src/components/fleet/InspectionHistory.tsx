@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatNairaCompact } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -257,7 +257,7 @@ export function InspectionHistory({ vehicles }: Props) {
     try {
       const note = [
         `Action taken: ${resolveForm.action_taken.trim()}`,
-        resolveForm.cost_ngn ? `Repair cost: ₦${parseFloat(resolveForm.cost_ngn).toLocaleString()}` : null,
+        resolveForm.cost_ngn ? `Repair cost: ${formatNairaCompact(parseFloat(resolveForm.cost_ngn))}` : null,
         resolveForm.resolution_note.trim() ? `Notes: ${resolveForm.resolution_note.trim()}` : null,
       ].filter(Boolean).join('\n');
 

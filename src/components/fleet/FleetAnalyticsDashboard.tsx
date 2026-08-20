@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer } from 'recharts';
-import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme, fmtNairaTick } from '@/components/ChartKit';
 import { formatNaira } from '@/lib/format';
 import { Fuel, TrendingUp, Gauge, Zap, AlertTriangle, BarChart2 } from 'lucide-react';
 import type { VehicleSummary, FieldStaff } from '@/lib/fleet-utils';
@@ -264,7 +264,7 @@ function FleetAnalyticsDashboard({
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
                 <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
                 <YAxis
-                  tickFormatter={(v) => `₦${v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : `${(v / 1000).toFixed(0)}k`}`}
+                  tickFormatter={fmtNairaTick}
                   tick={axisTick}
                   axisLine={false}
                   tickLine={false}

@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import { Calculator, TrendingUp, TrendingDown, AlertTriangle, Info } from 'lucide-react';
 import { formatNaira } from '@/lib/format';
-import { ChartGradients, GlassTooltip, axisTick, chartTheme } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip, axisTick, chartTheme, fmtNairaTick } from '@/components/ChartKit';
 
 interface MonthData {
   month: string;
@@ -214,7 +214,7 @@ export function FleetBudgetForecaster() {
                   tick={axisTick}
                   axisLine={false}
                   tickLine={false}
-                  tickFormatter={(v: number) => v >= 1_000_000 ? `₦${(v / 1_000_000).toFixed(1)}M` : `₦${(v / 1_000).toFixed(0)}K`}
+                  tickFormatter={fmtNairaTick}
                   width={60}
                 />
                 <ReTooltip

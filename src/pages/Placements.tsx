@@ -15,7 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { hasRole } from '@/lib/roles';
-import { formatDate, formatNaira, formatUsd, formatFxRate } from '@/lib/format';
+import { formatDate, formatNaira, formatNairaCompact, formatUsd, formatFxRate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { useDebounce } from '@/hooks/useDebounce';
 import { usePagination } from '@/hooks/usePagination';
@@ -47,7 +47,7 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter } from '@/components/ui-kit/MobileCard';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
-import { chartTheme, chartPalette, ChartGradients, GlassTooltip, axisTick, chartAnim } from '@/components/ChartKit';
+import { chartTheme, chartPalette, ChartGradients, GlassTooltip, axisTick, chartAnim, fmtNairaTick } from '@/components/ChartKit';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -809,7 +809,7 @@ function Placements() {
     if (error) {
       toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'FX rate updated', description: `Rate changed to ₦${newRate.toLocaleString()} with reason recorded.` });
+      toast({ title: 'FX rate updated', description: `Rate changed to ${formatNairaCompact(newRate)} with reason recorded.` });
       setPayments((prev) => prev.map((pp) => (pp.id === paymentId ? { ...pp, ...update } as PlacementPayment : pp)));
       setAllPayments((prev) => prev.map((pp) => (pp.id === paymentId ? { ...pp, ...update } as any : pp)));
       setFxEditOpen(null);
@@ -1017,7 +1017,7 @@ function Placements() {
                     <ChartGradients />
                     <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} />
                     <XAxis dataKey="label" tick={axisTick} />
-                    <YAxis tick={axisTick} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
+                    <YAxis tick={axisTick} tickFormatter={fmtNairaTick} />
                     <Tooltip content={<GlassTooltip formatter={(v: number) => formatNaira(v)} />} />
                     <Area type="monotone" dataKey="gross" name="Gross Revenue" stroke={chartTheme.primary} fill="url(#kd-grad-primary)" />
                     <Area type="monotone" dataKey="commission" name="KD Commission" stroke={chartTheme.success} fill="url(#kd-grad-success)" />
@@ -1064,7 +1064,7 @@ function Placements() {
                   <BarChart data={chartData.byClient} layout="vertical" {...chartAnim}>
                     <ChartGradients />
                     <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} horizontal={false} />
-                    <XAxis type="number" tick={axisTick} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
+                    <XAxis type="number" tick={axisTick} tickFormatter={fmtNairaTick} />
                     <YAxis type="category" dataKey="name" tick={axisTick} width={120} />
                     <Tooltip content={<GlassTooltip formatter={(v: number) => formatNaira(v)} />} />
                     <Bar dataKey="revenue" name="Monthly Commission" fill="url(#kd-grad-cyan)" radius={[0, 4, 4, 0]} />
@@ -1651,8 +1651,8 @@ function Placements() {
                     <ChartGradients />
                     <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} />
                     <XAxis dataKey="label" tick={axisTick} />
-                    <YAxis tick={axisTick} tickFormatter={(v) => `₦${v.toLocaleString()}`} />
-                    <Tooltip content={<GlassTooltip formatter={(v: number) => `₦${v.toLocaleString()}`} />} />
+                    <YAxis tick={axisTick} tickFormatter={formatNairaCompact} />
+                    <Tooltip content={<GlassTooltip formatter={formatNairaCompact} />} />
                     <Line type="monotone" dataKey="rate" name="FX Rate" stroke={chartTheme.primary} strokeWidth={2} dot={{ r: 3 }} />
                     {currentFxRate && (
                       <Line
@@ -1801,7 +1801,7 @@ function Placements() {
                   <ChartGradients />
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} />
                   <XAxis dataKey="label" tick={axisTick} />
-                  <YAxis tick={axisTick} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
+                  <YAxis tick={axisTick} tickFormatter={fmtNairaTick} />
                   <Tooltip content={<GlassTooltip formatter={(v: number) => formatNaira(v)} />} />
                   <Bar dataKey="commission" name="KD Commission" fill="url(#kd-grad-success)" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="payout" name="Employee Payout" fill="url(#kd-grad-primary)" radius={[4, 4, 0, 0]} />

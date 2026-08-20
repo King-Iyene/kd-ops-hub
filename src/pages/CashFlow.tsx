@@ -24,7 +24,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { formatNaira } from '@/lib/format';
-import { ChartGradients, GlassTooltip, chartTheme, axisTick } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip, chartTheme, axisTick, fmtNairaTick } from '@/components/ChartKit';
 import { cn } from '@/lib/utils';
 import {
   bandForRunwayWeeks,
@@ -224,7 +224,7 @@ export default function CashFlow() {
                 <ChartGradients />
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
                 <XAxis dataKey="label" tick={axisTick} axisLine={{ stroke: chartTheme.gridLine }} tickLine={false} />
-                <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₦${(v / 1_000_000).toFixed(1)}M`} />
+                <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={fmtNairaTick} />
                 <ReTooltip
                   content={
                     <GlassTooltip
@@ -263,7 +263,7 @@ export default function CashFlow() {
               <LineChart data={trendData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
                 <XAxis dataKey="label" tick={axisTick} axisLine={{ stroke: chartTheme.gridLine }} tickLine={false} />
-                <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₦${(v / 1_000_000).toFixed(1)}M`} />
+                <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={fmtNairaTick} />
                 <ReTooltip
                   content={
                     <GlassTooltip

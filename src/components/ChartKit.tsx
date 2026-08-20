@@ -124,6 +124,13 @@ export function GlassTooltip(props: any) {
   );
 }
 
+/** Compact Naira formatter for chart axis ticks — auto-scales K/M. */
+export function fmtNairaTick(n: number): string {
+  if (Math.abs(n) >= 1_000_000) return `₦${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1_000) return `₦${(n / 1_000).toFixed(0)}k`;
+  return `₦${n.toFixed(0)}`;
+}
+
 /** Shared axis tick style. Pass to XAxis/YAxis tick prop. */
 export const axisTick = {
   fontSize: 11,
