@@ -16,7 +16,7 @@
 // (override is treated as already-qualified). Per programme: accounts → USD → NGN
 // at the live rate.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useCompanySettings } from '@/queries';
 import { useAuthStore } from '@/store/authStore';
