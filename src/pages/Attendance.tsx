@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useCompanySettings } from '@/queries';
 
 type AttendanceStatus = 'present' | 'absent' | 'late' | 'half_day' | 'remote' | 'on_leave' | 'public_holiday';
 
@@ -74,7 +75,11 @@ export default function Attendance() {
   const [page, setPage] = useState(0);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lateThreshold, setLateThreshold] = useState('09:15');
+  const { data: companySettings } = useCompanySettings();
+  const lateThreshold = useMemo(() => {
+    const raw = (companySettings as any)?.late_threshold_time as string | undefined;
+    return raw ? raw.slice(0, 5) : '09:15';
+  }, [companySettings]);
 
   const today = new Date();
   const [monthStart, setMonthStart] = useState(format(startOfMonth(today), 'yyyy-MM-dd'));
@@ -111,17 +116,6 @@ export default function Attendance() {
 
   useEffect(() => { load(); }, [load]);
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from('company_settings')
-        .select('late_threshold_time')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .maybeSingle();
-      const raw = (data as any)?.late_threshold_time as string | undefined;
-      if (raw) setLateThreshold(raw.slice(0, 5));
-    })();
-  }, []);
 
   const empName = (id: string) => profiles.find(p => p.id === id)?.full_name ?? '—';
 

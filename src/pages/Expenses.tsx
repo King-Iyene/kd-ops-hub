@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCompanySettings } from '@/queries';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart,
@@ -185,8 +186,20 @@ const Expenses = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<BudgetSummary[]>([]);
   // Per-category maximum ₦ amount — pulled from company_settings.expense_limits.
-  const [limits, setLimits] = useState<Record<string, number>>({});
-  const [dualThreshold, setDualThreshold] = useState<number>(0);
+  const { data: companySettingsData } = useCompanySettings();
+  const limits = useMemo(() => {
+    const rawLimits = (companySettingsData as any)?.expense_limits || ({} as Record<string, number>);
+    const cleaned: Record<string, number> = {};
+    for (const [k, v] of Object.entries(rawLimits)) {
+      const n = typeof v === 'number' ? v : parseFloat(String(v));
+      if (Number.isFinite(n) && n > 0) cleaned[k] = n;
+    }
+    return cleaned;
+  }, [companySettingsData]);
+  const dualThreshold = useMemo(() => {
+    const raw = Number((companySettingsData as any)?.dual_approval_threshold_ngn ?? 0);
+    return Number.isFinite(raw) && raw > 0 ? raw : 0;
+  }, [companySettingsData]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
@@ -264,7 +277,7 @@ const Expenses = () => {
         .order('created_at', { ascending: false })
         .limit(5000);
       if (!privileged) query = query.eq('submitted_by', currentProfile?.id || '');
-      const [expensesRes, budgetsRes, itemsRes, settingsRes] = await Promise.all([
+      const [expensesRes, budgetsRes, itemsRes] = await Promise.all([
         query,
         supabase
           .from('budgets')
@@ -272,27 +285,9 @@ const Expenses = () => {
           .eq('status', 'approved')
           .is('deleted_at', null),
         supabase.from('budget_items').select('budget_id, category').limit(20000),
-        supabase
-          .from('company_settings')
-          .select('expense_limits, dual_approval_threshold_ngn')
-          .eq('id', '00000000-0000-0000-0000-000000000001')
-          .maybeSingle(),
       ]);
       if (expensesRes.error) throw expensesRes.error;
       if (budgetsRes.error) throw budgetsRes.error;
-
-      const rawThreshold = Number((settingsRes.data as any)?.dual_approval_threshold_ngn ?? 0);
-      setDualThreshold(Number.isFinite(rawThreshold) && rawThreshold > 0 ? rawThreshold : 0);
-
-      const rawLimits =
-        (settingsRes.data as any)?.expense_limits || ({} as Record<string, number>);
-      // Coerce any string values from the JSON column into numbers.
-      const cleaned: Record<string, number> = {};
-      for (const [k, v] of Object.entries(rawLimits)) {
-        const n = typeof v === 'number' ? v : parseFloat(String(v));
-        if (Number.isFinite(n) && n > 0) cleaned[k] = n;
-      }
-      setLimits(cleaned);
 
       const itemsByBudget = new Map<string, string[]>();
       for (const it of (itemsRes.data || []) as any[]) {
