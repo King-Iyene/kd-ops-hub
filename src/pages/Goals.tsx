@@ -19,6 +19,7 @@ import {
   Unlink,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useDepartments } from '@/queries';
 import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { errorMessage } from '@/lib/db-errors';
@@ -101,11 +102,6 @@ interface ProfileRow {
   email: string;
 }
 
-interface Department {
-  id: string;
-  name: string;
-}
-
 interface LinkedTask {
   id: string;
   title: string;
@@ -166,7 +162,7 @@ const Goals = () => {
 
   const [goals, setGoals] = useState<Goal[]>([]);
   const [profiles, setProfiles] = useState<Map<string, ProfileRow>>(new Map());
-  const [departments, setDepartments] = useState<Department[]>([]);
+  const { data: departments = [] } = useDepartments();
   const [loading, setLoading] = useState(true);
 
   const [goalTasksMap, setGoalTasksMap] = useState<Map<string, LinkedTask[]>>(new Map());
@@ -195,17 +191,15 @@ const Goals = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [goalsRes, profilesRes, depsRes] = await Promise.all([
+    const [goalsRes, profilesRes] = await Promise.all([
       supabase.from('goals').select('id, title, description, scope, owner_id, department_id, quarter, status, progress_pct, completed_at, created_at').order('created_at', { ascending: false }).limit(200),
       supabase.from('profiles_directory').select('id, full_name, email').neq('is_anonymised', true).order('full_name').limit(500),
-      supabase.from('departments').select('id, name').order('name'),
     ]);
     const goalsData = (goalsRes.data as Goal[]) || [];
     setGoals(goalsData);
     const m = new Map<string, ProfileRow>();
     for (const p of (profilesRes.data as ProfileRow[]) || []) m.set(p.id, p);
     setProfiles(m);
-    setDepartments((depsRes.data as Department[]) || []);
 
     const goalIds = goalsData.map((g) => g.id);
     if (goalIds.length > 0) {

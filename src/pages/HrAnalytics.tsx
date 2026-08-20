@@ -4,6 +4,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend,
 } from 'recharts';
 import { supabase } from '@/lib/supabase';
+import { useDepartments } from '@/queries';
 import { formatNaira } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -38,11 +39,6 @@ interface EmployeeSummary {
   job_title: string | null;
   departments: { name: string } | null;
 }
-interface Department {
-  id: string;
-  name: string;
-  head_id: string | null;
-}
 interface Termination {
   id: string;
   employee_id: string;
@@ -68,7 +64,7 @@ const HrAnalytics = () => {
   usePageTitle('HR Analytics');
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<EmployeeSummary[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
+  const { data: departments = [] } = useDepartments();
   const [terminations, setTerminations] = useState<Termination[]>([]);
   const [absenceDaysYtd, setAbsenceDaysYtd] = useState(0);
 
@@ -76,14 +72,13 @@ const HrAnalytics = () => {
     (async () => {
       setLoading(true);
       const yearStart = `${new Date().getFullYear()}-01-01`;
-      const [pRes, dRes, tRes, leaveRes] = await Promise.all([
+      const [pRes, tRes, leaveRes] = await Promise.all([
         supabase
           .from('profiles')
           .select(
             'id, full_name, first_name, last_name, role, status, gender, salary_ngn, department_id, start_date, reporting_manager_id, job_title, departments!department_id(name)',
           )
           .limit(2000),
-        supabase.from('departments').select('id, name, head_id').order('name'),
         supabase
           .from('terminations' as any)
           .select('id, employee_id, last_working_day, reason, rehire_eligible')
@@ -101,7 +96,6 @@ const HrAnalytics = () => {
           .catch(() => ({ data: [] as any[], error: null })),
       ]);
       setEmployees((pRes.data as any[]) ?? []);
-      setDepartments((dRes.data as Department[]) ?? []);
       setTerminations((tRes as any).data ?? []);
       const totalAbsence = ((leaveRes as any).data || []).reduce(
         (s: number, r: any) => s + (r.is_half_day ? 0.5 : Number(r.days_requested || 1)),

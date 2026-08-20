@@ -21,6 +21,7 @@ import IncrementsTab from '@/components/employee/IncrementsTab';
 import AdvancesTab from '@/components/employee/AdvancesTab';
 import PermissionsTab from '@/components/employee/PermissionsTab';
 import { supabase } from '@/lib/supabase';
+import { useDepartments } from '@/queries';
 import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -261,7 +262,7 @@ const EmployeeProfile = () => {
   const [rejectingBankRequest, setRejectingBankRequest] = useState<string | null>(null);
   const [bankRejectReason, setBankRejectReason] = useState('');
   const [bankHistoryLoading, setBankHistoryLoading] = useState(false);
-  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
+  const { data: departments = [] } = useDepartments();
   const [payGroups, setPayGroups] = useState<Array<{ id: string; name: string }>>([]);
   // Active employees (used as the Reports-to dropdown).
   const [managers, setManagers] = useState<Array<{ id: string; full_name: string | null; email: string }>>([]);
@@ -389,11 +390,6 @@ const EmployeeProfile = () => {
       verified: !!(emp.bank_name && emp.bank_account_number && emp.bank_account_name),
     });
     setPermissions((data as any).permissions || {});
-
-    // Departments for the inline Edit select.
-    supabase.from('departments').select('id, name').order('name').then(({ data }) => {
-      setDepartments((data as Array<{ id: string; name: string }>) || []);
-    }).catch(() => { /* departments are non-critical; edit select degrades gracefully */ });
 
     // Pay groups for the Employment Details dropdown.
     supabase.from('pay_groups').select('id, name').order('name').then(({ data }) => {

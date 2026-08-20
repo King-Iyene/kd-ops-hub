@@ -4,6 +4,7 @@ import { Plus, BarChart3, CalendarClock, CalendarDays, Columns3 } from 'lucide-r
 import { errorMessage } from '@/lib/db-errors';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { supabase } from '@/lib/supabase';
+import { useDepartments } from '@/queries';
 import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
 import { burst } from '@/components/Burst';
@@ -184,7 +185,7 @@ const Payroll = () => {
   // employee).
   const [segments, setSegments] = useState<PayrollSegment[]>([]);
   const [segmentDialog, setSegmentDialog] = useState(false);
-  const [segmentDepartments, setSegmentDepartments] = useState<{ id: string; name: string }[]>([]);
+  const { data: segmentDepartments = [] } = useDepartments();
   const [segmentSaving, setSegmentSaving] = useState(false);
   const [segmentPayGroups, setSegmentPayGroups] = useState<{ id: string; name: string }[]>([]);
   const [segmentForm, setSegmentForm] = useState<{
@@ -203,9 +204,6 @@ const Payroll = () => {
 
   useEffect(() => {
     loadSegments();
-    supabase.from('departments').select('id, name').order('name').then(({ data }) => {
-      setSegmentDepartments((data as { id: string; name: string }[]) || []);
-    }).catch(() => { /* departments are optional for the segment builder */ });
     supabase.from('pay_groups').select('id, name').order('name').then(({ data }) => {
       setSegmentPayGroups((data as { id: string; name: string }[]) || []);
     }).catch(() => { /* pay groups are optional for the segment builder */ });
