@@ -66,6 +66,7 @@ import {
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useDepartments } from '@/queries';
 import { cn } from '@/lib/utils';
 import { deptBadgeStyle, deptDotStyle } from '@/lib/dept-colors';
 
@@ -162,7 +163,7 @@ const Employees = () => {
   const [confirmReactivate, setConfirmReactivate] = useState<Employee | null>(null);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-  const [departments, setDepartments] = useState<DeptOption[]>([]);
+  const { data: departments = [] } = useDepartments();
 
   const isSuperAdmin = profile?.role === 'super_admin';
   const isAdmin = profile?.role === 'admin' || isSuperAdmin;
@@ -236,10 +237,9 @@ const Employees = () => {
     const to = from + PAGE_SIZE - 1;
     query = query.range(from, to);
 
-    const [employeesRes, tagsRes, deptsRes] = await Promise.all([
+    const [employeesRes, tagsRes] = await Promise.all([
       query,
       supabase.from('tags').select('id, name, color').or('module.eq.all,module.eq.employee').order('name'),
-      supabase.from('departments').select('id, name').order('name'),
     ]);
     if (employeesRes.error) {
       toast({ title: 'Error', description: employeesRes.error.message, variant: 'destructive' });
@@ -247,7 +247,6 @@ const Employees = () => {
     setEmployees((employeesRes.data as Employee[]) || []);
     setTotalCount(employeesRes.count ?? 0);
     setAvailableTags((tagsRes.data as Tag[]) || []);
-    setDepartments((deptsRes.data as DeptOption[]) || []);
     setLoading(false);
   }, [page, showInactive, roleFilter, deptFilter, debouncedSearch, toast]);
 

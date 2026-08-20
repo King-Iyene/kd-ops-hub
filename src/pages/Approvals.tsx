@@ -82,6 +82,7 @@ import {
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
 import { StickyActionBar, StickyActionBarSpacer } from '@/components/ui-kit/StickyActionBar';
+import { useEmployeeDirectory } from '@/queries';
 
 type Kind = 'batch' | 'expense' | 'fuel' | 'budget' | 'leave';
 
@@ -153,6 +154,13 @@ const Approvals = () => {
 
   const canApprove = hasRole(profile?.role, APPROVER_ROLES);
 
+  const { data: profilesList = [] } = useEmployeeDirectory();
+  const profilesById = useMemo(() => {
+    const m = new Map<string, { full_name: string; email: string }>();
+    for (const p of profilesList) m.set(p.id, { full_name: p.full_name, email: p.email });
+    return m;
+  }, [profilesList]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<PendingItem[]>([]);
@@ -168,11 +176,8 @@ const Approvals = () => {
     setLoading(true);
     setError(null);
     try {
-      const [batchRes, expenseRes, fuelRes, budgetRes, profilesRes, leaveRes] =
+      const [batchRes, expenseRes, fuelRes, budgetRes, leaveRes] =
         await Promise.all([
-          // Pull both pending_approval and pending_second_approval batches —
-          // the second-approval queue is just another flavour of "needs my
-          // attention" and belongs in Mission Control, not behind a hidden tab.
           supabase
             .from('payment_batches')
             .select('id, name, beneficiary_count, period, total_amount, created_by, created_at, status')
@@ -202,7 +207,6 @@ const Approvals = () => {
             .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .limit(200),
-          supabase.from('profiles_directory').select('id, full_name, email').limit(500),
           supabase
             .from('leave_requests')
             .select('id, employee_id, start_date, end_date, leave_type, reason, status, created_at, profiles:employee_id(full_name, first_name, last_name)')
@@ -212,13 +216,6 @@ const Approvals = () => {
             .limit(200),
         ]);
 
-      const profilesById = new Map<string, { full_name: string; email: string }>();
-      for (const p of profilesRes.data || []) {
-        profilesById.set(p.id as string, {
-          full_name: (p as any).full_name,
-          email: (p as any).email,
-        });
-      }
       const nameFor = (id?: string | null) => {
         if (!id) return undefined;
         const p = profilesById.get(id);
@@ -300,7 +297,7 @@ const Approvals = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [profilesById]);
 
   useEffect(() => {
     fetchAll();

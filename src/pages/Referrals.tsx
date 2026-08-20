@@ -46,6 +46,7 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import { useEmployeeDirectory } from '@/queries';
 
 interface Referral {
   id: string;
@@ -73,7 +74,12 @@ const Referrals = () => {
     profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const [referrals, setReferrals] = useState<Referral[]>([]);
-  const [profiles, setProfiles] = useState<Map<string, ProfileRow>>(new Map());
+  const { data: profilesList = [] } = useEmployeeDirectory();
+  const profiles = useMemo(() => {
+    const m = new Map<string, ProfileRow>();
+    for (const p of profilesList) m.set(p.id, { id: p.id, full_name: p.full_name ?? '', email: p.email });
+    return m;
+  }, [profilesList]);
   const [contractors, setContractors] = useState<{ id: string; full_name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -94,20 +100,16 @@ const Referrals = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [refRes, profRes, contractorRes] = await Promise.all([
+      const [refRes, contractorRes] = await Promise.all([
         supabase
           .from('referrals')
           .select('id, referrer_id, referrer_contractor_id, referred_email, status, is_affiliate, commission_pct, created_at')
           .order('created_at', { ascending: false })
           .limit(200),
-        supabase.from('profiles_directory').select('id, full_name, email').limit(500),
         supabase.from('contractors').select('id, full_name').eq('status', 'active').order('full_name').limit(500),
       ]);
       if (refRes.error) throw refRes.error;
       setReferrals((refRes.data as Referral[]) || []);
-      const m = new Map<string, ProfileRow>();
-      for (const p of (profRes.data as ProfileRow[]) || []) m.set(p.id, p);
-      setProfiles(m);
       setContractors((contractorRes.data as any[]) || []);
     } catch (err: any) {
       toast({ title: 'Failed to load referrals', description: err?.message, variant: 'destructive' });
