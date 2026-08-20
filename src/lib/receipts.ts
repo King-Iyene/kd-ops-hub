@@ -13,6 +13,8 @@
  *      fat-finger and inflated-amount mistakes for free.
  */
 
+import { formatNairaCompact } from '@/lib/format';
+
 /** SHA-256 of a File's bytes, as a lowercase hex string. */
 export async function hashFile(file: File): Promise<string> {
   const buf = await file.arrayBuffer();
@@ -167,7 +169,7 @@ export function checkReceiptRequestDivergence(
     const direction = receiptAmountNgn > requestedAmountNgn ? 'more' : 'less';
     return {
       flagged: true,
-      reason: `Receipt amount ₦${receiptAmountNgn.toLocaleString()} is ${Math.round(deviationPct * 100)}% ${direction} than the ₦${requestedAmountNgn.toLocaleString()} requested`,
+      reason: `Receipt amount ${formatNairaCompact(receiptAmountNgn)} is ${Math.round(deviationPct * 100)}% ${direction} than the ${formatNairaCompact(requestedAmountNgn)} requested`,
     };
   }
   return { flagged: false, reason: null };
@@ -222,7 +224,7 @@ export function checkRepairCostOutlier(
   if (deviationPct > 0.75) {
     return {
       flagged: true,
-      reason: `₦${amountNgn.toLocaleString()} is ${Math.round(deviationPct * 100)}% above the ₦${serviceTypeMedian.toLocaleString()} median this fleet has paid for this service type`,
+      reason: `${formatNairaCompact(amountNgn)} is ${Math.round(deviationPct * 100)}% above the ${formatNairaCompact(serviceTypeMedian)} median this fleet has paid for this service type`,
     };
   }
   return { flagged: false, reason: null };
@@ -267,7 +269,7 @@ export function checkMathMismatch(
   if (deviation > 0.05) {
     return {
       flagged: true,
-      reason: `Amount ₦${amountNgn.toLocaleString()} doesn't match ${litres}L × ₦${unitPriceNgn.toLocaleString()}/L = ₦${Math.round(expected).toLocaleString()} (${Math.round(deviation * 100)}% off)`,
+      reason: `Amount ${formatNairaCompact(amountNgn)} doesn't match ${litres}L × ${formatNairaCompact(unitPriceNgn)}/L = ${formatNairaCompact(Math.round(expected))} (${Math.round(deviation * 100)}% off)`,
     };
   }
   return { flagged: false, reason: null };
@@ -373,7 +375,7 @@ export function checkOcrManualMismatch(
   if (deviation > 0.15) {
     return {
       flagged: true,
-      reason: `OCR read ₦${ocrAmount.toLocaleString()} but ₦${manualAmount.toLocaleString()} was entered (${Math.round(deviation * 100)}% difference)`,
+      reason: `OCR read ${formatNairaCompact(ocrAmount)} but ${formatNairaCompact(manualAmount)} was entered (${Math.round(deviation * 100)}% difference)`,
     };
   }
   return { flagged: false, reason: null };

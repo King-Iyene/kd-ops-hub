@@ -8,7 +8,7 @@ import { validateFile } from '@/lib/file-validation';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles, notifyChannels } from '@/lib/notify';
 import { notifyAnomalyToAdmins } from '@/lib/notify-events';
-import { formatNaira, formatDate } from '@/lib/format';
+import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
 import { FilePreviewTrigger } from '@/components/FilePreview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -527,7 +527,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
             const direction = amount > ocrAmount ? 'more' : 'less';
             flags.push({
               type: 'amount_mismatch',
-              reason: `Entered amount ₦${amount.toLocaleString()} is ${deviationPct}% ${direction} than the ₦${ocrAmount.toLocaleString()} the receipt appears to show`,
+              reason: `Entered amount ${formatNairaCompact(amount)} is ${deviationPct}% ${direction} than the ${formatNairaCompact(ocrAmount)} the receipt appears to show`,
             });
           }
         }
@@ -710,7 +710,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
           const direction = claimedAmount > ocrAmount ? 'more' : 'less';
           flags.push({
             type: 'amount_mismatch',
-            reason: `Submitted amount ₦${claimedAmount.toLocaleString()} is ${deviationPct}% ${direction} than the ₦${ocrAmount.toLocaleString()} this receipt appears to show`,
+            reason: `Submitted amount ${formatNairaCompact(claimedAmount)} is ${deviationPct}% ${direction} than the ${formatNairaCompact(ocrAmount)} this receipt appears to show`,
           });
         }
       }
