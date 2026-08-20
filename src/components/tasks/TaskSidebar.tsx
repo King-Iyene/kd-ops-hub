@@ -171,7 +171,7 @@ export function TaskSidebar({
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-5 w-5" onClick={onCreateSpace}>
+                <Button size="icon" variant="ghost" className="h-5 w-5" aria-label="Create space" onClick={onCreateSpace}>
                   <Plus className="h-3 w-3" />
                 </Button>
               </TooltipTrigger>
@@ -236,7 +236,7 @@ export function TaskSidebar({
                               {(onRenameFolder || onDeleteFolder || onCreateList) && (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover/folder:opacity-100 shrink-0">
+                                    <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover/folder:opacity-100 shrink-0" aria-label="Folder options">
                                       <MoreHorizontal className="h-3 w-3" />
                                     </Button>
                                   </DropdownMenuTrigger>
@@ -378,7 +378,7 @@ function ListItem({ list, count, active, onClick, onRename, onDelete }: {
       {(onRename || onDelete) && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover/list:opacity-100 shrink-0">
+            <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover/list:opacity-100 shrink-0" aria-label="List options">
               <MoreHorizontal className="h-3 w-3" />
             </Button>
           </DropdownMenuTrigger>
@@ -457,6 +457,7 @@ function SpaceItem({
             size="icon"
             variant="ghost"
             className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0 ml-0.5"
+            aria-label="Space options"
           >
             <MoreHorizontal className="h-3 w-3" />
           </Button>

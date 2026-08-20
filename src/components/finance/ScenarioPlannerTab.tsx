@@ -306,7 +306,7 @@ export default function ScenarioPlannerTab() {
                         onChange={e => updateAdjustment(adj.id, { durationWeeks: Number(e.target.value) })}
                       />
                     </div>
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => removeAdjustment(adj.id)}>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Remove adjustment" onClick={() => removeAdjustment(adj.id)}>
                       <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </Button>
                   </div>

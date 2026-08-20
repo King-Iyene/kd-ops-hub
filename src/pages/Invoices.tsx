@@ -838,6 +838,7 @@ const Invoices = () => {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            aria-label="Remove line item"
                             onClick={() => removeLine(idx)}
                             disabled={lineItems.length === 1}
                           >

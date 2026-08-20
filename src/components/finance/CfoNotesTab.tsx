@@ -257,13 +257,13 @@ export default function CfoNotesTab() {
                       </div>
                     </div>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => togglePin(note)}>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={note.pinned ? 'Unpin note' : 'Pin note'} onClick={() => togglePin(note)}>
                         {note.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(note)}>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit note" onClick={() => openEdit(note)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleDelete(note)}>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Delete note" onClick={() => handleDelete(note)}>
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button>
                     </div>

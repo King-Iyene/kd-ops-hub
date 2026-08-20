@@ -897,7 +897,7 @@ const Tasks = () => {
         <div className="shrink-0 border-b border-border/60 bg-card/30 backdrop-blur-sm">
           <div className="flex items-center justify-between gap-3 px-4 lg:px-6 py-3">
             <div className="flex items-center gap-3 min-w-0">
-              <Button size="icon" variant="ghost" className="md:hidden h-8 w-8 shrink-0" onClick={() => setSidebarOpen(true)}>
+              <Button size="icon" variant="ghost" className="md:hidden h-8 w-8 shrink-0" aria-label="Open sidebar" onClick={() => setSidebarOpen(true)}>
                 <ListTodo className="h-4 w-4" />
               </Button>
               <div className="min-w-0">

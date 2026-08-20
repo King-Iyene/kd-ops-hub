@@ -301,13 +301,13 @@ export default function Shifts() {
         <TabsContent value="roster" className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={() => setWeekStart(prev => subWeeks(prev, 1))}>
+              <Button variant="outline" size="icon" aria-label="Previous week" onClick={() => setWeekStart(prev => subWeeks(prev, 1))}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <span className="text-sm font-medium min-w-[200px] text-center">
                 {format(weekStart, 'dd MMM yyyy')} &ndash; {format(weekEnd, 'dd MMM yyyy')}
               </span>
-              <Button variant="outline" size="icon" onClick={() => setWeekStart(prev => addWeeks(prev, 1))}>
+              <Button variant="outline" size="icon" aria-label="Next week" onClick={() => setWeekStart(prev => addWeeks(prev, 1))}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -427,7 +427,7 @@ export default function Shifts() {
                           </Badge>
                         </td>
                         <td className="p-3 text-right">
-                          <Button variant="ghost" size="icon" onClick={() => openShiftDialog(shift)}>
+                          <Button variant="ghost" size="icon" aria-label="Edit shift" onClick={() => openShiftDialog(shift)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
                         </td>

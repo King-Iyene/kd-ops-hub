@@ -670,17 +670,17 @@ export default function PaymentSchedule() {
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center justify-end gap-0.5">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(s)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Edit" onClick={() => openEdit(s)}>
                             <Pencil className="h-3 w-3" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => togglePause(s)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={s.status === 'active' ? 'Pause' : 'Resume'} onClick={() => togglePause(s)}>
                             {s.status === 'active' ? (
                               <PauseCircle className="h-3 w-3" />
                             ) : (
                               <PlayCircle className="h-3 w-3 text-emerald-600" />
                             )}
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setConfirmDelete(s)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" aria-label="Delete" onClick={() => setConfirmDelete(s)}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>

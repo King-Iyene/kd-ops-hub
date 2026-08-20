@@ -154,10 +154,10 @@ export function TaskWorkloadView({ tasks, profiles, onTaskClick }: TaskWorkloadV
     <div className="flex flex-col h-full">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o - 1)}>
+          <Button variant="outline" size="icon" className="h-7 w-7" aria-label="Previous week" onClick={() => setWeekOffset((o) => o - 1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((o) => o + 1)}>
+          <Button variant="outline" size="icon" className="h-7 w-7" aria-label="Next week" onClick={() => setWeekOffset((o) => o + 1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
           {weekOffset !== 0 && (

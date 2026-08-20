@@ -446,13 +446,13 @@ export default function ApprovalWorkflows() {
                         </div>
 
                         <div className="flex gap-0.5">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" disabled={idx === 0} onClick={() => moveStep(idx, 'up')}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Move up" disabled={idx === 0} onClick={() => moveStep(idx, 'up')}>
                             <ArrowUp className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" disabled={idx === editingWorkflow.steps.length - 1} onClick={() => moveStep(idx, 'down')}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Move down" disabled={idx === editingWorkflow.steps.length - 1} onClick={() => moveStep(idx, 'down')}>
                             <ArrowDown className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeStep(step.id)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Remove step" onClick={() => removeStep(step.id)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>

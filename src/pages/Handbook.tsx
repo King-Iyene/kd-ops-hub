@@ -334,13 +334,13 @@ export default function Handbook() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewPolicy(p)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="View" onClick={() => setViewPolicy(p)}>
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit" onClick={() => openEdit(p)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteTarget(p)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Delete" onClick={() => setDeleteTarget(p)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -393,7 +393,7 @@ export default function Handbook() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewPolicy(p)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="View" onClick={() => setViewPolicy(p)}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         {acked ? (

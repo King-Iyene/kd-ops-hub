@@ -450,7 +450,7 @@ export default function Messages() {
                     className="min-h-[42px] max-h-[140px] text-sm resize-none"
                     rows={1}
                   />
-                  <Button size="icon" onClick={handleSend} disabled={sending || !composerText.trim()}>
+                  <Button size="icon" aria-label="Send message" onClick={handleSend} disabled={sending || !composerText.trim()}>
                     {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </Button>
                 </div>

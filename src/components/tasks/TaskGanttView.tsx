@@ -164,10 +164,10 @@ export function TaskGanttView({ tasks, profiles, onTaskClick, dependencies = [] 
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-2 border-b shrink-0">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="h-7 w-7" onClick={prev}>
+          <Button variant="outline" size="icon" className="h-7 w-7" aria-label="Previous period" onClick={prev}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" className="h-7 w-7" onClick={next}>
+          <Button variant="outline" size="icon" className="h-7 w-7" aria-label="Next period" onClick={next}>
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={goToday}>Today</Button>

@@ -405,13 +405,13 @@ export default function SuccessionPlanning() {
                     <td className="py-3 pr-3"><StatusBadge status={plan.status} /></td>
                     <td className="py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openDetail(plan)}>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="View" onClick={() => openDetail(plan)}>
                           <Eye className="h-3.5 w-3.5" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openPlanDialog(plan)}>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => openPlanDialog(plan)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deletePlan(plan.id)}>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" aria-label="Delete" onClick={() => deletePlan(plan.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -588,6 +588,7 @@ export default function SuccessionPlanning() {
                                 <Button
                                   size="icon" variant="ghost"
                                   className="h-7 w-7 text-destructive shrink-0"
+                                  aria-label="Remove candidate"
                                   onClick={() => deleteCandidate(c.id)}
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />

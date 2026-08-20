@@ -711,10 +711,10 @@ export default function Performance() {
                             </Button>
                           ) : <span />}
                           <div className="flex items-center gap-1">
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openPlanDialog(p)}>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => openPlanDialog(p)}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deletePlan(p.id)}>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" aria-label="Delete" onClick={() => deletePlan(p.id)}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>

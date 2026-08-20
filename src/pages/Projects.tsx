@@ -396,7 +396,7 @@ export default function Projects() {
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={openCreateSpace}>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" aria-label="Create space" onClick={openCreateSpace}>
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
@@ -434,7 +434,7 @@ export default function Projects() {
                 </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 shrink-0 ml-0.5">
+                    <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 shrink-0 ml-0.5" aria-label="Space options">
                       <MoreHorizontal className="h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -627,10 +627,10 @@ export default function Projects() {
                           </td>
                           <td className="py-3 px-4 text-right">
                             <div className="flex justify-end gap-1">
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(project)}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Edit" onClick={() => openEdit(project)}>
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteTarget(project)}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Delete" onClick={() => setDeleteTarget(project)}>
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
@@ -910,7 +910,7 @@ function ProjectCard({
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-              <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100 shrink-0">
+              <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100 shrink-0" aria-label="More options">
                 <MoreHorizontal className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
@@ -1141,6 +1141,7 @@ function ProjectDetailPanel({
                   </span>
                 )}
                 <Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0"
+                  aria-label="Delete milestone"
                   onClick={() => onDeleteMilestone(ms.id)}>
                   <Trash2 className="h-3 w-3 text-muted-foreground" />
                 </Button>

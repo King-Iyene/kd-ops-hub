@@ -161,10 +161,10 @@ export function SpaceStatusManager({ spaceId, spaceName, open, onClose }: SpaceS
                             {STATUS_GROUPS.map((g) => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}
                           </SelectContent>
                         </Select>
-                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => updateStatus(status.id)}>
+                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" aria-label="Save status" onClick={() => updateStatus(status.id)}>
                           <Check className="h-3 w-3 text-emerald-500" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => setEditingId(null)}>
+                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" aria-label="Cancel editing" onClick={() => setEditingId(null)}>
                           <X className="h-3 w-3" />
                         </Button>
                       </>
@@ -174,10 +174,10 @@ export function SpaceStatusManager({ spaceId, spaceName, open, onClose }: SpaceS
                         <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: status.color }} />
                         <span className="flex-1 text-sm font-medium">{status.name}</span>
                         <span className="text-[10px] text-muted-foreground/60">{group.label}</span>
-                        <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" onClick={() => startEdit(status)}>
+                        <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" aria-label="Edit status" onClick={() => startEdit(status)}>
                           <Pencil className="h-2.5 w-2.5 text-muted-foreground" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" onClick={() => deleteStatus(status.id)}>
+                        <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" aria-label="Delete status" onClick={() => deleteStatus(status.id)}>
                           <Trash2 className="h-2.5 w-2.5 text-muted-foreground" />
                         </Button>
                       </>

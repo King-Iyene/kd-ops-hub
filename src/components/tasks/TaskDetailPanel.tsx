@@ -497,11 +497,11 @@ export function TaskDetailPanel({
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <TooltipWrap tip={watchers.includes(profile?.id || '') ? 'Unwatch' : 'Watch'}>
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={toggleWatch}>
+            <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={watchers.includes(profile?.id || '') ? 'Unwatch' : 'Watch'} onClick={toggleWatch}>
               <Eye className={cn('h-4 w-4', watchers.includes(profile?.id || '') && 'text-primary')} />
             </Button>
           </TooltipWrap>
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onClose}>
+          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Close" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -610,7 +610,7 @@ export function TaskDetailPanel({
                         sub.priority === 'low' && 'bg-slate-300 dark:bg-slate-600',
                       )} />
                     </div>
-                    <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" onClick={() => deleteSubtask(sub.id)}>
+                    <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" aria-label="Delete subtask" onClick={() => deleteSubtask(sub.id)}>
                       <X className="h-3 w-3 text-muted-foreground" />
                     </Button>
                   </div>
@@ -640,7 +640,7 @@ export function TaskDetailPanel({
                   {checklists.length > 0 && (
                     <span className="text-[11px] text-muted-foreground tabular-nums mr-1">{checkedItems}/{checklists.length}</span>
                   )}
-                  <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => setAddingGroup(true)}>
+                  <Button size="icon" variant="ghost" className="h-5 w-5" aria-label="Add group" onClick={() => setAddingGroup(true)}>
                     <Plus className="h-3 w-3" />
                   </Button>
                 </div>
@@ -689,7 +689,7 @@ export function TaskDetailPanel({
                               }
                             </button>
                             <span className={cn('flex-1 text-sm', item.is_checked && 'line-through text-muted-foreground')}>{item.title}</span>
-                            <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" onClick={() => deleteChecklistItem(item.id)}>
+                            <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" aria-label="Delete checklist item" onClick={() => deleteChecklistItem(item.id)}>
                               <X className="h-3 w-3 text-muted-foreground" />
                             </Button>
                           </div>
@@ -773,10 +773,10 @@ export function TaskDetailPanel({
                               <span className="text-[10px] text-muted-foreground">{formatDateTime(c.created_at)}</span>
                               {isOwn && !isEditing && (
                                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
-                                  <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => startEditComment(c)}>
+                                  <Button size="icon" variant="ghost" className="h-5 w-5" aria-label="Edit comment" onClick={() => startEditComment(c)}>
                                     <Pencil className="h-2.5 w-2.5 text-muted-foreground" />
                                   </Button>
-                                  <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => deleteComment(c.id)}>
+                                  <Button size="icon" variant="ghost" className="h-5 w-5" aria-label="Delete comment" onClick={() => deleteComment(c.id)}>
                                     <Trash2 className="h-2.5 w-2.5 text-muted-foreground" />
                                   </Button>
                                 </div>
@@ -1233,7 +1233,7 @@ function DependencySection({
           {t.title}
         </button>
         <div className={cn('h-2 w-2 rounded-full shrink-0', STATUS_DOT[t.status])} />
-        <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" onClick={() => onRemove(dep.id)}>
+        <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" aria-label="Remove dependency" onClick={() => onRemove(dep.id)}>
           <X className="h-3 w-3" />
         </Button>
       </div>
