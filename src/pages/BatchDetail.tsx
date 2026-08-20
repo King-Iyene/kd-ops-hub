@@ -44,6 +44,10 @@ import { fetchFlutterwaveBanks, getFlutterwaveBankCode, resolveFlutterwaveAccoun
 import { providerLabel as providerLabelFor, itemFeeNgn, itemFeeSource } from '@/lib/payments/item-facade';
 import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
 import { ReceiptModal } from '@/components/ReceiptModal';
+import { RecurringScheduleDialog } from '@/components/RecurringScheduleDialog';
+import { ArchiveBatchDialog } from '@/components/ArchiveBatchDialog';
+import { CancelBatchDialog } from '@/components/CancelBatchDialog';
+import { RenameBatchDialog } from '@/components/RenameBatchDialog';
 import { BatchRiskFlags } from '@/components/BatchRiskFlags';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -54,13 +58,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { usePermission } from '@/hooks/usePermission';
 import { burst } from '@/components/Burst';
@@ -104,7 +101,6 @@ const APPROVER_ROLES = ['admin', 'finance', 'super_admin'] as const;
  * because the audit chain must be preserved.
  */
 const DELETABLE_STATUSES = ['draft', 'pending_approval', 'rejected', 'approved', 'funded'] as const;
-const REASON_REQUIRED_STATUSES = new Set(['approved', 'funded']);
 
 /**
  * Resolve the Paystack transfer fee for a batch item with graceful fallbacks.
@@ -250,8 +246,6 @@ const BatchDetail = () => {
   const [showRecurring, setShowRecurring] = useState(false);
   const [showProcessConfirm, setShowProcessConfirm] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
-  const [deleteReason, setDeleteReason] = useState('');
-  const [deleting, setDeleting] = useState(false);
   const [reconciling, setReconciling] = useState(false);
   const [savingResubmit, setSavingResubmit] = useState(false);
   // Bulk-cancel-batch dialog state. MUST live at the top with the other
@@ -260,18 +254,10 @@ const BatchDetail = () => {
   // render and threw React error #310 (rendered fewer hooks than expected)
   // once the batch loaded.
   const [cancelBatchOpen, setCancelBatchOpen] = useState(false);
-  const [cancelBatchNote, setCancelBatchNote] = useState('');
-  const [cancelBatchSaving, setCancelBatchSaving] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
-  const [renameValue, setRenameValue] = useState('');
-  const [renameSaving, setRenameSaving] = useState(false);
   const [retryingAll, setRetryingAll] = useState(false);
-  const [savingSchedule, setSavingSchedule] = useState(false);
-  const [recurFrequency, setRecurFrequency] = useState<'weekly' | 'biweekly' | 'monthly' | 'custom'>('monthly');
   const [companyName, setCompanyName] = useState('KD Squares Ltd');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [recurDay, setRecurDay] = useState<number>(1);
-  const [recurCustomDays, setRecurCustomDays] = useState(30);
   const itemsRef = useRef<any[]>([]);
   const [secondApprovers, setSecondApprovers] = useState<EligibleApprover[]>([]);
   const [firstApproverName, setFirstApproverName] = useState<string | null>(null);
@@ -956,43 +942,6 @@ const BatchDetail = () => {
   };
 
   /**
-   * Soft-delete the current batch via the soft_delete_payment_batch RPC.
-   * The RPC enforces role + status rules and writes its own audit row.
-   */
-  const handleDelete = async () => {
-    if (!batch) return;
-    const requiresReason = REASON_REQUIRED_STATUSES.has(batch.status);
-    if (requiresReason && deleteReason.trim().length < 5) {
-      toast({
-        title: 'Reason required',
-        description: 'Approved/funded batches need a reason of at least 5 characters.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    setDeleting(true);
-    try {
-      const { error } = await supabase.rpc('soft_delete_payment_batch', {
-        p_batch_id: id,
-        p_reason: deleteReason.trim() || null,
-      });
-      if (error) throw error;
-      toast({ title: 'Batch archived', description: `"${batch.name}" was archived (purged after 90 days).` });
-      navigate('/payments');
-    } catch (err: unknown) {
-      toast({
-        title: 'Could not archive batch',
-        description: errorMessage(err) || 'Unknown error',
-        variant: 'destructive',
-      });
-    } finally {
-      setDeleting(false);
-      setShowDelete(false);
-      setDeleteReason('');
-    }
-  };
-
-  /**
    * Operator clicked "Process" — open the pre-flight confirmation modal.
    * The actual dispatch happens in executeProcess() once the operator
    * confirms with full visibility of cost, fees, balance, and narration.
@@ -1559,71 +1508,6 @@ const BatchDetail = () => {
     ['failed', 'partially_processed', 'processing'].includes(batch.status) &&
     items.some((i) => i.status !== 'succeeded' && !i.is_manually_resolved);
 
-  const submitCancelBatch = async () => {
-    setCancelBatchSaving(true);
-    try {
-      const { data, error } = await supabase.rpc('cancel_batch_bulk', {
-        p_batch_id: batch.id,
-        p_note:     cancelBatchNote.trim() || null,
-      });
-      if (error) throw error;
-      const cancelled = (data as any)?.cancelled_count ?? 0;
-      const skipped   = (data as any)?.skipped_count   ?? 0;
-      await logAudit(
-        'batch_cancelled_bulk',
-        `Batch "${batch?.name}" cancelled in bulk — ${cancelled} item(s) closed${skipped ? `, ${skipped} skipped` : ''}`,
-        profile,
-      );
-      toast({
-        title: 'Batch cancelled',
-        description: `${cancelled} item(s) marked cancelled${skipped ? ` (${skipped} skipped)` : ''}.`,
-      });
-      setCancelBatchOpen(false);
-      setCancelBatchNote('');
-      await fetchBatch();
-    } catch (err: unknown) {
-      toast({
-        title: 'Cancel failed',
-        description: errorMessage(err) || 'Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setCancelBatchSaving(false);
-    }
-  };
-
-  const submitRename = async () => {
-    const next = renameValue.trim();
-    if (!next || next === batch.name) {
-      setRenameOpen(false);
-      return;
-    }
-    setRenameSaving(true);
-    try {
-      const { error } = await supabase
-        .from('payment_batches')
-        .update({ name: next })
-        .eq('id', batch.id);
-      if (error) throw error;
-      setBatch((prev: any) => (prev ? { ...prev, name: next } : prev));
-      await logAudit(
-        'batch_renamed',
-        `Batch renamed from "${batch.name}" to "${next}"`,
-        profile,
-      );
-      toast({ title: 'Batch renamed', description: `Now "${next}"` });
-      setRenameOpen(false);
-    } catch (err: unknown) {
-      toast({
-        title: 'Could not rename batch',
-        description: errorMessage(err) || 'Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setRenameSaving(false);
-    }
-  };
-
   const filteredItems = items.filter((i) => {
     if (itemFilter === 'succeeded' && i.status !== 'succeeded') return false;
     if (itemFilter === 'failed' && i.status !== 'failed') return false;
@@ -1664,10 +1548,7 @@ const BatchDetail = () => {
                     className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground"
                     aria-label="Rename batch"
                     title="Rename batch"
-                    onClick={() => {
-                      setRenameValue(batch.name || '');
-                      setRenameOpen(true);
-                    }}
+                    onClick={() => setRenameOpen(true)}
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
@@ -2597,123 +2478,14 @@ const BatchDetail = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showRecurring} onOpenChange={setShowRecurring}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Make this batch recurring</DialogTitle>
-            <DialogDescription>
-              Schedule this batch to repeat automatically on the chosen cadence.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label>Frequency</Label>
-              <Select
-                value={recurFrequency}
-                onValueChange={(v) => setRecurFrequency(v as any)}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="biweekly">Bi-weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="custom">Custom interval</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {recurFrequency === 'weekly' && (
-              <div className="space-y-1">
-                <Label>Day of week</Label>
-                <Select
-                  value={String(recurDay)}
-                  onValueChange={(v) => setRecurDay(Number(v))}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((d, i) => (
-                      <SelectItem key={i} value={String(i)}>{d}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {recurFrequency === 'monthly' && (
-              <div className="space-y-1">
-                <Label>Day of month</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={28}
-                  value={recurDay || new Date(batch?.payment_date || '').getDate() || 1}
-                  onChange={(e) => setRecurDay(Math.max(1, Math.min(28, Number(e.target.value) || 1)))}
-                />
-              </div>
-            )}
-            {recurFrequency === 'custom' && (
-              <div className="space-y-1">
-                <Label>Every N days</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={recurCustomDays}
-                  onChange={(e) => setRecurCustomDays(Number(e.target.value) || 7)}
-                />
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              KDOps will auto-create a new draft batch on schedule and submit it
-              for approval. You can cancel the schedule at any time.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRecurring(false)}>Cancel</Button>
-            <Button disabled={savingSchedule} onClick={async () => {
-              setSavingSchedule(true);
-              const today = new Date();
-              let nextDate: Date;
-              if (recurFrequency === 'weekly') {
-                nextDate = new Date(today);
-                nextDate.setDate(today.getDate() + ((recurDay - today.getDay() + 7) % 7 || 7));
-              } else if (recurFrequency === 'biweekly') {
-                nextDate = new Date(today);
-                nextDate.setDate(today.getDate() + 14);
-              } else if (recurFrequency === 'monthly') {
-                nextDate = new Date(today.getFullYear(), today.getMonth() + 1, recurDay || 1);
-              } else {
-                nextDate = new Date(today);
-                nextDate.setDate(today.getDate() + recurCustomDays);
-              }
-              const { error } = await supabase.from('recurring_schedules').insert({
-                source_batch_id: id,
-                frequency: recurFrequency,
-                day_of_week: recurFrequency === 'weekly' ? recurDay : null,
-                day_of_month: recurFrequency === 'monthly' ? recurDay : null,
-                custom_interval_days: recurFrequency === 'custom' ? recurCustomDays : null,
-                next_run_date: nextDate.toISOString().slice(0, 10),
-                created_by: profile?.id,
-              });
-              if (error) {
-                toast({ title: 'Could not create schedule', description: error.message, variant: 'destructive' });
-                setSavingSchedule(false);
-                return;
-              }
-              await logAudit(
-                'batch_scheduled',
-                `Batch "${batch?.name}" set to recur ${recurFrequency}`,
-                profile,
-              );
-              toast({
-                title: 'Recurring schedule created',
-                description: `Next run: ${nextDate.toLocaleDateString('en-GB')}`,
-              });
-              setShowRecurring(false);
-              setSavingSchedule(false);
-            }}>
-              Create schedule
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RecurringScheduleDialog
+        open={showRecurring}
+        onOpenChange={setShowRecurring}
+        batchId={id!}
+        batchName={batch?.name}
+        paymentDate={batch?.payment_date}
+        profile={profile}
+      />
 
       <ReceiptModal
         open={!!receiptItem}
@@ -2737,59 +2509,13 @@ const BatchDetail = () => {
         onConfirm={(narration) => executeProcess(narration)}
       />
 
-      <Dialog open={showDelete} onOpenChange={(v) => !deleting && setShowDelete(v)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <Trash2 className="h-5 w-5" />
-              Archive this batch?
-            </DialogTitle>
-            <DialogDescription>
-              The batch is hidden from every list, report and KPI, and its audit history
-              stays intact. Archived batches are permanently purged after 90 days.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 text-sm">
-            <p>
-              You're about to archive{' '}
-              <span className="font-semibold">"{batch?.name}"</span> (status:{' '}
-              <span className="font-mono">{batch?.status}</span>). It disappears from all
-              lists and reports immediately; audit history is preserved and the record is
-              permanently purged after 90 days.
-            </p>
-            {batch && REASON_REQUIRED_STATUSES.has(batch.status) && (
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  This batch is {batch.status} — please explain why you're archiving it.
-                </p>
-                <Textarea
-                  placeholder="e.g. Funds returned to wallet — payroll cancelled for April"
-                  value={deleteReason}
-                  onChange={(e) => setDeleteReason(e.target.value)}
-                  rows={3}
-                />
-              </div>
-            )}
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription className="text-xs">
-                {batch?.status === 'funded'
-                  ? 'Funds are on your Paystack balance. Deleting here does NOT recall them — handle the recall separately.'
-                  : 'This action is logged. Restore is via the database only — ask an engineer if needed.'}
-              </AlertDescription>
-            </Alert>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowDelete(false)} disabled={deleting}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {deleting ? 'Archiving…' : 'Archive batch'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ArchiveBatchDialog
+        open={showDelete}
+        onOpenChange={setShowDelete}
+        batchId={id!}
+        batchName={batch?.name}
+        batchStatus={batch?.status}
+      />
 
       {/* Resolution dialog — handles both close-out flavours:
             • paid   — money moved off-rail. Pick method + optional
@@ -2843,81 +2569,23 @@ const BatchDetail = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={cancelBatchOpen} onOpenChange={setCancelBatchOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Cancel this batch?</DialogTitle>
-            <DialogDescription>
-              Marks every outstanding recipient in "{batch?.name}" as cancelled
-              — the same as clicking Cancel on each row one by one. This closes
-              the batch out for accounting: the amounts drop off the Pending
-              KPI immediately. No money moves. You can Undo any individual
-              recipient later from the row menu.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="cancel-batch-note">Reason for cancelling *</Label>
-            <Textarea
-              id="cancel-batch-note"
-              value={cancelBatchNote}
-              onChange={(e) => setCancelBatchNote(e.target.value)}
-              placeholder="Why is this batch being cancelled?"
-              maxLength={500}
-              rows={3}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelBatchOpen(false)} disabled={cancelBatchSaving}>
-              Keep
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={submitCancelBatch}
-              disabled={cancelBatchSaving || !cancelBatchNote.trim()}
-            >
-              {cancelBatchSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Cancel batch
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CancelBatchDialog
+        open={cancelBatchOpen}
+        onOpenChange={setCancelBatchOpen}
+        batchId={batch?.id}
+        batchName={batch?.name}
+        profile={profile}
+        onCancelled={fetchBatch}
+      />
 
-      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Rename batch</DialogTitle>
-            <DialogDescription>
-              Updates the display name only. Recipients, amounts, status, and
-              payment processing are unaffected.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="batch-rename">Batch name</Label>
-            <Input
-              id="batch-rename"
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              maxLength={120}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !renameSaving) submitRename();
-              }}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRenameOpen(false)} disabled={renameSaving}>
-              Cancel
-            </Button>
-            <Button
-              onClick={submitRename}
-              disabled={renameSaving || !renameValue.trim() || renameValue.trim() === batch.name}
-            >
-              {renameSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RenameBatchDialog
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
+        batchId={batch.id}
+        currentName={batch.name || ''}
+        profile={profile}
+        onRenamed={(next) => setBatch((prev: any) => (prev ? { ...prev, name: next } : prev))}
+      />
     </div>
   );
 };
