@@ -343,6 +343,7 @@ Deno.serve(async (req: Request) => {
       changes,
     });
   } catch (err) {
-    return finish(false, { error: (err as Error)?.message ?? String(err) });
+    console.error("[heyreach-sync]", err);
+    return finish(false, { error: "Sync failed. Please try again later." });
   }
 });

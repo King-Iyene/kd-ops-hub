@@ -156,8 +156,12 @@ Deno.serve(async (req) => {
           action: "send_notification",
           table_name: "notifications",
         });
-      } catch (_) {
-        // Fail open — don't block notification on rate-limit check failure.
+      } catch (rlErr) {
+        console.error("[send-email] rate-limit check failed:", rlErr);
+        return new Response(
+          JSON.stringify({ ok: false, error: "Service temporarily unavailable. Please try again." }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
     }
 
@@ -385,9 +389,9 @@ Deno.serve(async (req) => {
     );
 
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    console.error("[send-email]", err);
     return new Response(
-      JSON.stringify({ ok: false, error: message }),
+      JSON.stringify({ ok: false, error: "Email sending failed. Please try again later." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }

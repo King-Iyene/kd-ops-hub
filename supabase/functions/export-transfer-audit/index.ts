@@ -275,6 +275,6 @@ Deno.serve(async (req: Request) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[export-transfer-audit] Unhandled error:", message);
-    return jsonResponse({ error: message }, 500, corsHeaders);
+    return jsonResponse({ error: "Export failed. Please try again later." }, 500, corsHeaders);
   }
 });

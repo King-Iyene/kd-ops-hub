@@ -251,7 +251,7 @@ Deno.serve(async (req) => {
 
     return json({ ok: true, processed: results.length, results });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return json({ ok: false, error: message }, 500);
+    console.error("[data-retention-runner]", err);
+    return json({ ok: false, error: "Data retention job failed. Please try again later." }, 500);
   }
 });

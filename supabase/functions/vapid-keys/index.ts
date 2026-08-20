@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[vapid-keys] fatal:", message);
-    return new Response(JSON.stringify({ error: message }), {
+    return new Response(JSON.stringify({ error: "VAPID key operation failed. Please try again." }), {
       status: 500,
       headers: { ...headers, "Content-Type": "application/json" },
     });

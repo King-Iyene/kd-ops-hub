@@ -380,8 +380,8 @@ Deno.serve(async (req) => {
       throw e;
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return json({ ok: false, error: message }, 500, corsHeaders);
+    console.error("[paystack-reconciliation]", err);
+    return json({ ok: false, error: "Reconciliation failed. Please try again later." }, 500, corsHeaders);
   }
 });
 

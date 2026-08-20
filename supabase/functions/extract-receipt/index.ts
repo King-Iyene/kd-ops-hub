@@ -367,7 +367,7 @@ Deno.serve(async (req) => {
       raw_text: fullText.slice(0, 2000),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return json({ ok: false, error: message }, 500);
+    console.error("[extract-receipt]", err);
+    return json({ ok: false, error: "Receipt extraction failed. Please try again." }, 500);
   }
 });

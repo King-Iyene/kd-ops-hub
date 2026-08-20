@@ -87,7 +87,10 @@ Deno.serve(async (req: Request) => {
       p_rate: rate,
       p_source: "auto:open.er-api.com",
     });
-    if (error) return json(200, { ok: false, error: `record_fetched_fx_rate failed: ${error.message}` });
+    if (error) {
+      console.error("[fx-rate-sync] record_fetched_fx_rate failed:", error);
+      return json(200, { ok: false, error: "FX rate recording failed." });
+    }
 
     const r = Array.isArray(row) ? row[0] : row;
     console.log(`[fx-rate-sync] ${FX_BASE}/${FX_QUOTE}=${rate} status=${r?.status} deviation=${r?.deviation_pct ?? "n/a"}`);
@@ -101,6 +104,7 @@ Deno.serve(async (req: Request) => {
       held_for_review: r?.status === "pending_review",
     });
   } catch (err) {
-    return json(200, { ok: false, error: (err as Error)?.message ?? String(err) });
+    console.error("[fx-rate-sync]", err);
+    return json(200, { ok: false, error: "FX rate sync failed." });
   }
 });

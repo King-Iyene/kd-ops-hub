@@ -93,8 +93,8 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return new Response(JSON.stringify({ ok: false, error: message }), {
+    console.error("[campaign-scheduler]", err);
+    return new Response(JSON.stringify({ ok: false, error: "Campaign scheduling failed. Please try again later." }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

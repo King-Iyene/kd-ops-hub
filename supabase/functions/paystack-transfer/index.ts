@@ -255,7 +255,7 @@ Deno.serve(async (req) => {
           ok: true,
           data: (body.data || []).map((b: any) => ({ code: b.code, name: b.name })),
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "public, max-age=3600" } },
       );
     }
 
@@ -821,6 +821,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
+    console.error("[paystack-transfer]", err);
     const message = err instanceof Error ? err.message : String(err);
     const isPaystackRejection = (err as any)?.isPaystackRejection === true;
     try {
@@ -848,7 +849,7 @@ Deno.serve(async (req) => {
     // edge function actually crashed. Differentiating these stops the
     // browser from logging legitimate Paystack rejections as red 500s.
     return new Response(
-      JSON.stringify({ ok: false, error: message, paystack_rejection: isPaystackRejection }),
+      JSON.stringify({ ok: false, error: "Transfer operation failed. Please try again or contact support.", paystack_rejection: isPaystackRejection }),
       {
         status: isPaystackRejection ? 422 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

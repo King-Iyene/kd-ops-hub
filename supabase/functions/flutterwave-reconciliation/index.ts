@@ -181,8 +181,8 @@ Deno.serve(async (req) => {
       triggered_by: triggeredBy,
     }, 200, corsHeaders);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return json({ ok: false, error: message }, 500, corsHeaders);
+    console.error("[flutterwave-reconciliation]", err);
+    return json({ ok: false, error: "Reconciliation failed. Please try again later." }, 500, corsHeaders);
   }
 });
 

@@ -244,8 +244,8 @@ Deno.serve(async (req) => {
 
     return json(cors, { error: `Unknown action: ${action}` }, 400);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return json(getCorsHeaders(req), { ok: false, error: message }, 500);
+    console.error("[provider-switch]", err);
+    return json(getCorsHeaders(req), { ok: false, error: "Provider switch failed. Please contact support." }, 500);
   }
 });
 

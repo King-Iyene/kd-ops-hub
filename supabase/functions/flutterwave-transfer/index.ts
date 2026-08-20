@@ -260,7 +260,7 @@ Deno.serve(async (req) => {
             name: String(b.name),
           })),
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "public, max-age=3600" } },
       );
     }
 
@@ -733,6 +733,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
+    console.error("[flutterwave-transfer]", err);
     const message = err instanceof Error ? err.message : String(err);
     const isFlutterwaveRejection = (err as any)?.isFlutterwaveRejection === true;
     try {
@@ -756,7 +757,7 @@ Deno.serve(async (req) => {
       }
     } catch { /* swallow */ }
     return new Response(
-      JSON.stringify({ ok: false, error: message, flutterwave_rejection: isFlutterwaveRejection }),
+      JSON.stringify({ ok: false, error: "Transfer operation failed. Please try again or contact support.", flutterwave_rejection: isFlutterwaveRejection }),
       {
         status: isFlutterwaveRejection ? 422 : 500,
         headers: { ...(getCorsHeaders(req)), "Content-Type": "application/json" },
