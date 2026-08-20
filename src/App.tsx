@@ -802,11 +802,11 @@ function AppRoutes() {
           }
         />
 
-        {/* Settings — Super Admin only per spec. */}
+        {/* Settings — Super Admin + Admin (sensitive tabs hidden from admin in Settings.tsx). */}
         <Route
           path="/settings"
           element={
-            <RoleGuard roles={['super_admin']}>
+            <RoleGuard roles={['super_admin', 'admin']}>
               <SettingsPage />
             </RoleGuard>
           }
