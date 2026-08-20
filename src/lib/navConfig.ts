@@ -169,7 +169,7 @@ export const ALL_NAV: NavItem[] = [
 // the hard line already enforced at the database layer.
 export const NAV_GROUPS = [
   { key: 'moneyOut',   label: 'Money Out',           titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Cards', 'Expenses'] },
-  { key: 'moneyIn',    label: 'Money In & Treasury',  titles: ['Invoices', 'Assets', 'Cash Flow', 'Clients'] },
+  { key: 'moneyIn',    label: 'Money In & Treasury',  titles: ['Invoices', 'Assets', 'Cash Flow'] },
   { key: 'risk',       label: 'Risk & Controls',     titles: ['Budgets', 'Compliance', 'Anomalies'] },
   { key: 'coreHr',     label: 'Core HR',              titles: ['Employees', 'Contractors', 'Placements', 'Attendance'] },
   { key: 'timeLeave',  label: 'Time & Leave',         titles: ['Leave', 'Shifts', 'Timesheets'] },
@@ -180,7 +180,7 @@ export const NAV_GROUPS = [
   { key: 'productivity', label: 'Productivity',       titles: ['Tasks', 'Projects', 'Goals'] },
   { key: 'comms',      label: 'Communication',        titles: ['Assistant', 'Messages'] },
   { key: 'intel',      label: 'Intelligence',         titles: ['Reports', 'HR Analytics', 'Knowledge', 'Documents'] },
-  { key: 'crm',        label: 'CRM',                 titles: ['Contacts', 'Referrals', 'Public Links', 'Communications'] },
+  { key: 'crm',        label: 'CRM',                 titles: ['Clients', 'Contacts', 'Referrals', 'Public Links', 'Communications'] },
   { key: 'admin',      label: 'Admin',               titles: ['Audit Log', 'Approval Workflows', 'Settings', 'Principal Disbursements'] },
 ] as const;
 

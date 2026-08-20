@@ -13,6 +13,12 @@ import {
   LogOut,
   User,
   ChevronRight,
+  ChevronDown,
+  Users,
+  Settings,
+  Landmark,
+  Layers,
+  Contact2,
 } from 'lucide-react';
 import { useApprovalStore } from '@/store/approvalStore';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
@@ -22,9 +28,14 @@ import type { Role } from '@/lib/roles';
 import {
   ALL_NAV,
   NAV_GROUPS,
+  SIDEBAR_HUBS,
   filterNavByRoleAndPermissions,
 } from '@/lib/navConfig';
 import { supabase } from '@/lib/supabase';
+
+const MOBILE_HUB_ICONS: Record<string, typeof Users> = {
+  Users, Settings, Landmark, Truck, Layers, Contact2,
+};
 
 type TabDef = {
   title: string;
@@ -93,16 +104,30 @@ export function MobileNav() {
   }, [role]);
 
   const visibleItems = filterNavByRoleAndPermissions(ALL_NAV, role, permissions);
-  const visibleGroups = NAV_GROUPS
-    .map((g) => ({
-      ...g,
-      items: visibleItems.filter((it) => (g.titles as readonly string[]).includes(it.title)),
-    }))
-    .filter((g) => g.items.length > 0);
 
   const ungroupedItems = visibleItems.filter(
     (it) => !NAV_GROUPS.some((g) => (g.titles as readonly string[]).includes(it.title)),
   );
+
+  const [expandedHub, setExpandedHub] = useState<string | null>(null);
+  const [mobileSearch, setMobileSearch] = useState('');
+
+  const mobileSearchResults = useMemo(() => {
+    if (!mobileSearch.trim()) return null;
+    const q = mobileSearch.toLowerCase();
+    return visibleItems.filter((n) => n.title.toLowerCase().includes(q));
+  }, [mobileSearch, visibleItems]);
+
+  const visibleHubs = useMemo(() => {
+    return SIDEBAR_HUBS.map((hub) => {
+      const groupTitles = hub.groups.flatMap((gk) => {
+        const g = NAV_GROUPS.find((ng) => ng.key === gk);
+        return g ? [...g.titles] : [];
+      });
+      const items = visibleItems.filter((n) => groupTitles.includes(n.title));
+      return { ...hub, items };
+    }).filter((h) => h.items.length > 0);
+  }, [visibleItems]);
 
   const openCommandPalette = () => {
     setMoreOpen(false);
@@ -183,14 +208,57 @@ export function MobileNav() {
           </SheetHeader>
 
           {/* Search */}
-          <button
-            onClick={openCommandPalette}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border/60 bg-muted/40 hover:bg-muted/70 kd-transition mb-4 mt-2 active:scale-[0.99]"
-          >
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground flex-1 text-left">Search…</span>
-          </button>
+          <div className="relative mb-3 mt-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              value={mobileSearch}
+              onChange={(e) => setMobileSearch(e.target.value)}
+              placeholder="Search modules…"
+              className="w-full h-10 pl-9 pr-9 rounded-xl border border-border/60 bg-muted/40 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 kd-transition"
+            />
+            {mobileSearch ? (
+              <button
+                onClick={() => setMobileSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground kd-transition"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                onClick={openCommandPalette}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/50 font-medium hover:text-muted-foreground kd-transition"
+                aria-label="Open command palette"
+              >
+                ⌘K
+              </button>
+            )}
+          </div>
 
+          {/* Search results */}
+          {mobileSearchResults ? (
+            <div className="space-y-0.5">
+              {mobileSearchResults.length > 0 ? mobileSearchResults.map((item) => {
+                const active = location.pathname === item.url || (item.url !== '/' && location.pathname.startsWith(item.url));
+                return (
+                  <button
+                    key={item.title}
+                    onClick={() => { setMoreOpen(false); setMobileSearch(''); navigate(item.url); }}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm kd-transition active:scale-[0.99]',
+                      active ? 'bg-primary/10 text-primary font-medium' : 'text-foreground hover:bg-muted/60',
+                    )}
+                  >
+                    <item.icon className={cn('h-5 w-5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
+                    <span className="flex-1 text-left truncate">{item.title}</span>
+                  </button>
+                );
+              }) : (
+                <p className="px-3 py-4 text-sm text-muted-foreground text-center">No modules match "{mobileSearch}"</p>
+              )}
+            </div>
+          ) : (
+          <>
           {/* Ungrouped items (Dashboard, Approvals if visible) */}
           {ungroupedItems.length > 0 && (
             <div className="space-y-0.5 mb-3">
@@ -223,39 +291,75 @@ export function MobileNav() {
             </div>
           )}
 
-          {/* Grouped nav — compact list rows */}
-          <div className="space-y-3">
-            {visibleGroups.map((group) => (
-              <div key={group.label}>
-                <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-                  {group.label}
-                </p>
-                <div className="space-y-0.5">
-                  {group.items.map((item) => {
-                    const active =
-                      location.pathname === item.url ||
-                      (item.url !== '/' && location.pathname.startsWith(item.url));
-                    return (
-                      <button
-                        key={item.title}
-                        onClick={() => { setMoreOpen(false); navigate(item.url); }}
-                        className={cn(
-                          'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm kd-transition active:scale-[0.99]',
-                          active
-                            ? 'bg-primary/10 text-primary font-medium'
-                            : 'text-foreground hover:bg-muted/60',
-                        )}
-                      >
-                        <item.icon className={cn('h-5 w-5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
-                        <span className="flex-1 text-left truncate">{item.title}</span>
-                        <ChevronRight className={cn('h-4 w-4 shrink-0', active ? 'text-primary/50' : 'text-muted-foreground/40')} />
-                      </button>
-                    );
-                  })}
+          {/* Hub-grouped nav — collapsible accordion cards */}
+          <div className="space-y-1.5">
+            {visibleHubs.map((hub) => {
+              const Icon = MOBILE_HUB_ICONS[hub.icon] ?? Layers;
+              const isExpanded = expandedHub === hub.key;
+              const hasActiveItem = hub.items.some(
+                (n) => location.pathname === n.url || (n.url !== '/' && location.pathname.startsWith(n.url)),
+              );
+
+              return (
+                <div key={hub.key} className={cn(
+                  'rounded-xl border kd-transition overflow-hidden',
+                  isExpanded ? 'border-border/60 bg-muted/30' : 'border-transparent',
+                  hasActiveItem && !isExpanded ? 'bg-primary/5' : '',
+                )}>
+                  <button
+                    onClick={() => setExpandedHub(isExpanded ? null : hub.key)}
+                    className="w-full flex items-center gap-3 px-3 py-3 kd-transition active:scale-[0.99]"
+                  >
+                    <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center shrink-0', hub.iconBg)}>
+                      <Icon className={cn('h-4 w-4', hub.color)} />
+                    </div>
+                    <div className="min-w-0 flex-1 text-left">
+                      <p className={cn('text-sm font-semibold leading-none', hasActiveItem ? 'text-primary' : 'text-foreground')}>
+                        {hub.label}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-none truncate">
+                        {hub.description}
+                      </p>
+                    </div>
+                    <span className="text-[11px] tabular-nums text-muted-foreground/50 font-medium mr-1">
+                      {hub.items.length}
+                    </span>
+                    <ChevronDown className={cn(
+                      'h-4 w-4 text-muted-foreground/40 transition-transform duration-200',
+                      isExpanded ? 'rotate-180' : '',
+                    )} />
+                  </button>
+                  {isExpanded && (
+                    <div className="pb-1.5 px-1.5 space-y-0.5">
+                      {hub.items.map((item) => {
+                        const active = location.pathname === item.url || (item.url !== '/' && location.pathname.startsWith(item.url));
+                        return (
+                          <button
+                            key={item.title}
+                            onClick={() => { setMoreOpen(false); setExpandedHub(null); navigate(item.url); }}
+                            className={cn(
+                              'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm kd-transition active:scale-[0.99]',
+                              active ? 'bg-primary/10 text-primary font-medium' : 'text-foreground hover:bg-muted/60',
+                            )}
+                          >
+                            <item.icon className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
+                            <span className="flex-1 text-left truncate">{item.title}</span>
+                            {item.badge === 'approvals' && approvalTotal > 0 && (
+                              <span className="h-5 min-w-5 px-1 rounded-full bg-amber-400 text-[10px] font-bold text-amber-900 flex items-center justify-center">
+                                {approvalTotal > 9 ? '9+' : approvalTotal}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
+          </>
+          )}
 
           {/* Profile + Sign out */}
           <div className="mt-6 pt-4 border-t border-border/50 flex items-center gap-3">

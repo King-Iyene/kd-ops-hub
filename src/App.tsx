@@ -164,21 +164,21 @@ function AppRoutes() {
     <Suspense fallback={<PageSpinner />}>
     <MfaChallengeGate />
     <Routes>
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={<ErrorBoundary><Login /></ErrorBoundary>} />
       {/* Self-registration disabled — use /join (invite-based) flow instead. */}
       <Route path="/register" element={<Navigate to="/login" replace />} />
       <Route path="/signup" element={<Navigate to="/login" replace />} />
       {/* Public routes — no auth required. */}
-      <Route path="/join" element={<JoinForm />} />
-      <Route path="/ref/:code" element={<JoinForm />} />
+      <Route path="/join" element={<ErrorBoundary><JoinForm /></ErrorBoundary>} />
+      <Route path="/ref/:code" element={<ErrorBoundary><JoinForm /></ErrorBoundary>} />
       {/* Legal — public, no auth. */}
-      <Route path="/legal/privacy" element={<Privacy />} />
-      <Route path="/legal/terms" element={<Terms />} />
+      <Route path="/legal/privacy" element={<ErrorBoundary><Privacy /></ErrorBoundary>} />
+      <Route path="/legal/terms" element={<ErrorBoundary><Terms /></ErrorBoundary>} />
       {/* Public careers page — reads job_openings.status='published'. */}
-      <Route path="/careers" element={<Careers />} />
-      <Route path="/forms/:formId" element={<Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" /></div>}><PublicForm /></Suspense>} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/careers" element={<ErrorBoundary><Careers /></ErrorBoundary>} />
+      <Route path="/forms/:formId" element={<ErrorBoundary><Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" /></div>}><PublicForm /></Suspense></ErrorBoundary>} />
+      <Route path="/forgot-password" element={<ErrorBoundary><ForgotPassword /></ErrorBoundary>} />
+      <Route path="/reset-password" element={<ErrorBoundary><ResetPassword /></ErrorBoundary>} />
 
       {/* Unauthorized — auth-checked but no app chrome (pending users). */}
       <Route

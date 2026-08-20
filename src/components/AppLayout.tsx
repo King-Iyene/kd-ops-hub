@@ -181,9 +181,9 @@ export default function AppLayout() {
                 </kbd>
               </button>
               <NotificationBell />
-              <div className="hidden sm:block"><ThemeToggle /></div>
+              <ThemeToggle />
               <div className="hidden sm:block w-px h-4 bg-border/60" />
-              <div className="hidden sm:block"><ProfileDropdown /></div>
+              <ProfileDropdown />
             </div>
           </header>
           {/* ── Main content ────────────────────────────────────────── */}

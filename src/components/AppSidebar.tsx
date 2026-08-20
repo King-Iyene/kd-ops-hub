@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   ChevronDown,
@@ -11,6 +11,8 @@ import {
   Truck,
   Layers,
   Contact2,
+  Search,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -25,7 +27,6 @@ import {
   SIDEBAR_HUBS,
   filterNavByRoleAndPermissions,
   type NavItem,
-  type NavGroupKey,
   type SidebarHub,
 } from '@/lib/navConfig';
 import {
@@ -61,7 +62,7 @@ function getInitials(name: string): string {
 }
 
 export function AppSidebar() {
-  const { state, setOpenMobile, isMobile } = useSidebar();
+  const { state, setOpenMobile, setOpen, isMobile } = useSidebar();
   const sidebarCollapsed = state === 'collapsed';
   const { profile, signOut } = useAuthStore();
   const effectiveRole = useEffectiveRole();
@@ -94,6 +95,42 @@ export function AppSidebar() {
     const id = setInterval(fetchCount, 120_000);
     return () => clearInterval(id);
   }, []);
+
+  // ─── Role + permission filtering ──────────────────────────────────────────
+  const role = effectiveRole as Role | undefined;
+  const isViewAs = (profile?.role === 'super_admin') && (effectiveRole !== 'super_admin');
+  const permissions = isViewAs
+    ? null
+    : ((profile as any)?.permissions as Record<string, boolean> | null | undefined);
+  const navItems = filterNavByRoleAndPermissions(ALL_NAV, role, permissions);
+
+  // ─── Sidebar search ────────────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return null;
+    const q = searchQuery.toLowerCase();
+    return navItems.filter((n) => n.title.toLowerCase().includes(q));
+  }, [searchQuery, navItems]);
+
+  // ─── Hub badge aggregation ────────────────────────────────────────────────
+  const hubBadgeCounts = useMemo(() => {
+    const counts: Record<string, { total: number; hasAnomaly: boolean }> = {};
+    for (const hub of SIDEBAR_HUBS) {
+      const items = hub.groups.flatMap((gk) => {
+        const g = NAV_GROUPS.find((ng) => ng.key === gk);
+        return g ? [...g.titles] : [];
+      });
+      const hubNavItems = navItems.filter((n) => items.includes(n.title));
+      let total = 0;
+      let hasAnomaly = false;
+      for (const item of hubNavItems) {
+        if (item.badge === 'approvals' && approvalTotal > 0) total += approvalTotal;
+        if (item.badge === 'anomalies' && anomalyOpenCount > 0) { total += anomalyOpenCount; hasAnomaly = true; }
+      }
+      counts[hub.key] = { total, hasAnomaly };
+    }
+    return counts;
+  }, [navItems, approvalTotal, anomalyOpenCount]);
 
   // ─── Active hub ────────────────────────────────────────────────────────────
   const [activeHub, setActiveHub] = useState<string | null>(null);
@@ -133,14 +170,6 @@ export function AppSidebar() {
       setActiveHub(null);
     }
   }, [location.pathname]);
-
-  // ─── Role + permission filtering ──────────────────────────────────────────
-  const role = effectiveRole as Role | undefined;
-  const isViewAs = (profile?.role === 'super_admin') && (effectiveRole !== 'super_admin');
-  const permissions = isViewAs
-    ? null
-    : ((profile as any)?.permissions as Record<string, boolean> | null | undefined);
-  const navItems = filterNavByRoleAndPermissions(ALL_NAV, role, permissions);
 
   // ─── Render a single nav item ─────────────────────────────────────────────
   const renderNavItem = useCallback((item: NavItem) => {
@@ -384,6 +413,43 @@ export function AppSidebar() {
               {ungroupedItems.map(renderNavItem)}
             </SidebarMenu>
 
+            {/* Search */}
+            {!sidebarCollapsed && (
+              <div className="px-2 mb-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sidebar-foreground/30 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search modules…"
+                    className="w-full h-8 pl-8 pr-7 rounded-lg bg-white/[0.06] border border-white/[0.06] text-[12px] text-sidebar-foreground placeholder:text-sidebar-foreground/30 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--sidebar-ring)/0.5)] focus:bg-white/[0.08] kd-transition"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-sidebar-foreground/30 hover:text-sidebar-foreground/60 kd-transition"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Search results */}
+            {searchResults ? (
+              <SidebarMenu className="gap-0.5 px-2">
+                {searchResults.length > 0 ? (
+                  searchResults.map(renderNavItem)
+                ) : (
+                  <p className="px-2 py-3 text-[12px] text-sidebar-foreground/40 text-center">
+                    No modules match "{searchQuery}"
+                  </p>
+                )}
+              </SidebarMenu>
+            ) : (
+            <>
             {/* Separator */}
             {!sidebarCollapsed && (
               <div className="mx-3 mb-2">
@@ -403,6 +469,7 @@ export function AppSidebar() {
                   if (items.length === 0) return null;
                   const active = isHubActive(hub);
                   const Icon = HUB_ICONS[hub.icon] ?? Layers;
+                  const badge = hubBadgeCounts[hub.key];
 
                   return (
                     <button
@@ -428,9 +495,20 @@ export function AppSidebar() {
                             {hub.label}
                           </p>
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="text-[10px] tabular-nums text-sidebar-foreground/25 font-medium">
-                              {items.length}
-                            </span>
+                            {badge && badge.total > 0 && (
+                              <span className={cn(
+                                'flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1',
+                                'text-[9px] font-bold tabular-nums kd-status-live-warning',
+                                badge.hasAnomaly ? 'bg-red-500/90 text-white' : 'bg-amber-400/90 text-amber-900',
+                              )}>
+                                {badge.total > 99 ? '99+' : badge.total}
+                              </span>
+                            )}
+                            {!(badge && badge.total > 0) && (
+                              <span className="text-[10px] tabular-nums text-sidebar-foreground/25 font-medium">
+                                {items.length}
+                              </span>
+                            )}
                             <ChevronRight className="h-3 w-3 text-sidebar-foreground/20 group-hover/hub:text-sidebar-foreground/40 transition-all duration-200 ease-out group-hover/hub:translate-x-0.5" />
                           </div>
                         </div>
@@ -450,6 +528,7 @@ export function AppSidebar() {
                   if (items.length === 0) return null;
                   const active = isHubActive(hub);
                   const Icon = HUB_ICONS[hub.icon] ?? Layers;
+                  const badge = hubBadgeCounts[hub.key];
 
                   return (
                     <SidebarMenuItem key={hub.key} className="list-none">
@@ -457,21 +536,27 @@ export function AppSidebar() {
                         tooltip={hub.label}
                         isActive={active}
                         className="relative"
-                        onClick={() => setActiveHub(hub.key)}
+                        onClick={() => { setActiveHub(hub.key); setOpen(true); }}
                       >
-                        <div className={cn(
-                          'flex items-center justify-center w-full py-0.5',
-                        )}>
+                        <div className="flex items-center justify-center w-full py-0.5">
                           <Icon className={cn(
                             'h-[15px] w-[15px] kd-transition',
                             active ? hub.color : 'text-sidebar-foreground/40',
                           )} />
                         </div>
+                        {badge && badge.total > 0 && (
+                          <span className={cn(
+                            'absolute top-0 right-0 h-2 w-2 rounded-full kd-status-live-warning',
+                            badge.hasAnomaly ? 'bg-red-500' : 'bg-amber-400',
+                          )} />
+                        )}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
                 })}
               </SidebarMenu>
+            )}
+            </>
             )}
           </SidebarGroupContent>
         </SidebarGroup>
