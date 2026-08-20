@@ -20,7 +20,7 @@
  * Numbers use `tabular-nums` so digits don't shift width when the
  * balance changes — matches how every fintech card renders money.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Wallet, RefreshCw, AlertTriangle, Eye, EyeOff, Copy, Check,
@@ -33,7 +33,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { supabase } from '@/lib/supabase';
+import { useCompanySettings } from '@/queries';
 
 const LOW_BALANCE_THRESHOLD = 50_000;
 const CRITICAL_BALANCE_THRESHOLD = 5_000;
@@ -137,16 +137,11 @@ export function PaystackBalanceCard({
   // Which provider is currently active — decides whether we show "● LIVE"
   // (green pulse) or "○ Standby" (muted). Kept in local state so this card
   // is self-contained (matches FlutterwaveBalanceCard's pattern).
-  const [isActive, setIsActive] = useState<boolean>(true);
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from('company_settings')
-        .select('active_payment_provider')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .maybeSingle();
-      setIsActive(((data as any)?.active_payment_provider || 'paystack') === 'paystack');
-    })();
-  }, []);
+  const { data: companySettings } = useCompanySettings();
+  const isActive = useMemo(
+    () => ((companySettings as any)?.active_payment_provider || 'paystack') === 'paystack',
+    [companySettings],
+  );
 
   return (
     <div

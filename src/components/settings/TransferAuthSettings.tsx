@@ -55,6 +55,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
+import { useCompanySettings } from '@/queries';
 import { errorMessage } from '@/lib/db-errors';
 import {
   listTransferLimits,
@@ -191,7 +192,11 @@ export default function TransferAuthSettings() {
   const [poolSaving, setPoolSaving] = useState<string | null>(null);
 
   // Quick Pay master switch.
-  const [quickPayEnabled, setQuickPayEnabled] = useState<boolean | null>(null);
+  const { data: companySettingsData, refetch: refetchCompanySettings } = useCompanySettings();
+  const quickPayEnabled = useMemo<boolean | null>(
+    () => (companySettingsData ? !!(companySettingsData as any).quick_pay_enabled : null),
+    [companySettingsData],
+  );
   const [quickPaySaving, setQuickPaySaving] = useState(false);
 
   // ── Audit ────────────────────────────────────────────────────────────
@@ -256,7 +261,7 @@ export default function TransferAuthSettings() {
     }
 
     // Run independently so a missing table only breaks its own section.
-    const [lRes, pRes, poolsRes, csRes] = await Promise.allSettled([
+    const [lRes, pRes, poolsRes] = await Promise.allSettled([
       listTransferLimits(),
       supabase
         .from('profiles_directory')
@@ -264,11 +269,6 @@ export default function TransferAuthSettings() {
         .in('role', ['super_admin', 'admin', 'finance'])
         .order('full_name'),
       listApproverPools(),
-      supabase
-        .from('company_settings')
-        .select('quick_pay_enabled')
-        .eq('id', SETTINGS_SINGLETON_ID)
-        .maybeSingle(),
     ]);
 
     if (lRes.status === 'fulfilled') {
@@ -283,9 +283,6 @@ export default function TransferAuthSettings() {
     }
     if (poolsRes.status === 'fulfilled') {
       setPools(poolsRes.value);
-    }
-    if (csRes.status === 'fulfilled') {
-      setQuickPayEnabled(!!((csRes.value as any).data?.quick_pay_enabled));
     }
 
     setLimitsLoading(false);
@@ -439,7 +436,7 @@ export default function TransferAuthSettings() {
         action_type: 'quick_pay_toggled',
         description: `Quick Pay ${next ? 'enabled' : 'disabled'} via Transfer Authorization settings`,
       });
-      setQuickPayEnabled(next);
+      await refetchCompanySettings();
       toast({ title: next ? 'Quick Pay enabled' : 'Quick Pay disabled' });
     } catch (e: unknown) {
       toast({ title: 'Save failed', description: errorMessage(e), variant: 'destructive' });

@@ -19,7 +19,7 @@
  * doesn't have to receive them as props — this keeps Payments.tsx
  * changes minimal and lets the card stand alone anywhere it's dropped.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Wallet, RefreshCw, AlertTriangle, Eye, EyeOff, Copy, Check,
@@ -28,7 +28,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { getProviderBalance } from '@/lib/payments/item-facade';
-import { supabase } from '@/lib/supabase';
+import { useCompanySettings } from '@/queries';
 
 const LOW_BALANCE_THRESHOLD = 50_000;
 const CRITICAL_BALANCE_THRESHOLD = 5_000;
@@ -121,9 +121,20 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [balanceError, setBalanceError] = useState(false);
   const [balanceUpdatedAt, setBalanceUpdatedAt] = useState<string | null>(null);
-  const [isActive, setIsActive] = useState(false);
-  const [mode, setMode] = useState<'test' | 'live'>('test');
-  const [funding, setFunding] = useState<Funding>({ bank: null, accountName: null, accountNumber: null });
+  const { data: companySettings } = useCompanySettings();
+  const isActive = useMemo(
+    () => (companySettings as any)?.active_payment_provider === 'flutterwave',
+    [companySettings],
+  );
+  const mode = useMemo<'test' | 'live'>(
+    () => ((companySettings as any)?.flutterwave_mode === 'live' ? 'live' : 'test'),
+    [companySettings],
+  );
+  const funding = useMemo<Funding>(() => ({
+    bank: (companySettings as any)?.flutterwave_funding_bank ?? null,
+    accountName: (companySettings as any)?.flutterwave_funding_account_name ?? null,
+    accountNumber: (companySettings as any)?.flutterwave_funding_account_number ?? null,
+  }), [companySettings]);
 
   useEffect(() => { void loadAll(); }, []);
 
@@ -131,13 +142,7 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
     setBalanceLoading(true);
     setBalanceError(false);
     try {
-      const [balRes, settingsRes] = await Promise.all([
-        getProviderBalance('flutterwave').catch(() => ({ available: null, error: 'fetch-failed' } as any)),
-        supabase.from('company_settings')
-          .select('active_payment_provider, flutterwave_mode, flutterwave_funding_bank, flutterwave_funding_account_name, flutterwave_funding_account_number')
-          .eq('id', '00000000-0000-0000-0000-000000000001')
-          .maybeSingle(),
-      ]);
+      const balRes = await getProviderBalance('flutterwave').catch(() => ({ available: null, error: 'fetch-failed' } as any));
       if ((balRes as any).error) {
         setBalanceError(true);
       } else {
@@ -145,14 +150,6 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
         setBalanceError(false);
       }
       setBalanceUpdatedAt(new Date().toISOString());
-      const s = (settingsRes.data as any) || {};
-      setIsActive(s.active_payment_provider === 'flutterwave');
-      setMode(s.flutterwave_mode === 'live' ? 'live' : 'test');
-      setFunding({
-        bank: s.flutterwave_funding_bank ?? null,
-        accountName: s.flutterwave_funding_account_name ?? null,
-        accountNumber: s.flutterwave_funding_account_number ?? null,
-      });
     } finally {
       setBalanceLoading(false);
     }

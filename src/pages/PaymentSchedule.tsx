@@ -5,6 +5,7 @@ import { formatNaira, formatDate, toIsoDate, daysUntil } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { logAudit } from '@/lib/audit';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanySettings } from '@/queries';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
@@ -185,21 +186,20 @@ export default function PaymentSchedule() {
 
   // ─── Data fetching ─────────────────────────────────────────────────────────
 
+  const { data: companySettings } = useCompanySettings();
+  // Provider-aware — was previously hardcoded to paystack-transfer, so this
+  // page always showed Paystack's balance even when Flutterwave was the
+  // active provider (misleading, not a money risk, but exactly the kind of
+  // stale display the toggle is supposed to eliminate everywhere).
+  const activeProvider = useMemo(
+    () => ((companySettings as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack'),
+    [companySettings],
+  );
+
   const fetchBalance = useCallback(async () => {
     setBalanceLoading(true);
     try {
-      // Provider-aware — was previously hardcoded to paystack-transfer,
-      // so this page always showed Paystack's balance even when
-      // Flutterwave was the active provider (misleading, not a money
-      // risk, but exactly the kind of stale display the toggle is
-      // supposed to eliminate everywhere).
-      const { data: settingsRow } = await supabase
-        .from('company_settings')
-        .select('active_payment_provider')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .maybeSingle();
-      const provider = (settingsRow as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack';
-      const b = await getProviderBalance(provider);
+      const b = await getProviderBalance(activeProvider);
       if (b.error || b.available == null) throw new Error(b.error || 'Failed');
       setBalance({ available: b.available, currency: b.currency });
     } catch {
@@ -207,7 +207,7 @@ export default function PaymentSchedule() {
     } finally {
       setBalanceLoading(false);
     }
-  }, []);
+  }, [activeProvider]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);

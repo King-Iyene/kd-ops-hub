@@ -21,7 +21,7 @@
  * receive an onConfirm callback when the operator agrees to proceed.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2, AlertTriangle, Info, Receipt, BanknoteIcon, Pencil } from 'lucide-react';
 import {
   Dialog,
@@ -45,6 +45,7 @@ import {
 } from '@/lib/paystack';
 import { getProviderBalance, providerLabel, type Provider } from '@/lib/payments/item-facade';
 import { supabase } from '@/lib/supabase';
+import { useCompanySettings } from '@/queries';
 import { errorMessage } from '@/lib/db-errors';
 
 export interface PaymentSummaryItem {
@@ -158,6 +159,12 @@ export function PaymentSummaryModal({
   const [fwFeeLoading, setFwFeeLoading] = useState(false);
   const [fwFeeError, setFwFeeError] = useState<string | null>(null);
 
+  const { data: companySettings } = useCompanySettings();
+  const configuredProvider: Provider = useMemo(
+    () => ((companySettings as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack'),
+    [companySettings],
+  );
+
   useEffect(() => {
     if (!open) return;
     setFwFeeTotal(null);
@@ -180,12 +187,7 @@ export function PaymentSummaryModal({
     setBalanceError(null);
     (async () => {
       try {
-        const { data } = await supabase
-          .from('company_settings')
-          .select('active_payment_provider')
-          .eq('id', '00000000-0000-0000-0000-000000000001')
-          .maybeSingle();
-        const provider: Provider = (data as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack';
+        const provider = configuredProvider;
         setActiveProvider(provider);
         const b = await getProviderBalance(provider);
         if (b.error) throw new Error(b.error);
@@ -221,7 +223,7 @@ export function PaymentSummaryModal({
         setBalanceLoading(false);
       }
     })();
-  }, [open]);
+  }, [open, configuredProvider]);
 
   const cost = batchCostBreakdown(
     items.map((i) => Number(i.amount_ngn) || 0),

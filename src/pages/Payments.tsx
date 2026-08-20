@@ -4,6 +4,7 @@ import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { errorMessage } from '@/lib/db-errors';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useCompanySettings } from '@/queries';
 import { useEffectiveRole } from '@/store/authStore';
 import { formatNaira, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -116,7 +117,16 @@ const Payments = () => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(BALANCE_HIDDEN_KEY) === '1';
   });
-  const [funding, setFunding] = useState<FundingDetails | null>(null);
+  const { data: companySettings } = useCompanySettings();
+  const funding = useMemo<FundingDetails | null>(() => {
+    const s = companySettings as any;
+    if (!s) return null;
+    return {
+      bank: s.paystack_funding_bank ?? null,
+      accountName: s.paystack_funding_account_name ?? null,
+      accountNumber: s.paystack_funding_account_number ?? null,
+    };
+  }, [companySettings]);
 
   const toggleBalanceHidden = () => {
     setBalanceHidden((prev) => {
@@ -318,29 +328,6 @@ const Payments = () => {
 
   useEffect(() => { fetchBalance(); }, [fetchBalance]);
   useEffect(() => { fetchBatches(); fetchStats(); }, [statusFilter, page]);
-
-  // Funding-account details live on company_settings (one row). We pull just
-  // the three fields we need and pass the result down to the balance card so
-  // operators can copy the bank / account / number without leaving Payments.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from('company_settings')
-        .select('paystack_funding_bank, paystack_funding_account_name, paystack_funding_account_number')
-        .limit(1)
-        .maybeSingle();
-      if (cancelled) return;
-      if (data) {
-        setFunding({
-          bank: data.paystack_funding_bank ?? null,
-          accountName: data.paystack_funding_account_name ?? null,
-          accountNumber: data.paystack_funding_account_number ?? null,
-        });
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchBatches);
 

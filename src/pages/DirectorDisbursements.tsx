@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanySettings } from '@/queries';
 import { logAudit } from '@/lib/audit';
 import {
   createTransferRecipient,
@@ -428,21 +429,20 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
   const [sendOpen, setSendOpen] = useState(false);
   const [receiptRow, setReceiptRow] = useState<DisbursementRow | null>(null);
   const [recurRow, setRecurRow] = useState<DisbursementRow | null>(null);
-  const [companyName, setCompanyName] = useState('KD Squares Ltd');
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const { data: companySettings } = useCompanySettings();
+  const companyName = useMemo(
+    () => (companySettings as any)?.company_name || 'KD Squares Ltd',
+    [companySettings],
+  );
+  const logoUrl = useMemo(
+    () => (companySettings as any)?.logo_url || null,
+    [companySettings],
+  );
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dva, setDva] = useState<PrincipalWalletDva | null>(null);
 
   useEffect(() => {
-    supabase.from('company_settings').select('company_name, logo_url')
-      .eq('id', '00000000-0000-0000-0000-000000000001').maybeSingle()
-      .then(({ data: cs }) => {
-        if (cs) {
-          setCompanyName((cs as any).company_name || 'KD Squares Ltd');
-          setLogoUrl((cs as any).logo_url || null);
-        }
-      }, () => { /* receipt falls back to defaults */ });
     fetchDvaAccount().then(setDva).catch(() => setDva(null));
   }, []);
 
@@ -1071,8 +1071,15 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
   const [dateRange, setDateRange] = useState<'all' | '7d' | '30d' | '90d' | 'custom'>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [companyName, setCompanyName] = useState('KD Squares Ltd');
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const { data: companySettings } = useCompanySettings();
+  const companyName = useMemo(
+    () => (companySettings as any)?.company_name || 'KD Squares Ltd',
+    [companySettings],
+  );
+  const logoUrl = useMemo(
+    () => (companySettings as any)?.logo_url || null,
+    [companySettings],
+  );
   const [dva, setDva] = useState<PrincipalWalletDva | null>(null);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [recurringOpen, setRecurringOpen] = useState(false);
@@ -1083,14 +1090,6 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
   const [visibleCount, setVisibleCount] = useState(50);
 
   useEffect(() => {
-    supabase.from('company_settings').select('company_name, logo_url')
-      .eq('id', '00000000-0000-0000-0000-000000000001').maybeSingle()
-      .then(({ data: cs }) => {
-        if (cs) {
-          setCompanyName((cs as any).company_name || 'KD Squares Ltd');
-          setLogoUrl((cs as any).logo_url || null);
-        }
-      }, () => {});
     fetchDvaAccount().then(setDva).catch(() => setDva(null));
     fetchWalletBalanceOrNull().then(setWalletBalance).catch(() => setWalletBalance(null));
   }, []);

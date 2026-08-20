@@ -19,6 +19,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useCompanySettings } from '@/queries';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -84,7 +85,18 @@ const formatDateTime = (iso: string | null | undefined) =>
   !iso ? '—' : new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
 export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
-  const [settings, setSettings] = useState<PaymentRailsSettings | null>(null);
+  const { data: companySettingsData, isLoading: companySettingsLoading, refetch: refetchCompanySettings } = useCompanySettings();
+  const settings = useMemo<PaymentRailsSettings | null>(() => {
+    const s = companySettingsData as any;
+    if (!s) return null;
+    return {
+      active_payment_provider: s.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack',
+      flutterwave_mode: s.flutterwave_mode === 'live' ? 'live' : 'test',
+      paystack_mode: s.paystack_mode === 'test' ? 'test' : 'live',
+      provider_switched_at: s.provider_switched_at,
+      provider_switched_by: s.provider_switched_by,
+    };
+  }, [companySettingsData]);
   const [loading, setLoading] = useState(true);
   const [balances, setBalances] = useState<{ paystack: number | null; flutterwave: number | null }>({
     paystack: null,
@@ -109,26 +121,11 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   async function loadAll() {
     setLoading(true);
     try {
-      const [settingsRes, historyRes] = await Promise.all([
-        supabase.from('company_settings')
-          .select('active_payment_provider, flutterwave_mode, paystack_mode, provider_switched_at, provider_switched_by')
-          .eq('id', '00000000-0000-0000-0000-000000000001')
-          .maybeSingle(),
-        supabase.from('provider_switches')
-          .select('id, switched_at, switched_by, from_provider, to_provider, reason')
-          .order('switched_at', { ascending: false })
-          .limit(10),
-      ]);
-      if (settingsRes.data) {
-        setSettings({
-          active_payment_provider: (settingsRes.data as any).active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack',
-          flutterwave_mode: (settingsRes.data as any).flutterwave_mode === 'live' ? 'live' : 'test',
-          paystack_mode: (settingsRes.data as any).paystack_mode === 'test' ? 'test' : 'live',
-          provider_switched_at: (settingsRes.data as any).provider_switched_at,
-          provider_switched_by: (settingsRes.data as any).provider_switched_by,
-        });
-      }
-      if (historyRes.data) setSwitchHistory(historyRes.data as any);
+      const { data: history } = await supabase.from('provider_switches')
+        .select('id, switched_at, switched_by, from_provider, to_provider, reason')
+        .order('switched_at', { ascending: false })
+        .limit(10);
+      if (history) setSwitchHistory(history as any);
       await refreshBalances();
     } catch (e) {
       console.error('[PaymentRails] load failed:', e);
@@ -220,7 +217,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
       } else {
         toast({ title: 'Switch applied', description: `Now paying through ${providerLabel(dialogTargetProvider)} (${dialogTargetMode})` });
         setDialogOpen(false);
-        await loadAll();
+        await Promise.all([loadAll(), refetchCompanySettings()]);
       }
     } finally {
       setApplying(false);
@@ -250,7 +247,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
     );
   }
 
-  if (loading || !settings) {
+  if (loading || companySettingsLoading || !settings) {
     return (
       <Card><CardHeader><CardTitle className="text-base">Payment rails</CardTitle></CardHeader>
       <CardContent><Loader2 className="animate-spin h-4 w-4" /></CardContent></Card>
