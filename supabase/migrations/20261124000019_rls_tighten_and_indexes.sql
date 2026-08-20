@@ -8,6 +8,7 @@ CREATE POLICY "contact_activities_select" ON public.contact_activities
 
 -- Fix CRITICAL RLS: vehicle_maintenance SELECT was USING(true) — restrict to management + creator
 DROP POLICY IF EXISTS "Authenticated users can view maintenance" ON public.vehicle_maintenance;
+DROP POLICY IF EXISTS "vehicle_maintenance_select_scoped" ON public.vehicle_maintenance;
 CREATE POLICY "vehicle_maintenance_select_scoped" ON public.vehicle_maintenance
   FOR SELECT TO authenticated
   USING (
