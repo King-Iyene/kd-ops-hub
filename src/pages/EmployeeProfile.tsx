@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft, Mail, Phone, CalendarDays, Save, Loader2, Briefcase,
-  FileText, Shield, Trash2, TrendingUp, TrendingDown, Plus, Download,
-  ChevronDown, AlertTriangle, ExternalLink, Camera, History, CheckCircle2, XCircle,
-  ClipboardList, Activity, Receipt, Wallet, Package, HeartPulse,
-} from 'lucide-react';
-import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { Loader2, ChevronDown, Camera, History } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
-import { StatCard } from '@/components/ui-kit/StatCard';
 import OffboardingTab from '@/components/employee/OffboardingTab';
 import JobPayTab from '@/components/employee/JobPayTab';
 import PersonalTab from '@/components/employee/PersonalTab';
@@ -31,24 +24,18 @@ import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { logAudit } from '@/lib/audit';
-import { roleBadgeClass, roleLabel } from '@/lib/roles';
-import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/lib/format';
-import { openPayslipPrintWindow, downloadPayslipPdfFromHtml, openStoredPayslipHtml, downloadStoredPayslipHtml } from '@/lib/payslip';
-import SignedDocumentsList from '@/components/hr/SignedDocumentsList';
-import LeaveBalancesPanel from '@/components/hr/LeaveBalancesPanel';
+import { roleLabel } from '@/lib/roles';
+import { formatDateTime, formatNaira } from '@/lib/format';
+import { openPayslipPrintWindow, openStoredPayslipHtml, downloadStoredPayslipHtml } from '@/lib/payslip';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
-import { MaskedAccountNumber } from '@/components/ui-kit/MaskedAccountNumber';
-import { MaskedNin } from '@/components/ui-kit/MaskedNin';
 import { displayName, initialsOf } from '@/lib/name';
 import { computePayslip, PENSION_EMPLOYER_RATE, PENSION_EMPLOYEE_RATE } from '@/lib/tax';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -74,23 +61,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { confirm } from '@/hooks/use-confirm';
 import { cn } from '@/lib/utils';
 import { getBankCode } from '@/lib/paystack';
-import { PermissionsEditor, ROLE_DEFAULT_PERMISSIONS, type PermissionsMap } from '@/components/PermissionsEditor';
-import { FilePreviewTrigger } from '@/components/FilePreview';
-import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
+import { type PermissionsMap } from '@/components/PermissionsEditor';
+import { type BankAccountValue } from '@/components/BankAccountField';
 import { notifyRoles } from '@/lib/notify';
-import { deptBadgeStyle, deptDotStyle } from '@/lib/dept-colors';
 
 const humanPeriod = (p: string) => {
   if (!p || !/^\d{4}-\d{1,2}$/.test(p)) return p || '—';
