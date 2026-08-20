@@ -16,9 +16,6 @@ import { Loader as Loader2 } from 'lucide-react';
 
 // Eagerly loaded — shown before auth resolves or needed for public routes.
 import Login from './pages/Login';
-// Register & Signup disabled — routes redirect to /login (invite-only).
-// import Register from './pages/Register';
-// import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import JoinForm from './pages/JoinForm';
