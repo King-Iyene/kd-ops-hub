@@ -19,6 +19,12 @@ const MONEY_CAPS: Record<string, string> = {
   salary_increments_new_salary_ngn_sane: '₦100 million annual salary',
 };
 
+export function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  return String(err);
+}
+
 export function friendlyDbError(input: unknown): string {
   const raw =
     typeof input === 'string'
