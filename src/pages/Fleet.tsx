@@ -131,7 +131,7 @@ const Fleet = () => {
           .limit(50),
         supabase
           .from('vehicles')
-          .select('id, name, plate_number, weekly_budget_ngn, carry_forward_ngn, assigned_driver_id, insurance_expiry, road_worthiness_expiry, next_service_date, tank_capacity_litres, current_fuel_litres, last_refuel_at, avg_km_per_litre, fuel_consumption_rate_lkm, home_base_lat, home_base_lng, out_of_service_until, status, total_mileage_km')
+          .select('id, name, plate_number, weekly_budget_ngn, carry_forward_ngn, assigned_driver_id, insurance_expiry, road_worthiness_expiry, hackney_permit_expiry, vehicle_license_expiry, next_service_date, tank_capacity_litres, current_fuel_litres, last_refuel_at, avg_km_per_litre, fuel_consumption_rate_lkm, home_base_lat, home_base_lng, out_of_service_until, status, total_mileage_km')
           .eq('status', 'active')
           .order('name'),
         supabase

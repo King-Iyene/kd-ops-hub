@@ -17,6 +17,8 @@ export interface VehicleSummary {
   assigned_driver_id: string | null;
   insurance_expiry: string | null;
   road_worthiness_expiry: string | null;
+  hackney_permit_expiry: string | null;
+  vehicle_license_expiry: string | null;
   next_service_date: string | null;
   tank_capacity_litres: number;
   current_fuel_litres: number;

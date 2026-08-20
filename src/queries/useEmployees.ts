@@ -8,14 +8,9 @@ interface EmployeeRow {
   email: string;
   role: string;
   department_id: string | null;
-  department_name: string | null;
   status: string;
   job_title: string | null;
-  avatar_url: string | null;
-  payroll_category: string | null;
-  basic_salary_ngn: number | null;
-  bank_name: string | null;
-  date_of_hire: string | null;
+  photo_url: string | null;
 }
 
 export function useEmployeeDirectory() {
@@ -36,7 +31,7 @@ export function useActiveEmployees() {
     () =>
       supabase
         .from('profiles_directory')
-        .select('id, full_name, email, role, department_id, department_name, status, job_title, avatar_url, payroll_category, basic_salary_ngn, bank_name, date_of_hire')
+        .select('id, full_name, email, role, department_id, status, job_title, photo_url')
         .eq('status', 'active')
         .order('full_name'),
     { staleTime: 30_000 },
