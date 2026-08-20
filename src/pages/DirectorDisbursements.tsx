@@ -1912,7 +1912,7 @@ function PersonalTransferBeneficiariesDialog({
               >
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-7 w-7" onClick={() => remove(b)}>
+              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-7 w-7" aria-label="Delete" onClick={() => remove(b)}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>

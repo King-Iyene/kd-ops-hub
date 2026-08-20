@@ -555,6 +555,7 @@ export default function Assistant() {
                       type="button"
                       size="icon"
                       variant="ghost"
+                      aria-label="Attach file"
                       className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground kd-transition"
                       onClick={() => fileInputRef.current?.click()}
                     >
@@ -571,6 +572,7 @@ export default function Assistant() {
                       type="button"
                       size="icon"
                       variant="ghost"
+                      aria-label="Toggle web search"
                       className={`h-9 w-9 shrink-0 kd-transition ${
                         useWebSearch
                           ? 'text-primary bg-primary/10 hover:bg-primary/15'
@@ -606,6 +608,7 @@ export default function Assistant() {
                   onClick={sendMessage}
                   disabled={sending || (!input.trim() && attachments.length === 0)}
                   size="icon"
+                  aria-label="Send message"
                   className="h-9 w-9 shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground kd-transition shadow-[var(--shadow-sm)]"
                 >
                   {sending

@@ -287,7 +287,7 @@ export default function MfaSettings() {
                         Trusted until {new Date(d.trusted_until).toLocaleDateString()} · last seen {new Date(d.last_seen_at).toLocaleString()}
                       </div>
                     </div>
-                    <Button size="icon" variant="ghost" onClick={async () => { await revokeTrustedDevice(d.id); await reload(); }}>
+                    <Button size="icon" variant="ghost" aria-label="Revoke device" onClick={async () => { await revokeTrustedDevice(d.id); await reload(); }}>
                       <Trash2 className="h-3 w-3 text-rose-500" />
                     </Button>
                   </div>
@@ -333,7 +333,7 @@ export default function MfaSettings() {
                         value={secret}
                         className="font-mono text-xs"
                       />
-                      <Button size="icon" variant="outline" onClick={() => { void navigator.clipboard.writeText(secret); toast({ title: 'Copied' }); }}>
+                      <Button size="icon" variant="outline" aria-label="Copy secret" onClick={() => { void navigator.clipboard.writeText(secret); toast({ title: 'Copied' }); }}>
                         <Copy className="h-3 w-3" />
                       </Button>
                     </div>

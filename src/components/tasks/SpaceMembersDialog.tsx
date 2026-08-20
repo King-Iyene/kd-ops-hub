@@ -175,6 +175,7 @@ export function SpaceMembersDialog({ space, open, onClose, profiles }: SpaceMemb
                         <Button
                           size="icon"
                           variant="ghost"
+                          aria-label="Remove member"
                           className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive"
                           onClick={() => removeMember(m.user_id)}
                         >

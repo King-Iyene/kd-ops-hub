@@ -326,7 +326,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
                   </TableCell>
                   {isAdmin && (
                     <TableCell>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(v)}>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => openEdit(v)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                     </TableCell>

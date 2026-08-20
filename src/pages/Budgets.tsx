@@ -985,6 +985,7 @@ const Budgets = () => {
                           <Button
                             size="icon"
                             variant="ghost"
+                            aria-label="Remove line item"
                             disabled={itemsDraft.length === 1}
                             onClick={() => removeItem(idx)}
                           >

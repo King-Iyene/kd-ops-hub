@@ -774,12 +774,13 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
                         <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => openMembers(g)}>
                           <Users className="h-3.5 w-3.5 mr-1" /> Members
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(g)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit" onClick={() => openEdit(g)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           variant="ghost" size="icon"
                           className="h-8 w-8 text-destructive hover:text-destructive"
+                          aria-label="Delete"
                           onClick={() => remove(g)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -1030,6 +1031,7 @@ function HolidaysManager() {
                     <TableCell className="text-right">
                       <Button
                         variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                        aria-label="Delete holiday"
                         onClick={() => removeHoliday(h.id)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -1605,12 +1607,13 @@ export function PayrollSchedules() {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(s)}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit" onClick={() => openEdit(s)}>
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
                                 <Button
                                   variant="ghost" size="icon"
                                   className="h-8 w-8 text-destructive hover:text-destructive"
+                                  aria-label="Delete"
                                   onClick={() => setDeleteTarget(s)}
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />

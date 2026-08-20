@@ -243,7 +243,7 @@ export function KanbanBoard({
                   <TooltipProvider delayDuration={200}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onCreateTask(col.key as TaskStatus)}>
+                        <Button size="icon" variant="ghost" className="h-6 w-6" aria-label="New task" onClick={() => onCreateTask(col.key as TaskStatus)}>
                           <Plus className="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>

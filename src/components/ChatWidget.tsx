@@ -548,6 +548,7 @@ export function ChatWidget() {
 
                   <Button
                     size="icon"
+                    aria-label="Send message"
                     onClick={handleSend}
                     disabled={!input.trim() || sending}
                     className="h-9 w-9 shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground kd-transition shadow-[var(--shadow-sm)] mb-0.5"
