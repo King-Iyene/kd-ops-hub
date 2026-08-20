@@ -447,8 +447,8 @@ const Fleet = () => {
           {tab === 'compliance' && <ComplianceDashboard vehicles={vehicles} onUpdated={fetchData} />}
           {tab === 'drivers' && <DriverVerificationPanel />}
           {tab === 'incidents' && <IncidentReportPanel vehicles={vehicles} staff={staff} />}
-          {tab === 'maintenance' && <MaintenanceHub />}
-          {tab === 'inspections' && <InspectionHistory />}
+          {tab === 'maintenance' && <MaintenanceHub vehicles={vehicles} onRefresh={fetchData} />}
+          {tab === 'inspections' && <InspectionHistory vehicles={vehicles} />}
           {tab === 'lifecycle' && <VehicleLifecyclePanel />}
         </main>
       </div>
