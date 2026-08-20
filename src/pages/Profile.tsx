@@ -635,6 +635,7 @@ const ProfilePage = () => {
         await supabase.auth.signOut({ scope: 'others' });
       } catch (signOutErr) {
         console.warn('[Profile] signOut(others) failed:', signOutErr);
+        toast({ title: 'Could not revoke other sessions', description: 'Sign out manually from other devices.', variant: 'destructive' });
       }
       await logAudit('profile_password_changed', 'Password changed', profile);
       toast({ title: 'Password updated' });

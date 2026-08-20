@@ -867,6 +867,11 @@ const Payroll = () => {
         }
       } catch (leaveErr: any) {
         console.warn('[KDOps] unpaid leave lookup failed, proceeding with 0 unpaid days:', leaveErr?.message || leaveErr);
+        toast({
+          title: 'Unpaid leave data unavailable',
+          description: 'Could not load unpaid leave records — employees with unpaid leave may be overpaid this cycle. Review before disbursing.',
+          variant: 'destructive',
+        });
       }
 
       const [{ data: allDeductions }, { data: allAdvances }, { data: allEwa }, { data: allAdjustments }, { data: allEarnings }] = await Promise.all([
@@ -977,6 +982,7 @@ const Payroll = () => {
 
       let succeeded = 0;
       let failed = 0;
+      const failedNames: string[] = [];
       for (const e of list) {
         toast({
           title: `Generating payslip ${succeeded + failed + 1} of ${list.length}…`,
@@ -1310,6 +1316,7 @@ const Payroll = () => {
         } catch (empErr: any) {
           console.warn('[KDOps] payslip generation failed for', e.email, empErr);
           failed++;
+          failedNames.push(e.full_name || e.email);
         }
       }
 
@@ -1338,7 +1345,7 @@ const Payroll = () => {
       if (failed > 0) {
         toast({
           title: `${succeeded} of ${list.length} payslips generated`,
-          description: `${failed} failed — check employee data and try again.`,
+          description: `Failed: ${failedNames.slice(0, 5).join(', ')}${failedNames.length > 5 ? ` (+${failedNames.length - 5} more)` : ''} — check employee data and retry.`,
           variant: 'destructive',
         });
       } else {

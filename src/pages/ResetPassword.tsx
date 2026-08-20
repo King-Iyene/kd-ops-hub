@@ -134,6 +134,7 @@ const ResetPassword = () => {
         await supabase.auth.signOut({ scope: 'others' });
       } catch (signOutErr) {
         console.warn('[ResetPassword] signOut(others) failed:', signOutErr);
+        toast({ title: 'Could not revoke other sessions', description: 'Sign out manually from other devices.', variant: 'destructive' });
       }
       toast({ title: 'Password set', description: 'Welcome! Taking you to your dashboard.' });
       navigate('/dashboard', { replace: true });
