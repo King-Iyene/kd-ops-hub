@@ -441,12 +441,12 @@ const Fleet = () => {
             />
           )}
 
-          {tab === 'vehicles' && <VehiclesTab />}
+          {tab === 'vehicles' && <VehiclesTab staff={staff} />}
           {tab === 'geofences' && <GeofencesTab />}
           {tab === 'live' && <LiveTrackingTab />}
-          {tab === 'compliance' && <ComplianceDashboard />}
+          {tab === 'compliance' && <ComplianceDashboard vehicles={vehicles} onUpdated={fetchData} />}
           {tab === 'drivers' && <DriverVerificationPanel />}
-          {tab === 'incidents' && <IncidentReportPanel />}
+          {tab === 'incidents' && <IncidentReportPanel vehicles={vehicles} staff={staff} />}
           {tab === 'maintenance' && <MaintenanceHub />}
           {tab === 'inspections' && <InspectionHistory />}
           {tab === 'lifecycle' && <VehicleLifecyclePanel />}
