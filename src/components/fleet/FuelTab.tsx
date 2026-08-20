@@ -99,7 +99,11 @@ import {
   checkRouteEfficiency,
   scoreAnomalySeverity,
 } from '@/lib/receipts';
-import { hasJpegExif, generateElaHeatmap } from '@/lib/receiptForensics';
+import { hasJpegExif } from '@/lib/receiptForensics';
+import { ElaTamperAnalysisDialog } from '@/components/fleet/ElaTamperAnalysisDialog';
+import { AnomalyReviewDialog } from '@/components/fleet/AnomalyReviewDialog';
+import { addMonths } from '@/components/fleet/fleet-utils';
+import { LogExternalPurchaseDialog } from '@/components/fleet/LogExternalPurchaseDialog';
 import { OcrReceiptScanner, type OcrResult } from '@/components/OcrReceiptScanner';
 import { SERVICE_TYPES } from '@/components/fleet/FleetAnalyticsDashboard';
 import {
@@ -191,11 +195,6 @@ function FuelRequestFuelLevel({ vehicleId, vehicles }: { vehicleId: string | nul
   );
 }
 
-function addMonths(dateStr: string, months: number): string {
-  const d = new Date(dateStr);
-  d.setMonth(d.getMonth() + months);
-  return d.toISOString().slice(0, 10);
-}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -262,9 +261,6 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
 
   // Tamper-analysis (ELA)
   const [elaTarget, setElaTarget] = useState<{ id: string; url: string } | null>(null);
-  const [elaResult, setElaResult] = useState<{ heatmapDataUrl: string; avgBrightness: number } | null>(null);
-  const [elaLoading, setElaLoading] = useState(false);
-  const [elaError, setElaError] = useState('');
 
   // Vehicle & weekly budget state
   const [fuelVehicleId, setFuelVehicleId] = useState('');
@@ -278,9 +274,6 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
 
   // Anomaly review
   const [reviewingAnomaly, setReviewingAnomaly] = useState<{ type: 'trip' | 'fuel'; id: string; label: string } | null>(null);
-  const [anomalyReviewDecision, setAnomalyReviewDecision] = useState<'valid' | 'fraudulent' | ''>('');
-  const [anomalyReviewNote, setAnomalyReviewNote] = useState('');
-  const [submittingAnomalyReview, setSubmittingAnomalyReview] = useState(false);
 
   // Repair request form
   const EMPTY_REPAIR_BANK: BankAccountValue = { bank_name: '', account_number: '', account_name: '', verified: false };
@@ -342,14 +335,6 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
 
   // Log External Purchase
   const [showLogExternalForm, setShowLogExternalForm] = useState(false);
-  const [logExternalType, setLogExternalType] = useState<'fuel' | 'repair'>('fuel');
-  const EMPTY_LOG_EXTERNAL_FORM = {
-    employee_id: '', vehicle_id: '', amount_ngn: '', station_or_vendor: '',
-    purchase_date: new Date().toISOString().slice(0, 10), notes: '', litres_filled: '',
-  };
-  const [logExternalForm, setLogExternalForm] = useState(EMPTY_LOG_EXTERNAL_FORM);
-  const [logExternalReceiptFile, setLogExternalReceiptFile] = useState<File | null>(null);
-  const [submittingLogExternal, setSubmittingLogExternal] = useState(false);
 
   // Reject / re-request / delete confirmation
   const [rejectingFuel, setRejectingFuel] = useState<FuelRequest | null>(null);
@@ -1061,95 +1046,6 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
     }
   };
 
-  const submitLogExternalPurchase = async () => {
-    if (!logExternalForm.employee_id) {
-      toast({ title: 'Select an employee', variant: 'destructive' });
-      return;
-    }
-    const amount = parseFloat(logExternalForm.amount_ngn) || 0;
-    if (amount <= 0) {
-      toast({ title: 'Enter a valid amount', variant: 'destructive' });
-      return;
-    }
-    if (!logExternalReceiptFile) {
-      toast({ title: 'Attach a receipt', description: 'A receipt is required to log an external purchase.', variant: 'destructive' });
-      return;
-    }
-    setSubmittingLogExternal(true);
-    try {
-      const employeeName = staff.find((s) => s.id === logExternalForm.employee_id)?.full_name
-        || (logExternalForm.employee_id === profile?.id ? profile?.full_name : null)
-        || 'employee';
-      const paidAt = new Date(`${logExternalForm.purchase_date}T12:00:00`).toISOString();
-
-      const compressed = await compressImage(logExternalReceiptFile);
-      const safeName = compressed.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `${logExternalType === 'fuel' ? 'fuel-receipts' : `repairs/${profile?.id}`}/external-${crypto.randomUUID()}-${safeName}`;
-      const { data: upData, error: upErr } = await supabase.storage.from('receipts').upload(path, compressed, { upsert: true });
-      if (upErr) throw upErr;
-      const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
-      const receiptUrl = urlData.publicUrl;
-
-      if (logExternalType === 'fuel') {
-        const litresFilled = parseFloat(logExternalForm.litres_filled) || 0;
-        const { error } = await supabase.from('fuel_requests').insert({
-          driver_id: logExternalForm.employee_id,
-          vehicle_id: logExternalForm.vehicle_id || null,
-          station_name: logExternalForm.station_or_vendor || 'Unknown station',
-          amount_ngn: amount,
-          litres_filled: litresFilled || null,
-          reason: `Logged externally — paid outside the platform.${logExternalForm.notes ? ` ${logExternalForm.notes}` : ''}`,
-          status: 'payment_sent',
-          payment_sent_at: paidAt,
-          logged_externally: true,
-          receipt_url: receiptUrl,
-        });
-        if (error) throw error;
-
-        if (logExternalForm.vehicle_id && litresFilled > 0) {
-          const { data: newLevel, error: extFuelErr } = await supabase.rpc('adjust_vehicle_fuel_level', {
-            p_vehicle_id: logExternalForm.vehicle_id,
-            p_delta_litres: litresFilled,
-            p_last_refuel_at: paidAt,
-          });
-          if (extFuelErr) {
-            toast({ title: 'Fuel level sync failed', description: extFuelErr.message, variant: 'destructive' });
-          }
-          await supabase.from('fuel_level_logs').insert({
-            vehicle_id: logExternalForm.vehicle_id,
-            event_type: 'fuel_added',
-            amount_litres: litresFilled,
-            resulting_level_litres: newLevel,
-          });
-        }
-        await logAudit('fuel_logged_externally', `Fuel purchase logged as paid outside the platform for ${employeeName} (${formatNaira(amount)}), receipt attached`, profile);
-      } else {
-        const description = logExternalForm.notes || 'Repair — paid outside the platform';
-        const { error } = await supabase.rpc('log_external_repair_purchase', {
-          p_employee_id: logExternalForm.employee_id,
-          p_amount_ngn: amount,
-          p_purchase_date: logExternalForm.purchase_date,
-          p_description: description,
-          p_vendor_name: logExternalForm.station_or_vendor || null,
-          p_vehicle_id: logExternalForm.vehicle_id || null,
-          p_receipt_url: receiptUrl,
-        });
-        if (error) throw error;
-        await logAudit('repair_logged_externally', `Repair purchase logged as paid outside the platform for ${employeeName} (${formatNaira(amount)}), receipt attached`, profile);
-      }
-
-      toast({ title: 'Purchase logged', description: 'Receipt attached — this entry is fully recorded.' });
-      setShowLogExternalForm(false);
-      setLogExternalForm(EMPTY_LOG_EXTERNAL_FORM);
-      setLogExternalReceiptFile(null);
-      await onRefresh();
-    } catch (err: any) {
-      toast({ title: 'Could not log purchase', description: friendlyDbError(err) || err?.message, variant: 'destructive' });
-    } finally {
-      setSubmittingLogExternal(false);
-    }
-  };
-
   const handleFuelAction = async (
     request: FuelRequest,
     status: 'approved' | 'rejected',
@@ -1443,20 +1339,6 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
     onRefresh();
   };
 
-  const openElaAnalysis = async (id: string, url: string) => {
-    setElaTarget({ id, url });
-    setElaResult(null);
-    setElaError('');
-    setElaLoading(true);
-    try {
-      const result = await generateElaHeatmap(url);
-      setElaResult({ heatmapDataUrl: result.heatmapDataUrl, avgBrightness: result.avgBrightness });
-    } catch (err: any) {
-      setElaError(err?.message || "Couldn't generate analysis for this image.");
-    } finally {
-      setElaLoading(false);
-    }
-  };
 
   const submitFuelReceipt = async () => {
     if (!uploadingReceiptFor || !receiptFile) {
@@ -1938,34 +1820,6 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
 
   // ── Anomaly review handlers ────────────────────────────────────────────
 
-  const handleAnomalyReview = async () => {
-    if (!reviewingAnomaly || !anomalyReviewDecision || !anomalyReviewNote.trim()) return;
-    setSubmittingAnomalyReview(true);
-    const reviewedAt = new Date().toISOString();
-    const reviewPayload = {
-      anomaly_reviewed_by: profile?.id,
-      anomaly_reviewed_at: reviewedAt,
-      anomaly_review_note: `${anomalyReviewDecision === 'valid' ? 'Reviewed — Valid' : 'Fraudulent / Error'}: ${anomalyReviewNote.trim()}`,
-    };
-    const table = reviewingAnomaly.type === 'trip' ? 'trip_logs' : 'fuel_requests';
-    const { error } = await supabase.from(table).update(reviewPayload).eq('id', reviewingAnomaly.id);
-    setSubmittingAnomalyReview(false);
-    if (error) {
-      toast({ title: 'Review failed', description: error.message, variant: 'destructive' });
-      return;
-    }
-    await logAudit(
-      'anomaly_reviewed',
-      `Anomaly on ${reviewingAnomaly.type} "${reviewingAnomaly.label}" marked as ${anomalyReviewDecision === 'valid' ? 'Valid' : 'Fraudulent/Error'}: ${anomalyReviewNote.trim()}`,
-      profile,
-    );
-    toast({ title: 'Anomaly review saved' });
-    setReviewingAnomaly(null);
-    setAnomalyReviewDecision('');
-    setAnomalyReviewNote('');
-    onRefresh();
-  };
-
   const revertAnomalyReview = async (type: 'trip' | 'fuel', id: string, label: string) => {
     const table = type === 'trip' ? 'trip_logs' : 'fuel_requests';
     const { error } = await supabase.from(table).update({
@@ -2014,7 +1868,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
             <Download className="mr-2 h-4 w-4" /> Export CSV
           </Button>
         )}
-        <Button variant="outline" onClick={() => { setLogExternalType('fuel'); setLogExternalForm(EMPTY_LOG_EXTERNAL_FORM); setShowLogExternalForm(true); }}>
+        <Button variant="outline" onClick={() => setShowLogExternalForm(true)}>
           <Receipt className="mr-2 h-4 w-4" /> Log External Purchase
         </Button>
         <Button variant="outline" onClick={() => setShowRepairForm(true)}>
@@ -2240,7 +2094,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                                 </DropdownMenuItem>
                               )}
                               {r.receipt_url && (
-                                <DropdownMenuItem onClick={() => openElaAnalysis(r.id, r.receipt_url!)}>
+                                <DropdownMenuItem onClick={() => setElaTarget({ id: r.id, url: r.receipt_url! })}>
                                   <Search className="h-4 w-4 mr-2" /> Tamper Analysis
                                 </DropdownMenuItem>
                               )}
@@ -2262,7 +2116,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                             <DropdownMenuItem onClick={() => window.open(r.receipt_url!, '_blank')}>
                               <FileText className="h-4 w-4 mr-2" /> View Receipt
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openElaAnalysis(r.id, r.receipt_url!)}>
+                            <DropdownMenuItem onClick={() => setElaTarget({ id: r.id, url: r.receipt_url! })}>
                               <Search className="h-4 w-4 mr-2" /> Tamper Analysis
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -2770,161 +2624,14 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
     </Dialog>
 
     {/* LOG EXTERNAL PURCHASE DIALOG */}
-    <Dialog
+    <LogExternalPurchaseDialog
       open={showLogExternalForm}
-      onOpenChange={(v) => { setShowLogExternalForm(v); if (!v) { setLogExternalForm(EMPTY_LOG_EXTERNAL_FORM); setLogExternalReceiptFile(null); } }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Log External Purchase</DialogTitle>
-          <DialogDescription>
-            For a fuel or repair purchase that was already paid for outside KDOps — e.g. a receipt sent over
-            WhatsApp — instead of a live request going through approval.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>Type</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {(['fuel', 'repair'] as const).map((t) => (
-                <button key={t} type="button"
-                  className={cn('flex items-center justify-center gap-2 rounded-xl border p-2.5 text-sm kd-transition', logExternalType === t ? 'border-primary bg-primary/5 text-primary' : 'border-input text-muted-foreground hover:border-primary/30 hover:text-foreground')}
-                  onClick={() => setLogExternalType(t)}
-                >
-                  {t === 'fuel' ? <Fuel className="h-4 w-4" /> : <Wrench className="h-4 w-4" />}
-                  {t === 'fuel' ? 'Fuel' : 'Repair'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <Label>Employee <span className="text-destructive">*</span></Label>
-            <Select
-              value={logExternalForm.employee_id || undefined}
-              onValueChange={(v) => {
-                const suggestedVehicle = vehicles.find((vh) => vh.assigned_driver_id === v)?.id || '';
-                setLogExternalForm((f) => ({ ...f, employee_id: v, vehicle_id: f.vehicle_id || suggestedVehicle }));
-              }}
-            >
-              <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-              <SelectContent>
-                {staff.map((s) => (<SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1">
-            <Label>Vehicle <span className="text-muted-foreground font-normal text-xs">(optional, auto-suggested from assignment)</span></Label>
-            <Select value={logExternalForm.vehicle_id || '__none__'} onValueChange={(v) => setLogExternalForm((f) => ({ ...f, vehicle_id: v === '__none__' ? '' : v }))}>
-              <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">—</SelectItem>
-                {vehicles.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.plate_number})</SelectItem>))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label>Amount (₦) <span className="text-destructive">*</span></Label>
-              <Input type="number" min="0" value={logExternalForm.amount_ngn} onChange={(e) => setLogExternalForm((f) => ({ ...f, amount_ngn: e.target.value }))} placeholder="0.00" />
-            </div>
-            <div className="space-y-1">
-              <Label>Date paid</Label>
-              <Input type="date" max={new Date().toISOString().slice(0, 10)} value={logExternalForm.purchase_date} onChange={(e) => setLogExternalForm((f) => ({ ...f, purchase_date: e.target.value }))} />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <Label>{logExternalType === 'fuel' ? 'Fuel station' : 'Vendor / Garage'} <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
-            <Input
-              value={logExternalForm.station_or_vendor}
-              onChange={(e) => setLogExternalForm((f) => ({ ...f, station_or_vendor: e.target.value }))}
-              placeholder={logExternalType === 'fuel' ? 'e.g. NNPC Station' : 'e.g. Mekunwen Auto Parts'}
-            />
-          </div>
-
-          {logExternalType === 'fuel' && (
-            <div className="space-y-1">
-              <Label>Litres filled <span className="text-muted-foreground font-normal text-xs">(optional — updates the vehicle's fuel level)</span></Label>
-              <Input type="number" min="0" step="0.1" value={logExternalForm.litres_filled} onChange={(e) => setLogExternalForm((f) => ({ ...f, litres_filled: e.target.value }))} placeholder="e.g. 40" />
-            </div>
-          )}
-
-          <div className="space-y-1">
-            <Label>{logExternalType === 'repair' ? 'What was done' : 'Notes'} <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
-            <Textarea
-              value={logExternalForm.notes}
-              onChange={(e) => setLogExternalForm((f) => ({ ...f, notes: e.target.value }))}
-              placeholder={logExternalType === 'repair' ? 'e.g. Brake pad replacement' : 'Any additional context…'}
-              rows={2}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <Label>Receipt <span className="text-destructive">*</span></Label>
-            <OcrReceiptScanner
-              extractLitres={logExternalType === 'fuel'}
-              onExtracted={(result: OcrResult, file: File) => {
-                setLogExternalReceiptFile(file);
-                setLogExternalForm((f) => ({
-                  ...f,
-                  amount_ngn: f.amount_ngn || result.amount_ngn || f.amount_ngn,
-                  station_or_vendor: f.station_or_vendor || result.description || f.station_or_vendor,
-                  purchase_date: result.date || f.purchase_date,
-                  litres_filled: logExternalType === 'fuel' ? (f.litres_filled || result.litres || f.litres_filled) : f.litres_filled,
-                }));
-              }}
-            />
-            {logExternalReceiptFile && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground truncate">{logExternalReceiptFile.name}</span>
-                <span className="shrink-0">— {(logExternalReceiptFile.size / 1024).toFixed(1)} KB</span>
-                <button type="button" className="ml-auto shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setLogExternalReceiptFile(null)}>
-                  Change
-                </button>
-              </div>
-            )}
-            {!logExternalReceiptFile && (
-              <>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground my-1">
-                  <span className="flex-1 border-t" /><span>or attach manually</span><span className="flex-1 border-t" />
-                </div>
-                <Input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0] ?? null;
-                    if (!validateFile(f, toast)) {
-                      (e.target as HTMLInputElement).value = '';
-                      return;
-                    }
-                    setLogExternalReceiptFile(f);
-                  }}
-                />
-              </>
-            )}
-          </div>
-
-          <p className="text-xs text-muted-foreground">
-            {staff.find((s) => s.id === logExternalForm.employee_id)?.full_name || 'This employee'} won't be able to
-            submit another {logExternalType} request while an outstanding receipt is open — logging this with the
-            receipt attached now keeps that clear.
-          </p>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setShowLogExternalForm(false)}>Cancel</Button>
-          <Button
-            onClick={submitLogExternalPurchase}
-            disabled={submittingLogExternal || !logExternalForm.employee_id || !logExternalForm.amount_ngn || !logExternalReceiptFile}
-          >
-            {submittingLogExternal && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <Upload className="mr-2 h-4 w-4" /> Log Purchase
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      onClose={() => setShowLogExternalForm(false)}
+      staff={staff}
+      vehicles={vehicles}
+      profile={profile}
+      onSuccess={onRefresh}
+    />
 
     {/* FUEL RECEIPT UPLOAD DIALOG */}
     <Dialog
@@ -3112,91 +2819,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       </DialogContent>
     </Dialog>
 
-    {/* TAMPER ANALYSIS (ELA) DIALOG */}
-    <Dialog open={!!elaTarget} onOpenChange={(v) => { if (!v) { setElaTarget(null); setElaResult(null); setElaError(''); } }}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Tamper Analysis</DialogTitle>
-          <DialogDescription>
-            Compares the receipt image against its own re-compressed version to detect edits. This is a visual aid, not proof of tampering.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          {elaLoading && (
-            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" /> Generating analysis…
-            </div>
-          )}
-          {elaError && (
-            <div className="flex items-start gap-1.5 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              <span>{elaError}</span>
-            </div>
-          )}
-          {elaResult && elaTarget && (() => {
-            const avg = elaResult.avgBrightness;
-            const verdict = avg < 15
-              ? { label: 'No signs of tampering', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', icon: '✓' }
-              : avg < 40
-              ? { label: 'Low concern — likely normal compression artifacts', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30', icon: '~' }
-              : { label: 'Review recommended — possible editing detected', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-500/10 border-red-500/30', icon: '!' };
-            return (
-              <>
-                <div className={`flex items-center gap-2 rounded-md border px-3 py-2.5 ${verdict.bg}`}>
-                  <span className={`text-lg font-bold ${verdict.color}`}>{verdict.icon}</span>
-                  <div>
-                    <p className={`text-sm font-semibold ${verdict.color}`}>{verdict.label}</p>
-                    <p className="text-[11px] text-muted-foreground">Confidence score: {Math.round(avg)}/255 (higher = more variation detected)</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-1">Original Receipt</p>
-                    <img src={elaTarget.url} alt="Original receipt" className="w-full rounded-md border" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-1">Error Level Analysis</p>
-                    <img src={elaResult.heatmapDataUrl} alt="Error-level analysis heatmap" className="w-full rounded-md border" />
-                  </div>
-                </div>
-
-                <div className="rounded-md border bg-muted/50 px-3 py-2 text-xs text-muted-foreground space-y-2">
-                  <p className="font-medium text-foreground">What the colors mean:</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <div className="flex items-start gap-2">
-                      <span className="mt-0.5 h-3 w-3 shrink-0 rounded-sm" style={{ background: '#111' }} />
-                      <div>
-                        <p className="font-medium text-foreground">Dark / black</p>
-                        <p>Consistent compression — this area hasn't been altered.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="mt-0.5 h-3 w-3 shrink-0 rounded-sm" style={{ background: 'rgb(220, 120, 50)' }} />
-                      <div>
-                        <p className="font-medium text-foreground">Bright / colored</p>
-                        <p>Different compression history — could be an edit, or WhatsApp forwarding.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="mt-0.5 h-3 w-3 shrink-0 rounded-sm" style={{ background: 'rgb(180, 180, 200)' }} />
-                      <div>
-                        <p className="font-medium text-foreground">Bright edges</p>
-                        <p>Normal on sharp text or lines — not suspicious by itself.</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <p className="text-[11px] text-muted-foreground italic">
-                  This is an automated visual aid, not definitive proof. WhatsApp-forwarded images, screenshots, and re-saved photos can produce bright areas without any tampering. Always verify with the original source before taking action.
-                </p>
-              </>
-            );
-          })()}
-        </div>
-      </DialogContent>
-    </Dialog>
+    <ElaTamperAnalysisDialog target={elaTarget} onClose={() => setElaTarget(null)} />
 
     {/* REPAIR REQUEST DIALOG */}
     <Dialog open={showRepairForm} onOpenChange={(v) => {
@@ -3601,49 +3224,12 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
     </Dialog>
 
     {/* ANOMALY REVIEW DIALOG */}
-    <Dialog open={!!reviewingAnomaly} onOpenChange={(v) => { if (!v) { setReviewingAnomaly(null); setAnomalyReviewDecision(''); setAnomalyReviewNote(''); } }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Review anomaly</DialogTitle>
-          <DialogDescription className="text-xs break-words">
-            {reviewingAnomaly?.label}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <Label>Decision <span className="text-destructive">*</span></Label>
-            <Select value={anomalyReviewDecision || undefined} onValueChange={(v) => setAnomalyReviewDecision(v as any)}>
-              <SelectTrigger><SelectValue placeholder="Select outcome…" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="valid">Reviewed — Valid</SelectItem>
-                <SelectItem value="fraudulent">Fraudulent / Error</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label>Reason / notes <span className="text-destructive">*</span></Label>
-            <Textarea
-              value={anomalyReviewNote}
-              onChange={(e) => setAnomalyReviewNote(e.target.value)}
-              placeholder="Explain why this anomaly is valid or fraudulent…"
-              rows={3}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => { setReviewingAnomaly(null); setAnomalyReviewDecision(''); setAnomalyReviewNote(''); }}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleAnomalyReview}
-            disabled={submittingAnomalyReview || !anomalyReviewDecision || !anomalyReviewNote.trim()}
-          >
-            {submittingAnomalyReview && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save review
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <AnomalyReviewDialog
+      target={reviewingAnomaly}
+      onClose={() => setReviewingAnomaly(null)}
+      profile={profile}
+      onSuccess={onRefresh}
+    />
     </>
   );
 }

@@ -21,6 +21,7 @@ import { VehicleInspectionForm } from '@/components/fleet/VehicleInspectionForm'
 import { Loader2, Plus, Car, Pencil, Trash2, AlertTriangle, Wrench, FileText, History, User, Fuel, Ban, CalendarOff, CheckSquare, ClipboardCheck } from 'lucide-react';
 import { type FieldStaff, type Vehicle, type MaintenanceRecord } from '@/lib/fleet-utils';
 import { SERVICE_TYPES } from '@/components/fleet/FleetAnalyticsDashboard';
+import { addMonths } from '@/components/fleet/fleet-utils';
 
 function FuelGauge({ tank, current, lastRefuel }: { tank: number; current: number; lastRefuel: string | null }) {
   const cap = tank || 60;
@@ -853,11 +854,6 @@ function maintStatusBadge(status: ReturnType<typeof effectiveMaintStatus>) {
   }
 }
 
-function addMonths(dateStr: string, months: number): string {
-  const d = new Date(dateStr);
-  d.setMonth(d.getMonth() + months);
-  return d.toISOString().slice(0, 10);
-}
 
 function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => void }) {
   const { toast } = useToast();
