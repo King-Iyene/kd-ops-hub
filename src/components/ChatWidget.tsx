@@ -72,7 +72,7 @@ export function ChatWidget() {
   // code / troubleshooting questions). Off by default — the free internal
   // assistant handles everything else. Per-message: resets after each send.
   const [useAdvanced, setUseAdvanced] = useState(false);
-  const n8nConfigured = !!(import.meta.env.VITE_N8N_CHAT_WEBHOOK_URL as string | undefined);
+  const n8nConfigured = !!(import.meta.env.VITE_N8N_CHAT_ENABLED as string | undefined);
   const [unread, setUnread] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
@@ -178,50 +178,41 @@ export function ChatWidget() {
     setInput('');
     setSending(true);
 
-    // ── Routing: the free internal assistant (chatbot-chat) handles everything
-    //    by default. Only when the user flips "Advanced" on (and n8n is
-    //    configured) does this single message go to the paid n8n agent — for
-    //    complex / code / troubleshooting questions.
-    const n8nUrl = import.meta.env.VITE_N8N_CHAT_WEBHOOK_URL as string | undefined;
-    // TODO: SECURITY — VITE_N8N_CHAT_SECRET is bundled into the client JS and
-    // visible to anyone who inspects the page source.  This webhook secret must
-    // be validated server-side via a proxy route (e.g. /api/chat) so the real
-    // secret never leaves the backend.
-    const n8nSecret = import.meta.env.VITE_N8N_CHAT_SECRET as string | undefined;
-    const routeToN8n = useAdvanced && !!n8nUrl;
+    const routeToN8n = useAdvanced && n8nConfigured;
 
     try {
       let reply: string;
       let newConvId = convId;
       let toolsUsed: string[] = [];
 
-      if (routeToN8n && n8nUrl) {
-        // n8n route — synchronous request/response, secret in header.
-        const { profile } = useAuthStore.getState();
-        const sessionId = convId || `s-${profile?.id || 'anon'}-${Date.now()}`;
-        const resp = await fetch(n8nUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(n8nSecret ? { 'x-kd-secret': n8nSecret } : {}),
-          },
-          body: JSON.stringify({
+      if (routeToN8n) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const sessionId = convId || `s-${session?.user?.id || 'anon'}-${Date.now()}`;
+        const { data, error } = await supabase.functions.invoke('chatbot-chat', {
+          headers: session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : undefined,
+          body: {
+            action: 'proxy_n8n',
             message: text,
-            user_id: profile?.id,
             session_id: sessionId,
-          }),
+          },
         });
-        if (!resp.ok) {
-          let bodyText = '';
-          try { bodyText = (await resp.json())?.error || ''; } catch { /* ignore */ }
-          throw new Error(bodyText || `n8n returned ${resp.status}`);
+        if (error) {
+          let msg = error.message;
+          try {
+            const ctx = (error as any)?.context;
+            if (ctx && typeof ctx.text === 'function') {
+              const raw = await ctx.text();
+              if (raw) { const parsed = JSON.parse(raw); msg = parsed.error || msg; }
+            }
+          } catch { /* use original */ }
+          throw new Error(msg);
         }
-        const json = await resp.json();
-        if (json?.ok === false) throw new Error(json.error || 'n8n agent error');
-        reply = json.reply || '(empty reply)';
-        newConvId = json.session_id || sessionId;
+        if (data?.ok === false) throw new Error(data.error || 'Advanced assistant error');
+        reply = data.reply || '(empty reply)';
+        newConvId = data.session_id || sessionId;
       } else {
-        // Legacy route — Supabase edge function chatbot-chat.
         const { data: { session } } = await supabase.auth.getSession();
         const { data, error } = await supabase.functions.invoke('chatbot-chat', {
           headers: session?.access_token

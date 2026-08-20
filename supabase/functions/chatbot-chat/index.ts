@@ -239,7 +239,46 @@ Deno.serve(async (req) => {
       );
     }
 
-    const body: IncomingMessage = await req.json();
+    const body: IncomingMessage & { action?: string; session_id?: string } = await req.json();
+
+    // ── n8n proxy: route "advanced" queries server-side so the webhook
+    //    secret never reaches the client bundle. ──────────────────────
+    if (body.action === "proxy_n8n") {
+      const n8nUrl = Deno.env.get("N8N_CHAT_WEBHOOK_URL");
+      const n8nSecret = Deno.env.get("N8N_CHAT_SECRET");
+      if (!n8nUrl) {
+        return new Response(
+          JSON.stringify({ error: "Advanced assistant is not configured." }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const n8nResp = await fetch(n8nUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(n8nSecret ? { "x-kd-secret": n8nSecret } : {}),
+        },
+        body: JSON.stringify({
+          message: body.message,
+          user_id: user.id,
+          session_id: body.session_id || `s-${user.id}-${Date.now()}`,
+        }),
+        signal: AbortSignal.timeout(LLM_FETCH_TIMEOUT_MS),
+      });
+      if (!n8nResp.ok) {
+        const errText = await n8nResp.text().catch(() => "");
+        console.error("[chatbot-chat] n8n proxy error:", n8nResp.status, errText);
+        return new Response(
+          JSON.stringify({ error: "Advanced assistant request failed. Please try again." }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const n8nJson = await n8nResp.json();
+      return new Response(JSON.stringify(n8nJson), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!body.message?.trim() && (!body.attachments || body.attachments.length === 0)) {
       return new Response(JSON.stringify({ error: "Empty message" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
