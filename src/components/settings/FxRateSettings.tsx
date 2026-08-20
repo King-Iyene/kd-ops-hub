@@ -7,7 +7,7 @@
 // (record_fetched_fx_rate / set_manual_fx_rate / review_fx_rate); this UI is a
 // thin, careful editor.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useCompanySettings } from '@/queries';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
@@ -90,9 +90,14 @@ export default function FxRateSettings() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Seed the deviation-guard threshold from company_settings once it loads.
+  // Seed the deviation-guard threshold from company_settings — once only,
+  // the first time it loads. This is an editable draft input saved
+  // separately via saveThreshold(); re-seeding on every background refetch
+  // (e.g. refetchOnWindowFocus) would silently clobber an unsaved edit.
+  const seededThresholdRef = useRef(false);
   useEffect(() => {
-    if (!companySettingsData) return;
+    if (!companySettingsData || seededThresholdRef.current) return;
+    seededThresholdRef.current = true;
     const t = Number((companySettingsData as any)?.fx_deviation_threshold_pct ?? 5);
     setThreshold(t);
     setThresholdInput(String(t));

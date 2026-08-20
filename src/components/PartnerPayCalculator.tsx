@@ -12,7 +12,7 @@
 // nobody is double-paid. Per-row amount edits apply to the batch only; the
 // contractor's stored default is never changed as a side effect.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCompanySettings } from '@/queries';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -140,9 +140,14 @@ export default function PartnerPayCalculator() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Seed the per-partner USD default from company_settings once it loads.
+  // Seed the per-partner USD default from company_settings — once only, the
+  // first time it loads. This is an editable draft input saved separately
+  // via saveGlobal(); re-seeding on every background refetch (e.g.
+  // refetchOnWindowFocus) would silently clobber an unsaved edit.
+  const seededGlobalRef = useRef(false);
   useEffect(() => {
-    if (!companySettingsData) return;
+    if (!companySettingsData || seededGlobalRef.current) return;
+    seededGlobalRef.current = true;
     const g = Number((companySettingsData as any)?.partner_pay_usd_minor ?? 0);
     setGlobalUsdMinor(g);
     setGlobalInput(String(toMajor(g)));
