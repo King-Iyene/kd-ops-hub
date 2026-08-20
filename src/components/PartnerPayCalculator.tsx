@@ -13,6 +13,7 @@
 // contractor's stored default is never changed as a side effect.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCompanySettings } from '@/queries';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
@@ -68,6 +69,7 @@ export default function PartnerPayCalculator() {
   // Generating a draft batch from here is a super-admin-only action.
   const isSuperAdmin = (profile?.role ?? '') === 'super_admin';
 
+  const { data: companySettingsData } = useCompanySettings();
   const [loading, setLoading] = useState(true);
   const [partners, setPartners] = useState<PartnerRow[]>([]);
   const [globalUsdMinor, setGlobalUsdMinor] = useState(0);
@@ -98,7 +100,7 @@ export default function PartnerPayCalculator() {
 
   const load = useCallback(async () => {
     const thisPeriod = periodLabel();
-    const [contractorsRes, settingsRes, rateRes, batchedRes] = await Promise.all([
+    const [contractorsRes, rateRes, batchedRes] = await Promise.all([
       supabase
         .from('contractors')
         .select('id, full_name, status, heyreach_status, pay_amount_usd_minor, bank_name, account_number')
@@ -106,7 +108,6 @@ export default function PartnerPayCalculator() {
         .neq('is_anonymised', true)
         .order('full_name')
         .limit(5000),
-      supabase.from('company_settings').select('partner_pay_usd_minor').eq('id', SINGLETON_ID).maybeSingle(),
       supabase
         .from('fx_rates')
         .select('rate, valid_from')
@@ -127,9 +128,6 @@ export default function PartnerPayCalculator() {
         .limit(20000),
     ]);
     setPartners((contractorsRes.data as PartnerRow[]) || []);
-    const g = Number((settingsRes.data as any)?.partner_pay_usd_minor ?? 0);
-    setGlobalUsdMinor(g);
-    setGlobalInput(String(toMajor(g)));
     setRate((rateRes.data as any)?.rate ?? null);
     setRateAt((rateRes.data as any)?.valid_from ?? null);
     const batched = new Set<string>();
@@ -141,6 +139,14 @@ export default function PartnerPayCalculator() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Seed the per-partner USD default from company_settings once it loads.
+  useEffect(() => {
+    if (!companySettingsData) return;
+    const g = Number((companySettingsData as any)?.partner_pay_usd_minor ?? 0);
+    setGlobalUsdMinor(g);
+    setGlobalInput(String(toMajor(g)));
+  }, [companySettingsData]);
 
   // An "active partner" = manually active AND connected on HeyReach. Everyone
   // else is excluded from the pay run with a plain reason (no silent payments).

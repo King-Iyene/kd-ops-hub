@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCompanySettings } from '@/queries';
 import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/image-compression';
 import { friendlyDbError, errorMessage } from '@/lib/db-errors';
@@ -215,6 +216,7 @@ export interface FuelTabProps {
 
 export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRefresh }: FuelTabProps) {
   const { toast } = useToast();
+  const { data: companySettings } = useCompanySettings();
 
   // ── Submitting guard ───────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false);
@@ -239,17 +241,10 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
   const [fuelDoc, setFuelDoc] = useState<File | null>(null);
 
   // Which provider BankAccountField should verify against
-  const [activeProvider, setActiveProvider] = useState<'paystack' | 'flutterwave'>('paystack');
-  useEffect(() => {
-    void (async () => {
-      const { data } = await supabase
-        .from('company_settings')
-        .select('active_payment_provider')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .maybeSingle();
-      setActiveProvider((data as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack');
-    })();
-  }, []);
+  const activeProvider = useMemo<'paystack' | 'flutterwave'>(
+    () => ((companySettings as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack'),
+    [companySettings],
+  );
 
   // Post-payment receipt upload
   const [uploadingReceiptFor, setUploadingReceiptFor] = useState<FuelRequest | null>(null);
@@ -347,29 +342,22 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
   useEffect(() => {
     void (async () => {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
-      const [settingsRes, fleetPricesRes] = await Promise.all([
-        supabase
-          .from('company_settings')
-          .select('fuel_price_ngn_per_litre')
-          .eq('id', '00000000-0000-0000-0000-000000000001')
-          .maybeSingle(),
-        supabase
-          .from('fuel_requests')
-          .select('amount_ngn, litres_filled')
-          .not('litres_filled', 'is', null)
-          .gt('litres_filled', 0)
-          .gte('created_at', thirtyDaysAgo)
-          .is('deleted_at', null),
-      ]);
-      const externalPrice: number | null = (settingsRes.data as any)?.fuel_price_ngn_per_litre ?? null;
-      const impliedPrices = ((fleetPricesRes.data as any[]) || [])
+      const { data: fleetPrices } = await supabase
+        .from('fuel_requests')
+        .select('amount_ngn, litres_filled')
+        .not('litres_filled', 'is', null)
+        .gt('litres_filled', 0)
+        .gte('created_at', thirtyDaysAgo)
+        .is('deleted_at', null);
+      const externalPrice: number | null = (companySettings as any)?.fuel_price_ngn_per_litre ?? null;
+      const impliedPrices = ((fleetPrices as any[]) || [])
         .map((r: any) => r.amount_ngn / r.litres_filled)
         .filter((p: number) => p > 100 && p < 5000);
       const fleetMedian = impliedPrices.length >= 3 ? median(impliedPrices) : null;
       setFuelPriceBenchmark(blendBenchmark(fleetMedian, externalPrice));
     })();
     void refreshMyReceiptDebt();
-  }, [refreshMyReceiptDebt]);
+  }, [refreshMyReceiptDebt, companySettings]);
 
   // ── Derived data ───────────────────────────────────────────────────────
   const myFuelRequests = useMemo(() => fuelRequests.filter((r) => r.employee_id === profile?.id), [fuelRequests, profile?.id]);

@@ -8,6 +8,7 @@
 // thin, careful editor.
 
 import { useCallback, useEffect, useState } from 'react';
+import { useCompanySettings } from '@/queries';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
@@ -60,6 +61,7 @@ export default function FxRateSettings() {
   const { profile } = useAuthStore();
   const canEdit = ['super_admin', 'admin', 'finance'].includes(profile?.role ?? '');
 
+  const { data: companySettingsData } = useCompanySettings();
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<FxRate | null>(null);
   const [pending, setPending] = useState<FxRate | null>(null);
@@ -73,30 +75,28 @@ export default function FxRateSettings() {
   const [reviewing, setReviewing] = useState(false);
 
   const load = useCallback(async () => {
-    const [ratesRes, settingsRes] = await Promise.all([
-      supabase
-        .from('fx_rates')
-        .select('id, rate, source, status, prev_rate, deviation_pct, valid_from')
-        .eq('base', BASE).eq('quote', QUOTE)
-        .order('valid_from', { ascending: false })
-        .limit(100),
-      supabase
-        .from('company_settings')
-        .select('fx_deviation_threshold_pct')
-        .eq('id', SINGLETON_ID)
-        .maybeSingle(),
-    ]);
-    const rows = (ratesRes.data as FxRate[]) || [];
+    const { data } = await supabase
+      .from('fx_rates')
+      .select('id, rate, source, status, prev_rate, deviation_pct, valid_from')
+      .eq('base', BASE).eq('quote', QUOTE)
+      .order('valid_from', { ascending: false })
+      .limit(100);
+    const rows = (data as FxRate[]) || [];
     setActive(rows.find((r) => r.status === 'active') ?? null);
     setPending(rows.find((r) => r.status === 'pending_review') ?? null);
     setHistory(rows);
-    const t = Number((settingsRes.data as any)?.fx_deviation_threshold_pct ?? 5);
-    setThreshold(t);
-    setThresholdInput(String(t));
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Seed the deviation-guard threshold from company_settings once it loads.
+  useEffect(() => {
+    if (!companySettingsData) return;
+    const t = Number((companySettingsData as any)?.fx_deviation_threshold_pct ?? 5);
+    setThreshold(t);
+    setThresholdInput(String(t));
+  }, [companySettingsData]);
 
   // Auto-refresh the live rate every 60 seconds
   useEffect(() => {
