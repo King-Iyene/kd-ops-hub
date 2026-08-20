@@ -4,6 +4,7 @@
  */
 
 import { toCsv } from '@/lib/csv';
+import { formatNairaCompact } from '@/lib/format';
 import {
   StatutoryRunData,
   StatutoryExportFile,
@@ -52,7 +53,7 @@ export function buildNsitfSchedule(
     `# NSITF Employer Code: ${data.employer.nsitf_employer_code ?? '(missing — set in Settings)'}`,
     `# Period: ${data.period}`,
     `# Employees: ${rows.length}`,
-    `# Employer-borne total (1%): ₦${totalEcs.toLocaleString('en-NG')}`,
+    `# Employer-borne total (1%): ${formatNairaCompact(totalEcs)}`,
     `# Generated: ${new Date().toISOString()}`,
     '',
   ];
@@ -63,6 +64,6 @@ export function buildNsitfSchedule(
     kind: 'nsitf',
     filename: `NSITF-ECS-${shortPeriod(data.period)}.csv`,
     csv,
-    summary: `${rows.length} employee${rows.length === 1 ? '' : 's'} · ECS ₦${totalEcs.toLocaleString('en-NG')}`,
+    summary: `${rows.length} employee${rows.length === 1 ? '' : 's'} · ECS ${formatNairaCompact(totalEcs)}`,
   };
 }

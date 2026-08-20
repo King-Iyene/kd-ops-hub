@@ -28,6 +28,7 @@ import {
   type ComplianceAlert,
 } from '@/lib/cfo-dashboard';
 import { fetchCostComparison, fetchCompensationBands, type CostComparisonResult, type CompensationBand } from '@/lib/talent-cost';
+import { formatNairaCompact } from '@/lib/format';
 
 // ─── Executive summary highlights ──────────────────────────────────────────
 
@@ -75,7 +76,7 @@ export function computeBoardHighlights(input: BoardHighlightInput): BoardHighlig
     const totalAmount = overdueCompliance.reduce((s, c) => s + (c.amount_ngn || 0), 0);
     highlights.push({
       label: `${overdueCompliance.length} overdue compliance filing${overdueCompliance.length === 1 ? '' : 's'}` +
-        (totalAmount > 0 ? `, totalling ₦${totalAmount.toLocaleString('en-NG')}.` : '.'),
+        (totalAmount > 0 ? `, totalling ${formatNairaCompact(totalAmount)}.` : '.'),
       tone: 'critical',
     });
   } else {

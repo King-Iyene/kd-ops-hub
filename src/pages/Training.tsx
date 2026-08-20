@@ -8,6 +8,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO, differenceInDays } from 'date-fns';
+import { formatNairaCompact } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
@@ -252,7 +253,7 @@ export default function Training() {
         <StatCard title="Total training hours" value={analytics.totalHours} icon={BarChart3} tone="primary" />
         <StatCard title="Avg hrs / employee" value={analytics.avgHoursPerEmployee} icon={TrendingUp} tone="info" />
         <StatCard title="Completion rate" value={`${analytics.completionRate}%`} icon={CheckCircle2} tone="success" />
-        <StatCard title="Total training spend" value={`₦${analytics.totalSpend.toLocaleString()}`} icon={DollarSign} tone="primary" />
+        <StatCard title="Total training spend" value={formatNairaCompact(analytics.totalSpend)} icon={DollarSign} tone="primary" />
       </div>
 
       {/* Expiring certifications alert */}

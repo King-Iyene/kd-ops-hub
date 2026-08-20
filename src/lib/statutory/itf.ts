@@ -9,6 +9,7 @@
  */
 
 import { toCsv } from '@/lib/csv';
+import { formatNairaCompact } from '@/lib/format';
 import {
   StatutoryRunData,
   StatutoryExportFile,
@@ -63,7 +64,7 @@ export function buildItfAnnualSchedule(
     `# ITF Employer Code: ${data.employer.itf_employer_code ?? '(missing — set in Settings)'}`,
     `# Snapshot period: ${data.period}`,
     `# Employees: ${rows.length}`,
-    `# 1% of annualised: ₦${totalItf.toLocaleString('en-NG')}`,
+    `# 1% of annualised: ${formatNairaCompact(totalItf)}`,
     `# For a full-year return, consolidate 12 monthly snapshots.`,
     `# Generated: ${new Date().toISOString()}`,
     '',
@@ -75,6 +76,6 @@ export function buildItfAnnualSchedule(
     kind: 'itf',
     filename: `ITF-Annual-${shortPeriod(data.period)}.csv`,
     csv,
-    summary: `${rows.length} employee${rows.length === 1 ? '' : 's'} · ITF (annualised) ₦${totalItf.toLocaleString('en-NG')}`,
+    summary: `${rows.length} employee${rows.length === 1 ? '' : 's'} · ITF (annualised) ${formatNairaCompact(totalItf)}`,
   };
 }

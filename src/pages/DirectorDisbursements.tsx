@@ -48,7 +48,7 @@ import {
   type BulkTransferItem,
 } from '@/lib/paystack';
 import { previewCapCheck, startBatchProcessing } from '@/lib/transfer-safety';
-import { formatNaira, formatDateTime } from '@/lib/format';
+import { formatNaira, formatNairaCompact, formatDateTime } from '@/lib/format';
 import {
   DIRECTOR_DISBURSEMENT_CATEGORIES,
   directorDisbursementCategoryDef,
@@ -1712,7 +1712,7 @@ function PersonalRecurringDialog({
         const ben = beneficiaries.find((b) => b.id === bid);
         await logAudit(
           'personal_transfer_schedule_created',
-          `Created recurring schedule: ${ben?.label || 'beneficiary'} — ₦${amountNum.toLocaleString()} monthly (day ${day})`,
+          `Created recurring schedule: ${ben?.label || 'beneficiary'} — ${formatNairaCompact(amountNum)} monthly (day ${day})`,
           profile,
         );
       }
@@ -2521,9 +2521,9 @@ function PersonalTransferBatchDialog({
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Insufficient Principal Disbursements wallet balance</AlertTitle>
               <AlertDescription>
-                This batch (₦{batchCost.grandTotal.toLocaleString('en-NG', { minimumFractionDigits: 2 })} including fees) is{' '}
-                ₦{(batchCost.grandTotal - (walletBalance ?? 0)).toLocaleString('en-NG', { minimumFractionDigits: 2 })}{' '}
-                more than the wallet balance (₦{(walletBalance ?? 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}) — fund the dedicated account before sending.
+                This batch ({formatNaira(batchCost.grandTotal)} including fees) is{' '}
+                {formatNaira(batchCost.grandTotal - (walletBalance ?? 0))}{' '}
+                more than the wallet balance ({formatNaira(walletBalance ?? 0)}) — fund the dedicated account before sending.
               </AlertDescription>
             </Alert>
           )}

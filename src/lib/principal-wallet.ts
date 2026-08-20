@@ -13,6 +13,7 @@
  * so this file is read-mostly: balance/history reads, plus the one-time
  * account registration/removal flow.
  */
+import { formatNaira } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 
 export interface PrincipalWalletDva {
@@ -100,7 +101,7 @@ export async function checkWalletCanCover(
   if (balance < totalNgn) {
     return {
       ok: false,
-      reason: `Principal Disbursements wallet balance is ₦${balance.toLocaleString('en-NG', { minimumFractionDigits: 2 })} — fund ${dva.bank_name} ${dva.account_number} before sending ₦${totalNgn.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (including fees).`,
+      reason: `Principal Disbursements wallet balance is ${formatNaira(balance)} — fund ${dva.bank_name} ${dva.account_number} before sending ${formatNaira(totalNgn)} (including fees).`,
     };
   }
   return { ok: true };

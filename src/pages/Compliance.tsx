@@ -43,7 +43,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
-import { formatDate, formatNaira, toIsoDate, daysUntil } from '@/lib/format';
+import { formatDate, formatNaira, formatNairaCompact, toIsoDate, daysUntil } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -870,7 +870,7 @@ const Compliance = () => {
       );
       toast({
         title: `${schedules.length} PFA schedule${schedules.length === 1 ? '' : 's'} downloaded`,
-        description: `${employees} employees · ₦${total.toLocaleString('en-NG')} total`,
+        description: `${employees} employees · ${formatNairaCompact(total)} total`,
       });
     } catch (err: any) {
       toast({ title: 'Could not generate PenCom schedule', description: err?.message, variant: 'destructive' });
@@ -1104,7 +1104,7 @@ const Compliance = () => {
             <div className="mt-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
               <span className="font-medium">{penComSummary.employees}</span> employees across{' '}
               <span className="font-medium">{penComSummary.pfas}</span> PFA{penComSummary.pfas === 1 ? '' : 's'} ·
-              total contribution <span className="font-medium">₦{penComSummary.total.toLocaleString('en-NG')}</span>
+              total contribution <span className="font-medium">{formatNairaCompact(penComSummary.total)}</span>
             </div>
           )}
         </CardContent>

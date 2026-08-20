@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { toCsv, downloadCsv } from '@/lib/csv';
+import { formatNairaCompact } from '@/lib/format';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -305,7 +306,7 @@ export default function Benefits() {
         })}
         <StatCard
           title="Total Monthly Cost"
-          value={`₦${Math.round(benefits.filter(b => b.status === 'active' && b.premium_ngn != null).reduce((s, b) => s + monthlyEquivalent(b.premium_ngn!, b.premium_frequency), 0)).toLocaleString('en-NG')}`}
+          value={formatNairaCompact(Math.round(benefits.filter(b => b.status === 'active' && b.premium_ngn != null).reduce((s, b) => s + monthlyEquivalent(b.premium_ngn!, b.premium_frequency), 0)))}
           subtitle="across all active plans"
           icon={Shield as any}
           tone="default"
@@ -350,7 +351,7 @@ export default function Benefits() {
                     {b.policy_number && <span>Policy: {b.policy_number}</span>}
                     {b.pfa_rsa_pin && <span>RSA: {b.pfa_rsa_pin}</span>}
                     {monthly != null && (
-                      <span>₦{monthly.toLocaleString('en-NG', { maximumFractionDigits: 0 })}/mo equiv</span>
+                      <span>{formatNairaCompact(monthly)}/mo equiv</span>
                     )}
                   </div>
 

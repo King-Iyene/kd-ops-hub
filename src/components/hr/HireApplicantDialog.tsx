@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { formatNairaCompact } from '@/lib/format';
 import { roleLabel } from '@/lib/roles';
 import { Button } from '@/components/ui/button';
 import {
@@ -358,7 +359,7 @@ export const HireApplicantDialog = ({
               />
               {applicant?.offer_amount_ngn != null && (
                 <p className="text-[10px] text-muted-foreground">
-                  Pre-filled from annual offer ₦{applicant.offer_amount_ngn.toLocaleString('en-NG')} ÷ 12.
+                  Pre-filled from annual offer {formatNairaCompact(applicant.offer_amount_ngn)} ÷ 12.
                 </p>
               )}
             </div>

@@ -11,6 +11,7 @@
  */
 
 import { toCsv } from '@/lib/csv';
+import { formatNairaCompact } from '@/lib/format';
 import {
   StatutoryRunData,
   StatutoryExportFile,
@@ -126,6 +127,6 @@ export function buildLirsPayeSchedule(
     kind: 'paye_lirs',
     filename: `LIRS-PAYE-${shortPeriod(data.period)}.csv`,
     csv,
-    summary: `${rows.length} Lagos employee${rows.length === 1 ? '' : 's'} · Total PAYE ₦${totals.paye.toLocaleString('en-NG')}`,
+    summary: `${rows.length} Lagos employee${rows.length === 1 ? '' : 's'} · Total PAYE ${formatNairaCompact(totals.paye)}`,
   };
 }

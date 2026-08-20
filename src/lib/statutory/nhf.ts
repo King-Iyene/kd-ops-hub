@@ -7,6 +7,7 @@
  */
 
 import { toCsv } from '@/lib/csv';
+import { formatNairaCompact } from '@/lib/format';
 import {
   StatutoryRunData,
   StatutoryExportFile,
@@ -66,6 +67,6 @@ export function buildNhfSchedule(
     kind: 'nhf',
     filename: `FMBN-NHF-${shortPeriod(data.period)}.csv`,
     csv,
-    summary: `${rows.length} contributor${rows.length === 1 ? '' : 's'} · ₦${total.toLocaleString('en-NG')}`,
+    summary: `${rows.length} contributor${rows.length === 1 ? '' : 's'} · ${formatNairaCompact(total)}`,
   };
 }

@@ -10,6 +10,7 @@
  * hard-to-forget code path rather than a convention scattered across the UI.
  */
 
+import { formatNairaCompact } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import { logAudit, type AuditActor } from '@/lib/audit';
 
@@ -129,7 +130,7 @@ export async function logPersonalTransferDetailView(
 ): Promise<void> {
   await logAudit(
     'personal_transfer_viewed',
-    `Viewed Personal Transfer detail: ${row.recipient_name} — ₦${row.amount_ngn.toLocaleString()}`,
+    `Viewed Personal Transfer detail: ${row.recipient_name} — ${formatNairaCompact(row.amount_ngn)}`,
     actor,
   );
 }

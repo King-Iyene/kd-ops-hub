@@ -9,6 +9,7 @@
  */
 
 import { toCsv } from '@/lib/csv';
+import { formatNairaCompact } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import { PENSION_EMPLOYEE_RATE, PENSION_EMPLOYER_RATE } from '@/lib/tax';
 import {
@@ -105,7 +106,7 @@ export function buildPenComPsspSchedule(
     kind: 'pension_pssp',
     filename: `PenCom-PSSP-${shortPeriod(data.period)}.csv`,
     csv,
-    summary: `${rows.length} RSA holder${rows.length === 1 ? '' : 's'} · Total ₦${(totals.emp + totals.err).toLocaleString('en-NG')}`,
+    summary: `${rows.length} RSA holder${rows.length === 1 ? '' : 's'} · Total ${formatNairaCompact(totals.emp + totals.err)}`,
   };
 }
 
