@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Mail, Users, Briefcase, BellOff, Check, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanySettings, useInvalidate, queryKeys } from '@/queries';
 import { cn } from '@/lib/utils';
 
 type Audience = 'all' | 'employees_only' | 'contractors_only' | 'none';
@@ -54,25 +55,17 @@ export function PaymentEmailAudienceCard() {
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
-  const [loading, setLoading] = useState(true);
+  const { data: companySettingsData, isLoading: loading } = useCompanySettings();
+  const invalidate = useInvalidate();
   const [saving, setSaving] = useState(false);
   const [audience, setAudience] = useState<Audience>('all');
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from('company_settings')
-        .select('payment_email_audience')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .maybeSingle();
-      const v = (data as any)?.payment_email_audience;
-      if (v === 'all' || v === 'employees_only' || v === 'contractors_only' || v === 'none') {
-        setAudience(v);
-      }
-      setLoading(false);
-    })();
-  }, []);
+    const v = (companySettingsData as any)?.payment_email_audience;
+    if (v === 'all' || v === 'employees_only' || v === 'contractors_only' || v === 'none') {
+      setAudience(v);
+    }
+  }, [companySettingsData]);
 
   const choose = async (next: Audience) => {
     if (!isAdmin || saving || next === audience) return;
@@ -89,6 +82,7 @@ export function PaymentEmailAudienceCard() {
       toast({ title: 'Could not save', description: error.message, variant: 'destructive' });
       return;
     }
+    invalidate(queryKeys.companySettings.current());
     toast({
       title: 'Payment-email audience updated',
       description: OPTIONS.find((o) => o.value === next)?.label,

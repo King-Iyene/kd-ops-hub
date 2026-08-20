@@ -50,7 +50,7 @@ import {
   type EmailTemplate,
 } from '@/lib/email-templates';
 import { errorMessage } from '@/lib/db-errors';
-import { supabase } from '@/lib/supabase';
+import { useCompanySettings } from '@/queries';
 
 const CATEGORY_LABEL: Record<EmailTemplate['category'], string> = {
   payments: 'Payments',
@@ -88,8 +88,9 @@ export default function EmailTemplatesSettings() {
   const [resetting, setResetting] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
   const [view, setView] = useState<'edit' | 'preview' | 'html'>('edit');
-  const [companyName, setCompanyName] = useState('KD Squares');
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const { data: companySettings } = useCompanySettings();
+  const companyName = useMemo(() => (companySettings as any)?.company_name || 'KD Squares', [companySettings]);
+  const logoUrl = useMemo(() => (companySettings as any)?.logo_url || null, [companySettings]);
 
   // "New template" modal state
   const [showCreate, setShowCreate] = useState(false);
@@ -103,19 +104,8 @@ export default function EmailTemplatesSettings() {
     setError(null);
     setMissingTable(false);
     try {
-      const [rows, cs] = await Promise.all([
-        listEmailTemplates(),
-        supabase
-          .from('company_settings')
-          .select('company_name, logo_url')
-          .eq('id', '00000000-0000-0000-0000-000000000001')
-          .maybeSingle(),
-      ]);
+      const rows = await listEmailTemplates();
       setTemplates(rows);
-      if (cs.data) {
-        setCompanyName((cs.data as any).company_name || 'KD Squares');
-        setLogoUrl((cs.data as any).logo_url || null);
-      }
       if (rows.length > 0 && !selectedKey) {
         setSelectedKey(rows[0].key);
       }

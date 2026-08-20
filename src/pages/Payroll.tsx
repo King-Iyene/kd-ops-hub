@@ -4,7 +4,7 @@ import { Plus, BarChart3, CalendarClock, CalendarDays, Columns3 } from 'lucide-r
 import { errorMessage } from '@/lib/db-errors';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { supabase } from '@/lib/supabase';
-import { useDepartments } from '@/queries';
+import { useCompanySettings, useDepartments } from '@/queries';
 import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
 import { burst } from '@/components/Burst';
@@ -186,6 +186,7 @@ const Payroll = () => {
   const [segments, setSegments] = useState<PayrollSegment[]>([]);
   const [segmentDialog, setSegmentDialog] = useState(false);
   const { data: segmentDepartments = [] } = useDepartments();
+  const { data: companySettings } = useCompanySettings();
   const [segmentSaving, setSegmentSaving] = useState(false);
   const [segmentPayGroups, setSegmentPayGroups] = useState<{ id: string; name: string }[]>([]);
   const [segmentForm, setSegmentForm] = useState<{
@@ -511,12 +512,7 @@ const Payroll = () => {
       // Sprint A: NSITF (1% of gross payroll, employer-borne) — added to burn
       // when the company toggle is on (default). Keeps payroll cost honest:
       // NSITF is legally required for firms with 5+ staff.
-      const { data: complianceSettings } = await supabase
-        .from('company_settings')
-        .select('nsitf_enabled')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .maybeSingle();
-      const includeNsitf = (complianceSettings as any)?.nsitf_enabled !== false;
+      const includeNsitf = (companySettings as any)?.nsitf_enabled !== false;
       const nsitfCharge = includeNsitf ? totalEmployee * NSITF_RATE : 0;
 
       const burn =
@@ -811,22 +807,17 @@ const Payroll = () => {
       // Each field is optional on the payslip (header degrades
       // gracefully when a tenant hasn't filled in their RC), so an
       // empty company_settings row still produces a valid payslip.
-      const { data: settings } = await supabase
-        .from('company_settings')
-        .select('company_name, rc_number, tin, address, logo_url, nsitf_enabled, itf_enabled, payroll_notifications_muted')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .maybeSingle();
-      const companyName    = (settings as any)?.company_name || 'KD Squares Ltd';
-      const companyRc      = (settings as any)?.rc_number    || null;
-      const companyTin     = (settings as any)?.tin          || null;
-      const companyAddress = (settings as any)?.address      || null;
-      const companyLogo    = (settings as any)?.logo_url     || null;
-      const nsitfEnabled   = (settings as any)?.nsitf_enabled !== false;
-      const itfEnabled     = (settings as any)?.itf_enabled !== false;
+      const companyName    = (companySettings as any)?.company_name || 'KD Squares Ltd';
+      const companyRc      = (companySettings as any)?.rc_number    || null;
+      const companyTin     = (companySettings as any)?.tin          || null;
+      const companyAddress = (companySettings as any)?.address      || null;
+      const companyLogo    = (companySettings as any)?.logo_url     || null;
+      const nsitfEnabled   = (companySettings as any)?.nsitf_enabled !== false;
+      const itfEnabled     = (companySettings as any)?.itf_enabled !== false;
       // Dry-run / correction escape hatch — payslips still generate and
       // save normally, only the employee-facing notification fan-out
       // (email/in-app/WhatsApp/SMS) is skipped. Flip back off afterward.
-      const notificationsMuted = (settings as any)?.payroll_notifications_muted === true;
+      const notificationsMuted = (companySettings as any)?.payroll_notifications_muted === true;
 
       // Fetch all active employee deductions, advances, AND outstanding EWA
       // requests that need to be settled this period in one batch.
@@ -1429,13 +1420,8 @@ const Payroll = () => {
       // Payroll while Flutterwave was active would have silently disbursed
       // salaries through Paystack anyway. Read the active provider once,
       // stamp the batch with it, and branch every subsequent call.
-      const { data: settingsRow } = await supabase
-        .from('company_settings')
-        .select('active_payment_provider')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .maybeSingle();
       const activeProvider: 'paystack' | 'flutterwave' =
-        (settingsRow as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack';
+        (companySettings as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack';
       if (activeProvider === 'flutterwave') {
         await fetchFlutterwaveBanks();
       }

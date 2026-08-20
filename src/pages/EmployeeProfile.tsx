@@ -21,7 +21,7 @@ import IncrementsTab from '@/components/employee/IncrementsTab';
 import AdvancesTab from '@/components/employee/AdvancesTab';
 import PermissionsTab from '@/components/employee/PermissionsTab';
 import { supabase } from '@/lib/supabase';
-import { useDepartments } from '@/queries';
+import { useCompanySettings, useDepartments } from '@/queries';
 import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -156,22 +156,16 @@ const EmployeeProfile = () => {
   const [bankDetails, setBankDetails] = useState<BankAccountValue>({
     bank_name: '', account_number: '', account_name: '', verified: false,
   });
+  const { data: companySettingsData } = useCompanySettings();
   // Which provider BankAccountField should verify against — was previously
   // hardcoded to Paystack regardless of the active provider (see
-  // BankAccountField.tsx's `provider` prop). Fetched once on mount; fine to
-  // be slightly stale since this only affects VERIFY, not dispatch (Payroll
-  // re-resolves fresh at actual disbursement time).
-  const [activeProvider, setActiveProvider] = useState<'paystack' | 'flutterwave'>('paystack');
-  useEffect(() => {
-    void (async () => {
-      const { data } = await supabase
-        .from('company_settings')
-        .select('active_payment_provider')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .maybeSingle();
-      setActiveProvider((data as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack');
-    })();
-  }, []);
+  // BankAccountField.tsx's `provider` prop). Fine to be slightly stale since
+  // this only affects VERIFY, not dispatch (Payroll re-resolves fresh at
+  // actual disbursement time).
+  const activeProvider: 'paystack' | 'flutterwave' = useMemo(
+    () => ((companySettingsData as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack'),
+    [companySettingsData],
+  );
   const [expenses, setExpenses] = useState<any[]>([]);
   const [payslips, setPayslips] = useState<any[]>([]);
   const [leaves, setLeaves] = useState<any[]>([]);
@@ -206,7 +200,7 @@ const EmployeeProfile = () => {
   const [dependentForm, setDependentForm] = useState(emptyDependentForm);
   const [empPlacements, setEmpPlacements] = useState<any[]>([]);
   const [empPlacementPayments, setEmpPlacementPayments] = useState<any[]>([]);
-  const [nsitfEnabled, setNsitfEnabled] = useState(true);
+  const nsitfEnabled = useMemo(() => (companySettingsData as any)?.nsitf_enabled !== false, [companySettingsData]);
   const [showDeductionDialog, setShowDeductionDialog] = useState(false);
   const [savingDeduction, setSavingDeduction] = useState(false);
   const [deductionForm, setDeductionForm] = useState({
@@ -267,7 +261,10 @@ const EmployeeProfile = () => {
   // Active employees (used as the Reports-to dropdown).
   const [managers, setManagers] = useState<Array<{ id: string; full_name: string | null; email: string }>>([]);
   const [selectedPayslipId, setSelectedPayslipId] = useState<string>('');
-  const [companySetting, setCompanySetting] = useState<{ company_name: string; logo_url: string | null }>({ company_name: 'KD Squares Ltd', logo_url: null });
+  const companySetting = useMemo(() => ({
+    company_name: (companySettingsData as any)?.company_name || 'KD Squares Ltd',
+    logo_url: (companySettingsData as any)?.logo_url || null,
+  }), [companySettingsData]);
 
   type EditSection =
     | 'employment' | 'compensation' | 'basic' | 'kin' | 'address'
@@ -406,15 +403,6 @@ const EmployeeProfile = () => {
       .order('full_name')
       .then(({ data }) => setManagers((data as any[]) || []))
       .catch(() => { /* dropdown degrades to empty */ });
-
-    // Company settings for payslip generation
-    supabase.from('company_settings').select('company_name, logo_url, nsitf_enabled')
-      .eq('id', '00000000-0000-0000-0000-000000000001').maybeSingle()
-      .then(({ data: cs }) => {
-        if (cs) setCompanySetting({ company_name: (cs as any).company_name || 'KD Squares Ltd', logo_url: (cs as any).logo_url || null });
-        setNsitfEnabled((cs as any)?.nsitf_enabled !== false);
-      })
-      .catch(() => { /* company name is cosmetic on the payslip */ });
 
     const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes, advRes, deductRes, earningsRes, benefitRes, assetRes, dependentRes] = await Promise.all([
       supabase.from('expenses').select('id, created_at, description, category, amount, amount_ngn, status, date').eq('submitted_by', id).is('deleted_at', null)

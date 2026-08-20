@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Download } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useCompanySettings } from '@/queries';
 import { useToast } from '@/hooks/use-toast';
 import { logAudit } from '@/lib/audit';
 import { formatNaira, formatDate } from '@/lib/format';
@@ -65,10 +66,11 @@ export default function OffboardingTab({
 
   // Sprint D — company-level F&F policy. Defaults preserve the legacy
   // behavior (gratuity off, pro-rated salary on).
-  const [policy, setPolicy] = useState<{
-    gratuity_months_per_year: number;
-    last_month_prorated: boolean;
-  }>({ gratuity_months_per_year: 0, last_month_prorated: true });
+  const { data: companySettings } = useCompanySettings();
+  const policy = useMemo(() => ({
+    gratuity_months_per_year: Number((companySettings as any)?.gratuity_months_per_year || 0),
+    last_month_prorated: (companySettings as any)?.last_month_prorated !== false,
+  }), [companySettings]);
 
   // Start form
   const [form, setForm] = useState({
@@ -85,17 +87,12 @@ export default function OffboardingTab({
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: t }, { data: ass }, { data: adv }, { data: bal }, { data: settings }] = await Promise.all([
+    const [{ data: t }, { data: ass }, { data: adv }, { data: bal }] = await Promise.all([
       (supabase as any).from('terminations').select('id, status, termination_type, notice_date, last_working_day, rehire_eligible, completed_at, reason, exit_interview_notes, final_settlement_ngn').eq('employee_id', employee.id)
         .order('created_at', { ascending: false }).limit(1),
       supabase.from('assets').select('id, asset_number, name, status').eq('assigned_to', employee.id).is('deleted_at', null),
       supabase.from('employee_advances').select('outstanding_ngn').eq('employee_id', employee.id).eq('status', 'active'),
       supabase.from('leave_balances').select('annual_quota, annual_used').eq('employee_id', employee.id).eq('year', new Date().getFullYear()).maybeSingle(),
-      // F&F policy. New columns are nullable; safely fall back to legacy
-      // defaults if the Sprint D migration hasn't been applied yet.
-      (supabase as any).from('company_settings')
-        .select('gratuity_months_per_year, last_month_prorated')
-        .eq('id', '00000000-0000-0000-0000-000000000001').maybeSingle(),
     ]);
     const rec = ((t as any[]) || [])[0] || null;
     setTerm(rec);
@@ -106,10 +103,6 @@ export default function OffboardingTab({
     const q = Number((bal as any)?.annual_quota || 0);
     const u = Number((bal as any)?.annual_used || 0);
     setUnusedLeaveDays(Math.max(0, q - u));
-    setPolicy({
-      gratuity_months_per_year: Number((settings as any)?.gratuity_months_per_year || 0),
-      last_month_prorated: (settings as any)?.last_month_prorated !== false,
-    });
     setLoading(false);
   }, [employee.id]);
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanySettings } from '@/queries';
 import { formatDate } from '@/lib/format';
 import { SubPageHeader } from '@/components/SubPageHeader';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -80,6 +81,11 @@ const Fleet = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const hasFetchedRef = useRef(false);
+  const { data: companySettings } = useCompanySettings();
+  const externalFuelPrice = useMemo(
+    () => (companySettings as any)?.fuel_price_ngn_per_litre ?? null,
+    [companySettings],
+  );
 
   const enrich = (rows: any[], staffList: FieldStaff[]) => {
     const byId = new Map(staffList.map((s) => [s.id, s]));
@@ -107,7 +113,7 @@ const Fleet = () => {
 
       const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
 
-      const [staffRes, profilesRes, fuelRes, tripRes, activityRes, vehicleRes, settingsRes, fleetPricesRes] = await Promise.all([
+      const [staffRes, profilesRes, fuelRes, tripRes, activityRes, vehicleRes, fleetPricesRes] = await Promise.all([
         supabase
           .from('profiles_directory')
           .select('id, full_name, email')
@@ -128,11 +134,6 @@ const Fleet = () => {
           .select('id, name, plate_number, weekly_budget_ngn, carry_forward_ngn, assigned_driver_id, insurance_expiry, road_worthiness_expiry, next_service_date, tank_capacity_litres, current_fuel_litres, last_refuel_at, avg_km_per_litre, fuel_consumption_rate_lkm, home_base_lat, home_base_lng, out_of_service_until, status, total_mileage_km')
           .eq('status', 'active')
           .order('name'),
-        supabase
-          .from('company_settings')
-          .select('fuel_price_ngn_per_litre')
-          .eq('id', '00000000-0000-0000-0000-000000000001')
-          .maybeSingle(),
         supabase
           .from('fuel_requests')
           .select('amount_ngn, litres_filled')
@@ -158,7 +159,7 @@ const Fleet = () => {
       setTripLogs(enrich(tripRes.data || [], lookup));
       setActivityLogs(activityRes.data || []);
       setVehicles((vehicleRes.data as VehicleSummary[]) || []);
-      const externalPrice: number | null = (settingsRes.data as any)?.fuel_price_ngn_per_litre ?? null;
+      const externalPrice: number | null = externalFuelPrice;
       const impliedPrices = ((fleetPricesRes.data as any[]) || [])
         .map((r: any) => r.amount_ngn / r.litres_filled)
         .filter((p: number) => p > 100 && p < 5000);

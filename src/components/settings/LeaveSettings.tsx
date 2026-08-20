@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Save, ToggleLeft, ToggleRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useCompanySettings, useInvalidate, queryKeys } from '@/queries';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,8 @@ export default function LeaveSettings() {
   const { toast } = useToast();
   const [policies, setPolicies] = useState<LeavePolicy[]>([]);
   const [edited, setEdited] = useState<Record<string, Partial<LeavePolicy>>>({});
+  const { data: companySettingsData } = useCompanySettings();
+  const invalidate = useInvalidate();
   const [companySettings, setCompanySettings] = useState<CompanyLeaveSettings>({
     leave_carryover_enabled: false,
     leave_carryover_max_days: 5,
@@ -48,21 +51,28 @@ export default function LeaveSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Hydrate the editable company-leave-settings form from the shared
+  // singleton row — once only, the first time it loads. These are draft
+  // inputs saved separately via saveAll(); re-seeding on every background
+  // refetch (e.g. refetchOnWindowFocus) would silently clobber an unsaved
+  // edit. saveAll() updates origCompany directly on a successful write, so
+  // it doesn't depend on this effect re-running after invalidate().
+  const seededCompanyRef = useRef(false);
+  useEffect(() => {
+    if (!companySettingsData || seededCompanyRef.current) return;
+    seededCompanyRef.current = true;
+    const cs = {
+      leave_carryover_enabled: (companySettingsData as any).leave_carryover_enabled ?? false,
+      leave_carryover_max_days: (companySettingsData as any).leave_carryover_max_days ?? 5,
+    };
+    setCompanySettings(cs);
+    setOrigCompany(cs);
+  }, [companySettingsData]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [polRes, csRes] = await Promise.all([
-      supabase.from('leave_policies').select('id, name, description, default_days, accrual_type, gender, paid, carry_over_days, color, active').order('code'),
-      supabase.from('company_settings').select('leave_carryover_enabled, leave_carryover_max_days').eq('id', SINGLETON_ID).single(),
-    ]);
-    if (polRes.data) setPolicies(polRes.data as LeavePolicy[]);
-    if (csRes.data) {
-      const cs = {
-        leave_carryover_enabled: csRes.data.leave_carryover_enabled ?? false,
-        leave_carryover_max_days: csRes.data.leave_carryover_max_days ?? 5,
-      };
-      setCompanySettings(cs);
-      setOrigCompany(cs);
-    }
+    const { data } = await supabase.from('leave_policies').select('id, name, description, default_days, accrual_type, gender, paid, carry_over_days, color, active').order('code');
+    if (data) setPolicies(data as LeavePolicy[]);
     setEdited({});
     setLoading(false);
   }, []);
@@ -115,6 +125,9 @@ export default function LeaveSettings() {
       if (error) {
         toast({ title: 'Error saving company settings', description: error.message, variant: 'destructive' });
         failed = true;
+      } else {
+        setOrigCompany(companySettings);
+        invalidate(queryKeys.companySettings.current());
       }
     }
 

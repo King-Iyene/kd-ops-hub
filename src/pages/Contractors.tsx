@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCompanySettings } from '@/queries';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { ContractorApplications } from '@/components/ContractorApplications';
@@ -785,19 +786,14 @@ const Contractors = () => {
   // before — changing that would risk breaking dedup against historical
   // records. Only the actual verify API call is redirected to the correct
   // provider, using a freshly-resolved Flutterwave code when applicable.
-  const [activeProvider, setActiveProvider] = useState<'paystack' | 'flutterwave'>('paystack');
+  const { data: companySettings } = useCompanySettings();
+  const activeProvider: 'paystack' | 'flutterwave' = useMemo(
+    () => ((companySettings as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack'),
+    [companySettings],
+  );
   useEffect(() => {
-    void (async () => {
-      const { data } = await supabase
-        .from('company_settings')
-        .select('active_payment_provider')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .maybeSingle();
-      const p = (data as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack';
-      setActiveProvider(p);
-      if (p === 'flutterwave') await fetchFlutterwaveBanks();
-    })();
-  }, []);
+    if (activeProvider === 'flutterwave') void fetchFlutterwaveBanks();
+  }, [activeProvider]);
 
   const verifyRows = useCallback(async (rows: ParsedRow[]) => {
     // ── Duplicate detection (finance-safe, precision-first) ──────────
