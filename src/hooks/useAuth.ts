@@ -10,10 +10,50 @@ export const useAuth = () => {
     useAuthStore();
   const navigate = useNavigate();
   const didInit = useRef(false);
+  const loginAuditLogged = useRef(false);
 
   useEffect(() => {
     if (didInit.current) return;
     didInit.current = true;
+
+    // A magic-link / invite-link redirect (see ResetPassword.tsx, which
+    // lands SIGNED_IN users from signInWithOtp() there) carries its auth
+    // tokens in the URL hash. supabase-js's detectSessionInUrl parses that
+    // hash and fires SIGNED_IN as part of client construction, which can
+    // happen before this effect subscribes below — the same race
+    // ResetPassword.tsx guards against with its own getSession() fallback
+    // (line ~67 there). When that race is lost here, the SIGNED_IN branch
+    // below never runs and the login goes completely unaudited even though
+    // the user is fully signed in. Captured once, synchronously, before any
+    // await in this effect gets a chance to let the hash go stale.
+    const hasFreshAuthRedirect = /access_token=/.test(window.location.hash);
+
+    // Logs the login exactly once, however the session was actually
+    // established (a live SIGNED_IN event, or the getSession() bootstrap
+    // below catching one that already fired). Waits for the profile to
+    // finish loading rather than trusting a fixed delay — a blind 800ms
+    // guess is routinely too short for a first-time self-heal profile
+    // fetch (activate_my_profile RPC + retries), which silently dropped
+    // the audit entry for genuine, successful logins.
+    const logLoginOnceProfileReady = () => {
+      if (loginAuditLogged.current) return;
+      loginAuditLogged.current = true;
+      const alreadyLoaded = useAuthStore.getState().profile;
+      if (alreadyLoaded) {
+        logAudit('user_logged_in', `User ${alreadyLoaded.full_name || alreadyLoaded.email} signed in`, alreadyLoaded);
+        return;
+      }
+      const unsubscribe = useAuthStore.subscribe((state) => {
+        if (state.profile) {
+          logAudit('user_logged_in', `User ${state.profile.full_name || state.profile.email} signed in`, state.profile);
+          unsubscribe();
+        }
+      });
+      // Safety cap so this never leaks a live subscription if the profile
+      // fetch fails outright (fail-open path in finish() below keeps the
+      // session but never sets a profile).
+      window.setTimeout(unsubscribe, 15_000);
+    };
 
     // True while a Supabase refresh token is still persisted in storage. A 429
     // on /auth/v1/token (project-level rate limit) means "retry later", not
@@ -144,6 +184,14 @@ export const useAuth = () => {
       if (session?.user) {
         setUser(session.user);
         finish(session.user.id, false);
+        // The SIGNED_IN event for this session may have already fired
+        // (and been missed — see hasFreshAuthRedirect above) before we got
+        // here. If the URL still carries the redirect's auth tokens, this
+        // is a genuine fresh login landing, not a plain page revisit with
+        // a persisted session — audit it now instead of losing it silently.
+        if (hasFreshAuthRedirect) {
+          logLoginOnceProfileReady();
+        }
       } else {
         setLoading(false);
       }
@@ -221,16 +269,7 @@ export const useAuth = () => {
         // Login audit — only on a fresh sign-in (event === SIGNED_IN with
         // no prior user; rehydration is suppressed earlier in this branch).
         if (event === 'SIGNED_IN') {
-          (async () => {
-            // Best-effort delay so the profile fetch can populate
-            // performed_by_name. Never block on it.
-            setTimeout(() => {
-              const p = useAuthStore.getState().profile;
-              if (p) {
-                logAudit('user_logged_in', `User ${p.full_name || p.email} signed in`, p);
-              }
-            }, 800);
-          })();
+          logLoginOnceProfileReady();
         }
       } else if (event === 'SIGNED_OUT') {
         // Explicit, user-initiated sign-out — go straight to login.
