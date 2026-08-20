@@ -309,3 +309,30 @@ export const findBank = (query: string): NigerianBank | undefined => {
     (b) => b.name.toLowerCase() === q || b.name.toLowerCase().startsWith(q),
   );
 };
+
+// Case-insensitive bank name matcher; returns the canonical display name if found.
+const BANK_NAME_LOOKUP: Map<string, string> = (() => {
+  const m = new Map<string, string>();
+  for (const b of NIGERIAN_BANKS) {
+    m.set(b.name.toLowerCase(), b.name);
+    // also accept short forms without suffix like "Bank"
+    const short = b.name.replace(/\s*bank\s*$/i, '').trim().toLowerCase();
+    if (short) m.set(short, b.name);
+  }
+  // common aliases
+  m.set('gt bank', 'GTBank');
+  m.set('gtb', 'GTBank');
+  m.set('first bank of nigeria', 'First Bank');
+  m.set('stanbic ibtc bank', 'Stanbic IBTC');
+  m.set('stanbic', 'Stanbic IBTC');
+  m.set('fidelity', 'Fidelity Bank');
+  m.set('united bank for africa', 'UBA');
+  return m;
+})();
+
+/** Normalise a free-text bank name (e.g. from a CSV import) to its canonical display name. */
+export const normalizeBankName = (raw: string): string | null => {
+  const key = (raw || '').trim().toLowerCase();
+  if (!key) return null;
+  return BANK_NAME_LOOKUP.get(key) ?? null;
+};

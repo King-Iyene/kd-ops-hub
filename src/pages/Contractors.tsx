@@ -66,7 +66,9 @@ import Papa from 'papaparse';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { NIGERIAN_BANKS, resolveAccount } from '@/lib/paystack';
 import { fetchFlutterwaveBanks, getFlutterwaveBankCode, resolveFlutterwaveAccount } from '@/lib/flutterwave-banks';
-import { getBankCode, fetchBanks } from '@/lib/nigerian-banks';
+import { getBankCode, fetchBanks, normalizeBankName } from '@/lib/nigerian-banks';
+import { normLinkedinUrl, namesAreEquivalent } from '@/lib/linkedin';
+import { toCsv, downloadCsv } from '@/lib/csv';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { cn } from '@/lib/utils';
 
@@ -183,67 +185,6 @@ const emptyBank: BankAccountValue = {
   account_name: '',
   verified: false,
 };
-
-// CSV escape: wrap field in quotes if it contains a comma, quote, or newline.
-const csvEscape = (v: any): string => {
-  const s = v === null || v === undefined ? '' : String(v);
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-};
-
-
-// Case-insensitive bank name matcher; returns the canonical name if found.
-const BANK_NAME_LOOKUP: Map<string, string> = (() => {
-  const m = new Map<string, string>();
-  for (const b of NIGERIAN_BANKS) {
-    m.set(b.name.toLowerCase(), b.name);
-    // also accept short forms without suffix like "Bank"
-    const short = b.name.replace(/\s*bank\s*$/i, '').trim().toLowerCase();
-    if (short) m.set(short, b.name);
-  }
-  // common aliases
-  m.set('gt bank', 'GTBank');
-  m.set('gtb', 'GTBank');
-  m.set('first bank of nigeria', 'First Bank');
-  m.set('stanbic ibtc bank', 'Stanbic IBTC');
-  m.set('stanbic', 'Stanbic IBTC');
-  m.set('fidelity', 'Fidelity Bank');
-  m.set('united bank for africa', 'UBA');
-  return m;
-})();
-
-const normalizeBankName = (raw: string): string | null => {
-  const key = (raw || '').trim().toLowerCase();
-  if (!key) return null;
-  return BANK_NAME_LOOKUP.get(key) ?? null;
-};
-
-// Normalise a LinkedIn URL for matching (drop protocol, www, query, trailing /).
-const normLinkedinUrl = (u: string | null | undefined): string => {
-  if (!u) return '';
-  return u.trim().toLowerCase()
-    .replace(/^https?:\/\//, '')
-    .replace(/^www\./, '')
-    .split(/[?#]/)[0]
-    .replace(/\/+$/, '');
-};
-
-// Fuzzy comparator for "is this the same person?" between the CSV
-// name and the bank-verified name. Strips whitespace, lowercases,
-// then compares as a sorted-token set so "John Doe" and "DOE JOHN"
-// match. Also matches when one is a strict subset of the other (the
-// CSV may include a middle name the bank dropped, or vice versa).
-function namesAreEquivalent(a: string, b: string): boolean {
-  const tok = (s: string) =>
-    s.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean).sort();
-  const ta = tok(a);
-  const tb = tok(b);
-  if (ta.length === 0 || tb.length === 0) return false;
-  if (ta.join(' ') === tb.join(' ')) return true;
-  // Subset match — every short-side token appears in the long side.
-  const [short, long] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
-  return short.every((t) => long.includes(t));
-}
 
 // ───────────────────────── Advanced (CRM-style) filters ─────────────────────
 // A flexible field/operator/value rule builder. Rules are ANDed and applied
@@ -843,18 +784,10 @@ const Contractors = () => {
           // rename. Just surface it under the operator-facing name.
           linkedin_email: r.heyreach_email || '',
         };
-        return header.map((col) => csvEscape(out[col])).join(',');
+        return header.map((col) => out[col]);
       });
-      const csv = [header.join(','), ...csvRows].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'contractors-export.csv';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const csv = toCsv(header, csvRows);
+      downloadCsv('contractors-export', csv);
     } catch (err: unknown) {
       toast({ title: 'Export failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
@@ -891,16 +824,7 @@ const Contractors = () => {
       { full_name: 'Tobi Adeyemi',     linkedin_email: 'tobi@gmail.com',       email: 'tobi@example.com',    whatsapp_phone: '+2348112345678', bank_name: 'Sterling Bank',                          account_number: '0023456789', default_amount_ngn: '195000', linkedin_password: '',                linkedin_url: '',                                         onboarded_at: '' },
     ];
     const rows = sampleRows.map((r) => header.map((col) => r[col] ?? ''));
-    const csv = [header, ...rows].map((r) => r.map(csvEscape).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'kdops-contractors-sample.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadCsv('kdops-contractors-sample', toCsv(header, rows));
   };
 
   // One-click "give me everything" — downloads the sample template
@@ -940,16 +864,7 @@ const Contractors = () => {
             ? 'Fintech / Neo-bank'
             : 'Commercial',
     ]);
-    const csv = [header, ...rows].map((r) => r.map(csvEscape).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'kdops-supported-banks.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadCsv('kdops-supported-banks', toCsv(header, rows));
     setExportingBanks(false);
     toast({
       title: 'Bank list downloaded',
@@ -1414,17 +1329,8 @@ const Contractors = () => {
   const downloadImportErrors = () => {
     if (!importSummary?.failures.length) return;
     const header = ['row', 'name', 'error'];
-    const lines = [
-      header.join(','),
-      ...importSummary.failures.map((f) => [f.row, f.name, f.reason].map(csvEscape).join(',')),
-    ];
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `import-errors-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const rows = importSummary.failures.map((f) => [f.row, f.name, f.reason]);
+    downloadCsv(`import-errors-${new Date().toISOString().slice(0, 10)}`, toCsv(header, rows));
   };
 
   // ── Advanced filter handlers ──────────────────────────────────────────────
