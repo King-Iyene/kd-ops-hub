@@ -55,6 +55,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import {
   listTransferLimits,
   setTransferLimit,
@@ -226,8 +227,8 @@ export default function TransferAuthSettings() {
       }
       setAuditTotal(total);
       setAuditOffset(reset ? 50 : offset + 50);
-    } catch (e: any) {
-      const msg = e?.message ?? String(e);
+    } catch (e: unknown) {
+      const msg = errorMessage(e);
       setAuditError(msg);
       if (/transfer_audit/i.test(msg)) setMigrationMissing(true);
     } finally {
@@ -273,7 +274,7 @@ export default function TransferAuthSettings() {
     if (lRes.status === 'fulfilled') {
       setLimits(lRes.value);
     } else {
-      const msg = (lRes.reason as any)?.message ?? String(lRes.reason);
+      const msg = errorMessage(lRes.reason);
       setLimitsError(msg);
       if (/transfer_limits/i.test(msg)) setMigrationMissing(true);
     }
@@ -341,8 +342,8 @@ export default function TransferAuthSettings() {
         return c;
       });
       await reloadAll();
-    } catch (e: any) {
-      toast({ title: 'Save failed', description: e?.message ?? String(e), variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Save failed', description: errorMessage(e), variant: 'destructive' });
     }
   };
 
@@ -377,8 +378,8 @@ export default function TransferAuthSettings() {
       setOverrideExpires(isoDatePlusDays(30));
       setOverrideReason('');
       await reloadAll();
-    } catch (e: any) {
-      toast({ title: 'Save failed', description: e?.message ?? String(e), variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Save failed', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setOverrideSaving(false);
     }
@@ -415,10 +416,10 @@ export default function TransferAuthSettings() {
         return c;
       });
       await reloadAll();
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast({
         title: 'Save failed',
-        description: e?.message ?? String(e),
+        description: errorMessage(e),
         variant: 'destructive',
       });
     } finally {
@@ -440,8 +441,8 @@ export default function TransferAuthSettings() {
       });
       setQuickPayEnabled(next);
       toast({ title: next ? 'Quick Pay enabled' : 'Quick Pay disabled' });
-    } catch (e: any) {
-      toast({ title: 'Save failed', description: e?.message ?? String(e), variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Save failed', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setQuickPaySaving(false);
     }
@@ -453,8 +454,8 @@ export default function TransferAuthSettings() {
       await deleteTransferLimit(id);
       toast({ title: 'Override removed' });
       await reloadAll();
-    } catch (e: any) {
-      toast({ title: 'Delete failed', description: e?.message ?? String(e), variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Delete failed', description: errorMessage(e), variant: 'destructive' });
     }
   };
 
@@ -479,8 +480,8 @@ export default function TransferAuthSettings() {
       anchor.download = `transfer-audit-${new Date().toISOString().slice(0, 10)}.csv`;
       anchor.click();
       URL.revokeObjectURL(objectUrl);
-    } catch (e: any) {
-      toast({ title: 'Export failed', description: e?.message ?? String(e), variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Export failed', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setCsvExporting(false);
     }

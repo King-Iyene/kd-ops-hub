@@ -116,7 +116,7 @@ import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
 import { ReceiptModal } from '@/components/ReceiptModal';
 import { PersonalTransferReceiptModal } from '@/components/PersonalTransferReceiptModal';
 import { useToast } from '@/hooks/use-toast';
-import { friendlyDbError } from '@/lib/db-errors';
+import { friendlyDbError, errorMessage } from '@/lib/db-errors';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 
@@ -207,8 +207,8 @@ function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnT
       const [account, bal] = await Promise.all([fetchDvaAccount(), fetchWalletBalance()]);
       setDva(account);
       setBalance(bal);
-    } catch (err: any) {
-      toast({ title: 'Could not load wallet', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not load wallet', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -223,8 +223,8 @@ function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnT
       setHistoryLoading(true);
       try {
         setHistory(await fetchWalletLedger(50));
-      } catch (err: any) {
-        toast({ title: 'Could not load funding history', description: err?.message, variant: 'destructive' });
+      } catch (err: unknown) {
+        toast({ title: 'Could not load funding history', description: errorMessage(err), variant: 'destructive' });
       } finally {
         setHistoryLoading(false);
       }
@@ -239,7 +239,7 @@ function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnT
       await deleteDvaAccount(dva.id);
       toast({ title: 'Dedicated account removed', description: 'Sends will no longer be checked against a wallet balance.' });
       load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: 'Could not remove account', description: friendlyDbError(err), variant: 'destructive' });
     } finally {
       setConfirmRemoveOpen(false);
@@ -372,7 +372,7 @@ function LinkDvaDialog({
       reset();
       onOpenChange(false);
       onLinked();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: 'Could not link account', description: friendlyDbError(err), variant: 'destructive' });
     } finally {
       setSaving(false);
@@ -775,7 +775,7 @@ function CompanyDisbursementSendDialog({
       setResult({ ok: true, ref });
       toast({ title: 'Disbursement sent', description: `Ref: ${ref}` });
       onSent();
-    } catch (err: any) {
+    } catch (err: unknown) {
       const friendly = friendlyDbError(err);
       setResult({ ok: false, reason: friendly });
       toast({ title: 'Disbursement failed', description: friendly, variant: 'destructive' });
@@ -941,7 +941,7 @@ function MakeRecurringDialog({
         description: `Next draft: ${nextDate.toLocaleDateString('en-GB')} — you'll review and approve it before anything sends.`,
       });
       onOpenChange(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: 'Could not create schedule', description: friendlyDbError(err), variant: 'destructive' });
     } finally {
       setSaving(false);
@@ -1100,8 +1100,8 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
     try {
       const data = await fetchPersonalTransfers(profile);
       setRows(data);
-    } catch (err: any) {
-      toast({ title: 'Could not load personal transfers', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not load personal transfers', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -1110,8 +1110,8 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
   const loadBeneficiaries = async () => {
     try {
       setBeneficiaries(await fetchPersonalTransferBeneficiaries());
-    } catch (err: any) {
-      toast({ title: 'Could not load beneficiaries', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not load beneficiaries', description: errorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -1145,8 +1145,8 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
       } else {
         toast({ title: 'Still pending', description: 'Paystack has not resolved this transfer yet.' });
       }
-    } catch (err: any) {
-      toast({ title: 'Could not check status', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not check status', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setVerifyingId(null);
     }
@@ -1372,8 +1372,8 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                         await logAudit('personal_transfer_draft_discarded', `Discarded recurring draft for ${d.beneficiary?.label || 'unknown'}`, profile);
                         toast({ title: 'Draft discarded' });
                         loadDrafts();
-                      } catch (err: any) {
-                        toast({ title: 'Could not discard', description: err?.message, variant: 'destructive' });
+                      } catch (err: unknown) {
+                        toast({ title: 'Could not discard', description: errorMessage(err), variant: 'destructive' });
                       }
                     }}
                   >
@@ -1410,8 +1410,8 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                         const action = s.status === 'paused' ? 'resumed' : 'paused';
                         await logAudit('personal_transfer_schedule_updated', `Recurring schedule for "${s.beneficiary?.label || 'unknown'}" ${action}`, profile);
                         loadSchedules();
-                      } catch (err: any) {
-                        toast({ title: 'Could not update', description: err?.message, variant: 'destructive' });
+                      } catch (err: unknown) {
+                        toast({ title: 'Could not update', description: errorMessage(err), variant: 'destructive' });
                       }
                     }}
                   >
@@ -1425,8 +1425,8 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                         await logAudit('personal_transfer_schedule_deleted', `Recurring schedule for "${s.beneficiary?.label || 'unknown'}" deleted`, profile);
                         toast({ title: 'Schedule deleted' });
                         loadSchedules();
-                      } catch (err: any) {
-                        toast({ title: 'Could not delete', description: err?.message, variant: 'destructive' });
+                      } catch (err: unknown) {
+                        toast({ title: 'Could not delete', description: errorMessage(err), variant: 'destructive' });
                       }
                     }}
                   >
@@ -1722,8 +1722,8 @@ function PersonalRecurringDialog({
       });
       onCreated();
       onOpenChange(false);
-    } catch (err: any) {
-      toast({ title: 'Could not create schedule', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not create schedule', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -1844,7 +1844,7 @@ function PersonalTransferBeneficiariesDialog({
       toast({ title: 'Beneficiary saved' });
       reset();
       onChanged();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: 'Could not save beneficiary', description: friendlyDbError(err), variant: 'destructive' });
     } finally {
       setSaving(false);
@@ -1858,7 +1858,7 @@ function PersonalTransferBeneficiariesDialog({
       toast({ title: `Renamed to "${editLabel.trim()}"` });
       setEditingId(null);
       onChanged();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: 'Could not rename', description: friendlyDbError(err), variant: 'destructive' });
     }
   };
@@ -1868,7 +1868,7 @@ function PersonalTransferBeneficiariesDialog({
       await deletePersonalTransferBeneficiary(b.id);
       toast({ title: `${b.label} removed` });
       onChanged();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: 'Could not remove beneficiary', description: friendlyDbError(err), variant: 'destructive' });
     }
   };
@@ -2081,7 +2081,7 @@ function PersonalTransferSendDialog({
         await deletePersonalTransferDraft(draft.id).catch(() => {});
         onDraftSent?.();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       const friendly = friendlyDbError(err);
       setResult({ ok: false, reason: friendly });
       toast({ title: 'Transfer failed', description: friendly, variant: 'destructive' });
@@ -2407,7 +2407,7 @@ function PersonalTransferBatchDialog({
       setResult({ ok: true, count: withRefs.length });
       toast({ title: 'Batch sent', description: `${withRefs.length} transfers dispatched` });
       onSent();
-    } catch (err: any) {
+    } catch (err: unknown) {
       const friendly = friendlyDbError(err);
       setResult({ ok: false, reason: friendly });
       toast({ title: 'Batch failed', description: friendly, variant: 'destructive' });

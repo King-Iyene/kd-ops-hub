@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { downloadCsv, toCsv } from '@/lib/csv';
@@ -344,10 +345,10 @@ export const HrDataExport = () => {
         title: `${filesExported} snapshot file${filesExported === 1 ? '' : 's'} downloaded`,
         description: `${totalRows} row${totalRows === 1 ? '' : 's'} total.`,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Snapshot failed',
-        description: err?.message ?? 'Unknown error',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {

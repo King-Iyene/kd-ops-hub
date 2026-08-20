@@ -46,6 +46,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { errorMessage } from '@/lib/db-errors';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import {
@@ -582,8 +583,8 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
       toast({ title: editing ? 'Group updated' : 'Group created' });
       setDialogOpen(false);
       await load();
-    } catch (e: any) {
-      toast({ title: 'Save failed', description: e.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Save failed', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -1461,8 +1462,8 @@ export function PayrollSchedules() {
       }
       setDialogOpen(false);
       await load();
-    } catch (e: any) {
-      toast({ title: 'Failed to save schedule', description: e.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Failed to save schedule', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setSaving(false);
     }

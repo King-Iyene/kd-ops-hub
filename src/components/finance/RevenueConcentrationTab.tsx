@@ -12,6 +12,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { errorMessage } from '@/lib/db-errors';
 import { fetchRevenueConcentration, type ConcentrationResult, type ConcentrationBand } from '@/lib/revenue-concentration';
 import { SERIES, GRID, AXIS_TICK, fmtCompact, ChartTooltip } from '@/lib/chart-theme';
 
@@ -33,8 +34,8 @@ export default function RevenueConcentrationTab() {
       setLoading(true);
       try {
         setData(await fetchRevenueConcentration(12));
-      } catch (err: any) {
-        toast({ title: 'Could not load revenue concentration', description: err?.message, variant: 'destructive' });
+      } catch (err: unknown) {
+        toast({ title: 'Could not load revenue concentration', description: errorMessage(err), variant: 'destructive' });
       } finally {
         setLoading(false);
       }

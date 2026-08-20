@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatNaira } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { fetchCashConversionData, type CashConversionResult, type CccBand } from '@/lib/cash-conversion';
+import { errorMessage } from '@/lib/db-errors';
 
 const BAND_STYLE: Record<CccBand, { tone: string; label: string }> = {
   excellent: { tone: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30', label: 'Excellent' },
@@ -29,8 +30,8 @@ export default function CashConversionTab() {
       setLoading(true);
       try {
         setData(await fetchCashConversionData(90));
-      } catch (err: any) {
-        toast({ title: 'Could not load cash conversion data', description: err?.message, variant: 'destructive' });
+      } catch (err: unknown) {
+        toast({ title: 'Could not load cash conversion data', description: errorMessage(err), variant: 'destructive' });
       } finally {
         setLoading(false);
       }

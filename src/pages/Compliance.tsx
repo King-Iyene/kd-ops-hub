@@ -92,6 +92,7 @@ import {
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
 import { cn } from '@/lib/utils';
+import { errorMessage } from '@/lib/db-errors';
 
 type Kind = 'paye' | 'pension' | 'vat' | 'wht' | 'tcc' | 'cac' | 'itf' | 'nsitf' | 'nhf';
 
@@ -549,8 +550,8 @@ const Compliance = () => {
       }
 
       setRemittances(existing);
-    } catch (err: any) {
-      setRemittancesError(err?.message || 'Could not load remittances');
+    } catch (err: unknown) {
+      setRemittancesError(errorMessage(err) || 'Could not load remittances');
     } finally {
       setRemittancesLoading(false);
     }
@@ -605,8 +606,8 @@ const Compliance = () => {
       toast({ title: 'Marked as remitted' });
       setRemitDialogTarget(null);
       loadRemittances();
-    } catch (err: any) {
-      toast({ title: 'Could not save', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not save', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSavingRemit(false);
     }
@@ -631,8 +632,8 @@ const Compliance = () => {
       );
       toast({ title: 'Remittance confirmed' });
       loadRemittances();
-    } catch (err: any) {
-      toast({ title: 'Could not confirm', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not confirm', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setConfirmingRemitId(null);
     }
@@ -751,10 +752,10 @@ const Compliance = () => {
       );
       toast({ title: `${KIND_LABELS[row.kind]} marked as filed` });
       load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Could not update',
-        description: err?.message,
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -779,8 +780,8 @@ const Compliance = () => {
       toast({ title: 'Filing deleted' });
       setDeleteTarget(null);
       load();
-    } catch (err: any) {
-      toast({ title: 'Delete failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Delete failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setDeleting(false);
     }
@@ -827,10 +828,10 @@ const Compliance = () => {
         title: `${files.length} file${files.length === 1 ? '' : 's'} downloaded`,
         description: files.map((f) => f.summary).join(' · '),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Could not build filing pack',
-        description: err?.message ?? 'Unknown error',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -872,8 +873,8 @@ const Compliance = () => {
         title: `${schedules.length} PFA schedule${schedules.length === 1 ? '' : 's'} downloaded`,
         description: `${employees} employees · ${formatNairaCompact(total)} total`,
       });
-    } catch (err: any) {
-      toast({ title: 'Could not generate PenCom schedule', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not generate PenCom schedule', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setGeneratingPenCom(false);
     }
@@ -918,8 +919,8 @@ const Compliance = () => {
       downloadCsv(`kdops-p9-tax-cards-${year}.csv`, csv);
       await logAudit('p9_cards_downloaded', `P9 annual tax cards downloaded for ${year} — ${cards.length} employees`, profile);
       toast({ title: `P9 cards downloaded`, description: `${cards.length} employee tax cards for ${year}` });
-    } catch (err: any) {
-      toast({ title: 'P9 export failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'P9 export failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setDownloadingP9(false);
     }

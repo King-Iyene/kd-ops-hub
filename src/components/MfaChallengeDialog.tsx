@@ -28,6 +28,7 @@ import {
   consumeBackupCode,
   registerTrustedDevice,
 } from '@/lib/mfa';
+import { errorMessage } from '@/lib/db-errors';
 
 export function MfaChallengeDialog(props: {
   open: boolean;
@@ -56,7 +57,7 @@ export function MfaChallengeDialog(props: {
         try { await registerTrustedDevice({ days: 30 }); } catch { /* non-fatal */ }
       }
       props.onSuccess();
-    } catch (e: any) {
+    } catch (e: unknown) {
       const next = attempts + 1;
       setAttempts(next);
       if (next >= 5) {
@@ -65,7 +66,7 @@ export function MfaChallengeDialog(props: {
         return;
       }
       toast({
-        title: e?.message ?? 'Verification failed',
+        title: errorMessage(e),
         description: `Attempt ${next} of 5`,
         variant: 'destructive',
       });

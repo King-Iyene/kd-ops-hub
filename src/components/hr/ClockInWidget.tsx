@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { Button } from '@/components/ui/button';
@@ -109,10 +110,10 @@ export const ClockInWidget = ({ lateThreshold = '09:15' }: ClockInWidgetProps) =
         videoRef.current.srcObject = s;
         await videoRef.current.play();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Camera unavailable',
-        description: err?.message ?? 'Camera permission denied. Continuing without selfie.',
+        description: errorMessage(err),
         variant: 'destructive',
       });
       // Still allow the user to clock in without a selfie
@@ -238,10 +239,10 @@ export const ClockInWidget = ({ lateThreshold = '09:15' }: ClockInWidgetProps) =
       });
       setCapturing(false);
       setCapturedPng(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Clock-in failed',
-        description: err?.message ?? 'Unknown error',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -275,8 +276,8 @@ export const ClockInWidget = ({ lateThreshold = '09:15' }: ClockInWidgetProps) =
         profile,
       );
       toast({ title: 'Clocked out. Have a good rest.' });
-    } catch (err: any) {
-      toast({ title: 'Clock-out failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Clock-out failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }

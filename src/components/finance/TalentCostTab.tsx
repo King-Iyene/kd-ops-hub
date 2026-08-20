@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Tooltip as UiTooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { errorMessage } from '@/lib/db-errors';
 import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
@@ -85,8 +86,8 @@ export default function TalentCostTab() {
         setTerminations(termsRes);
         setComparison(cmpRes);
         setBands(bandsRes);
-      } catch (err: any) {
-        toast({ title: 'Could not load talent cost data', description: err?.message, variant: 'destructive' });
+      } catch (err: unknown) {
+        toast({ title: 'Could not load talent cost data', description: errorMessage(err), variant: 'destructive' });
       } finally {
         setLoading(false);
       }

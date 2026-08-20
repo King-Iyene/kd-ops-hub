@@ -8,6 +8,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { isValidRejectionReason } from '@/lib/rejections';
@@ -196,8 +197,8 @@ export function ContractorApplications() {
       );
       toast({ title: `${applicantName(app)} approved`, description: 'Contractor record created and welcome email sent.' });
       load();
-    } catch (err: any) {
-      toast({ title: 'Approval failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Approval failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setApprovingId(null);
     }
@@ -257,8 +258,8 @@ export function ContractorApplications() {
       setRejectTarget(null);
       setRejectReason('');
       load();
-    } catch (err: any) {
-      toast({ title: 'Reject failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Reject failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setRejecting(false);
     }
@@ -286,8 +287,8 @@ export function ContractorApplications() {
       );
       toast({ title: 'Application deleted' });
       load();
-    } catch (err: any) {
-      toast({ title: 'Delete failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Delete failed', description: errorMessage(err), variant: 'destructive' });
     }
   };
 

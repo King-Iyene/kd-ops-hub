@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -138,8 +139,8 @@ export function DriverTrainingPanel({ staff }: Props) {
       setShowAdd(false);
       setForm({ driver_id: '', training_type: 'defensive_driving', custom_type: '', provider: '', training_date: new Date().toISOString().slice(0, 10), expiry_date: '', notes: '' });
       fetchRecords();
-    } catch (err: any) {
-      toast({ title: 'Failed to add', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to add', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

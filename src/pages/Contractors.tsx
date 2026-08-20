@@ -6,6 +6,7 @@ import PartnerPayCalculator from '@/components/PartnerPayCalculator';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { errorMessage } from '@/lib/db-errors';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { BulkActionBar } from '@/components/ui-kit/BulkActionBar';
@@ -675,10 +676,10 @@ const Contractors = () => {
           : summary,
       });
       await Promise.all([fetchContractors(), fetchStatusCounts(), fetchLastSync()]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Sync failed',
-        description: err?.message || 'Could not reach the sync function.',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -740,8 +741,8 @@ const Contractors = () => {
       setShowForm(false);
       resetForm();
       reloadAll();
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -854,8 +855,8 @@ const Contractors = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err: any) {
-      toast({ title: 'Export failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Export failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setExportingCsv(false);
     }
@@ -1202,7 +1203,7 @@ const Contractors = () => {
               `Bank name on ${verifyProviderLabel} is "${psName}" — different from CSV "${r.full_name}".`,
             ];
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           // /bank/resolve (or Flutterwave's equivalent) returns 422 if the
           // account doesn't exist at the bank, 400 if the bank code is
           // wrong. Treat both as a soft warning — operator can still force
@@ -1215,7 +1216,7 @@ const Contractors = () => {
             paystack_verified: false,
             warnings: [
               ...next[idx].warnings,
-              `${verifyProviderLabel} could not verify this account (${err?.message || 'unknown error'}).`,
+              `${verifyProviderLabel} could not verify this account (${errorMessage(err)}).`,
             ],
           };
         } finally {

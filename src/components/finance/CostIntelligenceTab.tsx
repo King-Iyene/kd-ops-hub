@@ -21,6 +21,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { errorMessage } from '@/lib/db-errors';
 import {
   fetchSalaryChangeHistory,
   fetchScenarioBaseline,
@@ -67,8 +68,8 @@ export default function CostIntelligenceTab() {
         setChanges(changesRes);
         setBudgetRows(budgetRes);
         setBaseline(baselineRes);
-      } catch (err: any) {
-        toast({ title: 'Could not load cost intelligence', description: err?.message, variant: 'destructive' });
+      } catch (err: unknown) {
+        toast({ title: 'Could not load cost intelligence', description: errorMessage(err), variant: 'destructive' });
       } finally {
         setLoading(false);
       }

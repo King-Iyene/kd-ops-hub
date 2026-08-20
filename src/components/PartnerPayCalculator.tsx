@@ -36,6 +36,7 @@ import {
   formatUsdMinor, formatNgnMinor,
 } from '@/lib/money';
 import { Loader2, Save, Users, ArrowRightLeft, AlertTriangle, Info, FileText } from 'lucide-react';
+import { errorMessage } from '@/lib/db-errors';
 
 const SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
 // Paystack bulk transfers accept at most 100 transfers per call, so a batch
@@ -204,8 +205,8 @@ export default function PartnerPayCalculator() {
       if (error) throw error;
       setGlobalUsdMinor(minor);
       toast({ title: 'Saved', description: `Default per-partner pay set to ${formatUsdMinor(minor)}.` });
-    } catch (err: any) {
-      toast({ title: 'Could not save', description: err?.message ?? '', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not save', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSavingGlobal(false);
     }
@@ -364,8 +365,8 @@ export default function PartnerPayCalculator() {
       });
       setBuildOpen(false);
       await load(); // refresh so the just-batched partners drop out of "eligible"
-    } catch (err: any) {
-      toast({ title: 'Could not create batch', description: err?.message ?? '', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not create batch', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setGenerating(false);
     }

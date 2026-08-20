@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { confirm } from '@/hooks/use-confirm';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { errorMessage } from '@/lib/db-errors';
 import {
   StickyNote, Plus, Search, Filter, Pencil, Trash2, Pin, PinOff,
   TrendingUp, AlertTriangle, Lightbulb, Target, Loader2,
@@ -71,8 +72,8 @@ export default function CfoNotesTab() {
         .order('created_at', { ascending: false });
       if (error) throw error;
       setNotes((data ?? []) as any as CfoNote[]);
-    } catch (err: any) {
-      toast({ title: 'Could not load notes', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not load notes', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -138,8 +139,8 @@ export default function CfoNotesTab() {
       toast({ title: editingId ? 'Note updated' : 'Note created' });
       setDialogOpen(false);
       load();
-    } catch (err: any) {
-      toast({ title: 'Save failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Save failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }

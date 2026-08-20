@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
+import { errorMessage } from '@/lib/db-errors';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useEffectiveRole } from '@/store/authStore';
@@ -261,11 +262,11 @@ const Payments = () => {
       }
 
       setBatches(fetched);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Without this catch, any exception above (a network blip, a rejected
       // RPC call) leaves loading stuck true forever — the page shows an
       // endless skeleton with no error and no way to retry.
-      toast({ title: 'Error', description: err?.message || 'Failed to load payment batches', variant: 'destructive' });
+      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -307,8 +308,8 @@ const Payments = () => {
       });
       fetchBatches();
       fetchStats();
-    } catch (err: any) {
-      toast({ title: 'Reconciliation failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Reconciliation failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setReconciling(false);
     }

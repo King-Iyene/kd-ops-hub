@@ -25,6 +25,7 @@ import {
   Banknote,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
@@ -413,8 +414,8 @@ const ContractorProfile = () => {
       setShowDeductionDialog(false);
       setDeductionForm({ description: '', amount_ngn: 0, frequency: 'monthly', start_date: new Date().toISOString().slice(0, 10), end_date: '', total_deductible_amount: '' });
       load();
-    } catch (err: any) {
-      toast({ title: 'Failed to add deduction', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to add deduction', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSavingDeduction(false);
     }

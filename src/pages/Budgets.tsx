@@ -15,6 +15,7 @@ import {
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { ACTUAL_DISBURSED_STATUSES, actualDisbursedForBatch, fetchSucceededBatchSums } from '@/lib/cfo-dashboard';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -211,8 +212,8 @@ const Budgets = () => {
         spendMap[b.id] = total;
       }
       setSpendById(spendMap);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load budgets.');
+    } catch (err: unknown) {
+      setError(errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -396,10 +397,10 @@ const Budgets = () => {
       setDialog(false);
       setEditing(null);
       load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Save failed',
-        description: err?.message || 'Please try again.',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {

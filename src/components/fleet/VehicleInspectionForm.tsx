@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { logAudit } from '@/lib/audit';
@@ -123,8 +124,8 @@ export function VehicleInspectionForm({
 
       setItems(DEFAULT_CHECKLIST.map((c) => ({ ...c, status: 'pass' as const })));
       setDefectNotes('');
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

@@ -41,6 +41,7 @@ import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { errorMessage } from '@/lib/db-errors';
 import { useConfirm } from '@/hooks/use-confirm';
 import { daysUntil, formatBytes, formatDate, toIsoDate } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -494,10 +495,10 @@ const Documents = () => {
       setUploadOpen(false);
       resetForm();
       fetchDocs();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Upload failed',
-        description: err?.message || 'Please try again.',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -557,8 +558,8 @@ const Documents = () => {
       setDetailOpen(false);
       setDetailDoc(null);
       fetchDocs();
-    } catch (err: any) {
-      toast({ title: 'Delete failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Delete failed', description: errorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -586,8 +587,8 @@ const Documents = () => {
       setFolderDialogOpen(false);
       setFolderForm({ name: '', description: '', color: '#6366f1', entity_type: '', entity_id: '' });
       fetchDocs();
-    } catch (err: any) {
-      toast({ title: 'Failed to create folder', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to create folder', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setCreatingFolder(false);
     }
@@ -629,8 +630,8 @@ const Documents = () => {
       setEditFolderOpen(false);
       setEditingFolder(null);
       fetchDocs();
-    } catch (err: any) {
-      toast({ title: 'Failed to update folder', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to update folder', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSavingFolder(false);
     }
@@ -655,8 +656,8 @@ const Documents = () => {
       if (error) throw error;
       toast({ title: 'Folder deleted' });
       fetchDocs();
-    } catch (err: any) {
-      toast({ title: 'Failed to delete folder', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to delete folder', description: errorMessage(err), variant: 'destructive' });
     }
   };
 

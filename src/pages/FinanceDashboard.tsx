@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { errorMessage } from '@/lib/db-errors';
 import {
   ResponsiveContainer,
   BarChart,
@@ -111,8 +112,8 @@ export default function FinanceDashboard() {
       setOverdueCompliance(complianceRes);
       setRenewals(renewalsRes);
       setBudgets(budgetsRes);
-    } catch (err: any) {
-      toast({ title: 'Could not load Finance dashboard', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not load Finance dashboard', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setLoading(false);
     }

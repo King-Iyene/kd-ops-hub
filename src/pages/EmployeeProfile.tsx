@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { errorMessage } from '@/lib/db-errors';
 import { Loader2, ChevronDown, Camera, History } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import OffboardingTab from '@/components/employee/OffboardingTab';
@@ -570,8 +571,8 @@ const EmployeeProfile = () => {
       setBankRequestDetails({ bank_name: '', account_number: '', account_name: '', verified: false });
       setBankRequestReason('');
       loadBankRequests();
-    } catch (e: any) {
-      toast({ title: 'Submission failed', description: e?.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Submission failed', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setSubmittingBankRequest(false);
     }
@@ -583,8 +584,8 @@ const EmployeeProfile = () => {
       toast({ title: 'Bank account change approved and applied.' });
       loadBankRequests();
       load();
-    } catch (e: any) {
-      toast({ title: 'Approval failed', description: e?.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Approval failed', description: errorMessage(e), variant: 'destructive' });
     }
   };
 
@@ -599,8 +600,8 @@ const EmployeeProfile = () => {
       setRejectingBankRequest(null);
       setBankRejectReason('');
       loadBankRequests();
-    } catch (e: any) {
-      toast({ title: 'Rejection failed', description: e?.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Rejection failed', description: errorMessage(e), variant: 'destructive' });
     }
   };
 
@@ -789,10 +790,10 @@ const EmployeeProfile = () => {
       setDocFile(null);
       setDocForm({ title: '', category: 'contract', description: '', expires_at: '' });
       load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Upload failed',
-        description: err?.message || 'Unknown error',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -818,10 +819,10 @@ const EmployeeProfile = () => {
       );
       toast({ title: 'Document deleted' });
       load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Delete failed',
-        description: err?.message,
+        description: errorMessage(err),
         variant: 'destructive',
       });
     }
@@ -882,8 +883,8 @@ const EmployeeProfile = () => {
       setShowIncrementDialog(false);
       setIncrementForm({ new_salary: 0, reason: '', effective_date: new Date().toISOString().slice(0, 10) });
       load();
-    } catch (err: any) {
-      toast({ title: 'Failed to record increment', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to record increment', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSavingIncrement(false);
     }
@@ -912,8 +913,8 @@ const EmployeeProfile = () => {
       setShowDeductionDialog(false);
       setDeductionForm({ description: '', amount_ngn: 0, frequency: 'monthly', start_date: new Date().toISOString().slice(0, 10), end_date: '', total_deductible_amount: '' });
       load();
-    } catch (err: any) {
-      toast({ title: 'Failed to add deduction', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to add deduction', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSavingDeduction(false);
     }
@@ -949,8 +950,8 @@ const EmployeeProfile = () => {
       setShowEarningDialog(false);
       setEarningForm({ description: '', amount_ngn: 0, frequency: 'monthly', earning_type: 'allowance', is_taxable: true, start_date: new Date().toISOString().slice(0, 10), end_date: '' });
       load();
-    } catch (err: any) {
-      toast({ title: 'Failed to add earning', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to add earning', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSavingEarning(false);
     }
@@ -1019,8 +1020,8 @@ const EmployeeProfile = () => {
       setEditingDependent(null);
       setDependentForm(emptyDependentForm);
       load();
-    } catch (err: any) {
-      toast({ title: 'Failed to save dependent', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to save dependent', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSavingDependent(false);
     }
@@ -1036,8 +1037,8 @@ const EmployeeProfile = () => {
       toast({ title: 'Dependent removed' });
       setDeleteDependentTarget(null);
       load();
-    } catch (err: any) {
-      toast({ title: 'Delete failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Delete failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setDeletingDependent(false);
     }

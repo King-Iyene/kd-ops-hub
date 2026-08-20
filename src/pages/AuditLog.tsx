@@ -25,6 +25,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { formatDateTime, toIsoDate } from '@/lib/format';
@@ -289,8 +290,8 @@ const AuditLog = () => {
       if (error) throw error;
       setChainResult((data as ChainBreak[]) || []);
       setShowChainDialog(true);
-    } catch (err: any) {
-      toast({ title: 'Chain verification failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Chain verification failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setChainVerifying(false);
     }

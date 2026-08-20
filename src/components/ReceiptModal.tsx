@@ -34,6 +34,7 @@ import {
 import { formatNaira, formatReceiptDateTime } from '@/lib/format';
 import { stampDutyFor } from '@/lib/paystack';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
 import {
   providerOf,
@@ -272,8 +273,8 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
       toast({ title: kind === 'pdf' ? 'Receipt PDF downloaded' : 'Receipt image downloaded' });
-    } catch (err: any) {
-      toast({ title: 'Download failed', description: err?.message || 'Try Print instead.', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Download failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setBusy(null);
     }

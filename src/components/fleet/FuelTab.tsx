@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/image-compression';
-import { friendlyDbError } from '@/lib/db-errors';
+import { friendlyDbError, errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { validateFile } from '@/lib/file-validation';
@@ -644,8 +644,8 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       setRepairMatchingItems([]);
       setRepairMaintenanceItemId('');
       onRefresh();
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -785,8 +785,8 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       setRepairReceiptUploadDate('');
       await refreshMyReceiptDebt();
       onRefresh();
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message ?? String(err), variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
     }
     setSubmittingRepairReceipt(false);
   };
@@ -1001,10 +1001,10 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
               toast({ title: 'Document link failed to save', description: docUrlErr.message, variant: 'destructive' });
             }
           }
-        } catch (docErr: any) {
+        } catch (docErr: unknown) {
           toast({
             title: 'Request submitted, but document upload failed',
-            description: docErr?.message || 'Please edit the request to re-attach.',
+            description: errorMessage(docErr),
             variant: 'destructive',
           });
         }
@@ -1114,7 +1114,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
     let expenseResult: { status: string } | null = null;
     if (expenseIdForApproval && (existingExp as any)?.status !== 'approved') {
       try { expenseResult = await approveExpense(expenseIdForApproval); }
-      catch (err: any) { expErr = { message: err?.message || 'approve_expense failed' }; }
+      catch (err: unknown) { expErr = { message: errorMessage(err) }; }
     }
     // If expense needs second approval, revert fuel request
     if (expenseResult && expenseResult.status !== 'approved') {
@@ -1274,7 +1274,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
     }
     if (exceptionExpenseId) {
       try { await approveExpense(exceptionExpenseId); }
-      catch (err: any) { console.warn('[Fleet] budget-exception approve_expense failed:', err?.message); }
+      catch (err: unknown) { console.warn('[Fleet] budget-exception approve_expense failed:', errorMessage(err)); }
     }
     await logAudit(
       'fuel_budget_exception_approved',
@@ -1609,8 +1609,8 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       setReceiptScanWarning('');
       setReceiptForm({ fuel_station_name: '', amount_ngn: '', litres_filled: '', receipt_date: '', notes: '' });
       onRefresh();
-    } catch (err: any) {
-      toast({ title: 'Error uploading receipt', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error uploading receipt', description: errorMessage(err), variant: 'destructive' });
     }
     setSubmittingReceipt(false);
   };

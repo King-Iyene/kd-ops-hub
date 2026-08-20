@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { generateElaHeatmap } from '@/lib/receiptForensics';
+import { errorMessage } from '@/lib/db-errors';
 import {
   Dialog,
   DialogContent,
@@ -26,8 +27,8 @@ export function ElaTamperAnalysisDialog({ target, onClose }: ElaTamperAnalysisDi
     try {
       const r = await generateElaHeatmap(url);
       setResult({ heatmapDataUrl: r.heatmapDataUrl, avgBrightness: r.avgBrightness });
-    } catch (err: any) {
-      setError(err?.message || "Couldn't generate analysis for this image.");
+    } catch (err: unknown) {
+      setError(errorMessage(err));
     } finally {
       setLoading(false);
     }

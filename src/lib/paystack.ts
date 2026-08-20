@@ -4,6 +4,7 @@
 // Function so the secret key NEVER touches the browser.
 
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 
 export { NIGERIAN_BANKS, fetchBanks, getBankCode, clearBankCache } from '@/lib/nigerian-banks';
 export type { NigerianBank as Bank } from '@/lib/nigerian-banks';
@@ -430,8 +431,8 @@ export async function initiateTransferIdempotent(params: {
       verified_status?: string;
     };
     return result;
-  } catch (err: any) {
-    const msg = String(err?.message || '').toLowerCase();
+  } catch (err: unknown) {
+    const msg = errorMessage(err).toLowerCase();
     const isDuplicate =
       msg.includes('reference already exists') ||
       msg.includes('unique reference') ||

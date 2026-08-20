@@ -27,6 +27,7 @@ import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
 import { burst } from '@/components/Burst';
 import { logAudit } from '@/lib/audit';
+import { errorMessage } from '@/lib/db-errors';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles, notifyChannels } from '@/lib/notify';
 import { notifyRequestApproved } from '@/lib/notify-events';
@@ -331,8 +332,8 @@ const Leave = () => {
         ),
       );
       if (policyRes.data) setDefaultAnnualQuota((policyRes.data as any).default_days);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load leave requests.');
+    } catch (err: unknown) {
+      setError(errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -463,10 +464,10 @@ const Leave = () => {
       });
       fetchAll();
       refreshApprovals();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Submit failed',
-        description: err?.message,
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -570,8 +571,8 @@ const Leave = () => {
       toast({ title: 'Approval reverted' });
       fetchAll();
       refreshApprovals();
-    } catch (err: any) {
-      toast({ title: 'Could not revert', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not revert', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setActioning(null);
     }
@@ -656,8 +657,8 @@ const Leave = () => {
       toast({ title: 'Leave approved' });
       fetchAll();
       refreshApprovals();
-    } catch (err: any) {
-      toast({ title: 'Approval failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Approval failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setActioning(null);
     }
@@ -714,8 +715,8 @@ const Leave = () => {
       setRejectReason('');
       fetchAll();
       refreshApprovals();
-    } catch (err: any) {
-      toast({ title: 'Reject failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Reject failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setActioning(null);
     }
@@ -733,8 +734,8 @@ const Leave = () => {
       toast({ title: 'Request cancelled' });
       fetchAll();
       refreshApprovals();
-    } catch (err: any) {
-      toast({ title: 'Cancel failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Cancel failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setActioning(null);
     }

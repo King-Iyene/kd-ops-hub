@@ -19,6 +19,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { errorMessage } from '@/lib/db-errors';
 import { APPROVER_ROLES, hasRole } from '@/lib/roles';
 import { daysUntil, formatDate, formatNaira, formatUsd, toIsoDate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
@@ -420,10 +421,10 @@ const Subscriptions = () => {
         setDetailPayments((data as SubPayment[]) || []);
       }
       toast({ title: `Payment marked ${newStatus}` });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Could not update payment',
-        description: err?.message,
+        description: errorMessage(err),
         variant: 'destructive',
       });
     }
@@ -538,10 +539,10 @@ const Subscriptions = () => {
       setDialog(false);
       setEditing(null);
       await fetchSubs();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Save failed',
-        description: err?.message || 'Please try again.',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -570,10 +571,10 @@ const Subscriptions = () => {
       );
       toast({ title: 'Renewed', description: `Next renewal: ${formatDate(next)}` });
       fetchSubs();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Could not mark renewed',
-        description: err?.message,
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -595,10 +596,10 @@ const Subscriptions = () => {
       );
       toast({ title: 'Subscription cancelled' });
       fetchSubs();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Could not cancel',
-        description: err?.message,
+        description: errorMessage(err),
         variant: 'destructive',
       });
     }
@@ -614,10 +615,10 @@ const Subscriptions = () => {
       await logAudit('subscription_edited', `Subscription "${s.name}" paused`, profile);
       toast({ title: 'Subscription paused' });
       fetchSubs();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Could not pause',
-        description: err?.message,
+        description: errorMessage(err),
         variant: 'destructive',
       });
     }
@@ -638,10 +639,10 @@ const Subscriptions = () => {
       toast({ title: 'Subscription deleted' });
       setPendingDelete(null);
       fetchSubs();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Could not delete',
-        description: err?.message,
+        description: errorMessage(err),
         variant: 'destructive',
       });
     }
@@ -657,10 +658,10 @@ const Subscriptions = () => {
       await logAudit('subscription_edited', `Subscription "${s.name}" reactivated`, profile);
       toast({ title: 'Subscription reactivated' });
       fetchSubs();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Could not reactivate',
-        description: err?.message,
+        description: errorMessage(err),
         variant: 'destructive',
       });
     }

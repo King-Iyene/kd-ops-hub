@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { formatNairaCompact } from '@/lib/format';
@@ -281,10 +282,10 @@ export const HireApplicantDialog = ({
       });
       onOpenChange(false);
       onHired?.();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Could not complete hire',
-        description: err?.message ?? 'Unknown error',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {

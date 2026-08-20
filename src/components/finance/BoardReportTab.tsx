@@ -11,6 +11,7 @@ import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { fetchBoardReportData, type BoardReportData, type HighlightTone } from '@/lib/board-report';
 import { fmtCompact } from '@/lib/chart-theme';
+import { errorMessage } from '@/lib/db-errors';
 
 const TONE_ICON: Record<HighlightTone, typeof CheckCircle2> = {
   positive: CheckCircle2,
@@ -55,8 +56,8 @@ export default function BoardReportTab() {
       setLoading(true);
       try {
         setReport(await fetchBoardReportData());
-      } catch (err: any) {
-        toast({ title: 'Could not build board report', description: err?.message, variant: 'destructive' });
+      } catch (err: unknown) {
+        toast({ title: 'Could not build board report', description: errorMessage(err), variant: 'destructive' });
       } finally {
         setLoading(false);
       }

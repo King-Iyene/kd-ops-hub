@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, formatNairaCompact } from '@/lib/format';
@@ -172,8 +173,8 @@ export function InspectionHistory({ vehicles }: Props) {
         }));
       }
       setInspections(data);
-    } catch (err: any) {
-      setError(err?.message ?? 'Failed to load inspections');
+    } catch (err: unknown) {
+      setError(errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -274,10 +275,10 @@ export function InspectionHistory({ vehicles }: Props) {
       setResolveOpen(false);
       setResolvingInspection(null);
       fetchInspections();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Failed to resolve',
-        description: err?.message ?? 'Could not save resolution.',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira } from '@/lib/format';
+import { errorMessage } from '@/lib/db-errors';
 import { fetchVendorSpendBoard, type VendorSpendBoard } from '@/lib/vendor-spend';
 import { SERIES, GRID, AXIS_TICK, fmtCompact, ChartTooltip } from '@/lib/chart-theme';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
@@ -25,8 +26,8 @@ export default function VendorSpendTab() {
       setLoading(true);
       try {
         setData(await fetchVendorSpendBoard(12));
-      } catch (err: any) {
-        toast({ title: 'Could not load vendor spend data', description: err?.message, variant: 'destructive' });
+      } catch (err: unknown) {
+        toast({ title: 'Could not load vendor spend data', description: errorMessage(err), variant: 'destructive' });
       } finally {
         setLoading(false);
       }

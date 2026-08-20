@@ -89,6 +89,7 @@ import { AuroraHero } from '@/components/AuroraHero';
 import { cn } from '@/lib/utils';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { parseNigerianPhone } from '@/lib/phone';
 import {
@@ -318,8 +319,8 @@ export default function Communications() {
       );
       toast({ title: 'Template saved' });
       setEditingTemplate(null);
-    } catch (e: any) {
-      toast({ title: 'Save failed', description: e?.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Save failed', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setEditSaving(false);
     }
@@ -340,8 +341,8 @@ export default function Communications() {
       setTemplates((prev) => prev.map((t) => (t.id === editingTemplate.id ? restored : t)));
       toast({ title: 'Template reset to default' });
       setEditingTemplate(null);
-    } catch (e: any) {
-      toast({ title: 'Reset failed', description: e?.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Reset failed', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setEditResetting(false);
     }
@@ -410,8 +411,8 @@ export default function Communications() {
           .filter((r): r is Recipient => r !== null);
       }
       setPickedRecipients(dedupeRecipients(cleaned, ch));
-    } catch (e: any) {
-      toast({ title: 'Could not load recipients', description: e?.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Could not load recipients', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setPickerLoading(false);
     }
@@ -601,8 +602,8 @@ export default function Communications() {
         toast({ title: 'Test sent', description: `Check ${parsed.local}` });
       }
       void reloadHistory();
-    } catch (e: any) {
-      toast({ title: 'Test send failed', description: e?.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Test send failed', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setSendingTest(false);
     }
@@ -638,8 +639,8 @@ export default function Communications() {
         toast({ title: 'Send started', description: 'Watch the progress card below.' });
       }
       void reloadHistory();
-    } catch (e: any) {
-      toast({ title: 'Send failed', description: e?.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Send failed', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setSending(false);
     }

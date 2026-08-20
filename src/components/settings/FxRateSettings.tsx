@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -132,8 +133,8 @@ export default function FxRateSettings() {
         toast({ title: 'Rate updated', description: `${BASE}/${QUOTE} = ${fmtRate(data.rate)} is now live.` });
       }
       await load();
-    } catch (err: any) {
-      toast({ title: 'Fetch failed', description: err?.message ?? 'Could not reach the rate service.', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Fetch failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setFetching(false);
     }
@@ -154,8 +155,8 @@ export default function FxRateSettings() {
       toast({ title: 'Manual rate set', description: `${BASE}/${QUOTE} = ${fmtRate(rate)} is now live.` });
       setManualRate('');
       await load();
-    } catch (err: any) {
-      toast({ title: 'Could not set rate', description: err?.message ?? '', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not set rate', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSavingManual(false);
     }
@@ -175,8 +176,8 @@ export default function FxRateSettings() {
         description: approve ? `${BASE}/${QUOTE} = ${fmtRate(pending.rate)} is now live.` : 'The held rate was discarded.',
       });
       await load();
-    } catch (err: any) {
-      toast({ title: 'Review failed', description: err?.message ?? '', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Review failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setReviewing(false);
     }
@@ -197,8 +198,8 @@ export default function FxRateSettings() {
       if (error) throw error;
       setThreshold(t);
       toast({ title: 'Threshold saved', description: `Auto rates moving more than ${t}% are held for review.` });
-    } catch (err: any) {
-      toast({ title: 'Could not save', description: err?.message ?? '', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not save', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSavingThreshold(false);
     }

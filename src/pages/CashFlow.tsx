@@ -39,6 +39,7 @@ import {
   RUNWAY_WARNING_WEEKS,
 } from '@/lib/cashflow';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 
 const CATEGORY_LABEL: Record<string, string> = {
   recurring: 'Recurring transfer',
@@ -84,8 +85,8 @@ export default function CashFlow() {
       setCashOnHand(Number(s?.cash_on_hand_ngn || 0));
       setExternalBurn(Number(s?.external_monthly_burn_ngn || 0));
       setRevenue(Number(s?.monthly_revenue_estimate_ngn || 0));
-    } catch (err: any) {
-      toast({ title: 'Could not load cash flow', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not load cash flow', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -101,8 +102,8 @@ export default function CashFlow() {
       await takeSnapshot();
       toast({ title: 'Snapshot taken', description: 'Today\'s balance has been recorded.' });
       await load();
-    } catch (err: any) {
-      toast({ title: 'Snapshot failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Snapshot failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setRefreshing(false);
     }

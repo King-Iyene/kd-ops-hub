@@ -55,6 +55,7 @@ import {
   listTrustedDevices,
   revokeTrustedDevice,
 } from '@/lib/mfa';
+import { errorMessage } from '@/lib/db-errors';
 
 type EnrolStep = 'idle' | 'qr' | 'verify' | 'backup' | 'done';
 
@@ -112,8 +113,8 @@ export default function MfaSettings() {
       setPendingFactorId(fid);
       setQrSvg(qrCodeSvg);
       setSecret(s);
-    } catch (e: any) {
-      toast({ title: 'Enrolment failed', description: e?.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Enrolment failed', description: errorMessage(e), variant: 'destructive' });
       setEnrolOpen(false);
       setStep('idle');
     } finally {
@@ -130,8 +131,8 @@ export default function MfaSettings() {
       const fresh = await generateBackupCodes();
       setCodes(fresh);
       setStep('backup');
-    } catch (e: any) {
-      toast({ title: 'Verification failed', description: e?.message ?? 'Wrong code', variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Verification failed', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setBusy(false);
     }
@@ -169,8 +170,8 @@ export default function MfaSettings() {
       setDisableNeedsCode(false);
       setDisableCode('');
       await reload();
-    } catch (e: any) {
-      if (e?.message === 'NEEDS_CODE') {
+    } catch (e: unknown) {
+      if (errorMessage(e) === 'NEEDS_CODE') {
         // First click while only AAL1 — reveal the code field and ask
         // the user to enter their current authenticator code.
         setDisableNeedsCode(true);
@@ -179,7 +180,7 @@ export default function MfaSettings() {
           description: 'Enter the current 6-digit code to disable MFA.',
         });
       } else {
-        toast({ title: 'Could not disable MFA', description: e?.message, variant: 'destructive' });
+        toast({ title: 'Could not disable MFA', description: errorMessage(e), variant: 'destructive' });
       }
     } finally {
       setBusy(false);
@@ -196,8 +197,8 @@ export default function MfaSettings() {
       setStep('backup');
       setEnrolOpen(true);
       await reload();
-    } catch (e: any) {
-      toast({ title: 'Could not regenerate', description: e?.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Could not regenerate', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setBusy(false);
     }

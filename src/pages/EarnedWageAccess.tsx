@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { errorMessage } from '@/lib/db-errors';
 import { formatNaira, formatDate } from '@/lib/format';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -129,8 +130,8 @@ export default function EarnedWageAccess() {
     try {
       const elig = await fetchEligibility();
       setEligibility(elig);
-    } catch (err: any) {
-      setError(err?.message || 'Could not load eligibility');
+    } catch (err: unknown) {
+      setError(errorMessage(err));
     }
     const { data: hist } = await supabase
       .from('ewa_requests')
@@ -185,8 +186,8 @@ export default function EarnedWageAccess() {
       setAmount('');
       setReason('');
       load();
-    } catch (err: any) {
-      toast({ title: 'Could not submit request', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not submit request', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -199,8 +200,8 @@ export default function EarnedWageAccess() {
       await cancelEwa(req.id);
       toast({ title: 'Request cancelled' });
       load();
-    } catch (err: any) {
-      toast({ title: 'Could not cancel', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not cancel', description: errorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -230,8 +231,8 @@ export default function EarnedWageAccess() {
       scanEwaAnomaliesSafe(req.id);
       toast({ title: 'Approved', description: 'WhatsApp + in-app notification sent.' });
       load();
-    } catch (err: any) {
-      toast({ title: 'Approve failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Approve failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setActionId(null);
     }
@@ -266,8 +267,8 @@ export default function EarnedWageAccess() {
       setRejecting(null);
       setRejectReason('');
       load();
-    } catch (err: any) {
-      toast({ title: 'Reject failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Reject failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setRejectSubmitting(false);
     }

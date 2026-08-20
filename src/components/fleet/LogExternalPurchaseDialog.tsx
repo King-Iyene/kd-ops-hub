@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Loader2, Fuel, Wrench, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/image-compression';
-import { friendlyDbError } from '@/lib/db-errors';
+import { friendlyDbError, errorMessage } from '@/lib/db-errors';
 import { logAudit } from '@/lib/audit';
 import { validateFile } from '@/lib/file-validation';
 import { formatNaira } from '@/lib/format';
@@ -140,8 +140,8 @@ export function LogExternalPurchaseDialog({
       toast({ title: 'Purchase logged', description: 'Receipt attached — this entry is fully recorded.' });
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      toast({ title: 'Could not log purchase', description: friendlyDbError(err) || err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not log purchase', description: friendlyDbError(err), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

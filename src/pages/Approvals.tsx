@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
+import { errorMessage } from '@/lib/db-errors';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useApprovalStore } from '@/store/approvalStore';
@@ -292,8 +293,8 @@ const Approvals = () => {
 
       merged.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       setItems(merged);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load pending approvals.');
+    } catch (err: unknown) {
+      setError(errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -487,7 +488,7 @@ const Approvals = () => {
         }
         if (expenseId && (existing as any)?.status !== 'approved') {
           try { await approveExpense(expenseId); }
-          catch (err: any) { expErr = { message: err?.message || 'approve_expense failed' }; }
+          catch (err: unknown) { expErr = { message: errorMessage(err) }; }
         }
         if (expErr) {
           toast({
@@ -548,10 +549,10 @@ const Approvals = () => {
         next.delete(it.id);
         return next;
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Approval failed',
-        description: err?.message || 'Please try again.',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -656,10 +657,10 @@ const Approvals = () => {
         next.delete(it.id);
         return next;
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Rejection failed',
-        description: err?.message || 'Please try again.',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -721,10 +722,10 @@ const Approvals = () => {
             await logAudit(AUDIT_APPROVE[it.kind], describeApprove(it), profile);
             succeeded++;
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           failures.push({
             title: it.title,
-            reason: err?.message || 'unknown',
+            reason: errorMessage(err),
           });
         }
       }
@@ -790,8 +791,8 @@ const Approvals = () => {
         try {
           await rejectItemCore(it, reason);
           succeeded++;
-        } catch (err: any) {
-          failures.push({ title: it.title, reason: err?.message || 'unknown' });
+        } catch (err: unknown) {
+          failures.push({ title: it.title, reason: errorMessage(err) });
         }
       }
 

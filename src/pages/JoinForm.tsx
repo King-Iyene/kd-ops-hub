@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { BrandLogo } from '@/components/BrandLogo';
 import { safeHref } from '@/lib/safe-href';
+import { errorMessage } from '@/lib/db-errors';
 
 const LINKEDIN_RE = /^https?:\/\/(www\.)?linkedin\.com\/in\/.+/;
 
@@ -141,8 +142,8 @@ const JoinForm = () => {
         if (!result.account_name) throw new Error('No account name returned');
         setAccountName(result.account_name);
       }
-    } catch (err: any) {
-      setVerifyError(err?.message || 'Could not verify account');
+    } catch (err: unknown) {
+      setVerifyError(errorMessage(err));
     } finally {
       setVerifying(false);
     }
@@ -227,10 +228,10 @@ const JoinForm = () => {
       });
       if (error) throw error;
       setSubmitted(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Submission failed',
-        description: err?.message || 'Please try again.',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {

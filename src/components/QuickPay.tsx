@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/select';
 import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
 import { useToast } from '@/hooks/use-toast';
-import { friendlyDbError } from '@/lib/db-errors';
+import { friendlyDbError, errorMessage } from '@/lib/db-errors';
 import {
   PAYMENT_CATEGORIES,
   paymentCategoryGroupLabel,
@@ -483,8 +483,8 @@ export function QuickPayDialog() {
       // status whitelist server-side.
       try {
         await startBatchProcessing((batch as any).id);
-      } catch (claimErr: any) {
-        console.warn('[KDOps] start_batch_processing failed:', claimErr?.message || claimErr);
+      } catch (claimErr: unknown) {
+        console.warn('[KDOps] start_batch_processing failed:', errorMessage(claimErr));
       }
 
       await logAudit(
@@ -499,7 +499,7 @@ export function QuickPayDialog() {
       // Paystack-only else block from the dispatch refactor above.
       setResult({ ok: true, ref });
       toast({ title: 'Quick Pay sent', description: `Ref: ${ref}` });
-    } catch (err: any) {
+    } catch (err: unknown) {
       const friendly = friendlyDbError(err);
       setResult({ ok: false, reason: friendly });
       toast({

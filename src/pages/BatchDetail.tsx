@@ -8,6 +8,7 @@ import { formatDate, formatDateTime, formatNaira, formatReceiptDateTime, maskAcc
 import { cn } from '@/lib/utils';
 import { receiptTheme as R } from '@/lib/receipt-theme';
 import { logAudit } from '@/lib/audit';
+import { errorMessage } from '@/lib/db-errors';
 import {
   writeRejectionNotification,
   isValidRejectionReason,
@@ -247,8 +248,8 @@ const BatchDetail = () => {
       setResolveNote('');
       setResolveMethod('bank_transfer');
       await fetchBatch();
-    } catch (err: any) {
-      toast({ title: 'Resolve failed', description: err?.message ?? '', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Resolve failed', description: errorMessage(err) ?? '', variant: 'destructive' });
     } finally {
       setResolving(false);
     }
@@ -276,8 +277,8 @@ const BatchDetail = () => {
         description: 'Item is back to its original status.',
       });
       await fetchBatch();
-    } catch (err: any) {
-      toast({ title: 'Undo failed', description: err?.message ?? '', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Undo failed', description: errorMessage(err) ?? '', variant: 'destructive' });
     } finally {
       setUnresolvingId(null);
     }
@@ -547,10 +548,10 @@ const BatchDetail = () => {
         profile,
       );
       fetchBatch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Could not mark funded',
-        description: err?.message || 'Please try again.',
+        description: errorMessage(err) || 'Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -591,10 +592,10 @@ const BatchDetail = () => {
         });
       }
       fetchBatch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Approval failed',
-        description: err?.message || 'Please try again.',
+        description: errorMessage(err) || 'Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -617,10 +618,10 @@ const BatchDetail = () => {
         profile,
       );
       fetchBatch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Second approval failed',
-        description: err?.message || 'Please try again.',
+        description: errorMessage(err) || 'Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -647,10 +648,10 @@ const BatchDetail = () => {
       toast({ title: 'Batch rejected' });
       setShowReject(false);
       fetchBatch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Reject failed',
-        description: err?.message || 'Please try again.',
+        description: errorMessage(err) || 'Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -833,8 +834,8 @@ const BatchDetail = () => {
         profile,
       );
       return { ok: true };
-    } catch (err: any) {
-      return markFailed(err?.message || 'Transfer failed');
+    } catch (err: unknown) {
+      return markFailed(errorMessage(err) || 'Transfer failed');
     }
   };
 
@@ -929,8 +930,8 @@ const BatchDetail = () => {
         profile,
       );
       return { ok: mappedStatus !== 'failed' };
-    } catch (err: any) {
-      return markFailed(err?.message || 'Transfer failed');
+    } catch (err: unknown) {
+      return markFailed(errorMessage(err) || 'Transfer failed');
     }
   };
 
@@ -1019,10 +1020,10 @@ const BatchDetail = () => {
       if (error) throw error;
       toast({ title: 'Batch archived', description: `"${batch.name}" was archived (purged after 90 days).` });
       navigate('/payments');
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Could not archive batch',
-        description: err?.message || 'Unknown error',
+        description: errorMessage(err) || 'Unknown error',
         variant: 'destructive',
       });
     } finally {
@@ -1060,10 +1061,10 @@ const BatchDetail = () => {
       // the loser raises and falls through to the catch.
       try {
         await startBatchProcessing(id!);
-      } catch (claimErr: any) {
+      } catch (claimErr: unknown) {
         toast({
           title: 'Batch is no longer ready to process',
-          description: claimErr?.message || 'It may already be running or have changed state. Refreshing…',
+          description: errorMessage(claimErr) || 'It may already be running or have changed state. Refreshing…',
           variant: 'destructive',
         });
         await fetchBatch();
@@ -1382,14 +1383,14 @@ const BatchDetail = () => {
         result: `${providerLabel} resolved account name: "${accountName}" for account ${accountNumber}. The transfer call should work — if it does not, ${providerLabel}'s wallet or account status is the issue.`,
         provider: isFlutterwave ? 'flutterwave' : 'paystack',
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       setDiagnosis({
         itemId: item.id,
         ok: false,
         bankCode,
         account: cleaned,
         bank: item.bank_name,
-        result: err?.message || 'Unknown error',
+        result: errorMessage(err) || 'Unknown error',
         provider: isFlutterwave ? 'flutterwave' : 'paystack',
       });
     } finally {
@@ -1803,10 +1804,10 @@ const BatchDetail = () => {
       setCancelBatchOpen(false);
       setCancelBatchNote('');
       await fetchBatch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Cancel failed',
-        description: err?.message || 'Please try again.',
+        description: errorMessage(err) || 'Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -1835,10 +1836,10 @@ const BatchDetail = () => {
       );
       toast({ title: 'Batch renamed', description: `Now "${next}"` });
       setRenameOpen(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Could not rename batch',
-        description: err?.message || 'Please try again.',
+        description: errorMessage(err) || 'Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -1998,10 +1999,10 @@ const BatchDetail = () => {
                       // only correct path post-rejection.
                       await resetBatchToDraft(id!);
                       navigate(`/payments/${id}/edit`);
-                    } catch (err: any) {
+                    } catch (err: unknown) {
                       toast({
                         title: 'Could not reset to draft',
-                        description: err?.message || 'Please try again.',
+                        description: errorMessage(err) || 'Please try again.',
                         variant: 'destructive',
                       });
                     } finally {

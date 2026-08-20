@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
 
 interface Person {
@@ -166,8 +167,8 @@ export default function Messages() {
       }).sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
 
       setConversations(rows);
-    } catch (e: any) {
-      toast({ title: 'Could not load messages', description: e?.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Could not load messages', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -233,8 +234,8 @@ export default function Messages() {
       });
       if (error) throw new Error(error.message);
       void reloadConversations();
-    } catch (e: any) {
-      toast({ title: 'Message not sent', description: e?.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Message not sent', description: errorMessage(e), variant: 'destructive' });
       setComposerText(text);
     } finally {
       setSending(false);
@@ -298,8 +299,8 @@ export default function Messages() {
       await reloadConversations();
       setActiveId(conversationId);
       setNewOpen(false);
-    } catch (e: any) {
-      toast({ title: 'Could not start conversation', description: e?.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Could not start conversation', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setCreating(false);
     }

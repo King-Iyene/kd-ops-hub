@@ -11,6 +11,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { errorMessage } from '@/lib/db-errors';
 import {
   fetchComplianceExposure,
   fetchSmartPaymentSchedule,
@@ -52,8 +53,8 @@ export default function AutopilotTab() {
       setExposure(exposureRes);
       setSchedule(scheduleRes);
       setOpenAnomalyCounts(anomalyRes);
-    } catch (err: any) {
-      toast({ title: 'Could not load Autopilot data', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not load Autopilot data', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setLoading(false);
     }

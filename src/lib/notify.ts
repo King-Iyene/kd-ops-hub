@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { toTermiiNumber } from '@/lib/phone';
 import {
   renderTemplate,
@@ -227,7 +228,7 @@ export async function notifyChannels<K extends NotificationTemplateKind>(opts: {
         provider_id: (data as any)?.message_id ?? null,
         idempotency_key: opts.idempotencyKey ? `${opts.idempotencyKey}:${channel}` : null,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       await logSend({
         user_id: opts.user.id,
         channel,
@@ -235,7 +236,7 @@ export async function notifyChannels<K extends NotificationTemplateKind>(opts: {
         payload: opts.payload,
         to_address: termiiNumber,
         status: 'failed',
-        error_message: err?.message ?? String(err),
+        error_message: errorMessage(err),
         idempotency_key: opts.idempotencyKey ? `${opts.idempotencyKey}:${channel}` : null,
       });
     }

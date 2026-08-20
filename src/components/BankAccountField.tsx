@@ -17,6 +17,7 @@ import {
 } from '@/lib/flutterwave-banks';
 import type { NigerianBank } from '@/lib/nigerian-banks';
 import { BankCombobox } from '@/components/BankCombobox';
+import { errorMessage } from '@/lib/db-errors';
 
 export interface BankAccountValue {
   bank_name: string;
@@ -148,10 +149,10 @@ export function BankAccountField({
           if (cancelled) return;
           lastKeyRef.current = key;
           setVerifiedState({ ...value, account_name: result.account_name, verified: true });
-        } catch (err: any) {
+        } catch (err: unknown) {
           if (cancelled) return;
           lastKeyRef.current = '';
-          setError(err?.message || 'Could not verify account');
+          setError(errorMessage(err));
           setVerifiedState({ ...value, account_name: '', verified: false });
         } finally {
           if (!cancelled) setLoading(false);
@@ -165,7 +166,7 @@ export function BankAccountField({
         if (cancelled) return;
         lastKeyRef.current = key;
         setVerifiedState({ ...value, account_name: result.account_name, verified: true });
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (cancelled) return;
 
         // Auto-recovery: Paystack occasionally rotates PSB / fintech codes
@@ -258,7 +259,7 @@ export function BankAccountField({
 
         if (cancelled) return;
         lastKeyRef.current = '';
-        setError(err?.message || 'Could not verify account');
+        setError(errorMessage(err));
         setVerifiedState({ ...value, account_name: '', verified: false });
       } finally {
         if (!cancelled) setLoading(false);

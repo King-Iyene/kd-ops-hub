@@ -7,6 +7,7 @@ import {
   CheckSquare, Eye, Bug, Milestone, Sparkles, ListChecks,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { notifyUser } from '@/lib/notify';
@@ -191,8 +192,8 @@ export function TaskDetailPanel({
       setNewSubtask('');
       await loadSubtasks();
       onUpdate();
-    } catch (err: any) {
-      toast({ title: 'Failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed', description: errorMessage(err), variant: 'destructive' });
     } finally { setAddingSubtask(false); }
   };
 
@@ -310,8 +311,8 @@ export function TaskDetailPanel({
       }
       setNewComment('');
       await loadComments();
-    } catch (err: any) {
-      toast({ title: 'Failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed', description: errorMessage(err), variant: 'destructive' });
     } finally { setPosting(false); }
   };
 

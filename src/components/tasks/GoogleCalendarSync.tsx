@@ -10,6 +10,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/lib/utils';
@@ -119,10 +120,10 @@ export function GoogleCalendarSync({ tasks }: GoogleCalendarSyncProps) {
         .maybeSingle();
       if (error) throw error;
       setIntegration(data as CalendarIntegration | null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Failed to load calendar integration',
-        description: err?.message,
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -205,10 +206,10 @@ export function GoogleCalendarSync({ tasks }: GoogleCalendarSyncProps) {
           ? 'Tasks with due dates will sync to Google Calendar.'
           : 'Calendar sync paused.',
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Could not update sync setting',
-        description: err?.message,
+        description: errorMessage(err),
         variant: 'destructive',
       });
     }
@@ -273,12 +274,12 @@ export function GoogleCalendarSync({ tasks }: GoogleCalendarSyncProps) {
         }
 
         results.push({ taskId: task.id, title: task.title, success: true });
-      } catch (err: any) {
+      } catch (err: unknown) {
         results.push({
           taskId: task.id,
           title: task.title,
           success: false,
-          error: err?.message || 'Unknown error',
+          error: errorMessage(err),
         });
       }
     }
@@ -346,10 +347,10 @@ export function GoogleCalendarSync({ tasks }: GoogleCalendarSyncProps) {
       setSyncResults(null);
       setConfirmDisconnect(false);
       toast({ title: 'Google Calendar disconnected' });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Could not disconnect',
-        description: err?.message,
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {

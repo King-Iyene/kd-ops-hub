@@ -16,6 +16,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { errorMessage } from '@/lib/db-errors';
 import { supabase } from '@/lib/supabase';
 import { Receipt, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
@@ -150,8 +151,8 @@ export default function ProfitLossTab() {
         }
 
         setRows(Array.from(monthMap.values()));
-      } catch (err: any) {
-        toast({ title: 'Could not load P&L data', description: err?.message, variant: 'destructive' });
+      } catch (err: unknown) {
+        toast({ title: 'Could not load P&L data', description: errorMessage(err), variant: 'destructive' });
       } finally {
         setLoading(false);
       }

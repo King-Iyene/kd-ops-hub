@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { errorMessage } from '@/lib/db-errors';
 import {
   Plus,
   Search,
@@ -111,8 +112,8 @@ const Referrals = () => {
       if (refRes.error) throw refRes.error;
       setReferrals((refRes.data as Referral[]) || []);
       setContractors((contractorRes.data as any[]) || []);
-    } catch (err: any) {
-      toast({ title: 'Failed to load referrals', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to load referrals', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -156,8 +157,8 @@ const Referrals = () => {
       setDialog(false);
       setForm({ contractor_id: '', referrer_contractor_id: '', referred_email: '', is_affiliate: false, commission_pct: '0', account_start_date: today, notes: '' });
       load();
-    } catch (err: any) {
-      toast({ title: 'Failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }

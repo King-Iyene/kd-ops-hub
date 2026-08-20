@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { renderTemplate } from '@/lib/mustache-lite';
@@ -160,8 +161,8 @@ export const OfferLetterTemplatesAdmin = () => {
       );
       toast({ title: 'Template saved' });
       load();
-    } catch (err: any) {
-      toast({ title: 'Save failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Save failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }

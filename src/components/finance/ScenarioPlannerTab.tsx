@@ -17,6 +17,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { errorMessage } from '@/lib/db-errors';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -102,8 +103,8 @@ export default function ScenarioPlannerTab() {
           ? (forecast[0].balance - forecast[forecast.length - 1].balance) / forecast.length
           : 0;
         setNetBurn(weeklyBurn > 0 ? weeklyBurn : monthlyRev / 4.33);
-      } catch (err: any) {
-        toast({ title: 'Could not load forecast data', description: err?.message, variant: 'destructive' });
+      } catch (err: unknown) {
+        toast({ title: 'Could not load forecast data', description: errorMessage(err), variant: 'destructive' });
       } finally {
         setLoading(false);
       }

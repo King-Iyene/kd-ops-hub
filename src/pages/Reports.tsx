@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { errorMessage } from '@/lib/db-errors';
 import {
   CreditCard,
   Receipt,
@@ -220,8 +221,8 @@ function useLoader<T>(fn: () => Promise<T>, deps: any[] = []) {
     try {
       const result = await fn();
       setData(result);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load report');
+    } catch (err: unknown) {
+      setError(errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -1420,8 +1421,8 @@ function ReconciliationReport() {
         await supabase.from('statement_entries').insert(entryRows);
       }
       load();
-    } catch (err: any) {
-      setError(err?.message || 'Could not parse statement');
+    } catch (err: unknown) {
+      setError(errorMessage(err));
     } finally {
       setUploading(false);
     }

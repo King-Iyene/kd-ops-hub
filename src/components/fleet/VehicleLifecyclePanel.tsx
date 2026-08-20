@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -171,8 +172,8 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
       setEditVehicle(null);
       fetchVehicles();
       onRefresh?.();
-    } catch (err: any) {
-      toast({ title: 'Failed to update', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to update', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }

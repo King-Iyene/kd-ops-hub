@@ -9,6 +9,7 @@
  */
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,8 +48,8 @@ export function NotificationsCard() {
       if (error) throw error;
       setPublicKey((data as any)?.public_key ?? null);
       if ((data as any)?.subject) setSubject((data as any).subject);
-    } catch (err: any) {
-      toast({ title: 'Could not check notification status', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not check notification status', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -69,10 +70,10 @@ export function NotificationsCard() {
         title: 'Notification keys generated',
         description: 'Push notifications are now active. Existing subscribers will be asked to re-enable.',
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Could not generate keys',
-        description: err?.message || 'Try again or contact support.',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {

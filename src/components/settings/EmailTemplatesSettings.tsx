@@ -49,6 +49,7 @@ import {
   sendTemplatedEmail,
   type EmailTemplate,
 } from '@/lib/email-templates';
+import { errorMessage } from '@/lib/db-errors';
 import { supabase } from '@/lib/supabase';
 
 const CATEGORY_LABEL: Record<EmailTemplate['category'], string> = {
@@ -118,8 +119,8 @@ export default function EmailTemplatesSettings() {
       if (rows.length > 0 && !selectedKey) {
         setSelectedKey(rows[0].key);
       }
-    } catch (e: any) {
-      const msg = e?.message ?? String(e);
+    } catch (e: unknown) {
+      const msg = errorMessage(e);
       setError(msg);
       if (/email_templates/i.test(msg)) setMissingTable(true);
     } finally {
@@ -202,8 +203,8 @@ export default function EmailTemplatesSettings() {
       });
       toast({ title: 'Template saved' });
       await reload();
-    } catch (e: any) {
-      toast({ title: 'Save failed', description: e?.message ?? String(e), variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Save failed', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -217,8 +218,8 @@ export default function EmailTemplatesSettings() {
       await resetEmailTemplate(selected.id);
       toast({ title: 'Reset to default' });
       await reload();
-    } catch (e: any) {
-      toast({ title: 'Reset failed', description: e?.message ?? String(e), variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Reset failed', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setResetting(false);
     }
@@ -251,8 +252,8 @@ export default function EmailTemplatesSettings() {
       } else {
         toast({ title: 'Send failed', description: res.error, variant: 'destructive' });
       }
-    } catch (e: any) {
-      toast({ title: 'Send failed', description: e?.message ?? String(e), variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Send failed', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setSendingTest(false);
       if (dirty) await reload();
@@ -282,8 +283,8 @@ export default function EmailTemplatesSettings() {
       setNewDescription('');
       await reload();
       setSelectedKey(created.key);
-    } catch (e: any) {
-      const msg = e?.message ?? String(e);
+    } catch (e: unknown) {
+      const msg = errorMessage(e);
       toast({
         title: 'Create failed',
         description: /duplicate key/i.test(msg)
@@ -305,8 +306,8 @@ export default function EmailTemplatesSettings() {
       toast({ title: 'Template deleted' });
       setSelectedKey(null);
       await reload();
-    } catch (e: any) {
-      toast({ title: 'Delete failed', description: e?.message ?? String(e), variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Delete failed', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setDeleting(false);
     }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ShieldCheck, Loader2 } from 'lucide-react';
+import { errorMessage } from '@/lib/db-errors';
 import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,8 +41,8 @@ export function StepUpDialog() {
       await submitStepUp(password, code);
       setPassword('');
       setCode('');
-    } catch (err: any) {
-      setError(err?.message || 'Verification failed');
+    } catch (err: unknown) {
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }

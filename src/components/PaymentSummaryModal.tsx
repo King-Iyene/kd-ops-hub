@@ -45,6 +45,7 @@ import {
 } from '@/lib/paystack';
 import { getProviderBalance, providerLabel, type Provider } from '@/lib/payments/item-facade';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 
 export interface PaymentSummaryItem {
   /** Recipient display name shown in the preview list. */
@@ -166,7 +167,7 @@ export function PaymentSummaryModal({
       setWalletBalanceError(null);
       fetchWalletBalance()
         .then((b) => setWalletBalance(b))
-        .catch((e: any) => setWalletBalanceError(e?.message || 'Could not check wallet balance'))
+        .catch((e: unknown) => setWalletBalanceError(errorMessage(e)))
         .finally(() => setWalletBalanceLoading(false));
     }
     if (hideProviderBalance) {
@@ -214,8 +215,8 @@ export function PaymentSummaryModal({
             setFwFeeLoading(false);
           }
         }
-      } catch (e: any) {
-        setBalanceError(e?.message || 'Could not check balance');
+      } catch (e: unknown) {
+        setBalanceError(errorMessage(e));
       } finally {
         setBalanceLoading(false);
       }
@@ -256,7 +257,7 @@ export function PaymentSummaryModal({
   // we must NOT clobber whatever the operator has typed. This is what
   // silently made the "What recipients will see" edit box behave like a
   // read-only default in the wild.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     if (open) setCustomNarration(sampleNarration);
   }, [open]);

@@ -13,6 +13,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { errorMessage } from '@/lib/db-errors';
 import { formatDateTime } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -198,8 +199,8 @@ const Knowledge = () => {
       setShowEditor(false);
       setEditor(null);
       load();
-    } catch (err: any) {
-      toast({ title: 'Save failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Save failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }

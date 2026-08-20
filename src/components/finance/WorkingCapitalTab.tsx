@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { errorMessage } from '@/lib/db-errors';
 import { fetchWorkingCapitalData, type WorkingCapitalResult, type WcBand } from '@/lib/working-capital';
 import { GRID, AXIS_TICK, fmtCompact, ChartTooltip } from '@/lib/chart-theme';
 
@@ -73,8 +74,8 @@ export default function WorkingCapitalTab() {
       setLoading(true);
       try {
         setData(await fetchWorkingCapitalData());
-      } catch (err: any) {
-        toast({ title: 'Could not load working capital data', description: err?.message, variant: 'destructive' });
+      } catch (err: unknown) {
+        toast({ title: 'Could not load working capital data', description: errorMessage(err), variant: 'destructive' });
       } finally {
         setLoading(false);
       }

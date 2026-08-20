@@ -36,6 +36,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { errorMessage } from '@/lib/db-errors';
 
 type Kind = 'access' | 'erasure' | 'rectification' | 'portability' | 'restriction';
 
@@ -95,8 +96,8 @@ export default function PrivacyPanel() {
       setSubmitOpen(false);
       setReason('');
       await reload();
-    } catch (e: any) {
-      toast({ title: 'Could not submit', description: e?.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Could not submit', description: errorMessage(e), variant: 'destructive' });
     } finally {
       setBusy(false);
     }

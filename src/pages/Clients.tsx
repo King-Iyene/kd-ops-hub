@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, Plus, Search, Download, Pencil, Trash2, Loader2, Users, TrendingUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { MANAGER_ROLES, hasRole } from '@/lib/roles';
@@ -158,8 +159,8 @@ const Clients = () => {
         pStats[p.client_id].commission += Number(p.commission_ngn || 0);
       }
       setPlacementStats(pStats);
-    } catch (err: any) {
-      const msg = err?.message || 'Failed to load clients';
+    } catch (err: unknown) {
+      const msg = errorMessage(err);
       if (/schema cache|does not exist|public\.clients/i.test(msg)) {
         setError(
           'The Clients module needs a database migration that has not been deployed yet. ' +
@@ -272,8 +273,8 @@ const Clients = () => {
       }
       setDialog(false);
       load();
-    } catch (err: any) {
-      toast({ title: 'Save failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Save failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }

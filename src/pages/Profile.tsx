@@ -23,6 +23,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { errorMessage } from '@/lib/db-errors';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatNaira, formatDateTime, toIsoDate } from '@/lib/format';
 import { computePayslip } from '@/lib/tax';
@@ -453,8 +454,8 @@ const ProfilePage = () => {
       setDelegationReason('');
       setDelegationTypes(['leave', 'expense', 'advance']);
       loadDelegations();
-    } catch (err: any) {
-      toast({ title: 'Could not set delegation', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not set delegation', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSavingDelegation(false);
     }
@@ -471,8 +472,8 @@ const ProfilePage = () => {
       await logAudit('approval_delegation_cancelled', `Cancelled approval delegation to ${row.delegate_name}`, profile);
       toast({ title: 'Delegation cancelled' });
       loadDelegations();
-    } catch (err: any) {
-      toast({ title: 'Could not cancel delegation', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not cancel delegation', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setCancellingDelegationId(null);
     }
@@ -569,8 +570,8 @@ const ProfilePage = () => {
       setProfile({ ...profile, photo_url: publicUrl });
       toast({ title: 'Profile photo updated' });
       await logAudit('profile_updated', 'Profile photo updated', profile);
-    } catch (err: any) {
-      toast({ title: 'Upload failed', description: err?.message ?? String(err), variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Upload failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setUploading(false);
     }
@@ -591,8 +592,8 @@ const ProfilePage = () => {
       if (data) setProfile({ ...profile, ...data });
       toast({ title: 'Profile updated' });
       await logAudit('profile_updated', `Profile updated`, profile);
-    } catch (err: any) {
-      toast({ title: 'Update failed', description: err?.message ?? '', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Update failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSavingProfile(false);
     }
@@ -609,8 +610,8 @@ const ProfilePage = () => {
         title: 'Verification email sent',
         description: `Click the link sent to ${trimmed} to confirm.`,
       });
-    } catch (err: any) {
-      toast({ title: 'Email update failed', description: err?.message ?? '', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Email update failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setUpdatingEmail(false);
     }
@@ -640,8 +641,8 @@ const ProfilePage = () => {
       await logAudit('profile_password_changed', 'Password changed', profile);
       toast({ title: 'Password updated' });
       setNewPassword(''); setConfirmPassword('');
-    } catch (err: any) {
-      toast({ title: 'Password update failed', description: err?.message ?? '', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Password update failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setChangingPassword(false);
     }

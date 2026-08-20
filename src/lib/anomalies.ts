@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 
 export type AnomalySeverity = 'low' | 'medium' | 'high' | 'critical';
 export type AnomalyStatus = 'open' | 'acknowledged' | 'dismissed' | 'escalated';
@@ -138,8 +139,8 @@ export async function scanEwaAnomaliesSafe(ewaRequestId: string): Promise<number
       return 0;
     }
     return Number(data ?? 0);
-  } catch (err: any) {
-    console.warn('[anomalies] scan_ewa_anomalies threw:', err?.message);
+  } catch (err: unknown) {
+    console.warn('[anomalies] scan_ewa_anomalies threw:', errorMessage(err));
     return 0;
   }
 }
@@ -153,8 +154,8 @@ export async function scanExpenseAnomaliesSafe(): Promise<number> {
       return 0;
     }
     return Number(data ?? 0);
-  } catch (err: any) {
-    console.warn('[anomalies] scan_expense_anomalies threw:', err?.message);
+  } catch (err: unknown) {
+    console.warn('[anomalies] scan_expense_anomalies threw:', errorMessage(err));
     return 0;
   }
 }
@@ -169,8 +170,8 @@ export async function scanPayrollRunAnomaliesSafe(payrollRunId: string): Promise
       return 0;
     }
     return Number(data ?? 0);
-  } catch (err: any) {
-    console.warn('[anomalies] scan_payroll_run_anomalies threw:', err?.message);
+  } catch (err: unknown) {
+    console.warn('[anomalies] scan_payroll_run_anomalies threw:', errorMessage(err));
     return 0;
   }
 }

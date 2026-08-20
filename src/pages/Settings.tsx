@@ -28,6 +28,7 @@ import JSZip from 'jszip';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { validateFile } from '@/lib/file-validation';
+import { errorMessage } from '@/lib/db-errors';
 import { setTimezoneCache } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -611,8 +612,8 @@ function DataRetentionPanel() {
         description: `Archived ${r?.archived ?? 0} · Deleted ${r?.deleted ?? 0}`,
       });
       loadPolicies();
-    } catch (err: any) {
-      toast({ title: 'Cleanup failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Cleanup failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setRunningPolicyId(null);
     }
@@ -930,8 +931,8 @@ function PlatformExportCard() {
             zip.file(`${t.category}/${t.name}.csv`, csv);
             totalRows += allRows.length;
           }
-        } catch (err: any) {
-          errors.push(`${t.name}: ${err?.message || 'Unknown error'}`);
+        } catch (err: unknown) {
+          errors.push(`${t.name}: ${errorMessage(err)}`);
         }
       }
 
@@ -970,8 +971,8 @@ function PlatformExportCard() {
         title: 'Export complete',
         description: `${totalRows.toLocaleString()} rows across ${EXPORT_TABLES.length} tables downloaded as ZIP.${errors.length ? ` ${errors.length} table(s) had errors.` : ''}`,
       });
-    } catch (err: any) {
-      toast({ title: 'Export failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Export failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setExporting(false);
       setProgress('');
@@ -1738,8 +1739,8 @@ function TagsManager() {
       setShowForm(false);
       reset();
       load();
-    } catch (err: any) {
-      toast({ title: 'Error', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

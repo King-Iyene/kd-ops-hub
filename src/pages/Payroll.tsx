@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, BarChart3, CalendarClock, CalendarDays, Columns3 } from 'lucide-react';
+import { errorMessage } from '@/lib/db-errors';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -271,8 +272,8 @@ const Payroll = () => {
       toast({ title: 'Segment created' });
       setSegmentForm({ name: '', description: '', exclude_employee_categories: [], exclude_department_ids: [], include_pay_group_ids: [] });
       loadSegments();
-    } catch (err: any) {
-      toast({ title: 'Could not create segment', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not create segment', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSegmentSaving(false);
     }
@@ -332,8 +333,8 @@ const Payroll = () => {
         toast({ title: 'Recorded as paid', description: 'Repayment will be deducted from upcoming payslips.' });
       }
       await load();
-    } catch (err: any) {
-      toast({ title: 'Action failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Action failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setAdvanceBusy(null);
     }
@@ -573,10 +574,10 @@ const Payroll = () => {
       toast({ title: 'Payroll drafted', description: monthLabel(form.period) });
       setDialog(false);
       load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Draft failed',
-        description: err?.message,
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -865,8 +866,8 @@ const Payroll = () => {
           const prev = unpaidLeaveDaysByEmployee.get(r.employee_id) || 0;
           unpaidLeaveDaysByEmployee.set(r.employee_id, prev + overlapDays);
         }
-      } catch (leaveErr: any) {
-        console.warn('[KDOps] unpaid leave lookup failed, proceeding with 0 unpaid days:', leaveErr?.message || leaveErr);
+      } catch (leaveErr: unknown) {
+        console.warn('[KDOps] unpaid leave lookup failed, proceeding with 0 unpaid days:', errorMessage(leaveErr));
         toast({
           title: 'Unpaid leave data unavailable',
           description: 'Could not load unpaid leave records — employees with unpaid leave may be overpaid this cycle. Review before disbursing.',
@@ -1313,7 +1314,7 @@ const Payroll = () => {
               payslipUrl: payslipViewUrl,
             });
           }
-        } catch (empErr: any) {
+        } catch (empErr: unknown) {
           console.warn('[KDOps] payslip generation failed for', e.email, empErr);
           failed++;
           failedNames.push(e.full_name || e.email);
@@ -1355,10 +1356,10 @@ const Payroll = () => {
           description: `All payslips for ${monthLabel(run.period)} saved successfully.`,
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Payslip generation failed',
-        description: err?.message || 'An unexpected error occurred.',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -1387,8 +1388,8 @@ const Payroll = () => {
       }
       setDisburseErrors([]);
       setDisburseTarget({ run, payslips: slips });
-    } catch (err: any) {
-      toast({ title: 'Failed to load payslips', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to load payslips', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setWorking(false);
     }
@@ -1411,10 +1412,10 @@ const Payroll = () => {
       try {
         await supabase.rpc('lock_payroll_run_for_disbursement', { p_run_id: run.id });
         locked = true;
-      } catch (lockErr: any) {
+      } catch (lockErr: unknown) {
         toast({
           title: 'Cannot disburse',
-          description: lockErr?.message || 'This payroll run is not ready for disbursement (it may already be paid or in progress).',
+          description: errorMessage(lockErr),
           variant: 'destructive',
         });
         setDisburseTarget(null);
@@ -1676,8 +1677,8 @@ const Payroll = () => {
             profile,
           );
           succeeded++;
-        } catch (empErr: any) {
-          errors.push(`${slip.employee_name}: ${empErr?.message || 'transfer failed'}`);
+        } catch (empErr: unknown) {
+          errors.push(`${slip.employee_name}: ${errorMessage(empErr)}`);
         }
       }
 
@@ -1714,7 +1715,7 @@ const Payroll = () => {
         });
         if (succeeded > 0) load();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // An unexpected error left the run locked in 'processing' before we
       // got to the normal finalize call above — release it back to
       // 'approved' rather than leaving it stuck for the 15-minute self-heal.
@@ -1731,7 +1732,7 @@ const Payroll = () => {
       }
       toast({
         title: 'Disbursement failed',
-        description: err?.message || 'An unexpected error occurred.',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {

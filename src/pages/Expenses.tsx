@@ -36,7 +36,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { supabase } from '@/lib/supabase';
 import { confirm } from '@/hooks/use-confirm';
 import { compressImage } from '@/lib/image-compression';
-import { friendlyDbError } from '@/lib/db-errors';
+import { errorMessage, friendlyDbError } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
@@ -250,8 +250,8 @@ const Expenses = () => {
     try {
       const result = await generateElaHeatmap(url);
       setElaResult({ heatmapDataUrl: result.heatmapDataUrl });
-    } catch (err: any) {
-      setElaError(err?.message || "Couldn't generate analysis for this image.");
+    } catch (err: unknown) {
+      setElaError(errorMessage(err));
     } finally {
       setElaLoading(false);
     }
@@ -303,8 +303,8 @@ const Expenses = () => {
           categories: itemsByBudget.get(b.id) || [],
         })),
       );
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load expenses.');
+    } catch (err: unknown) {
+      setError(errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -403,10 +403,10 @@ const Expenses = () => {
       try {
         const updated = await approvePaymentBatch(batchId);
         postApproveStatus = (updated as any)?.status || 'approved';
-      } catch (rpcErr: any) {
+      } catch (rpcErr: unknown) {
         toast({
           title: 'Auto-approve blocked',
-          description: rpcErr?.message || 'Caps or eligibility prevented auto-approval. Batch left pending for manual approval.',
+          description: errorMessage(rpcErr),
           variant: 'destructive',
         });
       }
@@ -435,13 +435,13 @@ const Expenses = () => {
       // Navigate immediately to the batch page so the operator can fund and
       // process in one flow. The batch is fully created + auto-approved here.
       navigate(`/payments/${batchId}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // The RPC is atomic: a failure means no batch was created, so there is
       // nothing to compensate for here. The expense.payment_status stays NULL
       // and the row remains "ready to pay" for the next attempt.
       toast({
         title: 'Payment failed to initiate',
-        description: err?.message || 'Unknown error',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -762,10 +762,10 @@ const Expenses = () => {
         toast({ title: isSecond ? 'Expense fully approved' : 'Expense approved' });
       }
       fetchData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Approval failed',
-        description: err?.message || 'Please try again.',
+        description: errorMessage(err),
         variant: 'destructive',
       });
     }
@@ -780,10 +780,10 @@ const Expenses = () => {
     const e = rejectingExpense;
     try {
       await rejectExpense(e.id, rejectReason.trim());
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Reject failed',
-        description: err?.message || 'Please try again.',
+        description: errorMessage(err),
         variant: 'destructive',
       });
       return;
@@ -969,10 +969,10 @@ const Expenses = () => {
             // — the batch exists and will sit pending for manual approval.
           }
           succeeded++;
-        } catch (err: any) {
+        } catch (err: unknown) {
           failures.push({
             title: `${e.category.replace(/_/g, ' ')} (${formatNaira(e.amount_ngn || 0)})`,
-            reason: err?.message || 'unknown',
+            reason: errorMessage(err) || 'unknown',
           });
         }
       }
@@ -1019,10 +1019,10 @@ const Expenses = () => {
           if (e.fuel_request_id && result?.status === 'approved') {
             await syncFuelRequest(e.fuel_request_id, 'approved');
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           failures.push({
             title: `${e.category.replace(/_/g, ' ')} (${formatNaira(e.amount_ngn || 0)})`,
-            reason: err?.message || 'unknown',
+            reason: errorMessage(err) || 'unknown',
           });
         }
       }
@@ -1066,10 +1066,10 @@ const Expenses = () => {
           if (e.fuel_request_id && result?.status === 'approved') {
             await syncFuelRequest(e.fuel_request_id, 'approved');
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           failures.push({
             title: `${e.category.replace(/_/g, ' ')} (${formatNaira(e.amount_ngn || 0)})`,
-            reason: err?.message || 'unknown',
+            reason: errorMessage(err) || 'unknown',
           });
         }
       }

@@ -21,6 +21,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { errorMessage } from '@/lib/db-errors';
 import { logAudit } from '@/lib/audit';
 import { formatDate, toIsoDate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
@@ -343,8 +344,8 @@ const Goals = () => {
       setEditing(null);
       resetForm();
       load();
-    } catch (err: any) {
-      toast({ title: 'Save failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Save failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }

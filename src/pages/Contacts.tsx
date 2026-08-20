@@ -72,6 +72,7 @@ import { usePagination } from '@/hooks/usePagination';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Download } from 'lucide-react';
+import { errorMessage } from '@/lib/db-errors';
 import { parseNigerianPhone } from '@/lib/phone';
 
 type ContactType = 'lead' | 'student' | 'contact' | 'partner';
@@ -239,8 +240,8 @@ const Contacts = () => {
       setDialog(false);
       reset();
       load();
-    } catch (err: any) {
-      toast({ title: 'Save failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Save failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -294,8 +295,8 @@ const Contacts = () => {
       );
       toast({ title: `${c.full_name} converted to contractor` });
       load();
-    } catch (err: any) {
-      toast({ title: 'Conversion failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Conversion failed', description: errorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -831,8 +832,8 @@ export function WhatsAppGroupsTab() {
       setShowForm(false);
       reset();
       load();
-    } catch (err: any) {
-      toast({ title: 'Error', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -1051,8 +1052,8 @@ function NotifyTestTab({ contacts }: { contacts: Contact[] }) {
           ? 'DEV MODE: secret not configured — no message sent (function returned dev_skip: true). Set TERMII_API_KEY or RESEND_API_KEY in Supabase secrets.'
           : `Sent! ${msgId ? `Provider ID: ${msgId}` : ''}`,
       });
-    } catch (err: any) {
-      setResult({ ok: false, message: err?.message ?? String(err) });
+    } catch (err: unknown) {
+      setResult({ ok: false, message: errorMessage(err) });
     } finally {
       setSending(false);
     }

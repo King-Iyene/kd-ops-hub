@@ -10,6 +10,7 @@ import { Tooltip as UiTooltip, TooltipTrigger, TooltipContent, TooltipProvider }
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, formatFxRate, formatNairaCompact } from '@/lib/format';
 import { fetchFxExposureBoard, type FxExposureBoard } from '@/lib/fx-exposure';
+import { errorMessage } from '@/lib/db-errors';
 
 export default function FxExposureTab() {
   const { toast } = useToast();
@@ -21,8 +22,8 @@ export default function FxExposureTab() {
       setLoading(true);
       try {
         setBoard(await fetchFxExposureBoard(90));
-      } catch (err: any) {
-        toast({ title: 'Could not load FX exposure', description: err?.message, variant: 'destructive' });
+      } catch (err: unknown) {
+        toast({ title: 'Could not load FX exposure', description: errorMessage(err), variant: 'destructive' });
       } finally {
         setLoading(false);
       }

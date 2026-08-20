@@ -12,6 +12,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 
 type Status = 'unsupported' | 'denied' | 'unsubscribed' | 'subscribed' | 'loading';
 
@@ -41,8 +42,8 @@ export function usePushNotifications(userId: string | null | undefined) {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       setStatus(sub ? 'subscribed' : 'unsubscribed');
-    } catch (err: any) {
-      setError(err?.message || 'Could not check push state');
+    } catch (err: unknown) {
+      setError(errorMessage(err));
       setStatus('unsubscribed');
     }
   }, [supported]);
@@ -98,8 +99,8 @@ export function usePushNotifications(userId: string | null | undefined) {
 
       setStatus('subscribed');
       return { ok: true };
-    } catch (err: any) {
-      const message = err?.message || 'Could not enable push notifications';
+    } catch (err: unknown) {
+      const message = errorMessage(err);
       setError(message);
       await refresh();
       return { ok: false, error: message };
@@ -122,8 +123,8 @@ export function usePushNotifications(userId: string | null | undefined) {
       }
       setStatus('unsubscribed');
       return { ok: true };
-    } catch (err: any) {
-      const message = err?.message || 'Could not disable push notifications';
+    } catch (err: unknown) {
+      const message = errorMessage(err);
       setError(message);
       return { ok: false, error: message };
     }

@@ -21,6 +21,7 @@ import { AuroraHero } from '@/components/AuroraHero';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { errorMessage } from '@/lib/db-errors';
 import { roleLabel, type Role } from '@/lib/roles';
 import { formatDate } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
@@ -364,10 +365,10 @@ const Employees = () => {
       setShowForm(false);
       resetForm();
       fetchEmployees();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Invite failed',
-        description: err?.message,
+        description: errorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -403,10 +404,10 @@ const Employees = () => {
         title: isFirstTime ? 'Invite email resent' : 'Sign-in link sent',
         description: `Sent to ${e.email}`,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: isFirstTime ? 'Could not resend invite' : 'Could not send link',
-        description: err?.message,
+        description: errorMessage(err),
         variant: 'destructive',
       });
     }
@@ -472,8 +473,8 @@ const Employees = () => {
       setEditing(null);
       resetForm();
       fetchEmployees();
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

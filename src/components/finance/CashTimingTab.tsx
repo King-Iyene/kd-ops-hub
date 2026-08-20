@@ -21,6 +21,7 @@ import {
   AGING_BUCKET_LABEL,
   type CashTimingBoard,
 } from '@/lib/cash-timing';
+import { errorMessage } from '@/lib/db-errors';
 
 const RISK_TONE: Record<string, { tone: string; label: string; dot: string }> = {
   safe:     { tone: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30', label: 'Safe',     dot: '#3FAE6F' },
@@ -46,8 +47,8 @@ export default function CashTimingTab() {
       setLoading(true);
       try {
         setBoard(await fetchCashTimingBoard(13));
-      } catch (err: any) {
-        toast({ title: 'Could not load cash timing', description: err?.message, variant: 'destructive' });
+      } catch (err: unknown) {
+        toast({ title: 'Could not load cash timing', description: errorMessage(err), variant: 'destructive' });
       } finally {
         setLoading(false);
       }

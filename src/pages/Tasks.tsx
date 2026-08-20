@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { errorMessage } from '@/lib/db-errors';
 import { confirm } from '@/hooks/use-confirm';
 import { logAudit } from '@/lib/audit';
 import { notifyUser } from '@/lib/notify';
@@ -203,8 +204,8 @@ const Tasks = () => {
       setFolders((foldersRes.data as SpaceFolder[]) || []);
       setTaskLists((listsRes.data as TaskList[]) || []);
       setDependencies((depsRes.data as TaskDependency[]) || []);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load tasks.');
+    } catch (err: unknown) {
+      setError(errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -490,8 +491,8 @@ const Tasks = () => {
       setDialog(false);
       reset();
       load();
-    } catch (err: any) {
-      toast({ title: 'Save failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Save failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -693,8 +694,8 @@ const Tasks = () => {
       }
       setSpaceDialog(false);
       load();
-    } catch (err: any) {
-      toast({ title: 'Save failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Save failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSavingSpace(false);
     }

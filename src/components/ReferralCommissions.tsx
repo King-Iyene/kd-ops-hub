@@ -31,6 +31,7 @@ import {
   formatUsdMinor, formatNgnMinor, type TierMode,
 } from '@/lib/money';
 import { Loader2, Save, Info, AlertTriangle } from 'lucide-react';
+import { errorMessage } from '@/lib/db-errors';
 
 const SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -195,8 +196,8 @@ export default function ReferralCommissions() {
       if (error) throw error;
       setReferralRateMinor(minor); setReferralDays(days);
       toast({ title: 'Referral rule saved', description: `${formatUsdMinor(minor)} once an account stays active ${days} days.` });
-    } catch (err: any) {
-      toast({ title: 'Could not save', description: err?.message ?? '', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not save', description: errorMessage(err), variant: 'destructive' });
     } finally { setSavingKind(null); }
   };
 
@@ -223,8 +224,8 @@ export default function ReferralCommissions() {
       setAffiliateRateMinor(baseMinor); setAffiliateTier2Minor(tier2Minor);
       setAffiliateThreshold(threshold); setAffiliateMode(mode);
       toast({ title: 'Affiliate rule saved', description: `${formatUsdMinor(baseMinor)}/mo base, ${formatUsdMinor(tier2Minor)}/mo from ${threshold}+ (${mode}).` });
-    } catch (err: any) {
-      toast({ title: 'Could not save', description: err?.message ?? '', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not save', description: errorMessage(err), variant: 'destructive' });
     } finally { setSavingKind(null); }
   };
 
@@ -246,8 +247,8 @@ export default function ReferralCommissions() {
         return n;
       });
       setCountEdits((m) => { const n = { ...m }; delete n[key]; return n; });
-    } catch (err: any) {
-      toast({ title: 'Could not update count', description: err?.message ?? '', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not update count', description: errorMessage(err), variant: 'destructive' });
     }
   };
 

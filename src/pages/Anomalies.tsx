@@ -47,6 +47,7 @@ import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { formatNaira } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { logAudit } from '@/lib/audit';
 import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/lib/utils';
@@ -124,8 +125,8 @@ export default function Anomalies() {
         module: filterModule,
       });
       setRows(data);
-    } catch (err: any) {
-      toast({ title: 'Could not load anomalies', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Could not load anomalies', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -153,8 +154,8 @@ export default function Anomalies() {
         description: `${Number(data ?? 0)} new anomal${Number(data) === 1 ? 'y' : 'ies'} detected.`,
       });
       load();
-    } catch (err: any) {
-      toast({ title: 'Scan failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Scan failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setScanRunning(false);
     }
@@ -180,8 +181,8 @@ export default function Anomalies() {
       setReviewing(null);
       setReviewerNote('');
       load();
-    } catch (err: any) {
-      toast({ title: 'Review failed', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Review failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

@@ -26,6 +26,7 @@ import { ScanLine, Loader2, CheckCircle2, AlertTriangle, RotateCcw, FileWarning 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { errorMessage } from '@/lib/db-errors';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -155,8 +156,8 @@ async function callDocumentAi(
       },
       reason: 'ok',
     };
-  } catch (err: any) {
-    return { result: null, reason: err?.message || 'Network error calling receipt scanner' };
+  } catch (err: unknown) {
+    return { result: null, reason: errorMessage(err) };
   }
 }
 
@@ -768,7 +769,7 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
         setTimeout(() => setScanState('idle'), 3000);
       }
       onExtracted(merged, file);
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (aiResult) {
         if (!shouldExtractLitres) delete aiResult.litres;
         setErrorMsg("Scan couldn't read amount or litres — fill them in manually below.");
@@ -776,7 +777,7 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
         setTimeout(() => setScanState('idle'), 8000);
         onExtracted(aiResult, file);
       } else {
-        setErrorMsg(reason || err?.message || 'Scan failed — try a clearer photo.');
+        setErrorMsg(reason || errorMessage(err));
         setScanState('error');
         if (!isRetry) setRetryCount(0);
       }

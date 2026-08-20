@@ -3,6 +3,7 @@ import {
   Users, X, Loader2, UserPlus, Shield, Eye, Crown, Trash2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -75,8 +76,8 @@ export function SpaceMembersDialog({ space, open, onClose, profiles }: SpaceMemb
       setAddingUser('');
       setAddingRole('member');
       await loadMembers();
-    } catch (err: any) {
-      toast({ title: 'Failed to add member', description: err?.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to add member', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }

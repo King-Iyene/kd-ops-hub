@@ -6,6 +6,7 @@ import { useFeatureAccess } from '@/hooks/usePermission';
 import { APPROVER_ROLES } from '@/lib/roles';
 import { formatNaira, formatDate, maskAccountNumber } from '@/lib/format';
 import { logAudit } from '@/lib/audit';
+import { errorMessage } from '@/lib/db-errors';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -716,8 +717,8 @@ const NewPaymentBatch = () => {
 
       toast({ title: submit ? 'Batch submitted for approval' : isEditMode ? 'Draft updated' : 'Batch saved as draft' });
       navigate(isEditMode ? `/payments/${editId}` : '/payments');
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }

@@ -11,6 +11,7 @@ import {
   type HealthDimension,
   type HealthGrade,
 } from '@/lib/financial-health';
+import { errorMessage } from '@/lib/db-errors';
 
 const GRADE_STYLE: Record<HealthGrade, { bg: string; text: string; ring: string }> = {
   A: { bg: 'bg-emerald-500', text: 'text-white', ring: 'ring-emerald-500/30' },
@@ -102,8 +103,8 @@ export default function HealthScoreTab() {
       try {
         const input = await fetchHealthScoreInput();
         setResult(computeHealthScore(input));
-      } catch (err: any) {
-        toast({ title: 'Could not compute health score', description: err?.message, variant: 'destructive' });
+      } catch (err: unknown) {
+        toast({ title: 'Could not compute health score', description: errorMessage(err), variant: 'destructive' });
       } finally {
         setLoading(false);
       }
