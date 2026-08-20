@@ -29,7 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_contractors_account_lookup
   WHERE status != 'deleted';
 
 -- HIGH: profiles.email used by invite trigger on every signup
-CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_email
+CREATE INDEX IF NOT EXISTS idx_profiles_email
   ON public.profiles (email)
   WHERE email IS NOT NULL;
 
@@ -50,9 +50,9 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_status
 CREATE INDEX IF NOT EXISTS idx_announcements_created_at
   ON public.announcements (created_at DESC);
 
--- HIGH: goals queried by employee_id and status
-CREATE INDEX IF NOT EXISTS idx_goals_employee_id
-  ON public.goals (employee_id);
+-- HIGH: goals queried by owner_id and status
+CREATE INDEX IF NOT EXISTS idx_goals_owner_id
+  ON public.goals (owner_id);
 CREATE INDEX IF NOT EXISTS idx_goals_status
   ON public.goals (status);
 
