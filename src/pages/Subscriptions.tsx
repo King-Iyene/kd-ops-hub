@@ -13,6 +13,7 @@ import {
   CreditCard,
   Eye,
 } from 'lucide-react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { VendorCombobox } from '@/components/VendorCombobox';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
@@ -211,6 +212,7 @@ const emptyForm: FormState = {
 /* ═══════════════════════ Component ═══════════════════════ */
 
 const Subscriptions = () => {
+  usePageTitle('Subscriptions');
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const canManage = hasRole(profile?.role, APPROVER_ROLES);

@@ -28,6 +28,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { formatDateTime } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -94,6 +95,7 @@ const SUGGESTIONS = [
 ];
 
 export default function Assistant() {
+  usePageTitle('Assistant');
   const { profile } = useAuthStore();
   const { toast } = useToast();
 

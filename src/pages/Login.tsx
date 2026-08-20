@@ -5,12 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTimeOfDay, greetingFor } from '@/hooks/useTimeOfDay';
 import { Loader2, Eye, EyeOff, Sparkles, Mail, Lock } from 'lucide-react';
 import { BrandLogo } from '@/components/BrandLogo';
 import { AuthAtmosphere } from '@/components/AuthAtmosphere';
 
 const Login = () => {
+  usePageTitle('Login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);

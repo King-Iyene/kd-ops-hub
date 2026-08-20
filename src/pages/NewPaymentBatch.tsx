@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useDebounce } from '@/hooks/useDebounce';
 import {
   Loader2, Trash2, ArrowLeft, ArrowRight, Check, Search, Plus, Upload,
@@ -147,6 +148,7 @@ const emptyBank: BankAccountValue = {
 const round2 = (n: number) => (Number.isFinite(n) ? Math.round(n * 100) / 100 : 0);
 
 const NewPaymentBatch = () => {
+  usePageTitle('New Payment Batch');
   const navigate = useNavigate();
   const { id: editId } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();

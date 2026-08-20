@@ -15,6 +15,7 @@ import {
   Activity,
   RefreshCw,
 } from 'lucide-react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -143,6 +144,7 @@ const PENDING_STATUS: Record<Kind, { approve: string; reject: string; pending: s
 };
 
 const Approvals = () => {
+  usePageTitle('Approvals');
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const navigate = useNavigate();

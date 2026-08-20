@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
@@ -176,6 +177,7 @@ function getItemFeeBasis(item: any): 'actual' | 'estimated' | '' {
 
 
 const BatchDetail = () => {
+  usePageTitle('Batch Details');
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();

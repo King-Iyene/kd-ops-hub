@@ -6,10 +6,12 @@
 
 import { Link } from 'react-router-dom';
 import { Scroll, ArrowLeft } from 'lucide-react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export const TERMS_VERSION = '2026-05-02';
 
 export default function Terms() {
+  usePageTitle('Terms of Service');
   return (
     <div className="min-h-screen bg-background text-foreground p-6 md:p-10">
       <div className="max-w-3xl mx-auto space-y-6">

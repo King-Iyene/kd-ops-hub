@@ -13,6 +13,7 @@ import OffboardingTab from '@/components/employee/OffboardingTab';
 import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/lib/format';
@@ -143,6 +144,7 @@ interface EmployeeData {
 }
 
 const EmployeeProfile = () => {
+  usePageTitle('Employee Profile');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();

@@ -34,6 +34,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
 import { cn } from '@/lib/utils';
@@ -67,6 +68,7 @@ import {
 } from '@/lib/task-types';
 
 const Tasks = () => {
+  usePageTitle('Tasks');
   const { profile } = useAuthStore();
   const { toast } = useToast();
 

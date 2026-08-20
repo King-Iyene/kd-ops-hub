@@ -1,10 +1,12 @@
 import { useLocation, Link } from 'react-router-dom';
 import { useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { AuthAtmosphere } from '@/components/AuthAtmosphere';
 import { LostRobot } from '@/components/LostRobot';
 
 const NotFound = () => {
+  usePageTitle('Page Not Found');
   const location = useLocation();
 
   useEffect(() => {

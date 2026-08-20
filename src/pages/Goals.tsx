@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { logAudit } from '@/lib/audit';
 import { formatDate, toIsoDate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
@@ -154,6 +155,7 @@ const quarterOptions = (): string[] => {
 };
 
 const Goals = () => {
+  usePageTitle('Goals');
   const { profile } = useAuthStore();
   const { toast } = useToast();
 

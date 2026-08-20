@@ -24,12 +24,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { BankCombobox } from '@/components/BankCombobox';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { BrandLogo } from '@/components/BrandLogo';
 import { safeHref } from '@/lib/safe-href';
 
 const LINKEDIN_RE = /^https?:\/\/(www\.)?linkedin\.com\/in\/.+/;
 
 const JoinForm = () => {
+  usePageTitle('Join');
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const routeParams = useParams<{ code?: string }>();

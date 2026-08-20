@@ -3,9 +3,11 @@ import { ShieldAlert, Clock, ArrowLeft, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuthStore } from '@/store/authStore';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { roleLabel } from '@/lib/roles';
 
 const Unauthorized = () => {
+  usePageTitle('Unauthorized');
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuthStore();
 

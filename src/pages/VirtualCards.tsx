@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { logAudit } from '@/lib/audit';
 import { formatNaira } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
@@ -89,6 +90,7 @@ const STATUS_BADGE: Record<VirtualCard['status'], string> = {
 };
 
 const VirtualCards = () => {
+  usePageTitle('Virtual Cards');
   const { profile } = useAuthStore();
   const { toast } = useToast();
 

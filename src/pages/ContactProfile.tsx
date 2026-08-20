@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 
 type ContactType = 'lead' | 'student' | 'contact' | 'partner';
@@ -58,6 +59,7 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 const ContactProfile = () => {
+  usePageTitle('Contact Profile');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();

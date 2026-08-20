@@ -45,6 +45,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 
@@ -89,6 +90,7 @@ const CATEGORY_BADGE: Record<Category, string> = {
 };
 
 const Knowledge = () => {
+  usePageTitle('Knowledge');
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const canWrite =

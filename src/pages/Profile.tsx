@@ -45,6 +45,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 import { notifyRoles } from '@/lib/notify';
 import MfaSettings from '@/components/settings/MfaSettings';
@@ -202,6 +203,7 @@ const EnrolBadge = ({ on }: { on: boolean }) => (
 // ── Component ────────────────────────────────────────────────────
 
 const ProfilePage = () => {
+  usePageTitle('Profile');
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();

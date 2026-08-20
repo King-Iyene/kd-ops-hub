@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import {
   Upload,
   FileText,
@@ -183,6 +184,7 @@ const FOLDER_COLORS = [
 ];
 
 const Documents = () => {
+  usePageTitle('Documents');
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const confirm = useConfirm();

@@ -28,6 +28,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { formatDateTime, toIsoDate } from '@/lib/format';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -216,6 +217,7 @@ interface ChainBreak {
 }
 
 const AuditLog = () => {
+  usePageTitle('Audit Log');
   const { profile } = useAuthStore();
   const { toast } = useToast();
 

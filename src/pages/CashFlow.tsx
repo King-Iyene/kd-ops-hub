@@ -22,6 +22,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { formatNaira } from '@/lib/format';
 import { ChartGradients, GlassTooltip, chartTheme, axisTick } from '@/components/ChartKit';
 import { cn } from '@/lib/utils';
@@ -55,6 +56,7 @@ const BAND_TONE: Record<string, { tone: string; label: string }> = {
 };
 
 export default function CashFlow() {
+  usePageTitle('Cash Flow');
   const { toast } = useToast();
   const [forecast, setForecast] = useState<ForecastWeek[]>([]);
   const [history, setHistory] = useState<CashSnapshot[]>([]);

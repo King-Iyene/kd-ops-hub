@@ -22,6 +22,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { confirm } from '@/hooks/use-confirm';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { logAudit } from '@/lib/audit';
 import { formatDateTime } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,6 +82,7 @@ interface UsageRow {
 }
 
 export default function AssistantAdmin() {
+  usePageTitle('Assistant Admin');
   const { profile } = useAuthStore();
   const { toast } = useToast();
 

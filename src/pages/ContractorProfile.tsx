@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { MaskedAccountNumber } from '@/components/ui-kit/MaskedAccountNumber';
@@ -95,6 +96,7 @@ const onboardingChecks = (c: ContractorData) => [
 ];
 
 const ContractorProfile = () => {
+  usePageTitle('Contractor Profile');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();

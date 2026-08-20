@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { Loader2, KeyRound, TriangleAlert } from 'lucide-react';
 
 /**
@@ -29,6 +30,7 @@ function readAuthLinkError(): string | null {
 }
 
 const ResetPassword = () => {
+  usePageTitle('Reset Password');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);

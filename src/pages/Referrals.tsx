@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { AuroraHero } from '@/components/AuroraHero';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -65,6 +66,7 @@ interface ProfileRow {
 }
 
 const Referrals = () => {
+  usePageTitle('Referrals');
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const isAdmin =
