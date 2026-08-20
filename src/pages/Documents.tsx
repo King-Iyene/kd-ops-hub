@@ -80,6 +80,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { validateFile } from '@/lib/file-validation';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { MobileFilterBar } from '@/components/ui-kit/MobileFilterBar';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
@@ -176,7 +177,6 @@ const pickIcon = (mime: string | null) => {
 };
 
 const MAX_MB = 25;
-const MAX_BYTES = MAX_MB * 1024 * 1024;
 
 const FOLDER_COLORS = [
   '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6',
@@ -402,13 +402,7 @@ const Documents = () => {
 
   const onFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files || []);
-    const valid = picked.filter((f) => {
-      if (f.size > MAX_BYTES) {
-        toast({ title: `${f.name} is too large (max ${MAX_MB} MB)`, variant: 'destructive' });
-        return false;
-      }
-      return true;
-    });
+    const valid = picked.filter((f) => validateFile(f, toast, MAX_MB));
     setFiles(valid);
     if (valid.length === 1 && !form.title.trim()) {
       setForm((prev) => ({ ...prev, title: valid[0].name.replace(/\.[^.]+$/, '') }));
@@ -419,13 +413,7 @@ const Documents = () => {
     e.preventDefault();
     setDragOver(false);
     const dropped = Array.from(e.dataTransfer.files);
-    const valid = dropped.filter((f) => {
-      if (f.size > MAX_BYTES) {
-        toast({ title: `${f.name} is too large (max ${MAX_MB} MB)`, variant: 'destructive' });
-        return false;
-      }
-      return true;
-    });
+    const valid = dropped.filter((f) => validateFile(f, toast, MAX_MB));
     if (valid.length > 0) {
       setFiles(valid);
       if (valid.length === 1 && !form.title.trim()) {

@@ -29,8 +29,10 @@ type LiveTrip = {
   trail: Ping[];
 };
 
-const initialsOf = (name: string) =>
-  name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || '?';
+const initialsOf = (name: string) => {
+  const raw = name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || '?';
+  return raw.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c);
+};
 
 const bearingDeg = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -309,7 +311,7 @@ export function LiveTrackingTab() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   useEffect(() => {
