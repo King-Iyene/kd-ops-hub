@@ -1,41 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  Banknote,
-  Check,
-  CheckCircle2,
-  Loader2,
-  Plus,
-  Download,
-  FileText,
-  TrendingUp,
-  TrendingDown,
-  Users,
-  Send,
-  AlertCircle,
-  AlertTriangle,
-  X,
-  Info,
-  Trash2,
-  BarChart3,
-} from 'lucide-react';
+import { Plus, BarChart3, CalendarClock, CalendarDays, Columns3 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as ChartTooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
 import { burst } from '@/components/Burst';
-import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
 import { logAudit } from '@/lib/audit';
 import { notifyChannels } from '@/lib/notify';
 import { notifyPayslipReady } from '@/lib/notify-events';
@@ -51,37 +21,14 @@ import {
   formatDate,
   formatDateTime,
   formatNaira,
-  formatNairaCompact,
 } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { buildPaymentInstructions, instructionsToCsv } from '@/lib/bank-payment';
 import { renderPayslipHtml } from '@/lib/payslip';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { confirm } from '@/hooks/use-confirm';
-// Statutory rates and PAYE math live in @/lib/tax (Nigeria Tax Act 2025).
-// Aliased to the names already used throughout this file to keep the diff small.
 import {
   PENSION_EMPLOYEE_RATE as PENSION_RATE,
   PENSION_EMPLOYER_RATE as EMPLOYER_PENSION_RATE,
@@ -97,29 +44,15 @@ import {
   buildNarration,
 } from '@/lib/paystack';
 import { fetchFlutterwaveBanks, getFlutterwaveBankCode } from '@/lib/flutterwave-banks';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { displayName } from '@/lib/name';
-import { cn } from '@/lib/utils';
 import { receiptTheme as R } from '@/lib/receipt-theme';
-import { StatCard } from '@/components/ui-kit/StatCard';
-import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
-import { EmptyState } from '@/components/ui-kit/EmptyState';
-import { StatusBadge } from '@/components/ui-kit/StatusBadge';
-import {
-  MobileCard,
-  MobileCardHeader,
-  MobileCardTitle,
-  MobileCardMeta,
-  MobileCardRow,
-  MobileCardFooter,
-} from '@/components/ui-kit/MobileCard';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { CalendarClock, CalendarDays, Columns3 } from 'lucide-react';
 import { PayrollCalendar } from '@/components/payroll/PayrollCalendar';
-import { PayrollRosterPreview } from '@/components/payroll/PayrollRosterPreview';
 import { PayrollSchedules, NextPayrollBanner } from '@/components/PayrollSchedules';
 import { PayrollBoard } from '@/components/payroll/PayrollBoard';
+import { PayrollRunsTab } from '@/components/payroll/PayrollRunsTab';
+import { AnnualSummaryTab } from '@/components/payroll/AnnualSummaryTab';
+import { PayrollDialogs } from '@/components/payroll/PayrollDialogs';
 
 interface BonusLine {
   type: string;
@@ -191,23 +124,6 @@ const advanceDeductionFor = (deductionPerMonth: any, outstanding: any): number =
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-const BONUS_TYPES = [
-  'Performance Bonus',
-  '13th Month',
-  'Christmas Bonus',
-  'Ramadan Bonus',
-  'Annual Leave Allowance',
-  'KD Star Prize',
-  'Other',
-] as const;
-
-const PAYROLL_CATEGORY_LABELS: Record<string, string> = {
-  administrative: 'Administrative',
-  executive: 'Executive / Director',
-  domestic: 'Domestic staff',
-  security: 'Security',
-  contractor: 'Contractor',
-};
 
 const Payroll = () => {
   usePageTitle('Payroll');
@@ -2059,6 +1975,7 @@ const Payroll = () => {
     return Array.from(years).sort((a, b) => b - a);
   }, [runs]);
 
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -2079,9 +1996,6 @@ const Payroll = () => {
       <NextPayrollBanner />
 
       <Tabs defaultValue="runs">
-        {/* Underline tabs — central-bank pattern: thin border-b
-            row, no rounded pill background. Active tab gets a 2px
-            underline and bold weight. Restraint over chrome. */}
         <TabsList className="h-9 bg-transparent border-b border-border/50 rounded-none w-full justify-start gap-0 p-0">
           <TabsTrigger
             value="runs"
@@ -2120,460 +2034,38 @@ const Payroll = () => {
         </TabsList>
 
         <TabsContent value="runs" className="space-y-6 mt-6">
-
-      {!bannerDismissed && (
-        <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 px-4 py-3 text-sm text-blue-800 dark:text-blue-200">
-          <Info className="h-4 w-4 shrink-0 mt-0.5 text-blue-500" />
-          <p className="flex-1 leading-relaxed">
-            Payroll runs calculate monthly people costs: gross salaries, PAYE tax, pension contributions, and NHF deductions. Approve a run to generate payslips. Note: KDOps records payroll figures — salary transfers must be initiated separately via the Payments module.
-          </p>
-          <button
-            onClick={() => {
-              setBannerDismissed(true);
-              localStorage.setItem('kdops_payroll_banner_dismissed', 'true');
-            }}
-            className="shrink-0 text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-            aria-label="Dismiss"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Standing compliance note — NOT dismissible. Cross-checked against the
-          Nigeria Tax Act 2025 (KPMG, Baker Tilly, SafeguardGlobal — Aug 2026)
-          and matches the current law. Revisit only if FIRS guidance changes,
-          or once Phase 4 lands an editable tax table so this isn't a
-          hardcoded constant. */}
-      {(
-        <div className="flex items-start gap-3 rounded-lg border border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-200">
-          <Check className="h-4 w-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
-          <p className="flex-1 leading-relaxed">
-            <span className="font-medium">PAYE regime confirmed:</span> the "NTA 2025" bands in <code className="text-xs">src/lib/tax.ts</code> (0% to ₦800k, then 15% / 18% / 21% / 23% / 25% in successive slices, with rent relief) match the Nigeria Tax Act 2025, in force since 1 Jan 2026 — cross-checked against KPMG, Baker Tilly, and SafeguardGlobal (Aug 2026). Worth a final sign-off from your accountant of record before high-stakes filings, but this is not a guess.
-          </p>
-        </div>
-      )}
-
-      {/* Summary strip — pure Mercury: hairline 4-cell, mono ₦
-          values, ToD holographic hover. */}
-      <div className="rounded-lg border border-border/70 bg-card grid grid-cols-2 sm:grid-cols-4 sm:divide-x divide-border/70 divide-y sm:divide-y-0 overflow-hidden">
-        {[
-          {
-            label: 'Latest total burn',
-            value: latest ? formatNaira(latest.total_burn_ngn) : '—',
-            sub: latest ? monthLabel(latest.period, latest.period_type) : 'Draft your first run',
-          },
-          {
-            label: 'PAYE (est.)',
-            value: latest ? formatNaira(latest.paye_ngn) : '—',
-            sub: 'Due 10th next month',
-          },
-          {
-            label: 'Active employees',
-            value: latest?.employee_count ?? '—',
-            sub: latest ? `Pension ${formatNaira(latest.pension_ngn)}` : 'No runs yet',
-          },
-          {
-            label: 'Approved runs',
-            value: runs.filter((r) => r.status === 'approved' || r.status === 'paid').length,
-            sub: 'This year',
-          },
-        ].map(({ label, value, sub }) => (
-          <div key={label} className="kd-holographic relative px-4 py-3.5 kd-transition">
-            <div className="relative z-[2]">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
-              <p className="mt-1.5 text-[19px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
-                {value}
-              </p>
-              <p className="mt-1 text-[11px] text-muted-foreground/80 tabular-nums truncate">{sub}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {trend.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Burn trend — last 6 months</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={trend} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                <ChartGradients />
-                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
-                <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-                <ChartTooltip
-                  content={<GlassTooltip />}
-                  formatter={(v: number) => formatNaira(v)}
-                  cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
-                />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="burn" fill="url(#kd-grad-primary)" name="Total burn" radius={[6, 6, 0, 0]} {...chartAnim} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
-
-      {salaryErrors.length > 0 && (
-        <Alert variant="destructive">
-          <AlertTitle>Salary Configuration Required</AlertTitle>
-          <AlertDescription>
-            <ul className="list-disc pl-4 mt-2 space-y-0.5">
-              {salaryErrors.map((err, i) => (
-                <li key={i} className="text-sm">{err}</li>
-              ))}
-            </ul>
-            <p className="mt-2 text-sm">
-              Configure salaries in <span className="font-medium">Employee Management</span> before generating payroll.
-            </p>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {advanceQueue.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-[13px] font-semibold tracking-tight">Salary advance requests</h2>
-          <div className="rounded-lg border border-border/60 bg-card divide-y">
-            {advanceQueue.map((a) => (
-              <div key={a.id} className="flex items-center justify-between gap-3 p-3 flex-wrap">
-                <div className="min-w-0">
-                  <p className="font-medium truncate">
-                    {a.name} · <span className="currency tabular-nums">{formatNaira(Number(a.amount_ngn))}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Over {a.repayment_months} month{a.repayment_months === 1 ? '' : 's'}
-                    {a.reason ? ` · ${a.reason}` : ''} · {monthLabel(a.created_at.slice(0, 7))}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {a.status === 'pending' ? (
-                    <>
-                      <Button size="sm" variant="outline" disabled={advanceBusy === a.id} onClick={() => actOnAdvance(a.id, 'approve')}>
-                        {advanceBusy === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Approve'}
-                      </Button>
-                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" disabled={advanceBusy === a.id} onClick={() => actOnAdvance(a.id, 'reject')}>
-                        Reject
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Badge variant="outline" className="bg-info/10 text-info border-info/30">Approved · pending payout</Badge>
-                      <Button size="sm" variant="outline" disabled={advanceBusy === a.id} onClick={() => actOnAdvance(a.id, 'paid')}>
-                        {advanceBusy === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Mark paid'}
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="space-y-3">
-        <h2 className="text-[13px] font-semibold tracking-tight">Payroll runs</h2>
-        <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
-          {loading ? (
-            <div className="p-3"><TableSkeleton rows={5} cols={7} /></div>
-          ) : runs.length === 0 ? (
-            <EmptyState
-              illustration="coin"
-              title="No payroll runs yet"
-              description="Create a payroll run to calculate monthly salary costs and generate payslips."
-              action={
-                <Button onClick={() => setDialog(true)}>
-                  <Plus className="mr-2 h-4 w-4" /> Create Payroll Run
-                </Button>
-              }
-            />
-          ) : (
-            <>
-            <div className="hidden md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Period</TableHead>
-                  <TableHead className="text-right">Employees</TableHead>
-                  <TableHead className="text-right">Contractor</TableHead>
-                  <TableHead className="text-right">Expenses</TableHead>
-                  <TableHead className="text-right">PAYE</TableHead>
-                  <TableHead className="text-right">Pension (emp)</TableHead>
-                  <TableHead className="text-right">Pension (er)</TableHead>
-                  <TableHead className="text-right">Total burn</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {runs.map((r, idx) => {
-                  const prev = runs[idx + 1];
-                  const momPct = prev && prev.total_burn_ngn > 0
-                    ? ((r.total_burn_ngn - prev.total_burn_ngn) / prev.total_burn_ngn) * 100
-                    : null;
-                  const isHighlighted = highlightedRunId === r.id;
-                  return (
-                  <TableRow
-                    key={r.id}
-                    ref={(el) => { if (el) runRefs.current.set(r.id, el); }}
-                    className={cn(
-                      'kd-transition',
-                      isHighlighted && 'bg-primary/10 ring-2 ring-primary/40 ring-inset',
-                    )}
-                  >
-                    <TableCell className="font-medium">{monthLabel(r.period, r.period_type)}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {r.employee_count ?? '—'}
-                    </TableCell>
-                    <TableCell className="text-right currency">
-                      {formatNaira(r.total_contractor_ngn)}
-                    </TableCell>
-                    <TableCell className="text-right currency">
-                      {formatNaira(r.total_expenses_ngn)}
-                    </TableCell>
-                    <TableCell className="text-right currency">
-                      {formatNaira(r.paye_ngn)}
-                    </TableCell>
-                    <TableCell className="text-right currency">
-                      {formatNaira(r.pension_ngn)}
-                    </TableCell>
-                    <TableCell className="text-right currency">
-                      {formatNaira(r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE))}
-                    </TableCell>
-                    <TableCell className="text-right currency font-semibold">
-                      <div className="flex items-center justify-end gap-1">
-                        {formatNaira(r.total_burn_ngn)}
-                        {momPct !== null && (
-                          <span className={`text-xs font-normal inline-flex items-center gap-0.5 ${momPct >= 0 ? 'text-success' : 'text-destructive'}`}>
-                            {momPct >= 0
-                              ? <TrendingUp className="h-3 w-3" />
-                              : <TrendingDown className="h-3 w-3" />}
-                            {Math.abs(momPct).toFixed(1)}%
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={r.status} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1 flex-wrap">
-                        {r.status === 'draft' && (
-                          <>
-                            <Button size="sm" variant="outline" onClick={() => submit(r)}>
-                              Submit
-                            </Button>
-                            {/* Delete is draft-only — once a run is in
-                                pending_approval / approved / paid the
-                                audit trail must stay intact. Operators
-                                use Recall on a pending run to send it
-                                back to draft, then delete. */}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => deleteDraft(r)}
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              title="Delete this draft"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                        {r.status === 'pending_approval' && canApprovePerm && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => approve(r)}
-                              disabled={isSelfApprovalBlocked(r)}
-                              title={isSelfApprovalBlocked(r) ? 'You drafted this run — another approver must review it' : undefined}
-                            >
-                              Approve
-                            </Button>
-                            {/* Recall sends a pending run back to draft so
-                                the originator (or an admin) can edit it
-                                before re-submitting. Approved / paid runs
-                                can't be recalled — that would corrupt
-                                the audit trail. */}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => recallToDraft(r)}
-                              title="Recall to draft for editing"
-                            >
-                              Recall
-                            </Button>
-                          </>
-                        )}
-                        {r.status === 'approved' && (
-                          <>
-                            {canGeneratePayslipsPerm && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => generatePayslips(r)}
-                                disabled={working}
-                                title="Generate payslips for every active employee"
-                              >
-                                {working && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-                                Generate payslips
-                              </Button>
-                            )}
-                            {canDisburse && (
-                              <Button
-                                size="sm"
-                                onClick={() => openDisburse(r)}
-                                disabled={working}
-                                title="Disburse net salaries via Paystack"
-                              >
-                                {working
-                                  ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                                  : <Send className="mr-2 h-3.5 w-3.5" />}
-                                Disburse salaries
-                              </Button>
-                            )}
-                            <Button size="sm" variant="outline" onClick={() => setConfirmPaidRun(r)}>
-                              Record as Manually Paid
-                            </Button>
-                          </>
-                        )}
-                        {r.status !== 'paid' && canGeneratePayslipsPerm && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => openAdjustments(r)}
-                            title="Add per-employee bonus, overtime, allowance or one-off deduction"
-                          >
-                            <Plus className="mr-1 h-3.5 w-3.5" /> Adjust
-                          </Button>
-                        )}
-                        <Button size="sm" variant="ghost" onClick={() => exportRun(r)}>
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        {r.status === 'approved' && (
-                          <Button size="sm" variant="ghost" onClick={() => exportBankFile(r)} title="Download bank payment file">
-                            <Banknote className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button size="sm" variant="ghost" onClick={() => printRun(r)}>
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-            </div>
-
-            {/* Mobile payroll runs — thumb-friendly card list */}
-            <div className="md:hidden p-3 space-y-2">
-              {runs.map((r, idx) => {
-                const prev = runs[idx + 1];
-                const momPct = prev && prev.total_burn_ngn > 0
-                  ? ((r.total_burn_ngn - prev.total_burn_ngn) / prev.total_burn_ngn) * 100
-                  : null;
-                const accent =
-                  r.status === 'draft' ? 'bg-muted-foreground'
-                  : r.status === 'pending_approval' ? 'bg-amber-500'
-                  : r.status === 'approved' ? 'bg-emerald-500'
-                  : r.status === 'paid' ? 'bg-blue-500'
-                  : 'bg-muted-foreground';
-                const isHighlighted = highlightedRunId === r.id;
-                return (
-                  <div
-                    key={r.id}
-                    ref={(el) => { if (el) runRefs.current.set(r.id, el); }}
-                    className={cn(isHighlighted && 'rounded-lg ring-2 ring-primary/40')}
-                  >
-                  <MobileCard accentClassName={accent}>
-                    <MobileCardHeader>
-                      <div className="min-w-0 flex-1">
-                        <MobileCardTitle>{monthLabel(r.period, r.period_type)}</MobileCardTitle>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          {r.employee_count ?? 0} employee{r.employee_count === 1 ? '' : 's'}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-base font-bold currency leading-tight">{formatNaira(r.total_burn_ngn)}</p>
-                        {momPct !== null && (
-                          <span className={`text-[10px] font-medium inline-flex items-center gap-0.5 ${momPct >= 0 ? 'text-success' : 'text-destructive'}`}>
-                            {momPct >= 0 ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
-                            {Math.abs(momPct).toFixed(1)}%
-                          </span>
-                        )}
-                      </div>
-                    </MobileCardHeader>
-
-                    <MobileCardRow label="Status">
-                      <StatusBadge status={r.status} />
-                    </MobileCardRow>
-                    <MobileCardRow label="Contractor" className="currency">{formatNaira(r.total_contractor_ngn)}</MobileCardRow>
-                    <MobileCardRow label="Expenses" className="currency">{formatNaira(r.total_expenses_ngn)}</MobileCardRow>
-                    <MobileCardRow label="PAYE" className="currency">{formatNaira(r.paye_ngn)}</MobileCardRow>
-                    <MobileCardRow label="Pension (emp)" className="currency">{formatNaira(r.pension_ngn)}</MobileCardRow>
-                    <MobileCardRow label="Pension (er)" className="currency">{formatNaira(r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE))}</MobileCardRow>
-
-                    <MobileCardFooter className="flex-wrap">
-                      {r.status === 'draft' && (
-                        <Button size="sm" variant="outline" className="h-9" onClick={() => submit(r)}>
-                          Submit
-                        </Button>
-                      )}
-                      {r.status === 'pending_approval' && canApprovePerm && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-9 bg-success/10 text-success border-success/40 hover:bg-success/20"
-                          onClick={() => approve(r)}
-                          disabled={isSelfApprovalBlocked(r)}
-                          title={isSelfApprovalBlocked(r) ? 'You drafted this run — another approver must review it' : undefined}
-                        >
-                          <Check className="h-4 w-4 mr-1.5" /> Approve
-                        </Button>
-                      )}
-                      {r.status === 'approved' && canGeneratePayslipsPerm && (
-                        <Button size="sm" variant="outline" className="h-9" onClick={() => generatePayslips(r)} disabled={working}>
-                          {working && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                          Payslips
-                        </Button>
-                      )}
-                      {r.status === 'approved' && canDisburse && (
-                        <Button size="sm" className="h-9" onClick={() => openDisburse(r)} disabled={working}>
-                          {working ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />}
-                          Disburse
-                        </Button>
-                      )}
-                      {r.status === 'approved' && (
-                        <Button size="sm" variant="outline" className="h-9" onClick={() => setConfirmPaidRun(r)}>
-                          Manually Paid
-                        </Button>
-                      )}
-                      <Button size="sm" variant="ghost" className="h-9 ml-auto" onClick={() => exportRun(r)}>
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      {r.status === 'approved' && (
-                        <Button size="sm" variant="ghost" className="h-9" onClick={() => exportBankFile(r)} title="Download bank payment file">
-                          <Banknote className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button size="sm" variant="ghost" className="h-9" onClick={() => printRun(r)}>
-                        <FileText className="h-4 w-4" />
-                      </Button>
-                    </MobileCardFooter>
-                  </MobileCard>
-                  </div>
-                );
-              })}
-            </div>
-            </>
-          )}
-        </div>
-      </div>
-
+          <PayrollRunsTab
+            runs={runs}
+            loading={loading}
+            latest={latest}
+            trend={trend}
+            salaryErrors={salaryErrors}
+            advanceQueue={advanceQueue}
+            advanceBusy={advanceBusy}
+            bannerDismissed={bannerDismissed}
+            highlightedRunId={highlightedRunId}
+            working={working}
+            canApprovePerm={canApprovePerm}
+            canDisburse={canDisburse}
+            canGeneratePayslipsPerm={canGeneratePayslipsPerm}
+            runRefs={runRefs}
+            monthLabel={monthLabel}
+            setBannerDismissed={setBannerDismissed}
+            setDialog={setDialog}
+            submit={submit}
+            deleteDraft={deleteDraft}
+            approve={approve}
+            recallToDraft={recallToDraft}
+            generatePayslips={generatePayslips}
+            openDisburse={openDisburse}
+            setConfirmPaidRun={setConfirmPaidRun}
+            openAdjustments={openAdjustments}
+            exportRun={exportRun}
+            exportBankFile={exportBankFile}
+            printRun={printRun}
+            actOnAdvance={actOnAdvance}
+            isSelfApprovalBlocked={isSelfApprovalBlocked}
+          />
         </TabsContent>
 
         <TabsContent value="calendar" className="mt-6">
@@ -2597,547 +2089,60 @@ const Payroll = () => {
         </TabsContent>
 
         <TabsContent value="annual" className="mt-6 space-y-6">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <h2 className="text-lg font-semibold">Payroll Summary — {summaryYear}</h2>
-            <div className="flex gap-2">
-              {availableYears.map((y) => (
-                <Button
-                  key={y}
-                  size="sm"
-                  variant={y === summaryYear ? 'default' : 'outline'}
-                  onClick={() => setSummaryYear(y)}
-                >
-                  {y}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {annualSummary.totals.burn > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Month-by-month breakdown</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={annualSummary.byMonth} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                    <ChartGradients />
-                    <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
-                    <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
-                    <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-                    <ChartTooltip
-                      content={<GlassTooltip />}
-                      formatter={(v: number) => formatNaira(v)}
-                      cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
-                    />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-                    <Bar dataKey="gross" fill="url(#kd-grad-primary)" name="Gross salary" stackId="a" radius={[0, 0, 0, 0]} {...chartAnim} />
-                    <Bar dataKey="contractors" fill={chartTheme.secondary} name="Contractors" stackId="a" radius={[4, 4, 0, 0]} {...chartAnim} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Month</TableHead>
-                      <TableHead className="text-right">Headcount</TableHead>
-                      <TableHead className="text-right">Gross salary</TableHead>
-                      <TableHead className="text-right">PAYE</TableHead>
-                      <TableHead className="text-right">Pension</TableHead>
-                      <TableHead className="text-right">NHF</TableHead>
-                      <TableHead className="text-right">Contractors</TableHead>
-                      <TableHead className="text-right">Total burn</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {annualSummary.byMonth.map((m) => (
-                      <TableRow key={m.label} className={m.status === 'none' ? 'opacity-40' : ''}>
-                        <TableCell className="font-medium">{m.label}</TableCell>
-                        <TableCell className="text-right tabular-nums">{m.headcount || '—'}</TableCell>
-                        <TableCell className="text-right tabular-nums currency">{m.gross > 0 ? formatNaira(m.gross) : '—'}</TableCell>
-                        <TableCell className="text-right tabular-nums currency">{m.paye > 0 ? formatNaira(m.paye) : '—'}</TableCell>
-                        <TableCell className="text-right tabular-nums currency">{m.pension > 0 ? formatNaira(m.pension) : '—'}</TableCell>
-                        <TableCell className="text-right tabular-nums currency">{m.nhf > 0 ? formatNaira(m.nhf) : '—'}</TableCell>
-                        <TableCell className="text-right tabular-nums currency">{m.contractors > 0 ? formatNaira(m.contractors) : '—'}</TableCell>
-                        <TableCell className="text-right tabular-nums currency font-semibold">{m.burn > 0 ? formatNaira(m.burn) : '—'}</TableCell>
-                        <TableCell className="text-center">
-                          {m.status === 'paid' && <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[10px]">Paid</Badge>}
-                          {m.status === 'pending' && <Badge variant="outline" className="text-[10px]">Pending</Badge>}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow className="font-bold border-t-2 bg-muted/30">
-                      <TableCell>Total ({summaryYear})</TableCell>
-                      <TableCell className="text-right">—</TableCell>
-                      <TableCell className="text-right tabular-nums currency">{formatNaira(annualSummary.totals.gross)}</TableCell>
-                      <TableCell className="text-right tabular-nums currency">{formatNaira(annualSummary.totals.paye)}</TableCell>
-                      <TableCell className="text-right tabular-nums currency">{formatNaira(annualSummary.totals.pension)}</TableCell>
-                      <TableCell className="text-right tabular-nums currency">{formatNaira(annualSummary.totals.nhf)}</TableCell>
-                      <TableCell className="text-right tabular-nums currency">{formatNaira(annualSummary.totals.contractors)}</TableCell>
-                      <TableCell className="text-right tabular-nums currency">{formatNaira(annualSummary.totals.burn)}</TableCell>
-                      <TableCell />
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+          <AnnualSummaryTab
+            summaryYear={summaryYear}
+            setSummaryYear={setSummaryYear}
+            availableYears={availableYears}
+            annualSummary={annualSummary}
+          />
         </TabsContent>
       </Tabs>
 
-      <ResponsiveDialog
-        open={dialog}
-        onOpenChange={setDialog}
-        title="Draft payroll"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={draftRun} disabled={working}>
-              {working && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Draft
-            </Button>
-          </>
-        }
-      >
-          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Period</Label>
-                <Input
-                  type="month"
-                  value={form.period}
-                  onChange={(e) => setForm({ ...form, period: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Period type</Label>
-                <Select
-                  value={form.period_type}
-                  onValueChange={(v) => setForm({ ...form, period_type: v as any })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="quarterly">Quarterly</SelectItem>
-                    <SelectItem value="annual">Annual</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <Label className="flex items-center gap-1.5">
-                  Payroll segment
-                  <InfoHint>Run payroll for a subset of staff instead of everyone — e.g. exclude directors or domestic staff, or run for just one Pay Group. Leave as "All employees" for the default, unfiltered run. A segment can filter by payroll category, department, or Pay Group (set up in Payroll → Schedules → Pay Groups).</InfoHint>
-                </Label>
-                <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSegmentDialog(true)}>
-                  Manage
-                </Button>
-              </div>
-              <Select
-                value={form.payroll_segment_id || '__all__'}
-                onValueChange={(v) => setForm({ ...form, payroll_segment_id: v === '__all__' ? '' : v })}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All employees (no filter)</SelectItem>
-                  {segments.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {form.payroll_segment_id && (
-                <p className="text-xs text-muted-foreground">
-                  {segments.find((s) => s.id === form.payroll_segment_id)?.description || 'Only employees matching this segment will be included.'}
-                </p>
-              )}
-            </div>
-
-            <PayrollRosterPreview payrollSegmentId={form.payroll_segment_id} />
-
-            <div className="space-y-2">
-              <Label>Bonuses &amp; Extras</Label>
-              {form.bonuses.map((b, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <Select value={b.type} onValueChange={(v) => updateBonus(i, 'type', v)}>
-                    <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {BONUS_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="number"
-                    className="w-36"
-                    min={0}
-                    placeholder="₦ Amount"
-                    value={b.amount || ''}
-                    onChange={(e) => updateBonus(i, 'amount', Math.max(0, Number(e.target.value) || 0))}
-                  />
-                  <Button size="icon" variant="ghost" aria-label="Remove bonus" onClick={() => removeBonus(i)}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button size="sm" variant="outline" onClick={addBonus}>
-                <Plus className="mr-1 h-3.5 w-3.5" /> Add bonus
-              </Button>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Allowances</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Housing (% of basic)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    placeholder="0"
-                    value={form.housing_allowance_pct || ''}
-                    onChange={(e) => setForm({ ...form, housing_allowance_pct: Number(e.target.value) || 0 })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Transport / employee (₦)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="0"
-                    value={form.transport_per_emp || ''}
-                    onChange={(e) => setForm({ ...form, transport_per_emp: Number(e.target.value) || 0 })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Meal subsidy / employee (₦)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="0"
-                    value={form.meal_per_emp || ''}
-                    onChange={(e) => setForm({ ...form, meal_per_emp: Number(e.target.value) || 0 })}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              KDOps will pull approved expenses and processed payment batches for
-              this period and estimate PAYE / Pension / NHF. Bonuses and allowances
-              are added on top and included in the total burn.
-            </p>
-          </div>
-      </ResponsiveDialog>
-
-      {/* Manage payroll segments — reusable run filters (by category, department, or Pay Group) */}
-      <ResponsiveDialog
-        open={segmentDialog}
-        onOpenChange={setSegmentDialog}
-        size="lg"
-        title="Manage payroll segments"
-        footer={<Button variant="outline" onClick={() => setSegmentDialog(false)}>Done</Button>}
-      >
-          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-            {segments.length > 0 && (
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Existing segments</Label>
-                {segments.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{s.name}</p>
-                      {s.description && <p className="text-xs text-muted-foreground truncate">{s.description}</p>}
-                    </div>
-                    {s.name !== 'All Staff' && (
-                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => deleteSegment(s.id, s.name)} aria-label={`Remove ${s.name}`}>
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="space-y-3 border-t pt-4">
-              <Label className="text-xs text-muted-foreground">New segment</Label>
-              <div className="space-y-1">
-                <Label className="text-xs">Name</Label>
-                <Input
-                  placeholder="e.g. Staff (excl. Directors)"
-                  value={segmentForm.name}
-                  onChange={(e) => setSegmentForm({ ...segmentForm, name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Description (optional)</Label>
-                <Input
-                  placeholder="Shown as a hint when this segment is selected"
-                  value={segmentForm.description}
-                  onChange={(e) => setSegmentForm({ ...segmentForm, description: e.target.value })}
-                />
-              </div>
-              {segmentPayGroups.length > 0 && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Only include these Pay Groups</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {segmentPayGroups.map((g) => (
-                      <Badge
-                        key={g.id}
-                        variant={segmentForm.include_pay_group_ids.includes(g.id) ? 'default' : 'outline'}
-                        className="cursor-pointer kd-transition"
-                        onClick={() => toggleSegmentPayGroup(g.id)}
-                      >
-                        {g.name}
-                      </Badge>
-                    ))}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Leave empty to not filter by Pay Group. Pick one or more to run payroll for just those groups — assign employees to a Pay Group from Payroll → Schedules → Pay Groups.
-                  </p>
-                </div>
-              )}
-              <div className="space-y-1.5">
-                <Label className="text-xs">Exclude payroll categories</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(PAYROLL_CATEGORY_LABELS).map(([value, label]) => (
-                    <Badge
-                      key={value}
-                      variant={segmentForm.exclude_employee_categories.includes(value) ? 'default' : 'outline'}
-                      className="cursor-pointer kd-transition"
-                      onClick={() => toggleSegmentCategory(value)}
-                    >
-                      {label}
-                    </Badge>
-                  ))}
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Employees are tagged with a payroll category on their profile page. Uncategorized employees are never excluded by this filter.
-                </p>
-              </div>
-              {segmentDepartments.length > 0 && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Exclude departments</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {segmentDepartments.map((d) => (
-                      <Badge
-                        key={d.id}
-                        variant={segmentForm.exclude_department_ids.includes(d.id) ? 'default' : 'outline'}
-                        className="cursor-pointer kd-transition"
-                        onClick={() => toggleSegmentDepartment(d.id)}
-                      >
-                        {d.name}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <Label className="text-xs">Who this matches right now</Label>
-                <PayrollRosterPreview rulesOverride={segmentLiveRules} defaultExpanded />
-              </div>
-
-              <Button size="sm" onClick={saveSegment} disabled={segmentSaving || !segmentForm.name.trim()}>
-                {segmentSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                <Plus className="mr-1 h-3.5 w-3.5" /> Create segment
-              </Button>
-            </div>
-          </div>
-      </ResponsiveDialog>
-
-      {/* Per-employee payslip adjustments for a run */}
-      <ResponsiveDialog
-        open={!!adjustRun}
-        onOpenChange={(open) => { if (!open) setAdjustRun(null); }}
-        size="2xl"
-        title={`Payslip adjustments${adjustRun ? ` · ${monthLabel(adjustRun.period)}` : ''}`}
-        footer={<Button variant="outline" onClick={() => setAdjustRun(null)}>Done</Button>}
-      >
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Add a one-off bonus, overtime, allowance or deduction for a specific employee.
-              Earnings increase pay (taxable ones also raise PAYE); deductions reduce it.
-              <span className="font-medium text-foreground"> Re-generate payslips for this run after editing</span> to apply changes.
-            </p>
-
-            {/* Add form */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border p-3">
-              <div className="space-y-1 sm:col-span-2">
-                <Label>Employee</Label>
-                <Select value={adjustForm.employee_id || undefined} onValueChange={(v) => setAdjustForm((f) => ({ ...f, employee_id: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select an employee" /></SelectTrigger>
-                  <SelectContent>
-                    {adjustEmployees.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Type</Label>
-                <Select value={adjustForm.kind} onValueChange={(v) => setAdjustForm((f) => ({ ...f, kind: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bonus">Bonus</SelectItem>
-                    <SelectItem value="overtime">Overtime</SelectItem>
-                    <SelectItem value="allowance">Allowance</SelectItem>
-                    <SelectItem value="deduction">Deduction</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Amount (₦)</Label>
-                <Input
-                  type="number" min="0" inputMode="numeric"
-                  value={adjustForm.amount}
-                  onChange={(e) => setAdjustForm((f) => ({ ...f, amount: e.target.value }))}
-                  placeholder="0"
-                />
-              </div>
-              <div className="space-y-1 sm:col-span-2">
-                <Label>Description</Label>
-                <Input
-                  value={adjustForm.description}
-                  onChange={(e) => setAdjustForm((f) => ({ ...f, description: e.target.value }))}
-                  placeholder="e.g. Performance bonus, Q2"
-                />
-              </div>
-              {adjustForm.kind !== 'deduction' && (
-                <label className="sm:col-span-2 flex items-center gap-2 text-sm text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={adjustForm.taxable}
-                    onChange={(e) => setAdjustForm((f) => ({ ...f, taxable: e.target.checked }))}
-                  />
-                  Taxable (adds to PAYE base)
-                </label>
-              )}
-              <div className="sm:col-span-2 flex justify-end">
-                <Button size="sm" onClick={addAdjustment} disabled={adjustSaving}>
-                  {adjustSaving ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Plus className="mr-1 h-3.5 w-3.5" />}
-                  Add adjustment
-                </Button>
-              </div>
-            </div>
-
-            {/* Existing list */}
-            {adjustLoading ? (
-              <div className="py-6 flex items-center justify-center">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              </div>
-            ) : adjustList.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-2">No adjustments for this run yet.</p>
-            ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {adjustList.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between gap-2 border rounded-lg p-2.5 text-sm">
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">
-                        {adjustEmployees.find((e) => e.id === a.employee_id)?.name || a.employee_id}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        <span className="capitalize">{a.kind}</span>
-                        {a.kind !== 'deduction' && !a.taxable ? ' · non-taxable' : ''} · {a.description}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={cn('tabular-nums font-semibold', a.kind === 'deduction' ? 'text-destructive' : 'text-success')}>
-                        {a.kind === 'deduction' ? '−' : '+'}{formatNaira(Number(a.amount_ngn))}
-                      </span>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeAdjustment(a.id)} aria-label="Remove adjustment">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-      </ResponsiveDialog>
-
-      <ResponsiveDialog
-        open={!!disburseTarget}
-        onOpenChange={(open) => { if (!open && !disbursing) { setDisburseTarget(null); setDisburseErrors([]); } }}
-        title="Confirm salary disbursement"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => { setDisburseTarget(null); setDisburseErrors([]); }}
-              disabled={disbursing}
-            >
-              Cancel
-            </Button>
-            <Button onClick={doDisburse} disabled={disbursing}>
-              {disbursing
-                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                : <Send className="mr-2 h-4 w-4" />}
-              Disburse
-            </Button>
-          </>
-        }
-      >
-          {disburseTarget && (
-            <div className="space-y-4">
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Period</span>
-                  <span className="font-medium">{monthLabel(disburseTarget.run.period)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Employees</span>
-                  <span className="font-medium">{disburseTarget.payslips.length}</span>
-                </div>
-                <div className="flex justify-between text-sm font-semibold">
-                  <span>Total disbursement</span>
-                  <span className="currency text-success">
-                    {formatNaira(disburseTarget.payslips.reduce((s, p) => s + Number(p.net_ngn || 0), 0))}
-                  </span>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                KDOps will create a Paystack transfer for each employee's net salary using the
-                bank details on their profile. Status updates arrive via the Paystack webhook.
-              </p>
-              {disburseErrors.length > 0 && (
-                <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 space-y-1">
-                  <p className="text-xs font-semibold text-destructive flex items-center gap-1">
-                    <AlertCircle className="h-3.5 w-3.5" /> {disburseErrors.length} employee{disburseErrors.length === 1 ? '' : 's'} could not be processed
-                  </p>
-                  <ul className="list-disc pl-4 space-y-0.5">
-                    {disburseErrors.map((e, i) => (
-                      <li key={i} className="text-xs text-destructive">{e}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-      </ResponsiveDialog>
-
-      <ResponsiveDialog
-        open={!!confirmPaidRun}
-        onOpenChange={(open) => { if (!open) setConfirmPaidRun(null); }}
-        title="Confirm manual payment record"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setConfirmPaidRun(null)}>Cancel</Button>
-            <Button onClick={markPaid}>Confirm — Record as Paid</Button>
-          </>
-        }
-      >
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            ⚠️ This records that salaries for {confirmPaidRun ? monthLabel(confirmPaidRun.period) : ''} were paid via your bank or another method. No automatic transfer will be made by KDOps. Only confirm if you have already transferred salaries manually.
-          </p>
-      </ResponsiveDialog>
+      <PayrollDialogs
+        dialog={dialog}
+        setDialog={setDialog}
+        working={working}
+        draftRun={draftRun}
+        form={form}
+        setForm={setForm}
+        segments={segments}
+        addBonus={addBonus}
+        removeBonus={removeBonus}
+        updateBonus={updateBonus}
+        segmentDialog={segmentDialog}
+        setSegmentDialog={setSegmentDialog}
+        segmentForm={segmentForm}
+        setSegmentForm={setSegmentForm}
+        segmentSaving={segmentSaving}
+        segmentDepartments={segmentDepartments}
+        segmentPayGroups={segmentPayGroups}
+        segmentLiveRules={segmentLiveRules}
+        saveSegment={saveSegment}
+        deleteSegment={deleteSegment}
+        toggleSegmentCategory={toggleSegmentCategory}
+        toggleSegmentDepartment={toggleSegmentDepartment}
+        toggleSegmentPayGroup={toggleSegmentPayGroup}
+        adjustRun={adjustRun}
+        setAdjustRun={setAdjustRun}
+        adjustList={adjustList}
+        adjustEmployees={adjustEmployees}
+        adjustLoading={adjustLoading}
+        adjustSaving={adjustSaving}
+        adjustForm={adjustForm}
+        setAdjustForm={setAdjustForm}
+        addAdjustment={addAdjustment}
+        removeAdjustment={removeAdjustment}
+        disburseTarget={disburseTarget}
+        setDisburseTarget={setDisburseTarget}
+        disbursing={disbursing}
+        disburseErrors={disburseErrors}
+        setDisburseErrors={setDisburseErrors}
+        doDisburse={doDisburse}
+        confirmPaidRun={confirmPaidRun}
+        setConfirmPaidRun={setConfirmPaidRun}
+        markPaid={markPaid}
+        monthLabel={monthLabel}
+      />
 
       <p className="text-xs text-muted-foreground">
         Generated {formatDate(new Date())} · KDOps
