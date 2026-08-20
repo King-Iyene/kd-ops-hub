@@ -264,8 +264,18 @@ export default function Assistant() {
       });
 
       if (error) {
-        const body = await (error as any)?.context?.json?.().catch(() => null);
-        throw new Error(body?.error ?? error.message);
+        let msg = error.message;
+        try {
+          const ctx = (error as any)?.context;
+          if (ctx && typeof ctx.text === 'function') {
+            const raw = await ctx.text();
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              msg = parsed.error || parsed.message || msg;
+            }
+          }
+        } catch { /* use original message */ }
+        throw new Error(msg);
       }
       if (data?.error) throw new Error(data.error);
 

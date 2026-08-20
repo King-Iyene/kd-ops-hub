@@ -21,6 +21,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { constantTimeEquals } from "../_shared/timing.ts";
 
 // ─── Mustache-lite renderer (mirrors src/lib/email-templates.ts) ────────────
 const HTML_ESCAPE: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -84,7 +85,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization") ?? "";
     const bearer = authHeader.replace("Bearer ", "");
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const isServiceRole = bearer && bearer === SERVICE_ROLE;
+    const isServiceRole = bearer && constantTimeEquals(bearer, SERVICE_ROLE);
     let user: { id: string } | null = null;
     if (!isServiceRole) {
       const supabase = createClient(
@@ -234,6 +235,7 @@ Deno.serve(async (req) => {
           html,
           text: renderedText,
         }),
+        signal: AbortSignal.timeout(30_000),
       });
       const rawText = await res.text();
       let data: any;
@@ -287,6 +289,7 @@ Deno.serve(async (req) => {
       const res = await fetch("https://api.ng.termii.com/api/sms/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(30_000),
         body: JSON.stringify({
           api_key: termiiKey,
           to,
@@ -356,6 +359,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ from, to: [to], subject, html }),
+      signal: AbortSignal.timeout(30_000),
     });
 
     let data: any;

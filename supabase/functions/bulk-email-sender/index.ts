@@ -23,6 +23,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { constantTimeEquals } from "../_shared/timing.ts";
 
 const HTML_ESCAPE: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => HTML_ESCAPE[c]);
@@ -79,7 +80,7 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization") ?? "";
     const bearer = authHeader.replace("Bearer ", "");
-    const isServiceRole = bearer === SERVICE_ROLE;
+    const isServiceRole = constantTimeEquals(bearer, SERVICE_ROLE);
 
     let actorId: string | null = null;
     if (!isServiceRole) {
@@ -189,6 +190,7 @@ Deno.serve(async (req) => {
             method: "POST",
             headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
             body: JSON.stringify({ from: fromEmail, to: [r.email], subject: renderedSubject, html, text: renderedText }),
+            signal: AbortSignal.timeout(30_000),
           });
           const body = await res.json().catch(() => ({} as any));
           if (res.ok) {

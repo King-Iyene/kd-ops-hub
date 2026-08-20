@@ -9,6 +9,7 @@ import {
   Briefcase, MapPin, Clock, Users, ArrowRight, ExternalLink, Sparkles,
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { safeHref } from '@/lib/safe-href';
 
 // Public /careers page — no auth guard. Reads job_openings.status='published'.
 //
@@ -128,7 +129,7 @@ const Careers = () => {
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {company.website_url && (
             <a
-              href={company.website_url}
+              href={safeHref(company.website_url)}
               target="_blank"
               rel="noreferrer"
               className="hover:text-foreground inline-flex items-center gap-1"
@@ -138,7 +139,7 @@ const Careers = () => {
           )}
           {company.linkedin_url && (
             <a
-              href={company.linkedin_url}
+              href={safeHref(company.linkedin_url)}
               target="_blank"
               rel="noreferrer"
               className="hover:text-foreground inline-flex items-center gap-1"

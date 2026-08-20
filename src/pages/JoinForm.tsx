@@ -25,6 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { BankCombobox } from '@/components/BankCombobox';
 import { useToast } from '@/hooks/use-toast';
 import { BrandLogo } from '@/components/BrandLogo';
+import { safeHref } from '@/lib/safe-href';
 
 const LINKEDIN_RE = /^https?:\/\/(www\.)?linkedin\.com\/in\/.+/;
 
@@ -474,7 +475,7 @@ const JoinForm = () => {
               <div className="flex justify-center gap-5">
                 {socialLinks.website_url && (
                   <a
-                    href={socialLinks.website_url}
+                    href={safeHref(socialLinks.website_url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Website"
@@ -485,7 +486,7 @@ const JoinForm = () => {
                 )}
                 {socialLinks.linkedin_url && (
                   <a
-                    href={socialLinks.linkedin_url}
+                    href={safeHref(socialLinks.linkedin_url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="LinkedIn"
@@ -496,7 +497,7 @@ const JoinForm = () => {
                 )}
                 {socialLinks.instagram_url && (
                   <a
-                    href={socialLinks.instagram_url}
+                    href={safeHref(socialLinks.instagram_url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Instagram"
@@ -507,7 +508,7 @@ const JoinForm = () => {
                 )}
                 {socialLinks.facebook_url && (
                   <a
-                    href={socialLinks.facebook_url}
+                    href={safeHref(socialLinks.facebook_url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Facebook"
@@ -518,7 +519,7 @@ const JoinForm = () => {
                 )}
                 {socialLinks.twitter_url && (
                   <a
-                    href={socialLinks.twitter_url}
+                    href={safeHref(socialLinks.twitter_url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Twitter / X"

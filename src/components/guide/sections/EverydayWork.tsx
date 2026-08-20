@@ -10,10 +10,10 @@ export function EverydayWorkSection() {
       <SectionIntro
         icon={CalendarCheck2}
         title="Everyday Work"
-        blurb="These are the modules you'll open more or less every working day, no matter what your role is — clocking in, managing your tasks, requesting leave, logging hours, finding files, talking to colleagues, and asking the AI assistant a question instead of hunting through a policy document. Everything below is available to every role; a couple of features inside them are restricted, and those are called out inline."
+        blurb="Modules you'll use regularly — managing your tasks, requesting leave, logging hours, finding files, talking to colleagues, and asking the AI assistant a question instead of hunting through a policy document. Most are available to every role; a few (Attendance admin, Timesheets, Documents) are restricted to managers — those access requirements are noted on each card."
       />
 
-      <ModuleCard title="Clocking In & Attendance" route="/attendance" roles={['everyone']}>
+      <ModuleCard title="Clocking In & Attendance" route="/attendance" roles={['super_admin', 'admin', 'finance', 'operations']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Attendance is a simple clock-in / clock-out pair, done once per shift. When you clock in and when you clock out, KDOps
           captures your location as a single map pin at that moment — it is <strong>not</strong> continuous location tracking, it
@@ -96,7 +96,7 @@ export function EverydayWorkSection() {
         </p>
       </ModuleCard>
 
-      <ModuleCard title="Timesheets" route="/timesheets" roles={['everyone']}>
+      <ModuleCard title="Timesheets" route="/timesheets" roles={['super_admin', 'admin', 'finance', 'operations']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Timesheets is where you log hours worked, typically on a weekly basis. If any of your work is billable to a client
           project, split your logged hours between billable and non-billable so client billing reflects only chargeable time.
@@ -105,7 +105,7 @@ export function EverydayWorkSection() {
         </p>
       </ModuleCard>
 
-      <ModuleCard title="Documents" route="/documents" roles={['everyone']}>
+      <ModuleCard title="Documents" route="/documents" roles={['super_admin', 'admin', 'finance']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Documents is the shared file library for the whole company — organized into folders you can color-code for quick
           scanning, with drag-and-drop upload and a bulk-upload mode that shows a progress bar as multiple files go up at once.
@@ -127,7 +127,7 @@ export function EverydayWorkSection() {
         />
       </ModuleCard>
 
-      <ModuleCard title="Communications & Messages" route="/communications · /messages" roles={['everyone']}>
+      <ModuleCard title="Communications & Messages" route="/communications · /messages" roles={['super_admin', 'admin', 'finance']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
           These are two different tools that sound similar. <strong>Messages</strong> is for day-to-day conversation — 1:1 direct
           messages and group chats, available to everyone, the same way you'd message a colleague on any chat app. <strong>

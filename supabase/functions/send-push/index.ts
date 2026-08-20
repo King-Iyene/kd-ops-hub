@@ -196,8 +196,14 @@ Deno.serve(async (req) => {
 
     // Filter by user-level category preference. If a user has muted
     // 'transfers' in their prefs, skip them for transfer pushes.
+    const VALID_CATEGORIES = new Set(["approvals","transfers","anomalies","schedules","announcements"]);
     let targetUserIds = payload.user_ids;
     if (payload.category) {
+      if (!VALID_CATEGORIES.has(payload.category)) {
+        return new Response(JSON.stringify({ error: "Invalid category" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const { data: prefs } = await service
         .from("push_preferences")
         .select(`user_id, ${payload.category}`)

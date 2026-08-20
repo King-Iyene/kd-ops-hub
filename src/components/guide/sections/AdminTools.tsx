@@ -62,11 +62,13 @@ export function AdminToolsSection() {
         </Callout>
       </ModuleCard>
 
-      <ModuleCard title="Settings" route="/settings" roles={['super_admin']}>
+      <ModuleCard title="Settings" route="/settings" roles={['super_admin', 'admin']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
           The central configuration page for the entire platform — company identity, integrations, security
-          policies, and notification behavior. Changes here affect every user immediately, so this page is
-          restricted to super admins only.
+          policies, and notification behavior. Admins can access tabs like Company, Expense Policy, Leave,
+          Exchange Rates, Notifications, Departments, Email Templates, and Tags. Tabs that affect platform
+          security or third-party integrations — Integrations, Security, Transfer Authorization, and Data
+          Retention — are restricted to super admins only.
         </p>
         <StepList
           steps={[
@@ -155,6 +157,47 @@ export function AdminToolsSection() {
           confirming a bank transfer, because that is exactly what it is. Every disbursement, whether single,
           batch, or recurring, is recorded in the audit trail with the initiator, amount, recipient, timestamp,
           and Paystack reference.
+        </Callout>
+      </ModuleCard>
+
+      <ModuleCard title="Finance Dashboard" route="/finance" roles={['super_admin']}>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          A real-time financial overview of the company's operational spending — total payroll cost, outstanding
+          expenses, payment volumes, and budget utilisation across departments. The dashboard aggregates data
+          from Payments, Expenses, Payroll, and Budgets into one view so the super admin can spot trends
+          (e.g. a department consistently over budget) without opening each module individually.
+        </p>
+        <StepList
+          steps={[
+            'Open Finance from the sidebar — the top-line cards show totals for the current month: payroll disbursed, expenses approved, payments processed, and budget remaining.',
+            'Use the date-range picker to compare periods — month-over-month or year-over-year trends highlight whether costs are growing or stabilising.',
+            'Click into any card to drill down to the underlying records — e.g. clicking the Expenses total opens the Expenses list filtered to that period.',
+          ]}
+        />
+        <Callout tone="tip">
+          The Finance Dashboard is read-only — it doesn't create or approve anything. Use it for the "big picture"
+          before diving into individual modules for action.
+        </Callout>
+      </ModuleCard>
+
+      <ModuleCard title="Assistant Admin" route="/assistant/admin" roles={['super_admin']}>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          The admin panel for the AI Assistant — configure which AI models the chatbot uses, manage the backend
+          provider (Groq for text, Gemini for vision), review conversation analytics (messages per day, top
+          questions, average response time), and moderate the Knowledge Base articles that the Assistant draws
+          its answers from. Changes here affect how the Assistant responds for every user in the company.
+        </p>
+        <StepList
+          steps={[
+            'Open Assistant Admin from the sidebar (under the Assistant menu) to see the current model configuration and usage statistics.',
+            'Review the conversation analytics — daily message volume, most-asked topics, and average response quality help you decide whether to expand the Knowledge Base.',
+            'Update model settings if needed — choose the primary text model and vision model, and adjust parameters like temperature or max tokens.',
+            'Manage the Knowledge Base integration — toggle which article categories the Assistant searches, and review which articles are cited most frequently.',
+          ]}
+        />
+        <Callout tone="warn">
+          Model changes take effect immediately for all users. If you switch to a different model provider,
+          test it with a few questions first — different models may handle your Knowledge Base content differently.
         </Callout>
       </ModuleCard>
     </div>

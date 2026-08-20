@@ -303,10 +303,10 @@ Deno.serve(async (req) => {
     try {
       data = JSON.parse(rawText);
     } catch {
+      console.error("[extract-receipt] Document AI non-JSON:", rawText.slice(0, 500));
       return json({
         ok: false,
-        error: `Document AI returned non-JSON (HTTP ${res.status})`,
-        raw: rawText.slice(0, 500),
+        error: "Receipt processing failed. Please try again.",
       });
     }
 

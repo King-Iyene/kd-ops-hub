@@ -19,6 +19,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { constantTimeEquals } from "../_shared/timing.ts";
 
 // Termii's own rate guidance is generous, but we throttle gently to stay
 // well clear of any account-level burst limit — matches bulk-email-sender's
@@ -42,7 +43,7 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization") ?? "";
     const bearer = authHeader.replace("Bearer ", "");
-    const isServiceRole = bearer === SERVICE_ROLE;
+    const isServiceRole = constantTimeEquals(bearer, SERVICE_ROLE);
 
     let actorId: string | null = null;
     if (!isServiceRole) {
@@ -123,6 +124,7 @@ Deno.serve(async (req) => {
           const res = await fetch("https://api.ng.termii.com/api/sms/send", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            signal: AbortSignal.timeout(30_000),
             body: JSON.stringify({
               api_key: TERMII_API_KEY,
               to: r.to_address,

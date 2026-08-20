@@ -245,6 +245,11 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    if (body.message && body.message.length > 4000) {
+      return new Response(JSON.stringify({ error: "Message is too long. Please keep it under 4,000 characters." }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Load profile + role
     const { data: profile } = await adminClient
@@ -491,10 +496,32 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     const rawMsg = (err as Error).message ?? "Unknown error";
-    console.error("chatbot-chat error:", rawMsg.slice(0, 120).replace(/sk-[a-zA-Z0-9_-]+/g, "sk-***"));
+    const safeMsg = rawMsg.replace(/sk-[a-zA-Z0-9_-]+/g, "sk-***")
+                          .replace(/AIza[a-zA-Z0-9_-]+/g, "AIza***");
+    console.error("chatbot-chat error:", safeMsg.slice(0, 200));
+
+    let userError = "Something went wrong. Please try again.";
+    let status = 500;
+
+    if (/not configured|API.?key/i.test(rawMsg)) {
+      userError = "The AI service is not configured. Please contact your administrator.";
+      status = 503;
+    } else if (/rate.?limit|429|too many/i.test(rawMsg)) {
+      userError = "The AI service is temporarily busy. Please wait a moment and try again.";
+      status = 429;
+    } else if (/empty response/i.test(rawMsg)) {
+      userError = "The AI returned an empty response. Please try rephrasing your question.";
+    } else if (/timed? ?out|abort|timeout/i.test(rawMsg)) {
+      userError = "The request timed out. Please try a shorter message or try again later.";
+      status = 504;
+    } else if (/Groq [45]\d\d|Gemini [45]\d\d|fetch failed/i.test(rawMsg)) {
+      userError = "The AI service is temporarily unavailable. Please try again in a few minutes.";
+      status = 503;
+    }
+
     return new Response(
-      JSON.stringify({ error: "Something went wrong. Please try again." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      JSON.stringify({ error: userError }),
+      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });
