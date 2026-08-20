@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Building2,
   Link as LinkIcon,
@@ -6,13 +6,9 @@ import {
   Bell,
   Loader2,
   Save,
-  Plus,
-  Trash2,
   CreditCard,
   ArrowRightLeft,
-  Upload,
   Network,
-  Pencil,
   Tags,
   Info,
   AlertTriangle,
@@ -22,33 +18,22 @@ import {
   ImageIcon,
   Clock,
   Wallet,
-  Users,
-  Lock,
-  ShieldAlert,
-  Download,
-  Eye,
-  EyeOff,
-  Fuel,
   CalendarDays,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { confirm } from '@/hooks/use-confirm';
-import { compressImage, isImageCompressionEnabled, setImageCompressionEnabled } from '@/lib/image-compression';
+import { isImageCompressionEnabled, setImageCompressionEnabled } from '@/lib/image-compression';
 import JSZip from 'jszip';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { validateFile } from '@/lib/file-validation';
-import { formatNaira, setTimezoneCache } from '@/lib/format';
-import { exportExpensePolicyPdf } from '@/lib/policy-pdf';
+import { setTimezoneCache } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { InfoTip } from '@/components/ui-kit/InfoTip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -65,19 +50,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { EXPENSE_CATEGORY_KEYS, expenseCategoryLabel } from '@/lib/expense-categories';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import TransferAuthSettings from '@/components/settings/TransferAuthSettings';
 import EmailTemplatesSettings from '@/components/settings/EmailTemplatesSettings';
-import { NotificationsCard } from '@/components/settings/NotificationsCard';
-import { PaymentEmailAudienceCard } from '@/components/settings/PaymentEmailAudienceCard';
-import { PaymentRailsCard } from '@/components/settings/PaymentRailsCard';
 import FxRateSettings from '@/components/settings/FxRateSettings';
 import LeaveSettings from '@/components/settings/LeaveSettings';
-import OfferLetterTemplatesAdmin from '@/components/hr/OfferLetterTemplatesAdmin';
+import CompanyTab from '@/components/settings/CompanyTab';
+import IntegrationsTab from '@/components/settings/IntegrationsTab';
+import ExpensePolicyTab from '@/components/settings/ExpensePolicyTab';
+import NotificationPrefsTab from '@/components/settings/NotificationPrefsTab';
+import SecurityTab from '@/components/settings/SecurityTab';
 
 const SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -115,14 +99,7 @@ interface CompanySettings {
   smtp_from_address: string | null;
   session_timeout_minutes: number;
   audit_log_retention_days: number;
-  /** Platform-wide policy: when TRUE every user must enrol TOTP MFA.
-   *  Toggle visible to super_admin only in Settings → Security. */
   mfa_required_for_all_users: boolean;
-  /** When TRUE, approve/reject on payment batches and expenses requires a
-   *  fresh password + TOTP re-verification (step-up) immediately before the
-   *  action. Off by default — a super_admin opts in once approvers have
-   *  enrolled TOTP, since enabling it for someone without TOTP blocks them
-   *  from approving anything until they enrol. */
   approval_step_up_required: boolean;
   fuel_weekly_budgets: Record<string, number>;
   website_url: string | null;
@@ -131,19 +108,13 @@ interface CompanySettings {
   facebook_url: string | null;
   twitter_url: string | null;
   timezone: string;
-  // Statutory filing identifiers — used by the Compliance filing pack
-  // exporters (LIRS/FIRS/PenCom/NHF/NSITF/ITF). Optional; when blank the
-  // export header prints "(missing — set in Settings)".
   state_of_business: string | null;
   pencom_employer_code: string | null;
   nhf_employer_code: string | null;
   nsitf_employer_code: string | null;
   itf_employer_code: string | null;
-  // Cap on unused annual leave days that roll over into the next year.
   leave_carryover_max_days: number;
 }
-
-const EXPENSE_CATEGORIES = EXPENSE_CATEGORY_KEYS;
 
 const NOTIF_EVENTS = [
   { key: 'email_approvals', label: 'Approval requests assigned to me' },
@@ -162,18 +133,10 @@ const SettingsPage = () => {
   const [saving, setSaving] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [settings, setSettings] = useState<CompanySettings | null>(null);
-  // Notification preferences are per-user, not company-wide.
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
   const [digest, setDigest] = useState<'immediate' | 'hourly' | 'daily' | 'never'>('immediate');
 
-  // How many approvers (super_admin/admin/operations) have TOTP enrolled —
-  // shown next to the step-up toggle so a super_admin doesn't flip it on
-  // blind and lock out anyone who hasn't set up 2FA yet.
   const [approverMfaStatus, setApproverMfaStatus] = useState<{ total: number; enrolled: number } | null>(null);
-
-  // Expense category limits — controls for the "add a new limit" row
-  const [newLimitCategory, setNewLimitCategory] = useState<string>('');
-  const [newLimitAmount, setNewLimitAmount] = useState<string>('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -210,7 +173,6 @@ const SettingsPage = () => {
       setNotifPrefs(prefs);
       setDigest(d.digest_frequency || 'immediate');
     } else {
-      // default on
       const prefs: Record<string, boolean> = {};
       for (const e of NOTIF_EVENTS) prefs[e.key] = e.key !== 'email_fleet';
       setNotifPrefs(prefs);
@@ -276,7 +238,6 @@ const SettingsPage = () => {
         facebook_url: settings.facebook_url || null,
         twitter_url: settings.twitter_url || null,
         timezone: settings.timezone || 'Africa/Lagos',
-        // Statutory filing identifiers (Compliance → filing pack)
         state_of_business: settings.state_of_business?.trim() || null,
         pencom_employer_code: settings.pencom_employer_code?.trim() || null,
         nhf_employer_code: settings.nhf_employer_code?.trim() || null,
@@ -319,16 +280,12 @@ const SettingsPage = () => {
   const uploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !settings) return;
-    // 5 MB cap is plenty for a company logo — and stops people uploading
-    // 50 MB raw camera shots into branded PDFs.
     if (!validateFile(file, toast, 5)) {
       e.target.value = '';
       return;
     }
+    const { compressImage } = await import('@/lib/image-compression');
     const compressed = await compressImage(file);
-    // Public "branding" bucket → getPublicUrl is permanent (no expiry), so the
-    // logo keeps rendering on payslips/receipts indefinitely. (The old path used
-    // the private documents bucket + a 1-year signed URL that silently expired.)
     const path = `company-logo-${Date.now()}-${compressed.name.replace(/[^a-z0-9.]+/gi, '_')}`;
     const { error } = await supabase.storage
       .from('branding')
@@ -396,788 +353,22 @@ const SettingsPage = () => {
         </TabsList>
         <div className="md:min-w-0">
 
+
         {/* COMPANY ------------------------------------------------------- */}
         <TabsContent value="company" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Company profile</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="company_name">Company name</Label>
-                  <Input
-                    id="company_name"
-                    value={settings.company_name || ''}
-                    onChange={(e) => patch({ company_name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="rc_number">RC number</Label>
-                  <Input
-                    id="rc_number"
-                    value={settings.rc_number || ''}
-                    onChange={(e) => patch({ rc_number: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="company_tin">TIN</Label>
-                  <Input
-                    id="company_tin"
-                    value={settings.tin || ''}
-                    onChange={(e) => patch({ tin: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="company_website">Website</Label>
-                  <Input
-                    id="company_website"
-                    value={settings.website || ''}
-                    onChange={(e) => patch({ website: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="registered_address">Registered address</Label>
-                <Textarea
-                  id="registered_address"
-                  value={settings.address || ''}
-                  onChange={(e) => patch({ address: e.target.value })}
-                  rows={2}
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="fiscal_year_preset">Fiscal year</Label>
-                  <Select
-                    value={settings.fiscal_year_preset}
-                    onValueChange={(v) => patch({ fiscal_year_preset: v as any })}
-                  >
-                    <SelectTrigger id="fiscal_year_preset">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="jan_dec">January – December</SelectItem>
-                      <SelectItem value="apr_mar">April – March</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="platform_timezone">Platform timezone <InfoTip text="All dates and times across the platform — audit logs, transactions, approvals — display in this timezone. Default: Africa/Lagos (WAT, UTC+1)." /></Label>
-                  <Select
-                    value={settings.timezone || 'Africa/Lagos'}
-                    onValueChange={(v) => patch({ timezone: v })}
-                  >
-                    <SelectTrigger id="platform_timezone">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Africa/Lagos">Africa/Lagos — WAT (UTC+1) 🇳🇬</SelectItem>
-                      <SelectItem value="UTC">UTC — Coordinated Universal Time (UTC+0)</SelectItem>
-                      <SelectItem value="Africa/Accra">Africa/Accra — GMT (UTC+0) 🇬🇭</SelectItem>
-                      <SelectItem value="Africa/Nairobi">Africa/Nairobi — EAT (UTC+3) 🇰🇪</SelectItem>
-                      <SelectItem value="Africa/Johannesburg">Africa/Johannesburg — SAST (UTC+2) 🇿🇦</SelectItem>
-                      <SelectItem value="Africa/Cairo">Africa/Cairo — EET (UTC+2) 🇪🇬</SelectItem>
-                      <SelectItem value="Europe/London">Europe/London — GMT/BST (UTC+0/+1) 🇬🇧</SelectItem>
-                      <SelectItem value="Europe/Paris">Europe/Paris — CET/CEST (UTC+1/+2) 🇪🇺</SelectItem>
-                      <SelectItem value="America/New_York">America/New_York — EST/EDT (UTC-5/-4) 🇺🇸</SelectItem>
-                      <SelectItem value="Asia/Dubai">Asia/Dubai — GST (UTC+4) 🇦🇪</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="cash_on_hand_ngn">Cash on hand (₦)</Label>
-                  <Input
-                    id="cash_on_hand_ngn"
-                    type="number"
-                    min="0"
-                    value={settings.cash_on_hand_ngn || 0}
-                    onChange={(e) =>
-                      patch({
-                        cash_on_hand_ngn: Number(e.target.value) || 0,
-                        cash_updated_at: new Date().toISOString(),
-                      })
-                    }
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {settings.cash_updated_at ? (
-                      <>
-                        Last updated {new Date(settings.cash_updated_at).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })}.
-                        {(() => {
-                          const days = Math.floor((Date.now() - new Date(settings.cash_updated_at).getTime()) / 86400000);
-                          if (days >= 7) return <span className="text-warning ml-1">⚠ Stale ({days}d) — update from your bank app.</span>;
-                          return null;
-                        })()}
-                      </>
-                    ) : (
-                      <span className="text-warning">Never updated. Open your bank app and enter the current balance.</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {/* ── Runway tracking ─────────────────────────────────────── */}
-              <div className="rounded-lg border border-border/60 bg-muted/30 p-4 space-y-3">
-                <div className="flex items-start gap-2">
-                  <Activity className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold">Runway tracking</p>
-                    <p className="text-xs text-muted-foreground">
-                      Powers the Financial Health score on the dashboard. Update weekly for accuracy.
-                      Off-platform expenses (rent, utilities, contractors paid outside KDOps) won't be
-                      captured automatically — set the monthly estimate below so runway stays honest.
-                    </p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="external_monthly_burn_ngn">External monthly burn (₦)</Label>
-                    <Input
-                      id="external_monthly_burn_ngn"
-                      type="number"
-                      min="0"
-                      value={settings.external_monthly_burn_ngn || 0}
-                      onChange={(e) =>
-                        patch({ external_monthly_burn_ngn: Number(e.target.value) || 0 })
-                      }
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Recurring monthly spend that doesn't flow through KDOps.
-                      Added to in-platform burn for runway calculations.
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="monthly_revenue_estimate_ngn">Monthly revenue estimate (₦)</Label>
-                    <Input
-                      id="monthly_revenue_estimate_ngn"
-                      type="number"
-                      min="0"
-                      value={settings.monthly_revenue_estimate_ngn || 0}
-                      onChange={(e) =>
-                        patch({ monthly_revenue_estimate_ngn: Number(e.target.value) || 0 })
-                      }
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Optional. Reduces effective burn for more honest runway. Leave 0 if volatile.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <Separator />
-              <div className="space-y-1">
-                <Label>Company logo</Label>
-                <div className="flex items-center gap-3">
-                  {settings.logo_url ? (
-                    <img
-                      src={settings.logo_url}
-                      alt="Company logo"
-                      className="h-14 w-14 rounded-lg object-contain border"
-                    />
-                  ) : (
-                    <div className="h-14 w-14 rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground">
-                      No logo
-                    </div>
-                  )}
-                  <label className="cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={uploadLogo}
-                    />
-                    <Button variant="outline" asChild>
-                      <span><Upload className="mr-2 h-4 w-4" /> Upload logo</span>
-                    </Button>
-                  </label>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Used on branded exports (payslips, receipts, PDFs).
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Statutory filing identifiers — printed on the LIRS / FIRS /
-              PenCom / NHF / NSITF / ITF filing pack exports on the
-              Compliance page. All optional; the pack still generates when
-              blank, just prints "(missing — set in Settings)" in the header. */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Statutory filing identifiers</CardTitle>
-              <p className="text-xs text-muted-foreground pt-1">
-                Employer codes printed on statutory return schedules
-                downloaded from the Compliance page. TIN and RC number are
-                shared with the Company profile above.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="state_of_business">Default state of business</Label>
-                  <Select
-                    value={settings.state_of_business || '__none__'}
-                    onValueChange={(v) =>
-                      patch({ state_of_business: v === '__none__' ? null : v })
-                    }
-                  >
-                    <SelectTrigger id="state_of_business">
-                      <SelectValue placeholder="Select state…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">— Not set —</SelectItem>
-                      {[
-                        'Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Benue','Borno',
-                        'Cross River','Delta','Ebonyi','Edo','Ekiti','Enugu','FCT - Abuja','Gombe',
-                        'Imo','Jigawa','Kaduna','Kano','Katsina','Kebbi','Kogi','Kwara','Lagos',
-                        'Nasarawa','Niger','Ogun','Ondo','Osun','Oyo','Plateau','Rivers','Sokoto',
-                        'Taraba','Yobe','Zamfara',
-                      ].map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[10px] text-muted-foreground">
-                    Used when an employee has no explicit state of residence.
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="pencom_employer_code">PenCom employer code</Label>
-                  <Input
-                    id="pencom_employer_code"
-                    value={settings.pencom_employer_code || ''}
-                    onChange={(e) => patch({ pencom_employer_code: e.target.value })}
-                    placeholder="Prints on PSSP schedule"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="nhf_employer_code">NHF employer code</Label>
-                  <Input
-                    id="nhf_employer_code"
-                    value={settings.nhf_employer_code || ''}
-                    onChange={(e) => patch({ nhf_employer_code: e.target.value })}
-                    placeholder="FMBN-issued"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="nsitf_employer_code">NSITF employer code</Label>
-                  <Input
-                    id="nsitf_employer_code"
-                    value={settings.nsitf_employer_code || ''}
-                    onChange={(e) => patch({ nsitf_employer_code: e.target.value })}
-                    placeholder="NSITF ECS registration"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="itf_employer_code">ITF employer code</Label>
-                  <Input
-                    id="itf_employer_code"
-                    value={settings.itf_employer_code || ''}
-                    onChange={(e) => patch({ itf_employer_code: e.target.value })}
-                    placeholder="ITF annual return"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <OfferLetterTemplatesAdmin />
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Social media</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="website_url">Website URL</Label>
-                  <Input
-                    id="website_url"
-                    value={settings.website_url || ''}
-                    onChange={(e) => patch({ website_url: e.target.value })}
-                    placeholder="https://kdsquares.com"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="linkedin_url">LinkedIn URL</Label>
-                  <Input
-                    id="linkedin_url"
-                    value={settings.linkedin_url || ''}
-                    onChange={(e) => patch({ linkedin_url: e.target.value })}
-                    placeholder="https://linkedin.com/company/..."
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="instagram_url">Instagram URL</Label>
-                  <Input
-                    id="instagram_url"
-                    value={settings.instagram_url || ''}
-                    onChange={(e) => patch({ instagram_url: e.target.value })}
-                    placeholder="https://instagram.com/..."
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="facebook_url">Facebook URL</Label>
-                  <Input
-                    id="facebook_url"
-                    value={settings.facebook_url || ''}
-                    onChange={(e) => patch({ facebook_url: e.target.value })}
-                    placeholder="https://facebook.com/..."
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="twitter_url">Twitter / X URL</Label>
-                  <Input
-                    id="twitter_url"
-                    value={settings.twitter_url || ''}
-                    onChange={(e) => patch({ twitter_url: e.target.value })}
-                    placeholder="https://x.com/..."
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                These URLs appear on the contractor application form so applicants can follow your company.
-              </p>
-            </CardContent>
-          </Card>
+          <CompanyTab settings={settings} patch={patch} uploadLogo={uploadLogo} />
         </TabsContent>
 
         {/* INTEGRATIONS (super_admin only) --------------------------------- */}
         {profile?.role === 'super_admin' && (
         <TabsContent value="integrations" className="mt-4 space-y-4">
-          {/* Payment Rails: super_admin-only toggle between Paystack and
-              Flutterwave, with preflight + typed confirmation + audit trail. */}
-          <PaymentRailsCard isSuperAdmin={profile?.role === 'super_admin'} />
-          <Card id="paystack" className="scroll-mt-20">
-            <CardHeader>
-              <CardTitle className="text-base">Paystack</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-1">
-                <label className="flex items-center gap-3">
-                  <Switch
-                    checked={!!(settings as any).paystack_secret_configured}
-                    onCheckedChange={(v) => patch({ paystack_secret_configured: v } as any)}
-                  />
-                  <span className="text-sm">Secret key configured</span>
-                </label>
-                <p className="text-[11px] text-muted-foreground">
-                  The secret key itself lives only in Supabase's edge function environment variables
-                  (<code className="text-[11px] bg-muted px-1 py-0.5 rounded">PAYSTACK_SECRET_KEY_LIVE</code> /{' '}
-                  <code className="text-[11px] bg-muted px-1 py-0.5 rounded">_TEST</code>) — it is never stored in
-                  the database or sent to the browser. Set or rotate it via <code className="text-[11px] bg-muted px-1 py-0.5 rounded">supabase secrets set</code>,
-                  then flip this toggle so the team can see at a glance that it's set up.
-                </p>
-              </div>
-              <Separator />
-              <p className="text-xs font-medium text-muted-foreground pt-1">Paystack funding details</p>
-              <p className="text-xs text-muted-foreground -mt-1">
-                Shown on the Payments page so your team can fund the Paystack balance via bank transfer.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="paystack_funding_bank">Bank name</Label>
-                  <Input
-                    id="paystack_funding_bank"
-                    value={settings.paystack_funding_bank || ''}
-                    onChange={(e) => patch({ paystack_funding_bank: e.target.value })}
-                    placeholder="e.g. GTBank"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="paystack_funding_account_name">Account name</Label>
-                  <Input
-                    id="paystack_funding_account_name"
-                    value={settings.paystack_funding_account_name || ''}
-                    onChange={(e) => patch({ paystack_funding_account_name: e.target.value })}
-                    placeholder="e.g. Paystack Payments"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="paystack_funding_account_number">Account number</Label>
-                  <Input
-                    id="paystack_funding_account_number"
-                    value={settings.paystack_funding_account_number || ''}
-                    onChange={(e) => patch({ paystack_funding_account_number: e.target.value })}
-                    placeholder="e.g. 0123456789"
-                  />
-                </div>
-              </div>
-              <div className="rounded-md border bg-primary/5 p-3 text-xs text-muted-foreground">
-                The secret key here is a fallback — edge functions prefer the
-                <strong> PAYSTACK_SECRET_KEY</strong> environment variable set
-                in Supabase/Vercel.
-              </div>
-            </CardContent>
-          </Card>
-
-          <NotificationsCard />
-
-          <PaymentEmailAudienceCard />
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Airtable</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-start gap-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-3 py-2.5 text-xs text-blue-800 dark:text-blue-300">
-                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <p>Airtable sync is not yet active. Configuration saved here is for future use. No data is currently being synced to or from Airtable.</p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="airtable_base_id">Base ID</Label>
-                  <Input
-                    id="airtable_base_id"
-                    value={settings.airtable_base_id || ''}
-                    onChange={(e) => patch({ airtable_base_id: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="airtable_income_table_id">Income table ID</Label>
-                  <Input
-                    id="airtable_income_table_id"
-                    value={settings.airtable_income_table_id || ''}
-                    onChange={(e) =>
-                      patch({ airtable_income_table_id: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="airtable_expenses_table_id">Expenses table ID</Label>
-                  <Input
-                    id="airtable_expenses_table_id"
-                    value={settings.airtable_expenses_table_id || ''}
-                    onChange={(e) =>
-                      patch({ airtable_expenses_table_id: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="space-y-1 flex items-end">
-                  <label className="flex items-center gap-3">
-                    <Switch
-                      checked={settings.airtable_sync_enabled}
-                      onCheckedChange={(v) =>
-                        patch({ airtable_sync_enabled: v })
-                      }
-                    />
-                    <span className="text-sm">Sync enabled</span>
-                  </label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">SMTP (email)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-start gap-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-3 py-2.5 text-xs text-blue-800 dark:text-blue-300">
-                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <p>Email delivery is handled via Resend API. SMTP settings are reserved for future use and are not currently active. Do not store credentials here expecting them to work.</p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="smtp_host">Host</Label>
-                  <Input
-                    id="smtp_host"
-                    value={settings.smtp_host || ''}
-                    onChange={(e) => patch({ smtp_host: e.target.value })}
-                    placeholder="smtp.sendgrid.net"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="smtp_port">Port</Label>
-                  <Input
-                    id="smtp_port"
-                    type="number"
-                    value={settings.smtp_port || ''}
-                    onChange={(e) =>
-                      patch({ smtp_port: Number(e.target.value) || null })
-                    }
-                    placeholder="587"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="smtp_username">Username</Label>
-                  <Input
-                    id="smtp_username"
-                    value={settings.smtp_username || ''}
-                    onChange={(e) => patch({ smtp_username: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="smtp_from_address">From address</Label>
-                  <Input
-                    id="smtp_from_address"
-                    value={settings.smtp_from_address || ''}
-                    onChange={(e) =>
-                      patch({ smtp_from_address: e.target.value })
-                    }
-                    placeholder="ops@kdsquares.com"
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Password is provided via env vars and never displayed here.
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Resend (email delivery)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="resend_from_address">From address</Label>
-                  <Input
-                    id="resend_from_address"
-                    value={(settings as any).resend_from_address || ''}
-                    onChange={(e) => patch({ resend_from_address: e.target.value } as any)}
-                    placeholder="ops@kdsquares.com"
-                  />
-                </div>
-                <div className="space-y-1 flex items-end">
-                  <label className="flex items-center gap-3">
-                    <Switch
-                      checked={!!(settings as any).resend_api_key_configured}
-                      onCheckedChange={(v) => patch({ resend_api_key_configured: v } as any)}
-                    />
-                    <span className="text-sm">API key configured</span>
-                  </label>
-                </div>
-              </div>
-              <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-                Set <code>RESEND_API_KEY</code> in Supabase secrets. KDOps sends
-                branded HTML emails for batch approvals, payslip delivery,
-                compliance reminders and rejection notices.
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Termii (WhatsApp &amp; SMS)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300">
-                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <p>SMS and WhatsApp delivery via Termii is not yet active in KDOps. Configuration saved here will be used when this integration is enabled. No messages are currently being sent via Termii.</p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="termii_sender_id">Sender ID</Label>
-                  <Input
-                    id="termii_sender_id"
-                    value={(settings as any).termii_sender_id || ''}
-                    onChange={(e) => patch({ termii_sender_id: e.target.value } as any)}
-                    placeholder="KDOps"
-                  />
-                </div>
-                <div className="space-y-1 flex items-end">
-                  <label className="flex items-center gap-3">
-                    <Switch
-                      checked={!!(settings as any).termii_api_key_configured}
-                      onCheckedChange={(v) => patch({ termii_api_key_configured: v } as any)}
-                    />
-                    <span className="text-sm">API key configured</span>
-                  </label>
-                </div>
-                <div className="space-y-1 flex items-end">
-                  <label className="flex items-center gap-3">
-                    <Switch
-                      checked={!!(settings as any).whatsapp_enabled}
-                      onCheckedChange={(v) => patch({ whatsapp_enabled: v } as any)}
-                    />
-                    <span className="text-sm">WhatsApp notifications</span>
-                  </label>
-                </div>
-                <div className="space-y-1 flex items-end">
-                  <label className="flex items-center gap-3">
-                    <Switch
-                      checked={!!(settings as any).sms_enabled}
-                      onCheckedChange={(v) => patch({ sms_enabled: v } as any)}
-                    />
-                    <span className="text-sm">SMS notifications</span>
-                  </label>
-                </div>
-              </div>
-              <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-                Set <code>TERMII_API_KEY</code> in Supabase secrets. KDOps sends
-                WhatsApp batch-approved alerts to Finance, SMS payment
-                confirmations, and compliance deadline reminders. Nigeria's
-                98% WhatsApp open rate makes this the primary notification
-                channel.
-              </div>
-            </CardContent>
-          </Card>
+          <IntegrationsTab settings={settings as any} patch={patch as any} isSuperAdmin={profile?.role === 'super_admin'} />
         </TabsContent>
         )}
 
         {/* POLICY -------------------------------------------------------- */}
         <TabsContent value="policy" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
-              <div>
-                <CardTitle className="text-base">Expense category limits</CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Per-category caps on what staff can submit. Categories without a
-                  limit set are unrestricted. Submissions above the cap warn the
-                  submitter at entry; the claim is still routed for approval but
-                  flagged.
-                </p>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => exportExpensePolicyPdf({
-                  companyName: settings.company_name || 'KD Squares',
-                  logoUrl: settings.logo_url,
-                  expenseLimits: settings.expense_limits || {},
-                  dualApprovalThresholdNgn: Number(settings.dual_approval_threshold_ngn || 0),
-                  generatedBy: profile?.full_name || profile?.email || undefined,
-                })}
-                className="shrink-0"
-              >
-                <Download className="h-3.5 w-3.5 mr-1.5" /> Export policy PDF
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {/* ── Existing limits ─────────────────────────────────── */}
-              {Object.entries(settings.expense_limits || {}).filter(([, amt]) => amt > 0).length === 0 ? (
-                <p className="text-sm text-muted-foreground italic py-2">
-                  No category limits set yet. All expense categories are unrestricted.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {Object.entries(settings.expense_limits || {})
-                    .filter(([, amt]) => amt > 0)
-                    .sort(([a], [b]) => expenseCategoryLabel(a).localeCompare(expenseCategoryLabel(b)))
-                    .map(([cat, amount]) => (
-                      <div
-                        key={cat}
-                        className="flex items-center gap-3 border rounded-md p-2 bg-muted/20"
-                      >
-                        <span className="flex-1 text-sm font-medium">
-                          {expenseCategoryLabel(cat)}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-muted-foreground">₦</span>
-                          <Input
-                            type="number"
-                            min="0"
-                            className="w-32 h-8 text-right"
-                            value={amount}
-                            onChange={(e) =>
-                              patch({
-                                expense_limits: {
-                                  ...settings.expense_limits,
-                                  [cat]: Number(e.target.value) || 0,
-                                },
-                              })
-                            }
-                          />
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const next = { ...settings.expense_limits };
-                            delete next[cat];
-                            patch({ expense_limits: next });
-                          }}
-                          title="Remove limit"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    ))}
-                </div>
-              )}
-
-              {/* ── Add new limit ───────────────────────────────────── */}
-              {(() => {
-                // Categories that don't already have a limit set
-                const available = EXPENSE_CATEGORIES.filter(
-                  (c) => !((settings.expense_limits || {})[c] > 0),
-                );
-                if (available.length === 0) {
-                  return (
-                    <p className="text-xs text-muted-foreground pt-2 border-t">
-                      All expense categories have limits set.
-                    </p>
-                  );
-                }
-                return (
-                  <div className="flex items-end gap-2 pt-3 border-t">
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <Label htmlFor="new_limit_category" className="text-xs text-muted-foreground">Add a category limit</Label>
-                      <Select value={newLimitCategory} onValueChange={setNewLimitCategory}>
-                        <SelectTrigger id="new_limit_category" className="h-9">
-                          <SelectValue placeholder="Choose category…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {available.map((c) => (
-                            <SelectItem key={c} value={c}>
-                              {expenseCategoryLabel(c)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="new_limit_amount" className="text-xs text-muted-foreground">Amount (₦)</Label>
-                      <Input
-                        id="new_limit_amount"
-                        type="number"
-                        min="0"
-                        className="w-36 h-9"
-                        value={newLimitAmount}
-                        onChange={(e) => setNewLimitAmount(e.target.value)}
-                        placeholder="e.g. 50000"
-                      />
-                    </div>
-                    <Button
-                      size="sm"
-                      className="h-9"
-                      disabled={!newLimitCategory || !newLimitAmount || Number(newLimitAmount) <= 0}
-                      onClick={() => {
-                        patch({
-                          expense_limits: {
-                            ...settings.expense_limits,
-                            [newLimitCategory]: Number(newLimitAmount),
-                          },
-                        });
-                        setNewLimitCategory('');
-                        setNewLimitAmount('');
-                      }}
-                    >
-                      <Plus className="h-4 w-4 mr-1" /> Add
-                    </Button>
-                  </div>
-                );
-              })()}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Fuel budgets</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Fuel budgets are managed per-vehicle in the{' '}
-                <a href="/fleet" className="text-primary underline">Fleet page</a> —
-                each vehicle has a weekly budget, with carry-forward and per-vehicle
-                approval limits enforced when drivers submit fuel requests.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Per-department budgets used to live here but were not enforced anywhere.
-                That UI has been removed to avoid a setting that does nothing.
-              </p>
-            </CardContent>
-          </Card>
+          <ExpensePolicyTab settings={settings as any} patch={patch as any} profileName={profile?.full_name || profile?.email || undefined} />
         </TabsContent>
 
         {/* EXCHANGE RATE -------------------------------------------------- */}
@@ -1192,49 +383,13 @@ const SettingsPage = () => {
 
         {/* NOTIFICATIONS ------------------------------------------------- */}
         <TabsContent value="notifications" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Email preferences</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {NOTIF_EVENTS.map((e) => (
-                <label
-                  key={e.key}
-                  className="flex items-center justify-between border-b last:border-0 py-2"
-                >
-                  <span className="text-sm">{e.label}</span>
-                  <Switch
-                    checked={!!notifPrefs[e.key]}
-                    onCheckedChange={(v) =>
-                      setNotifPrefs((prev) => ({ ...prev, [e.key]: v }))
-                    }
-                  />
-                </label>
-              ))}
-              <div className="space-y-1 pt-3">
-                <Label htmlFor="digest_frequency">Digest frequency</Label>
-                <Select
-                  value={digest}
-                  onValueChange={(v) => setDigest(v as any)}
-                >
-                  <SelectTrigger id="digest_frequency">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="immediate">Immediate</SelectItem>
-                    <SelectItem value="hourly">Hourly digest</SelectItem>
-                    <SelectItem value="daily">Daily digest (8am)</SelectItem>
-                    <SelectItem value="never">Never (in-app only)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="pt-2">
-                <Button variant="outline" onClick={saveNotifPrefs}>
-                  <Save className="mr-2 h-4 w-4" /> Save my preferences
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <NotificationPrefsTab
+            notifPrefs={notifPrefs}
+            setNotifPrefs={setNotifPrefs}
+            digest={digest}
+            setDigest={setDigest}
+            saveNotifPrefs={saveNotifPrefs}
+          />
         </TabsContent>
 
         {/* TRANSFER AUTHORIZATION (super admin only) -------------------- */}
@@ -1243,20 +398,20 @@ const SettingsPage = () => {
             <TransferAuthSettings />
           ) : (
             <Card>
-              <CardContent className="py-6 text-sm text-muted-foreground">
+              <CardContent className="py-8 text-center text-muted-foreground">
                 Transfer Authorization is only visible to Super Admins.
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
-        {/* EMAIL TEMPLATES (super admin only) --------------------------- */}
+        {/* EMAIL TEMPLATES (super admin only) ----------------------------- */}
         <TabsContent value="email_templates" className="mt-4 space-y-4">
           {profile?.role === 'super_admin' ? (
             <EmailTemplatesSettings />
           ) : (
             <Card>
-              <CardContent className="py-6 text-sm text-muted-foreground">
+              <CardContent className="py-8 text-center text-muted-foreground">
                 Email Templates is only visible to Super Admins.
               </CardContent>
             </Card>
@@ -1266,258 +421,13 @@ const SettingsPage = () => {
         {/* SECURITY (super_admin only) ------------------------------------- */}
         {profile?.role === 'super_admin' && (
         <TabsContent value="security" className="mt-4 space-y-4">
-          {/* Platform-wide 2FA policy. Toggle is super_admin only —
-              admins shouldn't be able to relax their own 2FA
-              requirement. When enabled, an MfaRequiredBanner shows
-              non-dismissibly to every user without an enrolled
-              factor, pointing them at /profile to set it up. */}
-          {profile?.role === 'super_admin' && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                  Two-factor authentication policy
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <label className="flex items-start gap-3 cursor-pointer select-none">
-                  <Switch
-                    checked={!!settings.mfa_required_for_all_users}
-                    onCheckedChange={(v) => patch({ mfa_required_for_all_users: v })}
-                    className="mt-0.5"
-                  />
-                  <div className="space-y-0.5 min-w-0">
-                    <p className="text-sm font-medium">Require 2FA for all users</p>
-                    <p className="text-[12px] text-muted-foreground leading-snug">
-                      When ON, every signed-in user without an enrolled authenticator factor sees a
-                      non-dismissible banner pointing them to <span className="font-mono">/profile</span> to set up 2FA.
-                      Users can still navigate the app while they enrol — once they enable an authenticator,
-                      the banner disappears. Switch OFF to keep 2FA optional.
-                    </p>
-                  </div>
-                </label>
-              </CardContent>
-            </Card>
-          )}
-
-          {profile?.role === 'super_admin' && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                  Re-verification for approvals
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <label className="flex items-start gap-3 cursor-pointer select-none">
-                  <Switch
-                    checked={!!settings.approval_step_up_required}
-                    onCheckedChange={(v) => patch({ approval_step_up_required: v })}
-                    className="mt-0.5"
-                  />
-                  <div className="space-y-0.5 min-w-0">
-                    <p className="text-sm font-medium">Require password + 2FA re-verification to approve or reject</p>
-                    <p className="text-[12px] text-muted-foreground leading-snug">
-                      When ON, approving/rejecting a payment batch or expense prompts for a fresh
-                      password and authenticator code immediately before the action — on top of
-                      normal sign-in. Off by default; a stolen session alone isn't enough to move
-                      money once this is on.
-                    </p>
-                  </div>
-                </label>
-                {approverMfaStatus && (
-                  approverMfaStatus.enrolled < approverMfaStatus.total ? (
-                    <p className="text-[12px] flex items-start gap-1.5 text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-md px-2.5 py-1.5">
-                      <ShieldAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                      Only {approverMfaStatus.enrolled} of {approverMfaStatus.total} approvers
-                      (admin/operations/super_admin) have 2FA enrolled. Turning this on blocks the
-                      rest from approving anything until they set it up in Profile → Security.
-                    </p>
-                  ) : (
-                    <p className="text-[12px] flex items-start gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded-md px-2.5 py-1.5">
-                      <ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                      All {approverMfaStatus.total} approvers have 2FA enrolled — safe to turn on.
-                    </p>
-                  )
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Session + audit</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="session_timeout_minutes">Session timeout (minutes) <InfoTip text="Users are automatically signed out after this period of inactivity. Default: 120 minutes." /></Label>
-                  <Input
-                    id="session_timeout_minutes"
-                    type="number"
-                    min="1"
-                    value={settings.session_timeout_minutes}
-                    onChange={(e) =>
-                      patch({
-                        session_timeout_minutes: Number(e.target.value) || 120,
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="audit_log_retention_days">Audit log retention (days)</Label>
-                  <Input
-                    id="audit_log_retention_days"
-                    type="number"
-                    min="1"
-                    value={settings.audit_log_retention_days}
-                    onChange={(e) =>
-                      patch({
-                        audit_log_retention_days: Number(e.target.value) || 365,
-                      })
-                    }
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Audit log is append-only at the database layer regardless of this
-                retention. Retention controls automatic export + archive.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Leave</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-1 max-w-xs">
-                <Label htmlFor="leave_carryover_max_days">Carry-over cap (days) <InfoTip text="Maximum unused annual leave days an employee can roll over into the next year. Applied automatically by the monthly leave accrual job each January." /></Label>
-                <Input
-                  id="leave_carryover_max_days"
-                  type="number"
-                  min="0"
-                  value={settings.leave_carryover_max_days}
-                  onChange={(e) =>
-                    patch({
-                      leave_carryover_max_days: Number(e.target.value) || 0,
-                    })
-                  }
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <LeaveQuotasPanel />
-
-          <FailedLoginPanel />
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Lock className="h-4 w-4 text-primary" />
-                Module access by role
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground mb-3">
-                Access is enforced at both the route level (UI) and the database layer (RLS policies).
-                Roles not listed for a module are blocked on both layers — they cannot see the page
-                or read/write any data even via direct API calls.
-              </p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left pb-2 pr-4 font-medium text-muted-foreground w-44">Module</th>
-                      {(['super_admin','admin','finance','operations','field_staff / driver'] as const).map(r => (
-                        <th key={r} className="text-center pb-2 px-2 font-medium text-muted-foreground capitalize">{r.replace('_',' ')}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/40">
-                    {[
-                      { module: 'Dashboard',             sa: true,  ad: true,  fi: true,  op: true,  fs: true  },
-                      { module: 'Payments (batches)',    sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Expenses',              sa: true,  ad: true,  fi: true,  op: true,  fs: true  },
-                      { module: 'Payroll / Payslips',    sa: true,  ad: true,  fi: true,  op: false, fs: false },
-                      { module: 'Budgets',               sa: true,  ad: true,  fi: true,  op: false, fs: false },
-                      { module: 'Fleet',                 sa: true,  ad: true,  fi: true,  op: true,  fs: true  },
-                      { module: 'Contractors',           sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Employees (HR)',        sa: true,  ad: true,  fi: false, op: false, fs: false },
-                      { module: 'Leave',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Performance Reviews',   sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Training Records',      sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Benefits',              sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Onboarding',            sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Recruitment',           sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Attendance',            sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Disciplinary',          sa: true,  ad: true,  fi: false, op: false, fs: false },
-                      { module: 'Vendors',               sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Clients / CRM',         sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Invoices',              sa: true,  ad: true,  fi: true,  op: false, fs: false },
-                      { module: 'Assets',                sa: true,  ad: true,  fi: true,  op: false, fs: false },
-                      { module: 'Projects',              sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Tasks',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Goals',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Documents',             sa: true,  ad: true,  fi: true,  op: false, fs: false },
-                      { module: 'Audit Log',             sa: true,  ad: true,  fi: false, op: false, fs: false },
-                      { module: 'Settings',              sa: true,  ad: true,  fi: false, op: false, fs: false },
-                    ].map(({ module, sa, ad, fi, op, fs }) => (
-                      <tr key={module} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-1.5 pr-4 font-medium">{module}</td>
-                        {[sa, ad, fi, op, fs].map((allowed, i) => (
-                          <td key={i} className="py-1.5 px-2 text-center">
-                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${allowed ? 'bg-emerald-100 text-emerald-700' : 'bg-red-50 text-red-400'}`}>
-                              {allowed ? '✓' : '✕'}
-                            </span>
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-3 border-t pt-2">
-                Role changes are applied by editing the employee's profile in the <strong>Employees</strong> page.
-                Changes take effect on the employee's next page load (no restart required).
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-2">
-                <strong>Operations scope:</strong> within <em>Payments</em>, <em>Transactions</em> and contractor
-                profiles, Operations sees <strong>only contractor batches</strong> (no Quick Pay, no salary runs, no
-                advances, no bonuses, no expense pay-outs). Archived batches are hidden for all roles except
-                super_admin / admin. These rules are enforced at the database (RLS) — they hold even against
-                direct API calls.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Data export</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Export all company data as a CSV archive — useful for backups and
-                supplier changeovers.
-              </p>
-              <Button
-                variant="outline"
-                disabled={exportLoading}
-                onClick={async () => {
-                  setExportLoading(true);
-                  await logAudit('report_exported', 'Full company data export requested', profile);
-                  toast({
-                    title: 'Export queued',
-                    description: 'Your export will arrive via email within 15 minutes.',
-                  });
-                  setExportLoading(false);
-                }}
-              >
-                Request full CSV export
-              </Button>
-            </CardContent>
-          </Card>
+          <SecurityTab
+            settings={settings as any}
+            patch={patch as any}
+            approverMfaStatus={approverMfaStatus}
+            exportLoading={exportLoading}
+            setExportLoading={setExportLoading}
+          />
         </TabsContent>
         )}
 
@@ -1546,285 +456,6 @@ const SettingsPage = () => {
 };
 
 export default SettingsPage;
-
-// ---------------------------------------------------------------------------
-// Failed Login panel — Security tab
-// ---------------------------------------------------------------------------
-
-interface FailedLogin {
-  id: string;
-  email: string;
-  ip_hash: string | null;
-  reason: string | null;
-  attempted_at: string;
-}
-
-interface LeavePolicyRow {
-  id: string;
-  code: string;
-  name: string;
-  default_days: number;
-  accrual_type: string;
-  paid: boolean;
-  active: boolean;
-  is_system: boolean;
-}
-
-function LeaveQuotasPanel() {
-  const [policies, setPolicies] = useState<LeavePolicyRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string | null>(null);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    supabase
-      .from('leave_policies')
-      .select('id, code, name, default_days, accrual_type, paid, active, is_system')
-      .order('name')
-      .then(({ data }) => {
-        setPolicies(data ?? []);
-        setLoading(false);
-      });
-  }, []);
-
-  async function updateDays(id: string, days: number) {
-    setSaving(id);
-    const { error } = await supabase
-      .from('leave_policies')
-      .update({ default_days: days })
-      .eq('id', id);
-    setSaving(null);
-    if (error) {
-      toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
-    } else {
-      setPolicies((prev) => prev.map((p) => (p.id === id ? { ...p, default_days: days } : p)));
-      toast({ title: 'Leave quota updated' });
-    }
-  }
-
-  async function toggleActive(id: string, active: boolean) {
-    const { error } = await supabase
-      .from('leave_policies')
-      .update({ active })
-      .eq('id', id);
-    if (error) {
-      toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
-    } else {
-      setPolicies((prev) => prev.map((p) => (p.id === id ? { ...p, active } : p)));
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Leave Quotas</CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Set the default annual entitlement for each leave type. Changes apply to all employees.
-        </p>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-        ) : (
-          <div className="space-y-3">
-            {policies.map((p) => (
-              <div
-                key={p.id}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg border px-3 py-2.5',
-                  !p.active && 'opacity-50',
-                )}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{p.name}</span>
-                    {p.paid && (
-                      <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">Paid</span>
-                    )}
-                    {!p.paid && p.accrual_type === 'unpaid' && (
-                      <span className="text-[10px] font-medium text-slate-500 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded">Unpaid</span>
-                    )}
-                  </div>
-                  <span className="text-[11px] text-muted-foreground">{p.code}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min="0"
-                    className="w-20 h-8 text-sm text-center"
-                    value={p.default_days}
-                    onChange={(e) => {
-                      const val = Number(e.target.value) || 0;
-                      setPolicies((prev) => prev.map((x) => (x.id === p.id ? { ...x, default_days: val } : x)));
-                    }}
-                    onBlur={(e) => {
-                      const val = Number(e.target.value) || 0;
-                      if (val !== p.default_days) updateDays(p.id, val);
-                    }}
-                    disabled={saving === p.id}
-                  />
-                  <span className="text-xs text-muted-foreground w-8">days</span>
-                  <button
-                    type="button"
-                    onClick={() => toggleActive(p.id, !p.active)}
-                    className={cn(
-                      'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
-                      p.active ? 'bg-primary' : 'bg-muted',
-                    )}
-                    title={p.active ? 'Disable this leave type' : 'Enable this leave type'}
-                  >
-                    <span className={cn(
-                      'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition-transform',
-                      p.active ? 'translate-x-4' : 'translate-x-0',
-                    )} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function FailedLoginPanel() {
-  // This panel is admin-only (gated by the surrounding tab), and the
-  // operator triaging a brute-force attempt needs to see actual email
-  // addresses — patterns (same address hammered, same domain, etc.) are
-  // the whole point of having the panel. Default to unmasked. The Mask
-  // button is still available for screen-share situations where the
-  // operator doesn't want third parties to see the addresses.
-  const [rows, setRows] = useState<FailedLogin[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
-  const [unmasked, setUnmasked] = useState(true);
-  const PAGE_SIZE = 10;
-
-  useEffect(() => {
-    supabase
-      .from('failed_login_attempts')
-      .select('id, email, ip_hash, reason, attempted_at')
-      .gte('attempted_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-      .order('attempted_at', { ascending: false })
-      .limit(200)
-      .then(({ data }) => {
-        setRows((data as FailedLogin[]) || []);
-        setLoading(false);
-      });
-  }, []);
-
-  const maskEmail = (email: string) => {
-    const [local, domain] = email.split('@');
-    if (!domain) return email;
-    // Show first 2 chars of the local part, mask the rest, keep the
-    // domain intact. So real attempts like noreply@bot.ru render as
-    // "no***@bot.ru" — not a placeholder. Toggle "Unmask" to see the
-    // full address (audit-logged).
-    return local.slice(0, 2) + '***@' + domain;
-  };
-
-  const relativeTime = (iso: string) => {
-    const diffMs = Date.now() - new Date(iso).getTime();
-    const diffMins = Math.round(diffMs / 60_000);
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHrs = Math.round(diffMins / 60);
-    if (diffHrs < 24) return `${diffHrs}h ago`;
-    return `${Math.round(diffHrs / 24)}d ago`;
-  };
-
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  const slice = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="space-y-1 min-w-0">
-            <CardTitle className="text-base flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-destructive" />
-              Failed login attempts
-              <span className="text-xs font-normal text-muted-foreground ml-1">(last 30 days)</span>
-            </CardTitle>
-            <p className="text-xs text-muted-foreground max-w-xl">
-              Every wrong password / unknown email hitting the sign-in screen lands here. Use it to
-              spot brute-force attempts (same address hammered repeatedly, same hashed IP across
-              many users), enumeration scans (lots of one-off addresses on the same domain), and to
-              decide when to enable the temporary IP block on the security settings card below.
-            </p>
-          </div>
-          {rows.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setUnmasked((v) => !v)}
-              className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 kd-transition shrink-0"
-              title={unmasked ? 'Hide full email addresses (for screen-share)' : 'Show full email addresses'}
-            >
-              {unmasked ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-              {unmasked ? 'Mask' : 'Unmask'}
-            </button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        {loading ? (
-          <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-          </div>
-        ) : rows.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">No failed login attempts in the last 30 days.</p>
-        ) : (
-          <>
-            <div className="px-4 py-2 text-xs text-muted-foreground border-b">
-              {rows.length} total — showing {slice.length} on this page.{' '}
-              {unmasked
-                ? 'Full email addresses visible.'
-                : 'Email addresses partially masked for privacy.'}
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b bg-muted/30">
-                    <th className="text-left py-2 px-4 font-medium text-muted-foreground">Email</th>
-                    <th className="text-left py-2 px-4 font-medium text-muted-foreground">Reason</th>
-                    <th className="text-left py-2 px-4 font-medium text-muted-foreground">IP (hashed)</th>
-                    <th className="text-left py-2 px-4 font-medium text-muted-foreground">When</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {slice.map((r) => (
-                    <tr key={r.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="py-2 px-4 font-mono">{unmasked ? r.email : maskEmail(r.email)}</td>
-                      <td className="py-2 px-4 text-muted-foreground">{r.reason || '—'}</td>
-                      <td className="py-2 px-4 font-mono text-muted-foreground">
-                        {r.ip_hash ? r.ip_hash.slice(0, 8) + '…' : '—'}
-                      </td>
-                      <td className="py-2 px-4 text-muted-foreground">{relativeTime(r.attempted_at)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-2 border-t text-[11px] text-muted-foreground">
-                <span>Page {page + 1} of {totalPages}</span>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="h-7 px-2">
-                    Previous
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="h-7 px-2">
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Data Retention panel — Phase 2 (functional)
