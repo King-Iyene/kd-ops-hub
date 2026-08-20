@@ -8,17 +8,8 @@ import { Coins, Activity, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip as UiTooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatFxRate, formatNairaCompact } from '@/lib/format';
 import { fetchFxExposureBoard, type FxExposureBoard } from '@/lib/fx-exposure';
-
-function formatRate(rate: number | null): string {
-  if (rate == null) return '—';
-  return `₦${rate.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function formatNgn(n: number): string {
-  return `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
 
 export default function FxExposureTab() {
   const { toast } = useToast();
@@ -71,12 +62,12 @@ export default function FxExposureTab() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Current rate</p>
-                  <p className="text-lg font-semibold">{formatRate(board?.volatility.current_rate ?? null)}</p>
+                  <p className="text-lg font-semibold">{formatFxRate(board?.volatility.current_rate ?? null)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">90-day range</p>
                   <p className="text-lg font-semibold">
-                    {formatRate(board?.volatility.min_rate ?? null)} – {formatRate(board?.volatility.max_rate ?? null)}
+                    {formatFxRate(board?.volatility.min_rate ?? null)} – {formatFxRate(board?.volatility.max_rate ?? null)}
                   </p>
                 </div>
                 <div>
@@ -113,7 +104,7 @@ export default function FxExposureTab() {
                     <CartesianGrid {...GRID} />
                     <XAxis dataKey="label" {...AXIS_TICK} />
                     <YAxis {...AXIS_TICK} domain={['auto', 'auto']} tickFormatter={(v: number) => `₦${v.toFixed(0)}`} />
-                    <ReTooltip content={<ChartTooltip valueFormatter={(v) => formatRate(v)} />} />
+                    <ReTooltip content={<ChartTooltip valueFormatter={(v) => formatFxRate(v)} />} />
                     <Area type="stepAfter" dataKey="rate" name="USD/NGN rate" stroke={SERIES[0]} strokeWidth={2} fill="url(#fxGrad)" dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -139,8 +130,8 @@ export default function FxExposureTab() {
           ) : (
             <>
               <p className="text-sm mb-4">
-                Current monthly cost: <span className="font-semibold">{formatNgn(board?.usdExposure.monthly_ngn_at_current_rate ?? 0)}</span>
-                <span className="text-muted-foreground"> at {formatRate(board?.usdExposure.current_rate ?? null)}</span>
+                Current monthly cost: <span className="font-semibold">{formatNairaCompact(board?.usdExposure.monthly_ngn_at_current_rate ?? 0)}</span>
+                <span className="text-muted-foreground"> at {formatFxRate(board?.usdExposure.current_rate ?? null)}</span>
               </p>
 
               {(board?.usdExposure.sources?.length ?? 0) > 1 && (
@@ -148,7 +139,7 @@ export default function FxExposureTab() {
                   {board!.usdExposure.sources.map((src) => (
                     <div key={src.label} className="rounded-md border p-2.5">
                       <p className="text-xs text-muted-foreground">{src.label}</p>
-                      <p className="text-sm font-semibold">{formatNgn(src.monthly_ngn)}</p>
+                      <p className="text-sm font-semibold">{formatNairaCompact(src.monthly_ngn)}</p>
                       <p className="text-[10px] text-muted-foreground">{src.count} active</p>
                     </div>
                   ))}

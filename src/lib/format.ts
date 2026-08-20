@@ -121,6 +121,24 @@ export const formatTime = (
   }
 };
 
+/** USD amount from whole dollars: "$18,500.00". */
+export const formatUsd = (amount: number | null | undefined): string => {
+  if (amount == null) return '—';
+  return `$${Number(amount).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
+/** FX rate display: "₦1,580.00" — used when showing NGN-per-1-USD. */
+export const formatFxRate = (rate: number | null | undefined): string => {
+  if (rate == null) return '—';
+  return `₦${Number(rate).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
 /** Whole-number naira formatter used in chart tooltips etc. */
 export const formatNairaCompact = (amount: number | null | undefined): string => {
   const n = amount ?? 0;

@@ -15,7 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { hasRole } from '@/lib/roles';
-import { formatDate, formatNaira } from '@/lib/format';
+import { formatDate, formatNaira, formatUsd, formatFxRate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { useDebounce } from '@/hooks/useDebounce';
 import { usePagination } from '@/hooks/usePagination';
@@ -195,16 +195,6 @@ function monthLabel(dateStr: string) {
 
 function shortMonth(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-NG', { month: 'short', year: '2-digit' });
-}
-
-function formatUsd(amount: number | null | undefined): string {
-  if (amount == null) return '—';
-  return '$' + Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function formatFxRate(rate: number | null | undefined): string {
-  if (rate == null) return '—';
-  return '₦' + Number(rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // ── Component ────────────────────────────────────────────────────────────────

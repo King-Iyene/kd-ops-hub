@@ -20,7 +20,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { APPROVER_ROLES, hasRole } from '@/lib/roles';
-import { daysUntil, formatDate, formatNaira, toIsoDate } from '@/lib/format';
+import { daysUntil, formatDate, formatNaira, formatUsd, toIsoDate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -162,9 +162,6 @@ const monthlyEquivalentUsd = (sub: Subscription): number => {
       return sub.amount_usd;
   }
 };
-
-const formatUsd = (v: number) =>
-  `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const monthKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
