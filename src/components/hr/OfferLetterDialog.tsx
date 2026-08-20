@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useCompanySettings } from '@/queries';
 import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -96,27 +97,23 @@ export const OfferLetterDialog = ({
   const [endDate, setEndDate] = useState<string>('');
   const [signaturePng, setSignaturePng] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [companyName, setCompanyName] = useState('KD Squares');
+  const { data: companySettingsData } = useCompanySettings();
+  const companyName = useMemo(
+    () => (companySettingsData as any)?.company_name || 'KD Squares',
+    [companySettingsData],
+  );
   const [issuerTitle, setIssuerTitle] = useState('HR Manager');
 
-  // Load templates + company name whenever dialog opens.
+  // Load templates whenever dialog opens.
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const [tRes, cRes] = await Promise.all([
-        supabase
-          .from('offer_letter_templates' as any)
-          .select('id, code, name, description, html_body, active')
-          .eq('active', true)
-          .order('name'),
-        supabase
-          .from('company_settings')
-          .select('company_name')
-          .eq('id', '00000000-0000-0000-0000-000000000001')
-          .maybeSingle(),
-      ]);
-      setTemplates(((tRes.data ?? []) as any[]) as Template[]);
-      if (cRes.data) setCompanyName((cRes.data as any).company_name || 'KD Squares');
+      const { data } = await supabase
+        .from('offer_letter_templates' as any)
+        .select('id, code, name, description, html_body, active')
+        .eq('active', true)
+        .order('name');
+      setTemplates(((data ?? []) as any[]) as Template[]);
     })();
     if (opening) setTemplateCode(DEFAULT_TEMPLATE_BY_TYPE[opening.employment_type]);
     setSignaturePng(null);

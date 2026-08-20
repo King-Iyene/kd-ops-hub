@@ -45,6 +45,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
+import { useCompanySettings } from '@/queries';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -1070,11 +1071,16 @@ function PnLReport({ range }: { range: DateRange }) {
 // -----------------------------------------------------------------------------
 
 function CashFlowReport({ range: _range }: { range: DateRange }) {
+  const { data: companySettings } = useCompanySettings();
+  const cashOnHand = useMemo(
+    () => Number((companySettings as any)?.cash_on_hand_ngn || 0),
+    [companySettings],
+  );
   const { data, loading, error, reload } = useLoader(async () => {
     const today = new Date();
     const future = new Date();
     future.setDate(future.getDate() + 90);
-    const [batchRes, subRes, settingsRes] = await Promise.all([
+    const [batchRes, subRes] = await Promise.all([
       // Committed outflows only: approved (signed off but not yet funded),
       // funded (wallet topped up), and processing (transfers in flight).
       // pending_approval is intentionally excluded — those may still be rejected.
@@ -1091,18 +1097,12 @@ function CashFlowReport({ range: _range }: { range: DateRange }) {
         .eq('status', 'active')
         .gte('next_renewal_date', toIsoDate(today))
         .lte('next_renewal_date', toIsoDate(future)),
-      supabase
-        .from('company_settings')
-        .select('cash_on_hand_ngn')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .maybeSingle(),
     ]);
     if (batchRes.error) throw batchRes.error;
     if (subRes.error) throw subRes.error;
     return {
       batches: batchRes.data || [],
       subs: subRes.data || [],
-      cashOnHand: Number((settingsRes.data as any)?.cash_on_hand_ngn || 0),
     };
   }, []);
 
@@ -1135,7 +1135,7 @@ function CashFlowReport({ range: _range }: { range: DateRange }) {
   const totalOutflow = buckets.b30 + buckets.b60 + buckets.b90;
   const runway =
     data && totalOutflow > 0
-      ? (data.cashOnHand / (totalOutflow / 3)).toFixed(1)
+      ? (cashOnHand / (totalOutflow / 3)).toFixed(1)
       : '—';
 
   if (loading) return <TableSkeleton rows={4} cols={3} />;
@@ -1150,7 +1150,7 @@ function CashFlowReport({ range: _range }: { range: DateRange }) {
         <StatCard
           title="Runway (months)"
           value={runway}
-          subtitle={`Cash on hand: ${formatNaira((data as any)?.cashOnHand || 0)}`}
+          subtitle={`Cash on hand: ${formatNaira(cashOnHand || 0)}`}
           icon={TrendingUp}
           tone={runway !== '—' && Number(runway) < 3 ? 'danger' : 'success'}
         />

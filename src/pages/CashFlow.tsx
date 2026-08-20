@@ -38,8 +38,8 @@ import {
   RUNWAY_CRITICAL_WEEKS,
   RUNWAY_WARNING_WEEKS,
 } from '@/lib/cashflow';
-import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
+import { useCompanySettings } from '@/queries';
 
 const CATEGORY_LABEL: Record<string, string> = {
   recurring: 'Recurring transfer',
@@ -63,28 +63,29 @@ export default function CashFlow() {
   const [history, setHistory] = useState<CashSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [cashOnHand, setCashOnHand] = useState<number>(0);
-  const [externalBurn, setExternalBurn] = useState<number>(0);
-  const [revenue, setRevenue] = useState<number>(0);
+  const { data: companySettingsData } = useCompanySettings();
+  const cashOnHand = useMemo(
+    () => Number((companySettingsData as any)?.cash_on_hand_ngn || 0),
+    [companySettingsData],
+  );
+  const externalBurn = useMemo(
+    () => Number((companySettingsData as any)?.external_monthly_burn_ngn || 0),
+    [companySettingsData],
+  );
+  const revenue = useMemo(
+    () => Number((companySettingsData as any)?.monthly_revenue_estimate_ngn || 0),
+    [companySettingsData],
+  );
 
   const load = async () => {
     setLoading(true);
     try {
-      const [f, h, settings] = await Promise.all([
+      const [f, h] = await Promise.all([
         fetchForecast(12),
         fetchSnapshotHistory(90),
-        supabase
-          .from('company_settings')
-          .select('cash_on_hand_ngn, external_monthly_burn_ngn, monthly_revenue_estimate_ngn')
-          .eq('id', '00000000-0000-0000-0000-000000000001')
-          .maybeSingle(),
       ]);
       setForecast(f);
       setHistory(h);
-      const s = settings.data as any;
-      setCashOnHand(Number(s?.cash_on_hand_ngn || 0));
-      setExternalBurn(Number(s?.external_monthly_burn_ngn || 0));
-      setRevenue(Number(s?.monthly_revenue_estimate_ngn || 0));
     } catch (err: unknown) {
       toast({ title: 'Could not load cash flow', description: errorMessage(err), variant: 'destructive' });
     } finally {

@@ -18,6 +18,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useCompanySettings } from '@/queries';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -86,12 +87,13 @@ export default function ReferralCommissions() {
   const [savingKind, setSavingKind] = useState<'referral' | 'affiliate' | null>(null);
   const [countEdits, setCountEdits] = useState<Record<string, string>>({});
 
+  const { data: companySettingsData } = useCompanySettings();
+
   const load = useCallback(async () => {
-    const [refRes, conRes, ovRes, settingsRes, rateRes] = await Promise.all([
+    const [refRes, conRes, ovRes, rateRes] = await Promise.all([
       supabase.from('referrals').select('referrer_contractor_id, is_affiliate, status, account_start_date, converted_at, created_at').not('referrer_contractor_id', 'is', null).limit(20000),
       supabase.from('contractors').select('id, full_name').neq('status', 'deleted').limit(5000),
       supabase.from('commission_overrides').select('contractor_id, is_affiliate, manual_count').limit(20000),
-      supabase.from('company_settings').select('referral_rate_usd_minor, affiliate_rate_usd_minor, referral_qualifying_days, affiliate_rate_tier2_usd_minor, affiliate_tier_threshold, affiliate_tier_mode').eq('id', SINGLETON_ID).maybeSingle(),
       supabase.from('fx_rates').select('rate').eq('base', 'USD').eq('quote', 'NGN').eq('status', 'active').order('valid_from', { ascending: false }).limit(1).maybeSingle(),
     ]);
     setRefs((refRes.data as RefRow[]) || []);
@@ -104,7 +106,22 @@ export default function ReferralCommissions() {
     }
     setOverrides(ov);
 
-    const s = (settingsRes.data as any) ?? {};
+    setRate((rateRes.data as any)?.rate ?? null);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Seed the editable rule inputs from the shared company_settings row —
+  // once only, the first time it loads. These inputs are edited in-place
+  // and saved via a separate mutation below; re-seeding on every background
+  // refetch (e.g. refetchOnWindowFocus) would silently clobber unsaved
+  // edits, so a ref guards against re-running after the initial seed.
+  const seededRulesRef = useRef(false);
+  useEffect(() => {
+    if (!companySettingsData || seededRulesRef.current) return;
+    seededRulesRef.current = true;
+    const s = companySettingsData as any;
     const rr = Number(s.referral_rate_usd_minor ?? 0);
     const ar = Number(s.affiliate_rate_usd_minor ?? 0);
     const t2 = Number(s.affiliate_rate_tier2_usd_minor ?? 0);
@@ -117,12 +134,7 @@ export default function ReferralCommissions() {
     setAffiliateTier2Minor(t2); setAffiliateTier2Input(String(toMajor(t2)));
     setAffiliateThreshold(thr); setAffiliateThresholdInput(String(thr));
     setAffiliateMode(mode); setAffiliateWhole(mode === 'whole');
-
-    setRate((rateRes.data as any)?.rate ?? null);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
+  }, [companySettingsData]);
 
   // A referred account has earned its one-time bonus once it has been active for
   // at least `referralDays`, measured from its start date (custom → converted → created).

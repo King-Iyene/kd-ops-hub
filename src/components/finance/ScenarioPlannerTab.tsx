@@ -21,6 +21,7 @@ import { errorMessage } from '@/lib/db-errors';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
+import { useCompanySettings } from '@/queries';
 import {
   Beaker, Plus, Trash2, TrendingUp, TrendingDown, Users,
   DollarSign, Building2, AlertTriangle,
@@ -63,10 +64,15 @@ const defaultAdj = (): Adjustment => ({
 
 export default function ScenarioPlannerTab() {
   const { toast } = useToast();
+  const { data: companySettingsData } = useCompanySettings();
+  const monthlyRevenueEstimate = useMemo(
+    () => (companySettingsData as any)?.monthly_revenue_estimate_ngn ?? 0,
+    [companySettingsData],
+  );
+
   const [loading, setLoading] = useState(true);
   const [baseForecast, setBaseForecast] = useState<{ week: string; balance: number }[]>([]);
   const [cashOnHand, setCashOnHand] = useState(0);
-  const [netBurn, setNetBurn] = useState(0);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [horizonWeeks, setHorizonWeeks] = useState(26);
 
@@ -74,7 +80,7 @@ export default function ScenarioPlannerTab() {
     (async () => {
       setLoading(true);
       try {
-        const [snapRes, forecastRes, settingsRes] = await Promise.all([
+        const [snapRes, forecastRes] = await Promise.all([
           supabase
             .from('cash_balance_snapshots' as any)
             .select('balance_ngn')
@@ -82,11 +88,6 @@ export default function ScenarioPlannerTab() {
             .limit(1)
             .maybeSingle(),
           supabase.rpc('forecast_cashflow', { p_weeks: 52 } as any),
-          supabase
-            .from('company_settings')
-            .select('monthly_revenue_estimate_ngn')
-            .eq('id', '00000000-0000-0000-0000-000000000001')
-            .maybeSingle(),
         ]);
 
         const balance = (snapRes.data as any)?.balance_ngn ?? 0;
@@ -97,12 +98,6 @@ export default function ScenarioPlannerTab() {
           balance: Number(row.projected_balance ?? 0),
         }));
         setBaseForecast(forecast);
-
-        const monthlyRev = (settingsRes.data as any)?.monthly_revenue_estimate_ngn ?? 0;
-        const weeklyBurn = forecast.length >= 2
-          ? (forecast[0].balance - forecast[forecast.length - 1].balance) / forecast.length
-          : 0;
-        setNetBurn(weeklyBurn > 0 ? weeklyBurn : monthlyRev / 4.33);
       } catch (err: unknown) {
         toast({ title: 'Could not load forecast data', description: errorMessage(err), variant: 'destructive' });
       } finally {
@@ -111,6 +106,13 @@ export default function ScenarioPlannerTab() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const netBurn = useMemo(() => {
+    const weeklyBurn = baseForecast.length >= 2
+      ? (baseForecast[0].balance - baseForecast[baseForecast.length - 1].balance) / baseForecast.length
+      : 0;
+    return weeklyBurn > 0 ? weeklyBurn : monthlyRevenueEstimate / 4.33;
+  }, [baseForecast, monthlyRevenueEstimate]);
 
   const addAdjustment = useCallback(() => {
     setAdjustments(prev => [...prev, defaultAdj()]);

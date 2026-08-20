@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useCompanySettings } from '@/queries';
 import { daysUntil, formatNaira } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -105,7 +106,39 @@ function computeScore(s: Signals): {
 }
 
 export function FinancialHealthCard() {
-  const [signals, setSignals] = useState<Signals | null>(null);
+  const { data: companySettingsData } = useCompanySettings();
+  const cashOnHand = useMemo(
+    () => Number((companySettingsData as any)?.cash_on_hand_ngn || 0),
+    [companySettingsData],
+  );
+  const externalMonthlyBurn = useMemo(
+    () => Number((companySettingsData as any)?.external_monthly_burn_ngn || 0),
+    [companySettingsData],
+  );
+  const monthlyRevenue = useMemo(
+    () => Number((companySettingsData as any)?.monthly_revenue_estimate_ngn || 0),
+    [companySettingsData],
+  );
+  const cashUpdatedAt = useMemo(
+    () => (companySettingsData as any)?.cash_updated_at || null,
+    [companySettingsData],
+  );
+  const cashStaleDays = useMemo(
+    () =>
+      cashUpdatedAt
+        ? Math.floor((Date.now() - new Date(cashUpdatedAt).getTime()) / 86400000)
+        : null,
+    [cashUpdatedAt],
+  );
+
+  const [operationalSignals, setOperationalSignals] = useState<{
+    inPlatformMonthlyBurn: number;
+    pendingApprovals: number;
+    overdueCompliance: number;
+    budgetOverPlan: boolean;
+    budgetNearPlan: boolean;
+    docsExpiringSoon: number;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,7 +148,6 @@ export function FinancialHealthCard() {
       const todayStr = today.toISOString();
 
       const [
-        settingsRes,
         approvalsRes,
         complianceRes,
         budgetsRes,
@@ -125,11 +157,6 @@ export function FinancialHealthCard() {
         batchesBurnRes,
         docsRes,
       ] = await Promise.all([
-        supabase
-          .from('company_settings')
-          .select('cash_on_hand_ngn, external_monthly_burn_ngn, monthly_revenue_estimate_ngn, cash_updated_at')
-          .eq('id', '00000000-0000-0000-0000-000000000001')
-          .maybeSingle(),
         supabase
           .from('payment_batches')
           .select('id', { count: 'exact', head: true })
@@ -168,12 +195,6 @@ export function FinancialHealthCard() {
           .not('expires_at', 'is', null),
       ]);
 
-      const settings = settingsRes.data as any;
-      const cashOnHand = Number(settings?.cash_on_hand_ngn || 0);
-      const externalMonthlyBurn = Number(settings?.external_monthly_burn_ngn || 0);
-      const monthlyRevenue = Number(settings?.monthly_revenue_estimate_ngn || 0);
-      const cashUpdatedAt = settings?.cash_updated_at || null;
-
       // For partially_processed batches we'd want to net out failed items.
       // For the burn estimate we accept the small gross-vs-net error to keep
       // the dashboard load fast; the precise number lives in the Reports page.
@@ -208,28 +229,36 @@ export function FinancialHealthCard() {
         return du !== null && du <= 30 && du >= 0;
       }).length;
 
-      const cashStaleDays = cashUpdatedAt
-        ? Math.floor((Date.now() - new Date(cashUpdatedAt).getTime()) / 86400000)
-        : null;
-
       if (cancelled) return;
-      setSignals({
-        cashOnHand,
-        cashUpdatedAt,
+      setOperationalSignals({
         inPlatformMonthlyBurn,
-        externalMonthlyBurn,
-        monthlyRevenue,
         pendingApprovals: approvalsRes.count || 0,
         overdueCompliance: complianceRes.count || 0,
         budgetOverPlan: maxUtil >= 1,
         budgetNearPlan: maxUtil >= 0.8 && maxUtil < 1,
         docsExpiringSoon: expiringDocs,
-        cashStaleDays,
       });
     };
     load();
     return () => { cancelled = true; };
   }, []);
+
+  const signals: Signals | null = useMemo(() => {
+    if (!operationalSignals) return null;
+    return {
+      cashOnHand,
+      cashUpdatedAt,
+      inPlatformMonthlyBurn: operationalSignals.inPlatformMonthlyBurn,
+      externalMonthlyBurn,
+      monthlyRevenue,
+      pendingApprovals: operationalSignals.pendingApprovals,
+      overdueCompliance: operationalSignals.overdueCompliance,
+      budgetOverPlan: operationalSignals.budgetOverPlan,
+      budgetNearPlan: operationalSignals.budgetNearPlan,
+      docsExpiringSoon: operationalSignals.docsExpiringSoon,
+      cashStaleDays,
+    };
+  }, [operationalSignals, cashOnHand, cashUpdatedAt, externalMonthlyBurn, monthlyRevenue, cashStaleDays]);
 
   const { score, runwayMonths, reasons } = useMemo(
     () =>

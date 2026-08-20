@@ -12,11 +12,11 @@
  * any RLS / RPC gate that depends on a user's auth.mfa_factor list
  * has Supabase-level reliability concerns we'll address separately.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanySettings } from '@/queries';
 import { listMfaFactors } from '@/lib/mfa';
 
 export function MfaRequiredBanner() {
@@ -24,43 +24,39 @@ export function MfaRequiredBanner() {
   const location = useLocation();
   const [show, setShow] = useState(false);
 
+  // Read the policy via the shared singleton hook (60s staleTime) rather
+  // than a one-off fetch — toggling is rare and a manual page reload
+  // picks up the new value either way.
+  const { data: companySettingsData } = useCompanySettings();
+  const mfaRequired = useMemo(
+    () => !!(companySettingsData as any)?.mfa_required_for_all_users,
+    [companySettingsData],
+  );
+
   useEffect(() => {
     if (!profile?.id) {
+      setShow(false);
+      return;
+    }
+    if (!mfaRequired) {
       setShow(false);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        // Read the policy once. Don't subscribe — toggling is rare
-        // and a manual page reload picks up the new value. A real-
-        // time subscription on company_settings would also fire on
-        // every other field edit (currency, fiscal year, etc.) and
-        // burn quota.
-        const { data } = await supabase
-          .from('company_settings')
-          .select('mfa_required_for_all_users')
-          .maybeSingle();
-        const required = !!(data as any)?.mfa_required_for_all_users;
-        if (!required) {
-          if (!cancelled) setShow(false);
-          return;
-        }
-        // Check enrolment status. Done in parallel with the policy
-        // read on second mount (cached) but here we do them in
-        // sequence on first mount so we don't fire the MFA factor
-        // call when the policy is OFF.
+        // Check enrolment status. Only fired once the policy read
+        // above says the requirement is ON.
         const factors = await listMfaFactors();
         if (!cancelled) setShow(!factors.totpEnrolled);
       } catch {
-        // Best-effort. If the policy column is missing (migration
-        // not applied) or the factor lookup fails, default to
+        // Best-effort. If the factor lookup fails, default to
         // not-show so we don't block users on infrastructure errors.
         if (!cancelled) setShow(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [profile?.id]);
+  }, [profile?.id, mfaRequired]);
 
   // Suppress on /profile so the user can enrol without being shouted at.
   const isOnProfile = location.pathname.startsWith('/profile');

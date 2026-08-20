@@ -101,7 +101,7 @@ import {
   type EmailTemplate,
 } from '@/lib/email-templates';
 import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
-import { useDepartments } from '@/queries';
+import { useDepartments, useCompanySettings } from '@/queries';
 
 type Channel = 'email' | 'sms' | 'whatsapp';
 type RecipientSource = 'manual' | 'contacts' | 'employees' | 'contractors';
@@ -197,8 +197,15 @@ export default function Communications() {
 
   // Templates (Email only)
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
-  const [companyName, setCompanyName] = useState('KD Squares');
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const { data: companySettingsData } = useCompanySettings();
+  const companyName = useMemo(
+    () => (companySettingsData as any)?.company_name || 'KD Squares',
+    [companySettingsData],
+  );
+  const logoUrl = useMemo(
+    () => (companySettingsData as any)?.logo_url || null,
+    [companySettingsData],
+  );
 
   // Body — Email
   const [bodySource, setBodySource] = useState<BodySource>('custom');
@@ -244,18 +251,8 @@ export default function Communications() {
   useEffect(() => {
     void (async () => {
       try {
-        const [tpls, cs] = await Promise.all([
-          listEmailTemplates(),
-          supabase.from('company_settings')
-            .select('company_name, logo_url')
-            .eq('id', '00000000-0000-0000-0000-000000000001')
-            .maybeSingle(),
-        ]);
+        const tpls = await listEmailTemplates();
         setTemplates(tpls);
-        if (cs.data) {
-          setCompanyName((cs.data as any).company_name || 'KD Squares');
-          setLogoUrl((cs.data as any).logo_url || null);
-        }
       } catch {
         // non-fatal
       }

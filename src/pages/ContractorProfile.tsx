@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
+import { useCompanySettings } from '@/queries';
 import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
@@ -120,7 +121,11 @@ const ContractorProfile = () => {
   // active provider. Swapping `banks` to Flutterwave's own list when
   // active means the combobox only ever offers Flutterwave-valid codes,
   // so bankForm.bank_code is correct for whichever provider verifies it.
-  const [activeProvider, setActiveProvider] = useState<'paystack' | 'flutterwave'>('paystack');
+  const { data: companySettingsData } = useCompanySettings();
+  const activeProvider = useMemo<'paystack' | 'flutterwave'>(
+    () => ((companySettingsData as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack'),
+    [companySettingsData],
+  );
   const [bankEditMode, setBankEditMode] = useState(false);
   const [bankForm, setBankForm] = useState({ account_number: '', bank_code: '' });
   const [bankVerifying, setBankVerifying] = useState(false);
@@ -198,21 +203,15 @@ const ContractorProfile = () => {
 
   useEffect(() => {
     load();
-    void (async () => {
-      const { data } = await supabase
-        .from('company_settings')
-        .select('active_payment_provider')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .maybeSingle();
-      const p = (data as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack';
-      setActiveProvider(p);
-      if (p === 'flutterwave') {
-        fetchFlutterwaveBanks().then((b) => { if (b.length > 0) setBanks(b); }).catch(() => { /* keep static */ });
-      } else {
-        fetchBanks().then(setBanks).catch(() => { /* keep static list */ });
-      }
-    })();
   }, [load]);
+
+  useEffect(() => {
+    if (activeProvider === 'flutterwave') {
+      fetchFlutterwaveBanks().then((b) => { if (b.length > 0) setBanks(b); }).catch(() => { /* keep static */ });
+    } else {
+      fetchBanks().then(setBanks).catch(() => { /* keep static list */ });
+    }
+  }, [activeProvider]);
 
   useEffect(() => {
     const verify = async () => {
