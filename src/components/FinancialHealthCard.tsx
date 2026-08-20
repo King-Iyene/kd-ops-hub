@@ -108,6 +108,7 @@ export function FinancialHealthCard() {
   const [signals, setSignals] = useState<Signals | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const load = async () => {
       const today = new Date();
       const ninetyDaysAgo = new Date(today.getTime() - 90 * 86400000).toISOString().slice(0, 10);
@@ -211,6 +212,7 @@ export function FinancialHealthCard() {
         ? Math.floor((Date.now() - new Date(cashUpdatedAt).getTime()) / 86400000)
         : null;
 
+      if (cancelled) return;
       setSignals({
         cashOnHand,
         cashUpdatedAt,
@@ -226,6 +228,7 @@ export function FinancialHealthCard() {
       });
     };
     load();
+    return () => { cancelled = true; };
   }, []);
 
   const { score, runwayMonths, reasons } = useMemo(

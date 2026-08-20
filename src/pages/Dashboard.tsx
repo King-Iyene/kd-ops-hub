@@ -214,6 +214,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!isPersonal) {
+      let cancelled = false;
       const today = new Date().toISOString().slice(0, 10);
       const in30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       Promise.all([
@@ -249,6 +250,7 @@ const Dashboard = () => {
           .order('contract_end_date', { ascending: true })
           .limit(10),
       ]).then(([docsRes, filingsRes, profilesRes, contractRes]) => {
+        if (cancelled) return;
         setExpiringDocs((docsRes.data as any[]) || []);
         setDueFilings((filingsRes.data as any[]) || []);
         setExpiringContracts(((contractRes.data as any[]) || []).map((c: any) => ({
@@ -283,6 +285,7 @@ const Dashboard = () => {
         items.sort((a, b) => a.date.localeCompare(b.date));
         setCelebrations(items.slice(0, 10));
       });
+      return () => { cancelled = true; };
     }
   }, [isPersonal]);
 

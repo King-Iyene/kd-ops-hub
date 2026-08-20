@@ -14,6 +14,7 @@ export function CashBurnCard() {
   const [burn30, setBurn30] = useState<number | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const load = async () => {
       const since = new Date();
       since.setDate(since.getDate() - 30);
@@ -32,6 +33,7 @@ export function CashBurnCard() {
           .is('deleted_at', null)
           .gte('payment_date', iso.slice(0, 10)),
       ]);
+      if (cancelled) return;
       const e = ((expensesRes.data as any[]) || []).reduce(
         (s, r) => s + Number(r.amount_ngn || 0),
         0,
@@ -43,6 +45,7 @@ export function CashBurnCard() {
       setBurn30(e + b);
     };
     load();
+    return () => { cancelled = true; };
   }, []);
 
   const cashOnHand = (() => {
