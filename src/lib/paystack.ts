@@ -183,6 +183,32 @@ function shortenName(name: string): string {
   return `${parts[0]} ${parts[parts.length - 1]}`;
 }
 
+/**
+ * Map a payment_batches row + batch_item to a NarrationKind so we know what
+ * narration to send. Falls back to "generic" if the type is unknown.
+ */
+export function narrationKindForBatch(batch: any): NarrationKind {
+  const t = batch?.batch_type || batch?.payment_category || '';
+  if (batch?.is_quick_pay) return 'quick_pay';
+  if (t === 'employee_salary' || t === 'salary') return 'salary';
+  if (t === 'employee_bonus' || t === 'bonus' || batch?.bonus_type) return 'bonus';
+  if (t === 'employee_advance' || t === 'advance' || batch?.advance_reason) return 'advance';
+  if (t === 'fuel_reimbursement' || t === 'fuel') return 'fuel';
+  if (t === 'expense' || batch?.payment_category === 'expense_reimbursement') return 'expense';
+  if (t === 'contractor' || t === 'contractor_payment') return 'contractor';
+  return 'generic';
+}
+
+/** Build the narration that recipients see on their bank statement. */
+export function narrationForBatchItem(batch: any, item: any): string {
+  return buildNarration({
+    kind: narrationKindForBatch(batch),
+    recipientName: item?.full_name || undefined,
+    period: batch?.period || undefined,
+    label: batch?.name || undefined,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Friendly error mapper — translates Paystack's raw error strings into
 // plain-English messages with an actionable next step. Designed for users
