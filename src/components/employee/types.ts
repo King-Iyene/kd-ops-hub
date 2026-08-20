@@ -1,0 +1,62 @@
+export interface EmployeeData {
+  id: string;
+  full_name: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string;
+  phone: string | null;
+  role: string;
+  status: string;
+  job_title: string | null;
+  salary_ngn: number;
+  created_at: string;
+  next_of_kin_name: string | null;
+  next_of_kin_phone: string | null;
+  next_of_kin_relationship: string | null;
+  bank_name: string | null;
+  bank_account_number: string | null;
+  bank_account_name: string | null;
+  pension_pin: string | null;
+  annual_leave_days: number;
+  department_id: string | null;
+  tags: string[] | null;
+  photo_url: string | null;
+  departments: { name: string } | null;
+  date_of_birth: string | null;
+  gender: string | null;
+  marital_status: string | null;
+  address: string | null;
+  next_of_kin_email: string | null;
+  employee_number: string | null;
+  employment_type: string | null;
+  employee_category: string | null;
+  start_date: string | null;
+  nin: string | null;
+  nin_last4: string | null;
+  nhf_number: string | null;
+  nhis_number: string | null;
+  tin: string | null;
+  pension_enabled: boolean | null;
+  nhf_enabled: boolean | null;
+  nhis_enabled: boolean | null;
+  paye_enabled: boolean | null;
+  tax_id: string | null;
+  use_salary_components: boolean | null;
+  basic_ngn: number | null;
+  housing_ngn: number | null;
+  transport_ngn: number | null;
+  other_allowances_ngn: number | null;
+  reporting_manager_id: string | null;
+  contract_start_date: string | null;
+  contract_end_date: string | null;
+  pfa_name: string | null;
+  pfa_code: string | null;
+  state_of_residence: string | null;
+  pay_group_id: string | null;
+  notice_period_days: number | null;
+  voluntary_pension_pct: number | null;
+}
+
+export type EditSection =
+  | 'employment' | 'compensation' | 'basic' | 'kin' | 'address'
+  | 'statutory' | 'identity';
