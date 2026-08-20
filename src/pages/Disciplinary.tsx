@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useEmployeeDirectory } from '@/queries';
 import {
   Plus, Search, Download, Pencil, Trash2, ShieldAlert,
   CheckCircle2, ChevronDown, ChevronUp, MessageSquare,
@@ -85,7 +86,7 @@ export default function Disciplinary() {
 
   const [records, setRecords] = useState<DisciplinaryRecord[]>([]);
   const [responses, setResponses] = useState<DisciplinaryResponse[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const { data: profiles = [] } = useEmployeeDirectory();
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState('');
@@ -110,14 +111,12 @@ export default function Disciplinary() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: rData }, { data: respData }, { data: pData }] = await Promise.all([
+    const [{ data: rData }, { data: respData }] = await Promise.all([
       supabase.from('disciplinary_records').select('id, employee_id, incident_date, incident_type, subject, description, outcome, suspension_days, issued_by, acknowledged_at, is_expunged, expunge_reason').order('incident_date', { ascending: false }).limit(5000),
       supabase.from('disciplinary_responses').select('id, record_id, response_text, responded_by, responded_at').order('responded_at').limit(20000),
-      supabase.from('profiles_directory').select('id, full_name').neq('is_anonymised', true).order('full_name'),
     ]);
     setRecords(rData ?? []);
     setResponses(respData ?? []);
-    setProfiles(pData ?? []);
     setLoading(false);
   }, []);
 

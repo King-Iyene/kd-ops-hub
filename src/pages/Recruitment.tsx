@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useDepartments, useEmployeeDirectory } from '@/queries';
 import {
   Plus, Search, Download, Pencil, Trash2, UserPlus2,
   Briefcase, Users, ChevronDown, ChevronUp, Calendar,
@@ -142,8 +143,8 @@ export default function Recruitment() {
 
   const [openings, setOpenings] = useState<JobOpening[]>([]);
   const [applicants, setApplicants] = useState<JobApplicant[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const { data: departments = [] } = useDepartments();
+  const { data: profiles = [] } = useEmployeeDirectory();
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState('');
@@ -172,16 +173,12 @@ export default function Recruitment() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: oData }, { data: aData }, { data: dData }, { data: pData }] = await Promise.all([
+    const [{ data: oData }, { data: aData }] = await Promise.all([
       supabase.from('job_openings').select('id, title, department_id, description, requirements, employment_type, location, salary_min_ngn, salary_max_ngn, opening_count, closing_date, status, notes').is('deleted_at', null).order('created_at', { ascending: false }).limit(2000),
       supabase.from('job_applicants').select('id, opening_id, full_name, email, phone, cv_url, cover_letter, source, stage, stage_notes, assigned_to, interview_date, offer_amount_ngn, offered_at, rejection_reason, created_at, updated_at').order('created_at', { ascending: false }).limit(5000),
-      supabase.from('departments').select('id, name').order('name'),
-      supabase.from('profiles_directory').select('id, full_name').order('full_name'),
     ]);
     setOpenings(oData ?? []);
     setApplicants(aData ?? []);
-    setDepartments(dData ?? []);
-    setProfiles(pData ?? []);
     setLoading(false);
   }, []);
 

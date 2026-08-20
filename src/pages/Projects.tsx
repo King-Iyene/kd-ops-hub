@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useDepartments, useEmployeeDirectory } from '@/queries';
 import {
   Plus, Search, Download, Pencil, Trash2, FolderKanban,
   CheckCircle2, Clock, PauseCircle, XCircle, ChevronDown,
@@ -118,8 +119,8 @@ export default function Projects() {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
+  const { data: profiles = [] } = useEmployeeDirectory();
+  const { data: departments = [] } = useDepartments();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
@@ -149,22 +150,18 @@ export default function Projects() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: sData }, { data: pData }, { data: mData }, { data: tData }, { data: cData }, { data: prData }, { data: dData }] = await Promise.all([
+    const [{ data: sData }, { data: pData }, { data: mData }, { data: tData }, { data: cData }] = await Promise.all([
       supabase.from('project_spaces').select('id, name, description, color, sort_order').is('deleted_at', null).order('sort_order').limit(50),
       supabase.from('projects').select('id, name, description, client_id, owner_id, department_id, status, priority, budget_ngn, start_date, end_date, completed_at, notes, space_id').is('deleted_at', null).order('created_at', { ascending: false }).limit(500),
       supabase.from('project_milestones').select('id, project_id, title, due_date, status').order('sort_order').limit(2000),
       supabase.from('tasks').select('id, title, status, project_id, due_date, parent_id').is('parent_id', null).limit(2000),
       supabase.from('clients').select('id, name').order('name').limit(200),
-      supabase.from('profiles_directory').select('id, full_name').limit(200),
-      supabase.from('departments').select('id, name').order('name').limit(100),
     ]);
     setSpaces((sData as Space[]) || []);
     setProjects((pData as Project[]) || []);
     setMilestones((mData as Milestone[]) || []);
     setTasks((tData as TaskRow[]) || []);
     setClients((cData as Client[]) || []);
-    setProfiles((prData as Profile[]) || []);
-    setDepartments((dData as Department[]) || []);
     setLoading(false);
   }, []);
 

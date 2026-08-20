@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useEmployeeDirectory } from '@/queries';
 import {
   Plus, Search, Download, Pencil, Trash2, HeartPulse,
   AlertTriangle, CheckCircle2, Clock, Shield,
@@ -103,7 +104,7 @@ export default function Benefits() {
   const { toast } = useToast();
 
   const [benefits, setBenefits] = useState<EmployeeBenefit[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const { data: profiles = [] } = useEmployeeDirectory();
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState('');
@@ -119,12 +120,8 @@ export default function Benefits() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: bData }, { data: pData }] = await Promise.all([
-      supabase.from('employee_benefits').select('id, employee_id, benefit_type, provider, plan_name, policy_number, pfa_rsa_pin, premium_ngn, premium_frequency, enrollment_date, expiry_date, status, notes').order('created_at', { ascending: false }).limit(5000),
-      supabase.from('profiles_directory').select('id, full_name').neq('is_anonymised', true).order('full_name'),
-    ]);
+    const { data: bData } = await supabase.from('employee_benefits').select('id, employee_id, benefit_type, provider, plan_name, policy_number, pfa_rsa_pin, premium_ngn, premium_frequency, enrollment_date, expiry_date, status, notes').order('created_at', { ascending: false }).limit(5000);
     setBenefits(bData ?? []);
-    setProfiles(pData ?? []);
     setLoading(false);
   }, []);
 

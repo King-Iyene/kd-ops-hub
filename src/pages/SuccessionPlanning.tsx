@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useDepartments, useEmployeeDirectory } from '@/queries';
 import {
   Plus, Shield, AlertTriangle, Users, CheckCircle2,
   Search, Eye, Pencil, Trash2, UserPlus,
@@ -102,8 +103,8 @@ export default function SuccessionPlanning() {
 
   const [plans, setPlans] = useState<SuccessionPlan[]>([]);
   const [candidates, setCandidates] = useState<SuccessionCandidate[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
+  const { data: profiles = [] } = useEmployeeDirectory();
+  const { data: departments = [] } = useDepartments();
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState('');
@@ -136,16 +137,12 @@ export default function SuccessionPlanning() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: pData }, { data: cData }, { data: prData }, { data: dData }] = await Promise.all([
+    const [{ data: pData }, { data: cData }] = await Promise.all([
       supabase.from('succession_plans').select('id, position_title, department_id, current_holder_id, risk_level, readiness_timeline, notes, status, created_at').order('created_at', { ascending: false }).limit(500),
       supabase.from('succession_candidates').select('id, plan_id, candidate_id, readiness, development_areas, rating').order('created_at', { ascending: false }).limit(1000),
-      supabase.from('profiles_directory').select('id, full_name').neq('is_anonymised', true).limit(200),
-      supabase.from('departments').select('id, name').order('name').limit(100),
     ]);
     setPlans((pData as SuccessionPlan[]) || []);
     setCandidates((cData as SuccessionCandidate[]) || []);
-    setProfiles((prData as Profile[]) || []);
-    setDepartments((dData as Department[]) || []);
     setLoading(false);
   }, []);
 

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useDepartments, useEmployeeDirectory } from '@/queries';
 import {
   Plus, Search, Download, Pencil, Trash2, Package,
   AlertTriangle, CheckCircle2, Archive, TrendingDown,
@@ -118,8 +119,8 @@ export default function Assets() {
   const { profile } = useAuthStore();
 
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
+  const { data: profiles = [] } = useEmployeeDirectory();
+  const { data: departments = [] } = useDepartments();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
@@ -133,14 +134,8 @@ export default function Assets() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: aData }, { data: pData }, { data: dData }] = await Promise.all([
-      supabase.from('assets').select('id, asset_number, name, category, description, purchase_date, cost_ngn, useful_life_years, salvage_value_ngn, depreciation_method, initial_allowance_rate, annual_allowance_rate, location, assigned_to, department_id, insurer, insurance_policy_number, insurance_expiry, insurance_value_ngn, status, notes').order('purchase_date', { ascending: false }).limit(500),
-      supabase.from('profiles_directory').select('id, full_name').limit(200),
-      supabase.from('departments').select('id, name').order('name').limit(100),
-    ]);
+    const { data: aData } = await supabase.from('assets').select('id, asset_number, name, category, description, purchase_date, cost_ngn, useful_life_years, salvage_value_ngn, depreciation_method, initial_allowance_rate, annual_allowance_rate, location, assigned_to, department_id, insurer, insurance_policy_number, insurance_expiry, insurance_value_ngn, status, notes').order('purchase_date', { ascending: false }).limit(500);
     setAssets((aData as Asset[]) || []);
-    setProfiles((pData as Profile[]) || []);
-    setDepartments((dData as Department[]) || []);
     setLoading(false);
   }, []);
 

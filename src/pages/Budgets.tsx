@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDepartments } from '@/queries';
 import {
   Plus,
   Search,
@@ -139,7 +140,7 @@ const Budgets = () => {
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<BudgetRow[]>([]);
   const [spendById, setSpendById] = useState<Record<string, number>>({});
-  const [departments, setDepartments] = useState<Department[]>([]);
+  const { data: departments = [] } = useDepartments();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | string>('all');
@@ -164,16 +165,13 @@ const Budgets = () => {
     setLoading(true);
     setError(null);
     try {
-      const [budgetsRes, depsRes, expensesRes, batchesRes] = await Promise.all([
+      const [budgetsRes, expensesRes, batchesRes] = await Promise.all([
         supabase
           .from('budgets')
           .select('id, name, period_start, period_end, department_id, total_amount_ngn, status, notes, locked, created_by, approved_by, created_at')
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
           .limit(200),
-        supabase.from('departments').select('id, name').order('name').limit(200),
-        // Pull approved expenses + processed batches within any budget period
-        // to compute actual spend. We fetch broadly and bucket in-memory.
         supabase
           .from('expenses')
           .select('amount_ngn, date, status')
@@ -190,7 +188,6 @@ const Budgets = () => {
 
       if (budgetsRes.error) throw budgetsRes.error;
       setRows((budgetsRes.data as BudgetRow[]) || []);
-      setDepartments((depsRes.data as Department[]) || []);
 
       // Actual spend = approved expenses + actually-disbursed batches that fall
       // between the budget's period_start and period_end.

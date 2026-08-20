@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEmployeeDirectory } from '@/queries';
 import {
   Plus, Star, ChevronDown, ChevronUp, CheckCircle2,
   AlertCircle, BarChart3, Send, ThumbsUp, Target,
@@ -158,7 +159,7 @@ export default function Performance() {
 
   const [cycles, setCycles] = useState<ReviewCycle[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const { data: profiles = [] } = useEmployeeDirectory();
   const [plans, setPlans] = useState<DevelopmentPlan[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -194,16 +195,14 @@ export default function Performance() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: cData }, { data: rData }, { data: pData }, { data: dpData }, { data: gData }] = await Promise.all([
+    const [{ data: cData }, { data: rData }, { data: dpData }, { data: gData }] = await Promise.all([
       supabase.from('review_cycles').select('id, name, cycle_type, period_start, period_end, due_date, status').order('due_date', { ascending: false }).limit(50),
       supabase.from('performance_reviews').select('id, cycle_id, employee_id, reviewer_id, review_type, ratings, overall_rating, strengths, areas_for_growth, status, submitted_at').order('created_at', { ascending: false }).limit(500),
-      supabase.from('profiles_directory').select('id, full_name').neq('is_anonymised', true).limit(200),
       supabase.from('development_plans').select('id, employee_id, review_id, title, description, category, target_date, status, progress').order('created_at', { ascending: false }).limit(500),
       supabase.from('goals').select('id, title, scope, owner_id, quarter, status, progress_pct').limit(500),
     ]);
     setCycles((cData as ReviewCycle[]) || []);
     setReviews((rData as Review[]) || []);
-    setProfiles((pData as Profile[]) || []);
     setPlans((dpData as DevelopmentPlan[]) || []);
     setGoals((gData as Goal[]) || []);
     setLoading(false);

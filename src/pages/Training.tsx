@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEmployeeDirectory } from '@/queries';
 import {
   Plus, Search, Download, Pencil, Trash2, GraduationCap,
   Award, AlertTriangle, CheckCircle2, Clock, Loader2,
@@ -89,7 +90,7 @@ export default function Training() {
   const { profile } = useAuthStore();
 
   const [records, setRecords] = useState<TrainingRecord[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const { data: profiles = [] } = useEmployeeDirectory();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -105,12 +106,8 @@ export default function Training() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: rData }, { data: pData }] = await Promise.all([
-      supabase.from('training_records').select('id, employee_id, record_type, title, provider, category, is_mandatory, start_date, completion_date, expiry_date, score, cost_ngn, duration_hours, status, notes').order('start_date', { ascending: false }).limit(500),
-      supabase.from('profiles_directory').select('id, full_name').neq('is_anonymised', true).limit(200),
-    ]);
+    const { data: rData } = await supabase.from('training_records').select('id, employee_id, record_type, title, provider, category, is_mandatory, start_date, completion_date, expiry_date, score, cost_ngn, duration_hours, status, notes').order('start_date', { ascending: false }).limit(500);
     setRecords((rData as TrainingRecord[]) || []);
-    setProfiles((pData as Profile[]) || []);
     setLoading(false);
   }, []);
 

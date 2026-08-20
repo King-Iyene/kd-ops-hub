@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useEmployeeDirectory } from '@/queries';
 import {
   Plus, Search, Download, Eye, Pencil, Trash2,
   ShieldAlert, AlertTriangle, Scale, FileText,
@@ -85,7 +86,7 @@ export default function Grievances() {
   const { toast } = useToast();
 
   const [grievances, setGrievances] = useState<Grievance[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const { data: profiles = [] } = useEmployeeDirectory();
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState('');
@@ -107,12 +108,8 @@ export default function Grievances() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: gData }, { data: pData }] = await Promise.all([
-      supabase.from('grievances').select('id, subject, description, category, severity, is_anonymous, reporter_id, assigned_to, status, resolution_notes, resolved_at, created_at').order('created_at', { ascending: false }).limit(5000),
-      supabase.from('profiles_directory').select('id, full_name').neq('is_anonymised', true).order('full_name'),
-    ]);
+    const { data: gData } = await supabase.from('grievances').select('id, subject, description, category, severity, is_anonymous, reporter_id, assigned_to, status, resolution_notes, resolved_at, created_at').order('created_at', { ascending: false }).limit(5000);
     setGrievances(gData ?? []);
-    setProfiles(pData ?? []);
     setLoading(false);
   }, []);
 
