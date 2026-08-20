@@ -5,6 +5,7 @@ import { ContractorApplications } from '@/components/ContractorApplications';
 import { ReactivateContractorDialog } from '@/components/ReactivateContractorDialog';
 import { ImportTemplatesDialog } from '@/components/ImportTemplatesDialog';
 import { SaveFilterViewDialog } from '@/components/SaveFilterViewDialog';
+import { ContractorFormDialog } from '@/components/ContractorFormDialog';
 import PartnerPayCalculator from '@/components/PartnerPayCalculator';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -21,7 +22,6 @@ import { logAudit } from '@/lib/audit';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -46,7 +46,6 @@ import {
   AlertCircle,
   AlertTriangle,
   XCircle,
-  Check,
   X,
   FileText,
   Info,
@@ -66,7 +65,6 @@ import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Papa from 'papaparse';
-import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { resolveAccount } from '@/lib/paystack';
 import { fetchFlutterwaveBanks, getFlutterwaveBankCode, resolveFlutterwaveAccount } from '@/lib/flutterwave-banks';
 import { getBankCode, normalizeBankName } from '@/lib/nigerian-banks';
@@ -181,13 +179,6 @@ interface ParsedRow {
    *  blocked from auto-import and flagged for manual review. */
   matchAmbiguous?: boolean;
 }
-
-const emptyBank: BankAccountValue = {
-  bank_name: '',
-  account_number: '',
-  account_name: '',
-  verified: false,
-};
 
 // ───────────────────────── Advanced (CRM-style) filters ─────────────────────
 // A flexible field/operator/value rule builder. Rules are ANDed and applied
@@ -371,22 +362,7 @@ const Contractors = () => {
   });
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Contractor | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({
-    first_name: '',
-    last_name: '',
-    default_amount_ngn: '',
-    linkedin_id: '',
-    email: '',
-    whatsapp_phone: '',
-    linkedin_url: '',
-    heyreach_email: '',
-    heyreach_password: '',
-    onboarded_at: '',
-  });
-  const [bank, setBank] = useState<BankAccountValue>(emptyBank);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [heyreachFilter, setHeyreachFilter] = useState<'all' | 'active' | 'disconnected' | 'pending' | 'inactive'>('all');
   // Sidebar facets: presence of a LinkedIn email / a LinkedIn link.
   const [emailFilter, setEmailFilter] = useState<'all' | 'has' | 'none'>('all');
@@ -628,81 +604,8 @@ const Contractors = () => {
     }
   };
 
-  const resetForm = () => {
-    setEditing(null);
-    setForm({ first_name: '', last_name: '', default_amount_ngn: '', linkedin_id: '', email: '', whatsapp_phone: '', linkedin_url: '', heyreach_email: '', heyreach_password: '', onboarded_at: '' });
-    setBank(emptyBank);
-    setSelectedTagIds([]);
-  };
-
-  const handleSave = async () => {
-    if (!bank.verified) {
-      toast({
-        title: 'Verify the account first',
-        description: 'The bank account must be verified via Paystack before saving.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setSubmitting(true);
-    const computedFullName = `${form.first_name.trim()} ${form.last_name.trim()}`.trim() || bank.account_name;
-    const payload = {
-      first_name: form.first_name.trim() || null,
-      last_name: form.last_name.trim() || null,
-      full_name: computedFullName,
-      bank_name: bank.bank_name,
-      account_number: bank.account_number,
-      default_amount_ngn: parseFloat(form.default_amount_ngn) || 0,
-      status: 'active',
-      tags: selectedTagIds,
-      ...(!editing ? {
-        account_name: bank.account_name || null,
-        email: form.email.trim() || null,
-        whatsapp_phone: form.whatsapp_phone.trim() || null,
-        linkedin_url: form.linkedin_url.trim() || null,
-        heyreach_email: form.heyreach_email.trim() || null,
-        heyreach_password_enc: form.heyreach_password.trim() || null,
-        onboarded_at: form.onboarded_at || null,
-      } : {}),
-    };
-
-    try {
-      if (editing) {
-        const { error } = await supabase.from('contractors').update(payload).eq('id', editing.id);
-        if (error) throw error;
-        await logAudit('contractor_edited', `Contractor "${payload.full_name}" updated`, profile);
-        toast({ title: 'Contractor updated' });
-      } else {
-        const { error } = await supabase.from('contractors').insert(payload);
-        if (error) throw error;
-        await logAudit('contractor_added', `Contractor "${payload.full_name}" added`, profile);
-        toast({ title: 'Contractor added' });
-      }
-      setShowForm(false);
-      resetForm();
-      reloadAll();
-    } catch (err: unknown) {
-      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const openEdit = (c: Contractor) => {
     setEditing(c);
-    setForm({
-      first_name: c.first_name || (c.full_name || '').split(' ')[0] || '',
-      last_name: c.last_name || (c.full_name || '').split(' ').slice(1).join(' ') || '',
-      default_amount_ngn: String(c.default_amount_ngn),
-    });
-    setBank({
-      bank_name: c.bank_name,
-      account_number: c.account_number,
-      account_name: c.full_name,
-      verified: false,
-    });
-    setSelectedTagIds(c.tags || []);
     setShowForm(true);
   };
 
@@ -1621,7 +1524,7 @@ const Contractors = () => {
           </Button>
           <Button
             onClick={() => {
-              resetForm();
+              setEditing(null);
               setShowForm(true);
             }}
           >
@@ -1964,186 +1867,15 @@ const Contractors = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Add / edit contractor dialog */}
-      <Dialog
+      <ContractorFormDialog
         open={showForm}
-        onOpenChange={(v) => {
-          setShowForm(v);
-          if (!v) resetForm();
-        }}
-      >
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editing ? 'Edit' : 'Add'} Contractor</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>First name *</Label>
-                <Input
-                  value={form.first_name}
-                  onChange={(e) => setForm({ ...form, first_name: e.target.value })}
-                  placeholder="Ada"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Last name *</Label>
-                <Input
-                  value={form.last_name}
-                  onChange={(e) => setForm({ ...form, last_name: e.target.value })}
-                  placeholder="Okonkwo"
-                />
-              </div>
-            </div>
-            {!editing && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="ada@example.com"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Phone / WhatsApp</Label>
-                  <Input
-                    value={form.whatsapp_phone}
-                    onChange={(e) => setForm({ ...form, whatsapp_phone: e.target.value })}
-                    placeholder="+234 800 000 0000"
-                  />
-                </div>
-              </div>
-            )}
-
-            {bank.verified &&
-              bank.account_name &&
-              (form.first_name.trim() || form.last_name.trim()) &&
-              `${form.first_name.trim()} ${form.last_name.trim()}`.trim().toLowerCase() !==
-                bank.account_name.trim().toLowerCase() && (
-                <p className="text-xs text-warning">
-                  Heads up: entered name differs from verified bank name "{bank.account_name}".
-                </p>
-              )}
-
-            <BankAccountField value={bank} onChange={setBank} provider={activeProvider} />
-
-            {!editing && (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label>LinkedIn Profile URL</Label>
-                  <Input
-                    value={form.linkedin_url}
-                    onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })}
-                    placeholder="https://linkedin.com/in/your-profile"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label>LinkedIn Email</Label>
-                    <Input
-                      type="email"
-                      value={form.heyreach_email}
-                      onChange={(e) => setForm({ ...form, heyreach_email: e.target.value })}
-                      placeholder="LinkedIn login email"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>LinkedIn Password</Label>
-                    <Input
-                      type="password"
-                      value={form.heyreach_password}
-                      onChange={(e) => setForm({ ...form, heyreach_password: e.target.value })}
-                      placeholder="LinkedIn login password"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Default Amount (₦)</Label>
-                <Input
-                  type="number"
-                  value={form.default_amount_ngn}
-                  onChange={(e) =>
-                    setForm({ ...form, default_amount_ngn: e.target.value })
-                  }
-                />
-              </div>
-            </div>
-            {!editing && (
-              <div className="space-y-1">
-                <Label>Date Onboarded (LinkedIn Outreach)</Label>
-                <Input
-                  type="date"
-                  value={form.onboarded_at}
-                  onChange={(e) => setForm({ ...form, onboarded_at: e.target.value })}
-                />
-              </div>
-            )}
-            {availableTags.length > 0 && (
-              <div className="space-y-1">
-                <Label>Tags</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {availableTags.map((tag) => {
-                    const selected = selectedTagIds.includes(tag.id);
-                    return (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        onClick={() =>
-                          setSelectedTagIds((prev) =>
-                            selected ? prev.filter((id) => id !== tag.id) : [...prev, tag.id],
-                          )
-                        }
-                        className={cn(
-                          'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border transition-all',
-                          selected ? 'opacity-100' : 'opacity-40 hover:opacity-75',
-                        )}
-                        style={
-                          tag.color
-                            ? {
-                                backgroundColor: `${tag.color}25`,
-                                color: tag.color,
-                                borderColor: `${tag.color}50`,
-                                outline: selected ? `2px solid ${tag.color}` : undefined,
-                                outlineOffset: '1px',
-                              }
-                            : undefined
-                        }
-                      >
-                        {selected && <Check className="mr-1 h-3 w-3" />}
-                        {tag.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowForm(false);
-                resetForm();
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={submitting || !form.first_name.trim() || !bank.verified}
-            >
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {editing ? 'Update' : 'Add'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setShowForm}
+        editing={editing}
+        availableTags={availableTags}
+        activeProvider={activeProvider}
+        profile={profile}
+        onSaved={reloadAll}
+      />
 
       <ReactivateContractorDialog
         contractor={confirmReactivate}
