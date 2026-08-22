@@ -68,6 +68,7 @@ interface PayrollRun {
   approved_by: string | null;
   payroll_segment_id?: string | null;
   scheduled_disburse_at?: string | null;
+  is_auto_generated?: boolean;
 }
 
 interface PayrollRunsTabProps {
@@ -128,7 +129,19 @@ function runStepIndex(status: string): number {
 // has to infer the next step from a badge or a dot. Mirrors the pattern
 // QuickBooks and Gusto use: the stage tells you where you are, this tells
 // you what to do about it.
+// An Autopilot-created shell: pay_schedules' cron drops a ₦0 draft on the
+// cutoff date automatically, but never computes real figures on its own
+// (schedule_auto_draft() deliberately stops short of that — see its
+// migration comment — so a ₦0 payroll can never be approved unreviewed).
+// A human still has to open it once to pull real salary data in.
+function isUncomputedAutoDraft(run: PayrollRun): boolean {
+  return run.status === 'draft' && !!run.is_auto_generated && run.total_burn_ngn === 0;
+}
+
 function nextActionCopy(run: PayrollRun, canApprove: boolean, canDisburse: boolean, selfApprovalBlocked: boolean): string {
+  if (isUncomputedAutoDraft(run)) {
+    return 'Autopilot created this on the cutoff date — open it to pull in real salary figures, then submit.';
+  }
   switch (run.status) {
     case 'draft':
       return 'Review the numbers, then Submit for approval.';
@@ -427,6 +440,12 @@ export const PayrollRunsTab = ({
 
                     <div className="flex items-center gap-1.5">
                       <StatusBadge status={r.status} />
+                      {isUncomputedAutoDraft(r) && (
+                        <Badge variant="outline" className="gap-1 text-[10px] border-purple-300 text-purple-700 bg-purple-50 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-700">
+                          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>
+                          Autopilot
+                        </Badge>
+                      )}
                       {r.status === 'approved' && r.scheduled_disburse_at && (
                         <Badge variant="outline" className="gap-1 text-[10px] border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-700">
                           <Clock className="h-3 w-3" />
@@ -439,10 +458,16 @@ export const PayrollRunsTab = ({
                     <div className="flex justify-end gap-1 flex-wrap ml-auto">
                       {r.status === 'draft' && (
                         <>
-                          <Button size="sm" variant="outline" onClick={() => editDraft(r)}>
-                            Edit
+                          <Button size="sm" variant={isUncomputedAutoDraft(r) ? 'default' : 'outline'} onClick={() => editDraft(r)}>
+                            {isUncomputedAutoDraft(r) ? 'Compute figures' : 'Edit'}
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => submit(r)} disabled={preflightChecking}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => submit(r)}
+                            disabled={preflightChecking || isUncomputedAutoDraft(r)}
+                            title={isUncomputedAutoDraft(r) ? 'Compute figures first — this run still shows ₦0' : undefined}
+                          >
                             {preflightChecking ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
                             Submit
                           </Button>
@@ -652,6 +677,12 @@ export const PayrollRunsTab = ({
                       <div className="flex flex-col items-end gap-1.5">
                         <span className="inline-flex items-center gap-1.5 flex-wrap justify-end">
                           <StatusBadge status={r.status} />
+                          {isUncomputedAutoDraft(r) && (
+                            <Badge variant="outline" className="gap-1 text-[10px] border-purple-300 text-purple-700 bg-purple-50 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-700">
+                              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>
+                              Autopilot
+                            </Badge>
+                          )}
                           {r.status === 'approved' && r.scheduled_disburse_at && (
                             <Badge variant="outline" className="gap-1 text-[10px] border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-700">
                               <Clock className="h-3 w-3" />
@@ -676,10 +707,17 @@ export const PayrollRunsTab = ({
                     <MobileCardFooter className="flex-wrap">
                       {r.status === 'draft' && (
                         <>
-                          <Button size="sm" variant="outline" className="h-9" onClick={() => editDraft(r)}>
-                            Edit
+                          <Button size="sm" variant={isUncomputedAutoDraft(r) ? 'default' : 'outline'} className="h-9" onClick={() => editDraft(r)}>
+                            {isUncomputedAutoDraft(r) ? 'Compute figures' : 'Edit'}
                           </Button>
-                          <Button size="sm" variant="outline" className="h-9" onClick={() => submit(r)} disabled={preflightChecking}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-9"
+                            onClick={() => submit(r)}
+                            disabled={preflightChecking || isUncomputedAutoDraft(r)}
+                            title={isUncomputedAutoDraft(r) ? 'Compute figures first — this run still shows ₦0' : undefined}
+                          >
                             {preflightChecking ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
                             Submit
                           </Button>

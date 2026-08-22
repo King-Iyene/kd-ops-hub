@@ -79,6 +79,7 @@ interface PayrollRun {
   approved_by: string | null;
   payroll_segment_id?: string | null;
   scheduled_disburse_at?: string | null;
+  is_auto_generated?: boolean;
 }
 
 const monthLabel = (period: string, periodType?: string): string => {
