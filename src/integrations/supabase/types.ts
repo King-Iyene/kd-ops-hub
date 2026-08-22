@@ -4203,6 +4203,7 @@ export type Database = {
           entity_type: string
           frequency: string
           id: string
+          staff_loan_id: string | null
           start_date: string
           status: string
           total_deductible_amount: number | null
@@ -4218,6 +4219,7 @@ export type Database = {
           entity_type: string
           frequency?: string
           id?: string
+          staff_loan_id?: string | null
           start_date: string
           status?: string
           total_deductible_amount?: number | null
@@ -4233,6 +4235,7 @@ export type Database = {
           entity_type?: string
           frequency?: string
           id?: string
+          staff_loan_id?: string | null
           start_date?: string
           status?: string
           total_deductible_amount?: number | null
@@ -4264,6 +4267,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_deductions_staff_loan_id_fkey"
+            columns: ["staff_loan_id"]
+            isOneToOne: false
+            referencedRelation: "staff_loans"
             referencedColumns: ["id"]
           },
         ]
@@ -8122,6 +8132,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           cutoff_date: string | null
+          deductions_settled_at: string | null
           employee_count: number | null
           employer_pension_ngn: number | null
           id: string
@@ -8152,6 +8163,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           cutoff_date?: string | null
+          deductions_settled_at?: string | null
           employee_count?: number | null
           employer_pension_ngn?: number | null
           id?: string
@@ -8182,6 +8194,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           cutoff_date?: string | null
+          deductions_settled_at?: string | null
           employee_count?: number | null
           employer_pension_ngn?: number | null
           id?: string
@@ -11798,6 +11811,7 @@ export type Database = {
           outstanding_ngn: number
           principal_ngn: number
           purpose: string | null
+          repayment_method: string
           status: string
           tenure_months: number
           updated_at: string | null
@@ -11816,6 +11830,7 @@ export type Database = {
           outstanding_ngn: number
           principal_ngn: number
           purpose?: string | null
+          repayment_method?: string
           status?: string
           tenure_months: number
           updated_at?: string | null
@@ -11834,6 +11849,7 @@ export type Database = {
           outstanding_ngn?: number
           principal_ngn?: number
           purpose?: string | null
+          repayment_method?: string
           status?: string
           tenure_months?: number
           updated_at?: string | null
@@ -15670,6 +15686,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           cutoff_date: string | null
+          deductions_settled_at: string | null
           employee_count: number | null
           employer_pension_ngn: number | null
           id: string
@@ -15748,6 +15765,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           cutoff_date: string | null
+          deductions_settled_at: string | null
           employee_count: number | null
           employer_pension_ngn: number | null
           id: string
@@ -16183,6 +16201,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           cutoff_date: string | null
+          deductions_settled_at: string | null
           employee_count: number | null
           employer_pension_ngn: number | null
           id: string
@@ -16310,6 +16329,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           cutoff_date: string | null
+          deductions_settled_at: string | null
           employee_count: number | null
           employer_pension_ngn: number | null
           id: string
@@ -16954,6 +16974,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           cutoff_date: string | null
+          deductions_settled_at: string | null
           employee_count: number | null
           employer_pension_ngn: number | null
           id: string
@@ -17047,6 +17068,10 @@ export type Database = {
       settle_ewa_for_payroll: {
         Args: { p_payroll_run_id: string }
         Returns: number
+      }
+      settle_payroll_run_deductions: {
+        Args: { p_run_id: string }
+        Returns: undefined
       }
       snapshot_cash_balance: {
         Args: { p_source?: string }
