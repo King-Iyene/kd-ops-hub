@@ -227,36 +227,32 @@ export const PayrollRunsTab = ({
   return (
     <div className="space-y-6">
 
+      {/* One compact line instead of two stacked paragraph banners — the
+          "what this page does" note and the standing PAYE-compliance note
+          were both true but ate a full screen's worth of space before any
+          actual payroll data appeared. The detail moved into an InfoHint,
+          available on demand instead of forced on every visit. */}
       {!bannerDismissed && (
-        <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 px-4 py-3 text-sm text-blue-800 dark:text-blue-200">
-          <Info className="h-4 w-4 shrink-0 mt-0.5 text-blue-500" />
-          <p className="flex-1 leading-relaxed">
-            Payroll runs calculate monthly people costs: gross salaries, PAYE tax, pension contributions, and NHF deductions. Approve a run to generate payslips. Note: KDOps records payroll figures — salary transfers must be initiated separately via the Payments module.
-          </p>
+        <div className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-card px-3.5 py-2 text-xs text-muted-foreground">
+          <Info className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <span className="flex-1">
+            Approve a run to generate payslips — money still moves separately via Payments.
+          </span>
+          <InfoHint size={13}>
+            Payroll runs calculate monthly people costs: gross salaries, PAYE tax, pension contributions, and NHF deductions. KDOps records payroll figures — salary transfers must be initiated separately via the Payments module.
+            <br /><br />
+            <strong>PAYE regime:</strong> the "NTA 2025" bands in <code>src/lib/tax.ts</code> (0% to ₦800k, then 15% / 18% / 21% / 23% / 25% in successive slices, with rent relief) match the Nigeria Tax Act 2025, in force since 1 Jan 2026 — cross-checked against KPMG, Baker Tilly, and SafeguardGlobal (Aug 2026). Worth a final sign-off from your accountant of record before high-stakes filings.
+          </InfoHint>
           <button
             onClick={() => {
               setBannerDismissed(true);
               localStorage.setItem('kdops_payroll_banner_dismissed', 'true');
             }}
-            className="shrink-0 text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Dismiss"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
-        </div>
-      )}
-
-      {/* Standing compliance note — NOT dismissible. Cross-checked against the
-          Nigeria Tax Act 2025 (KPMG, Baker Tilly, SafeguardGlobal — Aug 2026)
-          and matches the current law. Revisit only if FIRS guidance changes,
-          or once Phase 4 lands an editable tax table so this isn't a
-          hardcoded constant. */}
-      {(
-        <div className="flex items-start gap-3 rounded-lg border border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-200">
-          <Check className="h-4 w-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
-          <p className="flex-1 leading-relaxed">
-            <span className="font-medium">PAYE regime confirmed:</span> the "NTA 2025" bands in <code className="text-xs">src/lib/tax.ts</code> (0% to ₦800k, then 15% / 18% / 21% / 23% / 25% in successive slices, with rent relief) match the Nigeria Tax Act 2025, in force since 1 Jan 2026 — cross-checked against KPMG, Baker Tilly, and SafeguardGlobal (Aug 2026). Worth a final sign-off from your accountant of record before high-stakes filings, but this is not a guess.
-          </p>
         </div>
       )}
 
@@ -297,14 +293,17 @@ export const PayrollRunsTab = ({
         ))}
       </div>
 
-      {trend.length > 0 && (
+      {/* A bar chart earns its space once there's a trend to see — one bar
+          on a 260px canvas just reads as broken whitespace. Below 2 months
+          of history, say so in one line instead. */}
+      {trend.length >= 2 ? (
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-base">Burn trend — last 6 months</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={220}>
               <BarChart data={trend} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <ChartGradients />
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
@@ -321,7 +320,12 @@ export const PayrollRunsTab = ({
             </ResponsiveContainer>
           </CardContent>
         </Card>
-      )}
+      ) : trend.length === 1 ? (
+        <div className="flex items-center gap-2.5 rounded-lg border border-dashed border-border/60 px-3.5 py-2.5 text-xs text-muted-foreground">
+          <TrendingUp className="h-3.5 w-3.5 shrink-0" />
+          Burn trend appears once you have a second month to compare against.
+        </div>
+      ) : null}
 
       {salaryErrors.length > 0 && (
         <Alert variant="destructive">
