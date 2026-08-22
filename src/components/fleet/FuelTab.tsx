@@ -9,7 +9,7 @@ import { writeRejectionNotification, isValidRejectionReason } from '@/lib/reject
 import { notifyUser, notifyRoles, notifyChannels } from '@/lib/notify';
 import { notifyAnomalyToAdmins } from '@/lib/notify-events';
 import { formatNaira, formatDate } from '@/lib/format';
-import { FilePreviewTrigger } from '@/components/FilePreview';
+import { FilePreviewTrigger, FilePreviewDialog } from '@/components/FilePreview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -259,6 +259,11 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
   const [receiptScanWarning, setReceiptScanWarning] = useState('');
   const [ocrReadValues, setOcrReadValues] = useState<{ amount: number | null; litres: number | null }>({ amount: null, litres: null });
   const [submittingReceipt, setSubmittingReceipt] = useState(false);
+
+  // Desktop dropdown "View Receipt" — the receipts bucket is private, so a
+  // stored getPublicUrl() no longer resolves. Route through FilePreviewDialog
+  // which re-signs the URL at open time.
+  const [previewReceiptUrl, setPreviewReceiptUrl] = useState<string | null>(null);
 
   // Tamper-analysis (ELA)
   const [elaTarget, setElaTarget] = useState<{ id: string; url: string } | null>(null);
@@ -1064,6 +1069,10 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
   const submitLogExternalPurchase = async () => {
     if (!logExternalForm.employee_id) {
       toast({ title: 'Select an employee', variant: 'destructive' });
+      return;
+    }
+    if (!logExternalForm.vehicle_id) {
+      toast({ title: 'Select a vehicle', description: 'Every logged purchase must be tied to a vehicle.', variant: 'destructive' });
       return;
     }
     const amount = parseFloat(logExternalForm.amount_ngn) || 0;
@@ -2235,7 +2244,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               {r.receipt_url && (
-                                <DropdownMenuItem onClick={() => window.open(r.receipt_url!, '_blank')}>
+                                <DropdownMenuItem onClick={() => setPreviewReceiptUrl(r.receipt_url!)}>
                                   <FileText className="h-4 w-4 mr-2" /> View Receipt
                                 </DropdownMenuItem>
                               )}
@@ -2259,7 +2268,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => window.open(r.receipt_url!, '_blank')}>
+                            <DropdownMenuItem onClick={() => setPreviewReceiptUrl(r.receipt_url!)}>
                               <FileText className="h-4 w-4 mr-2" /> View Receipt
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openElaAnalysis(r.id, r.receipt_url!)}>
@@ -2815,11 +2824,10 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
           </div>
 
           <div className="space-y-1">
-            <Label>Vehicle <span className="text-muted-foreground font-normal text-xs">(optional, auto-suggested from assignment)</span></Label>
-            <Select value={logExternalForm.vehicle_id || '__none__'} onValueChange={(v) => setLogExternalForm((f) => ({ ...f, vehicle_id: v === '__none__' ? '' : v }))}>
+            <Label>Vehicle <span className="text-destructive">*</span> <span className="text-muted-foreground font-normal text-xs">(auto-suggested from assignment)</span></Label>
+            <Select value={logExternalForm.vehicle_id || undefined} onValueChange={(v) => setLogExternalForm((f) => ({ ...f, vehicle_id: v }))}>
               <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">—</SelectItem>
                 {vehicles.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.plate_number})</SelectItem>))}
               </SelectContent>
             </Select>
@@ -2917,7 +2925,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
           <Button variant="outline" onClick={() => setShowLogExternalForm(false)}>Cancel</Button>
           <Button
             onClick={submitLogExternalPurchase}
-            disabled={submittingLogExternal || !logExternalForm.employee_id || !logExternalForm.amount_ngn || !logExternalReceiptFile}
+            disabled={submittingLogExternal || !logExternalForm.employee_id || !logExternalForm.vehicle_id || !logExternalForm.amount_ngn || !logExternalReceiptFile}
           >
             {submittingLogExternal && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Upload className="mr-2 h-4 w-4" /> Log Purchase
@@ -3111,6 +3119,13 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <FilePreviewDialog
+      open={!!previewReceiptUrl}
+      onOpenChange={(v) => { if (!v) setPreviewReceiptUrl(null); }}
+      url={previewReceiptUrl || undefined}
+      fileName="fuel-receipt"
+    />
 
     {/* TAMPER ANALYSIS (ELA) DIALOG */}
     <Dialog open={!!elaTarget} onOpenChange={(v) => { if (!v) { setElaTarget(null); setElaResult(null); setElaError(''); } }}>

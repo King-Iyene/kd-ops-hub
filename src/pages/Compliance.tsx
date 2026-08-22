@@ -92,6 +92,7 @@ import {
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
 import { cn } from '@/lib/utils';
+import { FilePreviewTrigger } from '@/components/FilePreview';
 
 type Kind = 'paye' | 'pension' | 'vat' | 'wht' | 'tcc' | 'cac' | 'itf' | 'nsitf' | 'nhf';
 
@@ -1212,9 +1213,13 @@ const Compliance = () => {
                             <TableCell className="text-xs text-muted-foreground">
                               {r.provider_reference || '—'}
                               {r.receipt_url && (
-                                <a href={r.receipt_url} target="_blank" rel="noreferrer" className="ml-1.5 text-primary inline-flex items-center gap-0.5 hover:underline">
-                                  <Receipt className="h-3 w-3" /><ExternalLink className="h-2.5 w-2.5" />
-                                </a>
+                                <FilePreviewTrigger
+                                  url={r.receipt_url}
+                                  label=""
+                                  fileName={`remittance-receipt-${r.id.slice(0, 8)}`}
+                                  variant="link"
+                                  className="ml-1.5"
+                                />
                               )}
                             </TableCell>
                             <TableCell className="text-right">
