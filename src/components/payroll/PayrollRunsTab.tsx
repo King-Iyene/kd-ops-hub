@@ -108,6 +108,47 @@ interface PayrollRunsTabProps {
   isSelfApprovalBlocked: (run: PayrollRun) => boolean;
 }
 
+// Compact 4-step progress indicator (Draft -> Submitted -> Approved -> Paid)
+// shown alongside the status badge. The badge names the exact DB status;
+// this answers the question the audit found the badge alone couldn't:
+// "how far along is this, and what's the very next thing that has to
+// happen." 'processing' collapses into the Approved step with a spinner
+// rather than adding a 5th dot, since it's a transient lock, not a state
+// HR ever needs to act on directly.
+const RUN_STEPS = ['Draft', 'Submitted', 'Approved', 'Paid'] as const;
+
+function runStepIndex(status: string): number {
+  if (status === 'draft') return 0;
+  if (status === 'pending_approval') return 1;
+  if (status === 'approved' || status === 'processing') return 2;
+  if (status === 'paid') return 3;
+  return -1; // rejected/cancelled/unknown — no stepper, badge alone is enough
+}
+
+function RunStepper({ status }: { status: string }) {
+  const current = runStepIndex(status);
+  if (current < 0) return null;
+  return (
+    <div className="flex items-center gap-1 w-full max-w-[168px]" aria-label={`Run progress: ${RUN_STEPS[current]}`}>
+      {RUN_STEPS.map((label, i) => (
+        <div key={label} className="flex items-center flex-1 last:flex-none">
+          <div
+            className={cn(
+              'h-1.5 w-1.5 rounded-full shrink-0',
+              i < current ? 'bg-success' : i === current ? 'bg-primary' : 'bg-muted-foreground/25',
+              i === current && status === 'processing' && 'animate-pulse',
+            )}
+            title={label}
+          />
+          {i < RUN_STEPS.length - 1 && (
+            <div className={cn('h-px flex-1 mx-1', i < current ? 'bg-success/50' : 'bg-muted-foreground/15')} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export const PayrollRunsTab = ({
   runs,
   loading,
@@ -380,7 +421,7 @@ export const PayrollRunsTab = ({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-1 items-start">
+                      <div className="flex flex-col gap-1.5 items-start">
                         <StatusBadge status={r.status} />
                         {r.status === 'approved' && r.scheduled_disburse_at && (
                           <Badge variant="outline" className="gap-1 text-[10px] border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-700">
@@ -388,6 +429,7 @@ export const PayrollRunsTab = ({
                             {new Date(r.scheduled_disburse_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
                           </Badge>
                         )}
+                        <RunStepper status={r.status} />
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
@@ -560,15 +602,18 @@ export const PayrollRunsTab = ({
                     </MobileCardHeader>
 
                     <MobileCardRow label="Status">
-                      <span className="inline-flex items-center gap-1.5 flex-wrap">
-                        <StatusBadge status={r.status} />
-                        {r.status === 'approved' && r.scheduled_disburse_at && (
-                          <Badge variant="outline" className="gap-1 text-[10px] border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-700">
-                            <Clock className="h-3 w-3" />
-                            {new Date(r.scheduled_disburse_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
-                          </Badge>
-                        )}
-                      </span>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <span className="inline-flex items-center gap-1.5 flex-wrap justify-end">
+                          <StatusBadge status={r.status} />
+                          {r.status === 'approved' && r.scheduled_disburse_at && (
+                            <Badge variant="outline" className="gap-1 text-[10px] border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-700">
+                              <Clock className="h-3 w-3" />
+                              {new Date(r.scheduled_disburse_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                            </Badge>
+                          )}
+                        </span>
+                        <RunStepper status={r.status} />
+                      </div>
                     </MobileCardRow>
                     <MobileCardRow label="Contractor" className="currency">{formatNaira(r.total_contractor_ngn)}</MobileCardRow>
                     <MobileCardRow label="Expenses" className="currency">{formatNaira(r.total_expenses_ngn)}</MobileCardRow>
