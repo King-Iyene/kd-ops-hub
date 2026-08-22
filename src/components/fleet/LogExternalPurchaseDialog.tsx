@@ -102,6 +102,12 @@ export function LogExternalPurchaseDialog({
           amount_ngn: amount,
           litres_filled: litresFilled || null,
           reason: `Logged externally — paid outside the platform.${form.notes ? ` ${form.notes}` : ''}`,
+          // Must stay 'payment_sent' — a DB CHECK constraint
+          // (fuel_requests_logged_externally_never_pending) requires
+          // logged_externally rows to have status='payment_sent'. The
+          // receipt-debt bug this caused (getReceiptDebt() treating this
+          // row as still owing a receipt) is fixed at the query level
+          // instead — see fleet-utils.ts.
           status: 'payment_sent',
           payment_sent_at: paidAt,
           logged_externally: true,

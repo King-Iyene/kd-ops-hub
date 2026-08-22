@@ -23,6 +23,7 @@ import {
   type ReceiptDebt,
   daysSinceIso,
   getReceiptDebt,
+  displayFuelStatus,
   RECEIPT_DEBT_HARD_BLOCK_DAYS,
 } from '@/lib/fleet-utils';
 
@@ -249,7 +250,7 @@ export function MyRequestsTab({
                     <TableCell className="text-right currency">{formatNaira(r.amount_ngn || 0)}</TableCell>
                     <TableCell className="text-right">{r.litres_est ?? '—'}</TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{r.reason || '—'}</TableCell>
-                    <TableCell><StatusBadge status={r.status} /></TableCell>
+                    <TableCell><StatusBadge status={displayFuelStatus(r)} /></TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(r.created_at)}</TableCell>
                     <TableCell>
                       {r.status === 'payment_sent' && (

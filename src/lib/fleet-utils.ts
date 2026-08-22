@@ -80,6 +80,18 @@ export interface FuelRequest {
   batch_id?: string | null;
   paystack_fee_ngn?: number | null;
   paystack_raw?: any;
+  logged_externally?: boolean | null;
+}
+
+// Rows logged via "Log External Purchase" are always paid AND receipted
+// at insert time, but a DB CHECK constraint
+// (fuel_requests_logged_externally_never_pending) forces their `status`
+// column to stay 'payment_sent' so the batch-creation path never sees
+// them. Anywhere the raw status would be shown or used to decide
+// whether a receipt is still owed, use this instead of `.status`.
+export function displayFuelStatus(r: Pick<FuelRequest, 'status' | 'logged_externally' | 'receipt_url'>): string {
+  if (r.logged_externally && r.receipt_url) return 'completed';
+  return r.status;
 }
 
 export interface TripLog {
@@ -307,6 +319,11 @@ export async function getReceiptDebt(employeeId: string): Promise<ReceiptDebt> {
       .select('payment_sent_at')
       .eq('driver_id', employeeId)
       .eq('status', 'payment_sent')
+      // Rows logged via "Log External Purchase" are always inserted with
+      // status='payment_sent' (a DB CHECK constraint requires it) even
+      // though the receipt is already attached — they don't actually owe
+      // a receipt, so they must not count toward this debt.
+      .is('receipt_url', null)
       .is('deleted_at', null)
       .order('payment_sent_at', { ascending: true }),
     supabase

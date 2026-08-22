@@ -117,6 +117,7 @@ import {
   getReceiptDebt,
   exportCsv,
   daysSinceIso,
+  displayFuelStatus,
   RECEIPT_DEBT_HARD_BLOCK_DAYS,
 } from '@/lib/fleet-utils';
 
@@ -1998,7 +1999,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                       <div className="flex items-center gap-1.5">
                         {r.status === 'budget_blocked'
                           ? <Badge variant="outline" className="border-red-300 text-red-700 bg-red-50 dark:bg-red-950/20 dark:text-red-400">Over Budget</Badge>
-                          : <StatusBadge status={r.status} />}
+                          : <StatusBadge status={displayFuelStatus(r)} />}
                       </div>
                       {r.status === 'rejected' && r.rejection_reason && (
                         <p className="text-[11px] text-muted-foreground max-w-[200px] truncate" title={r.rejection_reason}>
@@ -2190,7 +2191,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                   <div className="flex items-center gap-3 text-xs">
                     {r.status === 'budget_blocked'
                       ? <Badge variant="outline" className="border-red-300 text-red-700 bg-red-50">Over Budget</Badge>
-                      : <StatusBadge status={r.status} />}
+                      : <StatusBadge status={displayFuelStatus(r)} />}
                     <span className="text-muted-foreground tabular-nums ml-auto">
                       {r.litres_est ? `${r.litres_est} L` : ''}
                     </span>
