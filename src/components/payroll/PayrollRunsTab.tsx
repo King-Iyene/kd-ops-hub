@@ -605,9 +605,9 @@ export const PayrollRunsTab = ({
                     </p>
                   )}
 
-                  {/* Inline detail panel — who gets paid + bonuses, instead of
-                      routing to a separate dialog just to see what a run
-                      already contains. */}
+                  {/* Inline detail panel — who gets paid, bonuses, and the
+                      actual money ledger, instead of routing to a separate
+                      dialog just to see what a run already contains. */}
                   {isExpanded && (
                     <div className="mt-3.5 pt-3.5 border-t border-dashed border-border flex flex-wrap gap-6" onClick={(e) => e.stopPropagation()}>
                       <div className="min-w-[220px]">
@@ -631,6 +631,19 @@ export const PayrollRunsTab = ({
                             + Add bonus or per-employee adjustment
                           </button>
                         )}
+                      </div>
+                      <div className="min-w-[240px] flex-1 max-w-sm">
+                        <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Payroll summary</div>
+                        <div className="rounded-md border border-border/60 overflow-hidden text-sm">
+                          <div className="flex justify-between px-2.5 py-1.5"><span>Gross pay</span><span className="tabular-nums">{formatNaira(r.total_employee_ngn)}</span></div>
+                          <div className="flex justify-between px-2.5 py-1.5 text-xs text-muted-foreground border-t border-border/50"><span>PAYE (tax)</span><span className="tabular-nums">− {formatNaira(r.paye_ngn)}</span></div>
+                          <div className="flex justify-between px-2.5 py-1.5 text-xs text-muted-foreground border-t border-border/50"><span>Pension (employee)</span><span className="tabular-nums">− {formatNaira(r.pension_ngn)}</span></div>
+                          <div className="flex justify-between px-2.5 py-1.5 text-xs text-muted-foreground border-t border-border/50"><span>NHF</span><span className="tabular-nums">− {formatNaira(r.nhf_ngn)}</span></div>
+                          <div className="flex justify-between px-2.5 py-1.5 font-semibold bg-muted/40 border-t border-border/50"><span>Net pay to disburse</span><span className="tabular-nums">{formatNaira(r.total_employee_ngn - r.paye_ngn - r.pension_ngn - r.nhf_ngn)}</span></div>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          Employer cost on top of gross (employer pension): {formatNaira(r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE))}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -703,11 +716,14 @@ export const PayrollRunsTab = ({
                         {nextActionCopy(r, canApprovePerm, canDisburse, isSelfApprovalBlocked(r))}
                       </p>
                     )}
+                    <MobileCardRow label="Gross pay" className="currency">{formatNaira(r.total_employee_ngn)}</MobileCardRow>
                     <MobileCardRow label="Contractor" className="currency">{formatNaira(r.total_contractor_ngn)}</MobileCardRow>
                     <MobileCardRow label="Expenses" className="currency">{formatNaira(r.total_expenses_ngn)}</MobileCardRow>
                     <MobileCardRow label="PAYE" className="currency">{formatNaira(r.paye_ngn)}</MobileCardRow>
                     <MobileCardRow label="Pension (emp)" className="currency">{formatNaira(r.pension_ngn)}</MobileCardRow>
                     <MobileCardRow label="Pension (er)" className="currency">{formatNaira(r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE))}</MobileCardRow>
+                    <MobileCardRow label="NHF" className="currency">{formatNaira(r.nhf_ngn)}</MobileCardRow>
+                    <MobileCardRow label="Net pay to disburse" className="currency font-semibold">{formatNaira(r.total_employee_ngn - r.paye_ngn - r.pension_ngn - r.nhf_ngn)}</MobileCardRow>
 
                     <MobileCardFooter className="flex-wrap">
                       {r.status === 'draft' && (
