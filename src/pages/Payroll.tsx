@@ -141,6 +141,12 @@ const Payroll = () => {
   const [scheduling, setScheduling] = useState(false);
   const [confirmPaidRun, setConfirmPaidRun] = useState<PayrollRun | null>(null);
   const [confirmApproveRun, setConfirmApproveRun] = useState<PayrollRun | null>(null);
+  // Pre-flight checklist (Deel/Rippling pattern) — catches missing/duplicate
+  // bank details before Submit, instead of discovering them at disbursement
+  // time when the run is already approved and days have passed.
+  const [preflightRun, setPreflightRun] = useState<PayrollRun | null>(null);
+  const [preflightIssues, setPreflightIssues] = useState<{ kind: string; message: string; names: string[] }[]>([]);
+  const [preflightChecking, setPreflightChecking] = useState(false);
   // Per-employee adjustments (bonus / overtime / allowance / one-off deduction)
   // for a run, entered before payslips are generated.
   const [adjustRun, setAdjustRun] = useState<PayrollRun | null>(null);
@@ -681,6 +687,62 @@ const Payroll = () => {
     );
     toast({ title: 'Payroll submitted for approval' });
     load();
+  };
+
+  // Pre-flight check — runs the same segment filter used everywhere else in
+  // the run's lifecycle, then flags data problems that would otherwise only
+  // surface at disbursement: missing bank details, two employees sharing one
+  // account number (a common copy-paste data-entry error), and salaries that
+  // resolve to zero. Clean run -> submits immediately, no extra click.
+  const runPreflight = async (run: PayrollRun) => {
+    setPreflightChecking(true);
+    try {
+      const { data: employees, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, salary_ngn, bank_name, bank_account_number, department_id, employee_category, employment_type, pay_group_id')
+        .eq('status', 'active')
+        .neq('role', 'driver')
+        .limit(500);
+      if (error) throw error;
+
+      const runSegmentRules = await fetchSegmentRules(run.payroll_segment_id);
+      const list = filterEmployeesForSegment((employees || []) as any[], runSegmentRules);
+
+      const missingBank = list.filter((e: any) => !e.bank_account_number || !e.bank_name).map((e: any) => e.full_name);
+      const zeroSalary = list.filter((e: any) => !e.salary_ngn || Number(e.salary_ngn) <= 0).map((e: any) => e.full_name);
+      const acctCounts = new Map<string, string[]>();
+      for (const e of list as any[]) {
+        if (!e.bank_account_number) continue;
+        const key = `${e.bank_name || ''}|${e.bank_account_number}`;
+        acctCounts.set(key, [...(acctCounts.get(key) || []), e.full_name]);
+      }
+      const duplicateAccounts = [...acctCounts.values()].filter((names) => names.length > 1).flat();
+
+      const issues: { kind: string; message: string; names: string[] }[] = [];
+      if (missingBank.length > 0) {
+        issues.push({ kind: 'missing_bank', message: `${missingBank.length} employee${missingBank.length === 1 ? '' : 's'} missing bank details — disbursement will skip ${missingBank.length === 1 ? 'them' : 'them'} unless fixed`, names: missingBank });
+      }
+      if (zeroSalary.length > 0) {
+        issues.push({ kind: 'zero_salary', message: `${zeroSalary.length} employee${zeroSalary.length === 1 ? '' : 's'} has no salary configured`, names: zeroSalary });
+      }
+      if (duplicateAccounts.length > 0) {
+        issues.push({ kind: 'duplicate_account', message: `${duplicateAccounts.length} employees share the same bank account number — check for a data-entry mistake`, names: duplicateAccounts });
+      }
+
+      if (issues.length === 0) {
+        await submit(run);
+        return;
+      }
+      setPreflightIssues(issues);
+      setPreflightRun(run);
+    } catch (e: any) {
+      // Never block Submit because the pre-flight check itself failed —
+      // fall back to the old direct-submit behaviour.
+      toast({ title: 'Pre-flight check skipped', description: e.message, variant: 'destructive' });
+      await submit(run);
+    } finally {
+      setPreflightChecking(false);
+    }
   };
 
   // Mirrors the server-side rule in approve_payroll_run() so the button can
@@ -1784,11 +1846,12 @@ const Payroll = () => {
             monthLabel={monthLabel}
             setBannerDismissed={setBannerDismissed}
             setDialog={setDialog}
-            submit={submit}
+            submit={runPreflight}
             editDraft={editDraft}
             deleteDraft={deleteDraft}
             recallToDraft={recallToDraft}
             setConfirmApproveRun={setConfirmApproveRun}
+            preflightChecking={preflightChecking}
             generatePayslips={generatePayslips}
             openDisburse={openDisburse}
             doCancelSchedule={doCancelSchedule}
@@ -1875,6 +1938,15 @@ const Payroll = () => {
           const run = confirmApproveRun;
           setConfirmApproveRun(null);
           approve(run);
+        }}
+        preflightRun={preflightRun}
+        preflightIssues={preflightIssues}
+        setPreflightRun={setPreflightRun}
+        submitAnyway={() => {
+          if (!preflightRun) return;
+          const run = preflightRun;
+          setPreflightRun(null);
+          submit(run);
         }}
         monthLabel={monthLabel}
       />

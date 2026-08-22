@@ -157,6 +157,14 @@ export interface PayrollDialogsProps {
   setConfirmApproveRun: (run: PayrollRun | null) => void;
   confirmApprove: () => void;
 
+  // Pre-flight checklist — flags missing/duplicate bank details before
+  // Submit (Deel/Rippling pattern), so problems surface days earlier than
+  // at disbursement.
+  preflightRun: PayrollRun | null;
+  preflightIssues: { kind: string; message: string; names: string[] }[];
+  setPreflightRun: (run: PayrollRun | null) => void;
+  submitAnyway: () => void;
+
   monthLabel: (period: string, periodType?: string) => string;
 }
 
@@ -213,6 +221,10 @@ export const PayrollDialogs = ({
   confirmApproveRun,
   setConfirmApproveRun,
   confirmApprove,
+  preflightRun,
+  preflightIssues,
+  setPreflightRun,
+  submitAnyway,
   monthLabel,
 }: PayrollDialogsProps) => {
   return (
@@ -757,6 +769,33 @@ export const PayrollDialogs = ({
             <p className="text-xs text-muted-foreground leading-relaxed">
               Once approved, payslips are generated automatically and the run is ready to disburse. To change anything after this, recall the run to draft first.
             </p>
+          </div>
+        )}
+      </ResponsiveDialog>
+
+      <ResponsiveDialog
+        open={!!preflightRun}
+        onOpenChange={(open) => { if (!open) setPreflightRun(null); }}
+        title="Before you submit"
+        description="A few things about this run's data are worth fixing first — none of these block submission, but they will block disbursement later."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setPreflightRun(null)}>Go fix these first</Button>
+            <Button onClick={submitAnyway}>Submit anyway</Button>
+          </>
+        }
+      >
+        {preflightRun && (
+          <div className="space-y-3">
+            {preflightIssues.map((issue, i) => (
+              <div key={i} className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3.5 py-3">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium leading-snug">{issue.message}</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{issue.names.join(', ')}</p>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </ResponsiveDialog>

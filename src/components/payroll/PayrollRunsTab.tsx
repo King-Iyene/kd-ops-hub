@@ -93,6 +93,7 @@ interface PayrollRunsTabProps {
   deleteDraft: (run: PayrollRun) => void;
   recallToDraft: (run: PayrollRun) => void;
   setConfirmApproveRun: (run: PayrollRun | null) => void;
+  preflightChecking: boolean;
   generatePayslips: (run: PayrollRun) => void;
   openDisburse: (run: PayrollRun) => void;
   doCancelSchedule: (run: PayrollRun) => void;
@@ -196,6 +197,7 @@ export const PayrollRunsTab = ({
   deleteDraft,
   recallToDraft,
   setConfirmApproveRun,
+  preflightChecking,
   generatePayslips,
   openDisburse,
   doCancelSchedule,
@@ -440,7 +442,8 @@ export const PayrollRunsTab = ({
                           <Button size="sm" variant="outline" onClick={() => editDraft(r)}>
                             Edit
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => submit(r)}>
+                          <Button size="sm" variant="outline" onClick={() => submit(r)} disabled={preflightChecking}>
+                            {preflightChecking ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
                             Submit
                           </Button>
                           {/* Delete is draft-only — once a run is in
@@ -676,7 +679,8 @@ export const PayrollRunsTab = ({
                           <Button size="sm" variant="outline" className="h-9" onClick={() => editDraft(r)}>
                             Edit
                           </Button>
-                          <Button size="sm" variant="outline" className="h-9" onClick={() => submit(r)}>
+                          <Button size="sm" variant="outline" className="h-9" onClick={() => submit(r)} disabled={preflightChecking}>
+                            {preflightChecking ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
                             Submit
                           </Button>
                         </>
