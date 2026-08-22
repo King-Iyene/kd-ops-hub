@@ -195,8 +195,19 @@ const emptyVehicleForm = {
 function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
   const { toast } = useToast();
   const { profile } = useAuthStore();
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.role === 'finance';
-  const canManageVehicles = isAdmin; // edit / delete require admin
+  // Must match the vehicles table's RLS policies exactly (vehicles_write /
+  // vehicles_update allow super_admin/admin/operations; vehicles_delete is
+  // stricter — super_admin/admin only). Previously this checked for
+  // 'finance' instead of 'operations', so finance users saw the "trusted"
+  // add-vehicle UI (no confirmation gate) and operations users saw the
+  // "untrusted, confirm first" gate — but every one of those attempts still
+  // hit a 403 from Postgres, since finance was never actually allowed to
+  // write to this table. The error just came back as an unreadable
+  // "[object Object]" (see errorMessage() fix in lib/db-errors.ts) instead
+  // of surfacing the real permission problem.
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.role === 'operations';
+  const canManageVehicles = isAdmin; // edit / mark out-of-service require admin or operations
+  const canDeleteVehicle = profile?.role === 'admin' || profile?.role === 'super_admin'; // delete is admin-only
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -525,10 +536,12 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                             <Button size="sm" variant="ghost" onClick={() => openEdit(v)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(v)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
                           </>
+                        )}
+                        {canDeleteVehicle && (
+                          <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(v)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         )}
                       </div>
                     </TableCell>

@@ -22,6 +22,13 @@ const MONEY_CAPS: Record<string, string> = {
 export function errorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'string') return err;
+  // Supabase's PostgrestError (and most thrown API error shapes) is a plain
+  // object — { message, details, hint, code } — not an Error instance, so
+  // `String(err)` falls through to the useless "[object Object]". Every
+  // `throw error` from a Supabase call across the app hits this path.
+  if (err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string') {
+    return (err as { message: string }).message;
+  }
   return String(err);
 }
 
