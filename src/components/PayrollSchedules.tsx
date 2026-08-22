@@ -1403,6 +1403,25 @@ export function PayrollSchedules() {
   const [deleteTarget, setDeleteTarget] = useState<PaySchedule | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [innerTab, setInnerTab] = useState<'list' | 'calendar' | 'groups' | 'holidays'>('list');
+  // Quick-glance counts so the other three sub-tabs don't have to be opened
+  // blind just to see whether there's anything in them.
+  const [payGroupCount, setPayGroupCount] = useState<number | null>(null);
+  const [holidayCount, setHolidayCount] = useState<number | null>(null);
+
+  const loadQuickCounts = useCallback(async () => {
+    const year = new Date().getFullYear();
+    const [groupsRes, holidaysRes] = await Promise.all([
+      supabase.from('pay_groups').select('id', { count: 'exact', head: true }),
+      supabase.from('public_holidays').select('id', { count: 'exact', head: true })
+        .eq('country_code', 'NG')
+        .gte('holiday_date', `${year}-01-01`)
+        .lte('holiday_date', `${year}-12-31`),
+    ]);
+    setPayGroupCount(groupsRes.count ?? 0);
+    setHolidayCount(holidaysRes.count ?? 0);
+  }, []);
+
+  useEffect(() => { loadQuickCounts(); }, [loadQuickCounts]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1497,8 +1516,18 @@ export function PayrollSchedules() {
         <TabsList>
           <TabsTrigger value="list"><CalendarClock className="mr-2 h-4 w-4" />Schedules</TabsTrigger>
           <TabsTrigger value="calendar"><CalendarDays className="mr-2 h-4 w-4" />Pay Year</TabsTrigger>
-          <TabsTrigger value="groups"><Users className="mr-2 h-4 w-4" />Pay Groups</TabsTrigger>
-          <TabsTrigger value="holidays"><Sparkles className="mr-2 h-4 w-4" />Holidays</TabsTrigger>
+          <TabsTrigger value="groups">
+            <Users className="mr-2 h-4 w-4" />Pay Groups
+            {payGroupCount !== null && (
+              <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums">({payGroupCount})</span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="holidays">
+            <Sparkles className="mr-2 h-4 w-4" />Holidays
+            {holidayCount !== null && (
+              <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums">({holidayCount})</span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* ── Schedules list ─────────────────────────────────────────────────── */}
