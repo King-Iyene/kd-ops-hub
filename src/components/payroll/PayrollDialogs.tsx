@@ -48,15 +48,28 @@ interface PayrollRun {
   is_auto_generated?: boolean;
 }
 
-// The Draft dialog's guided flow — 4 named steps instead of one dense
+// The Draft dialog's guided flow — 3 named steps instead of one dense
 // scrollable form. Matches the Gusto/QuickBooks/ADP pattern researched for
 // this rebuild: each step asks one question, the last restates every
-// number before anything is saved as a submittable run.
+// number before anything is saved as a submittable run. "Who" and "Period"
+// share a step because together they're one decision — which month, for
+// which people — not two; splitting them just added a click.
 const DRAFT_STEPS = [
-  { title: 'Who gets paid', desc: 'Everyone, or a specific segment' },
-  { title: 'Period & schedule', desc: 'Which month, what cadence' },
+  { title: 'Set up this run', desc: 'Which month, and who gets paid' },
   { title: 'Bonuses & adjustments', desc: 'Anything extra this run' },
-  { title: 'Review & submit', desc: 'Confirm the real numbers' },
+  { title: 'Review & submit', desc: 'Confirm the real numbers — PAYE, pension and NHF are already computed' },
+] as const;
+
+// Standard Nigerian statutory remittance deadlines — shown once, on the
+// review step, so approving a run doesn't quietly create a compliance
+// deadline nobody wrote down. PAYE: FIRS/State IRS, on/before the 10th of
+// the month following deduction (PITA s.81). Pension: PenCom mandates
+// remittance within 7 working days of payday. NHF: remittance within 7
+// days of the month's end (NHF Act 1992 s.5).
+const STATUTORY_DEADLINES = [
+  { label: 'PAYE', due: '10th of next month', authority: 'FIRS / State IRS' },
+  { label: 'Pension', due: 'Within 7 working days of payday', authority: 'PFA / PenCom' },
+  { label: 'NHF', due: 'Within 7 days of month end', authority: 'Federal Mortgage Bank' },
 ] as const;
 
 const BONUS_TYPES = [
@@ -272,7 +285,7 @@ export const PayrollDialogs = ({
           </div>
         }
         footer={
-          draftStep < 3 ? (
+          draftStep < 2 ? (
             <>
               {draftStep > 0 && (
                 <Button variant="ghost" onClick={() => setDraftStep(draftStep - 1)} className="gap-1.5 mr-auto">
@@ -282,8 +295,8 @@ export const PayrollDialogs = ({
               <Button variant="outline" onClick={() => setDialog(false)}>
                 Cancel
               </Button>
-              {draftStep < 2 ? (
-                <Button onClick={() => setDraftStep(draftStep + 1)} disabled={draftStep === 1 && !form.period}>
+              {draftStep === 0 ? (
+                <Button onClick={() => setDraftStep(1)} disabled={!form.period}>
                   Continue
                 </Button>
               ) : (
@@ -295,7 +308,7 @@ export const PayrollDialogs = ({
             </>
           ) : (
             <>
-              <Button variant="ghost" onClick={() => setDraftStep(2)} className="gap-1.5 mr-auto">
+              <Button variant="ghost" onClick={() => setDraftStep(1)} className="gap-1.5 mr-auto">
                 <ArrowLeft className="h-3.5 w-3.5" /> Back to adjustments
               </Button>
               <Button variant="outline" onClick={finishDraftReview}>
@@ -349,7 +362,32 @@ export const PayrollDialogs = ({
                 : '';
               return (
                 <>
-                  <p className="text-xs text-muted-foreground -mt-2">Choose who this run pays — everyone active, one Pay Group, or a custom segment.</p>
+                  <p className="text-xs text-muted-foreground -mt-2">Which month this run covers, and who it pays.</p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Period</Label>
+                      <Input
+                        type="month"
+                        value={form.period}
+                        onChange={(e) => setForm({ ...form, period: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Period type</Label>
+                      <Select
+                        value={form.period_type}
+                        onValueChange={(v) => setForm({ ...form, period_type: v as any })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="quarterly">Quarterly</SelectItem>
+                          <SelectItem value="annual">Annual</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
                   {segmentPayGroups.length > 0 && (
                     <div className="space-y-1">
@@ -407,36 +445,6 @@ export const PayrollDialogs = ({
             })()}
 
             {draftStep === 1 && (
-              <>
-                <p className="text-xs text-muted-foreground -mt-2">Which month this run covers, and its cadence.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label>Period</Label>
-                    <Input
-                      type="month"
-                      value={form.period}
-                      onChange={(e) => setForm({ ...form, period: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Period type</Label>
-                    <Select
-                      value={form.period_type}
-                      onValueChange={(v) => setForm({ ...form, period_type: v as any })}
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                        <SelectItem value="quarterly">Quarterly</SelectItem>
-                        <SelectItem value="annual">Annual</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {draftStep === 2 && (
               <>
                 <p className="text-xs text-muted-foreground -mt-2">Anything on top of base salary this run — bonuses, or blanket allowances.</p>
                 <div className="space-y-2">
@@ -512,7 +520,7 @@ export const PayrollDialogs = ({
               </>
             )}
 
-            {draftStep === 3 && computedPreview && (
+            {draftStep === 2 && computedPreview && (
               <>
                 <p className="text-xs text-muted-foreground -mt-2">
                   This is what's saved. Submitting sends these exact numbers to an approver — to change anything after that, the run has to be recalled first.
@@ -545,6 +553,24 @@ export const PayrollDialogs = ({
                   <div className="flex items-center justify-between px-4 py-3 bg-primary/10">
                     <span className="text-sm font-semibold">Total burn this run</span>
                     <span className="text-base font-bold currency tabular-nums text-primary">{formatNaira(computedPreview.burn)}</span>
+                  </div>
+                </div>
+
+                {/* Statutory remittance deadlines — approving a run creates
+                    real compliance obligations; naming the dates here means
+                    HR isn't the one who has to remember them from memory. */}
+                <div className="rounded-lg border border-border/60 bg-muted/20 px-3.5 py-3">
+                  <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground mb-2">
+                    Statutory deadlines once this is paid
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {STATUTORY_DEADLINES.map((d) => (
+                      <div key={d.label} className="text-xs">
+                        <p className="font-semibold text-foreground">{d.label}</p>
+                        <p className="text-muted-foreground">{d.due}</p>
+                        <p className="text-muted-foreground/70">{d.authority}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </>

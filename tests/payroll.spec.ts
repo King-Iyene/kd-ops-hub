@@ -24,13 +24,12 @@ test.describe('Payroll', () => {
       await createBtn.click();
       const dialog = page.getByRole('dialog');
       await expect(dialog).toBeVisible({ timeout: 5_000 });
-      // Step 1 of the wizard: who gets paid.
-      await expect(dialog.getByText('Who gets paid').first()).toBeVisible();
+      // Step 1 of the wizard: period + who gets paid, combined.
+      await expect(dialog.locator('label:has-text("Period"), input[type="month"]').first()).toBeVisible();
+      await dialog.locator('input[type="month"]').fill('2026-08');
       await dialog.getByRole('button', { name: 'Continue' }).click();
-      // Step 2: period & schedule.
-      await expect(
-        dialog.locator('label:has-text("Period"), input[type="month"]').first(),
-      ).toBeVisible();
+      // Step 2: bonuses & adjustments.
+      await expect(dialog.getByText('Bonuses & Extras').first()).toBeVisible();
     }
   });
 
