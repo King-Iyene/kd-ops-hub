@@ -1766,6 +1766,7 @@ const Payroll = () => {
         <TabsContent value="runs" className="space-y-6 mt-6">
           <PayrollRunsTab
             runs={runs}
+            segments={segments}
             loading={loading}
             latest={latest}
             trend={trend}

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Check,
   Loader2,
@@ -12,6 +13,9 @@ import {
   Info,
   X,
   Clock,
+  ChevronDown,
+  ChevronUp,
+  Users2,
 } from 'lucide-react';
 import {
   BarChart,
@@ -28,14 +32,6 @@ import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
@@ -106,6 +102,7 @@ interface PayrollRunsTabProps {
   printRun: (run: PayrollRun) => void;
   actOnAdvance: (id: string, action: 'approve' | 'reject' | 'paid') => void;
   isSelfApprovalBlocked: (run: PayrollRun) => boolean;
+  segments: { id: string; name: string }[];
 }
 
 // Compact 4-step progress indicator (Draft -> Submitted -> Approved -> Paid)
@@ -182,7 +179,9 @@ export const PayrollRunsTab = ({
   printRun,
   actOnAdvance,
   isSelfApprovalBlocked,
+  segments,
 }: PayrollRunsTabProps) => {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   return (
     <div className="space-y-6">
 
@@ -356,210 +355,213 @@ export const PayrollRunsTab = ({
             />
           ) : (
             <>
-            <div className="hidden md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Period</TableHead>
-                  <TableHead className="text-right">Employees</TableHead>
-                  <TableHead className="text-right">Contractor</TableHead>
-                  <TableHead className="text-right">Expenses</TableHead>
-                  <TableHead className="text-right">PAYE</TableHead>
-                  <TableHead className="text-right">Pension (emp)</TableHead>
-                  <TableHead className="text-right">Pension (er)</TableHead>
-                  <TableHead className="text-right">Total burn</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {runs.map((r, idx) => {
-                  const prev = runs[idx + 1];
-                  const momPct = prev && prev.total_burn_ngn > 0
-                    ? ((r.total_burn_ngn - prev.total_burn_ngn) / prev.total_burn_ngn) * 100
-                    : null;
-                  const isHighlighted = highlightedRunId === r.id;
-                  return (
-                  <TableRow
-                    key={r.id}
-                    ref={(el) => { if (el) runRefs.current.set(r.id, el); }}
-                    className={cn(
-                      'kd-transition',
-                      isHighlighted && 'bg-primary/10 ring-2 ring-primary/40 ring-inset',
-                    )}
-                  >
-                    <TableCell className="font-medium">{monthLabel(r.period, r.period_type)}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {r.employee_count ?? '—'}
-                    </TableCell>
-                    <TableCell className="text-right currency">
-                      {formatNaira(r.total_contractor_ngn)}
-                    </TableCell>
-                    <TableCell className="text-right currency">
-                      {formatNaira(r.total_expenses_ngn)}
-                    </TableCell>
-                    <TableCell className="text-right currency">
-                      {formatNaira(r.paye_ngn)}
-                    </TableCell>
-                    <TableCell className="text-right currency">
-                      {formatNaira(r.pension_ngn)}
-                    </TableCell>
-                    <TableCell className="text-right currency">
-                      {formatNaira(r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE))}
-                    </TableCell>
-                    <TableCell className="text-right currency font-semibold">
-                      <div className="flex items-center justify-end gap-1">
-                        {formatNaira(r.total_burn_ngn)}
-                        {momPct !== null && (
-                          <span className={`text-xs font-normal inline-flex items-center gap-0.5 ${momPct >= 0 ? 'text-success' : 'text-destructive'}`}>
-                            {momPct >= 0
-                              ? <TrendingUp className="h-3 w-3" />
-                              : <TrendingDown className="h-3 w-3" />}
-                            {Math.abs(momPct).toFixed(1)}%
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1.5 items-start">
-                        <StatusBadge status={r.status} />
-                        {r.status === 'approved' && r.scheduled_disburse_at && (
-                          <Badge variant="outline" className="gap-1 text-[10px] border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-700">
-                            <Clock className="h-3 w-3" />
-                            {new Date(r.scheduled_disburse_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
-                          </Badge>
-                        )}
-                        <RunStepper status={r.status} />
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1 flex-wrap">
-                        {r.status === 'draft' && (
-                          <>
-                            <Button size="sm" variant="outline" onClick={() => editDraft(r)}>
-                              Edit
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => submit(r)}>
-                              Submit
-                            </Button>
-                            {/* Delete is draft-only — once a run is in
-                                pending_approval / approved / paid the
-                                audit trail must stay intact. Operators
-                                use Recall on a pending run to send it
-                                back to draft, then delete. */}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => deleteDraft(r)}
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              title="Delete this draft"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                        {r.status === 'pending_approval' && canApprovePerm && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => approve(r)}
-                              disabled={isSelfApprovalBlocked(r)}
-                              title={isSelfApprovalBlocked(r) ? 'You drafted this run — another approver must review it' : undefined}
-                            >
-                              Approve
-                            </Button>
-                            {/* Recall sends a pending run back to draft so
-                                the originator (or an admin) can edit it
-                                before re-submitting. Approved / paid runs
-                                can't be recalled — that would corrupt
-                                the audit trail. */}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => recallToDraft(r)}
-                              title="Recall to draft for editing"
-                            >
-                              Recall
-                            </Button>
-                          </>
-                        )}
-                        {r.status === 'approved' && (
-                          <>
-                            {canGeneratePayslipsPerm && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => generatePayslips(r)}
-                                disabled={working}
-                                title="Generate payslips for every active employee"
-                              >
-                                {working && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-                                Generate payslips
-                              </Button>
-                            )}
-                            {canDisburse && !r.scheduled_disburse_at && (
-                              <Button
-                                size="sm"
-                                onClick={() => openDisburse(r)}
-                                disabled={working}
-                                title="Disburse net salaries now or schedule for later"
-                              >
-                                {working
-                                  ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                                  : <Send className="mr-2 h-3.5 w-3.5" />}
-                                Disburse salaries
-                              </Button>
-                            )}
-                            {canDisburse && r.scheduled_disburse_at && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => doCancelSchedule(r)}
-                                title="Cancel the scheduled disbursement"
-                              >
-                                <X className="mr-1.5 h-3.5 w-3.5" /> Cancel schedule
-                              </Button>
-                            )}
-                            <Button size="sm" variant="outline" onClick={() => setConfirmPaidRun(r)}>
-                              Record as Manually Paid
-                            </Button>
-                          </>
-                        )}
-                        {r.status === 'processing' && (
-                          <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5" title="A disbursement is in progress, or the browser closed mid-run — this clears on its own within 15 minutes and the run returns to Approved for a retry.">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Disbursing — clears automatically if interrupted
-                          </span>
-                        )}
-                        {r.status !== 'paid' && canGeneratePayslipsPerm && (
+            <div className="hidden md:block divide-y divide-border/60" data-testid="payroll-runs-list">
+              {runs.map((r, idx) => {
+                const prev = runs[idx + 1];
+                const momPct = prev && prev.total_burn_ngn > 0
+                  ? ((r.total_burn_ngn - prev.total_burn_ngn) / prev.total_burn_ngn) * 100
+                  : null;
+                const isHighlighted = highlightedRunId === r.id;
+                const isExpanded = expandedId === r.id;
+                const segmentName = r.payroll_segment_id
+                  ? segments.find((s) => s.id === r.payroll_segment_id)?.name ?? 'Custom segment'
+                  : 'All active staff';
+                const bonusTotal = (r.bonuses_json || []).reduce((s, b) => s + Number(b.amount || 0), 0);
+                return (
+                <div
+                  key={r.id}
+                  ref={(el) => { if (el) runRefs.current.set(r.id, el); }}
+                  className={cn(
+                    'px-4 py-3.5 kd-transition',
+                    isHighlighted && 'bg-primary/10 ring-2 ring-primary/40 ring-inset',
+                  )}
+                >
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <button
+                      onClick={() => setExpandedId(isExpanded ? null : r.id)}
+                      className="flex items-center gap-2 shrink-0 text-left"
+                      title={isExpanded ? 'Collapse' : 'Show who gets paid, bonuses & adjustments'}
+                    >
+                      {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                      <span className="font-semibold text-sm">{monthLabel(r.period, r.period_type)}</span>
+                    </button>
+                    <span className="text-xs text-muted-foreground tabular-nums">{r.employee_count ?? '—'} employees</span>
+                    <span className="text-sm font-semibold currency tabular-nums">
+                      {formatNaira(r.total_burn_ngn)}
+                      {momPct !== null && (
+                        <span className={cn('ml-1 text-xs font-normal inline-flex items-center gap-0.5', momPct >= 0 ? 'text-success' : 'text-destructive')}>
+                          {momPct >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                          {Math.abs(momPct).toFixed(1)}%
+                        </span>
+                      )}
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      <StatusBadge status={r.status} />
+                      {r.status === 'approved' && r.scheduled_disburse_at && (
+                        <Badge variant="outline" className="gap-1 text-[10px] border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-700">
+                          <Clock className="h-3 w-3" />
+                          {new Date(r.scheduled_disburse_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                        </Badge>
+                      )}
+                    </div>
+                    <RunStepper status={r.status} />
+
+                    <div className="flex justify-end gap-1 flex-wrap ml-auto">
+                      {r.status === 'draft' && (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => editDraft(r)}>
+                            Edit
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => submit(r)}>
+                            Submit
+                          </Button>
+                          {/* Delete is draft-only — once a run is in
+                              pending_approval / approved / paid the
+                              audit trail must stay intact. Operators
+                              use Recall on a pending run to send it
+                              back to draft, then delete. */}
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => openAdjustments(r)}
-                            title="Add per-employee bonus, overtime, allowance or one-off deduction"
+                            onClick={() => deleteDraft(r)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            title="Delete this draft"
                           >
-                            <Plus className="mr-1 h-3.5 w-3.5" /> Adjust
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                        )}
-                        <Button size="sm" variant="ghost" onClick={() => exportRun(r)}>
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        {r.status === 'approved' && (
-                          <Button size="sm" variant="ghost" onClick={() => exportBankFile(r)} title="Download bank payment file">
-                            <Banknote className="h-4 w-4" />
+                        </>
+                      )}
+                      {r.status === 'pending_approval' && canApprovePerm && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => approve(r)}
+                            disabled={isSelfApprovalBlocked(r)}
+                            title={isSelfApprovalBlocked(r) ? 'You drafted this run — another approver must review it' : undefined}
+                          >
+                            Approve
                           </Button>
-                        )}
-                        <Button size="sm" variant="ghost" onClick={() => printRun(r)}>
-                          <FileText className="h-4 w-4" />
+                          {/* Recall sends a pending run back to draft so
+                              the originator (or an admin) can edit it
+                              before re-submitting. Approved / paid runs
+                              can't be recalled — that would corrupt
+                              the audit trail. */}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => recallToDraft(r)}
+                            title="Recall to draft for editing"
+                          >
+                            Recall
+                          </Button>
+                        </>
+                      )}
+                      {r.status === 'approved' && (
+                        <>
+                          {canGeneratePayslipsPerm && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => generatePayslips(r)}
+                              disabled={working}
+                              title="Generate payslips for every active employee"
+                            >
+                              {working && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                              Generate payslips
+                            </Button>
+                          )}
+                          {canDisburse && !r.scheduled_disburse_at && (
+                            <Button
+                              size="sm"
+                              onClick={() => openDisburse(r)}
+                              disabled={working}
+                              title="Disburse net salaries now or schedule for later"
+                            >
+                              {working
+                                ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                : <Send className="mr-2 h-3.5 w-3.5" />}
+                              Disburse salaries
+                            </Button>
+                          )}
+                          {canDisburse && r.scheduled_disburse_at && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => doCancelSchedule(r)}
+                              title="Cancel the scheduled disbursement"
+                            >
+                              <X className="mr-1.5 h-3.5 w-3.5" /> Cancel schedule
+                            </Button>
+                          )}
+                          <Button size="sm" variant="outline" onClick={() => setConfirmPaidRun(r)}>
+                            Record as Manually Paid
+                          </Button>
+                        </>
+                      )}
+                      {r.status === 'processing' && (
+                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5" title="A disbursement is in progress, or the browser closed mid-run — this clears on its own within 15 minutes and the run returns to Approved for a retry.">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Disbursing — clears automatically if interrupted
+                        </span>
+                      )}
+                      {r.status !== 'paid' && canGeneratePayslipsPerm && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openAdjustments(r)}
+                          title="Add per-employee bonus, overtime, allowance or one-off deduction"
+                        >
+                          <Plus className="mr-1 h-3.5 w-3.5" /> Adjust
                         </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => exportRun(r)}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      {r.status === 'approved' && (
+                        <Button size="sm" variant="ghost" onClick={() => exportBankFile(r)} title="Download bank payment file">
+                          <Banknote className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => printRun(r)}>
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Inline detail panel — who gets paid + bonuses, instead of
+                      routing to a separate dialog just to see what a run
+                      already contains. */}
+                  {isExpanded && (
+                    <div className="mt-3.5 pt-3.5 border-t border-dashed border-border flex flex-wrap gap-6">
+                      <div className="min-w-[220px]">
+                        <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                          <Users2 className="h-3 w-3" /> Who gets paid
+                        </div>
+                        <div className="text-sm font-medium">{segmentName}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{r.employee_count ?? 0} employees in this run</div>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                      <div className="min-w-[220px]">
+                        <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Bonuses &amp; adjustments</div>
+                        {bonusTotal > 0 ? (
+                          <div className="text-sm">
+                            <span className="font-medium">Company-wide:</span> {formatNaira(bonusTotal)}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">No company-wide bonus on this run</div>
+                        )}
+                        {r.status !== 'paid' && canGeneratePayslipsPerm && (
+                          <button onClick={() => openAdjustments(r)} className="text-xs font-semibold text-primary mt-1">
+                            + Add bonus or per-employee adjustment
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                );
+              })}
             </div>
 
             {/* Mobile payroll runs — thumb-friendly card list */}

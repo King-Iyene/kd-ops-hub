@@ -11,7 +11,7 @@ test.describe('Payroll', () => {
   test('payroll list or empty state is visible', async ({ page }) => {
     await page.goto('/payroll');
     await expect(
-      page.locator('table').or(page.getByText(/no payroll|no pay run/i)).first(),
+      page.getByTestId('payroll-runs-list').or(page.getByText(/no payroll|no pay run/i)).first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -31,15 +31,15 @@ test.describe('Payroll', () => {
     }
   });
 
-  test('payroll detail opens payslip list', async ({ page }) => {
+  test('expanding a run shows who gets paid', async ({ page }) => {
     await page.goto('/payroll');
     await expect(page.locator('h1').first()).toBeVisible({ timeout: 10_000 });
-    const firstRow = page.locator('table tbody tr').first();
-    if (await firstRow.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await firstRow.click();
-      // Should navigate into a payroll run detail or show a payslip table.
+    const firstRunToggle = page.getByTestId('payroll-runs-list').locator('button').first();
+    if (await firstRunToggle.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await firstRunToggle.click();
+      // Expanding a run reveals its inline "who gets paid" / bonuses detail.
       await expect(
-        page.locator('table').or(page.getByText(/payslip|employee/i)).first(),
+        page.getByText(/who gets paid|employees/i).first(),
       ).toBeVisible({ timeout: 10_000 });
     }
   });
