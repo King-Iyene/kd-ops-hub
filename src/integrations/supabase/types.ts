@@ -8137,6 +8137,7 @@ export type Database = {
           period: string
           period_type: string | null
           run_type: string
+          scheduled_disburse_at: string | null
           status: string
           total_burn_ngn: number
           total_contractor_ngn: number
@@ -8166,6 +8167,7 @@ export type Database = {
           period: string
           period_type?: string | null
           run_type?: string
+          scheduled_disburse_at?: string | null
           status?: string
           total_burn_ngn?: number
           total_contractor_ngn?: number
@@ -8195,6 +8197,7 @@ export type Database = {
           period?: string
           period_type?: string | null
           run_type?: string
+          scheduled_disburse_at?: string | null
           status?: string
           total_burn_ngn?: number
           total_contractor_ngn?: number
@@ -15682,6 +15685,7 @@ export type Database = {
           period: string
           period_type: string | null
           run_type: string
+          scheduled_disburse_at: string | null
           status: string
           total_burn_ngn: number
           total_contractor_ngn: number
@@ -15735,6 +15739,45 @@ export type Database = {
         Returns: Json
       }
       cancel_ewa: { Args: { p_request_id: string }; Returns: Json }
+      cancel_scheduled_payroll_disbursement: {
+        Args: { p_run_id: string }
+        Returns: {
+          allowances_json: Json | null
+          approved_by: string | null
+          bonuses_json: Json | null
+          created_at: string
+          created_by: string | null
+          cutoff_date: string | null
+          employee_count: number | null
+          employer_pension_ngn: number | null
+          id: string
+          is_auto_generated: boolean
+          nhf_ngn: number
+          notes: string | null
+          pay_date: string | null
+          pay_group_id: string | null
+          pay_schedule_id: string | null
+          paye_ngn: number
+          payroll_segment_id: string | null
+          pension_ngn: number
+          period: string
+          period_type: string | null
+          run_type: string
+          scheduled_disburse_at: string | null
+          status: string
+          total_burn_ngn: number
+          total_contractor_ngn: number
+          total_employee_ngn: number
+          total_expenses_ngn: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payroll_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       canonical_batch_payload_hash: {
         Args: { p_batch_id: string }
         Returns: string
@@ -16000,6 +16043,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_payroll_disbursement_batch: {
+        Args: { p_run_id: string }
+        Returns: Json
+      }
       create_step_up_session: {
         Args: {
           p_ip_hash?: string
@@ -16151,6 +16198,7 @@ export type Database = {
           period: string
           period_type: string | null
           run_type: string
+          scheduled_disburse_at: string | null
           status: string
           total_burn_ngn: number
           total_contractor_ngn: number
@@ -16277,6 +16325,7 @@ export type Database = {
           period: string
           period_type: string | null
           run_type: string
+          scheduled_disburse_at: string | null
           status: string
           total_burn_ngn: number
           total_contractor_ngn: number
@@ -16896,6 +16945,45 @@ export type Database = {
       }
       scan_runway_anomalies: { Args: never; Returns: number }
       schedule_auto_draft: { Args: never; Returns: number }
+      schedule_payroll_disbursement: {
+        Args: { p_at: string; p_run_id: string }
+        Returns: {
+          allowances_json: Json | null
+          approved_by: string | null
+          bonuses_json: Json | null
+          created_at: string
+          created_by: string | null
+          cutoff_date: string | null
+          employee_count: number | null
+          employer_pension_ngn: number | null
+          id: string
+          is_auto_generated: boolean
+          nhf_ngn: number
+          notes: string | null
+          pay_date: string | null
+          pay_group_id: string | null
+          pay_schedule_id: string | null
+          paye_ngn: number
+          payroll_segment_id: string | null
+          pension_ngn: number
+          period: string
+          period_type: string | null
+          run_type: string
+          scheduled_disburse_at: string | null
+          status: string
+          total_burn_ngn: number
+          total_contractor_ngn: number
+          total_employee_ngn: number
+          total_expenses_ngn: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payroll_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       seed_invited_profile: {
         Args: {
           p_email: string
@@ -17150,6 +17238,7 @@ export type Database = {
       tick_fx_rate_sync: { Args: never; Returns: undefined }
       tick_heyreach_sync: { Args: never; Returns: undefined }
       tick_payment_reconciliation: { Args: never; Returns: undefined }
+      tick_payroll_disburse: { Args: never; Returns: undefined }
       tick_payroll_scheduler: { Args: never; Returns: undefined }
       unresolve_batch_item: { Args: { p_item_id: string }; Returns: undefined }
       verify_audit_chain: {
