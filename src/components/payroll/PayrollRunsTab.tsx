@@ -37,6 +37,7 @@ import { cn } from '@/lib/utils';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
+import { InfoHint } from '@/components/ui-kit/InfoHint';
 import {
   MobileCard,
   MobileCardHeader,
@@ -496,8 +497,11 @@ export const PayrollRunsTab = ({
                               <X className="mr-1.5 h-3.5 w-3.5" /> Cancel schedule
                             </Button>
                           )}
-                          <Button size="sm" variant="outline" onClick={() => setConfirmPaidRun(r)}>
+                          <Button size="sm" variant="outline" onClick={() => setConfirmPaidRun(r)} className="gap-1.5">
                             Record as Manually Paid
+                            <InfoHint size={13} stopPropagation>
+                              For salaries paid outside KDOps entirely — cash, or a bank transfer done directly by your bank, not through this app. This only marks the run as paid in KDOps's records; it does not move any money. If you want KDOps to actually send the transfers, use "Disburse salaries" instead.
+                            </InfoHint>
                           </Button>
                         </>
                       )}
@@ -516,7 +520,7 @@ export const PayrollRunsTab = ({
                           <Plus className="mr-1 h-3.5 w-3.5" /> Adjust
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" onClick={() => exportRun(r)}>
+                      <Button size="sm" variant="ghost" onClick={() => exportRun(r)} title="Download this run's figures as a spreadsheet (CSV)">
                         <Download className="h-4 w-4" />
                       </Button>
                       {r.status === 'approved' && (
@@ -524,7 +528,7 @@ export const PayrollRunsTab = ({
                           <Banknote className="h-4 w-4" />
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" onClick={() => printRun(r)}>
+                      <Button size="sm" variant="ghost" onClick={() => printRun(r)} title="Print or save this run as a PDF">
                         <FileText className="h-4 w-4" />
                       </Button>
                     </div>
@@ -669,8 +673,11 @@ export const PayrollRunsTab = ({
                         </Button>
                       )}
                       {r.status === 'approved' && (
-                        <Button size="sm" variant="outline" className="h-9" onClick={() => setConfirmPaidRun(r)}>
+                        <Button size="sm" variant="outline" className="h-9 gap-1.5" onClick={() => setConfirmPaidRun(r)}>
                           Manually Paid
+                          <InfoHint size={13} stopPropagation>
+                            For salaries paid outside KDOps entirely — cash, or a bank transfer done directly by your bank. This only marks the run as paid in KDOps's records; it does not move money. To have KDOps send the transfers, use "Disburse" instead.
+                          </InfoHint>
                         </Button>
                       )}
                       {r.status === 'processing' && (
@@ -678,7 +685,7 @@ export const PayrollRunsTab = ({
                           <Loader2 className="h-3.5 w-3.5 animate-spin" /> Disbursing — clears automatically if interrupted
                         </span>
                       )}
-                      <Button size="sm" variant="ghost" className="h-9 ml-auto" onClick={() => exportRun(r)}>
+                      <Button size="sm" variant="ghost" className="h-9 ml-auto" onClick={() => exportRun(r)} title="Download this run's figures as a spreadsheet (CSV)">
                         <Download className="h-4 w-4" />
                       </Button>
                       {r.status === 'approved' && (
@@ -686,7 +693,7 @@ export const PayrollRunsTab = ({
                           <Banknote className="h-4 w-4" />
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" className="h-9" onClick={() => printRun(r)}>
+                      <Button size="sm" variant="ghost" className="h-9" onClick={() => printRun(r)} title="Print or save this run as a PDF">
                         <FileText className="h-4 w-4" />
                       </Button>
                     </MobileCardFooter>
