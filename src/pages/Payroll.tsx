@@ -140,6 +140,7 @@ const Payroll = () => {
   const [scheduleAt, setScheduleAt] = useState('');
   const [scheduling, setScheduling] = useState(false);
   const [confirmPaidRun, setConfirmPaidRun] = useState<PayrollRun | null>(null);
+  const [confirmApproveRun, setConfirmApproveRun] = useState<PayrollRun | null>(null);
   // Per-employee adjustments (bonus / overtime / allowance / one-off deduction)
   // for a run, entered before payslips are generated.
   const [adjustRun, setAdjustRun] = useState<PayrollRun | null>(null);
@@ -1786,8 +1787,8 @@ const Payroll = () => {
             submit={submit}
             editDraft={editDraft}
             deleteDraft={deleteDraft}
-            approve={approve}
             recallToDraft={recallToDraft}
+            setConfirmApproveRun={setConfirmApproveRun}
             generatePayslips={generatePayslips}
             openDisburse={openDisburse}
             doCancelSchedule={doCancelSchedule}
@@ -1867,6 +1868,14 @@ const Payroll = () => {
         confirmPaidRun={confirmPaidRun}
         setConfirmPaidRun={setConfirmPaidRun}
         markPaid={markPaid}
+        confirmApproveRun={confirmApproveRun}
+        setConfirmApproveRun={setConfirmApproveRun}
+        confirmApprove={() => {
+          if (!confirmApproveRun) return;
+          const run = confirmApproveRun;
+          setConfirmApproveRun(null);
+          approve(run);
+        }}
         monthLabel={monthLabel}
       />
 

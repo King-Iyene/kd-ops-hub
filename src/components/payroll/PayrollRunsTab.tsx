@@ -91,8 +91,8 @@ interface PayrollRunsTabProps {
   submit: (run: PayrollRun) => void;
   editDraft: (run: PayrollRun) => void;
   deleteDraft: (run: PayrollRun) => void;
-  approve: (run: PayrollRun) => void;
   recallToDraft: (run: PayrollRun) => void;
+  setConfirmApproveRun: (run: PayrollRun | null) => void;
   generatePayslips: (run: PayrollRun) => void;
   openDisburse: (run: PayrollRun) => void;
   doCancelSchedule: (run: PayrollRun) => void;
@@ -113,7 +113,7 @@ interface PayrollRunsTabProps {
 // happen." 'processing' collapses into the Approved step with a spinner
 // rather than adding a 5th dot, since it's a transient lock, not a state
 // HR ever needs to act on directly.
-const RUN_STEPS = ['Draft', 'Submitted', 'Approved', 'Paid'] as const;
+const RUN_STEPS = ['Draft', 'Review', 'Approve', 'Paid'] as const;
 
 function runStepIndex(status: string): number {
   if (status === 'draft') return 0;
@@ -121,6 +121,32 @@ function runStepIndex(status: string): number {
   if (status === 'approved' || status === 'processing') return 2;
   if (status === 'paid') return 3;
   return -1; // rejected/cancelled/unknown — no stepper, badge alone is enough
+}
+
+// Plain-English "what happens next" line, shown under every run so HR never
+// has to infer the next step from a badge or a dot. Mirrors the pattern
+// QuickBooks and Gusto use: the stage tells you where you are, this tells
+// you what to do about it.
+function nextActionCopy(run: PayrollRun, canApprove: boolean, canDisburse: boolean, selfApprovalBlocked: boolean): string {
+  switch (run.status) {
+    case 'draft':
+      return 'Review the numbers, then Submit for approval.';
+    case 'pending_approval':
+      if (!canApprove) return 'Waiting on an approver to review this run.';
+      return selfApprovalBlocked
+        ? "You drafted this run — another approver needs to Approve it."
+        : 'Ready for your review — Approve to lock it in and generate payslips.';
+    case 'approved':
+      if (run.scheduled_disburse_at) return 'Scheduled — salaries go out automatically at the scheduled time.';
+      if (!canDisburse) return 'Approved — waiting on someone with disbursement rights to pay it out.';
+      return 'Approved — Disburse salaries, or record as paid if you already transferred manually.';
+    case 'processing':
+      return 'Disbursing now — this clears on its own within 15 minutes.';
+    case 'paid':
+      return 'Paid — nothing more to do here.';
+    default:
+      return '';
+  }
 }
 
 function RunStepper({ status }: { status: string }) {
@@ -168,8 +194,8 @@ export const PayrollRunsTab = ({
   submit,
   editDraft,
   deleteDraft,
-  approve,
   recallToDraft,
+  setConfirmApproveRun,
   generatePayslips,
   openDisburse,
   doCancelSchedule,
@@ -438,7 +464,7 @@ export const PayrollRunsTab = ({
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => approve(r)}
+                            onClick={() => setConfirmApproveRun(r)}
                             disabled={isSelfApprovalBlocked(r)}
                             title={isSelfApprovalBlocked(r) ? 'You drafted this run — another approver must review it' : undefined}
                           >
@@ -537,6 +563,15 @@ export const PayrollRunsTab = ({
                     </div>
                   </div>
 
+                  {/* Persistent plain-English next step — so the very next
+                      action is never something HR has to infer from a
+                      badge or a dot on the stepper. */}
+                  {nextActionCopy(r, canApprovePerm, canDisburse, isSelfApprovalBlocked(r)) && (
+                    <p className="mt-1.5 text-xs text-muted-foreground pl-[22px]">
+                      {nextActionCopy(r, canApprovePerm, canDisburse, isSelfApprovalBlocked(r))}
+                    </p>
+                  )}
+
                   {/* Inline detail panel — who gets paid + bonuses, instead of
                       routing to a separate dialog just to see what a run
                       already contains. */}
@@ -624,6 +659,11 @@ export const PayrollRunsTab = ({
                         <RunStepper status={r.status} />
                       </div>
                     </MobileCardRow>
+                    {nextActionCopy(r, canApprovePerm, canDisburse, isSelfApprovalBlocked(r)) && (
+                      <p className="px-3.5 pb-1.5 -mt-1 text-xs text-muted-foreground text-right">
+                        {nextActionCopy(r, canApprovePerm, canDisburse, isSelfApprovalBlocked(r))}
+                      </p>
+                    )}
                     <MobileCardRow label="Contractor" className="currency">{formatNaira(r.total_contractor_ngn)}</MobileCardRow>
                     <MobileCardRow label="Expenses" className="currency">{formatNaira(r.total_expenses_ngn)}</MobileCardRow>
                     <MobileCardRow label="PAYE" className="currency">{formatNaira(r.paye_ngn)}</MobileCardRow>
@@ -646,7 +686,7 @@ export const PayrollRunsTab = ({
                           size="sm"
                           variant="outline"
                           className="h-9 bg-success/10 text-success border-success/40 hover:bg-success/20"
-                          onClick={() => approve(r)}
+                          onClick={() => setConfirmApproveRun(r)}
                           disabled={isSelfApprovalBlocked(r)}
                           title={isSelfApprovalBlocked(r) ? 'You drafted this run — another approver must review it' : undefined}
                         >

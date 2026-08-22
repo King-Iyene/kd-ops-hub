@@ -151,6 +151,12 @@ export interface PayrollDialogsProps {
   setConfirmPaidRun: (run: PayrollRun | null) => void;
   markPaid: () => void;
 
+  // Confirm approve dialog — restates the total before an irreversible
+  // action (ADP RUN pattern), instead of approving on a single click.
+  confirmApproveRun: PayrollRun | null;
+  setConfirmApproveRun: (run: PayrollRun | null) => void;
+  confirmApprove: () => void;
+
   monthLabel: (period: string, periodType?: string) => string;
 }
 
@@ -204,6 +210,9 @@ export const PayrollDialogs = ({
   confirmPaidRun,
   setConfirmPaidRun,
   markPaid,
+  confirmApproveRun,
+  setConfirmApproveRun,
+  confirmApprove,
   monthLabel,
 }: PayrollDialogsProps) => {
   return (
@@ -711,6 +720,45 @@ export const PayrollDialogs = ({
           <p className="text-sm text-muted-foreground leading-relaxed">
             ⚠️ This records that salaries for {confirmPaidRun ? monthLabel(confirmPaidRun.period) : ''} were paid via your bank or another method. No automatic transfer will be made by KDOps. Only confirm if you have already transferred salaries manually.
           </p>
+      </ResponsiveDialog>
+
+      <ResponsiveDialog
+        open={!!confirmApproveRun}
+        onOpenChange={(open) => { if (!open) setConfirmApproveRun(null); }}
+        title="Confirm approval"
+        description="Approving locks this run in and generates payslips. Review the numbers before you continue."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setConfirmApproveRun(null)}>Cancel</Button>
+            <Button onClick={confirmApprove}>Approve {confirmApproveRun ? monthLabel(confirmApproveRun.period) : ''}</Button>
+          </>
+        }
+      >
+        {confirmApproveRun && (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-border/60 divide-y divide-border/60 overflow-hidden">
+              <div className="flex items-center justify-between px-3.5 py-2.5">
+                <span className="text-sm text-muted-foreground">Employees paid</span>
+                <span className="text-sm font-semibold tabular-nums">{confirmApproveRun.employee_count ?? '—'}</span>
+              </div>
+              <div className="flex items-center justify-between px-3.5 py-2.5">
+                <span className="text-sm text-muted-foreground">PAYE tax</span>
+                <span className="text-sm font-semibold currency tabular-nums">{formatNaira(confirmApproveRun.paye_ngn)}</span>
+              </div>
+              <div className="flex items-center justify-between px-3.5 py-2.5">
+                <span className="text-sm text-muted-foreground">Pension (employee)</span>
+                <span className="text-sm font-semibold currency tabular-nums">{formatNaira(confirmApproveRun.pension_ngn)}</span>
+              </div>
+              <div className="flex items-center justify-between px-3.5 py-3 bg-muted/40">
+                <span className="text-sm font-semibold">Total burn this run</span>
+                <span className="text-base font-bold currency tabular-nums">{formatNaira(confirmApproveRun.total_burn_ngn)}</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Once approved, payslips are generated automatically and the run is ready to disburse. To change anything after this, recall the run to draft first.
+            </p>
+          </div>
+        )}
       </ResponsiveDialog>
     </>
   );
