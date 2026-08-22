@@ -68,6 +68,7 @@ import {
   Timer,
   LayoutGrid,
   GitBranch,
+  LayoutPanelTop,
 } from 'lucide-react';
 import type { Role } from '@/lib/roles';
 
@@ -95,6 +96,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Payments',         url: '/payments',          icon: Layers,          roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'payments.view' },
   { title: 'Payment Schedule', url: '/payments/schedule', icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'payments.view' },
   { title: 'Transactions',     url: '/transactions',      icon: ArrowUpDown,     roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'payments.view' },
+  { title: 'Pay Hub',          url: '/pay-hub',           icon: LayoutPanelTop,  roles: ['super_admin', 'admin', 'finance'], permission: 'payroll.view' },
   { title: 'Payroll',          url: '/payroll',           icon: Banknote,        roles: ['super_admin', 'admin', 'finance'], permission: 'payroll.view' },
   { title: 'Earned Wages',     url: '/ewa',               icon: Wallet,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Subscriptions',    url: '/subscriptions',     icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance'] },
@@ -168,7 +170,7 @@ export const ALL_NAV: NavItem[] = [
 // the nav between "calculating payroll" and "moving money" that mirrors
 // the hard line already enforced at the database layer.
 export const NAV_GROUPS = [
-  { key: 'moneyOut',   label: 'Money Out',           titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Cards', 'Expenses'] },
+  { key: 'moneyOut',   label: 'Money Out',           titles: ['Pay Hub', 'Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Cards', 'Expenses'] },
   { key: 'moneyIn',    label: 'Money In & Treasury',  titles: ['Invoices', 'Assets', 'Cash Flow'] },
   { key: 'risk',       label: 'Risk & Controls',     titles: ['Budgets', 'Compliance', 'Anomalies'] },
   { key: 'coreHr',     label: 'Core HR',              titles: ['Employees', 'Contractors', 'Placements', 'Attendance'] },

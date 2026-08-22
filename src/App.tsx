@@ -40,6 +40,7 @@ const Budgets          = lazy(() => import('./pages/Budgets'));
 const Expenses         = lazy(() => import('./pages/Expenses'));
 const Fleet            = lazy(() => import('./pages/Fleet'));
 const Payroll          = lazy(() => import('./pages/Payroll'));
+const PayHub           = lazy(() => import('./pages/PayHub'));
 const EarnedWageAccess = lazy(() => import('./pages/EarnedWageAccess'));
 const Anomalies        = lazy(() => import('./pages/Anomalies'));
 const Communications   = lazy(() => import('./pages/Communications'));
@@ -416,6 +417,17 @@ function AppRoutes() {
           element={
             <RoleGuard roles={APPROVER_ROLES}>
               <Compliance />
+            </RoleGuard>
+          }
+        />
+
+        {/* Pay Hub — landing point tying Payroll, EWA, Staff Loans and
+            Compliance together; same access as Payroll itself. */}
+        <Route
+          path="/pay-hub"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <PayHub />
             </RoleGuard>
           }
         />
