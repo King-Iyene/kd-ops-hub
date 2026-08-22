@@ -34,7 +34,7 @@ test.describe('Payroll', () => {
   test('expanding a run shows who gets paid', async ({ page }) => {
     await page.goto('/payroll');
     await expect(page.locator('h1').first()).toBeVisible({ timeout: 10_000 });
-    const firstRunToggle = page.getByTestId('payroll-runs-list').locator('button').first();
+    const firstRunToggle = page.getByTestId('payroll-runs-list').getByRole('button').first();
     if (await firstRunToggle.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await firstRunToggle.click();
       // Expanding a run reveals its inline "who gets paid" / bonuses detail.

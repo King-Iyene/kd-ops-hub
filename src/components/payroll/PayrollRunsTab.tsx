@@ -413,20 +413,21 @@ export const PayrollRunsTab = ({
                 <div
                   key={r.id}
                   ref={(el) => { if (el) runRefs.current.set(r.id, el); }}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setExpandedId(isExpanded ? null : r.id)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedId(isExpanded ? null : r.id); } }}
                   className={cn(
-                    'px-4 py-3.5 kd-transition',
+                    'px-4 py-3.5 kd-transition cursor-pointer hover:bg-muted/30',
                     isHighlighted && 'bg-primary/10 ring-2 ring-primary/40 ring-inset',
                   )}
+                  title={isExpanded ? 'Collapse' : 'Click to see who gets paid, bonuses & adjustments'}
                 >
                   <div className="flex items-center gap-4 flex-wrap">
-                    <button
-                      onClick={() => setExpandedId(isExpanded ? null : r.id)}
-                      className="flex items-center gap-2 shrink-0 text-left"
-                      title={isExpanded ? 'Collapse' : 'Show who gets paid, bonuses & adjustments'}
-                    >
+                    <span className="flex items-center gap-2 shrink-0">
                       {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
                       <span className="font-semibold text-sm">{monthLabel(r.period, r.period_type)}</span>
-                    </button>
+                    </span>
                     <span className="text-xs text-muted-foreground tabular-nums">{r.employee_count ?? '—'} employees</span>
                     <span className="text-sm font-semibold currency tabular-nums">
                       {formatNaira(r.total_burn_ngn)}
@@ -455,7 +456,7 @@ export const PayrollRunsTab = ({
                     </div>
                     <RunStepper status={r.status} />
 
-                    <div className="flex justify-end gap-1 flex-wrap ml-auto">
+                    <div className="flex justify-end gap-1 flex-wrap ml-auto" onClick={(e) => e.stopPropagation()}>
                       {r.status === 'draft' && (
                         <>
                           <Button size="sm" variant={isUncomputedAutoDraft(r) ? 'default' : 'outline'} onClick={() => editDraft(r)}>
@@ -604,7 +605,7 @@ export const PayrollRunsTab = ({
                       routing to a separate dialog just to see what a run
                       already contains. */}
                   {isExpanded && (
-                    <div className="mt-3.5 pt-3.5 border-t border-dashed border-border flex flex-wrap gap-6">
+                    <div className="mt-3.5 pt-3.5 border-t border-dashed border-border flex flex-wrap gap-6" onClick={(e) => e.stopPropagation()}>
                       <div className="min-w-[220px]">
                         <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
                           <Users2 className="h-3 w-3" /> Who gets paid
