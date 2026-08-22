@@ -29,6 +29,7 @@ import {
 type LoanStatus = 'pending' | 'approved' | 'active' | 'fully_paid' | 'defaulted' | 'written_off';
 type LoanType = 'salary_advance' | 'personal_loan' | 'emergency' | 'education' | 'housing' | 'other';
 type RepaymentType = 'payroll_deduction' | 'manual' | 'bank_transfer';
+type RepaymentMethod = 'payroll_deduction' | 'manual' | 'bank_transfer';
 
 interface StaffLoan {
   id: string;
@@ -39,6 +40,7 @@ interface StaffLoan {
   tenure_months: number;
   monthly_deduction_ngn: number;
   outstanding_ngn: number;
+  repayment_method: RepaymentMethod;
   status: LoanStatus;
   approved_by: string | null;
   approved_at: string | null;
@@ -90,6 +92,12 @@ const REPAYMENT_TYPE_LABELS: Record<RepaymentType, string> = {
   payroll_deduction: 'Payroll Deduction',
   manual: 'Manual',
   bank_transfer: 'Bank Transfer',
+};
+
+const REPAYMENT_METHOD_LABELS: Record<RepaymentMethod, string> = {
+  payroll_deduction: 'Payroll deduction — deducted automatically each pay period',
+  manual: 'Manual — recorded by hand as payments come in',
+  bank_transfer: 'Bank transfer — repaid outside payroll',
 };
 
 function statusVariant(s: LoanStatus) {
@@ -152,6 +160,7 @@ export default function StaffLoans() {
     interest_rate_pct: '0',
     tenure_months: '',
     monthly_deduction_ngn: '',
+    repayment_method: 'manual' as RepaymentMethod,
     purpose: '',
   });
 
@@ -235,6 +244,7 @@ export default function StaffLoans() {
       tenure_months: parseInt(newLoan.tenure_months, 10),
       monthly_deduction_ngn: parseInt(newLoan.monthly_deduction_ngn, 10),
       outstanding_ngn: parseInt(newLoan.principal_ngn, 10),
+      repayment_method: newLoan.repayment_method,
       purpose: newLoan.purpose || null,
     });
     setSubmitting(false);
@@ -243,7 +253,7 @@ export default function StaffLoans() {
     } else {
       toast({ title: 'Loan created' });
       setCreateOpen(false);
-      setNewLoan({ employee_id: '', loan_type: 'salary_advance', principal_ngn: '', interest_rate_pct: '0', tenure_months: '', monthly_deduction_ngn: '', purpose: '' });
+      setNewLoan({ employee_id: '', loan_type: 'salary_advance', principal_ngn: '', interest_rate_pct: '0', tenure_months: '', monthly_deduction_ngn: '', repayment_method: 'manual', purpose: '' });
       fetchLoans();
     }
   };
@@ -520,6 +530,22 @@ export default function StaffLoans() {
               </div>
             </div>
             <div className="grid gap-2">
+              <Label>Repayment Method</Label>
+              <Select value={newLoan.repayment_method} onValueChange={v => setNewLoan(p => ({ ...p, repayment_method: v as RepaymentMethod }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(REPAYMENT_METHOD_LABELS) as RepaymentMethod[]).map(k => (
+                    <SelectItem key={k} value={k}>{REPAYMENT_METHOD_LABELS[k]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {newLoan.repayment_method === 'payroll_deduction' && (
+                <p className="text-xs text-muted-foreground">
+                  Once approved, {formatNaira(parseInt(newLoan.monthly_deduction_ngn, 10) || 0)}/month will be deducted automatically from this employee's payslip until the loan is paid off — no manual repayment entry needed.
+                </p>
+              )}
+            </div>
+            <div className="grid gap-2">
               <Label>Purpose</Label>
               <Textarea value={newLoan.purpose} onChange={e => setNewLoan(p => ({ ...p, purpose: e.target.value }))} placeholder="Reason for the loan" />
             </div>
@@ -573,6 +599,13 @@ export default function StaffLoans() {
                 <div>
                   <span className="text-muted-foreground">Monthly Deduction</span>
                   <p className="font-medium tabular-nums">{formatNaira(detailLoan.monthly_deduction_ngn)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Repayment Method</span>
+                  <p className="font-medium">
+                    {detailLoan.repayment_method === 'payroll_deduction' ? 'Payroll deduction (automatic)' :
+                     detailLoan.repayment_method === 'bank_transfer' ? 'Bank transfer' : 'Manual'}
+                  </p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Interest Rate</span>

@@ -1539,75 +1539,19 @@ const Payroll = () => {
       return;
     }
 
-    // Update amount_deducted_to_date for every deduction applied in this run
-    const { data: payslips } = await supabase
-      .from('payslips')
-      .select('employee_id, deductions_json')
-      .eq('payroll_run_id', run.id)
-      .not('deductions_json', 'is', null);
-
-    if (payslips && payslips.length > 0) {
-      // Separate deduction IDs from advance IDs
-      const appliedDeductionById = new Map<string, number>();
-      const appliedAdvanceById = new Map<string, number>();
-
-      for (const slip of payslips) {
-        for (const d of (slip.deductions_json as { id?: string; advance_id?: string; amount_ngn: number }[])) {
-          if (d.advance_id) {
-            appliedAdvanceById.set(d.advance_id, (appliedAdvanceById.get(d.advance_id) ?? 0) + Number(d.amount_ngn));
-          } else if (d.id) {
-            appliedDeductionById.set(d.id, (appliedDeductionById.get(d.id) ?? 0) + Number(d.amount_ngn));
-          }
-        }
-      }
-
-      // Update employee_deductions tracking
-      const deductionIds = Array.from(appliedDeductionById.keys());
-      if (deductionIds.length > 0) {
-        const { data: currentDeductions } = await supabase
-          .from('employee_deductions')
-          .select('id, amount_deducted_to_date, total_deductible_amount')
-          .in('id', deductionIds);
-
-        for (const cd of (currentDeductions || [])) {
-          const applied = appliedDeductionById.get(cd.id) ?? 0;
-          const newTotal = Number(cd.amount_deducted_to_date || 0) + applied;
-          const isComplete =
-            cd.total_deductible_amount != null &&
-            newTotal >= Number(cd.total_deductible_amount);
-
-          await supabase
-            .from('employee_deductions')
-            .update({
-              amount_deducted_to_date: newTotal,
-              ...(isComplete ? { status: 'completed' } : {}),
-            })
-            .eq('id', cd.id);
-        }
-      }
-
-      // Reduce outstanding_ngn on advances that were repaid this period
-      const advanceIds = Array.from(appliedAdvanceById.keys());
-      if (advanceIds.length > 0) {
-        const { data: currentAdvances } = await supabase
-          .from('employee_advances')
-          .select('id, outstanding_ngn')
-          .in('id', advanceIds);
-
-        for (const ca of (currentAdvances || [])) {
-          const repaid = appliedAdvanceById.get(ca.id) ?? 0;
-          const newOutstanding = Math.max(0, Number(ca.outstanding_ngn || 0) - repaid);
-          const isSettled = newOutstanding === 0;
-
-          await supabase
-            .from('employee_advances')
-            .update({
-              outstanding_ngn: newOutstanding,
-              ...(isSettled ? { status: 'settled' } : {}),
-            })
-            .eq('id', ca.id);
-        }
-      }
+    // Settlement (employee_deductions.amount_deducted_to_date,
+    // employee_advances.outstanding_ngn, and any linked staff_loans) lives
+    // in one SECURITY DEFINER RPC shared with the real disbursement path
+    // (finalize_payroll_run_disbursement calls the same function) so there
+    // is exactly one implementation instead of two that can drift —
+    // idempotent via payroll_runs.deductions_settled_at.
+    const { error: settleError } = await supabase.rpc('settle_payroll_run_deductions', { p_run_id: run.id });
+    if (settleError) {
+      toast({
+        title: 'Marked paid, but settlement failed',
+        description: `${settleError.message} — deduction/advance/loan balances were not updated. Retry from the database or contact an admin.`,
+        variant: 'destructive',
+      });
     }
 
     await logAudit(
