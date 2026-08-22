@@ -97,6 +97,7 @@ export interface PayrollDialogsProps {
   setDialog: (v: boolean) => void;
   working: boolean;
   draftRun: () => void;
+  editingDraftId: string | null;
   form: DraftForm;
   setForm: React.Dispatch<React.SetStateAction<DraftForm>>;
   segments: PayrollSegment[];
@@ -158,6 +159,7 @@ export const PayrollDialogs = ({
   setDialog,
   working,
   draftRun,
+  editingDraftId,
   form,
   setForm,
   segments,
@@ -209,7 +211,7 @@ export const PayrollDialogs = ({
       <ResponsiveDialog
         open={dialog}
         onOpenChange={setDialog}
-        title="Draft payroll"
+        title={editingDraftId ? 'Edit draft' : 'Draft payroll'}
         footer={
           <>
             <Button variant="outline" onClick={() => setDialog(false)}>
@@ -217,7 +219,7 @@ export const PayrollDialogs = ({
             </Button>
             <Button onClick={draftRun} disabled={working}>
               {working && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Draft
+              {editingDraftId ? 'Save changes' : 'Draft'}
             </Button>
           </>
         }

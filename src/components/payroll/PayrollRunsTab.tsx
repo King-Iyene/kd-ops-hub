@@ -92,6 +92,7 @@ interface PayrollRunsTabProps {
   setBannerDismissed: (v: boolean) => void;
   setDialog: (v: boolean) => void;
   submit: (run: PayrollRun) => void;
+  editDraft: (run: PayrollRun) => void;
   deleteDraft: (run: PayrollRun) => void;
   approve: (run: PayrollRun) => void;
   recallToDraft: (run: PayrollRun) => void;
@@ -126,6 +127,7 @@ export const PayrollRunsTab = ({
   setBannerDismissed,
   setDialog,
   submit,
+  editDraft,
   deleteDraft,
   approve,
   recallToDraft,
@@ -392,6 +394,9 @@ export const PayrollRunsTab = ({
                       <div className="flex justify-end gap-1 flex-wrap">
                         {r.status === 'draft' && (
                           <>
+                            <Button size="sm" variant="outline" onClick={() => editDraft(r)}>
+                              Edit
+                            </Button>
                             <Button size="sm" variant="outline" onClick={() => submit(r)}>
                               Submit
                             </Button>
@@ -479,6 +484,11 @@ export const PayrollRunsTab = ({
                               Record as Manually Paid
                             </Button>
                           </>
+                        )}
+                        {r.status === 'processing' && (
+                          <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5" title="A disbursement is in progress, or the browser closed mid-run — this clears on its own within 15 minutes and the run returns to Approved for a retry.">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Disbursing — clears automatically if interrupted
+                          </span>
                         )}
                         {r.status !== 'paid' && canGeneratePayslipsPerm && (
                           <Button
@@ -568,9 +578,14 @@ export const PayrollRunsTab = ({
 
                     <MobileCardFooter className="flex-wrap">
                       {r.status === 'draft' && (
-                        <Button size="sm" variant="outline" className="h-9" onClick={() => submit(r)}>
-                          Submit
-                        </Button>
+                        <>
+                          <Button size="sm" variant="outline" className="h-9" onClick={() => editDraft(r)}>
+                            Edit
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-9" onClick={() => submit(r)}>
+                            Submit
+                          </Button>
+                        </>
                       )}
                       {r.status === 'pending_approval' && canApprovePerm && (
                         <Button
@@ -610,6 +625,11 @@ export const PayrollRunsTab = ({
                         <Button size="sm" variant="outline" className="h-9" onClick={() => setConfirmPaidRun(r)}>
                           Manually Paid
                         </Button>
+                      )}
+                      {r.status === 'processing' && (
+                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Disbursing — clears automatically if interrupted
+                        </span>
                       )}
                       <Button size="sm" variant="ghost" className="h-9 ml-auto" onClick={() => exportRun(r)}>
                         <Download className="h-4 w-4" />

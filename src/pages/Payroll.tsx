@@ -364,6 +364,42 @@ const Payroll = () => {
       bonuses: f.bonuses.map((b, idx) => (idx === i ? { ...b, [field]: val } : b)),
     }));
 
+  // Tracks whether the Draft dialog is editing an existing draft's saved
+  // figures (re-opened from its row) vs. starting a brand-new one — draftRun()
+  // always upserts on period+segment, so re-opening the dialog blank for a
+  // period that already has a draft would silently discard its bonuses/
+  // allowances. editDraft() below hydrates the form from the existing row
+  // first so a re-save reproduces what was there, not an empty overwrite.
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+
+  const openNewDraft = () => {
+    setEditingDraftId(null);
+    setForm({
+      period: monthPeriod(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)),
+      period_type: 'monthly',
+      bonuses: [],
+      housing_allowance_pct: 0,
+      transport_per_emp: 0,
+      meal_per_emp: 0,
+      payroll_segment_id: '',
+    });
+    setDialog(true);
+  };
+
+  const editDraft = (run: PayrollRun) => {
+    setEditingDraftId(run.id);
+    setForm({
+      period: run.period,
+      period_type: run.period_type || 'monthly',
+      bonuses: run.bonuses_json || [],
+      housing_allowance_pct: run.allowances_json?.housing_pct || 0,
+      transport_per_emp: run.allowances_json?.transport_per_emp || 0,
+      meal_per_emp: run.allowances_json?.meal_per_emp || 0,
+      payroll_segment_id: run.payroll_segment_id || '',
+    });
+    setDialog(true);
+  };
+
   // Draft a payroll summary for a given yyyy-mm by pulling that month's
   // approved expenses, processed payment batches (contractor payouts), and
   // a simple employee cost model based on PAYE/Pension/NHF defaults.
@@ -563,6 +599,7 @@ const Payroll = () => {
       );
       toast({ title: 'Payroll drafted', description: monthLabel(form.period) });
       setDialog(false);
+      setEditingDraftId(null);
       load();
     } catch (err: unknown) {
       toast({
@@ -1731,7 +1768,7 @@ const Payroll = () => {
           <p className="text-muted-foreground text-sm mt-1">Monthly payroll summary across contractor payments, employees and statutory deductions.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button onClick={() => setDialog(true)}>
+          <Button onClick={openNewDraft}>
             <Plus className="mr-2 h-4 w-4" /> Draft payroll
           </Button>
         </div>
@@ -1797,6 +1834,7 @@ const Payroll = () => {
             setBannerDismissed={setBannerDismissed}
             setDialog={setDialog}
             submit={submit}
+            editDraft={editDraft}
             deleteDraft={deleteDraft}
             approve={approve}
             recallToDraft={recallToDraft}
@@ -1848,6 +1886,7 @@ const Payroll = () => {
         setDialog={setDialog}
         working={working}
         draftRun={draftRun}
+        editingDraftId={editingDraftId}
         form={form}
         setForm={setForm}
         segments={segments}
