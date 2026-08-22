@@ -521,15 +521,18 @@ export const PayrollRunsTab = ({
                         </Button>
                       )}
                       <Button size="sm" variant="ghost" onClick={() => exportRun(r)} title="Download this run's figures as a spreadsheet (CSV)">
-                        <Download className="h-4 w-4" />
+                        <Download className="mr-1.5 h-3.5 w-3.5" /> Export
                       </Button>
                       {r.status === 'approved' && (
-                        <Button size="sm" variant="ghost" onClick={() => exportBankFile(r)} title="Download bank payment file">
-                          <Banknote className="h-4 w-4" />
+                        <Button size="sm" variant="ghost" onClick={() => exportBankFile(r)} className="gap-1.5">
+                          <Banknote className="h-3.5 w-3.5" /> Bank File
+                          <InfoHint size={13} stopPropagation>
+                            Downloads a file formatted for your bank to process every employee's salary payment in bulk — for banks that need a manual upload instead of KDOps sending transfers directly.
+                          </InfoHint>
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" onClick={() => printRun(r)} title="Print or save this run as a PDF">
-                        <FileText className="h-4 w-4" />
+                      <Button size="sm" variant="ghost" onClick={() => printRun(r)} title="Opens a printable summary of this run — use your browser's Print to save it as a PDF">
+                        <FileText className="mr-1.5 h-3.5 w-3.5" /> Print Summary
                       </Button>
                     </div>
                   </div>
@@ -686,15 +689,18 @@ export const PayrollRunsTab = ({
                         </span>
                       )}
                       <Button size="sm" variant="ghost" className="h-9 ml-auto" onClick={() => exportRun(r)} title="Download this run's figures as a spreadsheet (CSV)">
-                        <Download className="h-4 w-4" />
+                        <Download className="mr-1 h-3.5 w-3.5" /> CSV
                       </Button>
                       {r.status === 'approved' && (
-                        <Button size="sm" variant="ghost" className="h-9" onClick={() => exportBankFile(r)} title="Download bank payment file">
-                          <Banknote className="h-4 w-4" />
+                        <Button size="sm" variant="ghost" className="h-9 gap-1" onClick={() => exportBankFile(r)}>
+                          <Banknote className="h-3.5 w-3.5" /> Bank File
+                          <InfoHint size={13} stopPropagation>
+                            Downloads a file formatted for your bank to process every employee's salary payment in bulk.
+                          </InfoHint>
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" className="h-9" onClick={() => printRun(r)} title="Print or save this run as a PDF">
-                        <FileText className="h-4 w-4" />
+                      <Button size="sm" variant="ghost" className="h-9" onClick={() => printRun(r)} title="Opens a printable summary of this run — use your browser's Print to save it as a PDF">
+                        <FileText className="mr-1 h-3.5 w-3.5" /> Print
                       </Button>
                     </MobileCardFooter>
                   </MobileCard>
