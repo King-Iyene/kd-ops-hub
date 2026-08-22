@@ -438,8 +438,17 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       return;
     }
     const amount = parseFloat(repairForm.amount_ngn) || 0;
-    if (amount > 10000 && !repairReceipt) {
-      toast({ title: 'A receipt is required for repairs over ₦10,000', variant: 'destructive' });
+    // Receipt is only mandatory at submission for reimbursements — the
+    // employee already spent their own money and the receipt is the proof
+    // needed to pay them back. For a company charge the cash goes out
+    // first (to the employee, to go do the repair), so there's nothing to
+    // prove yet at submission time — the receipt comes after. Either way,
+    // once approved, an outstanding receipt blocks the employee's NEXT
+    // repair request regardless of type (see getReceiptDebt below) — real
+    // company cash reached them either way and needs to be accounted for
+    // before more goes out.
+    if (repairIsReimbursement && amount > 10000 && !repairReceipt) {
+      toast({ title: 'A receipt is required for reimbursement repairs over ₦10,000', variant: 'destructive' });
       return;
     }
 
@@ -2983,9 +2992,14 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                 onChange={(e) => setRepairForm({ ...repairForm, amount_ngn: e.target.value })}
                 placeholder="0.00"
               />
-              {parseFloat(repairForm.amount_ngn) > 10000 && !repairReceipt && (
+              {repairIsReimbursement && parseFloat(repairForm.amount_ngn) > 10000 && !repairReceipt && (
                 <p className="text-xs text-amber-600 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" /> Receipt required for amounts over ₦10,000
+                  <AlertTriangle className="h-3 w-3" /> Receipt required for reimbursements over ₦10,000
+                </p>
+              )}
+              {!repairIsReimbursement && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  Receipt is optional now, but must be uploaded before this employee's next repair request.
                 </p>
               )}
             </div>
