@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, Plus, Send, AlertCircle, Trash2, X } from 'lucide-react';
+import { Loader2, Plus, Send, AlertCircle, Trash2, X, Clock } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import type { PayrollSegment } from '@/lib/payroll-segments';
 import type { PayrollSegmentFilterRules } from '@/lib/payroll-segments';
@@ -44,6 +44,7 @@ interface PayrollRun {
   created_by: string | null;
   approved_by: string | null;
   payroll_segment_id?: string | null;
+  scheduled_disburse_at?: string | null;
 }
 
 const BONUS_TYPES = [
@@ -137,6 +138,12 @@ export interface PayrollDialogsProps {
   disburseErrors: string[];
   setDisburseErrors: (v: string[]) => void;
   doDisburse: () => void;
+  scheduleMode: boolean;
+  setScheduleMode: (v: boolean) => void;
+  scheduleAt: string;
+  setScheduleAt: (v: string) => void;
+  scheduling: boolean;
+  doSchedule: () => void;
 
   // Confirm paid dialog
   confirmPaidRun: PayrollRun | null;
@@ -186,6 +193,12 @@ export const PayrollDialogs = ({
   disburseErrors,
   setDisburseErrors,
   doDisburse,
+  scheduleMode,
+  setScheduleMode,
+  scheduleAt,
+  setScheduleAt,
+  scheduling,
+  doSchedule,
   confirmPaidRun,
   setConfirmPaidRun,
   markPaid,
@@ -566,23 +579,32 @@ export const PayrollDialogs = ({
 
       <ResponsiveDialog
         open={!!disburseTarget}
-        onOpenChange={(open) => { if (!open && !disbursing) { setDisburseTarget(null); setDisburseErrors([]); } }}
+        onOpenChange={(open) => { if (!open && !disbursing && !scheduling) { setDisburseTarget(null); setDisburseErrors([]); setScheduleMode(false); setScheduleAt(''); } }}
         title="Confirm salary disbursement"
         footer={
           <>
             <Button
               variant="outline"
-              onClick={() => { setDisburseTarget(null); setDisburseErrors([]); }}
-              disabled={disbursing}
+              onClick={() => { setDisburseTarget(null); setDisburseErrors([]); setScheduleMode(false); setScheduleAt(''); }}
+              disabled={disbursing || scheduling}
             >
               Cancel
             </Button>
-            <Button onClick={doDisburse} disabled={disbursing}>
-              {disbursing
-                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                : <Send className="mr-2 h-4 w-4" />}
-              Disburse
-            </Button>
+            {scheduleMode ? (
+              <Button onClick={doSchedule} disabled={scheduling || !scheduleAt}>
+                {scheduling
+                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  : <Clock className="mr-2 h-4 w-4" />}
+                Schedule
+              </Button>
+            ) : (
+              <Button onClick={doDisburse} disabled={disbursing}>
+                {disbursing
+                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  : <Send className="mr-2 h-4 w-4" />}
+                Disburse Now
+              </Button>
+            )}
           </>
         }
       >
@@ -604,14 +626,59 @@ export const PayrollDialogs = ({
                   </span>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                KDOps will create a Paystack transfer for each employee's net salary using the
-                bank details on their profile. Status updates arrive via the Paystack webhook.
-              </p>
+
+              <div className="flex rounded-lg border p-1 gap-1">
+                <button
+                  type="button"
+                  className={cn(
+                    'flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                    !scheduleMode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={() => setScheduleMode(false)}
+                  disabled={disbursing || scheduling}
+                >
+                  Disburse now
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    'flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                    scheduleMode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={() => setScheduleMode(true)}
+                  disabled={disbursing || scheduling}
+                >
+                  Schedule for later
+                </button>
+              </div>
+
+              {scheduleMode ? (
+                <div className="space-y-2">
+                  <Label htmlFor="payroll-schedule-at">Disburse at</Label>
+                  <Input
+                    id="payroll-schedule-at"
+                    type="datetime-local"
+                    value={scheduleAt}
+                    min={new Date(Date.now() + 5 * 60 * 1000).toISOString().slice(0, 16)}
+                    onChange={(e) => setScheduleAt(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    KDOps will automatically dispatch transfers for every employee's net salary
+                    at this time — no one needs to be online. Approvers can cancel the schedule
+                    any time before it fires, from this run's row on the Runs tab.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  KDOps will create a transfer for each employee's net salary right now, using the
+                  bank details on their profile. Status updates arrive via the payment provider's webhook.
+                </p>
+              )}
+
               {disburseErrors.length > 0 && (
                 <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 space-y-1">
                   <p className="text-xs font-semibold text-destructive flex items-center gap-1">
-                    <AlertCircle className="h-3.5 w-3.5" /> {disburseErrors.length} employee{disburseErrors.length === 1 ? '' : 's'} could not be processed
+                    <AlertCircle className="h-3.5 w-3.5" /> {disburseErrors.length} issue{disburseErrors.length === 1 ? '' : 's'}
                   </p>
                   <ul className="list-disc pl-4 space-y-0.5">
                     {disburseErrors.map((e, i) => (

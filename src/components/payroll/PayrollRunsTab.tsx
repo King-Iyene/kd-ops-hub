@@ -11,6 +11,7 @@ import {
   Trash2,
   Info,
   X,
+  Clock,
 } from 'lucide-react';
 import {
   BarChart,
@@ -69,6 +70,7 @@ interface PayrollRun {
   created_by: string | null;
   approved_by: string | null;
   payroll_segment_id?: string | null;
+  scheduled_disburse_at?: string | null;
 }
 
 interface PayrollRunsTabProps {
@@ -95,6 +97,7 @@ interface PayrollRunsTabProps {
   recallToDraft: (run: PayrollRun) => void;
   generatePayslips: (run: PayrollRun) => void;
   openDisburse: (run: PayrollRun) => void;
+  doCancelSchedule: (run: PayrollRun) => void;
   setConfirmPaidRun: (run: PayrollRun | null) => void;
   openAdjustments: (run: PayrollRun) => void;
   exportRun: (run: PayrollRun) => void;
@@ -128,6 +131,7 @@ export const PayrollRunsTab = ({
   recallToDraft,
   generatePayslips,
   openDisburse,
+  doCancelSchedule,
   setConfirmPaidRun,
   openAdjustments,
   exportRun,
@@ -374,7 +378,15 @@ export const PayrollRunsTab = ({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <StatusBadge status={r.status} />
+                      <div className="flex flex-col gap-1 items-start">
+                        <StatusBadge status={r.status} />
+                        {r.status === 'approved' && r.scheduled_disburse_at && (
+                          <Badge variant="outline" className="gap-1 text-[10px] border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-700">
+                            <Clock className="h-3 w-3" />
+                            {new Date(r.scheduled_disburse_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1 flex-wrap">
@@ -439,17 +451,28 @@ export const PayrollRunsTab = ({
                                 Generate payslips
                               </Button>
                             )}
-                            {canDisburse && (
+                            {canDisburse && !r.scheduled_disburse_at && (
                               <Button
                                 size="sm"
                                 onClick={() => openDisburse(r)}
                                 disabled={working}
-                                title="Disburse net salaries via Paystack"
+                                title="Disburse net salaries now or schedule for later"
                               >
                                 {working
                                   ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                                   : <Send className="mr-2 h-3.5 w-3.5" />}
                                 Disburse salaries
+                              </Button>
+                            )}
+                            {canDisburse && r.scheduled_disburse_at && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => doCancelSchedule(r)}
+                                title="Cancel the scheduled disbursement"
+                              >
+                                <X className="mr-1.5 h-3.5 w-3.5" /> Cancel schedule
                               </Button>
                             )}
                             <Button size="sm" variant="outline" onClick={() => setConfirmPaidRun(r)}>
@@ -527,7 +550,15 @@ export const PayrollRunsTab = ({
                     </MobileCardHeader>
 
                     <MobileCardRow label="Status">
-                      <StatusBadge status={r.status} />
+                      <span className="inline-flex items-center gap-1.5 flex-wrap">
+                        <StatusBadge status={r.status} />
+                        {r.status === 'approved' && r.scheduled_disburse_at && (
+                          <Badge variant="outline" className="gap-1 text-[10px] border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-700">
+                            <Clock className="h-3 w-3" />
+                            {new Date(r.scheduled_disburse_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                          </Badge>
+                        )}
+                      </span>
                     </MobileCardRow>
                     <MobileCardRow label="Contractor" className="currency">{formatNaira(r.total_contractor_ngn)}</MobileCardRow>
                     <MobileCardRow label="Expenses" className="currency">{formatNaira(r.total_expenses_ngn)}</MobileCardRow>
@@ -559,10 +590,20 @@ export const PayrollRunsTab = ({
                           Payslips
                         </Button>
                       )}
-                      {r.status === 'approved' && canDisburse && (
+                      {r.status === 'approved' && canDisburse && !r.scheduled_disburse_at && (
                         <Button size="sm" className="h-9" onClick={() => openDisburse(r)} disabled={working}>
                           {working ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />}
                           Disburse
+                        </Button>
+                      )}
+                      {r.status === 'approved' && canDisburse && r.scheduled_disburse_at && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-9 text-destructive border-destructive/40 hover:bg-destructive/10"
+                          onClick={() => doCancelSchedule(r)}
+                        >
+                          <X className="h-4 w-4 mr-1.5" /> Cancel schedule
                         </Button>
                       )}
                       {r.status === 'approved' && (

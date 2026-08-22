@@ -38,14 +38,6 @@ import {
   NSITF_RATE,
   computePayslip,
 } from '@/lib/tax';
-import {
-  createTransferRecipient,
-  initiateTransferIdempotent,
-  getBankCode,
-  generateKdopsRef,
-  buildNarration,
-} from '@/lib/paystack';
-import { fetchFlutterwaveBanks, getFlutterwaveBankCode } from '@/lib/flutterwave-banks';
 import { displayName } from '@/lib/name';
 import { receiptTheme as R } from '@/lib/receipt-theme';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -88,6 +80,7 @@ interface PayrollRun {
   created_by: string | null;
   approved_by: string | null;
   payroll_segment_id?: string | null;
+  scheduled_disburse_at?: string | null;
 }
 
 const monthLabel = (period: string, periodType?: string): string => {
@@ -145,6 +138,9 @@ const Payroll = () => {
   const [disburseTarget, setDisburseTarget] = useState<{ run: PayrollRun; payslips: any[] } | null>(null);
   const [disbursing, setDisbursing] = useState(false);
   const [disburseErrors, setDisburseErrors] = useState<string[]>([]);
+  const [scheduleMode, setScheduleMode] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState('');
+  const [scheduling, setScheduling] = useState(false);
   const [confirmPaidRun, setConfirmPaidRun] = useState<PayrollRun | null>(null);
   // Per-employee adjustments (bonus / overtime / allowance / one-off deduction)
   // for a run, entered before payslips are generated.
@@ -1376,6 +1372,8 @@ const Payroll = () => {
         return;
       }
       setDisburseErrors([]);
+      setScheduleMode(false);
+      setScheduleAt('');
       setDisburseTarget({ run, payslips: slips });
     } catch (err: unknown) {
       toast({ title: 'Failed to load payslips', description: errorMessage(err), variant: 'destructive' });
@@ -1384,336 +1382,90 @@ const Payroll = () => {
     }
   };
 
+  const doSchedule = async () => {
+    if (!disburseTarget || !scheduleAt) return;
+    setScheduling(true);
+    try {
+      const atIso = new Date(scheduleAt).toISOString();
+      const { error } = await supabase.rpc('schedule_payroll_disbursement', {
+        p_run_id: disburseTarget.run.id,
+        p_at: atIso,
+      });
+      if (error) throw error;
+      toast({
+        title: 'Disbursement scheduled',
+        description: `Payroll ${monthLabel(disburseTarget.run.period)} will disburse automatically at ${new Date(atIso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}.`,
+      });
+      setDisburseTarget(null);
+      setScheduleMode(false);
+      setScheduleAt('');
+      load();
+    } catch (err: unknown) {
+      toast({ title: 'Could not schedule', description: errorMessage(err), variant: 'destructive' });
+    } finally {
+      setScheduling(false);
+    }
+  };
+
+  const doCancelSchedule = async (run: PayrollRun) => {
+    try {
+      const { error } = await supabase.rpc('cancel_scheduled_payroll_disbursement', { p_run_id: run.id });
+      if (error) throw error;
+      toast({ title: 'Scheduled disbursement cancelled' });
+      load();
+    } catch (err: unknown) {
+      toast({ title: 'Could not cancel', description: errorMessage(err), variant: 'destructive' });
+    }
+  };
+
+  // Disbursement runs server-side via the payroll-disburse edge function —
+  // the SAME code path the scheduled-disbursement cron uses. This used to
+  // be ~300 lines of client-side batch/item creation that inserted
+  // payment_batches directly at status='processing'; the insert-gate
+  // trigger added later (20260930000300_payment_batches_insert_gate.sql)
+  // rejects that from an authenticated client outright, so this path was
+  // silently broken — confirmed live: zero payment_batches rows ever had
+  // payroll_run_id set. Moving the batch/item creation into a SECURITY
+  // DEFINER RPC (create_payroll_disbursement_batch) fixes that (SECURITY
+  // DEFINER bypasses the authenticated-only gate) and means manual and
+  // scheduled disbursement can never drift from each other.
   const doDisburse = async () => {
     if (!disburseTarget) return;
-    const { run, payslips } = disburseTarget;
+    const { run } = disburseTarget;
     setDisbursing(true);
-    const errors: string[] = [];
-    let succeeded = 0;
-    let locked = false;
+    setDisburseErrors([]);
 
     try {
-      // Server-side lock: row-locks the run and atomically flips
-      // approved -> processing. If another admin (or another tab/click)
-      // already claimed this run, this raises and we abort before creating
-      // anything — closes the double-disbursement hole where two concurrent
-      // callers both read status='approved' from stale client state.
-      try {
-        await supabase.rpc('lock_payroll_run_for_disbursement', { p_run_id: run.id });
-        locked = true;
-      } catch (lockErr: unknown) {
-        toast({
-          title: 'Cannot disburse',
-          description: errorMessage(lockErr),
-          variant: 'destructive',
-        });
-        setDisburseTarget(null);
-        return;
-      }
-
-      const today = new Date().toISOString().slice(0, 10);
-      const totalNet = payslips.reduce((s, p) => s + Number(p.net_ngn || 0), 0);
-
-      // ROOT CAUSE FIX: this dispatch path was a THIRD independent
-      // Paystack-only money-mover (alongside QuickPay and batch-worker),
-      // completely bypassing the active_payment_provider toggle. Running
-      // Payroll while Flutterwave was active would have silently disbursed
-      // salaries through Paystack anyway. Read the active provider once,
-      // stamp the batch with it, and branch every subsequent call.
-      const activeProvider: 'paystack' | 'flutterwave' =
-        (companySettings as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack';
-      if (activeProvider === 'flutterwave') {
-        await fetchFlutterwaveBanks();
-      }
-
-      // Crash-recovery: if a previous doDisburse attempt for this run already
-      // created a batch and crashed/closed before finishing, reuse that SAME
-      // batch instead of creating a new one — otherwise a retry would create
-      // brand-new batch_items (brand-new deterministic provider references)
-      // for employees who may have already been paid in the crashed attempt.
-      // Created as status='processing' (not 'approved') so it's a first-class
-      // citizen of the same processing/partially_processed status machine
-      // batch-worker's orphan watchdog already scans every minute — if THIS
-      // tab also crashes mid-loop, the watchdog finishes dispatching whatever
-      // batch_items are left 'pending', the same recovery every other batch
-      // type in this app already gets.
-      const { data: existingBatch } = await supabase
-        .from('payment_batches')
-        .select('id')
-        .eq('payroll_run_id', run.id)
-        .in('status', ['processing', 'partially_processed'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      let batch: { id: string };
-      let alreadyCoveredEmployeeIds = new Set<string>();
-      if (existingBatch) {
-        batch = existingBatch as any;
-        const { data: existingItems } = await supabase
-          .from('batch_items')
-          .select('employee_id')
-          .eq('batch_id', batch.id)
-          .not('employee_id', 'is', null);
-        alreadyCoveredEmployeeIds = new Set((existingItems || []).map((i: any) => i.employee_id));
-      } else {
-        const { data: newBatch, error: batchErr } = await supabase
-          .from('payment_batches')
-          .insert({
-            name: `Salary ${monthLabel(run.period)}`,
-            status: 'processing',
-            payment_date: today,
-            total_amount: totalNet,
-            beneficiary_count: payslips.length,
-            provider: activeProvider,
-            payroll_run_id: run.id,
-          })
-          .select()
-          .single();
-        if (batchErr) throw batchErr;
-        batch = newBatch as any;
-      }
-
-      for (const slip of payslips) {
-        if (alreadyCoveredEmployeeIds.has(slip.employee_id)) continue;
-        try {
-          const { data: emp, error: empErr } = await supabase
-            .from('profiles')
-            .select('id, bank_name, bank_account_number, full_name, first_name, last_name, paystack_recipient_code')
-            .eq('id', slip.employee_id)
-            .single();
-          if (empErr || !emp) {
-            errors.push(`${slip.employee_name}: could not load profile`);
-            continue;
-          }
-          const bankCode = activeProvider === 'flutterwave'
-            ? getFlutterwaveBankCode((emp as any).bank_name)
-            : getBankCode((emp as any).bank_name);
-          if (!bankCode) {
-            errors.push(`${slip.employee_name}: unknown bank "${(emp as any).bank_name}" on ${activeProvider}`);
-            continue;
-          }
-          if (!(emp as any).bank_account_number) {
-            errors.push(`${slip.employee_name}: no bank account number on file`);
-            continue;
-          }
-
-          const empName = displayName(
-            (emp as any).first_name,
-            (emp as any).last_name,
-            (emp as any).full_name || slip.employee_name,
-          );
-
-          const { data: item, error: itemErr } = await supabase
-            .from('batch_items')
-            .insert({
-              batch_id: batch.id,
-              employee_id: slip.employee_id,
-              full_name: empName,
-              bank_name: (emp as any).bank_name || '',
-              account_number: (emp as any).bank_account_number,
-              amount_ngn: Number(slip.net_ngn || 0),
-              status: 'pending',
-              provider: activeProvider,
-            })
-            .select()
-            .single();
-          if (itemErr || !item) {
-            errors.push(`${empName}: failed to create payment record`);
-            continue;
-          }
-
-          const narration = buildNarration({
-            kind: 'salary',
-            recipientName: empName,
-            period: monthLabel(run.period),
-          });
-
-          if (activeProvider === 'flutterwave') {
-            // Flutterwave path: no separate recipient step — /transfers
-            // takes bank_code + account_number directly.
-            const compactId = String((item as any).id).replace(/-/g, '').slice(0, 20);
-            const ref = `kdopsfw_${compactId}`;
-            const { data: fwRes, error: fwErr } = await supabase.functions.invoke('flutterwave-transfer', {
-              body: {
-                action: 'initiate_transfer',
-                reference: ref,
-                bank_code: bankCode,
-                account_number: (emp as any).bank_account_number,
-                amount_ngn: Number(slip.net_ngn || 0),
-                reason: narration,
-              },
-            });
-            if (fwErr) throw new Error((fwErr as any)?.message || 'Flutterwave transfer failed');
-            const fwData = (fwRes as any)?.data;
-            if (!fwData || (fwRes as any)?.ok === false) {
-              throw new Error((fwRes as any)?.error || 'Flutterwave transfer rejected');
-            }
-            const fwStatus = String(fwData.status || '').toLowerCase();
-            const itemStatus =
-              fwStatus === 'succeeded' ? 'succeeded'
-              : fwStatus === 'failed' || fwStatus === 'reversed' ? fwStatus
-              : 'pending';
-
-            const { error: fwUpdateErr } = await supabase
-              .from('batch_items')
-              .update({
-                status: itemStatus,
-                flutterwave_reference: ref,
-                flutterwave_transfer_id: fwData.transfer_id || null,
-                flutterwave_fee_ngn: Number(fwData.fee_ngn || 0) || 0,
-                flutterwave_raw: fwData.raw ?? null,
-                narration,
-                failure_reason: itemStatus === 'failed' ? 'Flutterwave rejected the transfer' : null,
-                processed_at: itemStatus === 'succeeded' ? new Date().toISOString() : null,
-              } as any)
-              .eq('id', (item as any).id);
-            if (fwUpdateErr) {
-              // The transfer itself already went out — this is a bookkeeping
-              // write failure, not a payment failure. Surface it distinctly
-              // (never silently drop it) rather than pretending the record
-              // update succeeded; reconciliation will still catch the item
-              // itself via its reference, but the operator needs to know the
-              // local status may be stale.
-              console.error(`[Payroll] batch_items update failed after Flutterwave transfer for ${empName} (ref ${ref}):`, fwUpdateErr.message);
-              errors.push(`${empName}: transfer sent (ref ${ref}) but recording the result failed — verify manually: ${fwUpdateErr.message}`);
-            }
-
-            await logAudit(
-              'flutterwave_transfer_initiated',
-              `Salary transfer initiated for ${empName} (${formatNaira(Number(slip.net_ngn || 0))}) ref ${ref}`,
-              profile,
-            );
-            succeeded++;
-            continue;
-          }
-
-          // Paystack path — unchanged from pre-Flutterwave behaviour.
-          // Reuse the cached Paystack recipient code from the employee
-          // profile if we have one — saves a /transferrecipient API call
-          // for every employee on every payroll run. The DB trigger clears
-          // this column whenever bank details change, so a stale recipient
-          // is impossible.
-          let recipientCode: string | null = (emp as any).paystack_recipient_code || null;
-          if (!recipientCode) {
-            const recipient = await createTransferRecipient({
-              name: empName,
-              account_number: (emp as any).bank_account_number,
-              bank_code: bankCode,
-            });
-            recipientCode = recipient.recipient_code;
-            const { error: recipientCacheErr } = await supabase
-              .from('profiles')
-              .update({
-                paystack_recipient_code: recipientCode,
-                paystack_recipient_verified_at: new Date().toISOString(),
-              })
-              .eq('id', (emp as any).id);
-            if (recipientCacheErr) {
-              // Non-fatal — just means next payroll run re-creates the
-              // recipient instead of reusing the cache — but log it so a
-              // recurring failure here (e.g. an RLS regression) is visible
-              // instead of silently costing an extra Paystack API call every run.
-              console.error(`[Payroll] failed to cache paystack_recipient_code for ${empName}:`, recipientCacheErr.message);
-            }
-          }
-          const ref = generateKdopsRef((item as any).id);
-          const transfer = await initiateTransferIdempotent({
-            recipient_code: recipientCode,
-            amount_ngn: Number(slip.net_ngn || 0),
-            reference: ref,
-            reason: narration,
-          });
-
-          // Map recovered duplicate-ref into the right batch_item status. If
-          // Paystack already says success, we save the row as succeeded so the
-          // payroll dashboard reflects reality.
-          const recoveredStatus = transfer.recovered
-            ? (transfer.verified_status || transfer.status || '').toLowerCase()
-            : null;
-          const itemStatus =
-            recoveredStatus === 'success' ? 'succeeded'
-            : recoveredStatus === 'failed' || recoveredStatus === 'reversed' ? recoveredStatus
-            : 'pending';
-
-          const { error: psUpdateErr } = await supabase
-            .from('batch_items')
-            .update({
-              status: itemStatus,
-              paystack_recipient_code: recipientCode,
-              paystack_transfer_code: transfer.transfer_code,
-              paystack_reference: transfer.reference,
-              narration,
-              failure_reason: itemStatus === 'failed' ? 'Recovered: Paystack rejected the transfer' : null,
-              processed_at: itemStatus === 'succeeded' ? new Date().toISOString() : null,
-            } as any)
-            .eq('id', (item as any).id);
-          if (psUpdateErr) {
-            // Same non-silent posture as the Flutterwave branch above — the
-            // transfer already went out, this is a bookkeeping write failure.
-            console.error(`[Payroll] batch_items update failed after Paystack transfer for ${empName} (ref ${transfer.reference}):`, psUpdateErr.message);
-            errors.push(`${empName}: transfer sent (ref ${transfer.reference}) but recording the result failed — verify manually: ${psUpdateErr.message}`);
-          }
-
-          await logAudit(
-            'paystack_transfer_initiated',
-            `Salary transfer initiated for ${empName} (${formatNaira(Number(slip.net_ngn || 0))}) ref ${transfer.reference}`,
-            profile,
-          );
-          succeeded++;
-        } catch (empErr: unknown) {
-          errors.push(`${slip.employee_name}: ${errorMessage(empErr)}`);
-        }
-      }
-
-      // Release the processing lock taken above. 'paid' if anything went
-      // through, otherwise back to 'approved' so the run can be retried
-      // instead of being stuck in 'processing'.
-      await supabase.rpc('finalize_payroll_run_disbursement', {
-        p_run_id: run.id,
-        p_new_status: succeeded > 0 ? 'paid' : 'approved',
+      const { data, error } = await supabase.functions.invoke('payroll-disburse', {
+        body: { run_id: run.id },
       });
-      locked = false;
+      if (error) throw error;
 
-      if (succeeded > 0) {
-        await logAudit(
-          'salary_disbursed',
-          `Salary disbursed for ${monthLabel(run.period)}: ${succeeded}/${payslips.length} transfers initiated${errors.length ? ` (${errors.length} failed)` : ''}`,
-          profile,
-        );
-      }
+      const result = (data as any)?.results?.[0];
+      if (!result) throw new Error((data as any)?.error || 'No response from disbursement service');
 
-      setDisburseErrors(errors);
-      if (errors.length === 0) {
+      const skippedNames: string[] = Array.isArray(result.skipped)
+        ? result.skipped.map((s: any) => `${s.employee_name}: ${s.reason}`)
+        : [];
+
+      if (result.ok) {
         toast({
-          title: `${succeeded} salary transfer${succeeded === 1 ? '' : 's'} initiated`,
-          description: `Payroll ${monthLabel(run.period)} sent via ${activeProvider === 'flutterwave' ? 'Flutterwave' : 'Paystack'}. Status updates arrive via webhook.`,
+          title: `${result.dispatched} salary transfer${result.dispatched === 1 ? '' : 's'} initiated`,
+          description: `Payroll ${monthLabel(run.period)} sent. Status updates arrive via webhook.${skippedNames.length ? ` ${skippedNames.length} employee(s) skipped — missing bank details.` : ''}`,
         });
-        setDisburseTarget(null);
+        setDisburseErrors(skippedNames);
+        if (skippedNames.length === 0) setDisburseTarget(null);
         load();
       } else {
+        setDisburseErrors([result.error || 'Disbursement failed', ...skippedNames]);
         toast({
-          title: `${succeeded} of ${payslips.length} transfers initiated`,
-          description: `${errors.length} employee${errors.length === 1 ? '' : 's'} could not be processed — see dialog for details.`,
+          title: 'Disbursement did not complete',
+          description: result.error || 'See dialog for details.',
           variant: 'destructive',
         });
-        if (succeeded > 0) load();
+        load();
       }
     } catch (err: unknown) {
-      // An unexpected error left the run locked in 'processing' before we
-      // got to the normal finalize call above — release it back to
-      // 'approved' rather than leaving it stuck for the 15-minute self-heal.
-      if (locked) {
-        try {
-          await supabase.rpc('finalize_payroll_run_disbursement', {
-            p_run_id: run.id,
-            p_new_status: succeeded > 0 ? 'paid' : 'approved',
-          });
-        } catch {
-          // Best-effort — the 15-minute self-heal in
-          // lock_payroll_run_for_disbursement covers this if it also fails.
-        }
-      }
       toast({
         title: 'Disbursement failed',
         description: errorMessage(err),
@@ -2050,6 +1802,7 @@ const Payroll = () => {
             recallToDraft={recallToDraft}
             generatePayslips={generatePayslips}
             openDisburse={openDisburse}
+            doCancelSchedule={doCancelSchedule}
             setConfirmPaidRun={setConfirmPaidRun}
             openAdjustments={openAdjustments}
             exportRun={exportRun}
@@ -2130,6 +1883,12 @@ const Payroll = () => {
         disburseErrors={disburseErrors}
         setDisburseErrors={setDisburseErrors}
         doDisburse={doDisburse}
+        scheduleMode={scheduleMode}
+        setScheduleMode={setScheduleMode}
+        scheduleAt={scheduleAt}
+        setScheduleAt={setScheduleAt}
+        scheduling={scheduling}
+        doSchedule={doSchedule}
         confirmPaidRun={confirmPaidRun}
         setConfirmPaidRun={setConfirmPaidRun}
         markPaid={markPaid}
