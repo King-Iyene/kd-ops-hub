@@ -315,6 +315,14 @@ export async function getReceiptDebt(employeeId: string): Promise<ReceiptDebt> {
       .eq('submitted_by', employeeId)
       .eq('category', 'repair')
       .eq('status', 'approved')
+      // Reimbursement repairs over ₦10,000 already require a receipt at
+      // submission (see submitRepairRequest in FuelTab.tsx) — by the time
+      // one is approved, the receipt is already attached, so it can never
+      // legitimately land here. Company charge is the only path where the
+      // receipt is optional up front, so it's the only one that can be
+      // "approved but no receipt yet" — that's the real gap this debt
+      // check exists to close.
+      .eq('is_reimbursement', false)
       .is('receipt_url', null)
       .is('deleted_at', null)
       .order('created_at', { ascending: true }),

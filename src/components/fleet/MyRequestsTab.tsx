@@ -96,6 +96,11 @@ export function MyRequestsTab({
         .select('id, description, amount_ngn, created_at, vehicle_id, service_type, maintenance_item_id, repair_odometer_km, vendor_name, date')
         .eq('submitted_by', profile.id)
         .eq('category', 'repair')
+        // Only company-charge repairs can legitimately be missing a
+        // receipt post-approval — reimbursements over ₦10,000 require one
+        // at submission, so they're never in this state. Matches
+        // getReceiptDebt()'s filter.
+        .eq('is_reimbursement', false)
         .is('receipt_url', null)
         .is('deleted_at', null)
         .order('created_at', { ascending: true }),
