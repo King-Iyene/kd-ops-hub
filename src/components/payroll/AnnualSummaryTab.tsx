@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart,
   Bar,
@@ -13,6 +14,11 @@ import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TrendingUp, TrendingDown } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { PENSION_EMPLOYER_RATE, NSITF_RATE } from '@/lib/tax';
 import {
   Table,
   TableBody,
@@ -21,6 +27,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+
+interface BurnExplainer {
+  latest: { period: string; total_burn_ngn: number };
+  prev: { period: string; total_burn_ngn: number };
+  deltaNgn: number;
+  deltaPct: number;
+  bonusDeltaNgn: number;
+  headcountDelta: number;
+  residualNgn: number;
+}
 
 interface AnnualSummaryTabProps {
   summaryYear: number;
@@ -47,9 +63,168 @@ interface AnnualSummaryTabProps {
       burn: number;
     };
   };
+  burnExplainer?: BurnExplainer | null;
+  departments?: { id: string; name: string }[];
 }
 
-export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, annualSummary }: AnnualSummaryTabProps) => {
+// Plain-language read of the month-over-month burn delta — attributes it to
+// company-wide bonuses vs. everything else (headcount, PAYE/pension drift,
+// allowance changes) instead of leaving HR to guess why the number moved.
+function BurnExplainerCard({ explainer }: { explainer: BurnExplainer }) {
+  const { latest, prev, deltaNgn, deltaPct, bonusDeltaNgn, headcountDelta, residualNgn } = explainer;
+  const up = deltaNgn >= 0;
+  const withoutBonusPct = prev.total_burn_ngn > 0 ? (residualNgn / prev.total_burn_ngn) * 100 : 0;
+
+  const parts: string[] = [];
+  if (Math.abs(bonusDeltaNgn) >= 1000) {
+    parts.push(`${bonusDeltaNgn >= 0 ? '+' : ''}${formatNaira(bonusDeltaNgn)} from company-wide bonuses`);
+  }
+  if (headcountDelta !== 0) {
+    parts.push(`${headcountDelta > 0 ? '+' : ''}${headcountDelta} employee${Math.abs(headcountDelta) === 1 ? '' : 's'} on payroll`);
+  }
+  if (Math.abs(residualNgn) >= 1000 && Math.abs(bonusDeltaNgn) >= 1000) {
+    parts.push(`the rest (${formatNaira(Math.abs(residualNgn))}) from statutory and allowance drift`);
+  }
+
+  return (
+    <Card className="border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
+      <CardContent className="pt-5 pb-5">
+        <div className="flex items-start gap-3">
+          <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${up ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'}`}>
+            {up ? <TrendingUp className="h-4.5 w-4.5" /> : <TrendingDown className="h-4.5 w-4.5" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold">
+              {latest.period} is {Math.abs(deltaPct).toFixed(1)}% {up ? 'above' : 'below'} {prev.period}
+              {parts.length > 0 ? ' — here\'s why' : ''}
+            </p>
+            {parts.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                {parts.join(' · ')}.
+                {Math.abs(bonusDeltaNgn) >= 1000 && (
+                  <> Without the bonus line, burn would be {withoutBonusPct >= 0 ? '+' : ''}{withoutBonusPct.toFixed(1)}% vs {prev.period}.</>
+                )}
+              </p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface DeptEmployee {
+  department_id: string | null;
+  salary_ngn: number;
+  pension_enabled: boolean | null;
+}
+
+// What-if raise simulator — real employee salary data grouped by department,
+// so HR sees the full loaded cost of a raise (gross + employer pension +
+// NSITF) before committing, not just the headline salary bump.
+function RaiseSimulator({ departments }: { departments: { id: string; name: string }[] }) {
+  const [employees, setEmployees] = useState<DeptEmployee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deptId, setDeptId] = useState<string>('all');
+  const [raisePct, setRaisePct] = useState(10);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from('profiles')
+        .select('department_id, salary_ngn, pension_enabled')
+        .eq('status', 'active')
+        .neq('role', 'driver')
+        .gt('salary_ngn', 0);
+      setEmployees((data as DeptEmployee[]) || []);
+      setLoading(false);
+    })();
+  }, []);
+
+  const scoped = useMemo(
+    () => (deptId === 'all' ? employees : employees.filter((e) => e.department_id === deptId)),
+    [employees, deptId],
+  );
+
+  const impact = useMemo(() => {
+    const currentGross = scoped.reduce((s, e) => s + Number(e.salary_ngn || 0), 0);
+    const raiseNgn = currentGross * (raisePct / 100);
+    const employerPensionNgn = scoped.reduce(
+      (s, e) => s + (e.pension_enabled !== false ? Number(e.salary_ngn || 0) * (raisePct / 100) * PENSION_EMPLOYER_RATE : 0), 0,
+    );
+    const nsitfNgn = raiseNgn * NSITF_RATE;
+    const statutoryNgn = employerPensionNgn + nsitfNgn;
+    return {
+      headcount: scoped.length,
+      raiseMonthlyNgn: raiseNgn,
+      raiseAnnualNgn: raiseNgn * 12,
+      statutoryAnnualNgn: statutoryNgn * 12,
+      totalAnnualNgn: (raiseNgn + statutoryNgn) * 12,
+    };
+  }, [scoped, raisePct]);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <CardTitle className="text-base">What-if: raise simulator</CardTitle>
+          <Badge variant="outline" className="text-[9.5px] uppercase tracking-wide">New</Badge>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Full loaded cost of a raise — gross, plus employer pension and NSITF, not just the headline number.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Department</label>
+            <Select value={deptId} onValueChange={setDeptId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All departments</SelectItem>
+                {departments.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Raise — {raisePct}%</label>
+            <Slider
+              value={[raisePct]}
+              onValueChange={([v]) => setRaisePct(v)}
+              min={1}
+              max={50}
+              step={1}
+              className="mt-2.5"
+            />
+          </div>
+        </div>
+
+        {loading ? (
+          <p className="text-xs text-muted-foreground">Loading employee salaries…</p>
+        ) : impact.headcount === 0 ? (
+          <p className="text-xs text-muted-foreground">No salaried employees in this scope.</p>
+        ) : (
+          <div className="rounded-lg bg-muted/50 px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-[11px] text-muted-foreground font-medium">Annual cost of this raise</p>
+              <p className="text-lg font-extrabold currency mt-0.5">{formatNaira(impact.totalAnnualNgn)}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">across {impact.headcount} employee{impact.headcount === 1 ? '' : 's'}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] text-muted-foreground font-medium">incl. employer pension + NSITF</p>
+              <p className="text-sm font-bold text-warning mt-0.5 currency">+{formatNaira(impact.statutoryAnnualNgn)} statutory</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, annualSummary, burnExplainer, departments = [] }: AnnualSummaryTabProps) => {
   return (
     <>
           <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -67,6 +242,8 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
               ))}
             </div>
           </div>
+
+          {burnExplainer && <BurnExplainerCard explainer={burnExplainer} />}
 
           {annualSummary.totals.burn > 0 && (
             <Card>
@@ -144,6 +321,8 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
               </div>
             </CardContent>
           </Card>
+
+          <RaiseSimulator departments={departments} />
     </>
   );
 };

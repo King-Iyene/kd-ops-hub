@@ -1694,6 +1694,24 @@ const Payroll = () => {
     return { byMonth, totals };
   }, [runs, summaryYear]);
 
+  // Plain-language "why did burn change" read, replacing a bare number with
+  // an actual explanation — the two most recent non-draft runs, attributing
+  // the delta to bonuses vs. headcount vs. everything else (PAYE/pension
+  // drift, allowance changes) rather than leaving HR to guess.
+  const burnExplainer = useMemo(() => {
+    const settled = runs.filter((r) => r.status !== 'draft').sort((a, b) => (a.period < b.period ? 1 : -1));
+    if (settled.length < 2) return null;
+    const [latest, prev] = settled;
+    const deltaNgn = latest.total_burn_ngn - prev.total_burn_ngn;
+    if (prev.total_burn_ngn <= 0) return null;
+    const deltaPct = (deltaNgn / prev.total_burn_ngn) * 100;
+    const bonusOf = (r: PayrollRun) => (r.bonuses_json || []).reduce((s, b) => s + Number(b.amount || 0), 0);
+    const bonusDeltaNgn = bonusOf(latest) - bonusOf(prev);
+    const headcountDelta = (latest.employee_count || 0) - (prev.employee_count || 0);
+    const residualNgn = deltaNgn - bonusDeltaNgn;
+    return { latest, prev, deltaNgn, deltaPct, bonusDeltaNgn, headcountDelta, residualNgn };
+  }, [runs]);
+
   const availableYears = useMemo(() => {
     const years = new Set(runs.map((r) => parseInt(r.period.split('-')[0])));
     if (years.size === 0) years.add(new Date().getFullYear());
@@ -1821,6 +1839,8 @@ const Payroll = () => {
             setSummaryYear={setSummaryYear}
             availableYears={availableYears}
             annualSummary={annualSummary}
+            burnExplainer={burnExplainer}
+            departments={segmentDepartments}
           />
         </TabsContent>
       </Tabs>
