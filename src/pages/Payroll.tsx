@@ -280,6 +280,44 @@ const Payroll = () => {
     }
   };
 
+  // Quick pay-group filter for the wizard's "Who gets paid" step — Pay
+  // Groups already work as a segment filter rule (include_pay_group_ids),
+  // but picking one required going through "Manage segments" first, which
+  // is why they never felt "factored in" to actually drafting a run. This
+  // reuses an existing pure pay-group segment if one was already created
+  // this way, or silently creates one, so picking a pay group here is a
+  // single click either way.
+  const selectPayGroupQuickFilter = async (groupId: string) => {
+    if (!groupId) {
+      setForm((f) => ({ ...f, payroll_segment_id: '' }));
+      return;
+    }
+    const groupName = segmentPayGroups.find((g) => g.id === groupId)?.name || 'Pay group';
+    const existing = segments.find((s) => {
+      const r = s.filter_rules || {};
+      return r.include_pay_group_ids?.length === 1
+        && r.include_pay_group_ids[0] === groupId
+        && !r.exclude_employee_categories?.length
+        && !r.exclude_department_ids?.length;
+    });
+    if (existing) {
+      setForm((f) => ({ ...f, payroll_segment_id: existing.id }));
+      return;
+    }
+    const { data, error } = await (supabase as any).from('payroll_segments').insert({
+      name: `Pay group: ${groupName}`,
+      description: `Everyone in the ${groupName} pay group.`,
+      filter_rules: { include_pay_group_ids: [groupId] },
+      created_by: profile?.id || null,
+    }).select().single();
+    if (error) {
+      toast({ title: 'Could not filter by pay group', description: error.message, variant: 'destructive' });
+      return;
+    }
+    loadSegments();
+    setForm((f) => ({ ...f, payroll_segment_id: data.id }));
+  };
+
   const deleteSegment = async (segmentId: string, name: string) => {
     // Soft-deactivate rather than hard delete — payroll_runs.payroll_segment_id
     // references this row, and past runs should keep showing which segment
@@ -1946,6 +1984,7 @@ const Payroll = () => {
         updateBonus={updateBonus}
         draftStep={draftStep}
         setDraftStep={setDraftStep}
+        selectPayGroupQuickFilter={selectPayGroupQuickFilter}
         computedPreview={computedPreview}
         finishDraftReview={finishDraftReview}
         submitDraftForApprovalNow={submitDraftForApprovalNow}

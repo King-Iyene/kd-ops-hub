@@ -140,7 +140,12 @@ export function PayrollRosterPreview({
       <CollapsibleContent className="border-t border-border/60 px-3 py-2 space-y-3 text-xs">
         {included.length > 0 && (
           <div>
-            <p className="font-medium text-foreground mb-1">Will be paid ({included.length})</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="font-medium text-foreground">Will be paid ({included.length})</p>
+              {missingBankDetails.length > 0 && (
+                <p className="text-amber-600 dark:text-amber-400">⚠ = no bank account on file yet</p>
+              )}
+            </div>
             <ul className="space-y-0.5">
               {included
                 .slice()

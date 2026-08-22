@@ -118,6 +118,7 @@ export interface PayrollDialogsProps {
   updateBonus: (i: number, field: 'type' | 'amount', val: any) => void;
   draftStep: number;
   setDraftStep: (n: number) => void;
+  selectPayGroupQuickFilter: (groupId: string) => void;
   computedPreview: {
     empCount: number; totalEmployee: number; bonusTotal: number; totalAllowances: number;
     paye: number; pension: number; employerPension: number; nhf: number; nsitfCharge: number;
@@ -204,6 +205,7 @@ export const PayrollDialogs = ({
   updateBonus,
   draftStep,
   setDraftStep,
+  selectPayGroupQuickFilter,
   computedPreview,
   finishDraftReview,
   submitDraftForApprovalNow,
@@ -332,40 +334,77 @@ export const PayrollDialogs = ({
 
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
 
-            {draftStep === 0 && (
-              <>
-                <p className="text-xs text-muted-foreground -mt-2">Choose who this run pays — everyone active, or a segment you've set up (a department, a pay group, or a category like domestic staff).</p>
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <Label className="flex items-center gap-1.5">
-                      Payroll segment
-                      <InfoHint>Run payroll for a subset of staff instead of everyone — e.g. exclude directors or domestic staff, or run for just one Pay Group. Leave as "All employees" for the default, unfiltered run. A segment can filter by payroll category, department, or Pay Group (set up in Payroll → Schedules → Pay Groups).</InfoHint>
-                    </Label>
-                    <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSegmentDialog(true)}>
-                      Manage
-                    </Button>
-                  </div>
-                  <Select
-                    value={form.payroll_segment_id || '__all__'}
-                    onValueChange={(v) => setForm({ ...form, payroll_segment_id: v === '__all__' ? '' : v })}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">All employees (no filter)</SelectItem>
-                      {segments.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {form.payroll_segment_id && (
-                    <p className="text-xs text-muted-foreground">
-                      {segments.find((s) => s.id === form.payroll_segment_id)?.description || 'Only employees matching this segment will be included.'}
-                    </p>
+            {draftStep === 0 && (() => {
+              // Reflects the Pay Group control's own value when the selected
+              // segment was created (or auto-created) as a pure single-pay-group
+              // filter — so picking a pay group and looking at the "Payroll
+              // segment" dropdown agree on what's selected, instead of Pay
+              // Groups being invisible once turned into a segment under the hood.
+              const currentSegment = segments.find((s) => s.id === form.payroll_segment_id);
+              const currentRules = currentSegment?.filter_rules;
+              const currentPayGroupId = currentRules?.include_pay_group_ids?.length === 1
+                && !currentRules.exclude_employee_categories?.length
+                && !currentRules.exclude_department_ids?.length
+                ? currentRules.include_pay_group_ids[0]
+                : '';
+              return (
+                <>
+                  <p className="text-xs text-muted-foreground -mt-2">Choose who this run pays — everyone active, one Pay Group, or a custom segment.</p>
+
+                  {segmentPayGroups.length > 0 && (
+                    <div className="space-y-1">
+                      <Label className="flex items-center gap-1.5">
+                        Pay group
+                        <InfoHint>Run payroll for just one Pay Group — e.g. Field Staff paid weekly, separate from Office Staff paid monthly. Set up Pay Groups in Payroll → Setup → Pay Groups.</InfoHint>
+                      </Label>
+                      <Select
+                        value={currentPayGroupId || '__all__'}
+                        onValueChange={(v) => selectPayGroupQuickFilter(v === '__all__' ? '' : v)}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all__">All Pay Groups</SelectItem>
+                          {segmentPayGroups.map((g) => (
+                            <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   )}
-                </div>
-                <PayrollRosterPreview payrollSegmentId={form.payroll_segment_id} />
-              </>
-            )}
+
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="flex items-center gap-1.5">
+                        Custom segment
+                        <InfoHint>For filters a single Pay Group can't express — e.g. exclude directors, or combine a department with a category. Leave as "All employees" for the default, unfiltered run.</InfoHint>
+                      </Label>
+                      <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSegmentDialog(true)}>
+                        Manage
+                      </Button>
+                    </div>
+                    <Select
+                      value={form.payroll_segment_id || '__all__'}
+                      onValueChange={(v) => setForm({ ...form, payroll_segment_id: v === '__all__' ? '' : v })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">All employees (no filter)</SelectItem>
+                        {segments.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {form.payroll_segment_id && (
+                      <p className="text-xs text-muted-foreground">
+                        {currentSegment?.description || 'Only employees matching this segment will be included.'}
+                      </p>
+                    )}
+                  </div>
+
+                  <PayrollRosterPreview payrollSegmentId={form.payroll_segment_id} defaultExpanded />
+                </>
+              );
+            })()}
 
             {draftStep === 1 && (
               <>
