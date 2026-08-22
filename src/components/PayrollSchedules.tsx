@@ -4,7 +4,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Clock,
   ChevronRight,
   Info,
   Loader2,
@@ -1817,9 +1816,11 @@ export function PayrollSchedules() {
 
 // ─── NextPayrollBanner ────────────────────────────────────────────────────────
 
-export function NextPayrollBanner() {
+export function NextPayrollBanner({ onStartDraft }: { onStartDraft?: () => void }) {
   const [next, setNext] = useState<{ date: Date; scheduleName: string; draftDate: Date; holiday: string | null } | null>(null);
   const [variance, setVariance] = useState<{ severity: 'warning' | 'critical'; runId: string; reason: string } | null>(null);
+  const [activeEmployeeCount, setActiveEmployeeCount] = useState<number | null>(null);
+  const [nextPeriodHasDraft, setNextPeriodHasDraft] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -1844,6 +1845,19 @@ export function NextPayrollBanner() {
       }
       setNext(earliest);
 
+      const { count } = await supabase
+        .from('profiles').select('id', { count: 'exact', head: true })
+        .eq('status', 'active').neq('role', 'driver');
+      setActiveEmployeeCount(count ?? 0);
+
+      if (earliest) {
+        const period = `${earliest.date.getFullYear()}-${String(earliest.date.getMonth() + 1).padStart(2, '0')}`;
+        const { count: draftCount } = await supabase
+          .from('payroll_runs').select('id', { count: 'exact', head: true })
+          .eq('period', period);
+        setNextPeriodHasDraft((draftCount ?? 0) > 0);
+      }
+
       // Surface highest-severity recent variance
       const { data: vrows } = await supabase
         .from('payroll_run_variance')
@@ -1866,35 +1880,28 @@ export function NextPayrollBanner() {
   return (
     <div className="space-y-2">
       {next && (
-        <div className={cn(
-          'flex items-center gap-3 rounded-lg border px-4 py-3 text-sm',
-          daysUntil(next.date) <= 5
-            ? 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200'
-            : 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/40 text-green-800 dark:text-green-200',
-        )}>
-          <CalendarClock className="h-4 w-4 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <span className="font-medium">{next.scheduleName}</span>
-            {' · '}
-            Next pay date: <strong>{formatDate(next.date)}</strong>
-            {' '}
-            ({daysUntil(next.date) === 0 ? 'today' : daysUntil(next.date) === 1 ? 'tomorrow' : `in ${daysUntil(next.date)} days`})
-            {next.holiday && (
-              <span className="ml-2 text-xs opacity-70">
-                <Sparkles className="inline h-3 w-3 -mt-0.5" /> Auto-rolled around {next.holiday}
-              </span>
-            )}
-            {daysUntil(next.draftDate) <= 0 ? (
-              <span className="ml-2 px-1.5 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 text-xs font-medium">
-                Processing window open
-              </span>
-            ) : (
-              <span className="ml-2 text-xs opacity-70">
-                Draft auto-generates {daysUntil(next.draftDate) === 1 ? 'tomorrow' : `in ${daysUntil(next.draftDate)}d`}
-              </span>
-            )}
+        <div className="flex items-center gap-3.5 rounded-lg px-5 py-4 text-white bg-gradient-to-br from-[hsl(200,100%,29%)] to-[hsl(200,90%,20%)] shadow-sm">
+          <div className="h-9 w-9 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+            <CalendarClock className="h-[18px] w-[18px]" />
           </div>
-          {daysUntil(next.date) <= 5 && <Clock className="h-4 w-4 shrink-0" />}
+          <div className="flex-1 min-w-0 text-sm">
+            <div className="font-bold">
+              {next.scheduleName} payroll is due {daysUntil(next.date) === 0 ? 'today' : daysUntil(next.date) === 1 ? 'tomorrow' : `in ${daysUntil(next.date)} days`}
+              {' '}
+              <span className="font-normal opacity-80">({formatDate(next.date)})</span>
+            </div>
+            <div className="text-[12.5px] opacity-80 mt-0.5">
+              {activeEmployeeCount !== null && `${activeEmployeeCount} active employees on the ${next.scheduleName.toLowerCase()} schedule`}
+              {nextPeriodHasDraft ? ' · draft already started' : ' · no draft started yet'}
+              {next.holiday && ` · auto-rolled around ${next.holiday}`}
+              {daysUntil(next.draftDate) <= 0 && ' · processing window is open'}
+            </div>
+          </div>
+          {onStartDraft && !nextPeriodHasDraft && (
+            <Button size="sm" onClick={onStartDraft} className="bg-white text-[hsl(200,100%,29%)] hover:bg-white/90 shrink-0">
+              Start draft
+            </Button>
+          )}
         </div>
       )}
 

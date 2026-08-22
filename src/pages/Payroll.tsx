@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, BarChart3, CalendarClock, CalendarDays, Columns3 } from 'lucide-react';
+import { Plus, BarChart3, CalendarClock } from 'lucide-react';
 import { errorMessage } from '@/lib/db-errors';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { supabase } from '@/lib/supabase';
@@ -41,9 +41,7 @@ import {
 import { displayName } from '@/lib/name';
 import { receiptTheme as R } from '@/lib/receipt-theme';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { PayrollCalendar } from '@/components/payroll/PayrollCalendar';
 import { PayrollSchedules, NextPayrollBanner } from '@/components/PayrollSchedules';
-import { PayrollBoard } from '@/components/payroll/PayrollBoard';
 import { PayrollRunsTab } from '@/components/payroll/PayrollRunsTab';
 import { AnnualSummaryTab } from '@/components/payroll/AnnualSummaryTab';
 import { PayrollDialogs } from '@/components/payroll/PayrollDialogs';
@@ -1724,19 +1722,19 @@ const Payroll = () => {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">Payroll Intelligence</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Payroll</h1>
             <InfoHint>Process monthly payroll runs for all employees. Calculates gross pay, PAYE, employee &amp; employer pension, NHF, allowances and net pay. Supports bulk payslip export.</InfoHint>
           </div>
-          <p className="text-muted-foreground text-sm mt-1">Monthly payroll summary across contractor payments, employees and statutory deductions.</p>
+          <p className="text-muted-foreground text-sm mt-1">Run payroll, pay statutory deductions, and disburse net salaries.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button onClick={openNewDraft}>
-            <Plus className="mr-2 h-4 w-4" /> Draft payroll
+            <Plus className="mr-2 h-4 w-4" /> New payroll run
           </Button>
         </div>
       </div>
 
-      <NextPayrollBanner />
+      <NextPayrollBanner onStartDraft={openNewDraft} />
 
       <Tabs defaultValue="runs">
         <TabsList className="h-9 bg-transparent border-b border-border/50 rounded-none w-full justify-start gap-0 p-0">
@@ -1744,36 +1742,25 @@ const Payroll = () => {
             value="runs"
             className="text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
-            Payroll runs
+            Runs
           </TabsTrigger>
           <TabsTrigger
-            value="calendar"
-            className="text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-          >
-            <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
-            Calendar
-          </TabsTrigger>
-          <TabsTrigger
-            value="schedules"
+            value="setup"
             className="text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
             <CalendarClock className="mr-1.5 h-3.5 w-3.5" />
-            Pay schedules
+            Setup
           </TabsTrigger>
           <TabsTrigger
-            value="board"
-            className="text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-          >
-            <Columns3 className="mr-1.5 h-3.5 w-3.5" />
-            Board
-          </TabsTrigger>
-          <TabsTrigger
-            value="annual"
+            value="reports"
             className="text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
             <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
-            Annual summary
+            Reports
           </TabsTrigger>
+          <span className="ml-auto self-center text-[11px] text-muted-foreground hidden sm:inline pr-1">
+            Setup merges Pay Groups, Schedules &amp; Holidays into one place
+          </span>
         </TabsList>
 
         <TabsContent value="runs" className="space-y-6 mt-6">
@@ -1813,27 +1800,11 @@ const Payroll = () => {
           />
         </TabsContent>
 
-        <TabsContent value="calendar" className="mt-6">
-          <PayrollCalendar />
-        </TabsContent>
-
-        <TabsContent value="schedules" className="mt-6">
+        <TabsContent value="setup" className="mt-6">
           <PayrollSchedules />
         </TabsContent>
 
-        <TabsContent value="board" className="mt-6">
-          <PayrollBoard runs={runs} onSelect={(id) => {
-            setHighlightedRunId(id);
-            const el = runRefs.current.get(id);
-            if (el) {
-              const tabsEl = document.querySelector('[data-value="runs"]') as HTMLButtonElement | null;
-              tabsEl?.click();
-              setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
-            }
-          }} />
-        </TabsContent>
-
-        <TabsContent value="annual" className="mt-6 space-y-6">
+        <TabsContent value="reports" className="mt-6 space-y-6">
           <AnnualSummaryTab
             summaryYear={summaryYear}
             setSummaryYear={setSummaryYear}
