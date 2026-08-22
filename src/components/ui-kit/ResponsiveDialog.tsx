@@ -42,6 +42,14 @@ export interface ResponsiveDialogProps {
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
   /** Optional extra classes for the content container. */
   className?: string;
+  /**
+   * Block accidental dismissal — an outside click or Escape no longer
+   * closes the dialog; only the explicit X button or a Cancel/Close
+   * action in `footer` does. Use for forms where losing in-progress
+   * input is costly (money entry, multi-field setup) — a stray click
+   * outside a modal shouldn't discard money-related work in progress.
+   */
+  preventOutsideClose?: boolean;
   /** Body content. */
   children?: React.ReactNode;
 }
@@ -65,9 +73,13 @@ export function ResponsiveDialog({
   footer,
   size = 'lg',
   className,
+  preventOutsideClose,
   children,
 }: ResponsiveDialogProps) {
   const isMobile = useIsMobile();
+  const blockOutside = preventOutsideClose
+    ? { onPointerDownOutside: (e: Event) => e.preventDefault(), onEscapeKeyDown: (e: Event) => e.preventDefault() }
+    : {};
 
   const headerNode =
     header ??
@@ -87,6 +99,7 @@ export function ResponsiveDialog({
             'rounded-t-2xl border-t border-border/60 max-h-[92vh] p-0 flex flex-col gap-0 safe-bottom',
             className,
           )}
+          {...blockOutside}
         >
           {/* Drag-handle pill — communicates "swipe to dismiss" */}
           <div className="flex justify-center pt-2 pb-1 shrink-0">
@@ -112,6 +125,7 @@ export function ResponsiveDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(SIZE_MAP[size], 'max-h-[92vh] flex flex-col gap-0 p-0', className)}
+        {...blockOutside}
       >
         {headerNode && (
           <div className="px-6 pt-6 pb-3 shrink-0 border-b border-border/60">{headerNode}</div>

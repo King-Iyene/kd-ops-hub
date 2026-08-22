@@ -211,6 +211,7 @@ export const PayrollDialogs = ({
       <ResponsiveDialog
         open={dialog}
         onOpenChange={setDialog}
+        preventOutsideClose
         title={editingDraftId ? 'Edit draft' : 'Draft payroll'}
         footer={
           <>
@@ -358,6 +359,7 @@ export const PayrollDialogs = ({
       <ResponsiveDialog
         open={segmentDialog}
         onOpenChange={setSegmentDialog}
+        preventOutsideClose
         size="lg"
         title="Manage payroll segments"
         footer={<Button variant="outline" onClick={() => setSegmentDialog(false)}>Done</Button>}
@@ -473,6 +475,7 @@ export const PayrollDialogs = ({
       <ResponsiveDialog
         open={!!adjustRun}
         onOpenChange={(open) => { if (!open) setAdjustRun(null); }}
+        preventOutsideClose
         size="2xl"
         title={`Payslip adjustments${adjustRun ? ` · ${monthLabel(adjustRun.period)}` : ''}`}
         footer={<Button variant="outline" onClick={() => setAdjustRun(null)}>Done</Button>}
@@ -582,6 +585,7 @@ export const PayrollDialogs = ({
       <ResponsiveDialog
         open={!!disburseTarget}
         onOpenChange={(open) => { if (!open && !disbursing && !scheduling) { setDisburseTarget(null); setDisburseErrors([]); setScheduleMode(false); setScheduleAt(''); } }}
+        preventOutsideClose
         title="Confirm salary disbursement"
         footer={
           <>
