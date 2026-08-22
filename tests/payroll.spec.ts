@@ -15,7 +15,7 @@ test.describe('Payroll', () => {
     ).toBeVisible({ timeout: 10_000 });
   });
 
-  test('create payroll run dialog opens', async ({ page }) => {
+  test('create payroll run wizard opens and advances through its steps', async ({ page }) => {
     await page.goto('/payroll');
     const createBtn = page
       .locator('button:has-text("New Payroll"), button:has-text("Create"), button:has-text("Run Payroll")')
@@ -24,9 +24,12 @@ test.describe('Payroll', () => {
       await createBtn.click();
       const dialog = page.getByRole('dialog');
       await expect(dialog).toBeVisible({ timeout: 5_000 });
-      // Period or month selection must be present.
+      // Step 1 of the wizard: who gets paid.
+      await expect(dialog.getByText('Who gets paid').first()).toBeVisible();
+      await dialog.getByRole('button', { name: 'Continue' }).click();
+      // Step 2: period & schedule.
       await expect(
-        dialog.locator('label:has-text("Period"), label:has-text("Month"), select, input[type="date"]').first(),
+        dialog.locator('label:has-text("Period"), input[type="month"]').first(),
       ).toBeVisible();
     }
   });

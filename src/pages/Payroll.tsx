@@ -377,9 +377,24 @@ const Payroll = () => {
   // allowances. editDraft() below hydrates the form from the existing row
   // first so a re-save reproduces what was there, not an empty overwrite.
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  // Wizard step for the Draft dialog: 0 Who gets paid, 1 Period & schedule,
+  // 2 Bonuses & adjustments, 3 Review & submit. draftRun() computes real
+  // figures and lands on step 3 instead of closing the dialog, so creating
+  // a run ends on a restated-totals review rather than a blind save.
+  const [draftStep, setDraftStep] = useState(0);
+  const [computedPreview, setComputedPreview] = useState<{
+    empCount: number; totalEmployee: number; bonusTotal: number; totalAllowances: number;
+    paye: number; pension: number; employerPension: number; nhf: number; nsitfCharge: number;
+    totalDeductions: number; totalAdvanceRepayments: number; totalContractor: number;
+    totalExpenses: number; burn: number;
+  } | null>(null);
+  const [savedRun, setSavedRun] = useState<PayrollRun | null>(null);
 
   const openNewDraft = () => {
     setEditingDraftId(null);
+    setDraftStep(0);
+    setComputedPreview(null);
+    setSavedRun(null);
     setForm({
       period: monthPeriod(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)),
       period_type: 'monthly',
@@ -394,6 +409,9 @@ const Payroll = () => {
 
   const editDraft = (run: PayrollRun) => {
     setEditingDraftId(run.id);
+    setDraftStep(0);
+    setComputedPreview(null);
+    setSavedRun(null);
     setForm({
       period: run.period,
       period_type: run.period_type || 'monthly',
@@ -604,8 +622,22 @@ const Payroll = () => {
         profile,
       );
       toast({ title: 'Payroll drafted', description: monthLabel(form.period) });
-      setDialog(false);
-      setEditingDraftId(null);
+
+      // Land on the review step with this run's just-computed real figures
+      // instead of closing — the wizard's whole point is that Draft ends on
+      // a restated-totals review, not a blind save. Fetch the saved row
+      // fresh so Submit-for-approval-now has a real id to act on.
+      let savedQuery = supabase.from('payroll_runs').select('*').eq('period', form.period);
+      savedQuery = segmentId ? savedQuery.eq('payroll_segment_id', segmentId) : savedQuery.is('payroll_segment_id', null);
+      const { data: savedRow } = await savedQuery.maybeSingle();
+      setSavedRun((savedRow as PayrollRun) || null);
+      setComputedPreview({
+        empCount, totalEmployee, bonusTotal, totalAllowances,
+        paye, pension, employerPension, nhf, nsitfCharge,
+        totalDeductions, totalAdvanceRepayments, totalContractor, totalExpenses, burn,
+      });
+      setEditingDraftId((savedRow as PayrollRun)?.id || null);
+      setDraftStep(3);
       load();
     } catch (err: unknown) {
       toast({
@@ -744,6 +776,24 @@ const Payroll = () => {
     } finally {
       setPreflightChecking(false);
     }
+  };
+
+  // Review step's two exits: close and leave it as a draft, or go straight
+  // into the same pre-flight-then-submit flow the run list uses — so
+  // creating a run and submitting it can be one uninterrupted motion
+  // instead of two separate clicks in two separate places.
+  const finishDraftReview = () => {
+    setDialog(false);
+    setEditingDraftId(null);
+    setDraftStep(0);
+    setComputedPreview(null);
+    setSavedRun(null);
+  };
+  const submitDraftForApprovalNow = () => {
+    if (!savedRun) return;
+    const run = savedRun;
+    finishDraftReview();
+    runPreflight(run);
   };
 
   // Mirrors the server-side rule in approve_payroll_run() so the button can
@@ -1894,6 +1944,11 @@ const Payroll = () => {
         addBonus={addBonus}
         removeBonus={removeBonus}
         updateBonus={updateBonus}
+        draftStep={draftStep}
+        setDraftStep={setDraftStep}
+        computedPreview={computedPreview}
+        finishDraftReview={finishDraftReview}
+        submitDraftForApprovalNow={submitDraftForApprovalNow}
         segmentDialog={segmentDialog}
         setSegmentDialog={setSegmentDialog}
         segmentForm={segmentForm}

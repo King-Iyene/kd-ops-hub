@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, Plus, Send, AlertCircle, Trash2, X, Clock } from 'lucide-react';
+import { Loader2, Plus, Send, AlertCircle, Trash2, X, Clock, Check, ArrowLeft } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import type { PayrollSegment } from '@/lib/payroll-segments';
 import type { PayrollSegmentFilterRules } from '@/lib/payroll-segments';
@@ -47,6 +47,17 @@ interface PayrollRun {
   scheduled_disburse_at?: string | null;
   is_auto_generated?: boolean;
 }
+
+// The Draft dialog's guided flow — 4 named steps instead of one dense
+// scrollable form. Matches the Gusto/QuickBooks/ADP pattern researched for
+// this rebuild: each step asks one question, the last restates every
+// number before anything is saved as a submittable run.
+const DRAFT_STEPS = [
+  { title: 'Who gets paid', desc: 'Everyone, or a specific segment' },
+  { title: 'Period & schedule', desc: 'Which month, what cadence' },
+  { title: 'Bonuses & adjustments', desc: 'Anything extra this run' },
+  { title: 'Review & submit', desc: 'Confirm the real numbers' },
+] as const;
 
 const BONUS_TYPES = [
   'Performance Bonus',
@@ -105,6 +116,16 @@ export interface PayrollDialogsProps {
   addBonus: () => void;
   removeBonus: (i: number) => void;
   updateBonus: (i: number, field: 'type' | 'amount', val: any) => void;
+  draftStep: number;
+  setDraftStep: (n: number) => void;
+  computedPreview: {
+    empCount: number; totalEmployee: number; bonusTotal: number; totalAllowances: number;
+    paye: number; pension: number; employerPension: number; nhf: number; nsitfCharge: number;
+    totalDeductions: number; totalAdvanceRepayments: number; totalContractor: number;
+    totalExpenses: number; burn: number;
+  } | null;
+  finishDraftReview: () => void;
+  submitDraftForApprovalNow: () => void;
 
   // Segment dialog
   segmentDialog: boolean;
@@ -181,6 +202,11 @@ export const PayrollDialogs = ({
   addBonus,
   removeBonus,
   updateBonus,
+  draftStep,
+  setDraftStep,
+  computedPreview,
+  finishDraftReview,
+  submitDraftForApprovalNow,
   segmentDialog,
   setSegmentDialog,
   segmentForm,
@@ -234,146 +260,257 @@ export const PayrollDialogs = ({
         open={dialog}
         onOpenChange={setDialog}
         preventOutsideClose
-        title={editingDraftId ? 'Edit draft' : 'Draft payroll'}
+        size="xl"
+        header={
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {editingDraftId ? 'Edit draft' : 'New payroll run'} · Step {draftStep + 1} of {DRAFT_STEPS.length}
+            </div>
+            <div className="kd-display text-lg leading-tight font-semibold mt-0.5">{DRAFT_STEPS[draftStep].title}</div>
+          </div>
+        }
         footer={
-          <>
-            <Button variant="outline" onClick={() => setDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={draftRun} disabled={working}>
-              {working && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {editingDraftId ? 'Save changes' : 'Draft'}
-            </Button>
-          </>
+          draftStep < 3 ? (
+            <>
+              {draftStep > 0 && (
+                <Button variant="ghost" onClick={() => setDraftStep(draftStep - 1)} className="gap-1.5 mr-auto">
+                  <ArrowLeft className="h-3.5 w-3.5" /> Back
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setDialog(false)}>
+                Cancel
+              </Button>
+              {draftStep < 2 ? (
+                <Button onClick={() => setDraftStep(draftStep + 1)} disabled={draftStep === 1 && !form.period}>
+                  Continue
+                </Button>
+              ) : (
+                <Button onClick={draftRun} disabled={working}>
+                  {working && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Continue to review
+                </Button>
+              )}
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => setDraftStep(2)} className="gap-1.5 mr-auto">
+                <ArrowLeft className="h-3.5 w-3.5" /> Back to adjustments
+              </Button>
+              <Button variant="outline" onClick={finishDraftReview}>
+                Save as draft
+              </Button>
+              <Button onClick={submitDraftForApprovalNow} className="gap-1.5">
+                Submit for approval
+                <Send className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )
         }
       >
-          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Period</Label>
-                <Input
-                  type="month"
-                  value={form.period}
-                  onChange={(e) => setForm({ ...form, period: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Period type</Label>
-                <Select
-                  value={form.period_type}
-                  onValueChange={(v) => setForm({ ...form, period_type: v as any })}
+          {/* Step rail — a horizontal stepper works in both the desktop
+              dialog and the mobile bottom sheet, unlike a side rail. */}
+          <div className="flex items-center gap-0 mb-5 -mt-1">
+            {DRAFT_STEPS.map((s, i) => (
+              <div key={s.title} className="flex items-center flex-1 last:flex-none">
+                <div
+                  className={cn(
+                    'h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0',
+                    i < draftStep ? 'bg-success text-success-foreground' :
+                    i === draftStep ? 'bg-primary text-primary-foreground' :
+                    'bg-muted text-muted-foreground',
+                  )}
+                  title={s.title}
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="quarterly">Quarterly</SelectItem>
-                    <SelectItem value="annual">Annual</SelectItem>
-                  </SelectContent>
-                </Select>
+                  {i < draftStep ? <Check className="h-3 w-3" /> : i + 1}
+                </div>
+                {i < DRAFT_STEPS.length - 1 && (
+                  <div className={cn('h-px flex-1 mx-1.5', i < draftStep ? 'bg-success/50' : 'bg-border')} />
+                )}
               </div>
-            </div>
+            ))}
+          </div>
 
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <Label className="flex items-center gap-1.5">
-                  Payroll segment
-                  <InfoHint>Run payroll for a subset of staff instead of everyone — e.g. exclude directors or domestic staff, or run for just one Pay Group. Leave as "All employees" for the default, unfiltered run. A segment can filter by payroll category, department, or Pay Group (set up in Payroll → Schedules → Pay Groups).</InfoHint>
-                </Label>
-                <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSegmentDialog(true)}>
-                  Manage
-                </Button>
-              </div>
-              <Select
-                value={form.payroll_segment_id || '__all__'}
-                onValueChange={(v) => setForm({ ...form, payroll_segment_id: v === '__all__' ? '' : v })}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All employees (no filter)</SelectItem>
-                  {segments.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {form.payroll_segment_id && (
-                <p className="text-xs text-muted-foreground">
-                  {segments.find((s) => s.id === form.payroll_segment_id)?.description || 'Only employees matching this segment will be included.'}
-                </p>
-              )}
-            </div>
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
 
-            <PayrollRosterPreview payrollSegmentId={form.payroll_segment_id} />
-
-            <div className="space-y-2">
-              <Label>Bonuses &amp; Extras</Label>
-              {form.bonuses.map((b, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <Select value={b.type} onValueChange={(v) => updateBonus(i, 'type', v)}>
-                    <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+            {draftStep === 0 && (
+              <>
+                <p className="text-xs text-muted-foreground -mt-2">Choose who this run pays — everyone active, or a segment you've set up (a department, a pay group, or a category like domestic staff).</p>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-1.5">
+                      Payroll segment
+                      <InfoHint>Run payroll for a subset of staff instead of everyone — e.g. exclude directors or domestic staff, or run for just one Pay Group. Leave as "All employees" for the default, unfiltered run. A segment can filter by payroll category, department, or Pay Group (set up in Payroll → Schedules → Pay Groups).</InfoHint>
+                    </Label>
+                    <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSegmentDialog(true)}>
+                      Manage
+                    </Button>
+                  </div>
+                  <Select
+                    value={form.payroll_segment_id || '__all__'}
+                    onValueChange={(v) => setForm({ ...form, payroll_segment_id: v === '__all__' ? '' : v })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {BONUS_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      <SelectItem value="__all__">All employees (no filter)</SelectItem>
+                      {segments.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                  <Input
-                    type="number"
-                    className="w-36"
-                    min={0}
-                    placeholder="₦ Amount"
-                    value={b.amount || ''}
-                    onChange={(e) => updateBonus(i, 'amount', Math.max(0, Number(e.target.value) || 0))}
-                  />
-                  <Button size="icon" variant="ghost" aria-label="Remove bonus" onClick={() => removeBonus(i)}>
-                    <X className="h-4 w-4" />
+                  {form.payroll_segment_id && (
+                    <p className="text-xs text-muted-foreground">
+                      {segments.find((s) => s.id === form.payroll_segment_id)?.description || 'Only employees matching this segment will be included.'}
+                    </p>
+                  )}
+                </div>
+                <PayrollRosterPreview payrollSegmentId={form.payroll_segment_id} />
+              </>
+            )}
+
+            {draftStep === 1 && (
+              <>
+                <p className="text-xs text-muted-foreground -mt-2">Which month this run covers, and its cadence.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>Period</Label>
+                    <Input
+                      type="month"
+                      value={form.period}
+                      onChange={(e) => setForm({ ...form, period: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Period type</Label>
+                    <Select
+                      value={form.period_type}
+                      onValueChange={(v) => setForm({ ...form, period_type: v as any })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                        <SelectItem value="annual">Annual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {draftStep === 2 && (
+              <>
+                <p className="text-xs text-muted-foreground -mt-2">Anything on top of base salary this run — bonuses, or blanket allowances.</p>
+                <div className="space-y-2">
+                  <Label>Bonuses &amp; Extras</Label>
+                  {form.bonuses.map((b, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <Select value={b.type} onValueChange={(v) => updateBonus(i, 'type', v)}>
+                        <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {BONUS_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        className="w-36"
+                        min={0}
+                        placeholder="₦ Amount"
+                        value={b.amount || ''}
+                        onChange={(e) => updateBonus(i, 'amount', Math.max(0, Number(e.target.value) || 0))}
+                      />
+                      <Button size="icon" variant="ghost" aria-label="Remove bonus" onClick={() => removeBonus(i)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button size="sm" variant="outline" onClick={addBonus}>
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Add bonus
                   </Button>
                 </div>
-              ))}
-              <Button size="sm" variant="outline" onClick={addBonus}>
-                <Plus className="mr-1 h-3.5 w-3.5" /> Add bonus
-              </Button>
-            </div>
 
-            <div className="space-y-2">
-              <Label>Allowances</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Housing (% of basic)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    placeholder="0"
-                    value={form.housing_allowance_pct || ''}
-                    onChange={(e) => setForm({ ...form, housing_allowance_pct: Number(e.target.value) || 0 })}
-                  />
+                <div className="space-y-2">
+                  <Label>Allowances</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Housing (% of basic)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        placeholder="0"
+                        value={form.housing_allowance_pct || ''}
+                        onChange={(e) => setForm({ ...form, housing_allowance_pct: Number(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Transport / employee (₦)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={form.transport_per_emp || ''}
+                        onChange={(e) => setForm({ ...form, transport_per_emp: Number(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Meal subsidy / employee (₦)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={form.meal_per_emp || ''}
+                        onChange={(e) => setForm({ ...form, meal_per_emp: Number(e.target.value) || 0 })}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Transport / employee (₦)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="0"
-                    value={form.transport_per_emp || ''}
-                    onChange={(e) => setForm({ ...form, transport_per_emp: Number(e.target.value) || 0 })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Meal subsidy / employee (₦)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="0"
-                    value={form.meal_per_emp || ''}
-                    onChange={(e) => setForm({ ...form, meal_per_emp: Number(e.target.value) || 0 })}
-                  />
-                </div>
-              </div>
-            </div>
 
-            <p className="text-xs text-muted-foreground">
-              KDOps will pull approved expenses and processed payment batches for
-              this period and estimate PAYE / Pension / NHF. Bonuses and allowances
-              are added on top and included in the total burn.
-            </p>
+                <p className="text-xs text-muted-foreground">
+                  KDOps will pull approved expenses and processed payment batches for
+                  this period and estimate PAYE / Pension / NHF. Bonuses and allowances
+                  are added on top and included in the total burn.
+                </p>
+              </>
+            )}
+
+            {draftStep === 3 && computedPreview && (
+              <>
+                <p className="text-xs text-muted-foreground -mt-2">
+                  This is what's saved. Submitting sends these exact numbers to an approver — to change anything after that, the run has to be recalled first.
+                </p>
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <div className="px-4 py-2.5 bg-muted/40 border-b border-border">
+                    <div className="text-sm font-semibold">{form.period} · {computedPreview.empCount} employees</div>
+                  </div>
+                  <div className="divide-y divide-border/60">
+                    {[
+                      { label: 'Gross salaries', value: computedPreview.totalEmployee },
+                      ...(computedPreview.bonusTotal > 0 ? [{ label: 'Bonuses', value: computedPreview.bonusTotal }] : []),
+                      ...(computedPreview.totalAllowances > 0 ? [{ label: 'Allowances', value: computedPreview.totalAllowances }] : []),
+                      ...(computedPreview.totalContractor > 0 ? [{ label: 'Contractor payouts', value: computedPreview.totalContractor }] : []),
+                      ...(computedPreview.totalExpenses > 0 ? [{ label: 'Approved expenses', value: computedPreview.totalExpenses }] : []),
+                      { label: 'PAYE tax', value: computedPreview.paye, muted: true },
+                      { label: 'Pension — employee', value: computedPreview.pension, muted: true },
+                      { label: 'Pension — employer', value: computedPreview.employerPension, muted: true },
+                      { label: 'NHF', value: computedPreview.nhf, muted: true },
+                      { label: 'NSITF', value: computedPreview.nsitfCharge, muted: true },
+                      ...(computedPreview.totalDeductions > 0 ? [{ label: 'Deductions (offsets burn)', value: -computedPreview.totalDeductions, muted: true }] : []),
+                      ...(computedPreview.totalAdvanceRepayments > 0 ? [{ label: 'Advance repayments (offsets burn)', value: -computedPreview.totalAdvanceRepayments, muted: true }] : []),
+                    ].map((line) => (
+                      <div key={line.label} className="flex items-center justify-between px-4 py-2">
+                        <span className={cn('text-xs', line.muted ? 'text-muted-foreground' : 'text-foreground')}>{line.label}</span>
+                        <span className={cn('text-xs font-medium currency tabular-nums', line.muted && 'text-muted-foreground')}>{formatNaira(line.value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-3 bg-primary/10">
+                    <span className="text-sm font-semibold">Total burn this run</span>
+                    <span className="text-base font-bold currency tabular-nums text-primary">{formatNaira(computedPreview.burn)}</span>
+                  </div>
+                </div>
+              </>
+            )}
+
           </div>
       </ResponsiveDialog>
 
