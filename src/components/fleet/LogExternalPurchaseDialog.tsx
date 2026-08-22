@@ -65,6 +65,10 @@ export function LogExternalPurchaseDialog({
       toast({ title: 'Select an employee', variant: 'destructive' });
       return;
     }
+    if (!form.vehicle_id) {
+      toast({ title: 'Select a vehicle', description: 'Every logged purchase must be tied to a vehicle.', variant: 'destructive' });
+      return;
+    }
     const amount = parseFloat(form.amount_ngn) || 0;
     if (amount <= 0) {
       toast({ title: 'Enter a valid amount', variant: 'destructive' });
@@ -190,11 +194,10 @@ export function LogExternalPurchaseDialog({
           </div>
 
           <div className="space-y-1">
-            <Label>Vehicle <span className="text-muted-foreground font-normal text-xs">(optional, auto-suggested from assignment)</span></Label>
-            <Select value={form.vehicle_id || '__none__'} onValueChange={(v) => setForm((f) => ({ ...f, vehicle_id: v === '__none__' ? '' : v }))}>
+            <Label>Vehicle <span className="text-destructive">*</span> <span className="text-muted-foreground font-normal text-xs">(auto-suggested from assignment)</span></Label>
+            <Select value={form.vehicle_id || undefined} onValueChange={(v) => setForm((f) => ({ ...f, vehicle_id: v }))}>
               <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">—</SelectItem>
                 {vehicles.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.plate_number})</SelectItem>))}
               </SelectContent>
             </Select>
@@ -292,7 +295,7 @@ export function LogExternalPurchaseDialog({
           <Button variant="outline" onClick={handleClose}>Cancel</Button>
           <Button
             onClick={handleSubmit}
-            disabled={submitting || !form.employee_id || !form.amount_ngn || !receiptFile}
+            disabled={submitting || !form.employee_id || !form.vehicle_id || !form.amount_ngn || !receiptFile}
           >
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Upload className="mr-2 h-4 w-4" /> Log Purchase

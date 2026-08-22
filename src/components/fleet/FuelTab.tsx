@@ -10,7 +10,7 @@ import { writeRejectionNotification, isValidRejectionReason } from '@/lib/reject
 import { notifyUser, notifyRoles, notifyChannels } from '@/lib/notify';
 import { notifyAnomalyToAdmins } from '@/lib/notify-events';
 import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
-import { FilePreviewTrigger } from '@/components/FilePreview';
+import { FilePreviewTrigger, FilePreviewDialog } from '@/components/FilePreview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -256,6 +256,11 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
 
   // Tamper-analysis (ELA)
   const [elaTarget, setElaTarget] = useState<{ id: string; url: string } | null>(null);
+
+  // Desktop dropdown "View Receipt" — the receipts bucket is private, so a
+  // stored getPublicUrl() no longer resolves. Route through FilePreviewDialog
+  // which re-signs the URL at open time.
+  const [previewReceiptUrl, setPreviewReceiptUrl] = useState<string | null>(null);
 
   // Vehicle & weekly budget state
   const [fuelVehicleId, setFuelVehicleId] = useState('');
@@ -2077,7 +2082,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               {r.receipt_url && (
-                                <DropdownMenuItem onClick={() => window.open(r.receipt_url!, '_blank')}>
+                                <DropdownMenuItem onClick={() => setPreviewReceiptUrl(r.receipt_url!)}>
                                   <FileText className="h-4 w-4 mr-2" /> View Receipt
                                 </DropdownMenuItem>
                               )}
@@ -2101,7 +2106,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => window.open(r.receipt_url!, '_blank')}>
+                            <DropdownMenuItem onClick={() => setPreviewReceiptUrl(r.receipt_url!)}>
                               <FileText className="h-4 w-4 mr-2" /> View Receipt
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setElaTarget({ id: r.id, url: r.receipt_url! })}>
@@ -2808,6 +2813,13 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
     </Dialog>
 
     <ElaTamperAnalysisDialog target={elaTarget} onClose={() => setElaTarget(null)} />
+
+    <FilePreviewDialog
+      open={!!previewReceiptUrl}
+      onOpenChange={(v) => { if (!v) setPreviewReceiptUrl(null); }}
+      url={previewReceiptUrl || undefined}
+      fileName="fuel-receipt"
+    />
 
     {/* REPAIR REQUEST DIALOG */}
     <Dialog open={showRepairForm} onOpenChange={(v) => {

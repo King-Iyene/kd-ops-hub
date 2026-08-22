@@ -104,6 +104,7 @@ import {
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
+import { FilePreviewTrigger } from '@/components/FilePreview';
 import { cn } from '@/lib/utils';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
@@ -1474,16 +1475,14 @@ const Expenses = () => {
                           <div className="text-[10px] text-muted-foreground truncate">{e.vendor_name}</div>
                         )}
                         {e.receipt_url && (
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <a
-                              href={e.receipt_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                              onClick={(evt) => evt.stopPropagation()}
-                            >
-                              <ExternalLink className="h-3 w-3" /> View Receipt
-                            </a>
+                          <div className="flex items-center gap-2 mt-0.5" onClick={(evt) => evt.stopPropagation()}>
+                            <FilePreviewTrigger
+                              url={e.receipt_url}
+                              label="View Receipt"
+                              fileName={`expense-receipt-${e.id.slice(0, 8)}`}
+                              variant="link"
+                              className="text-xs"
+                            />
                             {e.category === 'repair' && (
                               <button
                                 type="button"
@@ -1776,16 +1775,13 @@ const Expenses = () => {
                       </MobileCardRow>
                       {e.receipt_url && (
                         <MobileCardRow label="Receipt">
-                          <span className="inline-flex items-center gap-3">
-                            <a
-                              href={e.receipt_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-primary"
-                              onClick={(evt) => evt.stopPropagation()}
-                            >
-                              <ExternalLink className="h-3 w-3" /> View
-                            </a>
+                          <span className="inline-flex items-center gap-3" onClick={(evt) => evt.stopPropagation()}>
+                            <FilePreviewTrigger
+                              url={e.receipt_url}
+                              label="View"
+                              fileName={`expense-receipt-${e.id.slice(0, 8)}`}
+                              variant="link"
+                            />
                             {e.category === 'repair' && (
                               <button
                                 type="button"
@@ -2376,14 +2372,12 @@ const Expenses = () => {
                 <div>
                   <p className="text-xs text-muted-foreground">Receipt</p>
                   <div className="flex items-center gap-3">
-                    <a
-                      href={detailExpense.receipt_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-primary hover:underline"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" /> View Receipt
-                    </a>
+                    <FilePreviewTrigger
+                      url={detailExpense.receipt_url}
+                      label="View Receipt"
+                      fileName={`expense-receipt-${detailExpense.id.slice(0, 8)}`}
+                      variant="link"
+                    />
                     {detailExpense.category === 'repair' && (
                       <button
                         type="button"
