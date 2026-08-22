@@ -34,16 +34,16 @@ test.describe('Payroll', () => {
     }
   });
 
-  test('expanding a run shows who gets paid', async ({ page }) => {
+  test('opening a run shows its detail drawer', async ({ page }) => {
     await page.goto('/payroll');
     await expect(page.locator('h1').first()).toBeVisible({ timeout: 10_000 });
-    const firstRunToggle = page.getByTestId('payroll-runs-list').getByRole('button').first();
-    if (await firstRunToggle.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await firstRunToggle.click();
-      // Expanding a run reveals its inline "who gets paid" / bonuses detail.
-      await expect(
-        page.getByText(/who gets paid|employees/i).first(),
-      ).toBeVisible({ timeout: 10_000 });
+    const firstRunCard = page.getByTestId('payroll-runs-list').getByRole('button').first();
+    if (await firstRunCard.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await firstRunCard.click();
+      // Opening a run reveals its detail drawer with "who gets paid" / money ledger.
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toBeVisible({ timeout: 10_000 });
+      await expect(dialog.getByText(/who gets paid|money ledger/i).first()).toBeVisible();
     }
   });
 });
