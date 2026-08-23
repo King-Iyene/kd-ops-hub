@@ -667,7 +667,8 @@ function RunDetailDrawer({
               <Users2 className="h-3 w-3" /> Who gets paid
             </div>
             <div className="text-sm font-medium">{segmentName}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">{r.employee_count ?? 0} employees in this run</div>
+            <div className="text-xs text-muted-foreground mt-0.5 mb-1.5">{r.employee_count ?? 0} employees in this run</div>
+            <PayrollRosterPreview payrollSegmentId={r.payroll_segment_id} />
           </div>
 
           <div>
@@ -819,7 +820,7 @@ function RunDetailDrawer({
               {r.status === 'pending_approval' && canApprovePerm && (
                 <DropdownMenuItem onClick={() => recallToDraft(r)}>Recall to draft</DropdownMenuItem>
               )}
-              {r.status === 'approved' && canApprovePerm && !r.scheduled_disburse_at && (
+              {r.status === 'approved' && canApprovePerm && (
                 <DropdownMenuItem onClick={() => recallToDraft(r)}>Recall to draft</DropdownMenuItem>
               )}
               {r.status === 'approved' && (

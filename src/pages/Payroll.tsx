@@ -709,18 +709,26 @@ const Payroll = () => {
   // for those statuses, but the RLS on payroll_runs is the actual gate.
   const recallToDraft = async (run: PayrollRun) => {
     if (run.status !== 'pending_approval' && run.status !== 'approved') return;
-    if (run.status === 'approved' && run.scheduled_disburse_at) {
-      toast({ title: 'Cancel the scheduled disbursement first', description: 'A run scheduled to auto-disburse can\'t be recalled until the schedule is cancelled.', variant: 'destructive' });
-      return;
-    }
     const isApproved = run.status === 'approved';
+    const isScheduled = isApproved && !!run.scheduled_disburse_at;
     if (!(await confirm({
       title: 'Recall to draft?',
-      description: isApproved
-        ? `Recall "${run.period}" back to draft? Its generated payslips will be removed — they'll be regenerated when it's re-approved. You'll need to resubmit for approval after editing.`
-        : `Recall "${run.period}" back to draft? You'll need to resubmit for approval after editing.`,
+      description: [
+        isScheduled ? 'This cancels its scheduled disbursement.' : null,
+        isApproved ? 'Its generated payslips will be removed — they\'ll be regenerated when it\'s re-approved.' : null,
+        `Recall "${run.period}" back to draft? You'll need to resubmit for approval after editing.`,
+      ].filter(Boolean).join(' '),
       variant: isApproved ? 'destructive' : undefined,
     }))) return;
+    // Cancel any pending auto-disbursement first — leaving it in place would
+    // let the cron fire against a run that's no longer actually approved.
+    if (isScheduled) {
+      const { error: cancelErr } = await supabase.rpc('cancel_scheduled_payroll_disbursement', { p_run_id: run.id });
+      if (cancelErr) {
+        toast({ title: 'Recall failed', description: `Could not cancel the scheduled disbursement: ${cancelErr.message}`, variant: 'destructive' });
+        return;
+      }
+    }
     // An approved run's payslips were generated against the numbers as they
     // stood at approval time — leaving them in place after recalling would
     // let someone view/print stale payslips for a run that's no longer
