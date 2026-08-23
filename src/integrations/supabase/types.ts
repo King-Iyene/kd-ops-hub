@@ -7491,6 +7491,8 @@ export type Database = {
         Row: {
           anchor_day: number
           auto_approve: boolean
+          auto_disburse_hour_local: number
+          auto_schedule_disbursement: boolean
           created_at: string
           created_by: string | null
           cutoff_lead_days: number
@@ -7507,6 +7509,8 @@ export type Database = {
         Insert: {
           anchor_day?: number
           auto_approve?: boolean
+          auto_disburse_hour_local?: number
+          auto_schedule_disbursement?: boolean
           created_at?: string
           created_by?: string | null
           cutoff_lead_days?: number
@@ -7523,6 +7527,8 @@ export type Database = {
         Update: {
           anchor_day?: number
           auto_approve?: boolean
+          auto_disburse_hour_local?: number
+          auto_schedule_disbursement?: boolean
           created_at?: string
           created_by?: string | null
           cutoff_lead_days?: number
