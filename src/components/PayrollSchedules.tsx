@@ -523,6 +523,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
       supabase
         .from('profiles')
         .select('pay_group_id, salary_ngn, status')
+        .eq('status', 'active')
         .not('pay_group_id', 'is', null),
     ]);
     setGroups((groupsRes.data as PayGroup[]) ?? []);
@@ -530,9 +531,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
     const costs: Record<string, number> = {};
     (countsRes.data ?? []).forEach((r: any) => {
       counts[r.pay_group_id] = (counts[r.pay_group_id] ?? 0) + 1;
-      if (r.status === 'active') {
-        costs[r.pay_group_id] = (costs[r.pay_group_id] ?? 0) + (r.salary_ngn ?? 0);
-      }
+      costs[r.pay_group_id] = (costs[r.pay_group_id] ?? 0) + (r.salary_ngn ?? 0);
     });
     setMemberCounts(counts);
     setMemberCosts(costs);
@@ -609,6 +608,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
         .from('profiles')
         .select('id, full_name, email, salary_ngn, department:departments!profiles_department_id_fkey(name)')
         .eq('pay_group_id', g.id)
+        .eq('status', 'active')
         .order('full_name'),
       supabase
         .from('profiles')
