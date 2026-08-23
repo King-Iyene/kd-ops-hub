@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { formatNaira } from '@/lib/format';
@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface Member {
   id: string;
   name: string;
+  photo_url: string | null;
   basic_ngn: number;
   housing_ngn: number;
   transport_ngn: number;
@@ -59,7 +60,7 @@ export function PayrollGroupsTab() {
           .order('name'),
         supabase
           .from('profiles')
-          .select('id, full_name, first_name, last_name, email, pay_group_id, salary_ngn, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, use_salary_components, pension_enabled')
+          .select('id, full_name, first_name, last_name, email, photo_url, pay_group_id, salary_ngn, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, use_salary_components, pension_enabled')
           .eq('status', 'active')
           .not('pay_group_id', 'is', null),
       ]);
@@ -72,6 +73,7 @@ export function PayrollGroupsTab() {
         list.push({
           id: r.id,
           name: displayName(r.first_name, r.last_name, r.full_name || r.email),
+          photo_url: r.photo_url || null,
           basic_ngn: Number(r.basic_ngn || 0),
           housing_ngn: Number(r.housing_ngn || 0),
           transport_ngn: Number(r.transport_ngn || 0),
@@ -179,6 +181,7 @@ export function PayrollGroupsTab() {
               <div className="flex -space-x-2">
                 {g.members.slice(0, 5).map((m) => (
                   <Avatar key={m.id} className="h-7 w-7 border-2 border-background">
+                    {m.photo_url && <AvatarImage src={m.photo_url} alt={m.name} />}
                     <AvatarFallback className="text-[9.5px] font-semibold bg-[hsl(200,60%,92%)] text-[hsl(200,90%,25%)]">
                       {initials(m.name)}
                     </AvatarFallback>

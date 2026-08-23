@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatNaira, daysUntil } from '@/lib/format';
@@ -29,6 +29,7 @@ interface PayrollRunLite {
 interface WhoGetsPaidRow {
   id: string;
   name: string;
+  photo_url: string | null;
   role: string | null;
   amount: number;
 }
@@ -79,7 +80,7 @@ export function PayrollDashboardTab({
         supabase.from('company_settings').select('id').limit(1),
         supabase
           .from('profiles')
-          .select('id, full_name, first_name, last_name, email, role, salary_ngn')
+          .select('id, full_name, first_name, last_name, email, photo_url, role, salary_ngn')
           .eq('status', 'active')
           .neq('role', 'driver')
           .gt('salary_ngn', 0)
@@ -108,6 +109,7 @@ export function PayrollDashboardTab({
         ((roster.data || []) as any[]).map((r) => ({
           id: r.id,
           name: displayName(r.first_name, r.last_name, r.full_name || r.email),
+          photo_url: r.photo_url || null,
           role: r.role,
           amount: Number(r.salary_ngn || 0),
         })),
@@ -271,6 +273,7 @@ export function PayrollDashboardTab({
               {whoGetsPaid.map((p) => (
                 <div key={p.id} className="flex items-center gap-2.5">
                   <Avatar className="h-8 w-8 shrink-0">
+                    {p.photo_url && <AvatarImage src={p.photo_url} alt={p.name} />}
                     <AvatarFallback className="text-[11px] font-semibold bg-[hsl(200,60%,92%)] text-[hsl(200,90%,25%)]">
                       {initials(p.name)}
                     </AvatarFallback>
