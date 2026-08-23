@@ -1706,10 +1706,13 @@ export function PayrollSchedules() {
                             onClick={() => setExpanded(isExpanded ? null : s.id)}
                           >
                             <TableCell className="font-medium">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2.5">
                                 <ChevronRight
                                   className={cn('h-4 w-4 text-muted-foreground transition-transform shrink-0', isExpanded && 'rotate-90')}
                                 />
+                                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#e6f2f7] text-[#006394] dark:bg-blue-950/40 dark:text-blue-300 shrink-0">
+                                  <CalendarClock className="h-3.5 w-3.5" />
+                                </span>
                                 {s.name}
                                 {s.schedule_kind === 'off_cycle' && (
                                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-medium">
