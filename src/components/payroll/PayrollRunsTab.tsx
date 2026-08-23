@@ -289,12 +289,15 @@ export const PayrollRunsTab = ({
           Mirrors the Payroll Overhaul mockup's top-of-page rail card. */}
       {latest && (
         <div className="rounded-lg border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-4.5">
-          <div className="flex flex-wrap items-start justify-between gap-2 mb-3.5">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
             <div>
-              <p className="text-sm font-semibold">{monthLabel(latest.period, latest.period_type)} Payroll</p>
-              <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">
-                {formatNaira(latest.total_burn_ngn)} · {latest.employee_count ?? 0} employees
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {monthLabel(latest.period, latest.period_type)} Payroll
               </p>
+              <p className="kd-display text-2xl font-extrabold tabular-nums mt-1">
+                {formatNaira(latest.total_burn_ngn)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">{latest.employee_count ?? 0} employees</p>
             </div>
             <StatusBadge status={latest.status} />
           </div>
