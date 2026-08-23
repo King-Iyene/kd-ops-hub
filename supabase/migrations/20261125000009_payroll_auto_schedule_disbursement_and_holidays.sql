@@ -1,6 +1,5 @@
 -- =============================================================================
--- Auto-schedule disbursement on approval + wire public_holidays into the
--- pay-date scheduler.
+-- Auto-schedule disbursement on approval.
 --
 -- The disbursement pipeline itself was already fully automated end to end
 -- (schedule_payroll_disbursement -> pg_cron payroll-disburse-tick, every
@@ -25,6 +24,18 @@
 -- date requires a conscious "Disburse Now" click, not a same-second surprise
 -- fire) — mirrors schedule_payroll_disbursement()'s own "must be in the
 -- future" guard.
+--
+-- NOTE: this migration originally also tried to replace next_pay_dates() to
+-- add public_holidays support. That attempt used a return type (date[]) that
+-- didn't match what's actually live in production (a richer
+-- TABLE(pay_date, draft_open_date, cutoff_date, adjusted_from, holiday_name)
+-- version that already handles public holidays, per real drift between the
+-- migration file history and the live database — see
+-- 20261125000010_fix_schedule_auto_draft_next_pay_dates_mismatch.sql for the
+-- full story). That statement failed with "cannot change return type of
+-- existing function" and rolled back this entire migration file, including
+-- the auto-schedule-on-approval feature below, which is the actual point of
+-- this file. Removed here; next_pay_dates() is untouched by this migration.
 -- =============================================================================
 
 ALTER TABLE public.pay_schedules
@@ -102,202 +113,5 @@ BEGIN
    RETURNING * INTO v_run;
 
   RETURN v_run;
-END;
-$$;
-
--- ── public_holidays wired into the pay-date scheduler ───────────────────────
--- Identical to 20261028000000's next_pay_dates(), verified line-for-line
--- against that migration, with ONLY the weekend-only adjustment block (the
--- final "── weekend / holiday adjustment ──" section) replaced by a loop that
--- also checks public_holidays, re-testing after every shift so stepping off
--- a weekend can't land on a holiday (or vice versa) undetected.
--- day_adjustment = 'none' still means no shifting at all. Nigeria-only
--- (country_code = 'NG'), matching this system's current single-tenant scope.
-CREATE OR REPLACE FUNCTION next_pay_dates(
-  p_schedule_id uuid,
-  p_count       integer DEFAULT 6
-)
-RETURNS date[] LANGUAGE plpgsql STABLE AS $$
-DECLARE
-  v_schedule   pay_schedules%ROWTYPE;
-  v_result     date[] := '{}';
-  v_candidate  date;
-  v_cursor     date := current_date;
-  v_iterations integer := 0;
-  v_a1         date;
-  v_a2         date;
-  v_days_ahead int;
-  v_dow        int;
-  v_shift      interval;
-  v_guard      integer;
-BEGIN
-  SELECT * INTO v_schedule FROM pay_schedules WHERE id = p_schedule_id;
-  IF NOT FOUND THEN RETURN v_result; END IF;
-
-  WHILE array_length(v_result, 1) IS NULL OR array_length(v_result, 1) < p_count LOOP
-    v_iterations := v_iterations + 1;
-    EXIT WHEN v_iterations > 500;
-
-    -- ── monthly ──────────────────────────────────────────────────────────────
-    IF v_schedule.frequency = 'monthly' THEN
-      IF v_schedule.anchor_day = 99 THEN
-        v_candidate := (date_trunc('month', v_cursor) + interval '1 month - 1 day')::date;
-      ELSE
-        v_candidate := make_date(
-          extract(year  FROM v_cursor)::int,
-          extract(month FROM v_cursor)::int,
-          LEAST(v_schedule.anchor_day, extract(day FROM (date_trunc('month', v_cursor) + interval '1 month - 1 day'))::int)
-        );
-      END IF;
-      IF v_candidate <= v_cursor THEN
-        v_cursor := date_trunc('month', v_cursor + interval '1 month')::date;
-        CONTINUE;
-      END IF;
-
-    -- ── semimonthly ──────────────────────────────────────────────────────────
-    ELSIF v_schedule.frequency = 'semimonthly' THEN
-      v_a1 := make_date(extract(year FROM v_cursor)::int, extract(month FROM v_cursor)::int, v_schedule.anchor_day);
-      v_a2 := make_date(extract(year FROM v_cursor)::int, extract(month FROM v_cursor)::int, COALESCE(v_schedule.second_anchor_day, 15));
-      IF v_a1 > v_cursor THEN
-        v_candidate := v_a1;
-      ELSIF v_a2 > v_cursor THEN
-        v_candidate := v_a2;
-      ELSE
-        v_cursor := date_trunc('month', v_cursor + interval '1 month')::date;
-        CONTINUE;
-      END IF;
-
-    -- ── biweekly ─────────────────────────────────────────────────────────────
-    ELSIF v_schedule.frequency = 'biweekly' THEN
-      v_days_ahead := (v_schedule.anchor_day - extract(isodow FROM v_cursor + interval '1 day')::int + 7) % 7;
-      v_candidate := v_cursor + interval '1 day' + (v_days_ahead || ' days')::interval;
-      v_cursor    := v_candidate + interval '13 days';
-
-    -- ── weekly ───────────────────────────────────────────────────────────────
-    ELSIF v_schedule.frequency = 'weekly' THEN
-      v_days_ahead := (v_schedule.anchor_day - extract(isodow FROM v_cursor + interval '1 day')::int + 7) % 7;
-      v_candidate := v_cursor + interval '1 day' + (v_days_ahead || ' days')::interval;
-      v_cursor    := v_candidate;
-
-    -- ── bimonthly (every 2 months) ───────────────────────────────────────────
-    ELSIF v_schedule.frequency = 'bimonthly' THEN
-      IF v_schedule.anchor_day = 99 THEN
-        v_candidate := (date_trunc('month', v_cursor) + interval '1 month - 1 day')::date;
-      ELSE
-        v_candidate := make_date(
-          extract(year  FROM v_cursor)::int,
-          extract(month FROM v_cursor)::int,
-          LEAST(v_schedule.anchor_day, extract(day FROM (date_trunc('month', v_cursor) + interval '1 month - 1 day'))::int)
-        );
-      END IF;
-      IF v_candidate <= v_cursor THEN
-        v_cursor := date_trunc('month', v_cursor + interval '2 months')::date;
-        CONTINUE;
-      END IF;
-
-    -- ── quarterly (every 3 months) ───────────────────────────────────────────
-    ELSIF v_schedule.frequency = 'quarterly' THEN
-      IF v_schedule.anchor_day = 99 THEN
-        v_candidate := (date_trunc('month', v_cursor) + interval '1 month - 1 day')::date;
-      ELSE
-        v_candidate := make_date(
-          extract(year  FROM v_cursor)::int,
-          extract(month FROM v_cursor)::int,
-          LEAST(v_schedule.anchor_day, extract(day FROM (date_trunc('month', v_cursor) + interval '1 month - 1 day'))::int)
-        );
-      END IF;
-      IF v_candidate <= v_cursor THEN
-        v_cursor := date_trunc('month', v_cursor + interval '3 months')::date;
-        CONTINUE;
-      END IF;
-
-    -- ── triannual (every 4 months = 3× per year) ────────────────────────────
-    ELSIF v_schedule.frequency = 'triannual' THEN
-      IF v_schedule.anchor_day = 99 THEN
-        v_candidate := (date_trunc('month', v_cursor) + interval '1 month - 1 day')::date;
-      ELSE
-        v_candidate := make_date(
-          extract(year  FROM v_cursor)::int,
-          extract(month FROM v_cursor)::int,
-          LEAST(v_schedule.anchor_day, extract(day FROM (date_trunc('month', v_cursor) + interval '1 month - 1 day'))::int)
-        );
-      END IF;
-      IF v_candidate <= v_cursor THEN
-        v_cursor := date_trunc('month', v_cursor + interval '4 months')::date;
-        CONTINUE;
-      END IF;
-
-    -- ── biannual (every 6 months = 2× per year) ─────────────────────────────
-    ELSIF v_schedule.frequency = 'biannual' THEN
-      IF v_schedule.anchor_day = 99 THEN
-        v_candidate := (date_trunc('month', v_cursor) + interval '1 month - 1 day')::date;
-      ELSE
-        v_candidate := make_date(
-          extract(year  FROM v_cursor)::int,
-          extract(month FROM v_cursor)::int,
-          LEAST(v_schedule.anchor_day, extract(day FROM (date_trunc('month', v_cursor) + interval '1 month - 1 day'))::int)
-        );
-      END IF;
-      IF v_candidate <= v_cursor THEN
-        v_cursor := date_trunc('month', v_cursor + interval '6 months')::date;
-        CONTINUE;
-      END IF;
-
-    -- ── annual (once per year) ───────────────────────────────────────────────
-    ELSIF v_schedule.frequency = 'annual' THEN
-      IF v_schedule.anchor_day = 99 THEN
-        v_candidate := (date_trunc('month', v_cursor) + interval '1 month - 1 day')::date;
-      ELSE
-        v_candidate := make_date(
-          extract(year  FROM v_cursor)::int,
-          extract(month FROM v_cursor)::int,
-          LEAST(v_schedule.anchor_day, extract(day FROM (date_trunc('month', v_cursor) + interval '1 month - 1 day'))::int)
-        );
-      END IF;
-      IF v_candidate <= v_cursor THEN
-        v_cursor := date_trunc('month', v_cursor + interval '12 months')::date;
-        CONTINUE;
-      END IF;
-
-    ELSE
-      EXIT;
-    END IF;
-
-    -- ── weekend / public-holiday adjustment ─────────────────────────────────
-    IF v_schedule.day_adjustment IN ('before', 'after') THEN
-      v_shift := CASE WHEN v_schedule.day_adjustment = 'before' THEN interval '-1 day' ELSE interval '1 day' END;
-      v_guard := 0;
-      LOOP
-        v_dow := extract(isodow FROM v_candidate)::int;
-        EXIT WHEN v_dow NOT IN (6, 7) AND NOT EXISTS (
-          SELECT 1 FROM public_holidays
-           WHERE country_code = 'NG' AND holiday_date = v_candidate AND is_observed
-        );
-        v_candidate := v_candidate + v_shift;
-        v_guard := v_guard + 1;
-        EXIT WHEN v_guard > 14; -- safety valve; never expected to trigger
-      END LOOP;
-    END IF;
-
-    v_result := array_append(v_result, v_candidate);
-
-    -- Advance cursor after appending for month-based frequencies
-    IF v_schedule.frequency = 'monthly' OR v_schedule.frequency = 'semimonthly' THEN
-      v_cursor := v_candidate + interval '1 day';
-    ELSIF v_schedule.frequency = 'bimonthly' THEN
-      v_cursor := date_trunc('month', v_candidate + interval '2 months')::date;
-    ELSIF v_schedule.frequency = 'quarterly' THEN
-      v_cursor := date_trunc('month', v_candidate + interval '3 months')::date;
-    ELSIF v_schedule.frequency = 'triannual' THEN
-      v_cursor := date_trunc('month', v_candidate + interval '4 months')::date;
-    ELSIF v_schedule.frequency = 'biannual' THEN
-      v_cursor := date_trunc('month', v_candidate + interval '6 months')::date;
-    ELSIF v_schedule.frequency = 'annual' THEN
-      v_cursor := date_trunc('month', v_candidate + interval '12 months')::date;
-    END IF;
-
-  END LOOP;
-
-  RETURN v_result;
 END;
 $$;
