@@ -362,14 +362,13 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
           {burnExplainer && <BurnExplainerCard explainer={burnExplainer} />}
 
           <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4">
-            {/* Gate on whichever series the current granularity actually
-                shows, not just the selected year's monthly total — a year
-                with zero approved runs still has real quarterly/yearly/
-                all-time history to show, and gating on the monthly figure
-                was hiding the chart (and the granularity selector itself)
-                entirely whenever that one year happened to be empty. */}
-            {(annualSummary.totals.burn > 0 || trendSeries.some((t) => t.burn > 0)) && (
-              <Card>
+            {/* Always render the card — a prior version hid it entirely
+                whenever the selected year (or, later, every granularity)
+                had zero non-draft burn, which meant a brand-new account
+                with nothing approved yet saw no chart, no selector, and no
+                explanation why. Each granularity branch below now owns its
+                own empty state instead. */}
+            <Card>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <CardTitle className="text-base">
@@ -387,7 +386,11 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {reportGranularity === 'monthly' ? (
+                  {reportGranularity === 'monthly' && annualSummary.totals.burn === 0 ? (
+                    <p className="text-sm text-muted-foreground py-8 text-center">
+                      No non-draft runs in {summaryYear} yet — approve a run to see it here.
+                    </p>
+                  ) : reportGranularity === 'monthly' ? (
                     <ResponsiveContainer width="100%" height={300}>
                       <BarChart data={annualSummary.byMonth} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                         <ChartGradients />
@@ -430,7 +433,6 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
                   )}
                 </CardContent>
               </Card>
-            )}
             <StatutoryRemittanceCalendar />
           </div>
 
