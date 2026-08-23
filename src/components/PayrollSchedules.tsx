@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   CalendarClock,
   Plus,
@@ -18,9 +19,11 @@ import {
   History,
   TrendingUp,
   TrendingDown,
+  Check,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanySettings } from '@/queries/useCompanySettings';
 import { formatDate, formatNaira } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -1450,9 +1453,50 @@ function ScheduleAuditTrail({ scheduleId }: { scheduleId: string }) {
 
 // ─── PayrollSchedules (main export) ──────────────────────────────────────────
 
+// The four things a working payroll setup actually needs, computed from
+// real data rather than a separate onboarding-progress flag — this is a
+// single-tenant app (company_settings has no per-tenant row), so there's
+// no "new company signup" moment to gate; this is just an honest readout
+// of what Setup is still missing, useful at any point, not just once.
+type SetupItem = { key: string; label: string; done: boolean; action: () => void };
+
+function SetupChecklist({ items }: { items: SetupItem[] }) {
+  const remaining = items.filter((i) => !i.done);
+  if (remaining.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-3.5 py-3">
+      <span className="text-xs font-semibold text-muted-foreground shrink-0">Finish setting up payroll:</span>
+      {items.map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          onClick={() => !item.done && item.action()}
+          disabled={item.done}
+          className={cn(
+            'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold kd-transition',
+            item.done
+              ? 'border-success/40 bg-success/10 text-success cursor-default'
+              : 'border-border/70 bg-card hover:border-primary/40 hover:text-primary',
+          )}
+        >
+          <span className={cn(
+            'flex h-4 w-4 items-center justify-center rounded-full text-[9px]',
+            item.done ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground',
+          )}>
+            {item.done ? <Check className="h-2.5 w-2.5" /> : null}
+          </span>
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function PayrollSchedules() {
   const { profile } = useAuthStore();
   const { toast } = useToast();
+  const { data: companySettings } = useCompanySettings();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [schedules, setSchedules] = useState<PaySchedule[]>([]);
   const [nextDates, setNextDates] = useState<Record<string, NextPayDateRow[]>>({});
@@ -1570,8 +1614,18 @@ export function PayrollSchedules() {
     setDeleteTarget(null);
   };
 
+  const setupItems: SetupItem[] = [
+    { key: 'company', label: 'Company details', done: !!(companySettings?.company_name && companySettings?.rc_number), action: () => navigate('/settings') },
+    { key: 'schedule', label: 'Pay schedule', done: schedules.length > 0, action: () => { setInnerTab('list'); openCreate(); } },
+    { key: 'groups', label: 'Pay groups', done: (payGroupCount ?? 0) > 0, action: () => setInnerTab('groups') },
+    { key: 'holidays', label: 'Public holidays', done: (holidayCount ?? 0) > 0, action: () => setInnerTab('holidays') },
+  ];
+
   return (
     <div className="space-y-6">
+      {!loading && payGroupCount !== null && holidayCount !== null && (
+        <SetupChecklist items={setupItems} />
+      )}
       <Tabs value={innerTab} onValueChange={(v) => setInnerTab(v as any)}>
         <TabsList>
           <TabsTrigger value="list"><CalendarClock className="mr-2 h-4 w-4" />Schedules</TabsTrigger>
