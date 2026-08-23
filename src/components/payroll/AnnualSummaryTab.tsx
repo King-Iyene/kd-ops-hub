@@ -16,7 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, Landmark } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { PENSION_EMPLOYER_RATE, NSITF_RATE } from '@/lib/tax';
 import {
@@ -224,6 +225,84 @@ function RaiseSimulator({ departments }: { departments: { id: string; name: stri
   );
 }
 
+// Only dates verifiably fixed by statute/regulator are computed as actual
+// due-date countdowns (PAYE's 10th-of-next-month; ITF's annual 1 April
+// return). Pension's "7 working days of payday" and NSITF's "monthly"
+// have no single fixed calendar day — inventing one would be a fabricated
+// deadline, so those rows show cadence/authority only, matching the
+// static STATUTORY_DEADLINES shown at draft-review time in PayrollDialogs.
+function nextMonthlyDueDate(day: number): Date {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth(), day);
+  return d < now ? new Date(now.getFullYear(), now.getMonth() + 1, day) : d;
+}
+function nextAnnualDueDate(monthIndex: number, day: number): Date {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), monthIndex, day);
+  return d < now ? new Date(now.getFullYear() + 1, monthIndex, day) : d;
+}
+function daysUntil(d: Date): number {
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const target = new Date(d); target.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - now.getTime()) / 86_400_000);
+}
+
+function StatutoryRemittanceCalendar() {
+  const paye = nextMonthlyDueDate(10);
+  const itf = nextAnnualDueDate(3, 1); // 1 April
+  const computed = [
+    { name: 'PAYE', sub: 'FIRS / State IRS', date: paye },
+    { name: 'ITF', sub: '1% of annual payroll · annual return', date: itf },
+  ];
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Landmark className="h-4 w-4" /> Statutory remittance calendar
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="divide-y divide-border/60 pt-0">
+        {computed.map((r) => {
+          const days = daysUntil(r.date);
+          return (
+            <div key={r.name} className="flex items-center justify-between py-2.5">
+              <div>
+                <p className="text-sm font-medium">{r.name}</p>
+                <p className="text-[11px] text-muted-foreground">{r.sub}</p>
+              </div>
+              <span className={cn('text-xs font-bold tabular-nums', days <= 7 ? 'text-warning' : 'text-foreground')}>
+                {r.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+              </span>
+            </div>
+          );
+        })}
+        <div className="flex items-center justify-between py-2.5">
+          <div>
+            <p className="text-sm font-medium">Pension</p>
+            <p className="text-[11px] text-muted-foreground">PenCom · within 7 working days of each payday</p>
+          </div>
+          <span className="text-xs text-muted-foreground">Per run</span>
+        </div>
+        <div className="flex items-center justify-between py-2.5">
+          <div>
+            <p className="text-sm font-medium">NSITF</p>
+            <p className="text-[11px] text-muted-foreground">1% employer · monthly, employer-borne</p>
+          </div>
+          <span className="text-xs text-muted-foreground">Monthly</span>
+        </div>
+        <div className="flex items-center justify-between py-2.5">
+          <div>
+            <p className="text-sm font-medium">NHF</p>
+            <p className="text-[11px] text-muted-foreground">Opt-in only — see Payroll → Setup</p>
+          </div>
+          <span className="text-xs text-muted-foreground">—</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, annualSummary, burnExplainer, departments = [] }: AnnualSummaryTabProps) => {
   return (
     <>
@@ -245,31 +324,34 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
 
           {burnExplainer && <BurnExplainerCard explainer={burnExplainer} />}
 
-          {annualSummary.totals.burn > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Month-by-month breakdown</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={annualSummary.byMonth} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                    <ChartGradients />
-                    <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
-                    <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
-                    <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-                    <ChartTooltip
-                      content={<GlassTooltip />}
-                      formatter={(v: number) => formatNaira(v)}
-                      cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
-                    />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-                    <Bar dataKey="gross" fill="url(#kd-grad-primary)" name="Gross salary" stackId="a" radius={[0, 0, 0, 0]} {...chartAnim} />
-                    <Bar dataKey="contractors" fill={chartTheme.secondary} name="Contractors" stackId="a" radius={[4, 4, 0, 0]} {...chartAnim} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
+          <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4">
+            {annualSummary.totals.burn > 0 && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Month-by-month breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={annualSummary.byMonth} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                      <ChartGradients />
+                      <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+                      <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
+                      <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
+                      <ChartTooltip
+                        content={<GlassTooltip />}
+                        formatter={(v: number) => formatNaira(v)}
+                        cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
+                      />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="gross" fill="url(#kd-grad-primary)" name="Gross salary" stackId="a" radius={[0, 0, 0, 0]} {...chartAnim} />
+                      <Bar dataKey="contractors" fill={chartTheme.secondary} name="Contractors" stackId="a" radius={[4, 4, 0, 0]} {...chartAnim} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+            <StatutoryRemittanceCalendar />
+          </div>
 
           <Card>
             <CardContent className="pt-6">
