@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, Users, UserX } from 'lucide-react';
+import { ChevronDown, Users, UserX, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -141,37 +141,29 @@ export function PayrollRosterPreview({
       <CollapsibleContent className="border-t border-border/60 px-3 py-2 space-y-3 text-xs">
         {included.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <p className="font-medium text-foreground">Will be paid ({included.length})</p>
-              {missingBankDetails.length > 0 && (
-                <p className="text-amber-600 dark:text-amber-400">⚠ = no bank account on file yet</p>
-              )}
-            </div>
-            <ul className="space-y-0.5">
+            <p className="font-medium text-foreground mb-1">Will be paid ({included.length})</p>
+            <ul className="space-y-px max-h-64 overflow-y-auto">
               {included
                 .slice()
                 .sort((a, b) => empName(a).localeCompare(empName(b)))
                 .map((e) => (
-                  <li key={e.id} className="flex items-center justify-between gap-2">
-                    <span className="text-foreground">
-                      {empName(e)}
-                      {!e.bank_account_number && (
-                        <span className="ml-1.5 text-amber-600 dark:text-amber-400" title="No bank account on file">⚠ Missing bank account</span>
-                      )}
-                    </span>
-                    <span className="flex items-center gap-2 shrink-0">
-                      {!e.bank_account_number && (
+                  <li key={e.id} className="grid grid-cols-[1fr_auto] items-center gap-x-2 gap-y-0 rounded px-1.5 py-1 hover:bg-muted/60">
+                    <span className="min-w-0 truncate text-foreground" title={empName(e)}>{empName(e)}</span>
+                    <span className="shrink-0 tabular-nums text-muted-foreground text-right w-[92px]">{formatNaira(e.salary_ngn)}</span>
+                    {!e.bank_account_number && (
+                      <span className="col-span-2 -mt-0.5 flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        No bank account on file
                         <Link
                           to={`/employees/${e.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-semibold text-primary hover:underline"
+                          className="ml-auto font-semibold text-primary hover:underline"
                         >
                           Fix now
                         </Link>
-                      )}
-                      <span className="text-muted-foreground tabular-nums">{formatNaira(e.salary_ngn)}</span>
-                    </span>
+                      </span>
+                    )}
                   </li>
                 ))}
             </ul>
