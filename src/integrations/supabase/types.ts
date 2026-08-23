@@ -7489,6 +7489,7 @@ export type Database = {
       }
       pay_schedules: {
         Row: {
+          allowance_context: string | null
           anchor_day: number
           auto_approve: boolean
           auto_disburse_hour_local: number
@@ -7500,13 +7501,16 @@ export type Database = {
           frequency: string
           id: string
           is_active: boolean
+          linked_schedule_id: string | null
           name: string
           notify_roles: string[]
           processing_lead_days: number
+          schedule_kind: string
           second_anchor_day: number | null
           updated_at: string
         }
         Insert: {
+          allowance_context?: string | null
           anchor_day?: number
           auto_approve?: boolean
           auto_disburse_hour_local?: number
@@ -7518,13 +7522,16 @@ export type Database = {
           frequency: string
           id?: string
           is_active?: boolean
+          linked_schedule_id?: string | null
           name: string
           notify_roles?: string[]
           processing_lead_days?: number
+          schedule_kind?: string
           second_anchor_day?: number | null
           updated_at?: string
         }
         Update: {
+          allowance_context?: string | null
           anchor_day?: number
           auto_approve?: boolean
           auto_disburse_hour_local?: number
@@ -7536,9 +7543,11 @@ export type Database = {
           frequency?: string
           id?: string
           is_active?: boolean
+          linked_schedule_id?: string | null
           name?: string
           notify_roles?: string[]
           processing_lead_days?: number
+          schedule_kind?: string
           second_anchor_day?: number | null
           updated_at?: string
         }
@@ -7569,6 +7578,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_schedules_linked_schedule_id_fkey"
+            columns: ["linked_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "pay_schedules"
             referencedColumns: ["id"]
           },
         ]
