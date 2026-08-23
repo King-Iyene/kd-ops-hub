@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Check,
   Loader2,
@@ -207,6 +207,23 @@ export const PayrollRunsTab = ({
   const [openId, setOpenId] = useState<string | null>(null);
   const openRun = runs.find((r) => r.id === openId) ?? null;
 
+  // Pay-group filter chips — derived from whichever segments actually
+  // appear on real runs, so this never needs separate upkeep as segments
+  // are added/renamed. "All" always shows every run regardless of segment.
+  const [segmentFilter, setSegmentFilter] = useState<string>('__all__');
+  const segmentFilterOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of runs) counts.set(r.payroll_segment_id || '__unfiltered__', (counts.get(r.payroll_segment_id || '__unfiltered__') ?? 0) + 1);
+    return Array.from(counts.entries())
+      .map(([id, count]) => ({
+        id,
+        name: id === '__unfiltered__' ? 'All staff' : segments.find((s) => s.id === id)?.name ?? 'Custom segment',
+        count,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [runs, segments]);
+  const visibleRuns = segmentFilter === '__all__' ? runs : runs.filter((r) => (r.payroll_segment_id || '__unfiltered__') === segmentFilter);
+
   return (
     <div className="space-y-6">
 
@@ -403,6 +420,36 @@ export const PayrollRunsTab = ({
           )}
         </div>
 
+        {segmentFilterOptions.length > 1 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSegmentFilter('__all__')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold kd-transition',
+                segmentFilter === '__all__' ? 'border-primary bg-primary/10 text-primary' : 'border-border/60 text-muted-foreground hover:border-primary/40',
+              )}
+            >
+              All pay groups
+              <span className={cn('rounded-full px-1.5 text-[10px]', segmentFilter === '__all__' ? 'bg-primary/15' : 'bg-muted')}>{runs.length}</span>
+            </button>
+            {segmentFilterOptions.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setSegmentFilter(opt.id)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold kd-transition',
+                  segmentFilter === opt.id ? 'border-primary bg-primary/10 text-primary' : 'border-border/60 text-muted-foreground hover:border-primary/40',
+                )}
+              >
+                {opt.name}
+                <span className={cn('rounded-full px-1.5 text-[10px]', segmentFilter === opt.id ? 'bg-primary/15' : 'bg-muted')}>{opt.count}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
           {loading ? (
             <div className="p-3"><TableSkeleton rows={5} cols={7} /></div>
@@ -417,10 +464,12 @@ export const PayrollRunsTab = ({
                 </Button>
               }
             />
+          ) : visibleRuns.length === 0 ? (
+            <div className="p-6 text-center text-sm text-muted-foreground">No runs for this pay group yet.</div>
           ) : (
             <div className="divide-y divide-border/60" data-testid="payroll-runs-list">
-              {runs.map((r, idx) => {
-                const prev = runs[idx + 1];
+              {visibleRuns.map((r, idx) => {
+                const prev = visibleRuns[idx + 1];
                 const momPct = prev && prev.total_burn_ngn > 0
                   ? ((r.total_burn_ngn - prev.total_burn_ngn) / prev.total_burn_ngn) * 100
                   : null;
