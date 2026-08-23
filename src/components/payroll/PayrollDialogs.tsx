@@ -528,7 +528,12 @@ export const PayrollDialogs = ({
               <>
                 <p className="text-xs text-muted-foreground -mt-2">Anything on top of base salary this run — bonuses, or blanket allowances.</p>
                 <div className="space-y-2">
-                  <Label>Bonuses &amp; Extras</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Bonuses &amp; Extras <span className="font-normal text-muted-foreground">— company-wide, applies to everyone</span></Label>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground -mt-1">
+                    Need to pay a bonus to just one or a few people instead of everyone? Draft this run first, then use <strong>Adjustments</strong> on it — that's per-employee.
+                  </p>
                   {form.bonuses.map((b, i) => (
                     <div key={i} className="flex gap-2 items-center">
                       <Select value={b.type} onValueChange={(v) => updateBonus(i, 'type', v)}>
