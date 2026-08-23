@@ -286,25 +286,37 @@ export const PayrollRunsTab = ({
 
       {/* Featured rail — the current/latest run's lifecycle, front and
           center, instead of buried inside a drawer you have to open first.
-          Mirrors the Payroll Overhaul mockup's top-of-page rail card. */}
+          Dark gradient hero per the Payroll Worldclass Redesign canvas
+          (https://claude.ai/code/artifact/f500eacf-f096-4d56-8d8e-c182f9bc6b0b) —
+          a deliberate, explicitly-approved departure from this file's
+          previous flat-card convention. */}
       {latest && (
-        <div className="rounded-lg border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-4.5">
-          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                {monthLabel(latest.period, latest.period_type)} Payroll
-              </p>
-              <p className="kd-display text-2xl font-extrabold tabular-nums mt-1">
-                {formatNaira(latest.total_burn_ngn)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">{latest.employee_count ?? 0} employees</p>
+        <div
+          className="relative overflow-hidden rounded-xl px-5 py-5 sm:px-6 sm:py-5.5 text-white"
+          style={{ background: 'linear-gradient(155deg, #00283d, #00405e 60%, #005579)' }}
+        >
+          <div
+            className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full"
+            style={{ background: 'radial-gradient(circle, rgba(0,229,255,0.18), transparent 70%)' }}
+          />
+          <div className="relative">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
+              <div>
+                <p className="text-xs font-semibold text-white/55 uppercase tracking-wide">
+                  {monthLabel(latest.period, latest.period_type)} Payroll
+                </p>
+                <p className="kd-display text-[28px] font-extrabold tabular-nums mt-1.5">
+                  {formatNaira(latest.total_burn_ngn)}
+                </p>
+                <p className="text-xs text-white/60 mt-0.5">{latest.employee_count ?? 0} employees</p>
+              </div>
+              <StatusBadge status={latest.status} />
             </div>
-            <StatusBadge status={latest.status} />
+            <PayrollLifecycleRail status={latest.status} variant="dark" />
+            <p className="mt-4 text-xs text-white/70 border-t border-white/12 pt-3">
+              {nextActionCopy(latest, canApprovePerm, canDisburse, isSelfApprovalBlocked(latest))}
+            </p>
           </div>
-          <PayrollLifecycleRail status={latest.status} />
-          <p className="mt-3.5 text-xs text-muted-foreground border-t border-border/50 pt-3">
-            {nextActionCopy(latest, canApprovePerm, canDisburse, isSelfApprovalBlocked(latest))}
-          </p>
         </div>
       )}
 

@@ -45,10 +45,22 @@ function buildPositions(status: string): RailPosition[] {
   ];
 }
 
-export function PayrollLifecycleRail({ status, className }: { status: string; className?: string }) {
+export function PayrollLifecycleRail({
+  status,
+  className,
+  variant = 'light',
+}: {
+  status: string;
+  className?: string;
+  /** 'dark' swaps text/border colors for legibility on a dark hero card —
+      the default light-mode tokens (text-muted-foreground etc.) are tuned
+      against a light card background and go low-contrast on a dark one. */
+  variant?: 'light' | 'dark';
+}) {
   const current = realStepIndex(status);
   if (current < 0) return null;
   const positions = buildPositions(status);
+  const dark = variant === 'dark';
 
   return (
     <div className={className}>
@@ -60,14 +72,19 @@ export function PayrollLifecycleRail({ status, className }: { status: string; cl
                 className={cn(
                   'absolute top-[11px] right-1/2 h-0.5 w-full -z-0',
                   p.kind === 'planned' || positions[i - 1].kind === 'planned'
-                    ? 'bg-[repeating-linear-gradient(90deg,hsl(var(--border))_0_5px,transparent_5px_8px)]'
-                    : (p.kind === 'real' && p.state !== 'todo') ? 'bg-success' : 'bg-border',
+                    ? dark
+                      ? 'bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.25)_0_5px,transparent_5px_8px)]'
+                      : 'bg-[repeating-linear-gradient(90deg,hsl(var(--border))_0_5px,transparent_5px_8px)]'
+                    : (p.kind === 'real' && p.state !== 'todo') ? 'bg-success' : dark ? 'bg-white/15' : 'bg-border',
                 )}
               />
             )}
             {p.kind === 'planned' ? (
               <span
-                className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 border-dashed border-border bg-muted text-muted-foreground"
+                className={cn(
+                  'relative z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 border-dashed',
+                  dark ? 'border-white/25 bg-white/10 text-white/50' : 'border-border bg-muted text-muted-foreground',
+                )}
                 title={`${p.label} — design-only, not a state a run can be in today`}
               >
                 {p.label === 'Locked' ? <Lock className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
@@ -77,8 +94,8 @@ export function PayrollLifecycleRail({ status, className }: { status: string; cl
                 className={cn(
                   'relative z-10 flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold',
                   p.state === 'done' ? 'bg-success text-success-foreground'
-                    : p.state === 'current' ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground',
+                    : p.state === 'current' ? (dark ? 'bg-secondary text-[#00283d]' : 'bg-primary text-primary-foreground')
+                    : dark ? 'bg-white/10 text-white/40' : 'bg-muted text-muted-foreground',
                 )}
               >
                 {p.state === 'done' ? <Check className="h-3 w-3" /> : null}
@@ -87,8 +104,11 @@ export function PayrollLifecycleRail({ status, className }: { status: string; cl
             <span
               className={cn(
                 'text-center text-[9.5px] font-medium leading-tight',
-                p.kind === 'planned' ? 'text-muted-foreground/60'
-                  : p.state !== 'todo' ? 'text-foreground' : 'text-muted-foreground',
+                p.kind === 'planned'
+                  ? dark ? 'text-white/35' : 'text-muted-foreground/60'
+                  : p.state !== 'todo'
+                    ? dark ? 'text-white' : 'text-foreground'
+                    : dark ? 'text-white/45' : 'text-muted-foreground',
               )}
             >
               {p.label}
