@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 // after, not a separate stage a person waits in.
 const REAL_STEPS = ['Draft', 'Review', 'Approve', 'Paid'] as const;
 
-function realStepIndex(status: string): number {
+export function realStepIndex(status: string): number {
   if (status === 'draft') return 0;
   if (status === 'pending_approval') return 1;
   if (status === 'approved' || status === 'processing') return 2;

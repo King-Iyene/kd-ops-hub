@@ -18,6 +18,7 @@ import {
   MoreHorizontal,
   Sparkles,
   ArrowRight,
+  CalendarClock,
 } from 'lucide-react';
 import {
   BarChart,
@@ -29,7 +30,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
-import { PayrollLifecycleRail } from '@/components/payroll/PayrollLifecycleRail';
+import { PayrollLifecycleRail, realStepIndex } from '@/components/payroll/PayrollLifecycleRail';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -148,6 +149,16 @@ function nextActionCopy(run: PayrollRun, canApprove: boolean, canDisburse: boole
   }
 }
 
+// Only meaningful for monthly cadences — quarterly/annual runs don't have
+// a predictable "next period is one calendar month later" relationship,
+// so the Upcoming preview below only renders for monthly runs.
+function nextMonthlyPeriod(period: string): string | null {
+  const [y, m] = period.split('-').map(Number);
+  if (!y || !m) return null;
+  const next = new Date(Date.UTC(y, m, 1)); // m is already 1-indexed-next-month in UTC terms
+  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
 const STATUS_ACCENT: Record<string, string> = {
   draft: 'bg-muted-foreground/50',
   pending_approval: 'bg-amber-500',
@@ -258,6 +269,47 @@ export const PayrollRunsTab = ({
           </div>
         ))}
       </div>
+
+      {/* Featured rail — the current/latest run's lifecycle, front and
+          center, instead of buried inside a drawer you have to open first.
+          Mirrors the Payroll Overhaul mockup's top-of-page rail card. */}
+      {latest && (
+        <div className="rounded-lg border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-4.5">
+          <div className="flex flex-wrap items-start justify-between gap-2 mb-3.5">
+            <div>
+              <p className="text-sm font-semibold">{monthLabel(latest.period, latest.period_type)} Payroll</p>
+              <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">
+                {formatNaira(latest.total_burn_ngn)} · {latest.employee_count ?? 0} employees
+              </p>
+            </div>
+            <StatusBadge status={latest.status} />
+          </div>
+          <PayrollLifecycleRail status={latest.status} />
+          <p className="mt-3.5 text-xs text-muted-foreground border-t border-border/50 pt-3">
+            {nextActionCopy(latest, canApprovePerm, canDisburse, isSelfApprovalBlocked(latest))}
+          </p>
+        </div>
+      )}
+
+      {/* Upcoming — the next monthly period nobody has drafted yet, named
+          before it becomes a problem instead of silently waiting for
+          Autopilot's cutoff-date cron. */}
+      {latest && latest.period_type !== 'quarterly' && latest.period_type !== 'annual' && (() => {
+        const nextPeriod = nextMonthlyPeriod(latest.period);
+        if (!nextPeriod || runs.some((r) => r.period === nextPeriod)) return null;
+        return (
+          <div className="flex items-center gap-3 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-4 py-3">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">{monthLabel(nextPeriod)} Payroll</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Not started yet</p>
+            </div>
+            <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => setDialog(true)}>
+              <CalendarClock className="h-3.5 w-3.5" /> Start draft
+            </Button>
+          </div>
+        );
+      })()}
 
       {trend.length >= 2 && (
         <div className="rounded-lg border border-border/70 bg-card px-4 py-3.5">
@@ -417,6 +469,14 @@ export const PayrollRunsTab = ({
                           </span>
                         )}
                       </p>
+                    </div>
+                    <div className="hidden sm:flex shrink-0 gap-0.5" aria-hidden="true" title={`Stage ${Math.max(realStepIndex(r.status), 0) + 1} of 4`}>
+                      {Array.from({ length: 4 }, (_, i) => (
+                        <span
+                          key={i}
+                          className={cn('h-1 w-4 rounded-full', i <= realStepIndex(r.status) ? 'bg-primary' : 'bg-border')}
+                        />
+                      ))}
                     </div>
                     {needsAttention && (
                       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-label="Needs your attention" />
