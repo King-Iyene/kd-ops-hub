@@ -62,10 +62,22 @@ jobs:
           # confirmed live: this is why every run has failed with
           # "could not translate host name". PGPASSWORD/PGHOST/etc. are
           # libpq's standard env vars and need no URL-escaping at all.
+          #
+          # PGHOST is the Session Pooler (aws-0-<region>.pooler.supabase.com),
+          # not the direct db.<ref>.supabase.co host. Confirmed live: the
+          # direct host now resolves correctly (the fix above works) but only
+          # to an IPv6 address, and GitHub-hosted runners fail on it with
+          # "Network is unreachable" — Supabase's direct connections are
+          # IPv6-only by default; the pooler is the IPv4-compatible path they
+          # document for exactly this (CI/CD runners without IPv6). Session
+          # mode (port 5432, not the 6543 transaction pooler) is required
+          # here because pg_dump needs a real session, which transaction
+          # pooling doesn't support. PGUSER includes the project ref suffix,
+          # which the pooler needs to route to the right project.
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          PGHOST: db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co
+          PGHOST: aws-0-eu-west-1.pooler.supabase.com
           PGPORT: 5432
-          PGUSER: postgres
+          PGUSER: postgres.${{ secrets.SUPABASE_PROJECT_REF }}
           PGDATABASE: postgres
         run: |
           # Use pg_dump directly against the Supabase direct connection.
