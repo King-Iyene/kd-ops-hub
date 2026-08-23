@@ -1075,46 +1075,42 @@ function HolidaysManager() {
 
       {loading ? (
         <TableSkeleton rows={4} cols={3} />
-      ) : (
+      ) : items.length === 0 ? (
         <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Holiday</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((h) => (
-                  <TableRow key={h.id}>
-                    <TableCell className="font-medium">{formatDate(new Date(h.holiday_date))}</TableCell>
-                    <TableCell>{h.name}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
-                        aria-label="Delete holiday"
-                        onClick={() => removeHoliday(h.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {items.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-sm text-muted-foreground text-center py-8">
-                      No holidays defined for {year}.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-            </div>
+          <CardContent className="text-sm text-muted-foreground text-center py-8">
+            No holidays defined for {year}.
           </CardContent>
         </Card>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {items.map((h) => {
+            const d = new Date(h.holiday_date);
+            return (
+              <div key={h.id} className="group flex items-center gap-3.5 rounded-xl border border-border/70 bg-card px-4 py-3.5">
+                <div className="w-12 text-center shrink-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                    {d.toLocaleDateString('en-US', { month: 'short' })}
+                  </p>
+                  <p className="kd-display text-lg font-extrabold leading-tight">{d.getDate()}</p>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate">{h.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {d.toLocaleDateString('en-US', { weekday: 'long' })} &middot; observed
+                  </p>
+                </div>
+                <Button
+                  variant="ghost" size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 kd-transition shrink-0"
+                  aria-label="Delete holiday"
+                  onClick={() => removeHoliday(h.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       <Dialog open={adding} onOpenChange={(v) => { if (!v) setAdding(false); }}>

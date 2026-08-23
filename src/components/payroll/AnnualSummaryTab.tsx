@@ -321,6 +321,14 @@ const SEGMENT_ICON_COLOURS = [
   'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
 ];
 
+function SegmentIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+      <circle cx="9" cy="8" r="3.2" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><circle cx="17.5" cy="9" r="2.6" /><path d="M15.5 13.2a5 5 0 0 1 6 4.8" />
+    </svg>
+  );
+}
+
 export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, annualSummary, burnExplainer, departments = [], bySegment, reportGranularity, setReportGranularity, trendSeries }: AnnualSummaryTabProps) => {
   return (
     <>
@@ -345,11 +353,11 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
               {bySegment.map((s, i) => (
                 <Card key={s.id}>
                   <CardContent className="pt-4 pb-4">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className={`h-2 w-2 rounded-full shrink-0 ${SEGMENT_ICON_COLOURS[i % SEGMENT_ICON_COLOURS.length].split(' ')[0]}`} />
-                      <p className="text-xs font-semibold truncate">{s.name}</p>
-                    </div>
-                    <p className="text-lg font-extrabold currency">{formatNaira(s.burn)}</p>
+                    <span className={cn('flex h-7 w-7 items-center justify-center rounded-lg mb-2.5', SEGMENT_ICON_COLOURS[i % SEGMENT_ICON_COLOURS.length])}>
+                      <SegmentIcon />
+                    </span>
+                    <p className="kd-display text-lg font-extrabold currency">{formatNaira(s.burn)}</p>
+                    <p className="text-xs font-semibold mt-1 truncate">{s.name}</p>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
                       {s.headcount} employee{s.headcount === 1 ? '' : 's'} paid across {summaryYear}
                     </p>
