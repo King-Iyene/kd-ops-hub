@@ -52,6 +52,22 @@ jobs:
       issues: write
 
     steps:
+      - name: Install matching pg_dump (server is Postgres 17)
+        # Ubuntu 24.04 runners ship pg_dump 16 by default. pg_dump refuses
+        # to dump a NEWER server ("aborting because of server version
+        # mismatch") — confirmed live against this project's Postgres 17.6.
+        # Installing the versioned postgresql-client-17 package (from the
+        # official PGDG apt repo) and calling that binary explicitly avoids
+        # relying on whatever "pg_dump" resolves to on the runner image,
+        # which will keep drifting as GitHub updates the default image.
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+          sudo sh -c 'echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
       - name: Dump database
         env:
           # Passed as env vars, not interpolated into a connection URL —
