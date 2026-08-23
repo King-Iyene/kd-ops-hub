@@ -45,6 +45,9 @@ import { PayrollSchedules, NextPayrollBanner } from '@/components/PayrollSchedul
 import { PayrollRunsTab } from '@/components/payroll/PayrollRunsTab';
 import { AnnualSummaryTab } from '@/components/payroll/AnnualSummaryTab';
 import { PayrollDialogs } from '@/components/payroll/PayrollDialogs';
+import { PayrollDashboardTab } from '@/components/payroll/PayrollDashboardTab';
+import { PayrollGroupsTab } from '@/components/payroll/PayrollGroupsTab';
+import { LayoutGrid, Layers } from 'lucide-react';
 
 interface BonusLine {
   type: string;
@@ -2034,13 +2037,27 @@ const Payroll = () => {
 
       <NextPayrollBanner onStartDraft={openNewDraft} />
 
-      <Tabs defaultValue="runs">
+      <Tabs defaultValue="dashboard">
         <TabsList className="h-9 bg-transparent border-b border-border/50 rounded-none w-full justify-start gap-0 p-0">
+          <TabsTrigger
+            value="dashboard"
+            className="text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+          >
+            <LayoutGrid className="mr-1.5 h-3.5 w-3.5" />
+            Dashboard
+          </TabsTrigger>
           <TabsTrigger
             value="runs"
             className="text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
             Runs
+          </TabsTrigger>
+          <TabsTrigger
+            value="groups"
+            className="text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+          >
+            <Layers className="mr-1.5 h-3.5 w-3.5" />
+            Pay groups
           </TabsTrigger>
           <TabsTrigger
             value="setup"
@@ -2060,6 +2077,27 @@ const Payroll = () => {
             Setup merges Pay Groups, Schedules &amp; Holidays into one place
           </span>
         </TabsList>
+
+        <TabsContent value="dashboard" className="space-y-6 mt-6">
+          <PayrollDashboardTab
+            runs={runs}
+            trend={trend}
+            monthLabel={monthLabel}
+            onNewDraft={openNewDraft}
+            onOpenRun={(runId) => {
+              const run = runs.find((r) => r.id === runId);
+              if (!run) return;
+              if (run.status === 'draft') editDraft(run);
+              else if (run.status === 'pending_approval') setConfirmApproveRun(run);
+              // approved/processing: nothing actionable from here — the Runs
+              // tab (with disburse/schedule controls) is the place for that.
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="groups" className="mt-6">
+          <PayrollGroupsTab />
+        </TabsContent>
 
         <TabsContent value="runs" className="space-y-6 mt-6">
           <PayrollRunsTab
