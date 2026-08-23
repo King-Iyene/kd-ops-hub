@@ -180,12 +180,19 @@ export function PayrollRosterPreview({
         {(Object.keys(excludedByReason) as ExclusionReason[]).map((reason) => {
           const list = excludedByReason[reason];
           if (!list.length) return null;
+          // Inactive/driver exclusions are expected and not actionable during
+          // payroll review — naming all 16 former employees one by one is
+          // just noise. No-salary/segment exclusions might mean a real
+          // config problem, so those stay listed by name.
+          const listNames = reason === 'no_salary' || reason === 'segment';
           return (
             <div key={reason}>
               <p className="font-medium text-muted-foreground mb-1">{REASON_LABEL[reason]} ({list.length})</p>
-              <ul className="space-y-0.5 pl-1">
-                {list.map((e) => <li key={e.id} className="text-muted-foreground">{empName(e)}</li>)}
-              </ul>
+              {listNames && (
+                <ul className="space-y-0.5 pl-1">
+                  {list.map((e) => <li key={e.id} className="text-muted-foreground">{empName(e)}</li>)}
+                </ul>
+              )}
             </div>
           );
         })}

@@ -1942,6 +1942,45 @@ const Payroll = () => {
       .sort((a, b) => b.burn - a.burn);
   }, [runs, summaryYear, segments]);
 
+  // Trend chart granularity — independent of the year-scoped month-by-month
+  // table above, since "how has burn moved over the company's whole
+  // history" is a different question than "show me this one year." Yearly
+  // and all-time deliberately ignore summaryYear and look across every
+  // non-draft run ever, since narrowing those to one year would defeat
+  // the point of asking for them.
+  const [reportGranularity, setReportGranularity] = useState<'monthly' | 'quarterly' | 'yearly' | 'all-time'>('monthly');
+  const trendSeries = useMemo(() => {
+    const nonDraft = runs.filter((r) => r.status !== 'draft');
+    if (reportGranularity === 'all-time') {
+      const burn = nonDraft.reduce((s, r) => s + (r.total_burn_ngn || 0), 0);
+      return [{ label: 'All time', burn }];
+    }
+    if (reportGranularity === 'yearly') {
+      const byYear = new Map<string, number>();
+      for (const r of nonDraft) {
+        const [y] = r.period.split('-');
+        byYear.set(y, (byYear.get(y) ?? 0) + (r.total_burn_ngn || 0));
+      }
+      return Array.from(byYear.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([label, burn]) => ({ label, burn }));
+    }
+    if (reportGranularity === 'quarterly') {
+      const byQuarter = new Map<string, number>();
+      for (const r of nonDraft) {
+        const [y, m] = r.period.split('-');
+        const q = Math.ceil(parseInt(m, 10) / 3);
+        const key = `${y}-Q${q}`;
+        byQuarter.set(key, (byQuarter.get(key) ?? 0) + (r.total_burn_ngn || 0));
+      }
+      return Array.from(byQuarter.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([label, burn]) => ({ label, burn }));
+    }
+    // monthly — scoped to the selected year, matching the table below it.
+    return annualSummary.byMonth.map((m) => ({ label: m.label, burn: m.burn }));
+  }, [runs, reportGranularity, annualSummary]);
+
   // Plain-language "why did burn change" read, replacing a bare number with
   // an actual explanation — the two most recent non-draft runs, attributing
   // the delta to bonuses vs. headcount vs. everything else (PAYE/pension
@@ -2067,6 +2106,9 @@ const Payroll = () => {
             burnExplainer={burnExplainer}
             departments={segmentDepartments}
             bySegment={bySegment}
+            reportGranularity={reportGranularity}
+            setReportGranularity={setReportGranularity}
+            trendSeries={trendSeries}
           />
         </TabsContent>
       </Tabs>

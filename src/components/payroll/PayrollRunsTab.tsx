@@ -18,7 +18,6 @@ import {
   MoreHorizontal,
   Sparkles,
   ArrowRight,
-  CalendarClock,
   Pencil,
   Landmark,
   History,
@@ -153,16 +152,6 @@ function nextActionCopy(run: PayrollRun, canApprove: boolean, canDisburse: boole
     default:
       return '';
   }
-}
-
-// Only meaningful for monthly cadences — quarterly/annual runs don't have
-// a predictable "next period is one calendar month later" relationship,
-// so the Upcoming preview below only renders for monthly runs.
-function nextMonthlyPeriod(period: string): string | null {
-  const [y, m] = period.split('-').map(Number);
-  if (!y || !m) return null;
-  const next = new Date(Date.UTC(y, m, 1)); // m is already 1-indexed-next-month in UTC terms
-  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 const STATUS_ACCENT: Record<string, string> = {
@@ -315,33 +304,6 @@ export const PayrollRunsTab = ({
           </p>
         </div>
       )}
-
-      {/* Upcoming — the next monthly period nobody has drafted yet, named
-          before it becomes a problem instead of silently waiting for
-          Autopilot's cutoff-date cron. Expandable to preview who's actually
-          in that pay group before committing to a draft. */}
-      {latest && latest.period_type !== 'quarterly' && latest.period_type !== 'annual' && (() => {
-        const nextPeriod = nextMonthlyPeriod(latest.period);
-        if (!nextPeriod || runs.some((r) => r.period === nextPeriod)) return null;
-        return (
-          <div className="rounded-lg border border-dashed border-primary/40 bg-primary/5 px-4 py-3 space-y-2.5">
-          <div className="flex items-center gap-3">
-            <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">{monthLabel(nextPeriod)} Payroll</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Not started yet</p>
-            </div>
-            <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => setDialog(true)}>
-              <CalendarClock className="h-3.5 w-3.5" /> Start draft
-            </Button>
-          </div>
-          <p className="text-[11px] text-muted-foreground pl-5">Same roster as {monthLabel(latest.period, latest.period_type)} unless changed when drafted:</p>
-          <div className="pl-5">
-            <PayrollRosterPreview payrollSegmentId={latest.payroll_segment_id} />
-          </div>
-          </div>
-        );
-      })()}
 
       {trend.length >= 2 && (
         <div className="rounded-lg border border-border/70 bg-card px-4 py-3.5">

@@ -67,7 +67,17 @@ interface AnnualSummaryTabProps {
   burnExplainer?: BurnExplainer | null;
   departments?: { id: string; name: string }[];
   bySegment: { id: string; name: string; burn: number; headcount: number }[];
+  reportGranularity: 'monthly' | 'quarterly' | 'yearly' | 'all-time';
+  setReportGranularity: (g: 'monthly' | 'quarterly' | 'yearly' | 'all-time') => void;
+  trendSeries: { label: string; burn: number }[];
 }
+
+const GRANULARITY_LABELS: Record<AnnualSummaryTabProps['reportGranularity'], string> = {
+  monthly: 'Month to month',
+  quarterly: 'Quarter to quarter',
+  yearly: 'Year to year',
+  'all-time': 'All-time total',
+};
 
 // Plain-language read of the month-over-month burn delta — attributes it to
 // company-wide bonuses vs. everything else (headcount, PAYE/pension drift,
@@ -311,7 +321,7 @@ const SEGMENT_ICON_COLOURS = [
   'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
 ];
 
-export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, annualSummary, burnExplainer, departments = [], bySegment }: AnnualSummaryTabProps) => {
+export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, annualSummary, burnExplainer, departments = [], bySegment, reportGranularity, setReportGranularity, trendSeries }: AnnualSummaryTabProps) => {
   return (
     <>
           <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -355,25 +365,63 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
             {annualSummary.totals.burn > 0 && (
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Month-by-month breakdown</CardTitle>
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <CardTitle className="text-base">
+                      {reportGranularity === 'monthly' ? `Month-by-month breakdown — ${summaryYear}` : GRANULARITY_LABELS[reportGranularity]}
+                    </CardTitle>
+                    <Select value={reportGranularity} onValueChange={(v) => setReportGranularity(v as AnnualSummaryTabProps['reportGranularity'])}>
+                      <SelectTrigger className="h-8 w-[168px] text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Month to month</SelectItem>
+                        <SelectItem value="quarterly">Quarter to quarter</SelectItem>
+                        <SelectItem value="yearly">Year to year</SelectItem>
+                        <SelectItem value="all-time">All-time total</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={annualSummary.byMonth} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                      <ChartGradients />
-                      <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
-                      <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
-                      <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-                      <ChartTooltip
-                        content={<GlassTooltip />}
-                        formatter={(v: number) => formatNaira(v)}
-                        cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
-                      />
-                      <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-                      <Bar dataKey="gross" fill="url(#kd-grad-primary)" name="Gross salary" stackId="a" radius={[0, 0, 0, 0]} {...chartAnim} />
-                      <Bar dataKey="contractors" fill={chartTheme.secondary} name="Contractors" stackId="a" radius={[4, 4, 0, 0]} {...chartAnim} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {reportGranularity === 'monthly' ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={annualSummary.byMonth} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                        <ChartGradients />
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+                        <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
+                        <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
+                        <ChartTooltip
+                          content={<GlassTooltip />}
+                          formatter={(v: number) => formatNaira(v)}
+                          cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
+                        />
+                        <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                        <Bar dataKey="gross" fill="url(#kd-grad-primary)" name="Gross salary" stackId="a" radius={[0, 0, 0, 0]} {...chartAnim} />
+                        <Bar dataKey="contractors" fill={chartTheme.secondary} name="Contractors" stackId="a" radius={[4, 4, 0, 0]} {...chartAnim} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : trendSeries.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-8 text-center">No non-draft runs yet.</p>
+                  ) : reportGranularity === 'all-time' ? (
+                    <div className="flex flex-col items-center justify-center py-10">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Total burn, all time</p>
+                      <p className="text-4xl font-extrabold currency mt-2">{formatNaira(trendSeries[0].burn)}</p>
+                      <p className="text-xs text-muted-foreground mt-2">Across every non-draft payroll run on record</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={trendSeries} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                        <ChartGradients />
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+                        <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
+                        <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
+                        <ChartTooltip
+                          content={<GlassTooltip />}
+                          formatter={(v: number) => formatNaira(v)}
+                          cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
+                        />
+                        <Bar dataKey="burn" fill="url(#kd-grad-primary)" name="Total burn" radius={[4, 4, 0, 0]} {...chartAnim} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </CardContent>
               </Card>
             )}
