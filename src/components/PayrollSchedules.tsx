@@ -830,7 +830,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
                     </div>
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Monthly cost</p>
-                      <p className="text-sm font-semibold tabular-nums mt-1">{formatNaira(memberCosts[g.id] ?? 0)}</p>
+                      <p className="kd-display text-base font-extrabold tabular-nums mt-1">{formatNaira(memberCosts[g.id] ?? 0)}</p>
                     </div>
                   </div>
                 </CardContent>
