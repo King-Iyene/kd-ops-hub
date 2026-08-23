@@ -12,10 +12,18 @@
 //   expected modules → blank screen.
 //
 // What this version does:
-//   - skipWaiting + clientsClaim on install/activate so a new deploy
-//     replaces the old SW immediately. No more stale chunks.
+//   - Waits in the normal "installed" state instead of self-skip-waiting —
+//     PwaUpdatePrompt.tsx (registerType "prompt") shows a visible "reload
+//     to update" banner and only sends SKIP_WAITING once someone actually
+//     clicks it, rather than yanking the bundle out from under an open tab
+//     with zero warning. A worker that's never explicitly activated still
+//     takes over automatically once every tab holding the old one closes —
+//     nothing is stuck forever just because a banner got dismissed.
+//   - clientsClaim() on activate so once a new worker DOES take over, it
+//     controls every open tab immediately rather than only new ones.
 //   - Wipes EVERY workbox/runtime cache from old SW versions on activate.
-//     This unblocks anyone stuck on the broken navigation-fallback build.
+//     This unblocks anyone stuck on the old broken navigation-fallback build
+//     (see below) that self-skip-waited and cached index.html.
 //   - Push event handler — shows the OS notification.
 //   - notificationclick handler — focuses or opens the app.
 //   - Empty fetch handler — required so the SW counts as "installable"
@@ -29,8 +37,12 @@ declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST?: unknown };
 // global so the build doesn't fail.
 void self.__WB_MANIFEST;
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting());
+// No self.skipWaiting() here — a freshly installed worker waits until
+// PwaUpdatePrompt.tsx's "Reload" button posts SKIP_WAITING (see the
+// message listener below), or until every tab holding the old worker
+// closes on its own.
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {

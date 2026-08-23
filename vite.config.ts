@@ -16,16 +16,21 @@ export default defineConfig(({ mode }) => ({
     react(),
     // Progressive Web App — installs to home screen on iOS/Android,
     // works offline for cached pages, supports push notifications later.
-    // generateSW with autoUpdate keeps installed users on the latest
-    // shipped bundle without manual user action.
+    // registerType "prompt" (not "autoUpdate") + injectRegister false:
+    // src/components/PwaUpdatePrompt.tsx registers the SW itself via
+    // useRegisterSW and shows a visible "reload to update" banner instead
+    // of silently swapping bundles under an open tab — a stale service
+    // worker serving an old build with zero user-visible signal was a real
+    // support issue (a deployed change looked "not built" for anyone whose
+    // tab had been open since before the deploy).
     VitePWA({
       // injectManifest lets us use a custom src/sw.ts that adds push +
       // notificationclick handlers on top of workbox's precaching.
       strategies: "injectManifest",
       srcDir: "src",
       filename: "sw.ts",
-      registerType: "autoUpdate",
-      injectRegister: "auto",
+      registerType: "prompt",
+      injectRegister: false,
       includeAssets: ["favicon.ico", "robots.txt"],
       manifest: {
         name: "KD Ops",

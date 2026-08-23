@@ -48,11 +48,12 @@
     <meta name="twitter:description" content="Payroll, payments, fleet, expenses, compliance, and HR for Nigerian businesses." />
     <meta name="twitter:image" content="https://ops.kdsquares.com/icon-512.png" />
 
-    <!-- PWA — installable on iOS/Android/desktop. The manifest link and the
-         /registerSW.js script tag are both injected at build time by
-         vite-plugin-pwa; the meta tags below are what iOS Safari needs to
-         honour the home-screen install (it ignores the manifest icons and
-         uses apple-touch-icon instead). -->
+    <!-- PWA — installable on iOS/Android/desktop. The manifest link is
+         injected at build time by vite-plugin-pwa; the service worker is
+         registered manually by src/components/PwaUpdatePrompt.tsx (not
+         auto-injected — see that file for why). The meta tags below are
+         what iOS Safari needs to honour the home-screen install (it
+         ignores the manifest icons and uses apple-touch-icon instead). -->
     <meta name="theme-color" content="#006994" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
