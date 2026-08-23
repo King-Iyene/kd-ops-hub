@@ -190,7 +190,7 @@ const Payroll = () => {
   const { data: segmentDepartments = [] } = useDepartments();
   const { data: companySettings } = useCompanySettings();
   const [segmentSaving, setSegmentSaving] = useState(false);
-  const [segmentPayGroups, setSegmentPayGroups] = useState<{ id: string; name: string }[]>([]);
+  const [segmentPayGroups, setSegmentPayGroups] = useState<{ id: string; name: string; frequency: string | null; memberCount: number }[]>([]);
   const [segmentForm, setSegmentForm] = useState<{
     name: string;
     description: string;
@@ -207,8 +207,23 @@ const Payroll = () => {
 
   useEffect(() => {
     loadSegments();
-    supabase.from('pay_groups').select('id, name').order('name').then(({ data }) => {
-      setSegmentPayGroups((data as { id: string; name: string }[]) || []);
+    // Frequency + member count feed the wizard's "who gets paid" pay-group
+    // cards (cadence + headcount at a glance) — a plain name list left every
+    // card looking identical, so picking one was a guess.
+    Promise.all([
+      supabase.from('pay_groups').select('id, name, pay_schedule:pay_schedules(frequency)').order('name'),
+      supabase.from('profiles').select('pay_group_id').eq('status', 'active').not('pay_group_id', 'is', null),
+    ]).then(([groupsRes, membersRes]) => {
+      const counts: Record<string, number> = {};
+      (membersRes.data ?? []).forEach((r: any) => {
+        counts[r.pay_group_id] = (counts[r.pay_group_id] ?? 0) + 1;
+      });
+      setSegmentPayGroups(((groupsRes.data ?? []) as any[]).map((g) => ({
+        id: g.id,
+        name: g.name,
+        frequency: g.pay_schedule?.frequency ?? null,
+        memberCount: counts[g.id] ?? 0,
+      })));
     }).catch(() => { /* pay groups are optional for the segment builder */ });
   }, [loadSegments]);
 
@@ -415,10 +430,10 @@ const Payroll = () => {
   // allowances. editDraft() below hydrates the form from the existing row
   // first so a re-save reproduces what was there, not an empty overwrite.
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
-  // Wizard step for the Draft dialog: 0 Who gets paid, 1 Period & schedule,
-  // 2 Bonuses & adjustments, 3 Review & submit. draftRun() computes real
-  // figures and lands on step 3 instead of closing the dialog, so creating
-  // a run ends on a restated-totals review rather than a blind save.
+  // Wizard step for the Draft dialog: 0 Pay group & period, 1 Bonuses &
+  // adjustments, 2 Review & submit. draftRun() computes real figures and
+  // lands on step 2 instead of closing the dialog, so creating a run ends
+  // on a restated-totals review rather than a blind save.
   const [draftStep, setDraftStep] = useState(0);
   const [computedPreview, setComputedPreview] = useState<{
     empCount: number; totalEmployee: number; bonusTotal: number; totalAllowances: number;
@@ -675,7 +690,7 @@ const Payroll = () => {
         totalDeductions, totalAdvanceRepayments, totalContractor, totalExpenses, burn,
       });
       setEditingDraftId((savedRow as PayrollRun)?.id || null);
-      setDraftStep(3);
+      setDraftStep(2);
       load();
     } catch (err: unknown) {
       toast({

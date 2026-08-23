@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ChevronDown, Users, UserX } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Badge } from '@/components/ui/badge';
@@ -155,10 +156,22 @@ export function PayrollRosterPreview({
                     <span className="text-foreground">
                       {empName(e)}
                       {!e.bank_account_number && (
-                        <span className="ml-1.5 text-amber-600 dark:text-amber-400" title="No bank account on file">⚠</span>
+                        <span className="ml-1.5 text-amber-600 dark:text-amber-400" title="No bank account on file">⚠ Missing bank account</span>
                       )}
                     </span>
-                    <span className="text-muted-foreground tabular-nums shrink-0">{formatNaira(e.salary_ngn)}</span>
+                    <span className="flex items-center gap-2 shrink-0">
+                      {!e.bank_account_number && (
+                        <Link
+                          to={`/employees/${e.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-primary hover:underline"
+                        >
+                          Fix now
+                        </Link>
+                      )}
+                      <span className="text-muted-foreground tabular-nums">{formatNaira(e.salary_ngn)}</span>
+                    </span>
                   </li>
                 ))}
             </ul>
