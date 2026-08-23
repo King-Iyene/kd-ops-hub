@@ -711,6 +711,18 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
         </Button>
       </div>
 
+      <div className="flex gap-3 rounded-lg border border-dashed border-border bg-muted/30 p-4">
+        <Info className="h-4 w-4 mt-0.5 shrink-0 text-accent" />
+        <div className="text-xs text-muted-foreground leading-relaxed">
+          <span className="font-semibold text-foreground">What's a pay group? </span>
+          It's simply <span className="font-medium text-foreground">"who gets paid together, the same way."</span> Every
+          payroll run belongs to one pay group — that's what decides who's included, on what cadence, and which deductions
+          apply. Most companies need more than one: salaried employees (PAYE, Pension, NHF, NSITF, ITF all apply) are a
+          different group from contractors (only withholding tax applies), since mixing them into one run would apply the
+          wrong deductions to the wrong people.
+        </div>
+      </div>
+
       {loading ? (
         <TableSkeleton rows={3} cols={4} />
       ) : groups.length === 0 ? (

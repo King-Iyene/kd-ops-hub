@@ -29,6 +29,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
+import { PayrollLifecycleRail } from '@/components/payroll/PayrollLifecycleRail';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -109,19 +110,6 @@ interface PayrollRunsTabProps {
   segments: { id: string; name: string }[];
 }
 
-// Stage rail shown in the drawer — the same four checkpoints every run
-// passes through, rendered as a real progress bar instead of a row of
-// dots, so "how far along is this" reads at a glance.
-const RUN_STEPS = ['Draft', 'Review', 'Approve', 'Paid'] as const;
-
-function runStepIndex(status: string): number {
-  if (status === 'draft') return 0;
-  if (status === 'pending_approval') return 1;
-  if (status === 'approved' || status === 'processing') return 2;
-  if (status === 'paid') return 3;
-  return -1; // rejected/cancelled/unknown — no stepper, badge alone is enough
-}
-
 // An Autopilot-created shell: pay_schedules' cron drops a ₦0 draft on the
 // cutoff date automatically, but never computes real figures on its own
 // (schedule_auto_draft() deliberately stops short of that — see its
@@ -168,37 +156,6 @@ const STATUS_ACCENT: Record<string, string> = {
   paid: 'bg-blue-500',
 };
 
-/** Real progress bar for the drawer header — a filled track, not four dots. */
-function StageRail({ status }: { status: string }) {
-  const current = runStepIndex(status);
-  if (current < 0) return null;
-  const pct = (current / (RUN_STEPS.length - 1)) * 100;
-  return (
-    <div>
-      <div className="relative h-1.5 w-full rounded-full bg-muted overflow-hidden">
-        <div
-          className={cn('absolute inset-y-0 left-0 rounded-full bg-primary kd-transition', status === 'processing' && 'animate-pulse')}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <div className="mt-2 flex justify-between">
-        {RUN_STEPS.map((label, i) => (
-          <div key={label} className="flex flex-col items-center gap-1" style={{ width: `${100 / RUN_STEPS.length}%` }}>
-            <span
-              className={cn(
-                'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold kd-transition',
-                i < current ? 'bg-success text-success-foreground' : i === current ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
-              )}
-            >
-              {i < current ? <Check className="h-3 w-3" /> : i + 1}
-            </span>
-            <span className={cn('text-[10px] font-medium', i <= current ? 'text-foreground' : 'text-muted-foreground')}>{label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export const PayrollRunsTab = ({
   runs,
@@ -568,7 +525,7 @@ function RunDetailDrawer({
             <SheetTitle>{monthLabel(r.period, r.period_type)}</SheetTitle>
             <StatusBadge status={r.status} />
           </div>
-          <StageRail status={r.status} />
+          <PayrollLifecycleRail status={r.status} />
           <p className="text-xs text-muted-foreground">
             {nextActionCopy(r, canApprovePerm, canDisburse, selfBlocked)}
           </p>
