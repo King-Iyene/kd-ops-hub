@@ -310,10 +310,14 @@ function ActivityRow({
         <div className="flex items-center gap-1.5 flex-wrap">
           {profile ? (
             <div className="flex items-center gap-1.5">
-              <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <span className="text-[7px] font-bold leading-none">
-                  {getInitials(profile.full_name)}
-                </span>
+              <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 overflow-hidden">
+                {profile.photo_url ? (
+                  <img src={profile.photo_url} alt={profile.full_name} className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-[7px] font-bold leading-none">
+                    {getInitials(profile.full_name)}
+                  </span>
+                )}
               </div>
               <span className="text-xs font-medium text-foreground">{profile.full_name}</span>
             </div>

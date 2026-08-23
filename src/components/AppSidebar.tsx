@@ -361,8 +361,12 @@ export function AppSidebar() {
           {profile && (
             <div className="flex items-center gap-2.5 px-2.5 py-2 mt-1 rounded-xl bg-white/[0.06] border border-white/[0.06]">
               <div className="relative shrink-0">
-                <div className="h-7 w-7 rounded-lg kd-gradient-brand flex items-center justify-center text-[11px] font-bold text-white ring-1 ring-white/10">
-                  {getInitials(profile.full_name ?? profile.email ?? 'U')}
+                <div className="h-7 w-7 rounded-lg kd-gradient-brand flex items-center justify-center text-[11px] font-bold text-white ring-1 ring-white/10 overflow-hidden">
+                  {profile.photo_url ? (
+                    <img src={profile.photo_url} alt={profile.full_name ?? 'User'} className="h-full w-full object-cover" />
+                  ) : (
+                    getInitials(profile.full_name ?? profile.email ?? 'U')
+                  )}
                 </div>
                 <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-[1.5px] ring-sidebar-background" />
               </div>
@@ -580,8 +584,12 @@ export function AppSidebar() {
         {!sidebarCollapsed && profile && (
           <div className="flex items-center gap-2.5 px-2.5 py-2 mt-1 rounded-xl bg-white/[0.06] border border-white/[0.06]">
             <div className="relative shrink-0">
-              <div className="h-7 w-7 rounded-lg kd-gradient-brand flex items-center justify-center text-[11px] font-bold text-white ring-1 ring-white/10">
-                {getInitials(profile.full_name ?? profile.email ?? 'U')}
+              <div className="h-7 w-7 rounded-lg kd-gradient-brand flex items-center justify-center text-[11px] font-bold text-white ring-1 ring-white/10 overflow-hidden">
+                {profile.photo_url ? (
+                  <img src={profile.photo_url} alt={profile.full_name ?? 'User'} className="h-full w-full object-cover" />
+                ) : (
+                  getInitials(profile.full_name ?? profile.email ?? 'U')
+                )}
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-[1.5px] ring-sidebar-background" />
             </div>

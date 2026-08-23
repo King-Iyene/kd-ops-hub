@@ -93,6 +93,7 @@ export interface ProfileRow {
   id: string;
   full_name: string;
   email: string;
+  photo_url?: string | null;
 }
 
 export interface Tag {

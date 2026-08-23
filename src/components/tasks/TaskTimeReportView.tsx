@@ -274,6 +274,7 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
   type PersonBreakdown = {
     userId: string;
     name: string;
+    photoUrl: string | null;
     totalMinutes: number;
     taskCount: number;
   };
@@ -300,6 +301,7 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
       result.push({
         userId,
         name: profile?.full_name ?? 'Unknown',
+        photoUrl: profile?.photo_url ?? null,
         totalMinutes: data.totalMinutes,
         taskCount: data.taskIds.size,
       });
@@ -542,10 +544,14 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
                                   </td>
                                   <td className="py-2 pr-3">
                                     <div className="flex items-center gap-1.5">
-                                      <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                                        <span className="text-[7px] font-bold leading-none">
-                                          {getInitials(profile?.full_name ?? '?')}
-                                        </span>
+                                      <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 overflow-hidden">
+                                        {profile?.photo_url ? (
+                                          <img src={profile.photo_url} alt={profile?.full_name ?? ''} className="h-full w-full object-cover" />
+                                        ) : (
+                                          <span className="text-[7px] font-bold leading-none">
+                                            {getInitials(profile?.full_name ?? '?')}
+                                          </span>
+                                        )}
                                       </div>
                                       <span className="truncate max-w-[120px]">
                                         {profile?.full_name ?? 'Unknown'}
@@ -623,10 +629,14 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
                     return (
                       <div key={person.userId} className="flex items-center gap-3">
                         <div className="flex items-center gap-2 w-[140px] shrink-0">
-                          <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                            <span className="text-[8px] font-bold leading-none">
-                              {getInitials(person.name)}
-                            </span>
+                          <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 overflow-hidden">
+                            {person.photoUrl ? (
+                              <img src={person.photoUrl} alt={person.name} className="h-full w-full object-cover" />
+                            ) : (
+                              <span className="text-[8px] font-bold leading-none">
+                                {getInitials(person.name)}
+                              </span>
+                            )}
                           </div>
                           <span className="text-xs font-medium truncate">{person.name}</span>
                         </div>

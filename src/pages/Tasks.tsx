@@ -172,7 +172,7 @@ const Tasks = () => {
           .from('tasks')
           .select('id, parent_id, status, assignee_id, completed_at, created_at, due_date, priority, title, sort_order, project_id, list_id, task_type, blocked_reason, start_date, time_estimate_minutes, time_spent_minutes, description, tags, created_by')
           .limit(5000),
-        supabase.from('profiles_directory').select('id, full_name, email, status').eq('is_anonymised', false).in('status', ['active', 'invited']).order('full_name').limit(500),
+        supabase.from('profiles_directory').select('id, full_name, email, photo_url, status').eq('is_anonymised', false).in('status', ['active', 'invited']).order('full_name').limit(500),
         supabase.from('tags').select('id, name, color').or('module.eq.all,module.eq.task').order('name'),
         supabase.from('project_spaces').select('id, name, description, color, owner_id, is_private').is('deleted_at', null).order('sort_order').limit(2000),
         supabase.from('space_folders').select('id, space_id, name, color, sort_order').order('sort_order').limit(5000),

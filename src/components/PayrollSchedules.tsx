@@ -520,7 +520,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
   const [loading, setLoading] = useState(true);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
   const [memberCosts, setMemberCosts] = useState<Record<string, number>>({});
-  const [memberPreview, setMemberPreview] = useState<Record<string, string[]>>({});
+  const [memberPreview, setMemberPreview] = useState<Record<string, { name: string; photo_url: string | null }[]>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<PayGroup | null>(null);
   const [form, setForm] = useState<{
@@ -545,18 +545,18 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
       supabase.from('pay_groups').select('id, name, description, pay_schedule_id, role_filter').order('created_at', { ascending: true }),
       supabase
         .from('profiles')
-        .select('pay_group_id, salary_ngn, status, full_name, email')
+        .select('pay_group_id, salary_ngn, status, full_name, email, photo_url')
         .eq('status', 'active')
         .not('pay_group_id', 'is', null),
     ]);
     setGroups((groupsRes.data as PayGroup[]) ?? []);
     const counts: Record<string, number> = {};
     const costs: Record<string, number> = {};
-    const preview: Record<string, string[]> = {};
+    const preview: Record<string, { name: string; photo_url: string | null }[]> = {};
     (countsRes.data ?? []).forEach((r: any) => {
       counts[r.pay_group_id] = (counts[r.pay_group_id] ?? 0) + 1;
       costs[r.pay_group_id] = (costs[r.pay_group_id] ?? 0) + (r.salary_ngn ?? 0);
-      (preview[r.pay_group_id] ??= []).push(r.full_name || r.email || '?');
+      (preview[r.pay_group_id] ??= []).push({ name: r.full_name || r.email || '?', photo_url: r.photo_url || null });
     });
     setMemberCounts(counts);
     setMemberCosts(costs);
@@ -807,9 +807,13 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
                           {names.slice(0, 4).map((n, idx) => (
                             <span
                               key={idx}
-                              className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-muted text-[9.5px] font-bold text-foreground"
+                              className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-muted text-[9.5px] font-bold text-foreground overflow-hidden"
                             >
-                              {initialsOf(n)}
+                              {n.photo_url ? (
+                                <img src={n.photo_url} alt={n.name} className="h-full w-full object-cover" />
+                              ) : (
+                                initialsOf(n.name)
+                              )}
                             </span>
                           ))}
                           {count > 4 && (

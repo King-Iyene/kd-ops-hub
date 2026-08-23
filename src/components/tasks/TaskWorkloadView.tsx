@@ -52,6 +52,7 @@ function getInitials(name: string): string {
 interface MemberWorkload {
   profileId: string;
   name: string;
+  photoUrl: string | null;
   tasks: Task[];
   totalMinutes: number;
   utilization: number;
@@ -118,6 +119,7 @@ export function TaskWorkloadView({ tasks, profiles, onTaskClick }: TaskWorkloadV
       result.push({
         profileId,
         name,
+        photoUrl: profile?.photo_url ?? null,
         tasks: sorted,
         totalMinutes,
         utilization: Math.round((totalMinutes / WEEKLY_CAPACITY_MINUTES) * 100),
@@ -213,13 +215,17 @@ export function TaskWorkloadView({ tasks, profiles, onTaskClick }: TaskWorkloadV
               >
                 <div
                   className={cn(
-                    'flex items-center justify-center h-8 w-8 rounded-full text-xs font-semibold shrink-0',
+                    'flex items-center justify-center h-8 w-8 rounded-full text-xs font-semibold shrink-0 overflow-hidden',
                     w.profileId === '__unassigned'
                       ? 'bg-muted text-muted-foreground'
                       : 'bg-primary/10 text-primary',
                   )}
                 >
-                  {getInitials(w.name)}
+                  {w.photoUrl ? (
+                    <img src={w.photoUrl} alt={w.name} className="h-full w-full object-cover" />
+                  ) : (
+                    getInitials(w.name)
+                  )}
                 </div>
 
                 <div className="flex-1 min-w-0">
