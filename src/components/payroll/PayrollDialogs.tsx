@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, Plus, Send, AlertCircle, Trash2, X, Clock, Check, ArrowLeft } from 'lucide-react';
+import { Loader2, Plus, Send, AlertCircle, Trash2, X, Clock, Check, ArrowLeft, Users2, LayoutGrid } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import type { PayrollSegment } from '@/lib/payroll-segments';
 import type { PayrollSegmentFilterRules } from '@/lib/payroll-segments';
@@ -55,10 +55,12 @@ interface PayrollRun {
 // share a step because together they're one decision — which month, for
 // which people — not two; splitting them just added a click.
 const DRAFT_STEPS = [
-  { title: 'Set up this run', desc: 'Which month, and who gets paid' },
+  { title: 'Who gets paid', desc: 'Pick a pay group, or run for everyone' },
+  { title: 'Period & schedule', desc: 'Which month this run covers' },
   { title: 'Bonuses & adjustments', desc: 'Anything extra this run' },
   { title: 'Review & submit', desc: 'Confirm the real numbers — PAYE, pension and NHF are already computed' },
 ] as const;
+const LAST_STEP = DRAFT_STEPS.length - 1;
 
 // Standard Nigerian statutory remittance deadlines — shown once, on the
 // review step, so approving a run doesn't quietly create a compliance
@@ -285,7 +287,7 @@ export const PayrollDialogs = ({
           </div>
         }
         footer={
-          draftStep < 2 ? (
+          draftStep < LAST_STEP ? (
             <>
               {draftStep > 0 && (
                 <Button variant="ghost" onClick={() => setDraftStep(draftStep - 1)} className="gap-1.5 mr-auto">
@@ -295,20 +297,20 @@ export const PayrollDialogs = ({
               <Button variant="outline" onClick={() => setDialog(false)}>
                 Cancel
               </Button>
-              {draftStep === 0 ? (
-                <Button onClick={() => setDraftStep(1)} disabled={!form.period}>
-                  Continue
-                </Button>
-              ) : (
+              {draftStep === LAST_STEP - 1 ? (
                 <Button onClick={draftRun} disabled={working}>
                   {working && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Continue to review
+                </Button>
+              ) : (
+                <Button onClick={() => setDraftStep(draftStep + 1)} disabled={draftStep === 1 && !form.period}>
+                  Continue
                 </Button>
               )}
             </>
           ) : (
             <>
-              <Button variant="ghost" onClick={() => setDraftStep(1)} className="gap-1.5 mr-auto">
+              <Button variant="ghost" onClick={() => setDraftStep(LAST_STEP - 1)} className="gap-1.5 mr-auto">
                 <ArrowLeft className="h-3.5 w-3.5" /> Back to adjustments
               </Button>
               <Button variant="outline" onClick={finishDraftReview}>
@@ -362,51 +364,40 @@ export const PayrollDialogs = ({
                 : '';
               return (
                 <>
-                  <p className="text-xs text-muted-foreground -mt-2">Which month this run covers, and who it pays.</p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label>Period</Label>
-                      <Input
-                        type="month"
-                        value={form.period}
-                        onChange={(e) => setForm({ ...form, period: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Period type</Label>
-                      <Select
-                        value={form.period_type}
-                        onValueChange={(v) => setForm({ ...form, period_type: v as any })}
-                      >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="monthly">Monthly</SelectItem>
-                          <SelectItem value="quarterly">Quarterly</SelectItem>
-                          <SelectItem value="annual">Annual</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                  <p className="text-xs text-muted-foreground -mt-2">Who this run pays — pick one Pay Group, or leave it at everyone.</p>
 
                   {segmentPayGroups.length > 0 && (
-                    <div className="space-y-1">
-                      <Label className="flex items-center gap-1.5">
-                        Pay group
-                        <InfoHint>Run payroll for just one Pay Group — e.g. Field Staff paid weekly, separate from Office Staff paid monthly. Set up Pay Groups in Payroll → Setup → Pay Groups.</InfoHint>
-                      </Label>
-                      <Select
-                        value={currentPayGroupId || '__all__'}
-                        onValueChange={(v) => selectPayGroupQuickFilter(v === '__all__' ? '' : v)}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => selectPayGroupQuickFilter('')}
+                        className={cn(
+                          'flex flex-col items-start gap-1.5 rounded-lg border px-3 py-2.5 text-left kd-transition',
+                          !currentPayGroupId ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border/60 hover:border-primary/40 hover:bg-muted/30',
+                        )}
                       >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__all__">All Pay Groups</SelectItem>
-                          {segmentPayGroups.map((g) => (
-                            <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        <LayoutGrid className={cn('h-4 w-4', !currentPayGroupId ? 'text-primary' : 'text-muted-foreground')} />
+                        <span className="text-sm font-medium leading-tight">All Pay Groups</span>
+                        <span className="text-[11px] text-muted-foreground">Everyone active</span>
+                      </button>
+                      {segmentPayGroups.map((g) => {
+                        const selected = currentPayGroupId === g.id;
+                        return (
+                          <button
+                            key={g.id}
+                            type="button"
+                            onClick={() => selectPayGroupQuickFilter(g.id)}
+                            className={cn(
+                              'flex flex-col items-start gap-1.5 rounded-lg border px-3 py-2.5 text-left kd-transition',
+                              selected ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border/60 hover:border-primary/40 hover:bg-muted/30',
+                            )}
+                          >
+                            <Users2 className={cn('h-4 w-4', selected ? 'text-primary' : 'text-muted-foreground')} />
+                            <span className="text-sm font-medium leading-tight truncate w-full">{g.name}</span>
+                            <span className="text-[11px] text-muted-foreground">Pay group</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -445,6 +436,36 @@ export const PayrollDialogs = ({
             })()}
 
             {draftStep === 1 && (
+              <>
+                <p className="text-xs text-muted-foreground -mt-2">Which month this run covers.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>Period</Label>
+                    <Input
+                      type="month"
+                      value={form.period}
+                      onChange={(e) => setForm({ ...form, period: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Period type</Label>
+                    <Select
+                      value={form.period_type}
+                      onValueChange={(v) => setForm({ ...form, period_type: v as any })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                        <SelectItem value="annual">Annual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {draftStep === 2 && (
               <>
                 <p className="text-xs text-muted-foreground -mt-2">Anything on top of base salary this run — bonuses, or blanket allowances.</p>
                 <div className="space-y-2">
@@ -520,7 +541,7 @@ export const PayrollDialogs = ({
               </>
             )}
 
-            {draftStep === 2 && computedPreview && (
+            {draftStep === 3 && computedPreview && (
               <>
                 <p className="text-xs text-muted-foreground -mt-2">
                   This is what's saved. Submitting sends these exact numbers to an approver — to change anything after that, the run has to be recalled first.

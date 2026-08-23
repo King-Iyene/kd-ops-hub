@@ -675,7 +675,7 @@ const Payroll = () => {
         totalDeductions, totalAdvanceRepayments, totalContractor, totalExpenses, burn,
       });
       setEditingDraftId((savedRow as PayrollRun)?.id || null);
-      setDraftStep(2);
+      setDraftStep(3);
       load();
     } catch (err: unknown) {
       toast({
