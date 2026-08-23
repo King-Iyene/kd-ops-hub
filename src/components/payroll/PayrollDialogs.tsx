@@ -1,5 +1,5 @@
-import React from 'react';
-import { Loader2, Plus, Send, AlertCircle, Trash2, X, Clock, Check, ArrowLeft, Users2, LayoutGrid } from 'lucide-react';
+import React, { useState } from 'react';
+import { Loader2, Plus, Send, AlertCircle, Trash2, X, Clock, Check, ArrowLeft, Users2, LayoutGrid, ChevronDown } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import type { PayrollSegment } from '@/lib/payroll-segments';
 import type { PayrollSegmentFilterRules } from '@/lib/payroll-segments';
@@ -288,6 +288,13 @@ export const PayrollDialogs = ({
   submitAnyway,
   monthLabel,
 }: PayrollDialogsProps) => {
+  // Closed by default — picking a Pay Group card already sets this same
+  // payroll_segment_id under the hood, so showing the full Custom segment
+  // control at all times made it look redundant. Opens itself when the
+  // current segment is something a Pay Group card alone couldn't have set
+  // (a real custom filter), so it's never hiding an active selection.
+  const [advancedSegmentOpen, setAdvancedSegmentOpen] = useState(false);
+
   return (
     <>
       <ResponsiveDialog
@@ -456,34 +463,58 @@ export const PayrollDialogs = ({
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <Label className="flex items-center gap-1.5">
-                        Custom segment
-                        <InfoHint>For filters a single Pay Group can't express — e.g. exclude directors, or combine a department with a category. Leave as "All employees" for the default, unfiltered run.</InfoHint>
-                      </Label>
-                      <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSegmentDialog(true)}>
-                        Manage
-                      </Button>
-                    </div>
-                    <Select
-                      value={form.payroll_segment_id || '__all__'}
-                      onValueChange={(v) => setForm({ ...form, payroll_segment_id: v === '__all__' ? '' : v })}
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__all__">All employees (no filter)</SelectItem>
-                        {segments.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {form.payroll_segment_id && (
-                      <p className="text-xs text-muted-foreground">
-                        {currentSegment?.description || 'Only employees matching this segment will be included.'}
-                      </p>
-                    )}
-                  </div>
+                  {(() => {
+                    // A Pay Group card already sets this same payroll_segment_id
+                    // (via a single-pay-group segment created behind the
+                    // scenes), so a segment that isn't one of those is a real
+                    // custom filter — keep the section open so it's never
+                    // hiding an active, non-obvious selection.
+                    const isRealCustomSegment = !!form.payroll_segment_id && !currentPayGroupId;
+                    const open = advancedSegmentOpen || isRealCustomSegment;
+                    return (
+                      <div className="rounded-lg border border-dashed border-border bg-muted/20 px-3.5 py-3">
+                        <button
+                          type="button"
+                          onClick={() => setAdvancedSegmentOpen((o) => !o)}
+                          className="flex w-full items-center justify-between gap-2 text-left"
+                        >
+                          <span className="flex items-center gap-1.5 text-xs font-semibold">
+                            Need a more specific mix of people?
+                            <InfoHint>For filters a single Pay Group can't express — e.g. exclude directors, or combine a department with a category.</InfoHint>
+                          </span>
+                          <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground kd-transition', open && 'rotate-180')} />
+                        </button>
+
+                        {open && (
+                          <div className="space-y-1 mt-3 pt-3 border-t border-border/60">
+                            <div className="flex items-center justify-between">
+                              <Label>Custom segment</Label>
+                              <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSegmentDialog(true)}>
+                                Manage
+                              </Button>
+                            </div>
+                            <Select
+                              value={form.payroll_segment_id || '__all__'}
+                              onValueChange={(v) => setForm({ ...form, payroll_segment_id: v === '__all__' ? '' : v })}
+                            >
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__all__">All employees (no filter)</SelectItem>
+                                {segments.map((s) => (
+                                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {form.payroll_segment_id && (
+                              <p className="text-xs text-muted-foreground">
+                                {currentSegment?.description || 'Only employees matching this segment will be included.'}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   <div className="space-y-1">
                     <Label>Who gets paid <span className="font-normal text-muted-foreground">— everyone matching is included by default</span></Label>
