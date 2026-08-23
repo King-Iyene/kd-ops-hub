@@ -708,11 +708,31 @@ const Payroll = () => {
   // that would corrupt the audit trail. The frontend hides the button
   // for those statuses, but the RLS on payroll_runs is the actual gate.
   const recallToDraft = async (run: PayrollRun) => {
-    if (run.status !== 'pending_approval') return;
+    if (run.status !== 'pending_approval' && run.status !== 'approved') return;
+    if (run.status === 'approved' && run.scheduled_disburse_at) {
+      toast({ title: 'Cancel the scheduled disbursement first', description: 'A run scheduled to auto-disburse can\'t be recalled until the schedule is cancelled.', variant: 'destructive' });
+      return;
+    }
+    const isApproved = run.status === 'approved';
     if (!(await confirm({
       title: 'Recall to draft?',
-      description: `Recall "${run.period}" back to draft? You'll need to resubmit for approval after editing.`,
+      description: isApproved
+        ? `Recall "${run.period}" back to draft? Its generated payslips will be removed — they'll be regenerated when it's re-approved. You'll need to resubmit for approval after editing.`
+        : `Recall "${run.period}" back to draft? You'll need to resubmit for approval after editing.`,
+      variant: isApproved ? 'destructive' : undefined,
     }))) return;
+    // An approved run's payslips were generated against the numbers as they
+    // stood at approval time — leaving them in place after recalling would
+    // let someone view/print stale payslips for a run that's no longer
+    // actually approved. They're regenerated (idempotent upsert) the next
+    // time this run is approved.
+    if (isApproved) {
+      const { error: delErr } = await supabase.from('payslips').delete().eq('payroll_run_id', run.id);
+      if (delErr) {
+        toast({ title: 'Recall failed', description: `Could not clear generated payslips: ${delErr.message}`, variant: 'destructive' });
+        return;
+      }
+    }
     const { error } = await supabase
       .from('payroll_runs')
       .update({ status: 'draft' })
@@ -721,7 +741,7 @@ const Payroll = () => {
       toast({ title: 'Recall failed', description: error.message, variant: 'destructive' });
       return;
     }
-    await logAudit('payroll_run_recalled', `Payroll run ${run.period} recalled to draft`, profile);
+    await logAudit('payroll_run_recalled', `Payroll run ${run.period} recalled to draft${isApproved ? ' (from approved)' : ''}`, profile);
     toast({ title: 'Run recalled to draft' });
     await load();
   };
@@ -1620,6 +1640,35 @@ const Payroll = () => {
     }
   };
 
+  // "Pay now" while a run is scheduled — cancels the pending schedule first
+  // so the cron can't ALSO fire it later (which would attempt a second
+  // disbursement), then opens the normal disburse-now confirmation.
+  const payNowOverridingSchedule = async (run: PayrollRun) => {
+    if (run.scheduled_disburse_at) {
+      const { error } = await supabase.rpc('cancel_scheduled_payroll_disbursement', { p_run_id: run.id });
+      if (error) {
+        toast({ title: 'Could not cancel the existing schedule', description: error.message, variant: 'destructive' });
+        return;
+      }
+    }
+    await openDisburse(run);
+  };
+
+  // Re-opens the disburse dialog straight into schedule-editing mode with
+  // the run's current scheduled time pre-filled, instead of making someone
+  // cancel and re-create the schedule from scratch just to nudge the time.
+  const openEditSchedule = async (run: PayrollRun) => {
+    await openDisburse(run);
+    setScheduleMode(true);
+    if (run.scheduled_disburse_at) {
+      // datetime-local inputs want "YYYY-MM-DDTHH:mm" in LOCAL time, not the
+      // UTC-suffixed ISO string the column stores.
+      const d = new Date(run.scheduled_disburse_at);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      setScheduleAt(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    }
+  };
+
   // Disbursement runs server-side via the payroll-disburse edge function —
   // the SAME code path the scheduled-disbursement cron uses. This used to
   // be ~300 lines of client-side batch/item creation that inserted
@@ -1959,6 +2008,8 @@ const Payroll = () => {
             generatePayslips={generatePayslips}
             openDisburse={openDisburse}
             doCancelSchedule={doCancelSchedule}
+            payNowOverridingSchedule={payNowOverridingSchedule}
+            openEditSchedule={openEditSchedule}
             setConfirmPaidRun={setConfirmPaidRun}
             openAdjustments={openAdjustments}
             exportRun={exportRun}

@@ -19,6 +19,9 @@ import {
   Sparkles,
   ArrowRight,
   CalendarClock,
+  Pencil,
+  Landmark,
+  History,
 } from 'lucide-react';
 import {
   BarChart,
@@ -31,6 +34,7 @@ import {
 } from 'recharts';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
 import { PayrollLifecycleRail, realStepIndex } from '@/components/payroll/PayrollLifecycleRail';
+import { PayrollRosterPreview } from '@/components/payroll/PayrollRosterPreview';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -101,6 +105,8 @@ interface PayrollRunsTabProps {
   generatePayslips: (run: PayrollRun) => void;
   openDisburse: (run: PayrollRun) => void;
   doCancelSchedule: (run: PayrollRun) => void;
+  payNowOverridingSchedule: (run: PayrollRun) => void;
+  openEditSchedule: (run: PayrollRun) => void;
   setConfirmPaidRun: (run: PayrollRun | null) => void;
   openAdjustments: (run: PayrollRun) => void;
   exportRun: (run: PayrollRun) => void;
@@ -310,12 +316,14 @@ export const PayrollRunsTab = ({
 
       {/* Upcoming — the next monthly period nobody has drafted yet, named
           before it becomes a problem instead of silently waiting for
-          Autopilot's cutoff-date cron. */}
+          Autopilot's cutoff-date cron. Expandable to preview who's actually
+          in that pay group before committing to a draft. */}
       {latest && latest.period_type !== 'quarterly' && latest.period_type !== 'annual' && (() => {
         const nextPeriod = nextMonthlyPeriod(latest.period);
         if (!nextPeriod || runs.some((r) => r.period === nextPeriod)) return null;
         return (
-          <div className="flex items-center gap-3 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-4 py-3">
+          <div className="rounded-lg border border-dashed border-primary/40 bg-primary/5 px-4 py-3 space-y-2.5">
+          <div className="flex items-center gap-3">
             <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">{monthLabel(nextPeriod)} Payroll</p>
@@ -324,6 +332,11 @@ export const PayrollRunsTab = ({
             <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => setDialog(true)}>
               <CalendarClock className="h-3.5 w-3.5" /> Start draft
             </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground pl-5">Same roster as {monthLabel(latest.period, latest.period_type)} unless changed when drafted:</p>
+          <div className="pl-5">
+            <PayrollRosterPreview payrollSegmentId={latest.payroll_segment_id} />
+          </div>
           </div>
         );
       })()}
@@ -558,6 +571,8 @@ export const PayrollRunsTab = ({
         generatePayslips={generatePayslips}
         openDisburse={openDisburse}
         doCancelSchedule={doCancelSchedule}
+        payNowOverridingSchedule={payNowOverridingSchedule}
+        openEditSchedule={openEditSchedule}
         setConfirmPaidRun={setConfirmPaidRun}
         openAdjustments={openAdjustments}
         exportRun={exportRun}
@@ -587,6 +602,8 @@ function RunDetailDrawer({
   generatePayslips,
   openDisburse,
   doCancelSchedule,
+  payNowOverridingSchedule,
+  openEditSchedule,
   setConfirmPaidRun,
   openAdjustments,
   exportRun,
@@ -611,6 +628,8 @@ function RunDetailDrawer({
   generatePayslips: (run: PayrollRun) => void;
   openDisburse: (run: PayrollRun) => void;
   doCancelSchedule: (run: PayrollRun) => void;
+  payNowOverridingSchedule: (run: PayrollRun) => void;
+  openEditSchedule: (run: PayrollRun) => void;
   setConfirmPaidRun: (run: PayrollRun | null) => void;
   openAdjustments: (run: PayrollRun) => void;
   exportRun: (run: PayrollRun) => void;
@@ -682,6 +701,45 @@ function RunDetailDrawer({
               Employer cost on top of gross (employer pension): {formatNaira(r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE))}
             </p>
           </div>
+
+          {(r.status === 'approved' || r.status === 'processing' || r.status === 'paid') && (
+            <div>
+              <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                <Landmark className="h-3 w-3" /> Statutory deadlines once paid
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 rounded-md border border-border/60 bg-muted/20 px-3 py-2.5">
+                {[
+                  { label: 'PAYE', due: '10th of next month', authority: 'FIRS / State IRS' },
+                  { label: 'Pension', due: '7 working days of payday', authority: 'PFA / PenCom' },
+                  { label: 'NHF', due: '7 days of month end', authority: 'Federal Mortgage Bank' },
+                ].map((d) => (
+                  <div key={d.label} className="text-xs">
+                    <p className="font-semibold text-foreground">{d.label}</p>
+                    <p className="text-muted-foreground">{d.due}</p>
+                    <p className="text-muted-foreground/70">{d.authority}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
+              <History className="h-3 w-3" /> Activity
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Created</span>
+                <span className="tabular-nums">{new Date(r.created_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+              </div>
+              {(r.status === 'approved' || r.status === 'processing' || r.status === 'paid') && r.approved_by && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Approved</span>
+                  <span className="text-foreground">Yes</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Sticky action bar — one clear primary action for the run's
@@ -715,10 +773,19 @@ function RunDetailDrawer({
                 Disburse salaries
               </Button>
             )}
-            {r.status === 'approved' && r.scheduled_disburse_at && (
-              <Button variant="outline" className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => doCancelSchedule(r)}>
-                <X className="h-3.5 w-3.5" /> Cancel schedule
-              </Button>
+            {r.status === 'approved' && canDisburse && r.scheduled_disburse_at && (
+              <>
+                <Button className="gap-1.5" onClick={() => payNowOverridingSchedule(r)} disabled={working}>
+                  {working ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  Pay now
+                </Button>
+                <Button variant="outline" size="icon" className="shrink-0" aria-label="Edit scheduled time" onClick={() => openEditSchedule(r)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="outline" size="icon" className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10" aria-label="Cancel schedule" onClick={() => doCancelSchedule(r)}>
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </>
             )}
             {r.status === 'approved' && canGeneratePayslipsPerm && (
               <Button variant="outline" className="gap-1.5" onClick={() => generatePayslips(r)} disabled={working}>
@@ -748,6 +815,9 @@ function RunDetailDrawer({
                 <DropdownMenuItem onClick={() => editDraft(r)}>Edit draft</DropdownMenuItem>
               )}
               {r.status === 'pending_approval' && canApprovePerm && (
+                <DropdownMenuItem onClick={() => recallToDraft(r)}>Recall to draft</DropdownMenuItem>
+              )}
+              {r.status === 'approved' && canApprovePerm && !r.scheduled_disburse_at && (
                 <DropdownMenuItem onClick={() => recallToDraft(r)}>Recall to draft</DropdownMenuItem>
               )}
               {r.status === 'approved' && (
