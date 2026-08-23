@@ -53,14 +53,27 @@ jobs:
 
     steps:
       - name: Dump database
+        env:
+          # Passed as env vars, not interpolated into a connection URL —
+          # SUPABASE_DB_PASSWORD contains an unescaped '@' which corrupts
+          # a "postgresql://postgres:$PW@host" string (pg_dump then reads
+          # everything after the password's own '@' as the hostname, e.g.
+          # "17@db.xxx.supabase.co" instead of "db.xxx.supabase.co" —
+          # confirmed live: this is why every run has failed with
+          # "could not translate host name". PGPASSWORD/PGHOST/etc. are
+          # libpq's standard env vars and need no URL-escaping at all.
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PGHOST: db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
         run: |
           # Use pg_dump directly against the Supabase direct connection.
           # The Supabase CLI's `db dump` runs pg_dump inside a Docker
           # container that can't resolve the "postgres" hostname in GitHub
           # Actions runners, so we bypass it entirely.
           TIMESTAMP=$(date +%Y-%m-%d)
-          DB_URL="postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co:5432/postgres"
-          pg_dump "$DB_URL" --no-owner --no-privileges -f "kdops-backup-${TIMESTAMP}.sql"
+          pg_dump --no-owner --no-privileges -f "kdops-backup-${TIMESTAMP}.sql"
           gzip "kdops-backup-${TIMESTAMP}.sql"
           echo "BACKUP_FILE=kdops-backup-${TIMESTAMP}.sql.gz" >> "$GITHUB_ENV"
 
