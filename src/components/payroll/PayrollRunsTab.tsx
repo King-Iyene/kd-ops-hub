@@ -201,6 +201,8 @@ export const PayrollRunsTab = ({
   generatePayslips,
   openDisburse,
   doCancelSchedule,
+  payNowOverridingSchedule,
+  openEditSchedule,
   setConfirmPaidRun,
   openAdjustments,
   exportRun,
