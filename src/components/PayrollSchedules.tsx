@@ -491,6 +491,25 @@ interface GroupMember {
   salary_ngn: number | null;
 }
 
+// Rotating icon colour per pay group — purely a visual anchor so groups
+// are easy to tell apart at a glance in the card list; carries no semantic
+// meaning (unlike the mockup's colours, which implied a fixed employee/
+// contractor/partner taxonomy this app doesn't actually model).
+const PG_ICON_COLOURS = [
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+  'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300',
+  'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300',
+];
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase();
+}
+
 function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
   const { profile } = useAuthStore();
   const { toast } = useToast();
@@ -498,6 +517,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
   const [loading, setLoading] = useState(true);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
   const [memberCosts, setMemberCosts] = useState<Record<string, number>>({});
+  const [memberPreview, setMemberPreview] = useState<Record<string, string[]>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<PayGroup | null>(null);
   const [form, setForm] = useState<{
@@ -522,19 +542,22 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
       supabase.from('pay_groups').select('id, name, description, pay_schedule_id, role_filter').order('created_at', { ascending: true }),
       supabase
         .from('profiles')
-        .select('pay_group_id, salary_ngn, status')
+        .select('pay_group_id, salary_ngn, status, full_name, email')
         .eq('status', 'active')
         .not('pay_group_id', 'is', null),
     ]);
     setGroups((groupsRes.data as PayGroup[]) ?? []);
     const counts: Record<string, number> = {};
     const costs: Record<string, number> = {};
+    const preview: Record<string, string[]> = {};
     (countsRes.data ?? []).forEach((r: any) => {
       counts[r.pay_group_id] = (counts[r.pay_group_id] ?? 0) + 1;
       costs[r.pay_group_id] = (costs[r.pay_group_id] ?? 0) + (r.salary_ngn ?? 0);
+      (preview[r.pay_group_id] ??= []).push(r.full_name || r.email || '?');
     });
     setMemberCounts(counts);
     setMemberCosts(costs);
+    setMemberPreview(preview);
     setLoading(false);
   }, []);
 
@@ -733,79 +756,105 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
           action={<Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> New group</Button>}
         />
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Group</TableHead>
-                  <TableHead>Schedule</TableHead>
-                  <TableHead>Members</TableHead>
-                  <TableHead className="text-right">Monthly cost</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {groups.map((g) => {
-                  const sched = schedules.find((s) => s.id === g.pay_schedule_id);
-                  return (
-                    <TableRow key={g.id}>
-                      <TableCell>
-                        <div className="font-medium">{g.name}</div>
-                        {g.description && (
-                          <div className="text-xs text-muted-foreground mt-0.5">{g.description}</div>
-                        )}
+        <div className="space-y-3">
+          {groups.map((g, i) => {
+            const sched = schedules.find((s) => s.id === g.pay_schedule_id);
+            const names = memberPreview[g.id] ?? [];
+            const count = memberCounts[g.id] ?? 0;
+            return (
+              <Card key={g.id}>
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="flex items-start gap-3.5 min-w-0">
+                      <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px]', PG_ICON_COLOURS[i % PG_ICON_COLOURS.length])}>
+                        <Users className="h-[18px] w-[18px]" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[15px] font-semibold">{g.name}</p>
+                        {g.description && <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed max-w-md">{g.description}</p>}
                         {g.role_filter.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
+                          <div className="flex flex-wrap gap-1 mt-1.5">
                             {g.role_filter.map((r) => (
                               <span key={r} className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted">{r}</span>
                             ))}
                           </div>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        {sched ? (
-                          <span className="text-sm">{sched.name}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">Unassigned</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        <button
-                          className="hover:underline text-left"
-                          onClick={() => openMembers(g)}
-                        >
-                          <span className="font-medium">{memberCounts[g.id] ?? 0}</span> employee{memberCounts[g.id] === 1 ? '' : 's'}
-                        </button>
-                      </TableCell>
-                      <TableCell className="text-right text-sm font-medium tabular-nums">
-                        {formatNaira(memberCosts[g.id] ?? 0)}
-                      </TableCell>
-                      <TableCell className="text-right space-x-1">
-                        <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => openMembers(g)}>
-                          <Users className="h-3.5 w-3.5 mr-1" /> Members
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit" onClick={() => openEdit(g)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost" size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          aria-label="Delete"
-                          onClick={() => remove(g)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-            </div>
-          </CardContent>
-        </Card>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="sm" className="h-8 px-2 text-xs font-semibold" onClick={() => openEdit(g)}>
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost" size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        aria-label={`Delete ${g.name}`}
+                        onClick={() => remove(g)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-border/50 pt-3.5">
+                    <button type="button" onClick={() => openMembers(g)} className="text-left group">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Members</p>
+                      {count > 0 ? (
+                        <div className="flex items-center -space-x-1.5 mt-1.5">
+                          {names.slice(0, 4).map((n, idx) => (
+                            <span
+                              key={idx}
+                              className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-muted text-[9.5px] font-bold text-foreground"
+                            >
+                              {initialsOf(n)}
+                            </span>
+                          ))}
+                          {count > 4 && (
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-muted text-[9px] font-bold text-muted-foreground">
+                              +{count - 4}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground mt-1 group-hover:underline">Add members</p>
+                      )}
+                    </button>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Cadence</p>
+                      <p className="text-sm font-medium mt-1">
+                        {sched ? sched.name : <span className="italic text-muted-foreground font-normal">Unassigned</span>}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Monthly cost</p>
+                      <p className="text-sm font-semibold tabular-nums mt-1">{formatNaira(memberCosts[g.id] ?? 0)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {!loading && groups.length > 0 && (
+        <div className="mt-2 rounded-lg border border-dashed border-border bg-muted/20 p-4">
+          <p className="text-xs font-semibold flex items-center gap-1.5 text-accent">
+            <Sparkles className="h-3.5 w-3.5" /> Why would I need more than one pay group?
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mt-3">
+            {[
+              { title: 'Different deductions', body: 'Salaried staff need PAYE, Pension, NHF, NSITF and ITF calculated; contractors and other categories may not — mixing them into one run applies the wrong tax treatment.' },
+              { title: 'Different cadences', body: 'Salaried staff might be paid monthly while contractors are paid bi-weekly or by retainer. Each group binds to its own pay schedule instead of forcing one calendar on everyone.' },
+              { title: 'Cleaner review', body: 'A run scoped to one pay group is a shorter, more reviewable list — an approver checking "did everyone in this group get the right amount" isn’t sifting through people who don’t belong in this run at all.' },
+            ].map((item) => (
+              <div key={item.title}>
+                <p className="text-xs font-semibold">{item.title}</p>
+                <p className="text-[11.5px] text-muted-foreground leading-relaxed mt-1">{item.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={(v) => { if (!v) setDialogOpen(false); }}>
