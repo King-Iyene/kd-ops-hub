@@ -21,6 +21,7 @@ import {
   Pencil,
   Landmark,
   History,
+  AlertCircle,
 } from 'lucide-react';
 import {
   BarChart,
@@ -248,38 +249,49 @@ export const PayrollRunsTab = ({
         </div>
       )}
 
-      {/* Stat tiles — the numbers that matter land before any list does. */}
-      <div className="rounded-lg border border-border/70 bg-card grid grid-cols-2 sm:grid-cols-4 sm:divide-x divide-border/70 divide-y sm:divide-y-0 overflow-hidden">
+      {/* Stat tiles — the numbers that matter land before any list does.
+          Icon-badge card treatment per the Payroll Worldclass Redesign
+          canvas (https://claude.ai/code/artifact/f500eacf-f096-4d56-8d8e-c182f9bc6b0b). */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           {
             label: 'Latest total burn',
             value: latest ? formatNaira(latest.total_burn_ngn) : '—',
             sub: latest ? monthLabel(latest.period, latest.period_type) : 'Run payroll to get started',
+            icon: Banknote,
+            iconBg: 'bg-[#e6f2f7]', iconFg: 'text-[#006394]',
           },
           {
             label: 'PAYE (est.)',
             value: latest ? formatNaira(latest.paye_ngn) : '—',
             sub: 'Due 10th next month',
+            icon: Landmark,
+            iconBg: 'bg-[#fdf0e0]', iconFg: 'text-[#a15c00]',
           },
           {
             label: 'Active employees',
             value: latest?.employee_count ?? '—',
             sub: latest ? `Pension ${formatNaira(latest.pension_ngn)}` : 'No runs yet',
+            icon: Users2,
+            iconBg: 'bg-[#f2ecfb]', iconFg: 'text-[#6b3fb8]',
           },
           {
             label: 'Needs your attention',
             value: runs.filter((r) => r.status === 'draft' || r.status === 'pending_approval').length,
             sub: 'Draft or pending approval',
+            icon: AlertCircle,
+            iconBg: 'bg-[#fdeaea]', iconFg: 'text-[#c23a3a]',
           },
-        ].map(({ label, value, sub }) => (
-          <div key={label} className="kd-holographic relative px-4 py-3.5 kd-transition">
-            <div className="relative z-[2]">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
-              <p className="mt-1.5 text-[19px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
-                {value}
-              </p>
-              <p className="mt-1 text-[11px] text-muted-foreground/80 tabular-nums truncate">{sub}</p>
-            </div>
+        ].map(({ label, value, sub, icon: Icon, iconBg, iconFg }) => (
+          <div key={label} className="rounded-xl border border-border/70 bg-card px-4 py-4 kd-transition">
+            <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${iconBg} ${iconFg} mb-2.5`}>
+              <Icon className="h-3.5 w-3.5" />
+            </span>
+            <p className="kd-display text-xl font-extrabold tabular-nums tracking-tight text-foreground leading-none truncate">
+              {value}
+            </p>
+            <p className="mt-1.5 text-[11px] text-muted-foreground truncate">{label}</p>
+            <p className="mt-0.5 text-[10.5px] text-muted-foreground/70 tabular-nums truncate">{sub}</p>
           </div>
         ))}
       </div>
@@ -316,6 +328,32 @@ export const PayrollRunsTab = ({
             <p className="mt-4 text-xs text-white/70 border-t border-white/12 pt-3">
               {nextActionCopy(latest, canApprovePerm, canDisburse, isSelfApprovalBlocked(latest))}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Same hero card, empty-state variant — the card previously just
+          vanished with nothing in its place whenever no run existed yet
+          (e.g. right after the last one is deleted), which read as if the
+          redesign hadn't shipped at all. */}
+      {!latest && (
+        <div
+          className="relative overflow-hidden rounded-xl px-5 py-5 sm:px-6 sm:py-5.5 text-white"
+          style={{ background: 'linear-gradient(155deg, #00283d, #00405e 60%, #005579)' }}
+        >
+          <div
+            className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full"
+            style={{ background: 'radial-gradient(circle, rgba(0,229,255,0.18), transparent 70%)' }}
+          />
+          <div className="relative flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold text-white/55 uppercase tracking-wide">No payroll runs yet</p>
+              <p className="kd-display text-xl font-extrabold mt-1.5">Draft your first run to see it here</p>
+              <p className="text-xs text-white/60 mt-1">PAYE, pension and NHF get computed the moment you draft.</p>
+            </div>
+            <Button onClick={() => setDialog(true)} className="bg-white text-[#00283d] hover:bg-white/90 shrink-0">
+              <Plus className="mr-1.5 h-4 w-4" /> New payroll run
+            </Button>
           </div>
         </div>
       )}
