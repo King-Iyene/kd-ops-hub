@@ -362,7 +362,13 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
           {burnExplainer && <BurnExplainerCard explainer={burnExplainer} />}
 
           <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4">
-            {annualSummary.totals.burn > 0 && (
+            {/* Gate on whichever series the current granularity actually
+                shows, not just the selected year's monthly total — a year
+                with zero approved runs still has real quarterly/yearly/
+                all-time history to show, and gating on the monthly figure
+                was hiding the chart (and the granularity selector itself)
+                entirely whenever that one year happened to be empty. */}
+            {(annualSummary.totals.burn > 0 || trendSeries.some((t) => t.burn > 0)) && (
               <Card>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
