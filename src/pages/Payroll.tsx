@@ -629,13 +629,20 @@ const Payroll = () => {
         paye + pension + nhf + employerPension + nsitfCharge +
         bonusTotal + totalAllowances - totalDeductions - totalAdvanceRepayments;
 
-      // Core upsert — uses partial unique indexes:
+      // Find-or-create, NOT .upsert() — the real unique constraints here are
+      // partial indexes:
       //   payroll_runs_period_no_segment_uniq (period) WHERE segment IS NULL
       //   payroll_runs_period_segment_uniq (period, payroll_segment_id) WHERE NOT NULL
-      // For un-segmented runs, onConflict targets the period-only index.
-      // For segmented runs, we include payroll_segment_id in the payload.
+      // Postgres can only infer a bare ON CONFLICT (columns) target against a
+      // NON-partial index, or a partial one whose exact WHERE predicate is
+      // also given in the ON CONFLICT clause -- something supabase-js's
+      // upsert({onConflict}) has no way to express. Every upsert() call here
+      // failed with "no unique or exclusion constraint matching the ON
+      // CONFLICT specification" for exactly that reason (confirmed live: the
+      // indexes exist, the client just can't target them). Select the
+      // matching row manually instead and insert or update explicitly.
       const segmentId = form.payroll_segment_id || null;
-      const upsertPayload: Record<string, unknown> = {
+      const runPayload: Record<string, unknown> = {
         period: form.period,
         total_contractor_ngn: totalContractor,
         total_employee_ngn: totalEmployee,
@@ -647,12 +654,14 @@ const Payroll = () => {
         total_burn_ngn: burn,
         status: 'draft',
         created_by: profile?.id || null,
+        payroll_segment_id: segmentId,
       };
-      if (segmentId) upsertPayload.payroll_segment_id = segmentId;
-      const { error } = await supabase.from('payroll_runs').upsert(
-        upsertPayload,
-        { onConflict: segmentId ? 'period,payroll_segment_id' : 'period' },
-      );
+      let existingQuery = supabase.from('payroll_runs').select('id').eq('period', form.period);
+      existingQuery = segmentId ? existingQuery.eq('payroll_segment_id', segmentId) : existingQuery.is('payroll_segment_id', null);
+      const { data: existingRun } = await existingQuery.maybeSingle();
+      const { error } = existingRun
+        ? await supabase.from('payroll_runs').update(runPayload).eq('id', existingRun.id)
+        : await supabase.from('payroll_runs').insert(runPayload);
 
       // Extended columns — best-effort; silently ignored if DB migration not run.
       let extUpdate = supabase.from('payroll_runs').update({
