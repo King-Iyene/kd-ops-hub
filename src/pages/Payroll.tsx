@@ -1916,6 +1916,32 @@ const Payroll = () => {
     return { byMonth, totals };
   }, [runs, summaryYear]);
 
+  // Burn split by pay-group/segment for the selected year — same "who is
+  // this money actually going to" breakdown as the Runs tab's filter chips,
+  // reused here since Reports never showed it at all.
+  const bySegment = useMemo(() => {
+    const yearRuns = runs.filter((r) => {
+      const [y] = r.period.split('-');
+      return parseInt(y) === summaryYear && r.status !== 'draft';
+    });
+    const groups = new Map<string, { burn: number; headcount: number }>();
+    for (const r of yearRuns) {
+      const key = r.payroll_segment_id || '__unfiltered__';
+      const g = groups.get(key) ?? { burn: 0, headcount: 0 };
+      g.burn += r.total_burn_ngn || 0;
+      g.headcount += r.employee_count || 0;
+      groups.set(key, g);
+    }
+    return Array.from(groups.entries())
+      .map(([id, g]) => ({
+        id,
+        name: id === '__unfiltered__' ? 'All staff' : segments.find((s) => s.id === id)?.name ?? 'Custom segment',
+        burn: g.burn,
+        headcount: g.headcount,
+      }))
+      .sort((a, b) => b.burn - a.burn);
+  }, [runs, summaryYear, segments]);
+
   // Plain-language "why did burn change" read, replacing a bare number with
   // an actual explanation — the two most recent non-draft runs, attributing
   // the delta to bonuses vs. headcount vs. everything else (PAYE/pension
@@ -2040,6 +2066,7 @@ const Payroll = () => {
             annualSummary={annualSummary}
             burnExplainer={burnExplainer}
             departments={segmentDepartments}
+            bySegment={bySegment}
           />
         </TabsContent>
       </Tabs>

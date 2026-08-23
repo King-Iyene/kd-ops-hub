@@ -66,6 +66,7 @@ interface AnnualSummaryTabProps {
   };
   burnExplainer?: BurnExplainer | null;
   departments?: { id: string; name: string }[];
+  bySegment: { id: string; name: string; burn: number; headcount: number }[];
 }
 
 // Plain-language read of the month-over-month burn delta — attributes it to
@@ -303,7 +304,14 @@ function StatutoryRemittanceCalendar() {
   );
 }
 
-export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, annualSummary, burnExplainer, departments = [] }: AnnualSummaryTabProps) => {
+const SEGMENT_ICON_COLOURS = [
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+  'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+];
+
+export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, annualSummary, burnExplainer, departments = [], bySegment }: AnnualSummaryTabProps) => {
   return (
     <>
           <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -321,6 +329,25 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
               ))}
             </div>
           </div>
+
+          {bySegment.length > 1 && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {bySegment.map((s, i) => (
+                <Card key={s.id}>
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className={`h-2 w-2 rounded-full shrink-0 ${SEGMENT_ICON_COLOURS[i % SEGMENT_ICON_COLOURS.length].split(' ')[0]}`} />
+                      <p className="text-xs font-semibold truncate">{s.name}</p>
+                    </div>
+                    <p className="text-lg font-extrabold currency">{formatNaira(s.burn)}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {s.headcount} employee{s.headcount === 1 ? '' : 's'} paid across {summaryYear}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {burnExplainer && <BurnExplainerCard explainer={burnExplainer} />}
 
