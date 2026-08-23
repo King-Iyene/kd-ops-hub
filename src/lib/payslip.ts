@@ -256,6 +256,13 @@ export const renderPayslipHtml = (
     }
     .doc-type .ref b { color: #525252; font-weight: 600; }
 
+    /* ─── Greeting ───────────────────────────────────────── */
+    .greet {
+      padding: 22px 40px 0;
+    }
+    .greet .hi { font-size: 12px; color: #737373; }
+    .greet .name { font-size: 19px; font-weight: 800; color: #1a1a1a; margin-top: 2px; }
+
     /* ─── Net hero ────────────────────────────────────────── */
     .net-hero {
       padding: 24px 40px;
@@ -488,6 +495,12 @@ export const renderPayslipHtml = (
           <div class="ref">Ref <b class="mono">${esc(ref)}</b></div>
         </div>
       </div>
+    </div>
+
+    <!-- ── GREETING ── -->
+    <div class="greet">
+      <div class="hi">${esc(greeting(new Date().getHours()))},</div>
+      <div class="name">${esc(firstName)}</div>
     </div>
 
     <!-- ── NET HERO ── -->
