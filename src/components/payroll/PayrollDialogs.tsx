@@ -66,6 +66,19 @@ const FREQ_SHORT_LABELS: Record<string, string> = {
   bimonthly: 'Bi-monthly', quarterly: 'Quarterly', triannual: 'Tri-annual', biannual: 'Bi-annual', annual: 'Annual',
 };
 
+// Same rotating palette as the Pay Groups admin screen's card icons
+// (PayrollSchedules.tsx's PG_ICON_COLOURS) — kept as a local copy rather
+// than a cross-file export so a change to one card style can't silently
+// reflow the other's colour order.
+const PG_CARD_ICON_COLOURS = [
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+  'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300',
+  'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300',
+];
+
 // Standard Nigerian statutory remittance deadlines — shown once, on the
 // review step, so approving a run doesn't quietly create a compliance
 // deadline nobody wrote down. PAYE: FIRS/State IRS, on/before the 10th of
@@ -374,20 +387,22 @@ export const PayrollDialogs = ({
                   </Label>
 
                   {segmentPayGroups.length > 0 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                       <button
                         type="button"
                         onClick={() => selectPayGroupQuickFilter('')}
                         className={cn(
-                          'flex flex-col items-start gap-1.5 rounded-lg border-2 px-3 py-2.5 text-left kd-transition',
+                          'flex flex-col items-start gap-2.5 rounded-xl border-2 px-4 py-4 text-left kd-transition',
                           !currentPayGroupId ? 'border-primary bg-primary/5' : 'border-border/60 hover:border-primary/40 hover:bg-muted/30',
                         )}
                       >
-                        <LayoutGrid className={cn('h-4 w-4', !currentPayGroupId ? 'text-primary' : 'text-muted-foreground')} />
-                        <span className="text-sm font-medium leading-tight">All Pay Groups</span>
-                        <span className="text-[11px] text-muted-foreground">Everyone active</span>
+                        <span className={cn('flex h-8 w-8 items-center justify-center rounded-[9px]', !currentPayGroupId ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
+                          <LayoutGrid className="h-4 w-4" />
+                        </span>
+                        <span className="block text-sm font-semibold leading-tight">All Pay Groups</span>
+                        <span className="block text-[11px] text-muted-foreground -mt-1.5">Everyone active</span>
                       </button>
-                      {segmentPayGroups.map((g) => {
+                      {segmentPayGroups.map((g, i) => {
                         const selected = currentPayGroupId === g.id;
                         const freq = g.frequency ? FREQ_SHORT_LABELS[g.frequency] ?? g.frequency : null;
                         return (
@@ -396,13 +411,18 @@ export const PayrollDialogs = ({
                             type="button"
                             onClick={() => selectPayGroupQuickFilter(g.id)}
                             className={cn(
-                              'flex flex-col items-start gap-1.5 rounded-lg border-2 px-3 py-2.5 text-left kd-transition',
+                              'flex flex-col items-start gap-2.5 rounded-xl border-2 px-4 py-4 text-left kd-transition',
                               selected ? 'border-primary bg-primary/5' : 'border-border/60 hover:border-primary/40 hover:bg-muted/30',
                             )}
                           >
-                            <Users2 className={cn('h-4 w-4', selected ? 'text-primary' : 'text-muted-foreground')} />
-                            <span className="text-sm font-medium leading-tight truncate w-full">{g.name}</span>
-                            <span className="text-[11px] text-muted-foreground">
+                            <span className={cn(
+                              'flex h-8 w-8 items-center justify-center rounded-[9px]',
+                              selected ? 'bg-primary text-primary-foreground' : PG_CARD_ICON_COLOURS[i % PG_CARD_ICON_COLOURS.length],
+                            )}>
+                              <Users2 className="h-4 w-4" />
+                            </span>
+                            <span className="block text-sm font-semibold leading-tight truncate w-full">{g.name}</span>
+                            <span className="block text-[11px] text-muted-foreground -mt-1.5">
                               {[freq, `${g.memberCount} ${g.memberCount === 1 ? 'person' : 'people'}`].filter(Boolean).join(' · ')}
                             </span>
                           </button>
