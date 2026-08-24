@@ -259,6 +259,9 @@ export default function StaffLoans() {
   };
 
   const handleApprove = async (loan: StaffLoan) => {
+    if (!window.confirm(`Approve this ${formatNaira(loan.principal_ngn)} loan? This commits the company to the repayment terms shown.`)) {
+      return;
+    }
     setSubmitting(true);
     const { error } = await supabase
       .from('staff_loans')
@@ -269,6 +272,25 @@ export default function StaffLoans() {
       toast({ title: 'Approval failed', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Loan approved' });
+      setDetailLoan(null);
+      fetchLoans();
+    }
+  };
+
+  const handleMarkDisbursed = async (loan: StaffLoan) => {
+    if (!window.confirm(`Mark this ${formatNaira(loan.principal_ngn)} loan as disbursed? Only confirm once the funds have actually been sent.`)) {
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase
+      .from('staff_loans')
+      .update({ disbursed_at: new Date().toISOString() })
+      .eq('id', loan.id);
+    setSubmitting(false);
+    if (error) {
+      toast({ title: 'Could not mark as disbursed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Loan marked as disbursed' });
       setDetailLoan(null);
       fetchLoans();
     }
@@ -634,10 +656,15 @@ export default function StaffLoans() {
                     <p>{detailLoan.approver.full_name}</p>
                   </div>
                 )}
-                {detailLoan.disbursed_at && (
+                {detailLoan.disbursed_at ? (
                   <div>
                     <span className="text-muted-foreground">Disbursed At</span>
                     <p>{format(parseISO(detailLoan.disbursed_at), 'dd MMM yyyy')}</p>
+                  </div>
+                ) : detailLoan.status === 'approved' && (
+                  <div>
+                    <span className="text-muted-foreground">Disbursed At</span>
+                    <p className="text-warning font-medium">Not yet disbursed</p>
                   </div>
                 )}
                 <div>
@@ -670,6 +697,16 @@ export default function StaffLoans() {
                   Approve
                 </Button>
               </>
+            )}
+            {detailLoan?.status === 'approved' && !detailLoan.disbursed_at && (
+              <Button
+                variant="outline"
+                onClick={() => handleMarkDisbursed(detailLoan)}
+                disabled={submitting}
+              >
+                {submitting && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                Mark as disbursed
+              </Button>
             )}
             {detailLoan && ['approved', 'active'].includes(detailLoan.status) && (
               <Button
