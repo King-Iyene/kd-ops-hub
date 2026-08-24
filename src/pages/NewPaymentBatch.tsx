@@ -228,7 +228,17 @@ const NewPaymentBatch = () => {
   // can be reused. Operators can untick for a genuine one-time payee.
   const [adHocSaveContractor, setAdHocSaveContractor] = useState(true);
 
+  // Only fetch when the caller can actually create an employee-based batch
+  // (salary/advance/bonus) — operations/field_staff have none of those
+  // grants by default and are contractor-only, so this used to pull every
+  // employee's salary and bank details into the browser for a picker they
+  // could never open.
+  const canFetchEmployees = canSalary || canAdvance || canBonus;
   useEffect(() => {
+    if (!canFetchEmployees) {
+      setEmployees([]);
+      return;
+    }
     supabase
       .from('profiles')
       .select('id, full_name, first_name, last_name, bank_name, bank_account_number, bank_account_name, salary_ngn, job_title, pension_enabled, nhf_enabled, paye_enabled, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn')
@@ -236,7 +246,7 @@ const NewPaymentBatch = () => {
       .order('full_name')
       .limit(500)
       .then(({ data }) => setEmployees((data as Employee[]) || []));
-  }, []);
+  }, [canFetchEmployees]);
 
   // Contractors load server-side so the search spans the ENTIRE roster (700+),
   // not just a first page. Mirrors the Contractors page search (name / account
