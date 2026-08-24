@@ -891,14 +891,14 @@ const Payroll = () => {
 
   // Mirrors the server-side rule in approve_payroll_run() so the button can
   // be disabled with an explanation instead of failing only after the click.
-  const isSelfApprovalBlocked = (run: PayrollRun) =>
-    run.created_by === profile?.id && !['admin', 'super_admin'].includes(profile?.role || '');
+  // No role is exempt — the drafter can never also be the approver.
+  const isSelfApprovalBlocked = (run: PayrollRun) => run.created_by === profile?.id;
 
   const approve = async (run: PayrollRun) => {
     // Routed through the approve_payroll_run RPC (not a raw .update()) so the
     // self-approval block is enforced server-side and can't be bypassed —
-    // the person who drafted this run cannot also approve it unless they're
-    // admin/super_admin.
+    // the person who drafted this run can never also approve it, regardless
+    // of role.
     const { error } = await supabase.rpc('approve_payroll_run', { p_run_id: run.id });
     if (error) {
       toast({ title: 'Approve failed', description: error.message, variant: 'destructive' });
