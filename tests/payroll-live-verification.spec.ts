@@ -82,16 +82,7 @@ test('payroll pipeline: draft -> submit -> approve -> generate payslips (2026-08
     const approveBtn = row().locator('button', { hasText: 'Approve' });
     if (await approveBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
       const disabled = await approveBtn.isDisabled().catch(() => false);
-      if (disabled) {
-        // Expected as of the self-approval-bypass fix: no role is exempt
-        // any more, so a single test account can draft OR approve a run,
-        // never both. Verifying the full pipeline through to payslips now
-        // needs a second account (TEST_APPROVER_EMAIL/PASSWORD, not wired
-        // up here) — this run stops cleanly at "pending approval" instead
-        // of failing on an assertion the security fix intentionally broke.
-        await screenshot(page, '05-self-approval-blocked-as-expected');
-        return;
-      }
+      expect(disabled, 'Approve button is disabled — likely the self-approval block. The test user must be admin/super_admin, or a different account must approve.').toBe(false);
       await approveBtn.click();
       // approve() awaits the full compliance auto-fill + anomaly scan +
       // (if permitted) generatePayslips() chain — which itself does one
