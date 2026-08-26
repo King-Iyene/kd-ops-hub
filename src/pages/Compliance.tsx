@@ -43,6 +43,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { logWarn } from '@/lib/logger';
 import { formatDate, formatNaira, formatNairaCompact, toIsoDate, daysUntil } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -533,7 +534,7 @@ const Compliance = () => {
           .select('id, remittance_type, period_month, amount_ngn, due_date, remitted_at, receipt_url, provider_reference, notes, confirmed_at');
         if (insertError) {
           // Best-effort — a race with another tab/session shouldn't break the page.
-          console.warn('[KDOps] remittance auto-generation failed:', insertError.message);
+          logWarn('KDOps', 'remittance auto-generation failed: ' + insertError.message);
         } else if (inserted && inserted.length > 0) {
           await logAudit(
             'remittance_auto_generated',

@@ -8,6 +8,7 @@ import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/li
 import { cn } from '@/lib/utils';
 import { logAudit } from '@/lib/audit';
 import { errorMessage } from '@/lib/db-errors';
+import { logError, logWarn } from '@/lib/logger';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { buildBatchReceiptHtml } from '@/lib/batch-receipt';
 import {
@@ -282,7 +283,7 @@ const BatchDetail = () => {
           const synced = await syncBatchStatusFromItems(id);
           if (synced?.status) b.status = synced.status as typeof b.status;
         } catch (err) {
-          console.warn('[KDOps] sync_batch_status_from_items failed:', err);
+          logWarn('BatchDetail', 'sync_batch_status_from_items failed', err);
         }
       }
     }
@@ -382,7 +383,7 @@ const BatchDetail = () => {
           setLogoUrl((cs as any).logo_url || null);
         }
       })
-      .catch((err) => console.warn('[KDOps] company settings fetch failed:', err));
+      .catch((err) => logWarn('BatchDetail', 'company settings fetch failed', err));
   }, [id]);
 
   const canApprove =
@@ -584,7 +585,7 @@ const BatchDetail = () => {
         // read 'pending' — the next pass will try again, which is safe here
         // since nothing was sent. Still log so a recurring write failure
         // (RLS regression, etc.) doesn't go unnoticed.
-        console.error(`[BatchDetail] failed to record 'failed' status for ${it.full_name}:`, markErr.message);
+        logError("BatchDetail",` failed to record 'failed' status for ${it.full_name}: ${markErr.message}`);
       }
       await logAudit('paystack_transfer_failed', `Transfer failed for ${it.full_name}: ${reason}`, profile);
       return { ok: false, reason };
@@ -611,7 +612,7 @@ const BatchDetail = () => {
         // regardless, so a failed write here doesn't affect this attempt.
         // Logged so a persistent write failure surfaces instead of just
         // quietly leaving the stored value dirty on every future retry too.
-        if (cleanupErr) console.error(`[BatchDetail] account_number cleanup write failed for ${it.full_name}:`, cleanupErr.message);
+        if (cleanupErr) logError("BatchDetail",` account_number cleanup write failed for ${it.full_name}: ${cleanupErr.message}`);
       }
       let recipientCode: string | null = it.paystack_recipient_code || null;
       // Recipient cache: if no code on the batch_item but we have an
@@ -650,7 +651,7 @@ const BatchDetail = () => {
           // recipient instead of reusing the cache. Logged so a recurring
           // failure here is visible rather than silently costing an extra
           // Paystack API call every time.
-          if (cacheErr) console.error(`[BatchDetail] failed to cache paystack_recipient_code for ${it.full_name}:`, cacheErr.message);
+          if (cacheErr) logError("BatchDetail",` failed to cache paystack_recipient_code for ${it.full_name}: ${cacheErr.message}`);
         }
         await logAudit(
           'paystack_recipient_created',
@@ -694,7 +695,7 @@ const BatchDetail = () => {
           // is a bookkeeping write failure, not an uncertain payment. Log it
           // distinctly so ops knows to double-check the row against Paystack
           // rather than trusting whatever status it's still showing.
-          console.error(`[BatchDetail] recovered-status write failed for ${it.full_name} (status should be ${mappedStatus}):`, recoveredUpdateErr.message);
+          logError("BatchDetail",` recovered-status write failed for ${it.full_name} (status should be ${mappedStatus}): ${recoveredUpdateErr.message}`);
         }
         await logAudit(
           'paystack_transfer_recovered',
@@ -728,7 +729,7 @@ const BatchDetail = () => {
         // failure, not a payment failure. Never silently drop it: log it and
         // return failure=false-but-flagged so the caller's error list shows
         // "sent but unrecorded" instead of the row looking untouched.
-        console.error(`[BatchDetail] batch_items update failed after Paystack transfer for ${it.full_name} (ref ${transfer.reference}):`, dispatchUpdateErr.message);
+        logError("BatchDetail",` batch_items update failed after Paystack transfer for ${it.full_name} (ref ${transfer.reference}): ${dispatchUpdateErr.message}`);
         await logAudit(
           'paystack_transfer_initiated',
           `Transfer initiated for ${it.full_name} (${formatNaira(Number(it.amount_ngn || 0))}) ref ${transfer.reference}) — WARNING: recording the result failed: ${dispatchUpdateErr.message}`,
@@ -768,7 +769,7 @@ const BatchDetail = () => {
       const { error: markErr } = await supabase.from('batch_items')
         .update({ status: 'failed', failure_reason: reason })
         .eq('id', it.id);
-      if (markErr) console.error(`[BatchDetail] failed to record 'failed' status for ${it.full_name}:`, markErr.message);
+      if (markErr) logError("BatchDetail",` failed to record 'failed' status for ${it.full_name}: ${markErr.message}`);
       await logAudit('flutterwave_transfer_failed', `Transfer failed for ${it.full_name}: ${reason}`, profile);
       return { ok: false, reason };
     };
@@ -784,7 +785,7 @@ const BatchDetail = () => {
       if (!cleanedAccount) return markFailed('Account number is empty after stripping non-digits — re-enter it.');
       if (cleanedAccount !== String(it.account_number)) {
         const { error: cleanupErr } = await supabase.from('batch_items').update({ account_number: cleanedAccount }).eq('id', it.id);
-        if (cleanupErr) console.error(`[BatchDetail] account_number cleanup write failed for ${it.full_name}:`, cleanupErr.message);
+        if (cleanupErr) logError("BatchDetail",` account_number cleanup write failed for ${it.full_name}: ${cleanupErr.message}`);
       }
 
       const compactId = String(it.id).replace(/-/g, '').slice(0, 20);
@@ -830,7 +831,7 @@ const BatchDetail = () => {
         // Transfer was already dispatched to Flutterwave — this is a
         // bookkeeping write failure, not a payment failure. Log distinctly
         // so ops knows to verify the record rather than trust the stale row.
-        console.error(`[BatchDetail] batch_items update failed after Flutterwave transfer for ${it.full_name} (ref ${ref}):`, fwUpdateErr.message);
+        logError("BatchDetail",` batch_items update failed after Flutterwave transfer for ${it.full_name} (ref ${ref}): ${fwUpdateErr.message}`);
       }
       await logAudit(
         fwData.recovered ? 'flutterwave_transfer_recovered' : 'flutterwave_transfer_initiated',
@@ -1061,7 +1062,7 @@ const BatchDetail = () => {
         const finalized = await finalizeBatch(id!);
         batchStatus = finalized?.status || batchStatus;
       } catch (finErr) {
-        console.warn('[KDOps] finalize_batch failed, falling back to sync:', finErr);
+        logWarn('BatchDetail', 'finalize_batch failed, falling back to sync', finErr);
         try {
           const synced = await syncBatchStatusFromItems(id!);
           batchStatus = synced?.status || batchStatus;
@@ -1163,7 +1164,7 @@ const BatchDetail = () => {
             // execute (e.g. transient DB unavailability). We still avoid
             // logAudit here in the fallback so a later real webhook remains
             // the audit source of truth.
-            console.warn('[KDOps] client_finalize_transfer failed, skipping tick', rpcErr);
+            logWarn('BatchDetail', 'client_finalize_transfer failed, skipping tick', rpcErr);
             continue;
           }
           // Only the WINNING writer gets outcome='processed' back — that's
@@ -1298,7 +1299,7 @@ const BatchDetail = () => {
       // processOneItem/processOneFlutterwaveItem write the real outcome
       // regardless of whether this intermediate write landed. Logged so a
       // persistent failure here (e.g. RLS regression) doesn't go unnoticed.
-      if (retryFlagErr) console.error(`[BatchDetail] failed to set 'retry' status for ${item.full_name}:`, retryFlagErr.message);
+      if (retryFlagErr) logError("BatchDetail",` failed to set 'retry' status for ${item.full_name}: ${retryFlagErr.message}`);
       // Route by provider — a Flutterwave item retried through
       // processOneItem would create a PAYSTACK recipient and dispatch via
       // the wrong rail. See processOneFlutterwaveItem for the fix.

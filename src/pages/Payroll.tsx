@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, BarChart3, CalendarClock } from 'lucide-react';
 import { errorMessage } from '@/lib/db-errors';
+import { logWarn } from '@/lib/logger';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { supabase } from '@/lib/supabase';
 import { useCompanySettings, useDepartments } from '@/queries';
@@ -317,18 +318,23 @@ const Payroll = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error: runsErr } = await supabase
       .from('payroll_runs')
       .select('*')
       .order('period', { ascending: false })
       .limit(200);
+    if (runsErr) {
+      logWarn('Payroll', 'payroll_runs load failed: ' + runsErr.message);
+      toast({ title: 'Failed to load payroll runs', description: runsErr.message, variant: 'destructive' });
+    }
     setRuns((data as PayrollRun[]) || []);
 
     // Salary-advance requests awaiting action (pending) or approved-not-yet-paid.
-    const { data: adv } = await (supabase as any).from('advance_requests')
+    const { data: adv, error: advErr } = await (supabase as any).from('advance_requests')
       .select('id, employee_id, amount_ngn, repayment_months, reason, status, created_at, profiles:employee_id(full_name, first_name, last_name, email)')
       .in('status', ['pending', 'approved'])
       .order('created_at', { ascending: true });
+    if (advErr) logWarn('Payroll', 'advance_requests load failed: ' + advErr.message);
     setAdvanceQueue(((adv as any[]) || []).map((r) => ({
       ...r,
       name: displayName(r.profiles?.first_name, r.profiles?.last_name, r.profiles?.full_name || r.profiles?.email),
@@ -1515,7 +1521,7 @@ const Payroll = () => {
             });
           }
         } catch (empErr: unknown) {
-          console.warn('[KDOps] payslip generation failed for', e.email, empErr);
+          logWarn('KDOps', `payslip generation failed for ${e.email}`, empErr);
           failed++;
           failedNames.push(e.full_name || e.email);
         }
@@ -1534,7 +1540,7 @@ const Payroll = () => {
           p_payroll_run_id: run.id,
         });
         if (settleErr) {
-          console.warn('[KDOps] EWA settlement RPC failed:', settleErr.message);
+          logWarn('KDOps', 'EWA settlement RPC failed: ' + settleErr.message);
           toast({
             title: 'Payslips generated, but EWA settlement failed',
             description: `Some EWA requests are still marked unsettled: ${settleErr.message}`,

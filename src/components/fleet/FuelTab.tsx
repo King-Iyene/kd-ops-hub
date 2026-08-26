@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCompanySettings } from '@/queries';
 import { supabase } from '@/lib/supabase';
+import { logWarn } from '@/lib/logger';
 import { compressImage } from '@/lib/image-compression';
 import { friendlyDbError, errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
@@ -1253,7 +1254,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
           });
         }
       } catch (autoPayErr) {
-        console.warn('[Fleet] auto-pay batch creation failed:', autoPayErr);
+        logWarn('Fleet', 'auto-pay batch creation failed', autoPayErr);
         toast({ title: 'Approved. Could not queue auto-payment — handle from Expenses.' });
       }
     } else {
@@ -1323,7 +1324,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
     }
     if (exceptionExpenseId) {
       try { await approveExpense(exceptionExpenseId); }
-      catch (err: unknown) { console.warn('[Fleet] budget-exception approve_expense failed:', errorMessage(err)); }
+      catch (err: unknown) { logWarn('Fleet', 'budget-exception approve_expense failed: ' + errorMessage(err)); }
     }
     await logAudit(
       'fuel_budget_exception_approved',
@@ -1765,7 +1766,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       .maybeSingle();
     if (pairedExp?.id && (pairedExp as any).status !== 'rejected') {
       try { await rejectExpense((pairedExp as any).id, fuelRejectReason.trim()); }
-      catch (err) { console.warn('[Fleet] reject_expense for paired expense failed:', err); }
+      catch (err) { logWarn('Fleet', 'reject_expense for paired expense failed', err); }
     }
     await writeRejectionNotification({
       entity: 'fuel',
@@ -1857,7 +1858,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', pairedExp.id);
       if (expError) {
-        console.warn('[Fleet] soft-delete paired expense failed:', expError);
+        logWarn('Fleet', 'soft-delete paired expense failed', expError);
       }
     }
 
