@@ -10,6 +10,7 @@
 
 import { toCsv } from '@/lib/csv';
 import { formatNairaCompact } from '@/lib/format';
+import { ITF_RATE } from '@/lib/tax';
 import {
   StatutoryRunData,
   StatutoryExportFile,
@@ -41,12 +42,12 @@ export function buildItfAnnualSchedule(
       li.tin ?? '',
       li.nin ?? '',
       annualGross,
-      Math.round(annualGross * 0.01),
+      Math.round(annualGross * ITF_RATE),
     ];
   });
 
   const totalAnnual = rows.reduce((s, li) => s + li.gross_monthly_ngn * 12, 0);
-  const totalItf = Math.round(totalAnnual * 0.01);
+  const totalItf = Math.round(totalAnnual * ITF_RATE);
   body.push([
     '',
     '',

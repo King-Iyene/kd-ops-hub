@@ -8,6 +8,7 @@
 
 import { toCsv } from '@/lib/csv';
 import { formatNairaCompact } from '@/lib/format';
+import { NHF_RATE } from '@/lib/tax';
 import {
   StatutoryRunData,
   StatutoryExportFile,
@@ -34,7 +35,7 @@ export function buildNhfSchedule(
   const body = rows.map((li, i) => {
     // NHF base is basic salary (NHF Act s.4). If payroll only stored gross
     // we approximate basic by reverse-computing from the deduction.
-    const basic = Math.round(li.nhf_monthly_ngn / 0.025);
+    const basic = Math.round(li.nhf_monthly_ngn / NHF_RATE);
     return [
       i + 1,
       li.nhf_number ?? '(missing)',

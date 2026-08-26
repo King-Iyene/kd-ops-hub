@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, BarChart3, CalendarClock } from 'lucide-react';
 import { errorMessage } from '@/lib/db-errors';
+import { logWarn } from '@/lib/logger';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { supabase } from '@/lib/supabase';
 import { useCompanySettings, useDepartments } from '@/queries';
@@ -48,42 +49,7 @@ import { PayrollDialogs } from '@/components/payroll/PayrollDialogs';
 import { PayrollDashboardTab } from '@/components/payroll/PayrollDashboardTab';
 import { PayrollGroupsTab } from '@/components/payroll/PayrollGroupsTab';
 import { LayoutGrid, Layers } from 'lucide-react';
-
-interface BonusLine {
-  type: string;
-  amount: number;
-}
-
-interface AllowancesSnapshot {
-  housing_pct: number;
-  transport_per_emp: number;
-  meal_per_emp: number;
-  total: number;
-}
-
-interface PayrollRun {
-  id: string;
-  period: string;
-  period_type?: 'monthly' | 'quarterly' | 'annual';
-  employee_count?: number;
-  total_contractor_ngn: number;
-  total_employee_ngn: number;
-  total_expenses_ngn: number;
-  paye_ngn: number;
-  pension_ngn: number;
-  nhf_ngn: number;
-  total_burn_ngn: number;
-  employer_pension_ngn?: number | null;
-  bonuses_json?: BonusLine[] | null;
-  allowances_json?: AllowancesSnapshot | null;
-  status: 'draft' | 'pending_approval' | 'approved' | 'processing' | 'paid';
-  created_at: string;
-  created_by: string | null;
-  approved_by: string | null;
-  payroll_segment_id?: string | null;
-  scheduled_disburse_at?: string | null;
-  is_auto_generated?: boolean;
-}
+import type { PayrollRun, BonusLine } from '@/lib/payroll-run';
 
 const monthLabel = (period: string, periodType?: string): string => {
   if (!/^\d{4}-\d{1,2}$/.test(period)) return period;
@@ -352,18 +318,23 @@ const Payroll = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error: runsErr } = await supabase
       .from('payroll_runs')
       .select('*')
       .order('period', { ascending: false })
       .limit(200);
+    if (runsErr) {
+      logWarn('Payroll', 'payroll_runs load failed: ' + runsErr.message);
+      toast({ title: 'Failed to load payroll runs', description: runsErr.message, variant: 'destructive' });
+    }
     setRuns((data as PayrollRun[]) || []);
 
     // Salary-advance requests awaiting action (pending) or approved-not-yet-paid.
-    const { data: adv } = await (supabase as any).from('advance_requests')
+    const { data: adv, error: advErr } = await (supabase as any).from('advance_requests')
       .select('id, employee_id, amount_ngn, repayment_months, reason, status, created_at, profiles:employee_id(full_name, first_name, last_name, email)')
       .in('status', ['pending', 'approved'])
       .order('created_at', { ascending: true });
+    if (advErr) logWarn('Payroll', 'advance_requests load failed: ' + advErr.message);
     setAdvanceQueue(((adv as any[]) || []).map((r) => ({
       ...r,
       name: displayName(r.profiles?.first_name, r.profiles?.last_name, r.profiles?.full_name || r.profiles?.email),
@@ -581,8 +552,9 @@ const Payroll = () => {
         const gross = useComps ? (basic + housing + transport + other) : Number(r.salary_ngn || 0);
         return s + computePayslip({
           grossMonthlyNgn: gross,
-          pensionEnabled: r.pension_enabled !== false,
-          nhfEnabled: r.nhf_enabled === true,
+          pensionEnabled: companySettings?.pension_enabled !== false && r.pension_enabled !== false,
+          payeEnabled: companySettings?.paye_enabled !== false,
+          nhfEnabled: companySettings?.nhf_enabled === true && r.nhf_enabled === true,
           voluntaryPensionPct: Number(r.voluntary_pension_pct || 0),
           useComponents: useComps,
           basicMonthlyNgn: basic,
@@ -1094,12 +1066,13 @@ const Payroll = () => {
           unpaidLeaveDaysByEmployee.set(r.employee_id, prev + overlapDays);
         }
       } catch (leaveErr: unknown) {
-        console.warn('[KDOps] unpaid leave lookup failed, proceeding with 0 unpaid days:', errorMessage(leaveErr));
         toast({
-          title: 'Unpaid leave data unavailable',
-          description: 'Could not load unpaid leave records — employees with unpaid leave may be overpaid this cycle. Review before disbursing.',
+          title: 'Unpaid leave lookup failed',
+          description: 'Could not load unpaid leave records. Payslip generation aborted to prevent overpayment. Please try again.',
           variant: 'destructive',
         });
+        setGenerating(false);
+        return;
       }
 
       const [{ data: allDeductions }, { data: allAdvances }, { data: allEwa }, { data: allAdjustments }, { data: allEarnings }] = await Promise.all([
@@ -1274,9 +1247,10 @@ const Payroll = () => {
           const payeBase   = empGross + taxableEarningsAdd + recurTaxable;
           const empBreak   = computePayslip({
             grossMonthlyNgn: payeBase,
-            pensionEnabled: e.pension_enabled !== false,
-            nhfEnabled: e.nhf_enabled === true,
-            nhisEnabled: e.nhis_enabled === true,
+            pensionEnabled: companySettings?.pension_enabled !== false && e.pension_enabled !== false,
+            payeEnabled: companySettings?.paye_enabled !== false,
+            nhfEnabled: companySettings?.nhf_enabled === true && e.nhf_enabled === true,
+            nhisEnabled: companySettings?.nhis_enabled === true && e.nhis_enabled === true,
             voluntaryPensionPct: Number(e.voluntary_pension_pct || 0),
             useComponents: useComps,
             basicMonthlyNgn: compBasic,
@@ -1301,6 +1275,11 @@ const Payroll = () => {
           const empNhisEmployer    = empBreak.nhisEmployerMonthlyNgn;
           const empNsitf           = nsitfEnabled ? empBreak.nsitfMonthlyNgn : 0;
           const empAvc             = empBreak.voluntaryPensionMonthlyNgn;
+          const empRentRelief      = empBreak.rentReliefMonthlyNgn;
+          const empLifeAssurance   = empBreak.lifeAssuranceMonthlyNgn;
+          const empDevLevy         = companySettings?.development_levy_enabled
+            ? Math.round(Number(companySettings.development_levy_annual_ngn || 0) / 12)
+            : 0;
           const empDeductions = deductionsByEmployee.get(e.id) || [];
           const empDeductionsTotal = empDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn), 0);
           const empAdvances = advancesByEmployee.get(e.id) || [];
@@ -1312,11 +1291,12 @@ const Payroll = () => {
           const empEwa = ewaByEmployee.get(e.id) || [];
           const empEwaTotal = empEwa.reduce((s: number, w: any) => s + Number(w.amount_ngn || 0), 0);
           const empGrossTotal = empGross + earningsAddTotal;
-          const empNet = Math.max(0, empGrossTotal - empUnpaidLeaveDeduction - empPaye - empPension - empAvc - empNhf - empNhis - empDeductionsTotal - empAdvancesTotal - empEwaTotal - adjDeductTotal);
+          const empNet = Math.max(0, empGrossTotal - empUnpaidLeaveDeduction - empPaye - empPension - empAvc - empNhf - empNhis - empDevLevy - empDeductionsTotal - empAdvancesTotal - empEwaTotal - adjDeductTotal);
           const empName = displayName(e.first_name, e.last_name, e.full_name || e.email);
 
           // Build combined extra_deductions list for payslip (deductions + advance repayments + EWA settlements + one-off deductions)
           const allEmpDeductionLines = [
+            ...(empDevLevy > 0 ? [{ description: 'Development Levy', amount_ngn: empDevLevy }] : []),
             ...empDeductions.map((d: any) => ({ description: d.description, amount_ngn: Number(d.amount_ngn) })),
             ...empAdvances.map((a: any) => ({
               description: 'Salary Advance Repayment',
@@ -1460,14 +1440,17 @@ const Payroll = () => {
               nhf_ngn: empNhf,
               nhis_ngn: empNhis,
               avc_ngn: empAvc,
+              rent_relief_ngn: empRentRelief,
+              life_assurance_relief_ngn: empLifeAssurance,
               net_ngn: empNet,
-              deductions_ngn: empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal + empUnpaidLeaveDeduction,
+              deductions_ngn: empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal + empUnpaidLeaveDeduction + empDevLevy,
               deductions_json: (() => {
                 const lines = [
                   ...(empUnpaidLeaveDeduction > 0 ? [{
                     description: `Unpaid Leave (${empUnpaidLeaveDays} day${empUnpaidLeaveDays === 1 ? '' : 's'})`,
                     amount_ngn: empUnpaidLeaveDeduction,
                   }] : []),
+                  ...(empDevLevy > 0 ? [{ description: 'Development Levy', amount_ngn: empDevLevy }] : []),
                   ...empDeductions.map((d: any) => ({ id: d.id, description: d.description, amount_ngn: Number(d.amount_ngn) })),
                   ...empAdvances.map((a: any) => ({
                     advance_id: a.id,
@@ -1542,7 +1525,7 @@ const Payroll = () => {
             });
           }
         } catch (empErr: unknown) {
-          console.warn('[KDOps] payslip generation failed for', e.email, empErr);
+          logWarn('KDOps', `payslip generation failed for ${e.email}`, empErr);
           failed++;
           failedNames.push(e.full_name || e.email);
         }
@@ -1561,7 +1544,7 @@ const Payroll = () => {
           p_payroll_run_id: run.id,
         });
         if (settleErr) {
-          console.warn('[KDOps] EWA settlement RPC failed:', settleErr.message);
+          logWarn('KDOps', 'EWA settlement RPC failed: ' + settleErr.message);
           toast({
             title: 'Payslips generated, but EWA settlement failed',
             description: `Some EWA requests are still marked unsettled: ${settleErr.message}`,

@@ -46,22 +46,32 @@ const AVATAR_COLOURS = [
   'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
 ];
 
-/** Fetches every employee once and re-derives who's in/out whenever the filter changes. */
+/** Fetches every employee (paginated) once and re-derives who's in/out whenever the filter changes. */
 function useRoster(rules: PayrollSegmentFilterRules | null) {
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<RosterEmployee[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    supabase
-      .from('profiles')
-      .select('id, full_name, first_name, last_name, email, role, status, salary_ngn, bank_account_number, department_id, employee_category, employment_type, pay_group_id')
-      .limit(1000)
-      .then(({ data }) => {
+    const PAGE_SIZE = 1000;
+    async function fetchAll() {
+      const all: RosterEmployee[] = [];
+      let from = 0;
+      while (true) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, full_name, first_name, last_name, email, role, status, salary_ngn, bank_account_number, department_id, employee_category, employment_type, pay_group_id')
+          .range(from, from + PAGE_SIZE - 1);
         if (cancelled) return;
-        setEmployees((data || []) as RosterEmployee[]);
-        setLoading(false);
-      });
+        const rows = (data || []) as RosterEmployee[];
+        all.push(...rows);
+        if (rows.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+      setEmployees(all);
+      setLoading(false);
+    }
+    fetchAll();
     return () => { cancelled = true; };
   }, []);
 

@@ -16,6 +16,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { logWarn } from '@/lib/logger';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { errorMessage } from '@/lib/db-errors';
 import { supabase } from '@/lib/supabase';
@@ -537,7 +538,7 @@ const Approvals = () => {
         if (notifyErr) {
           // Don't block approval — but log so we can see if notification
           // delivery is consistently failing.
-          console.warn('[KDOps] approval notification insert failed:', notifyErr.message);
+          logWarn('KDOps', 'approval notification insert failed: ' + notifyErr.message);
         }
       }
 

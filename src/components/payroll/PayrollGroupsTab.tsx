@@ -9,6 +9,7 @@ import { formatNaira } from '@/lib/format';
 import { displayName } from '@/lib/name';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PENSION_EMPLOYEE_RATE } from '@/lib/tax';
 
 interface Member {
   id: string;
@@ -37,7 +38,7 @@ interface GroupCard {
   pension: number;
 }
 
-const PENSION_RATE = 0.08; // employee 8% — matches src/lib/tax.ts PENSION_EMPLOYEE_RATE
+const PENSION_RATE = PENSION_EMPLOYEE_RATE;
 
 /**
  * Pay groups view — cards per pay_groups row, aggregating real member data

@@ -1,5 +1,20 @@
 // Money & FX primitives for the finance engine.
 //
+// CONVENTION BOUNDARY — two money representations coexist in this codebase:
+//
+//   A) INTEGER KOBO (this module) — used by PartnerPayCalculator,
+//      ReferralCommissions, talent-cost, fx-exposure. All arithmetic is on
+//      integer minor units; toMinor()/toMajor() convert at the boundary.
+//
+//   B) FLOAT NAIRA (everywhere else) — payroll (tax.ts, Payroll.tsx,
+//      payslip.ts), statutory exports, batch payments, DB columns
+//      (numeric type). Values are JS floats representing whole naira;
+//      sub-naira precision is rounded at the payslip level.
+//
+//   Do NOT mix: never pass a float-naira value into convertMinor/
+//   multiplyMinor (they assert integer), and never pass a kobo integer
+//   into computePayslip or statutory exporters.
+//
 // RULES (do not break — this is where finance bugs live):
 //   1. Represent money as an INTEGER number of minor units (USD cents, NGN kobo)
 //      plus an explicit currency. Never do arithmetic on float "major" amounts.

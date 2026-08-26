@@ -13,6 +13,14 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import {
+  PENSION_EMPLOYEE_RATE,
+  PENSION_EMPLOYER_RATE,
+  NHIS_EMPLOYEE_RATE,
+  NSITF_RATE,
+  RENT_RELIEF_RATE,
+  RENT_RELIEF_CAP_ANNUAL,
+} from '@/lib/tax';
 
 export interface StatutoryLineItem {
   employee_id: string;
@@ -38,6 +46,9 @@ export interface StatutoryLineItem {
   pension_employer_monthly_ngn: number;
   nhf_monthly_ngn: number;
   nhis_monthly_ngn: number;
+  avc_monthly_ngn: number;
+  rent_relief_monthly_ngn: number;
+  life_assurance_monthly_ngn: number;
   net_monthly_ngn: number;
 }
 
@@ -105,7 +116,7 @@ export async function loadStatutoryRunData(
 
   const { data: rawItems, error: itemsErr } = await supabase
     .from('payroll_run_items')
-    .select('id, employee_id, employee_name, gross_ngn, paye_ngn, pension_ngn, nhf_ngn, net_ngn')
+    .select('id, employee_id, employee_name, gross_ngn, paye_ngn, pension_ngn, nhf_ngn, nhis_ngn, avc_ngn, net_ngn')
     .eq('payroll_run_id', run.id);
   if (itemsErr) throw new Error(itemsErr.message);
   const items = (rawItems ?? []) as any[];
@@ -119,7 +130,7 @@ export async function loadStatutoryRunData(
       ? supabase
           .from('profiles')
           .select(
-            'id, first_name, last_name, full_name, email, tin, tax_id, nin, nhf_number, nhis_number, pension_pin, pfa_code, state_of_residence, staff_number, employee_number, bank_name, bank_account_number, bank_account_name, nhis_enabled',
+            'id, first_name, last_name, full_name, email, tin, tax_id, nin, nhf_number, nhis_number, pension_pin, pfa_code, state_of_residence, staff_number, employee_number, bank_name, bank_account_number, bank_account_name, nhis_enabled, voluntary_pension_pct, annual_rent_ngn, annual_life_assurance_ngn',
           )
           .in('id', employeeIds)
       : Promise.resolve({ data: [] as any[], error: null }),
@@ -161,20 +172,20 @@ export async function loadStatutoryRunData(
   const lineItems: StatutoryLineItem[] = items.map((it: any) => {
     const p = it.employee_id ? profileById.get(it.employee_id) : null;
     const pensionEmployee = round(it.pension_ngn);
-    // Employer pension is 10% while employee is 8%: employee × 1.25.
-    const pensionEmployer = Math.round(pensionEmployee * 1.25);
-    // NHIS 5% employee — only when explicitly enabled on profile.
-    const nhisMonthly = p?.nhis_enabled ? Math.round(Number(it.gross_ngn || 0) * 0.05) : 0;
+    const pensionEmployer = Math.round(pensionEmployee * (PENSION_EMPLOYER_RATE / PENSION_EMPLOYEE_RATE));
+    const nhisMonthly = round(it.nhis_ngn) || (p?.nhis_enabled ? Math.round(Number(it.gross_ngn || 0) * NHIS_EMPLOYEE_RATE) : 0);
+    const avcMonthly = round(it.avc_ngn);
+    const annualRent = Number(p?.annual_rent_ngn || 0);
+    const rentReliefAnnual = Math.min(annualRent * RENT_RELIEF_RATE, RENT_RELIEF_CAP_ANNUAL);
+    const rentReliefMonthly = Math.round(rentReliefAnnual / 12);
+    const lifeAssuranceMonthly = Math.round(Number(p?.annual_life_assurance_ngn || 0) / 12);
     return {
       employee_id: it.employee_id ?? '',
       employee_name: it.employee_name || p?.full_name || 'Unknown',
       first_name: p?.first_name ?? null,
       last_name: p?.last_name ?? null,
-      // Fallback order: explicit statutory staff_number → HR employee_number.
-      // Avoids duplicating data — HR only needs to fill one.
       staff_number: p?.staff_number ?? p?.employee_number ?? null,
       email: p?.email ?? null,
-      // Fallback order: profile.tin (FIRS) → profile.tax_id (legacy alias).
       tin: p?.tin ?? p?.tax_id ?? null,
       nin: p?.nin ?? null,
       nhf_number: p?.nhf_number ?? null,
@@ -192,6 +203,9 @@ export async function loadStatutoryRunData(
       pension_employer_monthly_ngn: pensionEmployer,
       nhf_monthly_ngn: round(it.nhf_ngn),
       nhis_monthly_ngn: nhisMonthly,
+      avc_monthly_ngn: avcMonthly,
+      rent_relief_monthly_ngn: rentReliefMonthly,
+      life_assurance_monthly_ngn: lifeAssuranceMonthly,
       net_monthly_ngn: round(it.net_ngn),
     };
   });
@@ -222,8 +236,7 @@ export async function loadStatutoryRunData(
       headcount: 0,
     },
   );
-  // NSITF is 1% of total monthly payroll (employer-borne).
-  totals.nsitf_monthly_ngn = Math.round(totals.gross_monthly_ngn * 0.01);
+  totals.nsitf_monthly_ngn = Math.round(totals.gross_monthly_ngn * NSITF_RATE);
 
   return {
     period: run.period as string,

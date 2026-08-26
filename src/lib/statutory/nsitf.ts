@@ -5,6 +5,7 @@
 
 import { toCsv } from '@/lib/csv';
 import { formatNairaCompact } from '@/lib/format';
+import { NSITF_RATE } from '@/lib/tax';
 import {
   StatutoryRunData,
   StatutoryExportFile,
@@ -32,11 +33,11 @@ export function buildNsitfSchedule(
     li.tin ?? '',
     li.nin ?? '',
     li.gross_monthly_ngn,
-    Math.round(li.gross_monthly_ngn * 0.01),
+    Math.round(li.gross_monthly_ngn * NSITF_RATE),
   ]);
 
   const totalGross = rows.reduce((s, li) => s + li.gross_monthly_ngn, 0);
-  const totalEcs = Math.round(totalGross * 0.01);
+  const totalEcs = Math.round(totalGross * NSITF_RATE);
   body.push([
     '',
     '',

@@ -85,6 +85,18 @@ Deno.serve(async (req) => {
     }
 
     const secret = await getFwSecret(service);
+
+    const { data: runRow } = await service
+      .from("reconciliation_runs")
+      .insert({
+        provider: "flutterwave",
+        triggered_by: triggeredBy,
+        trigger_type: scheduled ? "scheduled" : "manual",
+      })
+      .select("id")
+      .single();
+    const runId = runRow?.id as string | undefined;
+
     const cutoff = new Date(Date.now() - STUCK_THRESHOLD_HOURS * 3600_000).toISOString();
     const { data: stuck, error: fetchErr } = await service
       .from("batch_items")
@@ -170,6 +182,19 @@ Deno.serve(async (req) => {
     for (const bid of touched) {
       try { await service.rpc("sync_batch_status_from_items", { p_batch_id: bid }); }
       catch (e) { console.warn("[reconciliation] sync failed for", bid, e); }
+    }
+
+    if (runId) {
+      await service
+        .from("reconciliation_runs")
+        .update({
+          completed_at: new Date().toISOString(),
+          items_checked: items.length,
+          succeeded,
+          failed,
+          unchanged,
+        })
+        .eq("id", runId);
     }
 
     return json({

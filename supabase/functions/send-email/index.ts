@@ -222,8 +222,8 @@ Deno.serve(async (req) => {
       if (!apiKey) {
         console.warn("[send-email] RESEND_API_KEY not set — templated email skipped:", to);
         return new Response(
-          JSON.stringify({ ok: true, dev_skip: true }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          JSON.stringify({ ok: false, error: "RESEND_API_KEY not configured", dev_skip: true }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
       const from = Deno.env.get("FROM_EMAIL") ?? `${companyName} <noreply@kdsquares.com>`;
@@ -275,8 +275,8 @@ Deno.serve(async (req) => {
       if (!termiiKey) {
         console.warn("[send-email] TERMII_API_KEY not set — SMS not sent to:", to);
         return new Response(
-          JSON.stringify({ ok: true, dev_skip: true }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          JSON.stringify({ ok: false, error: "TERMII_API_KEY not configured", dev_skip: true }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 
@@ -350,8 +350,8 @@ Deno.serve(async (req) => {
     if (!apiKey) {
       console.warn("[send-email] RESEND_API_KEY not set — email not sent to:", to);
       return new Response(
-        JSON.stringify({ ok: true, dev_skip: true }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({ ok: false, error: "RESEND_API_KEY not configured", dev_skip: true }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 

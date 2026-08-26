@@ -178,6 +178,7 @@ async function disburseOne(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ batch_id: batchId }),
+      signal: AbortSignal.timeout(30_000),
     });
     const workerJson = await resp.json().catch(() => ({}));
     if (!resp.ok || workerJson?.ok === false) {

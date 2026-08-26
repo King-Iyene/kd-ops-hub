@@ -21,6 +21,9 @@ export interface P9CardRow {
   pension_ngn: number;
   nhf_ngn: number;
   nhis_ngn: number;
+  avc_ngn: number;
+  rent_relief_ngn: number;
+  life_assurance_relief_ngn: number;
   total_relief_ngn: number;
   chargeable_ngn: number;
   paye_ngn: number;
@@ -48,7 +51,7 @@ export async function generateP9Cards(year: number): Promise<P9Card[]> {
 
   const { data: payslips, error } = await supabase
     .from('payslips')
-    .select('employee_id, period, gross_ngn, paye_ngn, pension_ngn, nhf_ngn, net_ngn, profiles:employee_id(full_name, staff_number, tin)')
+    .select('employee_id, period, gross_ngn, paye_ngn, pension_ngn, nhf_ngn, nhis_ngn, avc_ngn, rent_relief_ngn, life_assurance_relief_ngn, net_ngn, profiles:employee_id(full_name, staff_number, tin)')
     .gte('period', startPeriod)
     .lte('period', endPeriod)
     .order('period');
@@ -84,8 +87,11 @@ export async function generateP9Cards(year: number): Promise<P9Card[]> {
       const gross = round(slip?.gross_ngn);
       const pension = round(slip?.pension_ngn);
       const nhf = round(slip?.nhf_ngn);
-      const nhis = 0;
-      const totalRelief = pension + nhf + nhis;
+      const nhis = round(slip?.nhis_ngn);
+      const avc = round(slip?.avc_ngn);
+      const rentRelief = round(slip?.rent_relief_ngn);
+      const lifeAssuranceRelief = round(slip?.life_assurance_relief_ngn);
+      const totalRelief = pension + nhf + nhis + avc + rentRelief + lifeAssuranceRelief;
       const chargeable = Math.max(0, gross - totalRelief);
       const paye = round(slip?.paye_ngn);
       cumulativePaye += paye;
@@ -96,6 +102,9 @@ export async function generateP9Cards(year: number): Promise<P9Card[]> {
         pension_ngn: pension,
         nhf_ngn: nhf,
         nhis_ngn: nhis,
+        avc_ngn: avc,
+        rent_relief_ngn: rentRelief,
+        life_assurance_relief_ngn: lifeAssuranceRelief,
         total_relief_ngn: totalRelief,
         chargeable_ngn: chargeable,
         paye_ngn: paye,
@@ -128,6 +137,9 @@ export function p9CardsToCsv(cards: P9Card[]): string {
     'Pension (₦)',
     'NHF (₦)',
     'NHIS (₦)',
+    'AVC (₦)',
+    'Rent Relief (₦)',
+    'Life Assurance (₦)',
     'Total Relief (₦)',
     'Chargeable Income (₦)',
     'PAYE (₦)',
@@ -146,6 +158,9 @@ export function p9CardsToCsv(cards: P9Card[]): string {
         String(r.pension_ngn),
         String(r.nhf_ngn),
         String(r.nhis_ngn),
+        String(r.avc_ngn),
+        String(r.rent_relief_ngn),
+        String(r.life_assurance_relief_ngn),
         String(r.total_relief_ngn),
         String(r.chargeable_ngn),
         String(r.paye_ngn),
@@ -161,6 +176,9 @@ export function p9CardsToCsv(cards: P9Card[]): string {
       String(card.rows.reduce((s, r) => s + r.pension_ngn, 0)),
       String(card.rows.reduce((s, r) => s + r.nhf_ngn, 0)),
       String(card.rows.reduce((s, r) => s + r.nhis_ngn, 0)),
+      String(card.rows.reduce((s, r) => s + r.avc_ngn, 0)),
+      String(card.rows.reduce((s, r) => s + r.rent_relief_ngn, 0)),
+      String(card.rows.reduce((s, r) => s + r.life_assurance_relief_ngn, 0)),
       String(card.rows.reduce((s, r) => s + r.total_relief_ngn, 0)),
       String(card.rows.reduce((s, r) => s + r.chargeable_ngn, 0)),
       String(card.annual_paye_ngn),

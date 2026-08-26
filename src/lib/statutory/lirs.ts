@@ -42,7 +42,10 @@ export function buildLirsPayeSchedule(
     'Pension Contribution (Annual ₦)',
     'NHF Contribution (Annual ₦)',
     'NHIS Contribution (Annual ₦)',
+    'AVC (Annual ₦)',
     'Rent Relief (Annual ₦)',
+    'Life Assurance (Annual ₦)',
+    'Total Relief (Annual ₦)',
     'Chargeable Income (Annual ₦)',
     'Tax Due (Annual ₦)',
     'PAYE This Month (₦)',
@@ -53,13 +56,11 @@ export function buildLirsPayeSchedule(
     const pensionAnnual = li.pension_employee_monthly_ngn * 12;
     const nhfAnnual = li.nhf_monthly_ngn * 12;
     const nhisAnnual = li.nhis_monthly_ngn * 12;
-    // Rent relief not captured on payroll_run_items today — leave blank
-    // (finance can fill in per-employee before uploading if applicable).
-    const rentAnnual = '';
-    const chargeableAnnual = Math.max(
-      0,
-      grossAnnual - pensionAnnual - nhfAnnual - nhisAnnual,
-    );
+    const avcAnnual = li.avc_monthly_ngn * 12;
+    const rentAnnual = li.rent_relief_monthly_ngn * 12;
+    const lifeAnnual = li.life_assurance_monthly_ngn * 12;
+    const totalRelief = pensionAnnual + nhfAnnual + nhisAnnual + avcAnnual + rentAnnual + lifeAnnual;
+    const chargeableAnnual = Math.max(0, grossAnnual - totalRelief);
     const taxAnnual = li.paye_monthly_ngn * 12;
     return [
       i + 1,
@@ -73,23 +74,28 @@ export function buildLirsPayeSchedule(
       pensionAnnual,
       nhfAnnual,
       nhisAnnual,
+      avcAnnual,
       rentAnnual,
+      lifeAnnual,
+      totalRelief,
       chargeableAnnual,
       taxAnnual,
       li.paye_monthly_ngn,
     ];
   });
 
-  // Totals footer — helps finance reconcile before upload.
   const totals = rows.reduce(
     (acc, li) => ({
       gross: acc.gross + li.gross_monthly_ngn,
       pension: acc.pension + li.pension_employee_monthly_ngn,
       nhf: acc.nhf + li.nhf_monthly_ngn,
       nhis: acc.nhis + li.nhis_monthly_ngn,
+      avc: acc.avc + li.avc_monthly_ngn,
+      rent: acc.rent + li.rent_relief_monthly_ngn,
+      life: acc.life + li.life_assurance_monthly_ngn,
       paye: acc.paye + li.paye_monthly_ngn,
     }),
-    { gross: 0, pension: 0, nhf: 0, nhis: 0, paye: 0 },
+    { gross: 0, pension: 0, nhf: 0, nhis: 0, avc: 0, rent: 0, life: 0, paye: 0 },
   );
   body.push([
     '',
@@ -103,6 +109,9 @@ export function buildLirsPayeSchedule(
     totals.pension * 12,
     totals.nhf * 12,
     totals.nhis * 12,
+    totals.avc * 12,
+    totals.rent * 12,
+    totals.life * 12,
     '',
     '',
     totals.paye * 12,
