@@ -1759,6 +1759,8 @@ export type Database = {
           company_name: string
           created_at: string
           currency_code: string
+          development_levy_annual_ngn: number
+          development_levy_enabled: boolean
           dual_approval_threshold_ngn: number
           employer_rc_number: string | null
           employer_tin: string | null
@@ -1790,10 +1792,13 @@ export type Database = {
           mfa_required_for_all_users: boolean
           monthly_revenue_estimate_ngn: number | null
           nhf_employer_code: string | null
+          nhf_enabled: boolean
+          nhis_enabled: boolean
           nsitf_employer_code: string | null
           nsitf_enabled: boolean
           partner_pay_usd_minor: number
           paternity_leave_days: number
+          paye_enabled: boolean
           payment_email_audience: string
           payroll_notifications_muted: boolean
           paystack_funding_account_name: string | null
@@ -1804,6 +1809,7 @@ export type Database = {
           paystack_secret_configured: boolean
           paystack_webhook_url: string | null
           pencom_employer_code: string | null
+          pension_enabled: boolean
           probation_period_days: number
           probation_review_enabled: boolean
           provider_switched_at: string | null
@@ -1862,6 +1868,8 @@ export type Database = {
           company_name?: string
           created_at?: string
           currency_code?: string
+          development_levy_annual_ngn?: number
+          development_levy_enabled?: boolean
           dual_approval_threshold_ngn?: number
           employer_rc_number?: string | null
           employer_tin?: string | null
@@ -1893,10 +1901,13 @@ export type Database = {
           mfa_required_for_all_users?: boolean
           monthly_revenue_estimate_ngn?: number | null
           nhf_employer_code?: string | null
+          nhf_enabled?: boolean
+          nhis_enabled?: boolean
           nsitf_employer_code?: string | null
           nsitf_enabled?: boolean
           partner_pay_usd_minor?: number
           paternity_leave_days?: number
+          paye_enabled?: boolean
           payment_email_audience?: string
           payroll_notifications_muted?: boolean
           paystack_funding_account_name?: string | null
@@ -1907,6 +1918,7 @@ export type Database = {
           paystack_secret_configured?: boolean
           paystack_webhook_url?: string | null
           pencom_employer_code?: string | null
+          pension_enabled?: boolean
           probation_period_days?: number
           probation_review_enabled?: boolean
           provider_switched_at?: string | null
@@ -1965,6 +1977,8 @@ export type Database = {
           company_name?: string
           created_at?: string
           currency_code?: string
+          development_levy_annual_ngn?: number
+          development_levy_enabled?: boolean
           dual_approval_threshold_ngn?: number
           employer_rc_number?: string | null
           employer_tin?: string | null
@@ -1996,10 +2010,13 @@ export type Database = {
           mfa_required_for_all_users?: boolean
           monthly_revenue_estimate_ngn?: number | null
           nhf_employer_code?: string | null
+          nhf_enabled?: boolean
+          nhis_enabled?: boolean
           nsitf_employer_code?: string | null
           nsitf_enabled?: boolean
           partner_pay_usd_minor?: number
           paternity_leave_days?: number
+          paye_enabled?: boolean
           payment_email_audience?: string
           payroll_notifications_muted?: boolean
           paystack_funding_account_name?: string | null
@@ -2010,6 +2027,7 @@ export type Database = {
           paystack_secret_configured?: boolean
           paystack_webhook_url?: string | null
           pencom_employer_code?: string | null
+          pension_enabled?: boolean
           probation_period_days?: number
           probation_review_enabled?: boolean
           provider_switched_at?: string | null
@@ -8029,6 +8047,7 @@ export type Database = {
       }
       payroll_run_items: {
         Row: {
+          avc_ngn: number
           created_at: string
           employee_id: string | null
           employee_name: string
@@ -8036,12 +8055,14 @@ export type Database = {
           id: string
           net_ngn: number
           nhf_ngn: number
+          nhis_ngn: number
           paye_ngn: number
           payroll_run_id: string
           pension_ngn: number
           updated_at: string | null
         }
         Insert: {
+          avc_ngn?: number
           created_at?: string
           employee_id?: string | null
           employee_name: string
@@ -8049,12 +8070,14 @@ export type Database = {
           id?: string
           net_ngn?: number
           nhf_ngn?: number
+          nhis_ngn?: number
           paye_ngn?: number
           payroll_run_id: string
           pension_ngn?: number
           updated_at?: string | null
         }
         Update: {
+          avc_ngn?: number
           created_at?: string
           employee_id?: string | null
           employee_name?: string
@@ -8062,6 +8085,7 @@ export type Database = {
           id?: string
           net_ngn?: number
           nhf_ngn?: number
+          nhis_ngn?: number
           paye_ngn?: number
           payroll_run_id?: string
           pension_ngn?: number
@@ -8496,6 +8520,7 @@ export type Database = {
           generated_by: string | null
           gross_ngn: number
           id: string
+          life_assurance_relief_ngn: number | null
           net_ngn: number
           nhf_ngn: number
           nhis_ngn: number | null
@@ -8503,6 +8528,7 @@ export type Database = {
           payroll_run_id: string | null
           pension_ngn: number
           period: string
+          rent_relief_ngn: number | null
           storage_path: string | null
           updated_at: string | null
         }
@@ -8519,6 +8545,7 @@ export type Database = {
           generated_by?: string | null
           gross_ngn?: number
           id?: string
+          life_assurance_relief_ngn?: number | null
           net_ngn?: number
           nhf_ngn?: number
           nhis_ngn?: number | null
@@ -8526,6 +8553,7 @@ export type Database = {
           payroll_run_id?: string | null
           pension_ngn?: number
           period: string
+          rent_relief_ngn?: number | null
           storage_path?: string | null
           updated_at?: string | null
         }
@@ -8542,6 +8570,7 @@ export type Database = {
           generated_by?: string | null
           gross_ngn?: number
           id?: string
+          life_assurance_relief_ngn?: number | null
           net_ngn?: number
           nhf_ngn?: number
           nhis_ngn?: number | null
@@ -8549,6 +8578,7 @@ export type Database = {
           payroll_run_id?: string | null
           pension_ngn?: number
           period?: string
+          rent_relief_ngn?: number | null
           storage_path?: string | null
           updated_at?: string | null
         }
@@ -9798,6 +9828,8 @@ export type Database = {
           account_number: string | null
           address: string | null
           annual_leave_days: number | null
+          annual_life_assurance_ngn: number | null
+          annual_rent_ngn: number | null
           bank_account_modified_at: string | null
           bank_account_name: string | null
           bank_account_number: string | null
@@ -9884,6 +9916,8 @@ export type Database = {
           account_number?: string | null
           address?: string | null
           annual_leave_days?: number | null
+          annual_life_assurance_ngn?: number | null
+          annual_rent_ngn?: number | null
           bank_account_modified_at?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
@@ -9970,6 +10004,8 @@ export type Database = {
           account_number?: string | null
           address?: string | null
           annual_leave_days?: number | null
+          annual_life_assurance_ngn?: number | null
+          annual_rent_ngn?: number | null
           bank_account_modified_at?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
@@ -10519,6 +10555,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reconciliation_runs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          failed: number
+          id: string
+          items_checked: number
+          metadata: Json | null
+          provider: string
+          started_at: string
+          succeeded: number
+          trigger_type: string
+          triggered_by: string | null
+          unchanged: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          failed?: number
+          id?: string
+          items_checked?: number
+          metadata?: Json | null
+          provider?: string
+          started_at?: string
+          succeeded?: number
+          trigger_type?: string
+          triggered_by?: string | null
+          unchanged?: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          failed?: number
+          id?: string
+          items_checked?: number
+          metadata?: Json | null
+          provider?: string
+          started_at?: string
+          succeeded?: number
+          trigger_type?: string
+          triggered_by?: string | null
+          unchanged?: number
+        }
+        Relationships: []
       }
       recurring_schedules: {
         Row: {
@@ -15856,6 +15940,10 @@ export type Database = {
           used_month_ngn: number
           used_today_ngn: number
         }[]
+      }
+      claim_campaign_for_sending: {
+        Args: { p_campaign_id: string }
+        Returns: boolean
       }
       client_finalize_transfer: {
         Args: {
