@@ -153,8 +153,14 @@ export function MyRequestsTab({
         </Tooltip>
       </div>
 
-      {/* Yellow action banners for payment_sent fuel requests */}
-      {myFuelRequests.filter((r) => r.status === 'payment_sent').map((r) => {
+      {/* Red action banners for fuel requests still missing a receipt.
+          Must mirror getReceiptDebt()'s own filter (status===payment_sent
+          AND receipt_url is null) — a row logged via "Log External
+          Purchase" is inserted as payment_sent with the receipt already
+          attached (a DB constraint requires that status), so checking
+          status alone re-flags rows that were never actually blocking
+          anything. */}
+      {myFuelRequests.filter((r) => r.status === 'payment_sent' && !r.receipt_url).map((r) => {
         const days = daysSinceIso(r.payment_sent_at);
         return (
           <div
@@ -242,7 +248,7 @@ export function MyRequestsTab({
                     <TableCell><StatusBadge status={displayFuelStatus(r)} /></TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(r.created_at)}</TableCell>
                     <TableCell>
-                      {r.status === 'payment_sent' && (
+                      {r.status === 'payment_sent' && !r.receipt_url && (
                         <Button
                           size="sm"
                           variant="outline"
