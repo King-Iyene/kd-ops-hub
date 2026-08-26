@@ -71,9 +71,15 @@ const Fleet = () => {
 
   const [tab, setTab] = useState<FleetTab>(isAdmin ? 'dashboard' : 'my_requests');
   const [fuelTabAction, setFuelTabAction] = useState<FuelTabInitialAction | null>(null);
+  // Deliberately does NOT switch tabs. FuelTab is kept mounted at all times
+  // (see the render below) specifically so its upload/new-request dialogs
+  // — which are Radix Dialogs that portal to document.body — can be opened
+  // as an overlay on top of whatever tab the user is already looking at.
+  // Switching tabs here used to unmount MyRequestsTab entirely, which took
+  // its outstanding-receipt banners down with it the instant "Upload
+  // Receipt" was clicked, even though nothing had actually been uploaded yet.
   const goToFuelTab = (action: FuelTabInitialAction) => {
     setFuelTabAction(action);
-    setTab('fuel');
   };
 
   // ── Shared data ────────────────────────────────────────────────────────
@@ -396,7 +402,13 @@ const Fleet = () => {
             />
           )}
 
-          {tab === 'fuel' && (
+          {/* Always mounted (not gated by tab === 'fuel'): its dialogs are
+              what MyRequestsTab's action buttons open via fuelTabAction,
+              and they need to work no matter which tab is visible. Hidden
+              rather than unmounted when not the active tab — Radix Dialogs
+              portal to document.body, so a hidden host div doesn't stop an
+              open dialog from rendering on top of the current tab. */}
+          <div className={tab === 'fuel' ? undefined : 'hidden'}>
             <FuelTab
               staff={staff}
               vehicles={vehicles}
@@ -407,7 +419,7 @@ const Fleet = () => {
               initialAction={fuelTabAction}
               onInitialActionHandled={() => setFuelTabAction(null)}
             />
-          )}
+          </div>
 
           {tab === 'trips' && (
             <TripsTab

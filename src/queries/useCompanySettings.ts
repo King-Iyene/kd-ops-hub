@@ -7,6 +7,16 @@ import { useSupabaseQuery, useSupabaseMutation, useInvalidate } from './useSupab
 // company_settings is a singleton table — one row, fixed id — same as every
 // other reader in the app (Settings.tsx, Payments.tsx, DirectorDisbursements.tsx,
 // etc.). There is no per-tenant filtering on this table.
+//
+// RLS restricts SELECT on this table to admin/finance/super_admin (see
+// 20260730000004_security_hardening_pre_launch.sql — it used to leak to
+// every authenticated role). This hook, though, is called from components
+// mounted for every role (FuelTab's price benchmark, MfaRequiredBanner,
+// etc.), so for operations/field_staff the query legitimately returns zero
+// rows. .single() treats zero rows as an error (PostgREST 406) — for a
+// non-privileged viewer that fired on every mount, flooding the console.
+// .maybeSingle() returns null instead, which every caller already handles
+// via `?? null` / optional chaining.
 export function useCompanySettings() {
   const { profile } = useAuthStore();
   return useSupabaseQuery(
@@ -16,7 +26,7 @@ export function useCompanySettings() {
         .from('company_settings')
         .select('*')
         .eq('id', SETTINGS_SINGLETON_ID)
-        .single(),
+        .maybeSingle(),
     {
       enabled: !!profile,
       staleTime: 60_000,
