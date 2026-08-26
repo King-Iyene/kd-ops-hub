@@ -153,11 +153,21 @@ Deno.serve(async (req) => {
     const logoUrl = (cs as any)?.logo_url || null;
     const fromEmail = Deno.env.get("FROM_EMAIL") ?? `${companyName} <noreply@kdsquares.com>`;
 
-    // Mark sending.
-    await service.from("email_campaigns").update({
-      status: "sending",
-      started_at: new Date().toISOString(),
-    }).eq("id", campaign_id);
+    // Atomically claim the campaign for sending — prevents the race where two
+    // concurrent invocations both see status='draft' and both proceed.
+    const { data: claimed, error: claimErr } = await service.rpc("claim_campaign_for_sending", {
+      p_campaign_id: campaign_id,
+    });
+    if (claimErr) {
+      return new Response(JSON.stringify({ ok: false, error: "Failed to claim campaign: " + claimErr.message }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!claimed) {
+      return new Response(JSON.stringify({ ok: false, error: "Campaign already claimed by another sender" }), {
+        status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Pull pending recipients in batches.
     const PAGE = 100;
