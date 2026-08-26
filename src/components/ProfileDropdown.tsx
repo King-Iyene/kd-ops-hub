@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   User as UserIcon,
@@ -9,6 +10,7 @@ import {
   Sunrise,
   Sunset,
   Moon,
+  UserCog,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useTimeOfDay, greetingFor, type TimeOfDay } from '@/hooks/useTimeOfDay';
@@ -28,6 +30,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { AvatarBubble } from '@/components/AvatarBubble';
+import { ImpersonateUserDialog } from '@/components/ImpersonateUserDialog';
 
 /** First-letter initials from a full name, up to 2 characters. */
 const initialsOf = (name?: string | null, email?: string | null): string => {
@@ -57,6 +61,7 @@ const TOD_ICON: Record<TimeOfDay, typeof Sun> = {
 
 export function ProfileDropdown() {
   const navigate = useNavigate();
+  const [impersonateOpen, setImpersonateOpen] = useState(false);
   const profile = useAuthStore((s) => s.profile);
   const viewAs = useAuthStore((s) => s.viewAsRole);
   const setViewAsRole = useAuthStore((s) => s.setViewAsRole);
@@ -180,6 +185,12 @@ export function ProfileDropdown() {
                 View-only simulation — your real role is never changed.
               </p>
             </div>
+            <DropdownMenuItem
+              onClick={() => setImpersonateOpen(true)}
+              className="cursor-pointer mx-1"
+            >
+              <UserCog className="mr-2 h-4 w-4" /> Log in as another user…
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>
         )}
@@ -203,50 +214,14 @@ export function ProfileDropdown() {
           <LogOut className="mr-2 h-4 w-4" /> Sign Out
         </DropdownMenuItem>
       </DropdownMenuContent>
+      {isSuperAdmin && (
+        <ImpersonateUserDialog
+          open={impersonateOpen}
+          onOpenChange={setImpersonateOpen}
+          excludeUserId={profile?.id}
+        />
+      )}
     </DropdownMenu>
   );
 }
 
-// Reusable avatar bubble used in the trigger and the dropdown body.
-// Renders the user's uploaded photo when available, otherwise the
-// initials on the brand gradient — same source of truth as the Sidebar
-// header so the platform agrees on what the user looks like.
-function AvatarBubble({
-  photoUrl,
-  initials,
-  size,
-  ringClass = '',
-}: {
-  photoUrl: string | null;
-  initials: string;
-  size: number;
-  ringClass?: string;
-}) {
-  const fontSize = Math.max(11, Math.round(size * 0.34));
-  if (photoUrl) {
-    return (
-      <img
-        src={photoUrl}
-        alt=""
-        width={size}
-        height={size}
-        className={cn('rounded-full object-cover', ringClass)}
-        style={{ height: size, width: size }}
-        onError={(e) => {
-          // Storage object got revoked / 403 — fall back to initials.
-          (e.currentTarget as HTMLImageElement).style.display = 'none';
-        }}
-      />
-    );
-  }
-  return (
-    <div
-      className={cn('rounded-full kd-gradient-brand flex items-center justify-center', ringClass)}
-      style={{ height: size, width: size }}
-    >
-      <span className="font-bold text-white" style={{ fontSize }}>
-        {initials}
-      </span>
-    </div>
-  );
-}
