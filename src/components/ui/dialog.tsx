@@ -29,8 +29,16 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    /** Suppresses the default corner "X". Use for content that already has
+     * its own equivalent (e.g. CommandDialog, whose Escape key / click-outside
+     * already close it) — the default X is absolutely positioned assuming
+     * this component's own p-6 padding, so a consumer that overrides to
+     * p-0 (a flush, edge-to-edge dialog) ends up with the X overlapping
+     * its content instead of sitting in a clear margin. */
+    hideClose?: boolean;
+  }
+>(({ className, children, hideClose, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -42,10 +50,12 @@ const DialogContent = React.forwardRef<
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-lg p-1 text-muted-foreground/70 opacity-80 ring-offset-background transition-all hover:bg-muted hover:text-foreground hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
+      {!hideClose && (
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-lg p-1 text-muted-foreground/70 opacity-80 ring-offset-background transition-all hover:bg-muted hover:text-foreground hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      )}
     </DialogPrimitive.Content>
   </DialogPortal>
 ));

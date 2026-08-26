@@ -30,7 +30,11 @@ interface CommandDialogProps extends DialogProps {
 const CommandDialog = ({ children, commandClassName, ...props }: CommandDialogProps) => {
   return (
     <Dialog {...props}>
-      <DialogContent className="overflow-hidden p-0 shadow-lg">
+      {/* hideClose: the default corner "X" is positioned assuming
+          DialogContent's own p-6 padding — here it's overridden to p-0, so
+          that X would sit directly on top of CommandInput instead of in a
+          clear margin. Escape / click-outside already close this dialog. */}
+      <DialogContent className="overflow-hidden p-0 shadow-lg" hideClose>
         <Command
           className={cn(
             "[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4 [&_[cmdk-input]]:h-11 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-2 [&_[cmdk-item]_svg]:h-4 [&_[cmdk-item]_svg]:w-4",

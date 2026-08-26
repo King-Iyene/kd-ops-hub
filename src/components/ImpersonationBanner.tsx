@@ -1,8 +1,16 @@
 import { useState } from 'react';
-import { UserCog, Repeat, LogOut } from 'lucide-react';
+import { Repeat, LogOut } from 'lucide-react';
 import { getImpersonationMeta, endImpersonation } from '@/lib/impersonation';
 import { useToast } from '@/hooks/use-toast';
 import { ImpersonateUserDialog } from '@/components/ImpersonateUserDialog';
+import { AvatarBubble } from '@/components/AvatarBubble';
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 /**
  * Compact, unmissable-but-not-overbearing strip shown for the duration of
@@ -41,11 +49,20 @@ export function ImpersonationBanner() {
   return (
     <>
       <div className="flex items-center gap-2 px-3 py-1 text-xs font-medium text-white bg-red-600 shadow-sm">
-        <UserCog className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        <span className="truncate">
+        <AvatarBubble
+          photoUrl={null}
+          initials={initialsOf(meta.targetName)}
+          size={18}
+          ringClass="ring-1 ring-white/40 shrink-0"
+        />
+        {/* min-w-0 is required here: a flex child's default min-width is
+            "auto" (its content size), which silently defeats `truncate` —
+            without it the name doesn't ellipsize, it just overflows the
+            row, and depending on what's above this in the layout that can
+            read as the START of the name being clipped instead. */}
+        <span className="truncate min-w-0 flex-1" title={meta.targetName}>
           Viewing as <span className="font-bold">{meta.targetName}</span>
         </span>
-        <span className="flex-1" />
         <button
           type="button"
           onClick={() => setSwitchOpen(true)}
