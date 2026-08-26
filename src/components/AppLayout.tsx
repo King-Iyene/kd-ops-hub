@@ -4,6 +4,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ViewAsBanner } from '@/components/ViewAsBanner';
+import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 import { MobileNav } from '@/components/MobileNav';
 import { CommandPalette } from '@/components/CommandPalette';
 import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
@@ -121,6 +122,7 @@ export default function AppLayout() {
         Skip to main content
       </a>
       <OfflineBanner />
+      <ImpersonationBanner />
       <ViewAsBanner />
       <MfaRequiredBanner />
       <SidebarProvider>

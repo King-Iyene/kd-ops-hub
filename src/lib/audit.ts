@@ -113,6 +113,8 @@ export type AuditActionType =
   | 'client_deleted'
   | 'data_retention_action'
   | 'platform_export'
+  | 'user_impersonation_started'
+  | 'user_impersonation_ended'
   // Reconciled against every logAudit() call site in src/ (TS2345 drift
   // audit) — these were already being passed as action types but were
   // missing from this union, silently forcing callers into `as any`/type

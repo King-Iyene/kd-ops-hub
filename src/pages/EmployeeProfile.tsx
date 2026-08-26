@@ -64,6 +64,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { startImpersonation } from '@/lib/impersonation';
 import { cn } from '@/lib/utils';
 import { getBankCode } from '@/lib/paystack';
 import { type PermissionsMap } from '@/components/PermissionsEditor';
@@ -656,6 +657,20 @@ const EmployeeProfile = () => {
     setEditingSection(null);
     setSectionSaving(false);
     load();
+  };
+
+  const handleImpersonate = async () => {
+    if (!id || !employee) return;
+    try {
+      await startImpersonation(id, employee.full_name || employee.email || 'this user');
+      // startImpersonation reloads the page on success — nothing more to do.
+    } catch (err) {
+      toast({
+        title: 'Could not log in as this user',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleDeactivate = async () => {
@@ -1291,6 +1306,17 @@ const EmployeeProfile = () => {
               {canManage && currentUser?.id !== id && (
                 <DropdownMenuItem onClick={() => setConfirmDeactivate(true)}>
                   Deactivate
+                </DropdownMenuItem>
+              )}
+              {isSuperAdmin && currentUser?.id !== id && employee?.status === 'active' && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (window.confirm(`Log in as ${employee?.full_name || 'this user'}? You'll see and act on the app exactly as they do until you exit.`)) {
+                      handleImpersonate();
+                    }
+                  }}
+                >
+                  Log in as this user
                 </DropdownMenuItem>
               )}
               {isSuperAdmin && currentUser?.id !== id && (

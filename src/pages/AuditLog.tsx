@@ -23,6 +23,7 @@ import {
   ListTodo,
   BookOpen,
   Loader2,
+  UserCog,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
@@ -116,6 +117,8 @@ const MODULE_OF: Record<string, string> = {
   profile_updated: 'Profile',
   profile_password_changed: 'Profile',
   profile_viewed_as: 'Profile',
+  user_impersonation_started: 'Impersonation',
+  user_impersonation_ended: 'Impersonation',
   leave_requested: 'Leave',
   leave_approved: 'Leave',
   leave_rejected: 'Leave',
@@ -203,6 +206,8 @@ const ICON_OF: Record<string, typeof FileText> = {
   knowledge_article_created: BookOpen,
   virtual_card_created: CreditCard,
   profile_viewed_as: Eye,
+  user_impersonation_started: UserCog,
+  user_impersonation_ended: UserCog,
 };
 
 const prettyType = (t: string) => t.replace(/_/g, ' ');

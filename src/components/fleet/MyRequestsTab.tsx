@@ -166,7 +166,7 @@ export function MyRequestsTab({
             </div>
             <Button
               size="sm"
-              className={cn('shrink-0 text-white', blocked ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700')}
+              className="shrink-0 text-white bg-red-600 hover:bg-red-700"
               onClick={() => onUploadReceipt?.(r)}
             >
               <Upload className="h-3.5 w-3.5 mr-1.5" /> Upload Receipt
@@ -192,7 +192,7 @@ export function MyRequestsTab({
             </div>
             <Button
               size="sm"
-              className={cn('shrink-0 text-white', blocked ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700')}
+              className="shrink-0 text-white bg-red-600 hover:bg-red-700"
               onClick={() => onUploadRepairReceipt?.(r)}
             >
               <Upload className="h-3.5 w-3.5 mr-1.5" /> Attach Receipt
