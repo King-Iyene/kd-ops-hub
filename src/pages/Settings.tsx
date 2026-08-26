@@ -59,6 +59,7 @@ import EmailTemplatesSettings from '@/components/settings/EmailTemplatesSettings
 import FxRateSettings from '@/components/settings/FxRateSettings';
 import LeaveSettings from '@/components/settings/LeaveSettings';
 import CompanyTab from '@/components/settings/CompanyTab';
+import StatutorySettingsTab from '@/components/settings/StatutorySettingsTab';
 import IntegrationsTab from '@/components/settings/IntegrationsTab';
 import ExpensePolicyTab from '@/components/settings/ExpensePolicyTab';
 import NotificationPrefsTab from '@/components/settings/NotificationPrefsTab';
@@ -114,6 +115,14 @@ interface CompanySettings {
   nhf_employer_code: string | null;
   nsitf_employer_code: string | null;
   itf_employer_code: string | null;
+  pension_enabled: boolean;
+  paye_enabled: boolean;
+  nhf_enabled: boolean;
+  nhis_enabled: boolean;
+  nsitf_enabled: boolean;
+  itf_enabled: boolean;
+  development_levy_enabled: boolean;
+  development_levy_annual_ngn: number;
   leave_carryover_max_days: number;
 }
 
@@ -144,7 +153,7 @@ const SettingsPage = () => {
     const [settingsRes, notifRes, mfaStatusRes] = await Promise.all([
       supabase
         .from('company_settings')
-        .select('company_name, rc_number, tin, address, website, logo_url, fiscal_year_preset, currency_code, usd_rate, cash_on_hand_ngn, external_monthly_burn_ngn, monthly_revenue_estimate_ngn, cash_updated_at, expense_limits, dual_approval_threshold_ngn, paystack_secret_configured, airtable_base_id, airtable_income_table_id, airtable_expenses_table_id, airtable_sync_enabled, paystack_funding_bank, paystack_funding_account_name, paystack_funding_account_number, resend_from_address, resend_api_key_configured, termii_sender_id, termii_api_key_configured, whatsapp_enabled, sms_enabled, smtp_host, smtp_port, smtp_username, smtp_from_address, session_timeout_minutes, audit_log_retention_days, mfa_required_for_all_users, approval_step_up_required, fuel_weekly_budgets, website_url, linkedin_url, instagram_url, facebook_url, twitter_url, timezone, state_of_business, pencom_employer_code, nhf_employer_code, nsitf_employer_code, itf_employer_code, leave_carryover_max_days')
+        .select('company_name, rc_number, tin, address, website, logo_url, fiscal_year_preset, currency_code, usd_rate, cash_on_hand_ngn, external_monthly_burn_ngn, monthly_revenue_estimate_ngn, cash_updated_at, expense_limits, dual_approval_threshold_ngn, paystack_secret_configured, airtable_base_id, airtable_income_table_id, airtable_expenses_table_id, airtable_sync_enabled, paystack_funding_bank, paystack_funding_account_name, paystack_funding_account_number, resend_from_address, resend_api_key_configured, termii_sender_id, termii_api_key_configured, whatsapp_enabled, sms_enabled, smtp_host, smtp_port, smtp_username, smtp_from_address, session_timeout_minutes, audit_log_retention_days, mfa_required_for_all_users, approval_step_up_required, fuel_weekly_budgets, website_url, linkedin_url, instagram_url, facebook_url, twitter_url, timezone, state_of_business, pencom_employer_code, nhf_employer_code, nsitf_employer_code, itf_employer_code, pension_enabled, paye_enabled, nhf_enabled, nhis_enabled, nsitf_enabled, itf_enabled, development_levy_enabled, development_levy_annual_ngn, leave_carryover_max_days')
         .eq('id', SINGLETON_ID)
         .maybeSingle(),
       profile?.id
@@ -333,6 +342,9 @@ const SettingsPage = () => {
           )}
           <TabsTrigger value="policy" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><CreditCard className="mr-2 h-4 w-4" /> Expense policy</TabsTrigger>
           <TabsTrigger value="leave" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><CalendarDays className="mr-2 h-4 w-4" /> Leave</TabsTrigger>
+          {['super_admin', 'admin', 'finance'].includes(profile?.role ?? '') && (
+            <TabsTrigger value="statutory" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Activity className="mr-2 h-4 w-4" /> Statutory</TabsTrigger>
+          )}
           <TabsTrigger value="exchange_rate" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><ArrowRightLeft className="mr-2 h-4 w-4" /> Exchange rate</TabsTrigger>
           <TabsTrigger value="notifications" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Bell className="mr-2 h-4 w-4" /> Notifications</TabsTrigger>
           {profile?.role === 'super_admin' && (
@@ -381,6 +393,13 @@ const SettingsPage = () => {
         <TabsContent value="leave" className="mt-4 space-y-4">
           <LeaveSettings />
         </TabsContent>
+
+        {/* STATUTORY ------------------------------------------------------ */}
+        {['super_admin', 'admin', 'finance'].includes(profile?.role ?? '') && (
+        <TabsContent value="statutory" className="mt-4 space-y-4">
+          <StatutorySettingsTab settings={settings as any} patch={patch as any} />
+        </TabsContent>
+        )}
 
         {/* NOTIFICATIONS ------------------------------------------------- */}
         <TabsContent value="notifications" className="mt-4 space-y-4">

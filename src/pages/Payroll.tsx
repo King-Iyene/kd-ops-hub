@@ -546,8 +546,9 @@ const Payroll = () => {
         const gross = useComps ? (basic + housing + transport + other) : Number(r.salary_ngn || 0);
         return s + computePayslip({
           grossMonthlyNgn: gross,
-          pensionEnabled: r.pension_enabled !== false,
-          nhfEnabled: r.nhf_enabled === true,
+          pensionEnabled: companySettings?.pension_enabled !== false && r.pension_enabled !== false,
+          payeEnabled: companySettings?.paye_enabled !== false,
+          nhfEnabled: companySettings?.nhf_enabled === true && r.nhf_enabled === true,
           voluntaryPensionPct: Number(r.voluntary_pension_pct || 0),
           useComponents: useComps,
           basicMonthlyNgn: basic,
@@ -1240,9 +1241,10 @@ const Payroll = () => {
           const payeBase   = empGross + taxableEarningsAdd + recurTaxable;
           const empBreak   = computePayslip({
             grossMonthlyNgn: payeBase,
-            pensionEnabled: e.pension_enabled !== false,
-            nhfEnabled: e.nhf_enabled === true,
-            nhisEnabled: e.nhis_enabled === true,
+            pensionEnabled: companySettings?.pension_enabled !== false && e.pension_enabled !== false,
+            payeEnabled: companySettings?.paye_enabled !== false,
+            nhfEnabled: companySettings?.nhf_enabled === true && e.nhf_enabled === true,
+            nhisEnabled: companySettings?.nhis_enabled === true && e.nhis_enabled === true,
             voluntaryPensionPct: Number(e.voluntary_pension_pct || 0),
             useComponents: useComps,
             basicMonthlyNgn: compBasic,
@@ -1267,6 +1269,9 @@ const Payroll = () => {
           const empNhisEmployer    = empBreak.nhisEmployerMonthlyNgn;
           const empNsitf           = nsitfEnabled ? empBreak.nsitfMonthlyNgn : 0;
           const empAvc             = empBreak.voluntaryPensionMonthlyNgn;
+          const empDevLevy         = companySettings?.development_levy_enabled
+            ? Math.round(Number(companySettings.development_levy_annual_ngn || 0) / 12)
+            : 0;
           const empDeductions = deductionsByEmployee.get(e.id) || [];
           const empDeductionsTotal = empDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn), 0);
           const empAdvances = advancesByEmployee.get(e.id) || [];
@@ -1278,11 +1283,12 @@ const Payroll = () => {
           const empEwa = ewaByEmployee.get(e.id) || [];
           const empEwaTotal = empEwa.reduce((s: number, w: any) => s + Number(w.amount_ngn || 0), 0);
           const empGrossTotal = empGross + earningsAddTotal;
-          const empNet = Math.max(0, empGrossTotal - empUnpaidLeaveDeduction - empPaye - empPension - empAvc - empNhf - empNhis - empDeductionsTotal - empAdvancesTotal - empEwaTotal - adjDeductTotal);
+          const empNet = Math.max(0, empGrossTotal - empUnpaidLeaveDeduction - empPaye - empPension - empAvc - empNhf - empNhis - empDevLevy - empDeductionsTotal - empAdvancesTotal - empEwaTotal - adjDeductTotal);
           const empName = displayName(e.first_name, e.last_name, e.full_name || e.email);
 
           // Build combined extra_deductions list for payslip (deductions + advance repayments + EWA settlements + one-off deductions)
           const allEmpDeductionLines = [
+            ...(empDevLevy > 0 ? [{ description: 'Development Levy', amount_ngn: empDevLevy }] : []),
             ...empDeductions.map((d: any) => ({ description: d.description, amount_ngn: Number(d.amount_ngn) })),
             ...empAdvances.map((a: any) => ({
               description: 'Salary Advance Repayment',
@@ -1427,13 +1433,14 @@ const Payroll = () => {
               nhis_ngn: empNhis,
               avc_ngn: empAvc,
               net_ngn: empNet,
-              deductions_ngn: empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal + empUnpaidLeaveDeduction,
+              deductions_ngn: empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal + empUnpaidLeaveDeduction + empDevLevy,
               deductions_json: (() => {
                 const lines = [
                   ...(empUnpaidLeaveDeduction > 0 ? [{
                     description: `Unpaid Leave (${empUnpaidLeaveDays} day${empUnpaidLeaveDays === 1 ? '' : 's'})`,
                     amount_ngn: empUnpaidLeaveDeduction,
                   }] : []),
+                  ...(empDevLevy > 0 ? [{ description: 'Development Levy', amount_ngn: empDevLevy }] : []),
                   ...empDeductions.map((d: any) => ({ id: d.id, description: d.description, amount_ngn: Number(d.amount_ngn) })),
                   ...empAdvances.map((a: any) => ({
                     advance_id: a.id,
