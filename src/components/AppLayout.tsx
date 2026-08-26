@@ -17,14 +17,7 @@ import { useEffectiveRole } from '@/store/authStore';
 import { useTimeOfDay } from '@/hooks/useTimeOfDay';
 import { useIdleTimeout } from '@/hooks/useIdleTimeout';
 import { Search } from 'lucide-react';
-
-const PORTAL_LABELS: Record<string, { label: string; color: string }> = {
-  super_admin: { label: 'Super Admin',   color: 'bg-purple-500/15 text-purple-700' },
-  admin:       { label: 'Admin',         color: 'bg-primary/10 text-primary' },
-  finance:     { label: 'Finance',       color: 'bg-emerald-500/15 text-emerald-700' },
-  operations:  { label: 'Operations',    color: 'bg-amber-500/15 text-amber-700' },
-  field_staff: { label: 'Field Staff',   color: 'bg-sky-500/15 text-sky-700' },
-};
+import { roleBadgeClass, roleLabel } from '@/lib/roles';
 
 const ROUTE_TITLES: Record<string, string> = {
   '/':                     'Dashboard',
@@ -102,7 +95,6 @@ function getRouteTitle(pathname: string): string {
 export default function AppLayout() {
   const effectiveRole = useEffectiveRole();
   const location = useLocation();
-  const portal = PORTAL_LABELS[effectiveRole ?? ''];
   const pageTitle = getRouteTitle(location.pathname);
   // Sets <html data-tod="…"> so CSS picks up ambient palette shifts.
   useTimeOfDay();
@@ -149,11 +141,11 @@ export default function AppLayout() {
                     {pageTitle}
                   </p>
                 )}
-                {portal && (
+                {effectiveRole && (
                   <>
                     {pageTitle && <span className="hidden sm:inline text-border/60 text-xs select-none">·</span>}
-                    <span className={`hidden sm:inline text-[10.5px] font-bold px-2 py-0.5 rounded-full tracking-wide ${portal.color}`}>
-                      {portal.label}
+                    <span className={`hidden sm:inline text-[10.5px] font-bold px-2 py-0.5 rounded-full tracking-wide border ${roleBadgeClass(effectiveRole ?? '')}`}>
+                      {roleLabel(effectiveRole ?? '')}
                     </span>
                   </>
                 )}

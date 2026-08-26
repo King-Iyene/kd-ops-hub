@@ -81,13 +81,18 @@ const CATEGORY_LABELS: Record<Category, string> = {
   engineering: 'Engineering',
 };
 
+// Document categories, not status — success/info/destructive carry
+// "good/bad/in-progress" meaning that has nothing to do with a policy's
+// subject, so this uses its own fixed categorical hues (each with a real
+// dark-mode value) instead of borrowing those tokens or leaving hardcoded
+// light-only classes like the old bg-purple-100.
 const CATEGORY_BADGE: Record<Category, string> = {
-  finance: 'bg-success/10 text-success',
-  hr: 'bg-info/10 text-info',
-  operations: 'bg-purple-100 text-purple-700',
-  compliance: 'bg-destructive/10 text-destructive',
+  finance: 'bg-teal-500/10 text-teal-700 dark:text-teal-400',
+  hr: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
+  operations: 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
+  compliance: 'bg-rose-500/10 text-rose-700 dark:text-rose-400',
   general: 'bg-muted text-muted-foreground',
-  engineering: 'bg-accent/15 text-accent-foreground',
+  engineering: 'bg-orange-500/10 text-orange-700 dark:text-orange-400',
 };
 
 const Knowledge = () => {

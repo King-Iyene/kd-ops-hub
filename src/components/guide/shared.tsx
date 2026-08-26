@@ -6,6 +6,7 @@ import type { ElementType, ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { roleBadgeClass, roleLabel } from '@/lib/roles';
 
 // The 5 real roles in src/lib/roles.ts, spelled out literally (not
 // imported from that module's role-set constants) so this file's badges
@@ -13,13 +14,18 @@ import { cn } from '@/lib/utils';
 // MANAGER_ROLES happens to resolve to today.
 export type Role = 'everyone' | 'super_admin' | 'admin' | 'finance' | 'operations' | 'field_staff';
 
+// Colors come from lib/roles.ts (the same map used on the profile menu and
+// top nav) so a role reads as the same color everywhere in the app — this
+// file used to keep its own independent amber/rose/violet/sky/emerald set,
+// which meant the Guide taught users a different color per role than the
+// one they actually saw elsewhere.
 export const ROLE_CONFIG: Record<Role, { label: string; className: string }> = {
   everyone: { label: 'Everyone', className: 'bg-primary/10 text-primary border-primary/20' },
-  super_admin: { label: 'Super Admin', className: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20' },
-  admin: { label: 'Admin', className: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20' },
-  finance: { label: 'Finance', className: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20' },
-  operations: { label: 'Operations', className: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20' },
-  field_staff: { label: 'Field Team', className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' },
+  super_admin: { label: roleLabel('super_admin'), className: roleBadgeClass('super_admin') },
+  admin: { label: roleLabel('admin'), className: roleBadgeClass('admin') },
+  finance: { label: roleLabel('finance'), className: roleBadgeClass('finance') },
+  operations: { label: roleLabel('operations'), className: roleBadgeClass('operations') },
+  field_staff: { label: 'Field Team', className: roleBadgeClass('field_staff') },
 };
 
 export function RoleBadges({ roles }: { roles: Role[] }) {
