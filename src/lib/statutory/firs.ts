@@ -42,19 +42,21 @@ export function buildFirsPayeSchedule(
     'Pension Monthly (₦)',
     'NHF Monthly (₦)',
     'NHIS Monthly (₦)',
+    'AVC Monthly (₦)',
+    'Rent Relief Monthly (₦)',
+    'Life Assurance Monthly (₦)',
+    'Total Relief (₦)',
     'Chargeable Monthly (₦)',
     'PAYE Monthly (₦)',
   ];
 
   const body = rows.map((li, i) => {
     const state = li.state_of_residence ?? defaultState ?? '(unset)';
-    const chargeableMonthly = Math.max(
-      0,
-      li.gross_monthly_ngn
-        - li.pension_employee_monthly_ngn
-        - li.nhf_monthly_ngn
-        - li.nhis_monthly_ngn,
-    );
+    const totalRelief = li.pension_employee_monthly_ngn
+      + li.nhf_monthly_ngn + li.nhis_monthly_ngn
+      + li.avc_monthly_ngn + li.rent_relief_monthly_ngn
+      + li.life_assurance_monthly_ngn;
+    const chargeableMonthly = Math.max(0, li.gross_monthly_ngn - totalRelief);
     return [
       i + 1,
       state,
@@ -67,6 +69,10 @@ export function buildFirsPayeSchedule(
       li.pension_employee_monthly_ngn,
       li.nhf_monthly_ngn,
       li.nhis_monthly_ngn,
+      li.avc_monthly_ngn,
+      li.rent_relief_monthly_ngn,
+      li.life_assurance_monthly_ngn,
+      totalRelief,
       chargeableMonthly,
       li.paye_monthly_ngn,
     ];
@@ -86,6 +92,10 @@ export function buildFirsPayeSchedule(
     rows.reduce((s, li) => s + li.pension_employee_monthly_ngn, 0),
     rows.reduce((s, li) => s + li.nhf_monthly_ngn, 0),
     rows.reduce((s, li) => s + li.nhis_monthly_ngn, 0),
+    rows.reduce((s, li) => s + li.avc_monthly_ngn, 0),
+    rows.reduce((s, li) => s + li.rent_relief_monthly_ngn, 0),
+    rows.reduce((s, li) => s + li.life_assurance_monthly_ngn, 0),
+    '',
     '',
     totalPaye,
   ]);

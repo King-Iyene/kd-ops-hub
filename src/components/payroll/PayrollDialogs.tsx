@@ -18,35 +18,7 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { PayrollRosterPreview } from '@/components/payroll/PayrollRosterPreview';
-
-interface BonusLine {
-  type: string;
-  amount: number;
-}
-
-interface PayrollRun {
-  id: string;
-  period: string;
-  period_type?: 'monthly' | 'quarterly' | 'annual';
-  employee_count?: number;
-  total_contractor_ngn: number;
-  total_employee_ngn: number;
-  total_expenses_ngn: number;
-  paye_ngn: number;
-  pension_ngn: number;
-  nhf_ngn: number;
-  total_burn_ngn: number;
-  employer_pension_ngn?: number | null;
-  bonuses_json?: BonusLine[] | null;
-  allowances_json?: { housing_pct: number; transport_per_emp: number; meal_per_emp: number; total: number } | null;
-  status: 'draft' | 'pending_approval' | 'approved' | 'processing' | 'paid';
-  created_at: string;
-  created_by: string | null;
-  approved_by: string | null;
-  payroll_segment_id?: string | null;
-  scheduled_disburse_at?: string | null;
-  is_auto_generated?: boolean;
-}
+import type { PayrollRun, BonusLine } from '@/lib/payroll-run';
 
 // The Draft dialog's guided flow — 3 named steps instead of one dense
 // scrollable form. Matches the Gusto/QuickBooks/ADP pattern researched for

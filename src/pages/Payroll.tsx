@@ -48,42 +48,7 @@ import { PayrollDialogs } from '@/components/payroll/PayrollDialogs';
 import { PayrollDashboardTab } from '@/components/payroll/PayrollDashboardTab';
 import { PayrollGroupsTab } from '@/components/payroll/PayrollGroupsTab';
 import { LayoutGrid, Layers } from 'lucide-react';
-
-interface BonusLine {
-  type: string;
-  amount: number;
-}
-
-interface AllowancesSnapshot {
-  housing_pct: number;
-  transport_per_emp: number;
-  meal_per_emp: number;
-  total: number;
-}
-
-interface PayrollRun {
-  id: string;
-  period: string;
-  period_type?: 'monthly' | 'quarterly' | 'annual';
-  employee_count?: number;
-  total_contractor_ngn: number;
-  total_employee_ngn: number;
-  total_expenses_ngn: number;
-  paye_ngn: number;
-  pension_ngn: number;
-  nhf_ngn: number;
-  total_burn_ngn: number;
-  employer_pension_ngn?: number | null;
-  bonuses_json?: BonusLine[] | null;
-  allowances_json?: AllowancesSnapshot | null;
-  status: 'draft' | 'pending_approval' | 'approved' | 'processing' | 'paid';
-  created_at: string;
-  created_by: string | null;
-  approved_by: string | null;
-  payroll_segment_id?: string | null;
-  scheduled_disburse_at?: string | null;
-  is_auto_generated?: boolean;
-}
+import type { PayrollRun, BonusLine } from '@/lib/payroll-run';
 
 const monthLabel = (period: string, periodType?: string): string => {
   if (!/^\d{4}-\d{1,2}$/.test(period)) return period;

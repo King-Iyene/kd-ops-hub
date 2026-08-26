@@ -227,9 +227,16 @@ export async function logAudit(
       p_metadata: metadata ?? {},
     });
     if (error) {
-      console.warn('[KDOps] log_audit RPC failed:', error.message);
+      const wrapped = new Error(`log_audit RPC failed: ${error.message}`);
+      console.warn('[KDOps]', wrapped.message);
+      (window as any).Sentry?.captureException?.(wrapped, {
+        extra: { actionType, description },
+      });
     }
   } catch (err) {
     console.warn('[KDOps] audit log exception:', err);
+    (window as any).Sentry?.captureException?.(err, {
+      extra: { actionType, description },
+    });
   }
 }
