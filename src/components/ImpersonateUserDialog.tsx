@@ -11,7 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-import { startImpersonation } from '@/lib/impersonation';
+import { startImpersonation, switchImpersonation } from '@/lib/impersonation';
 import { AvatarBubble } from '@/components/AvatarBubble';
 import { roleLabel, roleBadgeClass, roleRingClass } from '@/lib/roles';
 import type { UserRole } from '@/store/authStore';
@@ -34,10 +34,15 @@ export function ImpersonateUserDialog({
   open,
   onOpenChange,
   excludeUserId,
+  mode = 'start',
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   excludeUserId?: string;
+  /** 'switch' is used from the impersonation banner to jump straight from
+   * the current target to a different one, without a visible round-trip
+   * back through the admin's own dashboard. */
+  mode?: 'start' | 'switch';
 }) {
   const [people, setPeople] = useState<DirectoryPerson[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,7 +83,11 @@ export function ImpersonateUserDialog({
   const handlePick = async (person: DirectoryPerson) => {
     setStarting(person.id);
     try {
-      await startImpersonation(person.id, person.full_name || person.email);
+      if (mode === 'switch') {
+        await switchImpersonation(person.id, person.full_name || person.email);
+      } else {
+        await startImpersonation(person.id, person.full_name || person.email);
+      }
       // Reloads the page on success — nothing more to do here.
     } catch (err) {
       setStarting(null);
@@ -101,7 +110,10 @@ export function ImpersonateUserDialog({
       // the input itself, so a `[&+svg]` selector on the input never reached it).
       commandClassName="[&_[cmdk-input]]:h-10 [&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4"
     >
-      <CommandInput placeholder="Search people…" className="text-sm" />
+      <CommandInput
+        placeholder={mode === 'switch' ? 'Switch to…' : 'Search people…'}
+        className="text-sm"
+      />
       <CommandList className="max-h-[280px]">
         <CommandEmpty>{loading ? 'Loading…' : 'No one found.'}</CommandEmpty>
         {groups.map((group, idx) => (

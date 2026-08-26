@@ -35,21 +35,24 @@ export function getImpersonationMeta(): ImpersonationMeta | null {
 }
 
 /**
- * Starts impersonating `targetUserId`. Throws on any failure — caller
- * should toast the error and NOT navigate/reload, since the session is
- * still the real admin's at that point.
+ * Does the actual session swap once we're sure `adminSession` really is
+ * the real super_admin's session (never the currently-impersonated
+ * target's) — shared by startImpersonation (fresh) and switchImpersonation
+ * (already mid-impersonation). Throws on any failure without touching
+ * sessionStorage, so the caller's existing session/state is untouched.
  */
-export async function startImpersonation(targetUserId: string, targetName: string): Promise<void> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Not signed in');
-
-  const adminId = session.user.id;
+async function beginImpersonation(
+  adminSession: { user: { id: string; email?: string }; refresh_token: string },
+  targetUserId: string,
+  targetName: string,
+): Promise<void> {
+  const adminId = adminSession.user.id;
   const { data: adminProfile } = await supabase
     .from('profiles')
     .select('full_name')
     .eq('id', adminId)
     .single();
-  const adminName = adminProfile?.full_name || session.user.email || 'Admin';
+  const adminName = adminProfile?.full_name || adminSession.user.email || 'Admin';
 
   // Log BEFORE switching sessions — this call is still authenticated as
   // the real admin, so log_audit()'s auth.uid() correctly attributes it.
@@ -69,7 +72,7 @@ export async function startImpersonation(targetUserId: string, targetName: strin
 
   // Stash the admin's own refresh token + display metadata BEFORE
   // swapping the live session, so endImpersonation() can restore it.
-  window.sessionStorage.setItem(ORIGIN_KEY, session.refresh_token);
+  window.sessionStorage.setItem(ORIGIN_KEY, adminSession.refresh_token);
   window.sessionStorage.setItem(META_KEY, JSON.stringify({
     adminId,
     adminName,
@@ -93,6 +96,40 @@ export async function startImpersonation(targetUserId: string, targetName: strin
   // Full reload so every page's loaded/cached state resets cleanly against
   // the target's session instead of a stale mix of the admin's and theirs.
   window.location.href = '/';
+}
+
+/**
+ * Starts impersonating `targetUserId`. Throws on any failure — caller
+ * should toast the error and NOT navigate/reload, since the session is
+ * still the real admin's at that point.
+ */
+export async function startImpersonation(targetUserId: string, targetName: string): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Not signed in');
+  await beginImpersonation(session, targetUserId, targetName);
+}
+
+/**
+ * Switches from the CURRENT impersonation target straight to a different
+ * one, without a visible round-trip back through the admin's own
+ * dashboard. The live session right now is the *target's*, not the real
+ * admin's — so this must never call supabase.auth.getSession() for the
+ * admin identity (that bug would silently overwrite the stashed origin
+ * token with the target's own, permanently stranding the real admin out
+ * of their account). Instead it re-derives the real admin's session from
+ * the ORIGIN_KEY refresh token stashed at the start of this impersonation
+ * window, then hands off to the same beginImpersonation() used to start
+ * one from scratch.
+ */
+export async function switchImpersonation(targetUserId: string, targetName: string): Promise<void> {
+  const originRefreshToken = window.sessionStorage.getItem(ORIGIN_KEY);
+  if (!originRefreshToken) throw new Error('Not currently impersonating anyone');
+
+  const { data, error } = await supabase.auth.refreshSession({ refresh_token: originRefreshToken });
+  if (error || !data.session) {
+    throw new Error(error?.message || 'Could not verify your admin session — try exiting and re-entering.');
+  }
+  await beginImpersonation(data.session, targetUserId, targetName);
 }
 
 /**
