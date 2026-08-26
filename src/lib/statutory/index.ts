@@ -13,6 +13,12 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import {
+  PENSION_EMPLOYEE_RATE,
+  PENSION_EMPLOYER_RATE,
+  NHIS_EMPLOYEE_RATE,
+  NSITF_RATE,
+} from '@/lib/tax';
 
 export interface StatutoryLineItem {
   employee_id: string;
@@ -161,10 +167,8 @@ export async function loadStatutoryRunData(
   const lineItems: StatutoryLineItem[] = items.map((it: any) => {
     const p = it.employee_id ? profileById.get(it.employee_id) : null;
     const pensionEmployee = round(it.pension_ngn);
-    // Employer pension is 10% while employee is 8%: employee × 1.25.
-    const pensionEmployer = Math.round(pensionEmployee * 1.25);
-    // NHIS 5% employee — only when explicitly enabled on profile.
-    const nhisMonthly = p?.nhis_enabled ? Math.round(Number(it.gross_ngn || 0) * 0.05) : 0;
+    const pensionEmployer = Math.round(pensionEmployee * (PENSION_EMPLOYER_RATE / PENSION_EMPLOYEE_RATE));
+    const nhisMonthly = p?.nhis_enabled ? Math.round(Number(it.gross_ngn || 0) * NHIS_EMPLOYEE_RATE) : 0;
     return {
       employee_id: it.employee_id ?? '',
       employee_name: it.employee_name || p?.full_name || 'Unknown',
@@ -222,8 +226,7 @@ export async function loadStatutoryRunData(
       headcount: 0,
     },
   );
-  // NSITF is 1% of total monthly payroll (employer-borne).
-  totals.nsitf_monthly_ngn = Math.round(totals.gross_monthly_ngn * 0.01);
+  totals.nsitf_monthly_ngn = Math.round(totals.gross_monthly_ngn * NSITF_RATE);
 
   return {
     period: run.period as string,

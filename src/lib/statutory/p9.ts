@@ -48,7 +48,7 @@ export async function generateP9Cards(year: number): Promise<P9Card[]> {
 
   const { data: payslips, error } = await supabase
     .from('payslips')
-    .select('employee_id, period, gross_ngn, paye_ngn, pension_ngn, nhf_ngn, net_ngn, profiles:employee_id(full_name, staff_number, tin)')
+    .select('employee_id, period, gross_ngn, paye_ngn, pension_ngn, nhf_ngn, nhis_ngn, net_ngn, profiles:employee_id(full_name, staff_number, tin)')
     .gte('period', startPeriod)
     .lte('period', endPeriod)
     .order('period');
@@ -84,7 +84,7 @@ export async function generateP9Cards(year: number): Promise<P9Card[]> {
       const gross = round(slip?.gross_ngn);
       const pension = round(slip?.pension_ngn);
       const nhf = round(slip?.nhf_ngn);
-      const nhis = 0;
+      const nhis = round(slip?.nhis_ngn);
       const totalRelief = pension + nhf + nhis;
       const chargeable = Math.max(0, gross - totalRelief);
       const paye = round(slip?.paye_ngn);
