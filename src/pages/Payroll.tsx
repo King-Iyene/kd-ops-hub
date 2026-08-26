@@ -1094,12 +1094,13 @@ const Payroll = () => {
           unpaidLeaveDaysByEmployee.set(r.employee_id, prev + overlapDays);
         }
       } catch (leaveErr: unknown) {
-        console.warn('[KDOps] unpaid leave lookup failed, proceeding with 0 unpaid days:', errorMessage(leaveErr));
         toast({
-          title: 'Unpaid leave data unavailable',
-          description: 'Could not load unpaid leave records — employees with unpaid leave may be overpaid this cycle. Review before disbursing.',
+          title: 'Unpaid leave lookup failed',
+          description: 'Could not load unpaid leave records. Payslip generation aborted to prevent overpayment. Please try again.',
           variant: 'destructive',
         });
+        setGenerating(false);
+        return;
       }
 
       const [{ data: allDeductions }, { data: allAdvances }, { data: allEwa }, { data: allAdjustments }, { data: allEarnings }] = await Promise.all([
