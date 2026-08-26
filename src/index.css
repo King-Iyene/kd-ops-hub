@@ -60,6 +60,20 @@
     --kd-gold: 41 62% 58%;
     --kd-cyan: 186 100% 50%;
 
+    /* ─── Role identity colors ─────────────────────────────────────────────
+       One hue per role, used ONLY for "whose account is this" (badges,
+       avatar rings, the impersonation picker) — never reused for hover/
+       selected/active UI state, which stays in the neutral --primary/
+       --muted family. Chosen to sit clear of every semantic-status hue
+       (destructive 0°, warning/accent ~40°, success 152°, primary/info
+       200°) so a role color never reads as "good/warning/error" by
+       accident. super_admin intentionally reuses --kd-gold (brand
+       identity, not this new set) instead of a 6th hue. field_staff is
+       deliberately neutral gray — the base/no-elevated-access role. */
+    --role-admin: 235 55% 45%;
+    --role-finance: 325 55% 42%;
+    --role-operations: 280 45% 45%;
+
     /* Elevation system */
     --shadow-sm: 0 1px 2px 0 rgb(0 105 148 / 0.04);
     --shadow-md: 0 4px 12px -2px rgb(0 105 148 / 0.08), 0 2px 4px -1px rgb(0 0 0 / 0.04);
@@ -180,6 +194,14 @@
     --success: 152 55% 45%;
     --warning: 38 90% 55%;
     --info: 200 90% 55%;
+
+    /* Role identity colors — same hues as light mode, lightness bumped for
+       contrast on the dark card (mirrors the success/warning/info bumps
+       above). See the light-mode block for why these hues were chosen. */
+    --kd-gold: 41 65% 64%;
+    --role-admin: 235 65% 72%;
+    --role-finance: 325 60% 70%;
+    --role-operations: 280 55% 72%;
 
     /* Elevation: drop the colored shadows in dark mode — they read as
        glow, which conflicts with the aurora. Use dark-on-dark instead. */

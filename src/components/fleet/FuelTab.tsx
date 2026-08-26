@@ -201,6 +201,20 @@ function FuelRequestFuelLevel({ vehicleId, vehicles }: { vehicleId: string | nul
 // Props
 // ---------------------------------------------------------------------------
 
+export type FuelTabInitialAction =
+  | { type: 'new_fuel' }
+  | { type: 'new_repair' }
+  | { type: 'log_external' }
+  | { type: 'upload_fuel_receipt'; request: FuelRequest }
+  | {
+      type: 'upload_repair_receipt';
+      repair: {
+        id: string; description: string | null; amount_ngn: number; vehicle_id: string | null;
+        service_type: string | null; maintenance_item_id: string | null; repair_odometer_km: number | null;
+        vendor_name: string | null; date: string | null;
+      };
+    };
+
 export interface FuelTabProps {
   staff: FieldStaff[];
   vehicles: VehicleSummary[];
@@ -208,13 +222,22 @@ export interface FuelTabProps {
   isAdmin: boolean;
   profile: { id: string; full_name?: string; role?: string; email?: string } | null;
   onRefresh: () => void;
+  /**
+   * Set by MyRequestsTab's action buttons (e.g. "Upload Receipt" on a
+   * specific outstanding request) — opens the right dialog for that exact
+   * request the moment this tab mounts, instead of landing here with no
+   * indication of what to do next. Consumed once then cleared via
+   * onInitialActionHandled so it doesn't reopen on a later re-render.
+   */
+  initialAction?: FuelTabInitialAction | null;
+  onInitialActionHandled?: () => void;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRefresh }: FuelTabProps) {
+export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRefresh, initialAction, onInitialActionHandled }: FuelTabProps) {
   const { toast } = useToast();
   const { data: companySettings } = useCompanySettings();
 
@@ -340,6 +363,22 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
 
   // Log External Purchase
   const [showLogExternalForm, setShowLogExternalForm] = useState(false);
+
+  // Consume a one-shot action handed off from MyRequestsTab (e.g. "Upload
+  // Receipt" on one specific outstanding request) by opening the matching
+  // dialog, then clearing it so it doesn't reopen on a later re-render.
+  useEffect(() => {
+    if (!initialAction) return;
+    switch (initialAction.type) {
+      case 'new_fuel': setShowFuelForm(true); break;
+      case 'new_repair': setShowRepairForm(true); break;
+      case 'log_external': setShowLogExternalForm(true); break;
+      case 'upload_fuel_receipt': setUploadingReceiptFor(initialAction.request); break;
+      case 'upload_repair_receipt': setUploadingRepairReceiptFor(initialAction.repair); break;
+    }
+    onInitialActionHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAction]);
 
   // Reject / re-request / delete confirmation
   const [rejectingFuel, setRejectingFuel] = useState<FuelRequest | null>(null);

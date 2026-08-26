@@ -11,11 +11,13 @@ import {
   Sunset,
   Moon,
   UserCog,
+  Check,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useTimeOfDay, greetingFor, type TimeOfDay } from '@/hooks/useTimeOfDay';
 import {
   roleBadgeClass,
+  roleDotClass,
   roleLabel,
   SIMULATABLE_ROLES,
 } from '@/lib/roles';
@@ -42,14 +44,6 @@ const initialsOf = (name?: string | null, email?: string | null): string => {
   const first = parts[0]?.charAt(0) ?? '';
   const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
   return (first + last).toUpperCase() || 'U';
-};
-
-const ROLE_DOT: Record<string, string> = {
-  super_admin: 'bg-[#D6AC50]',
-  admin: 'bg-info',
-  finance: 'bg-success',
-  operations: 'bg-purple-500',
-  field_staff: 'bg-muted-foreground',
 };
 
 const TOD_ICON: Record<TimeOfDay, typeof Sun> = {
@@ -160,23 +154,18 @@ export function ProfileDropdown() {
                       onClick={() => pickRole(r)}
                       className={cn(
                         'group flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm kd-transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
+                        // "Active" is a selection state, not a role — it
+                        // stays in the neutral primary family regardless
+                        // of which role is picked, so it never collides
+                        // with that role's own identity color below.
                         active
-                          ? 'bg-[#D6AC50]/15 text-[#3a2e12] font-semibold ring-1 ring-[#D6AC50]/40'
+                          ? 'bg-primary/10 font-semibold ring-1 ring-primary/30'
                           : 'hover:bg-muted',
                       )}
                     >
-                      <span
-                        className={cn(
-                          'h-2 w-2 rounded-full inline-block shrink-0',
-                          ROLE_DOT[r] || 'bg-muted-foreground',
-                        )}
-                      />
+                      <span className={cn('h-2 w-2 rounded-full inline-block shrink-0', roleDotClass(r))} />
                       <span className="flex-1 text-left">{roleLabel(r)}</span>
-                      {active && (
-                        <span className="text-[10px] uppercase tracking-wider font-bold text-[#3a2e12]/80">
-                          Active
-                        </span>
-                      )}
+                      {active && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
                     </button>
                   );
                 })}

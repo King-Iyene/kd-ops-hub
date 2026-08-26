@@ -20,7 +20,7 @@ import { VehicleLifecyclePanel } from '@/components/fleet/VehicleLifecyclePanel'
 import GeofencesTab from '@/components/fleet/GeofencesTab';
 import VehiclesTab from '@/components/fleet/VehiclesTab';
 import { DashboardTab } from '@/components/fleet/DashboardTab';
-import { FuelTab } from '@/components/fleet/FuelTab';
+import { FuelTab, type FuelTabInitialAction } from '@/components/fleet/FuelTab';
 import { TripsTab } from '@/components/fleet/TripsTab';
 import { MyRequestsTab } from '@/components/fleet/MyRequestsTab';
 import { ActivityTab } from '@/components/fleet/ActivityTab';
@@ -70,6 +70,11 @@ const Fleet = () => {
     profile?.role === 'operations';
 
   const [tab, setTab] = useState<FleetTab>(isAdmin ? 'dashboard' : 'my_requests');
+  const [fuelTabAction, setFuelTabAction] = useState<FuelTabInitialAction | null>(null);
+  const goToFuelTab = (action: FuelTabInitialAction) => {
+    setFuelTabAction(action);
+    setTab('fuel');
+  };
 
   // ── Shared data ────────────────────────────────────────────────────────
   const [staff, setStaff] = useState<FieldStaff[]>([]);
@@ -399,6 +404,8 @@ const Fleet = () => {
               isAdmin={isAdmin}
               profile={profile}
               onRefresh={fetchData}
+              initialAction={fuelTabAction}
+              onInitialActionHandled={() => setFuelTabAction(null)}
             />
           )}
 
@@ -419,11 +426,14 @@ const Fleet = () => {
               myTripLogs={myTripLogs}
               vehicles={vehicles}
               profile={profile}
-              onNewFuelRequest={() => setTab('fuel')}
-              onNewRepairRequest={() => setTab('fuel')}
-              onLogExternalPurchase={() => setTab('fuel')}
-              onUploadReceipt={() => setTab('fuel')}
-              onUploadRepairReceipt={() => setTab('fuel')}
+              onNewFuelRequest={() => goToFuelTab({ type: 'new_fuel' })}
+              onNewRepairRequest={() => goToFuelTab({ type: 'new_repair' })}
+              onLogExternalPurchase={() => goToFuelTab({ type: 'log_external' })}
+              onUploadReceipt={(r) => goToFuelTab({ type: 'upload_fuel_receipt', request: r })}
+              onUploadRepairReceipt={(r) => goToFuelTab({
+                type: 'upload_repair_receipt',
+                repair: { ...r, vendor_name: r.vendor_name ?? null, date: r.date ?? null },
+              })}
             />
           )}
 

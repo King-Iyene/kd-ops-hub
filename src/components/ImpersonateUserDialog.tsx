@@ -13,7 +13,7 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { startImpersonation } from '@/lib/impersonation';
 import { AvatarBubble } from '@/components/AvatarBubble';
-import { roleLabel, roleBadgeClass } from '@/lib/roles';
+import { roleLabel, roleBadgeClass, roleRingClass } from '@/lib/roles';
 import type { UserRole } from '@/store/authStore';
 import { cn } from '@/lib/utils';
 
@@ -91,9 +91,18 @@ export function ImpersonateUserDialog({
   };
 
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <CommandInput placeholder="Search people by name or email…" />
-      <CommandList>
+    <CommandDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      // Override the shared 12px input / 20px icon defaults (sized for the
+      // big global command palette) with a more compact variant for this
+      // smaller people-picker. [&_[cmdk-input-wrapper]_svg] targets the
+      // search icon correctly (it's a wrapper descendant, not a sibling of
+      // the input itself, so a `[&+svg]` selector on the input never reached it).
+      commandClassName="[&_[cmdk-input]]:h-10 [&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4"
+    >
+      <CommandInput placeholder="Search people…" className="text-sm" />
+      <CommandList className="max-h-[280px]">
         <CommandEmpty>{loading ? 'Loading…' : 'No one found.'}</CommandEmpty>
         {groups.map((group, idx) => (
           <div key={group.role}>
@@ -105,17 +114,21 @@ export function ImpersonateUserDialog({
                   value={`${p.full_name} ${p.email}`}
                   onSelect={() => handlePick(p)}
                   disabled={starting !== null}
-                  className="flex items-center gap-3 py-2"
+                  // Selected/hover state stays neutral (bg-muted), never
+                  // the shared bg-accent default — that token is this
+                  // app's brand gold, which is ALSO the super_admin role
+                  // color below, so the two would visually collide.
+                  className="flex items-center gap-2.5 py-1.5 data-[selected=true]:bg-muted data-[selected=true]:text-foreground"
                 >
                   <AvatarBubble
                     photoUrl={p.photo_url}
                     initials={initialsOf(p.full_name, p.email)}
-                    size={30}
+                    size={26}
                     ringClass={cn('ring-2', roleRingClass(p.role))}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{p.full_name || p.email}</p>
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="text-sm font-medium truncate leading-tight">{p.full_name || p.email}</p>
+                    <p className="text-xs text-muted-foreground truncate leading-tight">
                       {p.job_title || p.email}
                     </p>
                   </div>
@@ -131,16 +144,6 @@ export function ImpersonateUserDialog({
       </CommandList>
     </CommandDialog>
   );
-}
-
-function roleRingClass(role: UserRole): string {
-  switch (role) {
-    case 'super_admin': return 'ring-[#D6AC50]/50';
-    case 'admin': return 'ring-info/40';
-    case 'finance': return 'ring-success/40';
-    case 'operations': return 'ring-purple-400/50';
-    default: return 'ring-border';
-  }
 }
 
 function initialsOf(fullName?: string | null, email?: string | null): string {

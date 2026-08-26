@@ -102,6 +102,11 @@ export function MyRequestsTab({
         // at submission, so they're never in this state. Matches
         // getReceiptDebt()'s filter.
         .eq('is_reimbursement', false)
+        // Fleet-originated only — see the matching filter + comment in
+        // getReceiptDebt() (fleet-utils.ts). A repair expense submitted
+        // from the generic Expenses page has no vehicle_id and must not
+        // show up here.
+        .not('vehicle_id', 'is', null)
         .is('receipt_url', null)
         .is('deleted_at', null)
         .order('created_at', { ascending: true }),

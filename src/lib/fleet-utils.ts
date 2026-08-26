@@ -339,6 +339,13 @@ export async function getReceiptDebt(employeeId: string): Promise<ReceiptDebt> {
       // "approved but no receipt yet" — that's the real gap this debt
       // check exists to close.
       .eq('is_reimbursement', false)
+      // Only Fleet's own repair-request flow should ever block a fleet
+      // request — a generic repair expense submitted from the Expenses
+      // page has nothing to do with Fleet and must not count here.
+      // Expenses.tsx never sets vehicle_id (it's Fleet-specific, added by
+      // the receipt_accountability_fleet migration), so its presence is a
+      // reliable "this came from Fleet" signal.
+      .not('vehicle_id', 'is', null)
       .is('receipt_url', null)
       .is('deleted_at', null)
       .order('created_at', { ascending: true }),

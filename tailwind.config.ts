@@ -78,6 +78,10 @@ export default {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
         },
+        "kd-gold": "hsl(var(--kd-gold))",
+        "role-admin": "hsl(var(--role-admin))",
+        "role-finance": "hsl(var(--role-finance))",
+        "role-operations": "hsl(var(--role-operations))",
       },
       borderRadius: {
         lg: "var(--radius)",
