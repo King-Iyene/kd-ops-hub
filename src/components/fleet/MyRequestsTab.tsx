@@ -24,7 +24,6 @@ import {
   daysSinceIso,
   getReceiptDebt,
   displayFuelStatus,
-  RECEIPT_DEBT_HARD_BLOCK_DAYS,
 } from '@/lib/fleet-utils';
 
 // ---------------------------------------------------------------------------
@@ -83,8 +82,9 @@ export function MyRequestsTab({
     authProfile?.role === 'super_admin' ||
     authProfile?.role === 'operations';
 
-  // Receipt accountability — outstanding fuel/repair receipts block new
-  // requests once they age past RECEIPT_DEBT_HARD_BLOCK_DAYS.
+  // Receipt accountability — immediate, no grace period: any outstanding
+  // unreceipted fuel payment or repair blocks the next request of that
+  // kind until the receipt is uploaded.
   const [myReceiptDebt, setMyReceiptDebt] = useState<ReceiptDebt | null>(null);
   const [myOpenRepairs, setMyOpenRepairs] = useState<OpenRepair[]>([]);
 
@@ -114,8 +114,8 @@ export function MyRequestsTab({
     refreshMyReceiptDebt();
   }, [refreshMyReceiptDebt]);
 
-  const fuelBlocked = (myReceiptDebt?.fuelOldestDays ?? -1) >= RECEIPT_DEBT_HARD_BLOCK_DAYS;
-  const repairBlocked = (myReceiptDebt?.repairOldestDays ?? -1) >= RECEIPT_DEBT_HARD_BLOCK_DAYS;
+  const fuelBlocked = (myReceiptDebt?.fuelCount ?? 0) > 0;
+  const repairBlocked = (myReceiptDebt?.repairCount ?? 0) > 0;
 
   return (
     <div className="space-y-4">
@@ -151,25 +151,17 @@ export function MyRequestsTab({
       {/* Yellow action banners for payment_sent fuel requests */}
       {myFuelRequests.filter((r) => r.status === 'payment_sent').map((r) => {
         const days = daysSinceIso(r.payment_sent_at);
-        const blocked = (days ?? -1) >= RECEIPT_DEBT_HARD_BLOCK_DAYS;
         return (
           <div
             key={r.id}
-            className={cn(
-              'flex items-start gap-3 rounded-md border px-4 py-3',
-              blocked
-                ? 'border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-950/30 dark:text-red-200'
-                : 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200',
-            )}
+            className="flex items-start gap-3 rounded-md border px-4 py-3 border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-950/30 dark:text-red-200"
           >
-            <AlertTriangle className={cn('h-5 w-5 mt-0.5 shrink-0', blocked ? 'text-red-600' : 'text-amber-600')} />
+            <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-red-600" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm">Payment sent for {r.station_name} — {formatNaira(r.amount_ngn || 0)}</p>
               <p className="text-xs mt-0.5">
-                {r.payment_sent_at ? `Sent on ${formatDate(r.payment_sent_at)}. ` : ''}
-                {blocked
-                  ? `${days} days overdue — you cannot submit new fuel requests until this is resolved.`
-                  : 'Please upload your fuel receipt to complete this request.'}
+                {r.payment_sent_at ? `Sent on ${formatDate(r.payment_sent_at)}${days !== null ? ` (${days} day${days === 1 ? '' : 's'} ago)` : ''}. ` : ''}
+                You cannot submit new fuel requests until this receipt is uploaded.
               </p>
             </div>
             <Button
@@ -186,24 +178,16 @@ export function MyRequestsTab({
       {/* Banners for repairs still missing a receipt */}
       {myOpenRepairs.map((r) => {
         const days = daysSinceIso(r.created_at);
-        const blocked = (days ?? -1) >= RECEIPT_DEBT_HARD_BLOCK_DAYS;
         return (
           <div
             key={r.id}
-            className={cn(
-              'flex items-start gap-3 rounded-md border px-4 py-3',
-              blocked
-                ? 'border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-950/30 dark:text-red-200'
-                : 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200',
-            )}
+            className="flex items-start gap-3 rounded-md border px-4 py-3 border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-950/30 dark:text-red-200"
           >
-            <Wrench className={cn('h-5 w-5 mt-0.5 shrink-0', blocked ? 'text-red-600' : 'text-amber-600')} />
+            <Wrench className="h-5 w-5 mt-0.5 shrink-0 text-red-600" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm">Repair receipt needed — {r.description || 'Repair'} — {formatNaira(r.amount_ngn || 0)}</p>
               <p className="text-xs mt-0.5">
-                {blocked
-                  ? `${days} days overdue — you cannot submit new repair requests until this is resolved.`
-                  : `Submitted ${formatDate(r.created_at)}. Attach the receipt when you have it.`}
+                Submitted {formatDate(r.created_at)}{days !== null ? ` (${days} day${days === 1 ? '' : 's'} ago)` : ''}. You cannot submit new repair requests until this receipt is uploaded.
               </p>
             </div>
             <Button

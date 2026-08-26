@@ -118,7 +118,6 @@ import {
   exportCsv,
   daysSinceIso,
   displayFuelStatus,
-  RECEIPT_DEBT_HARD_BLOCK_DAYS,
 } from '@/lib/fleet-utils';
 
 // ---------------------------------------------------------------------------
@@ -460,9 +459,10 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
 
     setSubmitting(true);
     try {
-    // Receipt accountability
+    // Receipt accountability — immediate, no grace period: any outstanding
+    // unreceipted repair blocks the next one until it's uploaded.
     const debt = await getReceiptDebt(repairForm.employee_id);
-    if (debt.repairOldestDays !== null && debt.repairOldestDays >= RECEIPT_DEBT_HARD_BLOCK_DAYS) {
+    if (debt.repairCount > 0) {
       toast({
         title: 'Receipt required first',
         description: `This driver has a repair from ${debt.repairOldestDays} day${debt.repairOldestDays === 1 ? '' : 's'} ago with no receipt uploaded. Upload it before requesting again.`,
@@ -851,10 +851,12 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
     setSubmitting(true);
 
     try {
-    // Receipt accountability
+    // Receipt accountability — immediate, no grace period: as soon as a
+    // fuel payment is sent, the driver cannot request another until that
+    // receipt is uploaded.
     {
       const debt = await getReceiptDebt(fuelForm.employee_id);
-      if (debt.fuelOldestDays !== null && debt.fuelOldestDays >= RECEIPT_DEBT_HARD_BLOCK_DAYS) {
+      if (debt.fuelCount > 0) {
         toast({
           title: 'Receipt required first',
           description: `This driver has a fuel payment from ${debt.fuelOldestDays} day${debt.fuelOldestDays === 1 ? '' : 's'} ago with no receipt uploaded. Upload it before requesting again.`,

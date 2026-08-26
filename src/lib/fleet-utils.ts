@@ -298,7 +298,6 @@ export function detectAnomalies(distanceKm: number | null, durationMin: number):
   return flags.length > 0 ? { isAnomaly: true, reason: flags.join('; ') } : { isAnomaly: false, reason: null };
 }
 
-export const RECEIPT_DEBT_HARD_BLOCK_DAYS = 7;
 
 export interface ReceiptDebt {
   fuelCount: number;
