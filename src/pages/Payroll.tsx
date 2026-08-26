@@ -1275,6 +1275,8 @@ const Payroll = () => {
           const empNhisEmployer    = empBreak.nhisEmployerMonthlyNgn;
           const empNsitf           = nsitfEnabled ? empBreak.nsitfMonthlyNgn : 0;
           const empAvc             = empBreak.voluntaryPensionMonthlyNgn;
+          const empRentRelief      = empBreak.rentReliefMonthlyNgn;
+          const empLifeAssurance   = empBreak.lifeAssuranceMonthlyNgn;
           const empDevLevy         = companySettings?.development_levy_enabled
             ? Math.round(Number(companySettings.development_levy_annual_ngn || 0) / 12)
             : 0;
@@ -1438,6 +1440,8 @@ const Payroll = () => {
               nhf_ngn: empNhf,
               nhis_ngn: empNhis,
               avc_ngn: empAvc,
+              rent_relief_ngn: empRentRelief,
+              life_assurance_relief_ngn: empLifeAssurance,
               net_ngn: empNet,
               deductions_ngn: empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal + empUnpaidLeaveDeduction + empDevLevy,
               deductions_json: (() => {
