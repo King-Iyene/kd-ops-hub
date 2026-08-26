@@ -20,6 +20,7 @@
 DO $$ BEGIN
   IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema='public' AND table_name='disciplinary_responses') THEN
     DROP POLICY IF EXISTS "Users can read disciplinary responses" ON public.disciplinary_responses;
+    DROP POLICY IF EXISTS "Employees can read own disciplinary responses" ON public.disciplinary_responses;
     CREATE POLICY "Employees can read own disciplinary responses"
       ON public.disciplinary_responses FOR SELECT TO authenticated
       USING (
