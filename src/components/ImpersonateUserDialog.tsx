@@ -52,21 +52,53 @@ export function ImpersonateUserDialog({
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    supabase
-      .from('profiles_directory')
-      .select('id, full_name, email, role, job_title, photo_url')
-      .eq('status', 'active')
-      .order('full_name')
-      .limit(500)
-      .then(({ data, error }) => {
-        setLoading(false);
-        if (error) {
-          toast({ title: 'Could not load people', description: error.message, variant: 'destructive' });
-          return;
+
+    const fetchDirectory = async () => {
+      // In switch mode the current session belongs to the impersonated
+      // user (e.g. field_staff) who may not have RLS access to the full
+      // directory. Temporarily restore the real admin's session to run
+      // the query, then swap back so the rest of the app stays on the
+      // impersonated session.
+      let restoredTargetRefresh: string | null = null;
+      if (mode === 'switch') {
+        const originRefresh = window.sessionStorage.getItem('kdops:impersonation:originRefreshToken');
+        if (originRefresh) {
+          const currentSession = (await supabase.auth.getSession()).data.session;
+          restoredTargetRefresh = currentSession?.refresh_token ?? null;
+          const { error: refreshErr } = await supabase.auth.setSession({
+            access_token: '', refresh_token: originRefresh,
+          });
+          if (refreshErr) {
+            // Fall through — try the query with the current session anyway
+            restoredTargetRefresh = null;
+          }
         }
-        setPeople(((data as DirectoryPerson[]) || []).filter((p) => p.id !== excludeUserId));
-      });
-  }, [open, excludeUserId, toast]);
+      }
+
+      const { data, error } = await supabase
+        .from('profiles_directory')
+        .select('id, full_name, email, role, job_title, photo_url')
+        .eq('status', 'active')
+        .order('full_name')
+        .limit(500);
+
+      // Restore the impersonated session if we swapped above
+      if (restoredTargetRefresh) {
+        await supabase.auth.setSession({
+          access_token: '', refresh_token: restoredTargetRefresh,
+        }).catch(() => { /* best effort */ });
+      }
+
+      setLoading(false);
+      if (error) {
+        toast({ title: 'Could not load people', description: error.message, variant: 'destructive' });
+        return;
+      }
+      setPeople(((data as DirectoryPerson[]) || []).filter((p) => p.id !== excludeUserId));
+    };
+
+    fetchDirectory();
+  }, [open, excludeUserId, toast, mode]);
 
   const groups = useMemo(() => {
     const byRole = new Map<UserRole, DirectoryPerson[]>();
