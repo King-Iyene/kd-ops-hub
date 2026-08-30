@@ -123,6 +123,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (typeof window !== 'undefined') {
       try {
         window.sessionStorage.removeItem(VIEW_AS_KEY);
+        window.sessionStorage.removeItem('kdops:impersonation:originRefreshToken');
+        window.sessionStorage.removeItem('kdops:impersonation:meta');
       } catch {
         /* ignore */
       }
