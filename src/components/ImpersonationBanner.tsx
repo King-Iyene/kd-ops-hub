@@ -82,7 +82,7 @@ export function ImpersonationBanner() {
 
   return (
     <>
-      <div className="relative flex items-center gap-3 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-red-700 via-red-600 to-red-700 shadow-md">
+      <div className="relative flex items-center gap-3 px-4 py-2 text-sm font-medium text-white shadow-md" style={{ background: 'linear-gradient(90deg, #9f1239, #be123c, #9f1239)' }}>
         {/* Pulsing live indicator */}
         <span className="relative flex h-2.5 w-2.5 shrink-0">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/60" />
@@ -94,15 +94,12 @@ export function ImpersonationBanner() {
         <AvatarBubble
           photoUrl={null}
           initials={initialsOf(meta.targetName)}
-          size={22}
+          size={24}
           ringClass="ring-2 ring-white/50 shrink-0"
         />
 
-        <span className="truncate min-w-0 flex-1" title={meta.targetName}>
-          Impersonating <span className="font-bold">{meta.targetName}</span>
-          {meta.targetEmail && (
-            <span className="hidden sm:inline text-white/70 ml-1.5 text-xs font-normal">({meta.targetEmail})</span>
-          )}
+        <span className="truncate min-w-0 flex-1" title={`${meta.targetName} (${meta.targetEmail})`}>
+          Impersonating <span className="font-bold">{meta.targetEmail || meta.targetName}</span>
         </span>
 
         {elapsed && (
@@ -126,7 +123,7 @@ export function ImpersonationBanner() {
             type="button"
             onClick={handleExit}
             disabled={exiting}
-            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium bg-white/90 text-red-700 hover:bg-white kd-transition disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium bg-white/90 text-rose-800 hover:bg-white kd-transition disabled:opacity-60"
             title="End impersonation and return to your own account (Esc)"
           >
             <LogOut className="h-3 w-3" /> {exiting ? 'Exiting…' : 'Exit'}
