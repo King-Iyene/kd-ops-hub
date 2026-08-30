@@ -136,12 +136,12 @@ export default function Shifts() {
     const ws = format(weekStart, 'yyyy-MM-dd');
     const we = format(weekEnd, 'yyyy-MM-dd');
     const [{ data: defs }, { data: assigns }, { data: profs }] = await Promise.all([
-      supabase.from('shift_definitions').select('id, name, start_time, end_time, break_minutes, color, is_active').order('name'),
-      supabase.from('shift_assignments').select('id, employee_id, shift_id, work_date, status, notes').gte('work_date', ws).lte('work_date', we).order('work_date'),
+      supabase.from('shift_definitions').select('id, name, start_time, end_time, break_minutes, color, is_active, created_at').order('name'),
+      supabase.from('shift_assignments').select('id, employee_id, shift_id, work_date, status, swap_with_id, notes, created_at').gte('work_date', ws).lte('work_date', we).order('work_date'),
       supabase.from('profiles').select('id, full_name').neq('is_anonymised', true).order('full_name'),
     ]);
     setShiftDefs(defs ?? []);
-    setAssignments(assigns ?? []);
+    setAssignments((assigns as unknown as ShiftAssignment[]) ?? []);
     setProfiles(profs ?? []);
     setLoading(false);
   }, [weekStart, weekEnd]);

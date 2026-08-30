@@ -2049,7 +2049,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                         </p>
                       )}
                     </div>
-                    {r.is_anomaly && !r.anomaly_reviewed_at && (
+                    {r.is_anomaly && !r.anomaly_reviewed_at && displayFuelStatus(r) !== 'completed' && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Badge
@@ -2155,7 +2155,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
-                      ) : r.status === 'completed' && r.receipt_url ? (
+                      ) : (r.status === 'completed' || (r.logged_externally && r.receipt_url)) && r.receipt_url ? (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
@@ -2320,7 +2320,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                       </Button>
                     </MobileCardFooter>
                   )}
-                  {r.status === 'completed' && r.receipt_url && (
+                  {(r.status === 'completed' || (r.logged_externally && r.receipt_url)) && r.receipt_url && (
                     <MobileCardFooter>
                       <FilePreviewTrigger
                         url={r.receipt_url}

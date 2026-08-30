@@ -97,11 +97,11 @@ export default function Timesheets() {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data: tsData }, { data: pData }, { data: projData }] = await Promise.all([
-      supabase.from('timesheets').select('id, employee_id, week_start, status, total_hours, billable_hours, approved_at').order('week_start', { ascending: false }).limit(5000),
+      supabase.from('timesheets').select('id, employee_id, week_start, status, total_hours, billable_hours, submitted_at, approved_by, approved_at, notes, created_at').order('week_start', { ascending: false }).limit(5000),
       supabase.from('profiles').select('id, full_name').neq('is_anonymised', true).order('full_name'),
       supabase.from('projects').select('id, name').order('name'),
     ]);
-    setTimesheets(tsData ?? []);
+    setTimesheets((tsData as unknown as Timesheet[]) ?? []);
     setProfiles(pData ?? []);
     setProjects(projData ?? []);
     setLoading(false);
@@ -169,7 +169,7 @@ export default function Timesheets() {
     setEntriesLoading(true);
     const { data } = await supabase
       .from('timesheet_entries')
-      .select('id, work_date, hours, task_description, project_id, is_billable')
+      .select('id, timesheet_id, work_date, hours, task_description, project_id, is_billable, created_at')
       .eq('timesheet_id', ts.id)
       .order('work_date');
     setEntries(data ?? []);
@@ -216,20 +216,20 @@ export default function Timesheets() {
   async function recalcAndRefresh(timesheetId: string) {
     const { data: allEntries } = await supabase
       .from('timesheet_entries')
-      .select('id, work_date, hours, task_description, project_id, is_billable')
+      .select('id, timesheet_id, work_date, hours, task_description, project_id, is_billable, created_at')
       .eq('timesheet_id', timesheetId);
     const list = allEntries ?? [];
     const totalHours = list.reduce((s, e) => s + Number(e.hours), 0);
     const billableHours = list.filter(e => e.is_billable).reduce((s, e) => s + Number(e.hours), 0);
     await supabase.from('timesheets').update({ total_hours: totalHours, billable_hours: billableHours }).eq('id', timesheetId);
     setEntries(list);
-    const { data: updated } = await supabase.from('timesheets').select('id, employee_id, week_start, status, total_hours, billable_hours, approved_at').eq('id', timesheetId).single();
-    if (updated) setActiveTimesheet(updated);
+    const { data: updated } = await supabase.from('timesheets').select('id, employee_id, week_start, status, total_hours, billable_hours, submitted_at, approved_by, approved_at, notes, created_at').eq('id', timesheetId).single();
+    if (updated) setActiveTimesheet(updated as unknown as Timesheet);
     load();
   }
 
   async function updateStatus(ts: Timesheet, newStatus: TimesheetStatus) {
-    const updates: Record<string, unknown> = { status: newStatus };
+    const updates: { status: TimesheetStatus; submitted_at?: string; approved_at?: string; approved_by?: string } = { status: newStatus };
     if (newStatus === 'submitted') updates.submitted_at = new Date().toISOString();
     if (newStatus === 'approved') {
       updates.approved_at = new Date().toISOString();
@@ -242,8 +242,8 @@ export default function Timesheets() {
     }
     toast({ title: `Timesheet ${newStatus}` });
     if (activeTimesheet?.id === ts.id) {
-      const { data: refreshed } = await supabase.from('timesheets').select('id, employee_id, week_start, status, total_hours, billable_hours, approved_at').eq('id', ts.id).single();
-      if (refreshed) setActiveTimesheet(refreshed);
+      const { data: refreshed } = await supabase.from('timesheets').select('id, employee_id, week_start, status, total_hours, billable_hours, submitted_at, approved_by, approved_at, notes, created_at').eq('id', ts.id).single();
+      if (refreshed) setActiveTimesheet(refreshed as unknown as Timesheet);
     }
     load();
   }

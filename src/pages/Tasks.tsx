@@ -163,7 +163,7 @@ const Tasks = () => {
       const [topRes, allRes, profilesRes, tagsRes, spacesRes, foldersRes, listsRes, depsRes] = await Promise.all([
         supabase
           .from('tasks')
-          .select('id, title, description, assignee_id, due_date, priority, status, created_by, completed_at, created_at, tags, parent_id, project_id, list_id, sort_order, start_date, time_estimate_minutes, time_spent_minutes, task_type, blocked_reason, goal_id, recurrence_rule')
+          .select('id, title, description, assignee_id, due_date, priority, status, created_by, completed_at, created_at, tags, parent_id, project_id, list_id, sort_order, start_date, time_estimate_minutes, time_spent_minutes, task_type, blocked_reason, goal_id, recurrence_rule, recurrence_next, template_id')
           .is('parent_id', null)
           .order('sort_order', { ascending: true })
           .order('due_date', { ascending: true, nullsFirst: false })
@@ -180,7 +180,7 @@ const Tasks = () => {
         supabase.from('task_dependencies').select('id, task_id, depends_on_id, dependency_type').limit(20000),
       ]);
       if (topRes.error) throw topRes.error;
-      const newTasks = (topRes.data as Task[]) || [];
+      const newTasks = (topRes.data as unknown as Task[]) || [];
       setHasMore(newTasks.length === PAGE_SIZE);
       if (append) {
         setTasks((prev) => [...prev, ...newTasks]);
@@ -442,7 +442,7 @@ const Tasks = () => {
         recurrence_rule: formRecurrence,
       };
       if (editing) {
-        const { error } = await supabase.from('tasks').update(payload).eq('id', editing.id);
+        const { error } = await supabase.from('tasks').update(payload as any).eq('id', editing.id);
         if (error) throw error;
         if (formAssignees.length > 0) {
           await supabase.from('task_assignees').delete().eq('task_id', editing.id);
@@ -458,7 +458,7 @@ const Tasks = () => {
           ...payload,
           created_by: profile?.id || null,
           sort_order: maxSort,
-        }).select('id').single();
+        } as any).select('id').single();
         if (error) throw error;
         if (formAssignees.length > 0 && newTask) {
           await supabase.from('task_assignees').insert(
@@ -536,7 +536,7 @@ const Tasks = () => {
 
   const handleFieldChange = async (taskId: string, field: string, value: any) => {
     const update: Record<string, any> = { [field]: value };
-    const { error } = await supabase.from('tasks').update(update).eq('id', taskId);
+    const { error } = await supabase.from('tasks').update(update as any).eq('id', taskId);
     if (error) {
       toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
       return;
