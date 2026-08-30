@@ -3,6 +3,7 @@ import { Repeat, LogOut, Shield, Clock } from 'lucide-react';
 import { getImpersonationMeta } from '@/lib/impersonation';
 import { endImpersonation } from '@/lib/impersonation';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthStore } from '@/store/authStore';
 import { ImpersonateUserDialog } from '@/components/ImpersonateUserDialog';
 import { AvatarBubble } from '@/components/AvatarBubble';
 
@@ -33,10 +34,25 @@ function formatElapsed(startedAt: string): string {
  */
 export function ImpersonationBanner() {
   const meta = getImpersonationMeta();
+  const currentUser = useAuthStore((s) => s.user);
   const [exiting, setExiting] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
   const [elapsed, setElapsed] = useState('');
   const { toast } = useToast();
+
+  // Auto-clear stale impersonation state: if the current logged-in user
+  // is NOT the impersonation target (e.g. session expired, user signed in
+  // as themselves from /login without going through the app's Sign Out),
+  // the sessionStorage keys are leftover garbage — clear them silently.
+  useEffect(() => {
+    if (!meta || !currentUser) return;
+    if (currentUser.id !== meta.targetId) {
+      try {
+        window.sessionStorage.removeItem('kdops:impersonation:originRefreshToken');
+        window.sessionStorage.removeItem('kdops:impersonation:meta');
+      } catch { /* ignore */ }
+    }
+  }, [meta, currentUser]);
 
   useEffect(() => {
     if (!meta?.startedAt) return;
@@ -79,6 +95,7 @@ export function ImpersonationBanner() {
   }, [meta, handleExit]);
 
   if (!meta) return null;
+  if (currentUser && currentUser.id !== meta.targetId) return null;
 
   return (
     <>
