@@ -46,7 +46,6 @@ DECLARE
   v_subject      text;
   v_body_html    text;
   v_from_email   text    := 'KD Ops <noreply@kdsquares.com>';
-  v_otp_display  text;
   v_action_label text;
   v_response     extensions.http_response;
   v_request_body text;
@@ -87,13 +86,6 @@ BEGIN
     END IF;
   ELSE
     v_verify_url := '';
-  END IF;
-
-  -- Build OTP display (first 6 chars of token if present).
-  IF v_token IS NOT NULL AND length(v_token) >= 6 THEN
-    v_otp_display := left(v_token, 6);
-  ELSE
-    v_otp_display := '';
   END IF;
 
   -- Per-action subject + label.
@@ -160,12 +152,6 @@ BEGIN
       || v_action_label || '</a></p>'
       || '<p style="margin:0 0 8px;color:#5b6b75;font-size:13px">If the button doesn''t work, copy and paste this URL into your browser:</p>'
       || '<p style="margin:0 0 16px;word-break:break-all;font-size:12px;color:#2563eb">' || v_verify_url || '</p>';
-  END IF;
-
-  -- OTP fallback.
-  IF v_otp_display <> '' THEN
-    v_body_html := v_body_html
-      || '<p style="margin:0 0 16px;color:#5b6b75;font-size:13px">Or enter this code: <strong style="font-size:18px;letter-spacing:2px;color:#1a2733">' || v_otp_display || '</strong></p>';
   END IF;
 
   -- Footer.

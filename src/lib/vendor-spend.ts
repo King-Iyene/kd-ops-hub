@@ -115,8 +115,8 @@ export function computeVendorSpend(
     v.total += monthlyAmount * trailingMonths;
     v.count += 1;
     for (let i = 0; i < trailingMonths; i++) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
+      const now = new Date();
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const m = d.toISOString().slice(0, 7);
       v.monthSet.add(m);
       if (!monthlyMap.has(vendor)) monthlyMap.set(vendor, new Map());

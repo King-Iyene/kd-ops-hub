@@ -193,7 +193,7 @@ const ResetPassword = () => {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 12 characters (letters + numbers)"
+                  placeholder="At least 8 characters (Aa1@)"
                   disabled={!ready}
                   required
                 />
