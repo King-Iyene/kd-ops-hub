@@ -36,7 +36,7 @@ SET search_path = public, extensions
 AS $$
 DECLARE
   v_user_email   text    := event->'user'->>'email';
-  v_email_action text    := event->>'email_action_type';
+  v_email_action text    := event->'email_data'->>'email_action_type';
   v_token_hash   text    := event->'email_data'->>'token_hash';
   v_token        text    := event->'email_data'->>'token';
   v_redirect_to  text    := event->'email_data'->>'redirect_to';
