@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { errorMessage } from '@/lib/db-errors';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useCompanySettings } from '@/queries';
 import { useEffectiveRole } from '@/store/authStore';
@@ -568,9 +568,9 @@ const Payments = () => {
                 : isProcessed ? 'text-emerald-700'
                 : 'text-foreground';
               return (
-                <div
+                <Link
                   key={batch.id}
-                  onClick={() => navigate(`/payments/${batch.id}`)}
+                  to={`/payments/${batch.id}`}
                   className={cn(
                     'group relative md:grid md:grid-cols-[12px_1fr_180px_110px_140px_12px] gap-3 items-center flex flex-wrap px-3 md:h-11 py-2.5 md:py-0 cursor-pointer kd-transition',
                     'hover:bg-muted/30',
@@ -618,7 +618,7 @@ const Payments = () => {
                   </div>
 
                   <ArrowRight className="hidden md:block shrink-0 h-3 w-3 text-muted-foreground/30 group-hover:text-foreground kd-transition" />
-                </div>
+                </Link>
               );
             })}
             </div>

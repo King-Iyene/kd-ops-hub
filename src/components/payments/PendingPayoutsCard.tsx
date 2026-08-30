@@ -21,7 +21,7 @@
  *                         see exactly what's blocking close-out.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { ArrowRight, AlertTriangle, Wallet, Hourglass } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -334,10 +334,9 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
               const stuck = isStuck(b);
               const subtitle = `${b.beneficiary_count ?? 0} recipient${b.beneficiary_count === 1 ? '' : 's'}${b.payment_date ? ' · pay ' + formatDate(b.payment_date) : ''}`;
               return (
-                <button
+                <Link
                   key={b.id}
-                  type="button"
-                  onClick={() => navigate(`/payments/${b.id}`)}
+                  to={`/payments/${b.id}`}
                   className={cn(
                     'w-full grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 px-3 h-8 text-left hover:bg-muted/40 kd-transition',
                     stuck && 'bg-amber-500/[0.04]',
@@ -354,7 +353,7 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
                   <span className="text-[12px] font-mono font-semibold tabular-nums">
                     {formatNaira(b.total_amount)}
                   </span>
-                </button>
+                </Link>
               );
             })
           )}

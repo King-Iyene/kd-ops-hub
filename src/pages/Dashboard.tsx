@@ -3,7 +3,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTimeOfDay, greetingFor } from '@/hooks/useTimeOfDay';
 import { AuroraHero } from '@/components/AuroraHero';
 import { ChartGradients, GlassTooltip, chartAnim } from '@/components/ChartKit';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   CreditCard,
   Users,
@@ -583,14 +583,14 @@ const Dashboard = () => {
                   Compliance Filings Due ({dueFilings.length})
                 </p>
                 {dueFilings.map((f) => (
-                  <button
+                  <Link
                     key={f.id}
-                    onClick={() => navigate('/compliance')}
+                    to="/compliance"
                     className="flex items-center justify-between w-full text-left rounded-lg px-3 py-2 bg-background/60 hover:bg-background text-xs kd-transition border border-border/50"
                   >
                     <span className="font-medium uppercase">{f.kind} — {f.period}</span>
                     <span className="text-warning ml-2 shrink-0">{formatDate(f.due_date)}</span>
-                  </button>
+                  </Link>
                 ))}
               </div>
             )}
@@ -600,14 +600,14 @@ const Dashboard = () => {
                   Contracts Ending ({expiringContracts.length})
                 </p>
                 {expiringContracts.map((c) => (
-                  <button
+                  <Link
                     key={c.id}
-                    onClick={() => navigate(`/employees/${c.id}`)}
+                    to={`/employees/${c.id}`}
                     className="flex items-center justify-between w-full text-left rounded-lg px-3 py-2 bg-background/60 hover:bg-background text-xs kd-transition border border-border/50"
                   >
                     <span className="font-medium truncate max-w-[160px]">{c.name}</span>
                     <span className="text-warning ml-2 shrink-0">{formatDate(c.contract_end_date)}</span>
-                  </button>
+                  </Link>
                 ))}
               </div>
             )}

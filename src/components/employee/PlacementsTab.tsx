@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Briefcase, Receipt } from 'lucide-react';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -77,8 +77,8 @@ export default function PlacementsTab({ empPlacements, empPlacementPayments }: P
                 </TableHeader>
                 <TableBody>
                   {empPlacements.map((p: any) => (
-                    <TableRow key={p.id} className="cursor-pointer" onClick={() => navigate(`/clients/${p.client_id}`)}>
-                      <TableCell className="pl-4 font-medium">{p.clients?.name || '—'}</TableCell>
+                    <TableRow key={p.id} className="cursor-pointer" onClick={() => navigate(`/clients/${p.client_id}`)} onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/clients/${p.client_id}`, '_blank'); ev.preventDefault(); } }}>
+                      <TableCell className="pl-4 font-medium"><Link to={`/clients/${p.client_id}`} className="hover:underline" onClick={(e) => e.preventDefault()}>{p.clients?.name || '—'}</Link></TableCell>
                       <TableCell>
                         <Badge variant="secondary">{catLabels[p.placement_category] || p.placement_category}</Badge>
                       </TableCell>

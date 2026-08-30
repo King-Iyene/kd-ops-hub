@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { displayName } from '@/lib/name';
 import {
   Plus,
@@ -444,8 +444,10 @@ const Contacts = () => {
                 </TableHeader>
                 <TableBody>
                   {pagination.slice.map((c) => (
-                    <TableRow key={c.id} className="kd-transition cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
-                      <TableCell className="font-medium">{displayName(c.first_name, c.last_name, c.full_name)}</TableCell>
+                    <TableRow key={c.id} className="kd-transition cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)} onAuxClick={(e) => { if (e.button === 1) { window.open(`/contacts/${c.id}`, '_blank'); e.preventDefault(); } }}>
+                      <TableCell className="font-medium">
+                        <Link to={`/contacts/${c.id}`} className="hover:underline" onClick={(e) => e.preventDefault()}>{displayName(c.first_name, c.last_name, c.full_name)}</Link>
+                      </TableCell>
                       <TableCell className="text-muted-foreground">
                         {c.email || '—'}
                       </TableCell>
@@ -524,6 +526,7 @@ const Contacts = () => {
                   <MobileCard
                     key={c.id}
                     onClick={() => navigate(`/contacts/${c.id}`)}
+                    onAuxClick={(e: React.MouseEvent) => { if (e.button === 1) { window.open(`/contacts/${c.id}`, '_blank'); e.preventDefault(); } }}
                     accentClassName={c.status === 'converted' ? 'bg-emerald-500' : c.contact_type === 'lead' ? 'bg-amber-500' : 'bg-blue-500'}
                   >
                     <MobileCardHeader>

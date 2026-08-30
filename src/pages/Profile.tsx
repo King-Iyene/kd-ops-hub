@@ -19,7 +19,7 @@ import {
   FileText, Camera, Receipt, Truck, ChevronRight, Inbox,
   CheckCircle2, Clock, XCircle, ExternalLink, UserCog, Ban,
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -1342,10 +1342,9 @@ const ProfilePage = () => {
                     const meta = REQUEST_META[r.kind];
                     const t = tone(r.status);
                     return (
-                      <button
+                      <Link
                         key={r.id}
-                        type="button"
-                        onClick={() => navigate(r.href)}
+                        to={r.href}
                         className="group w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 kd-transition"
                       >
                         <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', meta.bg)}>
@@ -1369,7 +1368,7 @@ const ProfilePage = () => {
                             </div>
                           </div>
                         </div>
-                      </button>
+                      </Link>
                     );
                   })}
                 </div>
