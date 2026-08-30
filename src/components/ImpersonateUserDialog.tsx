@@ -9,7 +9,6 @@ import {
   CommandSeparator,
 } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { startImpersonation, switchImpersonation } from '@/lib/impersonation';
@@ -56,31 +55,60 @@ export function ImpersonateUserDialog({
 
     const fetchDirectory = async () => {
       // In switch mode the live session belongs to the impersonated user
-      // (e.g. field_staff) whose RLS may block the full directory. Use a
-      // throwaway Supabase client authenticated as the real admin (via
-      // the stashed origin refresh token) for just this one query — no
-      // session-swapping on the shared singleton client.
-      let client = supabase;
+      // (e.g. field_staff) whose RLS blocks the full directory. Refresh
+      // the admin's token via the GoTrue API directly, then hit PostgREST
+      // with that access_token — no second Supabase client needed.
+      let adminAccessToken: string | null = null;
       if (mode === 'switch') {
         const originRefresh = window.sessionStorage.getItem('kdops:impersonation:originRefreshToken');
         if (originRefresh) {
           try {
             const url = (import.meta.env.VITE_SUPABASE_URL as string)?.trim();
-            const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string)?.trim();
-            const tmp = createClient(url, key, {
-              auth: { persistSession: false, autoRefreshToken: false },
+            const res = await fetch(`${url}/auth/v1/token?grant_type=refresh_token`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': (import.meta.env.VITE_SUPABASE_ANON_KEY as string)?.trim(),
+              },
+              body: JSON.stringify({ refresh_token: originRefresh }),
             });
-            const { error: refreshErr } = await tmp.auth.setSession({
-              access_token: '', refresh_token: originRefresh,
-            });
-            if (!refreshErr) client = tmp;
+            if (res.ok) {
+              const tokens = await res.json();
+              adminAccessToken = tokens.access_token ?? null;
+            }
           } catch {
-            // Fall through — query with the impersonated session
+            // Fall through — try with the impersonated session
           }
         }
       }
 
-      const { data, error } = await client
+      if (adminAccessToken) {
+        // Query PostgREST directly with the admin's token
+        const url = (import.meta.env.VITE_SUPABASE_URL as string)?.trim();
+        const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string)?.trim();
+        try {
+          const res = await fetch(
+            `${url}/rest/v1/profiles_directory?status=eq.active&select=id,full_name,email,role,job_title,photo_url&order=full_name&limit=500`,
+            {
+              headers: {
+                'apikey': key,
+                'Authorization': `Bearer ${adminAccessToken}`,
+              },
+            },
+          );
+          if (res.ok) {
+            const data = (await res.json()) as DirectoryPerson[];
+            setPeople(data.filter((p) => p.id !== excludeUserId));
+            setLoading(false);
+            return;
+          }
+        } catch {
+          // Fall through to supabase client query
+        }
+      }
+
+      // Default: use the current session's supabase client
+      const { data, error } = await supabase
         .from('profiles_directory')
         .select('id, full_name, email, role, job_title, photo_url')
         .eq('status', 'active')
