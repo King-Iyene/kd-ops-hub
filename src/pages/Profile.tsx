@@ -618,8 +618,16 @@ const ProfilePage = () => {
   };
 
   const changePassword = async () => {
-    if (newPassword.length < 6) {
-      toast({ title: 'Password must be at least 6 characters', variant: 'destructive' });
+    if (newPassword.length < 8) {
+      toast({ title: 'Password must be at least 8 characters', variant: 'destructive' });
+      return;
+    }
+    if (!/[a-z]/.test(newPassword) || !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+      toast({
+        title: 'Password too weak',
+        description: 'Must include uppercase, lowercase, number, and special character.',
+        variant: 'destructive',
+      });
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -1597,7 +1605,7 @@ const ProfilePage = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label htmlFor="newPassword">New password</Label>
-                  <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 6 characters" autoComplete="new-password" />
+                  <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 8 characters (Aa1@)" autoComplete="new-password" />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="confirmPassword">Confirm password</Label>
@@ -1606,7 +1614,7 @@ const ProfilePage = () => {
               </div>
               <Separator />
               <div className="flex justify-end">
-                <Button variant="outline" onClick={changePassword} disabled={changingPassword || newPassword.length < 6 || newPassword !== confirmPassword}>
+                <Button variant="outline" onClick={changePassword} disabled={changingPassword || newPassword.length < 8 || newPassword !== confirmPassword}>
                   {changingPassword ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
                   Update password
                 </Button>

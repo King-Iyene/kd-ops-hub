@@ -9,8 +9,8 @@ export function TechSecuritySection() {
         <RefTable
           cols={['Setting', 'Value']}
           rows={[
-            { a: 'Minimum password length',   b: '12 characters' },
-            { a: 'Password complexity',       b: 'Must contain at least one letter and one number' },
+            { a: 'Minimum password length',   b: '8 characters' },
+            { a: 'Password complexity',       b: 'Must contain uppercase, lowercase, number, and special character' },
             { a: 'Login rate limit',          b: '5 failed attempts per email in 15 minutes → 15-minute lockout' },
             { a: 'Failed login tracking',     b: 'Recorded in failed_login_attempts table (admins only)' },
             { a: 'Login / logout audited',    b: 'Every session start and end recorded in audit_logs' },
