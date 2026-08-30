@@ -195,7 +195,8 @@ BEGIN
       'to',      ARRAY[v_user_email],
       'subject', v_subject,
       'html',    v_body_html
-    )
+    ),
+    timeout_milliseconds := 15000
   );
 
   -- Return success so GoTrue does NOT fall back to the built-in mailer.
