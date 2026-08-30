@@ -9,6 +9,7 @@ import {
   CommandSeparator,
 } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { startImpersonation, switchImpersonation } from '@/lib/impersonation';
@@ -54,40 +55,37 @@ export function ImpersonateUserDialog({
     setLoading(true);
 
     const fetchDirectory = async () => {
-      // In switch mode the current session belongs to the impersonated
-      // user (e.g. field_staff) who may not have RLS access to the full
-      // directory. Temporarily restore the real admin's session to run
-      // the query, then swap back so the rest of the app stays on the
-      // impersonated session.
-      let restoredTargetRefresh: string | null = null;
+      // In switch mode the live session belongs to the impersonated user
+      // (e.g. field_staff) whose RLS may block the full directory. Use a
+      // throwaway Supabase client authenticated as the real admin (via
+      // the stashed origin refresh token) for just this one query — no
+      // session-swapping on the shared singleton client.
+      let client = supabase;
       if (mode === 'switch') {
         const originRefresh = window.sessionStorage.getItem('kdops:impersonation:originRefreshToken');
         if (originRefresh) {
-          const currentSession = (await supabase.auth.getSession()).data.session;
-          restoredTargetRefresh = currentSession?.refresh_token ?? null;
-          const { error: refreshErr } = await supabase.auth.setSession({
-            access_token: '', refresh_token: originRefresh,
-          });
-          if (refreshErr) {
-            // Fall through — try the query with the current session anyway
-            restoredTargetRefresh = null;
+          try {
+            const url = (import.meta.env.VITE_SUPABASE_URL as string)?.trim();
+            const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string)?.trim();
+            const tmp = createClient(url, key, {
+              auth: { persistSession: false, autoRefreshToken: false },
+            });
+            const { error: refreshErr } = await tmp.auth.setSession({
+              access_token: '', refresh_token: originRefresh,
+            });
+            if (!refreshErr) client = tmp;
+          } catch {
+            // Fall through — query with the impersonated session
           }
         }
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('profiles_directory')
         .select('id, full_name, email, role, job_title, photo_url')
         .eq('status', 'active')
         .order('full_name')
         .limit(500);
-
-      // Restore the impersonated session if we swapped above
-      if (restoredTargetRefresh) {
-        await supabase.auth.setSession({
-          access_token: '', refresh_token: restoredTargetRefresh,
-        }).catch(() => { /* best effort */ });
-      }
 
       setLoading(false);
       if (error) {
