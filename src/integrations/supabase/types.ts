@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   graphql_public: {
     Tables: {
@@ -16411,6 +16411,7 @@ export type Database = {
         Args: { event: Json }
         Returns: Json
       }
+      hook_send_auth_email: { Args: { event: Json }; Returns: Json }
       increment_chatbot_usage: {
         Args: {
           p_messages?: number
