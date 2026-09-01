@@ -66,9 +66,9 @@ export const NSITF_RATE = 0.01;
 /** ITF Act — 1% of annual payroll, employer-only. Applies to firms with ≥ 5 staff or ≥ ₦50M turnover. */
 export const ITF_RATE = 0.01;
 
-/** NHIS contribution — typically 5% employer + 5% employee of basic salary. Sectoral. */
+/** NHIS contribution — NHIA Act 2022 s.26: 5% employee + 10% employer of basic salary. */
 export const NHIS_EMPLOYEE_RATE = 0.05;
-export const NHIS_EMPLOYER_RATE = 0.05;
+export const NHIS_EMPLOYER_RATE = 0.10;
 
 /** Rent relief — NTA 2025 s.30: 20% of annual rent paid, capped at ₦500,000/year. */
 export const RENT_RELIEF_RATE = 0.20;

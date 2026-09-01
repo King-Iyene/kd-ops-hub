@@ -23,7 +23,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { useDebounce } from '@/hooks/useDebounce';
 import {
   Loader2, Trash2, ArrowLeft, ArrowRight, Check, Search, Plus, Upload,
-  Users, Banknote, CreditCard, Gift, AlertTriangle, Building2,
+  Users, Banknote, CreditCard, Gift, AlertTriangle, Building2, Wallet, ReceiptText,
 } from 'lucide-react';
 import { StickyActionBar, StickyActionBarSpacer } from '@/components/ui-kit/StickyActionBar';
 import {
@@ -39,7 +39,7 @@ import { BeneficiaryCsvImport, type ImportedBeneficiary } from '@/components/Ben
 import { heyreachDisplayStatus } from '@/lib/heyreach-status';
 import { computePayslip } from '@/lib/tax';
 
-type BatchType = 'contractor' | 'employee_salary' | 'advance' | 'prize';
+type BatchType = 'contractor' | 'employee_salary' | 'employee_allowance' | 'employee_reimbursement' | 'advance' | 'prize';
 
 // Paystack's `transfer/bulk` endpoint caps each call at 100 items;
 // our dispatcher loops single-call transfers so the same ceiling
@@ -122,6 +122,20 @@ const BATCH_TYPES: {
     color: 'text-emerald-600',
   },
   {
+    type: 'employee_allowance',
+    icon: <Wallet className="h-5 w-5" />,
+    label: 'Employee Allowance',
+    desc: 'Team allowances, stipends, etc.',
+    color: 'text-teal-600',
+  },
+  {
+    type: 'employee_reimbursement',
+    icon: <ReceiptText className="h-5 w-5" />,
+    label: 'Employee Reimbursement',
+    desc: 'Repair requests, expense refunds',
+    color: 'text-sky-600',
+  },
+  {
     type: 'advance',
     icon: <CreditCard className="h-5 w-5" />,
     label: 'Salary Advance',
@@ -175,6 +189,8 @@ const NewPaymentBatch = () => {
     const out: BatchType[] = [];
     if (canContractor) out.push('contractor');
     if (canSalary)     out.push('employee_salary');
+    if (canSalary)     out.push('employee_allowance');
+    if (canSalary)     out.push('employee_reimbursement');
     if (canAdvance)    out.push('advance');
     if (canBonus)      out.push('prize');
     return out;
@@ -511,7 +527,7 @@ const NewPaymentBatch = () => {
     );
   }, [employees, employeeSearchTerm]);
 
-  const isEmployeeBatchType = batchType === 'employee_salary' || batchType === 'advance' || batchType === 'prize';
+  const isEmployeeBatchType = batchType === 'employee_salary' || batchType === 'employee_allowance' || batchType === 'employee_reimbursement' || batchType === 'advance' || batchType === 'prize';
 
   const addAdHoc = () => {
     if (!adHocBank.verified) {
@@ -809,12 +825,19 @@ const NewPaymentBatch = () => {
                           setBatchName(`Salary Run — ${monthLong}`);
                           setPeriod(monthShort);
                           setPaymentDate(next25);
+                        } else if (t.type === 'employee_allowance') {
+                          setBatchName(`Employee Allowance — ${monthLong}`);
+                          setPeriod(monthShort);
+                          setPaymentDate(today);
+                        } else if (t.type === 'employee_reimbursement') {
+                          setBatchName(`Employee Reimbursement — ${monthLong}`);
+                          setPeriod(monthShort);
+                          setPaymentDate(today);
                         } else if (t.type === 'advance') {
                           setBatchName(`Salary Advance — ${monthLong}`);
                           setPeriod(monthShort);
                           setPaymentDate(today);
                         } else if (t.type === 'prize') {
-                          // 'prize' is the existing key for bonus / one-off awards
                           setBatchName(`Bonus Run — ${monthLong}`);
                           setPeriod(monthShort);
                           setPaymentDate(today);
