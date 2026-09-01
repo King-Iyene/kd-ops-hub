@@ -38,15 +38,21 @@ function formatNgn(n: number | string | null | undefined): string {
 interface Props {
   payslips: any[];
   payments?: any[];
+  loading?: boolean;
   humanPeriod: (p: string) => string;
   previewPayslip: (slip: any) => void;
   downloadPayslip: (slip: any) => void;
 }
 
-export default function PayrollTab({ payslips, payments = [], humanPeriod, previewPayslip, downloadPayslip }: Props) {
+export default function PayrollTab({ payslips, payments = [], loading, humanPeriod, previewPayslip, downloadPayslip }: Props) {
+  const sortedPayslips = useMemo(
+    () => [...payslips].sort((a, b) => (b.period || '').localeCompare(a.period || '')),
+    [payslips],
+  );
+
   const ytd = useMemo(() => {
     const currentYear = new Date().getFullYear().toString();
-    const yearSlips = payslips.filter(s => s.period?.startsWith(currentYear));
+    const yearSlips = sortedPayslips.filter(s => s.period?.startsWith(currentYear));
     return {
       gross: yearSlips.reduce((sum, s) => sum + (Number(s.gross_ngn) || 0), 0),
       net: yearSlips.reduce((sum, s) => sum + (Number(s.net_ngn) || 0), 0),
@@ -64,7 +70,7 @@ export default function PayrollTab({ payslips, payments = [], humanPeriod, previ
     });
   }, [payments]);
 
-  const hasData = payslips.length > 0 || nonSalaryPayments.length > 0;
+  const hasData = sortedPayslips.length > 0 || nonSalaryPayments.length > 0;
 
   return (
     <div className="mt-4 space-y-4">
@@ -92,7 +98,7 @@ export default function PayrollTab({ payslips, payments = [], humanPeriod, previ
           </Card>
           <Card>
             <CardContent className="p-3">
-              <p className="text-xs text-muted-foreground font-medium">YTD Pension + NHF</p>
+              <p className="text-xs text-muted-foreground font-medium">YTD Pension{ytd.nhf > 0 ? ' + NHF' : ''}</p>
               <p className="text-lg font-semibold tabular-nums">{formatNgn(ytd.pension + ytd.nhf)}</p>
             </CardContent>
           </Card>
@@ -108,11 +114,13 @@ export default function PayrollTab({ payslips, payments = [], humanPeriod, previ
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {payslips.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">Loading payroll data…</div>
+          ) : sortedPayslips.length === 0 ? (
             <EmptyState compact icon={FileText} title="No payslips yet" description="Finance generates payslips at the end of each month." />
           ) : (
             <div className="divide-y">
-              {payslips.map((slip: any) => (
+              {sortedPayslips.map((slip: any) => (
                 <div key={slip.id} className="flex items-center justify-between px-4 py-3 gap-2">
                   <div className="flex-1 min-w-0">
                     <span className="text-sm font-medium">{humanPeriod(slip.period)}</span>

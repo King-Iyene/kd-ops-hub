@@ -867,6 +867,7 @@ const Payroll = () => {
     run.created_by === profile?.id && !['admin', 'super_admin'].includes(profile?.role || '');
 
   const approve = async (run: PayrollRun) => {
+    setWorking(true);
     // Routed through the approve_payroll_run RPC (not a raw .update()) so the
     // self-approval block is enforced server-side and can't be bypassed —
     // the person who drafted this run cannot also approve it unless they're
@@ -874,6 +875,7 @@ const Payroll = () => {
     const { error } = await supabase.rpc('approve_payroll_run', { p_run_id: run.id });
     if (error) {
       toast({ title: 'Approve failed', description: error.message, variant: 'destructive' });
+      setWorking(false);
       return;
     }
 
@@ -919,6 +921,7 @@ const Payroll = () => {
     if (canGeneratePayslipsPerm) {
       await generatePayslips({ ...run, status: 'approved' });
     }
+    setWorking(false);
     load();
   };
 
@@ -1033,7 +1036,8 @@ const Payroll = () => {
       // requests that need to be settled this period in one batch.
       const [y2, m2] = run.period.split('-');
       const periodStartDate = `${y2}-${m2}-01`;
-      const periodEndDate = new Date(Number(y2), Number(m2), 0).toISOString().slice(0, 10);
+      const lastDay = new Date(Number(y2), Number(m2), 0);
+      const periodEndDate = `${y2}-${m2}-${String(lastDay.getDate()).padStart(2, '0')}`;
 
       // Approved unpaid leave overlapping this payroll period, per employee.
       // Best-effort: a query failure here must never block payroll generation,
@@ -1178,16 +1182,23 @@ const Payroll = () => {
       // the period if it's null on older runs.
       const [y2y, m2m] = run.period.split('-').map(Number);
       const periodStart = `${run.period}-01`;
-      const periodEnd   = new Date(y2y, m2m, 0).toISOString().slice(0, 10);
+      const lastDayDate = new Date(y2y, m2m, 0);
+      const periodEnd   = `${run.period}-${String(lastDayDate.getDate()).padStart(2, '0')}`;
       const payDate     = (run as any).pay_date || periodEnd;
 
       let succeeded = 0;
       let failed = 0;
       const failedNames: string[] = [];
+      const progressToastId = toast({
+        title: `Generating payslips (0 of ${list.length})…`,
+        duration: Infinity,
+      });
       for (const e of list) {
         toast({
+          id: progressToastId?.id,
           title: `Generating payslip ${succeeded + failed + 1} of ${list.length}…`,
           description: displayName(e.first_name, e.last_name, e.full_name || e.email),
+          duration: Infinity,
         });
         try {
           const empGross = Number(e.salary_ngn);
