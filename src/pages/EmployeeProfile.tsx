@@ -169,6 +169,7 @@ const EmployeeProfile = () => {
   );
   const [expenses, setExpenses] = useState<any[]>([]);
   const [payslips, setPayslips] = useState<any[]>([]);
+  const [employeePayments, setEmployeePayments] = useState<any[]>([]);
   const [leaves, setLeaves] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
@@ -461,6 +462,14 @@ const EmployeeProfile = () => {
     setBenefits(benefitRes.data || []);
     setAssignedAssets(assetRes.data || []);
     setDependents(dependentRes.data || []);
+
+    const { data: batchItemData } = await supabase
+      .from('batch_items')
+      .select('id, amount_ngn, status, created_at, processed_at, narration, payment_batches!inner(name, batch_type, payment_date, period)')
+      .eq('employee_id', id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    setEmployeePayments(batchItemData || []);
 
     const { data: plData } = await supabase
       .from('placements')
@@ -1686,6 +1695,7 @@ const EmployeeProfile = () => {
       {activeTab === 'payroll' && (
         <PayrollTab
           payslips={payslips}
+          payments={employeePayments}
           humanPeriod={humanPeriod}
           previewPayslip={previewPayslip}
           downloadPayslip={downloadPayslip}

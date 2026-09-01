@@ -266,6 +266,14 @@ const SettingsPage = () => {
         nsitf_employer_code: settings.nsitf_employer_code?.trim() || null,
         itf_employer_code: settings.itf_employer_code?.trim() || null,
         leave_carryover_max_days: settings.leave_carryover_max_days,
+        pension_enabled: settings.pension_enabled ?? true,
+        paye_enabled: settings.paye_enabled ?? true,
+        nhf_enabled: settings.nhf_enabled ?? false,
+        nhis_enabled: settings.nhis_enabled ?? false,
+        nsitf_enabled: settings.nsitf_enabled ?? false,
+        itf_enabled: settings.itf_enabled ?? false,
+        development_levy_enabled: settings.development_levy_enabled ?? false,
+        development_levy_annual_ngn: settings.development_levy_annual_ngn ?? 0,
         updated_at: new Date().toISOString(),
       })
       .eq('id', SINGLETON_ID);

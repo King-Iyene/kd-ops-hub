@@ -1071,7 +1071,7 @@ const Payroll = () => {
           description: 'Could not load unpaid leave records. Payslip generation aborted to prevent overpayment. Please try again.',
           variant: 'destructive',
         });
-        setGenerating(false);
+        setWorking(false);
         return;
       }
 
@@ -1266,12 +1266,15 @@ const Payroll = () => {
           const pensionBaseM  = empBreak.pensionBaseMonthlyNgn;
           const nhfBaseM      = empBreak.nhfBaseMonthlyNgn;
           const empUnpaidLeaveDeduction = empBreak.unpaidLeaveDeductionMonthlyNgn;
-          const empPaye    = e.paye_enabled    !== false ? empBreak.payeMonthlyNgn          : 0;
-          const empPension = e.pension_enabled !== false ? pensionBaseM * PENSION_RATE      : 0;
-          const empNhf     = e.nhf_enabled     === true  ? nhfBaseM     * NHF_RATE          : 0;
+          const combinedPensionOn = companySettings?.pension_enabled !== false && e.pension_enabled !== false;
+          const combinedPayeOn   = companySettings?.paye_enabled !== false;
+          const combinedNhfOn    = companySettings?.nhf_enabled === true && e.nhf_enabled === true;
+          const empPaye    = combinedPayeOn    ? empBreak.payeMonthlyNgn          : 0;
+          const empPension = combinedPensionOn ? pensionBaseM * PENSION_RATE      : 0;
+          const empNhf     = combinedNhfOn     ? nhfBaseM     * NHF_RATE          : 0;
           const empNhis    = empBreak.nhisEmployeeMonthlyNgn;
           // Employer-side amounts surfaced on the payslip (informational).
-          const empPensionEmployer = e.pension_enabled !== false ? pensionBaseM * EMPLOYER_PENSION_RATE : 0;
+          const empPensionEmployer = combinedPensionOn ? pensionBaseM * EMPLOYER_PENSION_RATE : 0;
           const empNhisEmployer    = empBreak.nhisEmployerMonthlyNgn;
           const empNsitf           = nsitfEnabled ? empBreak.nsitfMonthlyNgn : 0;
           const empAvc             = empBreak.voluntaryPensionMonthlyNgn;
