@@ -114,9 +114,6 @@ export default function AppLayout() {
         Skip to main content
       </a>
       <OfflineBanner />
-      <ImpersonationBanner />
-      <ViewAsBanner />
-      <MfaRequiredBanner />
       <SidebarProvider>
         {/* Sidebar hidden entirely on mobile — bottom MobileNav handles
             navigation there, and shadcn's <Sidebar> already collapses to
@@ -126,6 +123,9 @@ export default function AppLayout() {
           <AppSidebar />
         </div>
         <div className="flex-1 flex flex-col min-w-0">
+          <ImpersonationBanner />
+          <ViewAsBanner />
+          <MfaRequiredBanner />
           {/* ── Header ──────────────────────────────────────────────── */}
           <header
             role="banner"

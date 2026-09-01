@@ -181,7 +181,7 @@ export default function StaffLoans() {
     if (error) {
       toast({ title: 'Failed to load loans', description: error.message, variant: 'destructive' });
     } else {
-      setLoans(data ?? []);
+      setLoans((data as unknown as StaffLoan[]) ?? []);
     }
     setLoading(false);
   }, [toast]);
@@ -196,7 +196,7 @@ export default function StaffLoans() {
     if (error) {
       toast({ title: 'Failed to load repayments', description: error.message, variant: 'destructive' });
     } else {
-      setRepayments(data ?? []);
+      setRepayments((data as unknown as LoanRepayment[]) ?? []);
     }
     setRepaymentsLoading(false);
   }, [toast]);
@@ -335,7 +335,7 @@ export default function StaffLoans() {
     const loan = loans.find(l => l.id === repaymentLoanId);
     if (loan) {
       const newOutstanding = Math.max(0, loan.outstanding_ngn - amount);
-      const updates: Record<string, unknown> = { outstanding_ngn: newOutstanding };
+      const updates: { outstanding_ngn: number; status?: LoanStatus } = { outstanding_ngn: newOutstanding };
       if (newOutstanding === 0) updates.status = 'fully_paid';
       else if (loan.status === 'approved') updates.status = 'active';
       await supabase.from('staff_loans').update(updates).eq('id', repaymentLoanId);

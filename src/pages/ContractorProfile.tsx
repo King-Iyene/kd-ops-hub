@@ -959,6 +959,7 @@ const ContractorProfile = () => {
                         key={p.id}
                         type="button"
                         onClick={() => p.batch_id && navigate(`/payments/${p.batch_id}`)}
+                        onAuxClick={(ev) => { if (ev.button === 1 && p.batch_id) { window.open(`/payments/${p.batch_id}`, '_blank'); ev.preventDefault(); } }}
                         disabled={!p.batch_id}
                         className="w-full text-left flex items-center justify-between border rounded-lg p-3 transition-colors hover:bg-muted/40 hover:border-border focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-default disabled:hover:bg-transparent"
                         aria-label={`Open batch — ${p.payment_batches?.name || 'Batch payment'} on ${formatDate(p.created_at)}`}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Building2, Plus, Search, Download, Pencil, Trash2, Loader2, Users, TrendingUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
@@ -404,10 +404,11 @@ const Clients = () => {
                         key={c.id}
                         className="cursor-pointer kd-transition"
                         onClick={() => navigate(`/clients/${c.id}`)}
+                        onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/clients/${c.id}`, '_blank'); ev.preventDefault(); } }}
                       >
                         <TableCell>
                           <div>
-                            <p className="font-medium">{c.name}</p>
+                            <p className="font-medium"><Link to={`/clients/${c.id}`} className="hover:underline" onClick={(e) => e.preventDefault()}>{c.name}</Link></p>
                             {c.email && (
                               <p className="text-xs text-muted-foreground">{c.email}</p>
                             )}

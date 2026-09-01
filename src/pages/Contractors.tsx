@@ -8,7 +8,7 @@ import { ImportTemplatesDialog } from '@/components/ImportTemplatesDialog';
 import { SaveFilterViewDialog } from '@/components/SaveFilterViewDialog';
 import { ContractorFormDialog } from '@/components/ContractorFormDialog';
 import PartnerPayCalculator from '@/components/PartnerPayCalculator';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { errorMessage } from '@/lib/db-errors';
@@ -1684,6 +1684,7 @@ const Contractors = () => {
                     selectedIds.has(c.id) && 'bg-primary/5',
                   )}
                   onClick={() => navigate(`/contractors/${c.id}`)}
+                  onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/contractors/${c.id}`, '_blank'); ev.preventDefault(); } }}
                 >
                   {/* Selection checkbox — stops click propagation so
                       ticking the box doesn't navigate to the profile. */}
@@ -1695,7 +1696,7 @@ const Contractors = () => {
                     />
                   </TableCell>
                   <TableCell className="font-medium">
-                    <div>{displayName(c.first_name, c.last_name, c.full_name)}</div>
+                    <div><Link to={`/contractors/${c.id}`} className="hover:underline" onClick={(e) => e.preventDefault()}>{displayName(c.first_name, c.last_name, c.full_name)}</Link></div>
                     {c.linkedin_id && (
                       <div className="text-[11px] text-muted-foreground">
                         {c.linkedin_id}
@@ -1816,6 +1817,7 @@ const Contractors = () => {
                 <MobileCard
                   key={c.id}
                   onClick={() => navigate(`/contractors/${c.id}`)}
+                  onAuxClick={(ev: React.MouseEvent) => { if (ev.button === 1) { window.open(`/contractors/${c.id}`, '_blank'); ev.preventDefault(); } }}
                   chevron
                   className="rounded-none border-0 shadow-none bg-transparent backdrop-blur-none"
                 >

@@ -7,7 +7,7 @@ type Shortcut = { keys: string[]; label: string; group: string };
 const SHORTCUTS: Shortcut[] = [
   { group: 'General',    keys: ['⌘', 'K'],  label: 'Open command palette' },
   { group: 'General',    keys: ['?'],         label: 'Show keyboard shortcuts' },
-  { group: 'General',    keys: ['Esc'],       label: 'Close dialog or panel' },
+  { group: 'General',    keys: ['Esc'],       label: 'Close dialog / exit impersonation' },
 
   { group: 'Navigate',   keys: ['G', 'D'],  label: 'Go to Dashboard' },
   { group: 'Navigate',   keys: ['G', 'A'],  label: 'Go to Approvals' },

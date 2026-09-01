@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { displayName } from '@/lib/name';
 import {
   Loader2,
@@ -667,13 +667,7 @@ const Employees = () => {
                 </TableHeader>
                 <TableBody>
                   {employees.map((e) => (
-                    <TableRow key={e.id} className="kd-transition cursor-pointer" onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)}>
-                      {/* Avatar + name in a single cell — gives a face to
-                          the row at a glance without blowing up the
-                          table width with a separate photo column. The
-                          photo falls back to initials on the brand
-                          gradient when an employee hasn't uploaded one
-                          (or for invited rows that haven't accepted). */}
+                    <TableRow key={e.id} className="kd-transition cursor-pointer" onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)} onAuxClick={(ev) => { if (ev.button === 1 && e.status !== 'invited') { window.open(`/employees/${e.id}`, '_blank'); ev.preventDefault(); } }}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3 min-w-0">
                           <EmployeeAvatar
@@ -681,7 +675,11 @@ const Employees = () => {
                             name={displayName(e.first_name, e.last_name, e.full_name)}
                           />
                           <div className="min-w-0">
-                            <div className="truncate">{displayName(e.first_name, e.last_name, e.full_name)}</div>
+                            {e.status !== 'invited' ? (
+                              <Link to={`/employees/${e.id}`} className="truncate block hover:underline" onClick={(ev) => ev.preventDefault()}>{displayName(e.first_name, e.last_name, e.full_name)}</Link>
+                            ) : (
+                              <div className="truncate">{displayName(e.first_name, e.last_name, e.full_name)}</div>
+                            )}
                             {e.tags && e.tags.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {e.tags.map((tid) => {
@@ -812,6 +810,7 @@ const Employees = () => {
                     <MobileCard
                       key={e.id}
                       onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)}
+                      onAuxClick={(ev: React.MouseEvent) => { if (ev.button === 1 && e.status !== 'invited') { window.open(`/employees/${e.id}`, '_blank'); ev.preventDefault(); } }}
                       accentClassName={accent}
                     >
                       <MobileCardHeader>

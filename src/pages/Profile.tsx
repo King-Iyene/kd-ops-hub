@@ -19,7 +19,7 @@ import {
   FileText, Camera, Receipt, Truck, ChevronRight, Inbox,
   CheckCircle2, Clock, XCircle, ExternalLink, UserCog, Ban,
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -618,8 +618,16 @@ const ProfilePage = () => {
   };
 
   const changePassword = async () => {
-    if (newPassword.length < 6) {
-      toast({ title: 'Password must be at least 6 characters', variant: 'destructive' });
+    if (newPassword.length < 8) {
+      toast({ title: 'Password must be at least 8 characters', variant: 'destructive' });
+      return;
+    }
+    if (!/[a-z]/.test(newPassword) || !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+      toast({
+        title: 'Password too weak',
+        description: 'Must include uppercase, lowercase, number, and special character.',
+        variant: 'destructive',
+      });
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -1334,10 +1342,9 @@ const ProfilePage = () => {
                     const meta = REQUEST_META[r.kind];
                     const t = tone(r.status);
                     return (
-                      <button
+                      <Link
                         key={r.id}
-                        type="button"
-                        onClick={() => navigate(r.href)}
+                        to={r.href}
                         className="group w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 kd-transition"
                       >
                         <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', meta.bg)}>
@@ -1361,7 +1368,7 @@ const ProfilePage = () => {
                             </div>
                           </div>
                         </div>
-                      </button>
+                      </Link>
                     );
                   })}
                 </div>
@@ -1597,7 +1604,7 @@ const ProfilePage = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label htmlFor="newPassword">New password</Label>
-                  <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 6 characters" autoComplete="new-password" />
+                  <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 8 characters (Aa1@)" autoComplete="new-password" />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="confirmPassword">Confirm password</Label>
@@ -1606,7 +1613,7 @@ const ProfilePage = () => {
               </div>
               <Separator />
               <div className="flex justify-end">
-                <Button variant="outline" onClick={changePassword} disabled={changingPassword || newPassword.length < 6 || newPassword !== confirmPassword}>
+                <Button variant="outline" onClick={changePassword} disabled={changingPassword || newPassword.length < 8 || newPassword !== confirmPassword}>
                   {changingPassword ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
                   Update password
                 </Button>

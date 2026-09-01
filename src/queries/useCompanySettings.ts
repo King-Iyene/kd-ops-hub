@@ -40,7 +40,7 @@ export function useUpdateCompanySettings() {
     (updates: Record<string, unknown>) =>
       supabase
         .from('company_settings')
-        .update(updates)
+        .update(updates as any)
         .eq('id', SETTINGS_SINGLETON_ID)
         .select()
         .single(),

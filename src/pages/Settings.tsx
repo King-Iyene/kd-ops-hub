@@ -19,6 +19,10 @@ import {
   Clock,
   Wallet,
   CalendarDays,
+  Download,
+  Pencil,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -51,6 +55,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';

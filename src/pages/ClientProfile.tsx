@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Mail, Phone, Globe, MapPin, Save, Loader2, Trash2,
   Building2, CalendarDays, DollarSign, Users, TrendingUp, TrendingDown,
@@ -491,10 +491,10 @@ const ClientProfile = () => {
                     </TableHeader>
                     <TableBody>
                       {placements.map((p) => (
-                        <TableRow key={p.id} className="kd-transition cursor-pointer" onClick={() => navigate(`/employees/${p.employee_id}`)}>
+                        <TableRow key={p.id} className="kd-transition cursor-pointer" onClick={() => navigate(`/employees/${p.employee_id}`)} onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/employees/${p.employee_id}`, '_blank'); ev.preventDefault(); } }}>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{(p.profiles as any)?.full_name || 'Unknown'}</p>
+                              <p className="font-medium"><Link to={`/employees/${p.employee_id}`} className="hover:underline" onClick={(e) => e.preventDefault()}>{(p.profiles as any)?.full_name || 'Unknown'}</Link></p>
                               <p className="text-xs text-muted-foreground">{(p.profiles as any)?.email || ''}</p>
                             </div>
                           </TableCell>

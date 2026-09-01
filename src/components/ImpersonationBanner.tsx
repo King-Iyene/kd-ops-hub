@@ -1,7 +1,9 @@
-import { useState } from 'react';
-import { Repeat, LogOut } from 'lucide-react';
-import { getImpersonationMeta, endImpersonation } from '@/lib/impersonation';
+import { useCallback, useEffect, useState } from 'react';
+import { Repeat, LogOut, Clock } from 'lucide-react';
+import { getImpersonationMeta } from '@/lib/impersonation';
+import { endImpersonation } from '@/lib/impersonation';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthStore } from '@/store/authStore';
 import { ImpersonateUserDialog } from '@/components/ImpersonateUserDialog';
 import { AvatarBubble } from '@/components/AvatarBubble';
 
@@ -12,27 +14,57 @@ function initialsOf(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function formatElapsed(startedAt: string): string {
+  const ms = Date.now() - new Date(startedAt).getTime();
+  if (ms < 0) return '0s';
+  const secs = Math.floor(ms / 1000);
+  if (secs < 60) return `${secs}s`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  return `${hrs}h ${remMins}m`;
+}
+
 /**
- * Compact, unmissable-but-not-overbearing strip shown for the duration of
- * a real "log in as" impersonation session (see lib/impersonation.ts) —
- * distinct from the gold ViewAsBanner, which only simulates a role using
- * the admin's own session and data.
- *
- * Two distinct actions, always both visible: "Switch" jumps straight to a
- * different person without a visible round-trip back through the admin's
- * own dashboard first; "Exit" returns to the admin's own account. Neither
- * is the other done twice — switching never touches the admin's own
- * profile view in between.
+ * Prominent, impossible-to-miss banner shown while genuinely logged in as
+ * another user. GHL-inspired: pulsing indicator, elapsed-time timer, and
+ * keyboard hint so the admin always knows they're impersonating and can
+ * exit instantly.
  */
 export function ImpersonationBanner() {
   const meta = getImpersonationMeta();
+  const currentUser = useAuthStore((s) => s.user);
   const [exiting, setExiting] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
+  const [elapsed, setElapsed] = useState('');
   const { toast } = useToast();
 
-  if (!meta) return null;
+  // Auto-clear stale impersonation state: if the current logged-in user
+  // is NOT the impersonation target (e.g. session expired, user signed in
+  // as themselves from /login without going through the app's Sign Out),
+  // the sessionStorage keys are leftover garbage — clear them silently.
+  useEffect(() => {
+    if (!meta || !currentUser) return;
+    if (currentUser.id !== meta.targetId) {
+      try {
+        window.sessionStorage.removeItem('kdops:impersonation:originRefreshToken');
+        window.sessionStorage.removeItem('kdops:impersonation:meta');
+      } catch { /* ignore */ }
+    }
+  }, [meta, currentUser]);
 
-  const handleExit = async () => {
+  useEffect(() => {
+    if (!meta?.startedAt) return;
+    setElapsed(formatElapsed(meta.startedAt));
+    const interval = window.setInterval(() => {
+      setElapsed(formatElapsed(meta.startedAt));
+    }, 10_000);
+    return () => window.clearInterval(interval);
+  }, [meta?.startedAt]);
+
+  const handleExit = useCallback(async () => {
+    if (exiting) return;
     setExiting(true);
     try {
       await endImpersonation();
@@ -44,43 +76,68 @@ export function ImpersonationBanner() {
         variant: 'destructive',
       });
     }
-  };
+  }, [exiting, toast]);
+
+  useEffect(() => {
+    if (!meta) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+        const target = e.target as HTMLElement | null;
+        if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.tagName === 'SELECT' || target?.isContentEditable) return;
+        const dialog = target?.closest('[role="dialog"]');
+        if (dialog) return;
+        e.preventDefault();
+        handleExit();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [meta, handleExit]);
+
+  if (!meta) return null;
+  if (currentUser && currentUser.id !== meta.targetId) return null;
 
   return (
     <>
-      <div className="flex items-center gap-2 px-3 py-1 text-xs font-medium text-white bg-red-600 shadow-sm">
+      <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white" style={{ background: 'linear-gradient(90deg, #9f1239, #be123c, #9f1239)' }}>
         <AvatarBubble
           photoUrl={null}
           initials={initialsOf(meta.targetName)}
-          size={18}
-          ringClass="ring-1 ring-white/40 shrink-0"
+          size={20}
+          ringClass="ring-1.5 ring-white/50 shrink-0"
         />
-        {/* min-w-0 is required here: a flex child's default min-width is
-            "auto" (its content size), which silently defeats `truncate` —
-            without it the name doesn't ellipsize, it just overflows the
-            row, and depending on what's above this in the layout that can
-            read as the START of the name being clipped instead. */}
-        <span className="truncate min-w-0 flex-1" title={meta.targetName}>
-          Viewing as <span className="font-bold">{meta.targetName}</span>
+
+        <span className="truncate min-w-0 flex-1" title={`${meta.targetName} (${meta.targetEmail})`}>
+          {meta.targetEmail || meta.targetName}
         </span>
-        <button
-          type="button"
-          onClick={() => setSwitchOpen(true)}
-          disabled={exiting}
-          className="inline-flex items-center gap-1 rounded px-2 py-0.5 hover:bg-white/15 kd-transition disabled:opacity-60"
-          title="Switch to a different person without exiting first"
-        >
-          <Repeat className="h-3 w-3" /> Switch
-        </button>
-        <button
-          type="button"
-          onClick={handleExit}
-          disabled={exiting}
-          className="inline-flex items-center gap-1 rounded px-2 py-0.5 hover:bg-white/15 kd-transition disabled:opacity-60"
-          title="End impersonation and return to your own account"
-        >
-          <LogOut className="h-3 w-3" /> {exiting ? 'Exiting…' : 'Exit'}
-        </button>
+
+        {elapsed && (
+          <span className="hidden md:inline-flex items-center gap-1 text-[10px] text-white/60 shrink-0 tabular-nums">
+            <Clock className="h-3 w-3" />
+            {elapsed}
+          </span>
+        )}
+
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => setSwitchOpen(true)}
+            disabled={exiting}
+            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium bg-white/15 hover:bg-white/25 kd-transition disabled:opacity-60"
+            title="Switch to a different person"
+          >
+            <Repeat className="h-3 w-3" /> Switch
+          </button>
+          <button
+            type="button"
+            onClick={handleExit}
+            disabled={exiting}
+            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium bg-white/90 text-rose-800 hover:bg-white kd-transition disabled:opacity-60"
+            title="Exit impersonation (Esc)"
+          >
+            <LogOut className="h-3 w-3" /> {exiting ? 'Exiting…' : 'Exit'}
+          </button>
+        </div>
       </div>
       <ImpersonateUserDialog
         open={switchOpen}

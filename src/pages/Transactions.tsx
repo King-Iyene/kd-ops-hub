@@ -193,7 +193,7 @@ const Transactions = () => {
       console.error('[transactions] view error:', error.message);
       setRows([]);
     } else {
-      setRows((data as Transaction[]) || []);
+      setRows((data as unknown as Transaction[]) || []);
     }
     setLoading(false);
   }, [statusFilter, from, to]);
@@ -743,7 +743,7 @@ const Transactions = () => {
                             <p className="text-[11px] text-muted-foreground/80">from {r.batch_name}</p>
                           )}
                         </div>
-                        <MobileCardMeta className={cn('currency text-base', r.txn_type === 'charge' && 'text-warning')}>
+                        <MobileCardMeta className={cn('currency text-base', (r.txn_type as string) === 'charge' && 'text-warning')}>
                           {formatNaira(r.amount_ngn)}
                         </MobileCardMeta>
                       </MobileCardHeader>

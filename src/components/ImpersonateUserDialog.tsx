@@ -52,21 +52,79 @@ export function ImpersonateUserDialog({
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    supabase
-      .from('profiles_directory')
-      .select('id, full_name, email, role, job_title, photo_url')
-      .eq('status', 'active')
-      .order('full_name')
-      .limit(500)
-      .then(({ data, error }) => {
-        setLoading(false);
-        if (error) {
-          toast({ title: 'Could not load people', description: error.message, variant: 'destructive' });
-          return;
+
+    const fetchDirectory = async () => {
+      // In switch mode the live session belongs to the impersonated user
+      // (e.g. field_staff) whose RLS blocks the full directory. Refresh
+      // the admin's token via the GoTrue API directly, then hit PostgREST
+      // with that access_token — no second Supabase client needed.
+      let adminAccessToken: string | null = null;
+      if (mode === 'switch') {
+        const originRefresh = window.sessionStorage.getItem('kdops:impersonation:originRefreshToken');
+        if (originRefresh) {
+          try {
+            const url = (import.meta.env.VITE_SUPABASE_URL as string)?.trim();
+            const res = await fetch(`${url}/auth/v1/token?grant_type=refresh_token`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': (import.meta.env.VITE_SUPABASE_ANON_KEY as string)?.trim(),
+              },
+              body: JSON.stringify({ refresh_token: originRefresh }),
+            });
+            if (res.ok) {
+              const tokens = await res.json();
+              adminAccessToken = tokens.access_token ?? null;
+            }
+          } catch {
+            // Fall through — try with the impersonated session
+          }
         }
-        setPeople(((data as DirectoryPerson[]) || []).filter((p) => p.id !== excludeUserId));
-      });
-  }, [open, excludeUserId, toast]);
+      }
+
+      if (adminAccessToken) {
+        // Query PostgREST directly with the admin's token
+        const url = (import.meta.env.VITE_SUPABASE_URL as string)?.trim();
+        const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string)?.trim();
+        try {
+          const res = await fetch(
+            `${url}/rest/v1/profiles_directory?status=eq.active&select=id,full_name,email,role,job_title,photo_url&order=full_name&limit=500`,
+            {
+              headers: {
+                'apikey': key,
+                'Authorization': `Bearer ${adminAccessToken}`,
+              },
+            },
+          );
+          if (res.ok) {
+            const data = (await res.json()) as DirectoryPerson[];
+            setPeople(data.filter((p) => p.id !== excludeUserId));
+            setLoading(false);
+            return;
+          }
+        } catch {
+          // Fall through to supabase client query
+        }
+      }
+
+      // Default: use the current session's supabase client
+      const { data, error } = await supabase
+        .from('profiles_directory')
+        .select('id, full_name, email, role, job_title, photo_url')
+        .eq('status', 'active')
+        .order('full_name')
+        .limit(500);
+
+      setLoading(false);
+      if (error) {
+        toast({ title: 'Could not load people', description: error.message, variant: 'destructive' });
+        return;
+      }
+      setPeople(((data as DirectoryPerson[]) || []).filter((p) => p.id !== excludeUserId));
+    };
+
+    fetchDirectory();
+  }, [open, excludeUserId, toast, mode]);
 
   const groups = useMemo(() => {
     const byRole = new Map<UserRole, DirectoryPerson[]>();

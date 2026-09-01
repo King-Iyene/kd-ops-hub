@@ -6,6 +6,11 @@
 -- Implements a "Send Email" auth hook:
 -- https://supabase.com/docs/guides/auth/auth-hooks/send-email-hook
 --
+-- Uses the synchronous pgsql-http extension (extensions.http) rather than
+-- pg_net (net.http_post) because GoTrue's hook transaction handling does
+-- not persist pg_net's async queue entries — the hook returns success but
+-- no HTTP request is ever made.
+--
 -- Secrets required in Vault (vault.secrets):
 --   resend_api_key        – Resend API key (re_...)
 --   supabase_project_url  – e.g. https://mseeurrvdcfxdmvqjjki.supabase.co
@@ -15,14 +20,13 @@
 --   Authentication → Hooks (Beta) → Send Email → Enable
 --   → select public.hook_send_auth_email
 
--- Ensure pg_net is available (already provisioned on Supabase).
-CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+-- Ensure the synchronous HTTP extension is available.
+CREATE EXTENSION IF NOT EXISTS http WITH SCHEMA extensions;
 
 -- NOTE: Vault secrets must be added via the Supabase Dashboard
--- (Settings → Vault → New Secret) because the migration runner
--- lacks the crypto permissions needed for vault.secrets INSERT:
---   Name: resend_api_key        Value: re_... (your Resend API key)
---   Name: supabase_project_url  Value: https://mseeurrvdcfxdmvqjjki.supabase.co
+-- (Settings → Vault → New Secret) or via vault.create_secret():
+--   SELECT vault.create_secret('re_...', 'resend_api_key');
+--   SELECT vault.create_secret('https://mseeurrvdcfxdmvqjjki.supabase.co', 'supabase_project_url');
 
 CREATE OR REPLACE FUNCTION public.hook_send_auth_email(event jsonb)
 RETURNS jsonb
@@ -32,7 +36,7 @@ SET search_path = public, extensions
 AS $$
 DECLARE
   v_user_email   text    := event->'user'->>'email';
-  v_email_action text    := event->>'email_action_type';
+  v_email_action text    := event->'email_data'->>'email_action_type';
   v_token_hash   text    := event->'email_data'->>'token_hash';
   v_token        text    := event->'email_data'->>'token';
   v_redirect_to  text    := event->'email_data'->>'redirect_to';
@@ -42,15 +46,14 @@ DECLARE
   v_subject      text;
   v_body_html    text;
   v_from_email   text    := 'KD Ops <noreply@kdsquares.com>';
-  v_otp_display  text;
   v_action_label text;
+  v_response     extensions.http_response;
+  v_request_body text;
 BEGIN
-  -- Bail out gracefully if required data is missing.
   IF v_user_email IS NULL OR v_email_action IS NULL THEN
     RETURN jsonb_build_object('success', false, 'error', 'missing user email or action type');
   END IF;
 
-  -- Read secrets from Vault.
   SELECT decrypted_secret INTO v_resend_key
     FROM vault.decrypted_secrets
    WHERE name = 'resend_api_key'
@@ -66,12 +69,9 @@ BEGIN
       'error', 'vault secrets resend_api_key and/or supabase_project_url not set');
   END IF;
 
-  -- Strip trailing slash from project URL.
   v_project_url := rtrim(v_project_url, '/');
 
   -- Build verification URL.
-  -- Supabase Auth hooks provide token_hash for PKCE flow (preferred)
-  -- and token for the legacy implicit flow.
   IF v_token_hash IS NOT NULL AND v_token_hash <> '' THEN
     v_verify_url := v_project_url || '/auth/v1/verify?token=' || v_token_hash
       || '&type=' || v_email_action;
@@ -88,35 +88,23 @@ BEGIN
     v_verify_url := '';
   END IF;
 
-  -- Build OTP display (first 6 chars of token if present).
-  IF v_token IS NOT NULL AND length(v_token) >= 6 THEN
-    v_otp_display := left(v_token, 6);
-  ELSE
-    v_otp_display := '';
-  END IF;
-
-  -- Per-action subject + body.
+  -- Per-action subject + label.
   CASE v_email_action
     WHEN 'recovery' THEN
       v_subject := 'Reset Your KD Ops Password';
       v_action_label := 'Reset Password';
-
     WHEN 'signup' THEN
       v_subject := 'Confirm Your KD Ops Account';
       v_action_label := 'Confirm Email';
-
     WHEN 'invite' THEN
       v_subject := 'You''re Invited to KD Ops';
       v_action_label := 'Accept Invitation';
-
     WHEN 'magiclink' THEN
       v_subject := 'Your KD Ops Login Link';
       v_action_label := 'Log In';
-
     WHEN 'email_change' THEN
       v_subject := 'Confirm Your New Email – KD Ops';
       v_action_label := 'Confirm Email Change';
-
     ELSE
       v_subject := 'KD Ops Notification';
       v_action_label := 'Continue';
@@ -129,11 +117,9 @@ BEGIN
     || '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f9fb">'
     || '<tr><td align="center" style="padding:32px 12px">'
     || '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8ef">'
-    -- Header
     || '<tr><td style="padding:20px 24px;border-bottom:1px solid #eef2f6">'
     || '<span style="font-weight:700;font-size:18px;color:#1a2733;">KD Ops</span>'
     || '</td></tr>'
-    -- Body
     || '<tr><td style="padding:32px 24px;font-size:15px;line-height:1.6">'
     || '<p style="margin:0 0 16px">Hello,</p>';
 
@@ -158,7 +144,7 @@ BEGIN
         || '<p style="margin:0 0 16px">Please click the button below to continue.</p>';
   END CASE;
 
-  -- CTA button
+  -- CTA button.
   IF v_verify_url <> '' THEN
     v_body_html := v_body_html
       || '<p style="margin:24px 0;text-align:center">'
@@ -168,13 +154,7 @@ BEGIN
       || '<p style="margin:0 0 16px;word-break:break-all;font-size:12px;color:#2563eb">' || v_verify_url || '</p>';
   END IF;
 
-  -- OTP fallback
-  IF v_otp_display <> '' THEN
-    v_body_html := v_body_html
-      || '<p style="margin:0 0 16px;color:#5b6b75;font-size:13px">Or enter this code: <strong style="font-size:18px;letter-spacing:2px;color:#1a2733">' || v_otp_display || '</strong></p>';
-  END IF;
-
-  -- Footer
+  -- Footer.
   v_body_html := v_body_html
     || '<p style="margin:24px 0 0;color:#5b6b75;font-size:12px">If you didn''t request this, you can safely ignore this email.</p>'
     || '</td></tr>'
@@ -183,23 +163,30 @@ BEGIN
     || '</td></tr>'
     || '</table></td></tr></table></body></html>';
 
-  -- Send via Resend API using pg_net.
-  PERFORM net.http_post(
-    url     := 'https://api.resend.com/emails',
-    headers := jsonb_build_object(
-      'Content-Type',  'application/json',
-      'Authorization', 'Bearer ' || v_resend_key
-    ),
-    body    := jsonb_build_object(
-      'from',    v_from_email,
-      'to',      ARRAY[v_user_email],
-      'subject', v_subject,
-      'html',    v_body_html
-    ),
-    timeout_milliseconds := 15000
-  );
+  -- Send via Resend API using synchronous HTTP extension.
+  v_request_body := jsonb_build_object(
+    'from',    v_from_email,
+    'to',      jsonb_build_array(v_user_email),
+    'subject', v_subject,
+    'html',    v_body_html
+  )::text;
 
-  -- Return success so GoTrue does NOT fall back to the built-in mailer.
+  SELECT * INTO v_response FROM extensions.http((
+    'POST',
+    'https://api.resend.com/emails',
+    ARRAY[
+      extensions.http_header('Authorization', 'Bearer ' || v_resend_key),
+      extensions.http_header('Content-Type', 'application/json')
+    ],
+    'application/json',
+    v_request_body
+  )::extensions.http_request);
+
+  IF v_response.status < 200 OR v_response.status >= 300 THEN
+    RETURN jsonb_build_object('success', false,
+      'error', 'Resend API returned ' || v_response.status || ': ' || LEFT(v_response.content, 200));
+  END IF;
+
   RETURN jsonb_build_object('success', true);
 END;
 $$;
