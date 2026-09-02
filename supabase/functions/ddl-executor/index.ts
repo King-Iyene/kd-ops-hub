@@ -105,9 +105,9 @@ async function logAudit(
   const conn = await pool.connect();
   try {
     await conn.queryObject(
-      `INSERT INTO nc_meta.audit_log (user_id, action, details, created_at)
-       VALUES ($1, 'schema_change', $2, now())`,
-      [userId, JSON.stringify({ action, ...details })],
+      `INSERT INTO nc_meta.audit_log (user_id, action, new_value, created_at)
+       VALUES ($1, $2, $3, now())`,
+      [userId, action, JSON.stringify(details)],
     );
   } catch {
     // Audit logging is best-effort; do not fail the request.
