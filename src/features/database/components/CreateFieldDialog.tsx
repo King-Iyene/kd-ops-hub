@@ -15,7 +15,7 @@ import { useCreateLink } from '../hooks/useLinks';
 import { useTables } from '../hooks/useTables';
 import { useFields } from '../hooks/useFields';
 import { useDatabaseUI } from '../lib/store';
-import type { UIType, SelectChoice, FieldMeta } from '../types';
+import type { UIType, SelectChoice, FieldMeta, FieldOptions } from '../types';
 import { PILL_COLORS } from '../types';
 import { getFieldTypeIcon } from './grid/field-icons';
 import { cn } from '@/lib/utils';
