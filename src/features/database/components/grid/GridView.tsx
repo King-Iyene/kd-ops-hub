@@ -5,6 +5,7 @@ import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { ColumnHeader } from './ColumnHeader';
 import { GridCell } from './GridCell';
+import { EditFieldDialog } from '../EditFieldDialog';
 
 export interface GridViewProps {
   fields: FieldMeta[];
@@ -66,6 +67,7 @@ export default function GridView({
   const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
   const [dragColId, setDragColId] = useState<string | null>(null);
   const [dropColTargetIdx, setDropColTargetIdx] = useState<number | null>(null);
+  const [editingField, setEditingField] = useState<FieldMeta | null>(null);
 
   const toggleRowSelection = useCallback((id: string) => {
     setSelectedRowIds((prev) => {
@@ -194,10 +196,87 @@ export default function GridView({
 
   const rowHeightPx = ROW_HEIGHTS[rowHeight] || ROW_HEIGHTS.default;
 
+  // --- Group-by logic ---
+  const groupBy = useDatabaseUI((s) => s.groupBy);
+
+  const groupField = useMemo(() => {
+    if (!groupBy) return null;
+    return fieldsWithWidths.find((f) => f.id === groupBy.field_id) ?? null;
+  }, [groupBy, fieldsWithWidths]);
+
+  const GROUP_HEADER_HEIGHT = 32;
+
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroupCollapse = useCallback((groupValue: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupValue)) next.delete(groupValue);
+      else next.add(groupValue);
+      return next;
+    });
+  }, []);
+
+  const groupedRecords = useMemo(() => {
+    if (!groupField) return null;
+    const col = groupField.pg_column_name;
+    const map = new Map<string, RecordRow[]>();
+    for (const r of records) {
+      const raw = r[col];
+      const key = raw == null || raw === '' ? '(Empty)' : String(raw);
+      let arr = map.get(key);
+      if (!arr) { arr = []; map.set(key, arr); }
+      arr.push(r);
+    }
+    // Sort groups: for SingleSelect, use choices order; otherwise alphabetical
+    const uiType = groupField.ui_type || (groupField as any).type || '';
+    const choices = groupField.options?.choices;
+    let keys: string[];
+    if (uiType === 'SingleSelect' && choices && choices.length > 0) {
+      const order = new Map(choices.map((c, i) => [c.label, i]));
+      keys = [...map.keys()].sort((a, b) => {
+        const oa = a === '(Empty)' ? Infinity : (order.get(a) ?? 999999);
+        const ob = b === '(Empty)' ? Infinity : (order.get(b) ?? 999999);
+        return oa - ob;
+      });
+    } else {
+      keys = [...map.keys()].sort((a, b) => {
+        if (a === '(Empty)') return 1;
+        if (b === '(Empty)') return -1;
+        return a.localeCompare(b);
+      });
+    }
+    if (groupBy?.direction === 'desc') keys.reverse();
+    return keys.map((k) => ({ groupValue: k, records: map.get(k)! }));
+  }, [groupField, records, groupBy]);
+
+  // Build a flat list of items for grouped view: headers + record rows
+  type FlatItem = { type: 'header'; groupValue: string; count: number } | { type: 'row'; record: RecordRow; rowNum: number };
+  const flatItems = useMemo<FlatItem[] | null>(() => {
+    if (!groupedRecords) return null;
+    const items: FlatItem[] = [];
+    let runningIdx = 0;
+    for (const g of groupedRecords) {
+      items.push({ type: 'header', groupValue: g.groupValue, count: g.records.length });
+      if (!collapsedGroups.has(g.groupValue)) {
+        for (const r of g.records) {
+          items.push({ type: 'row', record: r, rowNum: page * pageSize + runningIdx + 1 });
+          runningIdx++;
+        }
+      } else {
+        runningIdx += g.records.length;
+      }
+    }
+    return items;
+  }, [groupedRecords, collapsedGroups, page, pageSize]);
+
   const virtualizer = useVirtualizer({
-    count: records.length,
+    count: flatItems ? flatItems.length : records.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => rowHeightPx,
+    estimateSize: (index) => {
+      if (flatItems && flatItems[index].type === 'header') return GROUP_HEADER_HEIGHT;
+      return rowHeightPx;
+    },
     overscan: 10,
   });
 
@@ -365,6 +444,7 @@ export default function GridView({
                   field={field}
                   onResize={handleResize}
                   onDelete={onDeleteField}
+                  onEditField={setEditingField}
                   draggable
                   onDragStart={(e) => handleColDragStart(e, field.id)}
                   onDragEnd={handleColDragEnd}
@@ -395,6 +475,111 @@ export default function GridView({
             }}
           >
             {virtualizer.getVirtualItems().map((virtualRow) => {
+              // --- Grouped rendering ---
+              if (flatItems) {
+                const item = flatItems[virtualRow.index];
+                if (item.type === 'header') {
+                  const isCollapsed = collapsedGroups.has(item.groupValue);
+                  return (
+                    <div
+                      key={`group-${item.groupValue}`}
+                      className="absolute left-0 w-full flex items-center cursor-pointer select-none"
+                      style={{
+                        height: GROUP_HEADER_HEIGHT,
+                        top: virtualRow.start,
+                        backgroundColor: '#F4F4F5',
+                        borderBottom: '1px solid #E7E7E9',
+                        paddingLeft: 12,
+                      }}
+                      onClick={() => toggleGroupCollapse(item.groupValue)}
+                    >
+                      <ChevronRight
+                        size={14}
+                        style={{
+                          color: '#6A7184',
+                          transition: 'transform 150ms',
+                          transform: isCollapsed ? 'rotate(0deg)' : 'rotate(90deg)',
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span
+                        style={{
+                          color: '#374151',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          marginLeft: 6,
+                        }}
+                      >
+                        {item.groupValue}
+                      </span>
+                      <span
+                        style={{
+                          color: '#9AA2AF',
+                          fontSize: 11,
+                          marginLeft: 8,
+                        }}
+                      >
+                        ({item.count} record{item.count !== 1 ? 's' : ''})
+                      </span>
+                    </div>
+                  );
+                }
+                // item.type === 'row'
+                const record = item.record;
+                const rowNum = item.rowNum;
+                const isRowSelected = selectedCellId?.startsWith(record.id + ':');
+                return (
+                  <div
+                    key={record.id}
+                    className="absolute left-0 w-full flex group/row"
+                    style={{
+                      height: rowHeightPx,
+                      top: virtualRow.start,
+                      backgroundColor: isRowSelected ? '#EBF0FF' : undefined,
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setRowMenu({ x: e.clientX, y: e.clientY, record });
+                    }}
+                    onMouseEnter={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = '#F9F9FA'; }}
+                    onMouseLeave={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
+                  >
+                    <div
+                      className="sticky left-0 z-10 flex items-center justify-center shrink-0 group/num"
+                      style={{
+                        width: ROW_NUMBER_WIDTH,
+                        minWidth: ROW_NUMBER_WIDTH,
+                        backgroundColor: selectedRowIds.has(record.id) ? '#EBF0FF' : isRowSelected ? '#EBF0FF' : '#F9F9FA',
+                        borderRight: '1px solid #E7E7E9',
+                        borderBottom: '1px solid #E7E7E9',
+                        fontSize: 11,
+                        color: '#9AA2AF',
+                      }}
+                    >
+                      {selectedRowIds.has(record.id) ? (
+                        <input type="checkbox" className="w-3.5 h-3.5 accent-[#3366FF]" checked onChange={() => toggleRowSelection(record.id)} />
+                      ) : (
+                        <>
+                          <span className="group-hover/row:hidden">{rowNum}</span>
+                          <div className="hidden group-hover/row:flex items-center gap-1">
+                            <input type="checkbox" className="w-3.5 h-3.5 accent-[#3366FF]" checked={false} onChange={() => toggleRowSelection(record.id)} />
+                            {onExpandRow && (
+                              <button className="p-0.5 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); onExpandRow(record); }}>
+                                <Expand size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    {fieldsWithWidths.map((field) => (
+                      <GridCell key={field.id} field={field} record={record} onCellUpdate={onCellUpdate} />
+                    ))}
+                  </div>
+                );
+              }
+
+              // --- Default (ungrouped) rendering ---
               const record = records[virtualRow.index];
               const rowNum = page * pageSize + virtualRow.index + 1;
               const isRowSelected = selectedCellId?.startsWith(record.id + ':');
@@ -619,6 +804,12 @@ export default function GridView({
           </button>
         </div>
       </div>
+
+      <EditFieldDialog
+        open={!!editingField}
+        onOpenChange={(open) => { if (!open) setEditingField(null); }}
+        field={editingField}
+      />
     </div>
   );
 }

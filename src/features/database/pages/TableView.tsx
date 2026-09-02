@@ -177,7 +177,7 @@ export function TableView() {
             totalCount={recordsData?.totalCount ?? 0}
             isLoading={isLoading}
             onCellUpdate={handleCellUpdate}
-            onAddRow={() => handleAddRow()}
+            onAddRow={(record) => handleAddRow(record)}
             onExpandRow={setExpandedRecord}
             onDeleteRow={handleDeleteRow}
           />

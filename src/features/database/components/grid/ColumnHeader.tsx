@@ -9,6 +9,7 @@ interface ColumnHeaderProps {
   onResize: (fieldId: string, width: number) => void;
   onSort?: (fieldId: string) => void;
   onDelete?: (fieldId: string) => void;
+  onEditField?: (field: FieldMeta) => void;
   onContextMenu?: (fieldId: string, e: React.MouseEvent) => void;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
@@ -20,6 +21,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
   onResize,
   onSort,
   onDelete,
+  onEditField,
   onContextMenu,
   draggable: isDraggable,
   onDragStart,
@@ -157,6 +159,14 @@ export const ColumnHeader = React.memo(function ColumnHeader({
               <ArrowDown size={14} className="text-[#9AA2AF]" /> Sort descending
             </button>
             <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] my-1" />
+            {!field.is_system && onEditField && (
+              <button
+                className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                onClick={() => { onEditField(field); setContextMenu(null); }}
+              >
+                <Pencil size={14} className="text-[#9AA2AF]" /> Edit field
+              </button>
+            )}
             {!field.is_system && (
               <button
                 className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"

@@ -337,7 +337,7 @@ export function Toolbar() {
               size="sm"
               className="h-7 text-xs gap-1"
               style={{ color: filters.length > 0 ? '#3366FF' : '#6A7184' }}
-              onClick={() => { setFilterOpen(!filterOpen); setSortOpen(false); setHideOpen(false); }}
+              onClick={() => { setFilterOpen(!filterOpen); setSortOpen(false); setHideOpen(false); setGroupOpen(false); }}
             >
               <Filter size={14} /> Filter{filters.length > 0 ? ` (${filters.length})` : ''}
             </Button>
@@ -349,7 +349,7 @@ export function Toolbar() {
               size="sm"
               className="h-7 text-xs gap-1"
               style={{ color: sorts.length > 0 ? '#3366FF' : '#6A7184' }}
-              onClick={() => { setSortOpen(!sortOpen); setFilterOpen(false); setHideOpen(false); }}
+              onClick={() => { setSortOpen(!sortOpen); setFilterOpen(false); setHideOpen(false); setGroupOpen(false); }}
             >
               <ArrowUpDown size={14} /> Sort{sorts.length > 0 ? ` (${sorts.length})` : ''}
             </Button>
@@ -359,8 +359,20 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
+              className="h-7 text-xs gap-1"
+              style={{ color: groupBy ? '#3366FF' : '#6A7184' }}
+              onClick={() => { setGroupOpen(!groupOpen); setFilterOpen(false); setSortOpen(false); setHideOpen(false); }}
+            >
+              <Layers size={14} /> {groupBy ? (fieldsData ?? []).find((f) => f.id === groupBy.field_id)?.name ?? 'Group' : 'Group'}
+            </Button>
+            {groupOpen && <GroupPanel onClose={() => setGroupOpen(false)} />}
+          </div>
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
               className="h-7 text-xs text-[#6A7184] gap-1"
-              onClick={() => { setHideOpen(!hideOpen); setFilterOpen(false); setSortOpen(false); }}
+              onClick={() => { setHideOpen(!hideOpen); setFilterOpen(false); setSortOpen(false); setGroupOpen(false); }}
             >
               <EyeOff size={14} /> Fields
             </Button>

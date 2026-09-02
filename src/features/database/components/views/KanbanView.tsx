@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { Plus, GripVertical } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '../../types';
 import { PILL_COLORS } from '../../types';
@@ -10,7 +10,7 @@ interface KanbanViewProps {
   totalCount: number;
   isLoading: boolean;
   onCellUpdate: (recordId: string, fieldId: string, value: any) => void;
-  onAddRow: () => void;
+  onAddRow: (record?: Record<string, any>) => void;
   onExpandRow?: (record: RecordRow) => void;
   onDeleteRow?: (recordId: string) => void;
 }
@@ -65,6 +65,34 @@ export default function KanbanView({
 
   const [dragRecordId, setDragRecordId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [addingInCol, setAddingInCol] = useState<string | null>(null);
+  const [newCardTitle, setNewCardTitle] = useState('');
+  const newCardRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (addingInCol) newCardRef.current?.focus();
+  }, [addingInCol]);
+
+  const handleAddCard = useCallback(
+    (colTitle: string) => {
+      const title = newCardTitle.trim();
+      if (!title || !titleField || !groupField) {
+        setAddingInCol(null);
+        setNewCardTitle('');
+        return;
+      }
+      const record: Record<string, any> = {
+        [titleField.pg_column_name]: title,
+      };
+      if (colTitle !== 'Uncategorized') {
+        record[groupField.pg_column_name] = colTitle;
+      }
+      onAddRow(record);
+      setAddingInCol(null);
+      setNewCardTitle('');
+    },
+    [newCardTitle, titleField, groupField, onAddRow],
+  );
 
   const handleDragStart = useCallback((recordId: string) => {
     setDragRecordId(recordId);
@@ -173,12 +201,29 @@ export default function KanbanView({
                 </div>
               ))}
             </div>
-            <button
-              className="flex items-center gap-1 px-3 py-2 text-xs text-[#9AA2AF] hover:text-[#3366FF] hover:bg-white/60 transition-colors border-t border-[#E7E7E9]"
-              onClick={onAddRow}
-            >
-              <Plus size={12} /> New
-            </button>
+            {addingInCol === col.title ? (
+              <div className="px-2 py-2 border-t border-[#E7E7E9]">
+                <input
+                  ref={newCardRef}
+                  className="w-full px-2 py-1.5 text-xs border border-[#3366FF] rounded outline-none"
+                  placeholder="Card title..."
+                  value={newCardTitle}
+                  onChange={(e) => setNewCardTitle(e.target.value)}
+                  onBlur={() => handleAddCard(col.title)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddCard(col.title);
+                    if (e.key === 'Escape') { setAddingInCol(null); setNewCardTitle(''); }
+                  }}
+                />
+              </div>
+            ) : (
+              <button
+                className="flex items-center gap-1 px-3 py-2 text-xs text-[#9AA2AF] hover:text-[#3366FF] hover:bg-white/60 transition-colors border-t border-[#E7E7E9]"
+                onClick={() => setAddingInCol(col.title)}
+              >
+                <Plus size={12} /> New
+              </button>
+            )}
           </div>
         );
       })}
