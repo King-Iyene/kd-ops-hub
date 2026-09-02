@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, Replace, Printer, FileJson, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
+import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, Replace, Printer, FileJson, GripVertical, ChevronUp, ChevronDown, Paintbrush } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
 import { useUndoStore } from '../lib/undo';
@@ -737,6 +737,15 @@ export function Toolbar() {
                   >
                     <Replace size={13} className="text-[#9AA2AF]" /> Search & Replace
                   </button>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+                    onClick={() => {
+                      setConditionalFormatOpen(true);
+                      setMoreOpen(false);
+                    }}
+                  >
+                    <Paintbrush size={13} className="text-[#9AA2AF]" /> Conditional Format
+                  </button>
                 </div>
               </>
             )}
@@ -755,6 +764,7 @@ export function Toolbar() {
       <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />
       <ImportCsvDialog open={importCsvOpen} onOpenChange={setImportCsvOpen} />
       <SearchReplaceDialog open={searchReplaceOpen} onOpenChange={setSearchReplaceOpen} />
+      <ConditionalFormatDialog open={conditionalFormatOpen} onOpenChange={setConditionalFormatOpen} />
       {printViewOpen && fieldsData && recordsData?.records && (
         <PrintView
           fields={fieldsData}

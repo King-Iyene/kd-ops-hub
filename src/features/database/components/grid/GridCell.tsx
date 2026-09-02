@@ -8,12 +8,14 @@ interface GridCellProps {
   field: FieldMeta;
   record: RecordRow;
   onCellUpdate: (recordId: string, fieldId: string, value: any) => void;
+  backgroundColor?: string;
 }
 
 export const GridCell = React.memo(function GridCell({
   field,
   record,
   onCellUpdate,
+  backgroundColor,
 }: GridCellProps) {
   const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
   const editingCellId = useDatabaseUI((s) => s.editingCellId);
@@ -99,6 +101,7 @@ export const GridCell = React.memo(function GridCell({
         minWidth: field.width || 180,
         borderRight: `1px solid ${borderColor}`,
         borderBottom: `1px solid ${borderColor}`,
+        backgroundColor: backgroundColor || undefined,
         outline: isSelected ? '2px solid #3366FF' : 'none',
         outlineOffset: -2,
         cursor: 'default',

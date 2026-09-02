@@ -238,6 +238,19 @@ export interface WebhookConfig {
   created_at: string;
 }
 
+export interface WebhookMeta {
+  id: string;
+  base_id: string;
+  table_id: string;
+  name: string;
+  event: 'record.created' | 'record.updated' | 'record.deleted';
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  url: string;
+  headers: Record<string, string>;
+  enabled: boolean;
+  created_at: string;
+}
+
 export interface AutomationAction {
   id: string;
   type: 'send_email' | 'send_webhook' | 'update_record' | 'create_record' | 'send_notification';

@@ -228,6 +228,7 @@ export function TableView() {
             onAddRow={() => handleAddRow()}
             onExpandRow={setExpandedRecord}
             onDeleteRow={handleDeleteRow}
+            onDuplicateRow={handleDuplicateRow}
             page={page}
             pageSize={pageSize}
             onPageChange={setPage}
