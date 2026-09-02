@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, ChevronLeft, ChevronRight, Loader2, Expand, Copy, Trash2, MoreHorizontal, Sigma, ChevronDown } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Loader2, Expand, Copy, Trash2, MoreHorizontal, Sigma } from 'lucide-react';
 import type { FieldMeta, RecordRow, RowColorRule, UIType } from '@/features/database/types';
 import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
 import { useUndoStore } from '../../lib/undo';

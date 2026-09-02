@@ -35,6 +35,30 @@ function escapeCsv(value: string): string {
   return value;
 }
 
+export function exportToJson(fields: FieldMeta[], records: RecordRow[], tableName: string) {
+  const exportFields = fields
+    .filter((f) => !f.is_hidden && !f.is_system && f.ui_type !== 'ID')
+    .sort((a, b) => a.position - b.position);
+
+  const data = records.map((r) => {
+    const obj: Record<string, any> = {};
+    for (const f of exportFields) {
+      const val = r[f.pg_column_name];
+      obj[f.name] = val ?? null;
+    }
+    return obj;
+  });
+
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${tableName || 'export'}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function matchFieldsByHeader(
   headers: string[],
   fields: FieldMeta[],

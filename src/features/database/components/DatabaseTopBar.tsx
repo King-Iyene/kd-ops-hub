@@ -9,6 +9,8 @@ import { useBases } from '../hooks';
 import { AutomationsDialog } from './AutomationsDialog';
 import { ShareViewDialog } from './ShareViewDialog';
 import { ApiTokensDialog } from './ApiTokensDialog';
+import { PresenceIndicator } from './PresenceIndicator';
+import { NotificationsPanel } from './NotificationsPanel';
 
 export function DatabaseTopBar() {
   const { toggleSidebar, activeBaseId, activeTableId } = useDatabaseUI();
@@ -113,6 +115,7 @@ export function DatabaseTopBar() {
           >
             <Share2 size={13} /> Share Base
           </Button>
+          <NotificationsPanel />
           <Button
             variant="ghost"
             size="icon"
@@ -121,6 +124,7 @@ export function DatabaseTopBar() {
           >
             <HelpCircle size={15} />
           </Button>
+          <PresenceIndicator />
           <div
             className="h-7 w-7 rounded-full bg-[#3366FF] text-white flex items-center justify-center text-[10px] font-semibold select-none ml-1"
             title={profile?.full_name ?? ''}
