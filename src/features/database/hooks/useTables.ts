@@ -126,6 +126,66 @@ export function useCreateTable() {
           .eq('id', table.id);
       }
 
+      // 4b. Create default user fields (like Airtable: Name, Notes, Status, Attachments)
+      const defaultUserFields = [
+        { name: 'Name', pg_column_name: 'name', ui_type: 'SingleLineText', pg_type: 'TEXT', position: SYSTEM_FIELDS.length, width: 250, options: {} },
+        { name: 'Notes', pg_column_name: 'notes', ui_type: 'LongText', pg_type: 'TEXT', position: SYSTEM_FIELDS.length + 1, width: 200, options: {} },
+        { name: 'Status', pg_column_name: 'status', ui_type: 'SingleSelect', pg_type: 'TEXT', position: SYSTEM_FIELDS.length + 2, width: 150, options: { choices: [
+          { title: 'Todo', color: 'gray' },
+          { title: 'In Progress', color: 'blue' },
+          { title: 'Done', color: 'green' },
+        ] } },
+        { name: 'Attachments', pg_column_name: 'attachments', ui_type: 'Attachment', pg_type: 'JSONB', position: SYSTEM_FIELDS.length + 3, width: 180, options: {} },
+      ];
+
+      for (const uf of defaultUserFields) {
+        await supabase.functions.invoke('ddl-executor', {
+          body: {
+            action: 'addColumn',
+            schemaName: base.schema_name,
+            tableName: pgTableName,
+            columnName: uf.pg_column_name,
+            columnType: uf.pg_type,
+          },
+        });
+      }
+
+      const userFieldRows = defaultUserFields.map((uf) => ({
+        table_id: table.id,
+        name: uf.name,
+        pg_column_name: uf.pg_column_name,
+        ui_type: uf.ui_type,
+        pg_type: uf.pg_type,
+        options: uf.options,
+        position: uf.position,
+        width: uf.width,
+        is_primary: false,
+        is_required: false,
+        is_unique: false,
+        is_system: false,
+        is_hidden: false,
+      }));
+
+      const { data: userFields } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .insert(userFieldRows)
+        .select();
+
+      const allFields = [...(fields as FieldMeta[]), ...((userFields as FieldMeta[]) ?? [])];
+
+      // 4c. Create 3 empty default rows
+      for (let i = 0; i < 3; i++) {
+        await supabase.functions.invoke('ddl-executor', {
+          body: {
+            action: 'insertRecord',
+            schemaName: base.schema_name,
+            tableName: pgTableName,
+            data: { nc_order: i + 1 },
+          },
+        });
+      }
+
       // 5. Create default grid view
       const { error: viewError } = await supabase
         .schema('nc_meta')
@@ -137,7 +197,7 @@ export function useCreateTable() {
           filters: [],
           sorts: [],
           groups: [],
-          field_order: (fields as FieldMeta[]).map((f) => f.id),
+          field_order: allFields.map((f) => f.id),
           field_visibility: {},
           field_widths: {},
           is_default: true,

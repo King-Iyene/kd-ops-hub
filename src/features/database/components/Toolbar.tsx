@@ -980,6 +980,15 @@ export function Toolbar() {
   const [rowHeightOpen, setRowHeightOpen] = useState(false);
   const [saveFilterViewOpen, setSaveFilterViewOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImport = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImportCsvOpen(true);
+    }
+    e.target.value = '';
+  }, []);
 
   const totalFilterCount = filters.length + filterGroups.reduce(function countGroup(acc: number, g: FilterGroup): number {
     return acc + g.filters.length + g.groups.reduce(countGroup, 0);

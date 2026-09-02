@@ -39,7 +39,7 @@ export function CreateBaseDialog({ open, onOpenChange }: CreateBaseDialogProps) 
 
   const resetForm = () => {
     setName('');
-    setColor(BASE_COLORS[0]);
+    setColor(COLOR_OPTIONS[0]);
     setError('');
   };
 

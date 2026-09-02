@@ -2,7 +2,7 @@ import React from 'react';
 import { Check, ExternalLink, Copy, Paperclip, Star, Clock, Link2 } from 'lucide-react';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { LinkCellRenderer } from './LinkCellRenderer';
-import { LookupCellRenderer, RollupCellRenderer } from './LookupRollupCellRenderer';
+// LookupCellRenderer and RollupCellRenderer are defined locally below
 import { PILL_COLORS } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 
@@ -539,16 +539,8 @@ export function getCellRenderer(uiType: string) {
       return SelectCellRenderer;
     case 'MultiSelect':
       return MultiSelectCellRenderer;
-    case 'Rating':
-      return RatingCellRenderer;
-    case 'Percent':
-      return PercentCellRenderer;
-    case 'Duration':
-      return DurationCellRenderer;
     case 'Time':
       return TimeCellRenderer;
-    case 'Year':
-      return YearCellRenderer;
     case 'Attachment':
       return AttachmentCellRenderer;
     case 'JSON':
