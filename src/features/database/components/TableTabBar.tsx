@@ -22,6 +22,7 @@ import {
   useCreateTable,
   useDeleteTable,
   useUpdateTable,
+  useDuplicateTable,
 } from '../hooks';
 
 function InlineRenameInput({
@@ -70,6 +71,7 @@ export function TableTabBar() {
   const createTable = useCreateTable();
   const deleteTable = useDeleteTable();
   const updateTable = useUpdateTable();
+  const duplicateTable = useDuplicateTable();
   const [renamingId, setRenamingId] = useState<string | null>(null);
 
   const handleRename = useCallback(
@@ -104,16 +106,16 @@ export function TableTabBar() {
   const handleDuplicate = useCallback(
     (table: any) => {
       if (!activeBaseId) return;
-      createTable.mutate(
+      duplicateTable.mutate(
         {
           base_id: activeBaseId,
+          table_id: table.id,
           name: `${table.name} (copy)`,
-          position: (tables?.length ?? 0),
         },
         { onSuccess: (newTable) => setActiveTable(newTable.id) },
       );
     },
-    [createTable, activeBaseId, tables, setActiveTable],
+    [duplicateTable, activeBaseId, setActiveTable],
   );
 
   const handleAddTable = useCallback(() => {

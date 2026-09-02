@@ -274,29 +274,183 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
     [fields],
   );
 
+  const allHidden = toggleableFields.every((f) => hiddenFieldIds.has(f.id));
+  const noneHidden = toggleableFields.every((f) => !hiddenFieldIds.has(f.id));
+
+  const showAll = () => {
+    for (const f of toggleableFields) {
+      if (hiddenFieldIds.has(f.id)) toggleHiddenField(f.id);
+    }
+  };
+
+  const hideAll = () => {
+    for (const f of toggleableFields) {
+      if (!hiddenFieldIds.has(f.id)) toggleHiddenField(f.id);
+    }
+  };
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const filtered = searchTerm
+    ? toggleableFields.filter((f) => f.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    : toggleableFields;
+
   return (
-    <div className="absolute left-0 top-full z-40 mt-1 bg-white border border-[#E7E7E9] rounded-lg shadow-lg p-3 min-w-[220px] max-h-[300px] overflow-y-auto">
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[240px] max-h-[360px] flex flex-col">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-[#374151]">Fields</span>
+        <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Fields</span>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF]" /></button>
+      </div>
+      <input
+        type="text"
+        placeholder="Search fields..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="w-full px-2 py-1 mb-2 text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] focus:border-[#3366FF]"
+      />
+      <div className="flex items-center gap-2 mb-2">
+        <button
+          className="text-[10px] text-[#3366FF] hover:underline disabled:opacity-40"
+          onClick={showAll}
+          disabled={noneHidden}
+        >
+          Show all
+        </button>
+        <span className="text-[10px] text-[#E7E7E9]">|</span>
+        <button
+          className="text-[10px] text-[#3366FF] hover:underline disabled:opacity-40"
+          onClick={hideAll}
+          disabled={allHidden}
+        >
+          Hide all
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {filtered.map((f) => (
+          <label key={f.id} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-[#F4F4F5] dark:hover:bg-white/5 rounded px-1 -mx-1">
+            <input
+              type="checkbox"
+              className="w-3.5 h-3.5 accent-[#3366FF]"
+              checked={!hiddenFieldIds.has(f.id)}
+              onChange={() => toggleHiddenField(f.id)}
+            />
+            <span className="text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">{f.name}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const ROW_COLOR_PRESETS = [
+  { name: 'Red', color: '#FEE2E2' },
+  { name: 'Orange', color: '#FFEDD5' },
+  { name: 'Yellow', color: '#FEF9C3' },
+  { name: 'Green', color: '#DCFCE7' },
+  { name: 'Blue', color: '#DBEAFE' },
+  { name: 'Purple', color: '#F3E8FF' },
+  { name: 'Pink', color: '#FCE7F3' },
+];
+
+const COLOR_OPERATORS: FilterOperator[] = ['is', 'isNot', 'contains', 'isEmpty', 'isNotEmpty'];
+
+function ColorPanel({ onClose }: { onClose: () => void }) {
+  const { rowColorRules, setRowColorRules, activeTableId } = useDatabaseUI();
+  const { data: fields } = useFields(activeTableId);
+
+  const colorableFields = useMemo(
+    () => (fields ?? []).filter((f) => !f.is_system && f.ui_type !== 'ID'),
+    [fields],
+  );
+
+  const addRule = () => {
+    if (colorableFields.length === 0) return;
+    const newRule: RowColorRule = {
+      id: crypto.randomUUID(),
+      field_id: colorableFields[0].id,
+      operator: 'is',
+      value: '',
+      color: ROW_COLOR_PRESETS[0].color,
+    };
+    setRowColorRules([...rowColorRules, newRule]);
+  };
+
+  const updateRule = (id: string, updates: Partial<RowColorRule>) => {
+    setRowColorRules(rowColorRules.map((r) => (r.id === id ? { ...r, ...updates } : r)));
+  };
+
+  const removeRule = (id: string) => {
+    setRowColorRules(rowColorRules.filter((r) => r.id !== id));
+  };
+
+  return (
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white border border-[#E7E7E9] rounded-lg shadow-lg p-3 min-w-[440px]">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-[#374151]">Row coloring</span>
         <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100"><X size={14} className="text-[#9AA2AF]" /></button>
       </div>
-      {toggleableFields.map((f) => (
-        <label key={f.id} className="flex items-center gap-2 py-1 cursor-pointer">
-          <input
-            type="checkbox"
-            className="w-3.5 h-3.5 accent-[#3366FF]"
-            checked={!hiddenFieldIds.has(f.id)}
-            onChange={() => toggleHiddenField(f.id)}
-          />
-          <span className="text-[12px] text-[#374151]">{f.name}</span>
-        </label>
-      ))}
+      {rowColorRules.map((rule) => {
+        const ops = COLOR_OPERATORS;
+        return (
+          <div key={rule.id} className="flex items-center gap-2 mb-2">
+            <select
+              className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151] flex-1 max-w-[110px]"
+              value={rule.field_id}
+              onChange={(e) => updateRule(rule.id, { field_id: e.target.value })}
+            >
+              {colorableFields.map((f) => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+            <select
+              className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151]"
+              value={rule.operator}
+              onChange={(e) => updateRule(rule.id, { operator: e.target.value as FilterOperator })}
+            >
+              {ops.map((op) => (
+                <option key={op} value={op}>{OPERATOR_LABELS[op] ?? op}</option>
+              ))}
+            </select>
+            {rule.operator !== 'isEmpty' && rule.operator !== 'isNotEmpty' && (
+              <input
+                className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151] flex-1 max-w-[90px]"
+                value={rule.value ?? ''}
+                onChange={(e) => updateRule(rule.id, { value: e.target.value })}
+                placeholder="Value"
+              />
+            )}
+            <div className="flex items-center gap-0.5">
+              {ROW_COLOR_PRESETS.map((p) => (
+                <button
+                  key={p.color}
+                  className="w-5 h-5 rounded border"
+                  style={{
+                    backgroundColor: p.color,
+                    borderColor: rule.color === p.color ? '#374151' : '#E7E7E9',
+                    borderWidth: rule.color === p.color ? 2 : 1,
+                  }}
+                  title={p.name}
+                  onClick={() => updateRule(rule.id, { color: p.color })}
+                />
+              ))}
+            </div>
+            <button onClick={() => removeRule(rule.id)} className="p-0.5 rounded hover:bg-gray-100">
+              <X size={12} className="text-[#9AA2AF]" />
+            </button>
+          </div>
+        );
+      })}
+      <button
+        className="text-[11px] text-[#3366FF] hover:underline"
+        onClick={addRule}
+      >
+        + Add color rule
+      </button>
     </div>
   );
 }
 
 export function Toolbar() {
-  const { rowHeight, setRowHeight, searchQuery, setSearchQuery, filters, sorts, groupBy, setGroupBy, activeBaseId, activeTableId } = useDatabaseUI();
+  const { rowHeight, setRowHeight, searchQuery, setSearchQuery, filters, sorts, groupBy, setGroupBy, activeBaseId, activeTableId, rowColorRules } = useDatabaseUI();
   const { undo, redo, stack, redoStack } = useUndoStore();
   const { data: fieldsData } = useFields(activeTableId);
   const { data: recordsData } = useRecords({ baseId: activeBaseId!, tableId: activeTableId!, pageSize: 10000 });
@@ -308,6 +462,7 @@ export function Toolbar() {
   const [sortOpen, setSortOpen] = useState(false);
   const [hideOpen, setHideOpen] = useState(false);
   const [groupOpen, setGroupOpen] = useState(false);
+  const [colorOpen, setColorOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const rowHeightOptions: Array<'compact' | 'default' | 'tall' | 'extra-tall'> = [
@@ -329,7 +484,7 @@ export function Toolbar() {
 
   return (
     <>
-      <div className="flex items-center justify-between h-10 px-3 bg-[#F9F9FA] border-b border-[#E7E7E9] shrink-0">
+      <div className="flex items-center justify-between h-10 px-3 bg-[#F9F9FA] dark:bg-[hsl(200,35%,6%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shrink-0">
         <div className="flex items-center gap-1">
           <div className="relative">
             <Button
@@ -377,6 +532,18 @@ export function Toolbar() {
               <EyeOff size={14} /> Fields
             </Button>
             {hideOpen && <HideFieldsPanel onClose={() => setHideOpen(false)} />}
+          </div>
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs gap-1"
+              style={{ color: rowColorRules.length > 0 ? '#3366FF' : '#6A7184' }}
+              onClick={() => { setColorOpen(!colorOpen); setFilterOpen(false); setSortOpen(false); setHideOpen(false); setGroupOpen(false); }}
+            >
+              <Palette size={14} /> Color{rowColorRules.length > 0 ? ` (${rowColorRules.length})` : ''}
+            </Button>
+            {colorOpen && <ColorPanel onClose={() => setColorOpen(false)} />}
           </div>
           <Button
             variant="ghost"

@@ -269,6 +269,7 @@ export function TableView() {
             onDeleteRow={handleDeleteRow}
             onDuplicateRow={handleDuplicateRow}
             onDeleteField={handleDeleteField}
+            onDuplicateField={handleDuplicateField}
             onBulkDeleteRows={handleBulkDeleteRows}
             onReorderFields={handleReorderFields}
           />

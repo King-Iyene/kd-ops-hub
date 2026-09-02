@@ -1,14 +1,15 @@
 import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock } from 'lucide-react';
+import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Webhook } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuthStore } from '@/store/authStore';
 import { useDatabaseUI } from '../lib/store';
 import { useBases } from '../hooks';
+import { WebhooksDialog } from './WebhooksDialog';
 
 export function DatabaseTopBar() {
-  const { toggleSidebar, activeBaseId } = useDatabaseUI();
+  const { toggleSidebar, activeBaseId, activeTableId } = useDatabaseUI();
   const profile = useAuthStore((s) => s.profile);
   const { data: bases } = useBases();
   const [shareOpen, setShareOpen] = useState(false);

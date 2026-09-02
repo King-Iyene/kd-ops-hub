@@ -213,6 +213,18 @@ export const PILL_COLORS = [
   { name: 'Indigo', bg: '#E0E7FF', text: '#3730A3' },
 ];
 
+export interface WebhookConfig {
+  id: string;
+  table_id: string;
+  name: string;
+  event: 'record.created' | 'record.updated' | 'record.deleted';
+  url: string;
+  method: 'POST' | 'PUT' | 'PATCH';
+  headers: Record<string, string>;
+  enabled: boolean;
+  created_at: string;
+}
+
 export const OPERATORS_BY_TYPE: Partial<Record<UIType, FilterOperator[]>> = {
   SingleLineText: ['is', 'isNot', 'contains', 'doesNotContain', 'startsWith', 'endsWith', 'isEmpty', 'isNotEmpty'],
   LongText: ['is', 'isNot', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
