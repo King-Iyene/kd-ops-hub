@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { Toolbar } from '../components/Toolbar';
 import { ViewBar } from '../components/ViewBar';
 import { useDatabaseUI } from '../lib/store';
-import { useFields, useRecords, useCreateRecord, useUpdateRecord, useActiveView } from '../hooks';
+import { useFields, useRecords, useCreateRecord, useUpdateRecord, useDeleteRecord, useDuplicateRecord, useDeleteField, useActiveView } from '../hooks';
 import GridView from '../components/grid/GridView';
 import { ExpandedRowModal } from '../components/ExpandedRowModal';
 import type { RecordRow } from '../types';
@@ -26,6 +26,9 @@ export function TableView() {
 
   const createRecord = useCreateRecord();
   const updateRecord = useUpdateRecord();
+  const deleteRecord = useDeleteRecord();
+  const duplicateRecord = useDuplicateRecord();
+  const deleteField = useDeleteField();
   const [expandedRecord, setExpandedRecord] = useState<RecordRow | null>(null);
 
   const visibleFields = useMemo(
@@ -53,6 +56,21 @@ export function TableView() {
     createRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record: {} });
   }, [activeBaseId, activeTableId, createRecord]);
 
+  const handleDeleteRow = useCallback((recordId: string) => {
+    if (!activeBaseId || !activeTableId) return;
+    deleteRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, recordId });
+  }, [activeBaseId, activeTableId, deleteRecord]);
+
+  const handleDuplicateRow = useCallback((record: RecordRow) => {
+    if (!activeBaseId || !activeTableId) return;
+    duplicateRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record });
+  }, [activeBaseId, activeTableId, duplicateRecord]);
+
+  const handleDeleteField = useCallback((fieldId: string) => {
+    if (!activeTableId) return;
+    deleteField.mutate({ id: fieldId, table_id: activeTableId });
+  }, [activeTableId, deleteField]);
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <Toolbar />
@@ -70,6 +88,9 @@ export function TableView() {
           pageSize={pageSize}
           onPageChange={setPage}
           onExpandRow={setExpandedRecord}
+          onDeleteRow={handleDeleteRow}
+          onDuplicateRow={handleDuplicateRow}
+          onDeleteField={handleDeleteField}
         />
       </div>
       <ExpandedRowModal

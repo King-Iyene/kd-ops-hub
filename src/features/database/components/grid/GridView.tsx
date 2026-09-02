@@ -5,6 +5,7 @@ import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { ColumnHeader } from './ColumnHeader';
 import { GridCell } from './GridCell';
+import { RowContextMenu } from './RowContextMenu';
 
 export interface GridViewProps {
   fields: FieldMeta[];
@@ -15,6 +16,9 @@ export interface GridViewProps {
   onAddRow: () => void;
   onAddField: () => void;
   onExpandRow?: (record: RecordRow) => void;
+  onDeleteRow?: (recordId: string) => void;
+  onDuplicateRow?: (record: RecordRow) => void;
+  onDeleteField?: (fieldId: string) => void;
   page: number;
   pageSize: number;
   onPageChange: (page: number) => void;
@@ -39,6 +43,9 @@ export default function GridView({
   onAddRow,
   onAddField,
   onExpandRow,
+  onDeleteRow,
+  onDuplicateRow,
+  onDeleteField,
   page,
   pageSize,
   onPageChange,
@@ -51,6 +58,7 @@ export default function GridView({
   const parentRef = useRef<HTMLDivElement>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
+  const [rowMenu, setRowMenu] = useState<{ x: number; y: number; record: RecordRow } | null>(null);
 
   const visibleFields = useMemo(
     () =>
@@ -98,6 +106,30 @@ export default function GridView({
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+
+      // Copy: Cmd/Ctrl+C
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c' && selectedCellId) {
+        const [rowId, fieldId] = selectedCellId.split(':');
+        const record = records.find((r) => r.id === rowId);
+        const field = fieldsWithWidths.find((f) => f.id === fieldId);
+        if (record && field) {
+          const val = record[field.pg_column_name];
+          if (val != null) navigator.clipboard.writeText(String(val));
+        }
+        return;
+      }
+
+      // Paste: Cmd/Ctrl+V
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v' && selectedCellId) {
+        const [rowId, fieldId] = selectedCellId.split(':');
+        const field = fieldsWithWidths.find((f) => f.id === fieldId);
+        if (field && !field.is_system) {
+          navigator.clipboard.readText().then((text) => {
+            onCellUpdate(rowId, fieldId, text);
+          });
+        }
+        return;
+      }
 
       if (!selectedCellId) return;
       const [rowId, fieldId] = selectedCellId.split(':');
@@ -208,6 +240,7 @@ export default function GridView({
                 key={field.id}
                 field={field}
                 onResize={handleResize}
+                onDeleteField={onDeleteField}
               />
             ))}
 
@@ -250,10 +283,14 @@ export default function GridView({
                   }}
                   onMouseEnter={() => setHoveredRowId(record.id)}
                   onMouseLeave={() => setHoveredRowId(null)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setRowMenu({ x: e.clientX, y: e.clientY, record });
+                  }}
                 >
                   {/* Row number + expand */}
                   <div
-                    className="sticky left-0 z-10 flex items-center justify-center shrink-0 group/rn"
+                    className="sticky left-0 z-10 flex items-center justify-center shrink-0"
                     style={{
                       width: ROW_NUMBER_WIDTH,
                       minWidth: ROW_NUMBER_WIDTH,
@@ -343,6 +380,25 @@ export default function GridView({
           </button>
         </div>
       </div>
+
+      {/* Row context menu */}
+      {rowMenu && (
+        <RowContextMenu
+          x={rowMenu.x}
+          y={rowMenu.y}
+          onClose={() => setRowMenu(null)}
+          onExpand={() => { onExpandRow?.(rowMenu.record); setRowMenu(null); }}
+          onInsertAbove={onAddRow}
+          onInsertBelow={onAddRow}
+          onDuplicate={() => { onDuplicateRow?.(rowMenu.record); setRowMenu(null); }}
+          onDelete={() => {
+            if (window.confirm('Delete this record? This cannot be undone.')) {
+              onDeleteRow?.(rowMenu.record.id);
+            }
+            setRowMenu(null);
+          }}
+        />
+      )}
     </div>
   );
 }

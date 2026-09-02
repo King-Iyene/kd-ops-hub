@@ -1,13 +1,14 @@
-import { useState, useCallback } from 'react';
-import { Group, Search, Plus, Rows3 } from 'lucide-react';
+import { useCallback } from 'react';
+import { Group, Plus, Rows3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useDatabaseUI } from '../lib/store';
 import { useFields } from '../hooks';
 import { CreateFieldDialog } from './CreateFieldDialog';
 import { FilterPanel } from './FilterPanel';
 import { SortPanel } from './SortPanel';
 import { FieldVisibilityPanel } from './FieldVisibilityPanel';
+import { SearchBar } from './SearchBar';
+import { useState } from 'react';
 
 export function Toolbar() {
   const {
@@ -21,10 +22,7 @@ export function Toolbar() {
     hiddenFieldIds,
     toggleHiddenField,
     setHiddenFieldIds,
-    searchQuery,
-    setSearchQuery,
   } = useDatabaseUI();
-  const [searchOpen, setSearchOpen] = useState(false);
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
 
   const { data: fields = [] } = useFields(activeTableId);
@@ -81,26 +79,7 @@ export function Toolbar() {
           </Button>
         </div>
         <div className="flex items-center gap-1">
-          {searchOpen ? (
-            <Input
-              autoFocus
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-7 w-48 text-xs"
-              onBlur={() => { if (!searchQuery) setSearchOpen(false); }}
-              onKeyDown={(e) => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false); } }}
-            />
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs text-[#475569] gap-1"
-              onClick={() => setSearchOpen(true)}
-            >
-              <Search size={14} />
-            </Button>
-          )}
+          <SearchBar />
           <Button
             variant="ghost"
             size="sm"

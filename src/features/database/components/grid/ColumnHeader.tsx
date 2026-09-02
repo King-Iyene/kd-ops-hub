@@ -1,24 +1,34 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { ArrowDownAZ, ArrowUpAZ, Filter, EyeOff, Trash2, Plus } from 'lucide-react';
 import type { FieldMeta } from '@/features/database/types';
 import { getFieldTypeIcon } from './field-icons';
+import { useDatabaseUI } from '../../lib/store';
 
 interface ColumnHeaderProps {
   field: FieldMeta;
   onResize: (fieldId: string, width: number) => void;
-  onSort?: (fieldId: string) => void;
-  onContextMenu?: (fieldId: string, e: React.MouseEvent) => void;
+  onDeleteField?: (fieldId: string) => void;
+  onDragStart?: (fieldId: string) => void;
+  onDragOver?: (fieldId: string) => void;
+  onDrop?: (fieldId: string) => void;
 }
+
+const menuItemClass =
+  'w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-[#F1F5F9] transition-colors';
 
 export const ColumnHeader = React.memo(function ColumnHeader({
   field,
   onResize,
-  onSort,
-  onContextMenu,
+  onDeleteField,
+  onDragStart,
+  onDragOver,
+  onDrop,
 }: ColumnHeaderProps) {
   const Icon = getFieldTypeIcon(field.ui_type);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const { setSorts, sorts, toggleHiddenField } = useDatabaseUI();
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -44,17 +54,32 @@ export const ColumnHeader = React.memo(function ColumnHeader({
     [field.id, field.width, onResize],
   );
 
-  const handleRightClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      if (onContextMenu) {
-        onContextMenu(field.id, e);
-      } else {
-        setContextMenu({ x: e.clientX, y: e.clientY });
-      }
-    },
-    [field.id, onContextMenu],
-  );
+  const handleRightClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  const handleSortAsc = useCallback(() => {
+    setSorts([...sorts.filter((s) => s.field_id !== field.id), { field_id: field.id, direction: 'asc' }]);
+    setContextMenu(null);
+  }, [field.id, sorts, setSorts]);
+
+  const handleSortDesc = useCallback(() => {
+    setSorts([...sorts.filter((s) => s.field_id !== field.id), { field_id: field.id, direction: 'desc' }]);
+    setContextMenu(null);
+  }, [field.id, sorts, setSorts]);
+
+  const handleHide = useCallback(() => {
+    toggleHiddenField(field.id);
+    setContextMenu(null);
+  }, [field.id, toggleHiddenField]);
+
+  const handleDelete = useCallback(() => {
+    if (!onDeleteField) return;
+    const confirmed = window.confirm(`Delete field "${field.name}"? This cannot be undone.`);
+    if (confirmed) onDeleteField(field.id);
+    setContextMenu(null);
+  }, [field.id, field.name, onDeleteField]);
 
   return (
     <div
@@ -70,55 +95,57 @@ export const ColumnHeader = React.memo(function ColumnHeader({
         fontWeight: 500,
         cursor: 'pointer',
       }}
-      onClick={() => onSort?.(field.id)}
+      draggable
+      onDragStart={() => onDragStart?.(field.id)}
+      onDragOver={(e) => { e.preventDefault(); onDragOver?.(field.id); }}
+      onDrop={() => onDrop?.(field.id)}
       onContextMenu={handleRightClick}
     >
       <Icon size={14} className="shrink-0" style={{ color: '#94A3B8' }} />
       <span className="truncate">{field.name}</span>
 
-      {/* Resize handle */}
       <div
         className="absolute right-0 top-0 h-full hover:bg-blue-400"
         style={{ width: 4, cursor: 'col-resize' }}
         onMouseDown={handleMouseDown}
       />
 
-      {/* Context menu */}
       {contextMenu && (
         <>
           <div
             className="fixed inset-0 z-50"
             onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
           />
           <div
-            className="fixed z-50 bg-white border rounded-md shadow-lg py-1 min-w-[160px]"
+            className="fixed z-50 bg-white rounded-lg shadow-lg py-1"
             style={{
-              left: contextMenu.x,
-              top: contextMenu.y,
-              borderColor: '#E2E8F0',
+              left: Math.min(contextMenu.x, window.innerWidth - 220),
+              top: Math.min(contextMenu.y, window.innerHeight - 260),
+              width: 220,
+              border: '1px solid #E2E8F0',
             }}
           >
-            <button
-              className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50"
-              style={{ color: '#0F172A' }}
-              onClick={() => setContextMenu(null)}
-            >
-              Edit field
+            <button className={menuItemClass} style={{ color: '#0F172A' }} onClick={handleSortAsc}>
+              <ArrowDownAZ size={14} style={{ color: '#64748B' }} /> Sort A → Z
             </button>
-            <button
-              className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50"
-              style={{ color: '#0F172A' }}
-              onClick={() => setContextMenu(null)}
-            >
-              Hide field
+            <button className={menuItemClass} style={{ color: '#0F172A' }} onClick={handleSortDesc}>
+              <ArrowUpAZ size={14} style={{ color: '#64748B' }} /> Sort Z → A
             </button>
-            <button
-              className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50"
-              style={{ color: '#DC2626' }}
-              onClick={() => setContextMenu(null)}
-            >
-              Delete field
+
+            <div className="border-t my-1" style={{ borderColor: '#E2E8F0' }} />
+
+            <button className={menuItemClass} style={{ color: '#0F172A' }} onClick={handleHide}>
+              <EyeOff size={14} style={{ color: '#64748B' }} /> Hide field
             </button>
+
+            <div className="border-t my-1" style={{ borderColor: '#E2E8F0' }} />
+
+            {!field.is_system && (
+              <button className={menuItemClass} style={{ color: '#DC2626' }} onClick={handleDelete}>
+                <Trash2 size={14} style={{ color: '#DC2626' }} /> Delete field
+              </button>
+            )}
           </div>
         </>
       )}

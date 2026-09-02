@@ -233,6 +233,35 @@ export function useUpdateRecord() {
   });
 }
 
+export function useDuplicateRecord() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      baseId: string;
+      tableId: string;
+      record: RecordRow;
+    }) => {
+      const ctx = await resolveTableContext(input.baseId, input.tableId);
+
+      const { id, created_at, updated_at, nc_order, ...rest } = input.record;
+
+      const { data, error } = await supabase
+        .schema(ctx.schemaName)
+        .from(ctx.tableName)
+        .insert(rest)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as RecordRow;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
+    },
+  });
+}
+
 export function useDeleteRecord() {
   const qc = useQueryClient();
 
