@@ -113,12 +113,14 @@ describe('computePayslip property-based tests', () => {
     }
   });
 
-  it('NHIS employee and employer are equal (both 5%)', () => {
+  it('NHIS employer is 2x employee (5% vs 10%)', () => {
     for (let i = 0; i < ITERATIONS; i++) {
       const input = randomInput();
       if (!input.nhisEnabled) continue;
       const result = computePayslip(input);
-      expect(Math.abs(result.nhisEmployeeMonthlyNgn - result.nhisEmployerMonthlyNgn)).toBeLessThanOrEqual(1);
+      if (result.nhisEmployeeMonthlyNgn === 0) continue;
+      const ratio = result.nhisEmployerMonthlyNgn / result.nhisEmployeeMonthlyNgn;
+      expect(ratio).toBeCloseTo(2, 1);
     }
   });
 

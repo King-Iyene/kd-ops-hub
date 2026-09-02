@@ -19,6 +19,7 @@ import {
   PENSION_EMPLOYER_RATE,
   NHF_RATE,
   NHIS_EMPLOYEE_RATE,
+  NHIS_EMPLOYER_RATE,
   NSITF_RATE,
   RENT_RELIEF_CAP_ANNUAL,
   RENT_RELIEF_RATE,
@@ -240,7 +241,7 @@ describe('computePayslip — NHIS deductions', () => {
       nhisEnabled: true,
     });
     expect(r.nhisEmployeeMonthlyNgn).toBe(Math.round(400_000 * NHIS_EMPLOYEE_RATE));
-    expect(r.nhisEmployerMonthlyNgn).toBe(Math.round(400_000 * NHIS_EMPLOYEE_RATE));
+    expect(r.nhisEmployerMonthlyNgn).toBe(Math.round(400_000 * NHIS_EMPLOYER_RATE));
   });
 
   it('does not deduct NHIS when disabled (default)', () => {
