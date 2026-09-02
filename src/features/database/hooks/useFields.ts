@@ -1,0 +1,193 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import type { FieldMeta, UIType } from '../types';
+import { VIRTUAL_TYPES, UI_TYPE_TO_PG_TYPE } from '../types';
+
+function toSnakeCase(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+    .substring(0, 63);
+}
+
+export function useFields(tableId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['nc', 'fields', tableId],
+    enabled: !!tableId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .select('*')
+        .eq('table_id', tableId)
+        .order('position');
+      if (error) throw error;
+      return data as FieldMeta[];
+    },
+  });
+}
+
+async function getTableContext(tableId: string) {
+  const { data: table, error: tableError } = await supabase
+    .schema('nc_meta')
+    .from('tables')
+    .select('pg_table_name, base_id')
+    .eq('id', tableId)
+    .single();
+  if (tableError) throw tableError;
+
+  const { data: base, error: baseError } = await supabase
+    .schema('nc_meta')
+    .from('bases')
+    .select('schema_name')
+    .eq('id', table.base_id)
+    .single();
+  if (baseError) throw baseError;
+
+  return { pgTableName: table.pg_table_name, schemaName: base.schema_name };
+}
+
+export function useCreateField() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      table_id: string;
+      name: string;
+      ui_type: UIType;
+      options?: Record<string, any>;
+      position?: number;
+      width?: number;
+      is_required?: boolean;
+      is_unique?: boolean;
+      default_value?: string | null;
+      description?: string | null;
+    }) => {
+      const isVirtual = VIRTUAL_TYPES.includes(input.ui_type);
+      const pgColumnName = toSnakeCase(input.name);
+      const pgType = UI_TYPE_TO_PG_TYPE[input.ui_type] ?? 'TEXT';
+
+      // Insert field metadata
+      const { data: field, error: insertError } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .insert({
+          table_id: input.table_id,
+          name: input.name,
+          pg_column_name: isVirtual ? '' : pgColumnName,
+          ui_type: input.ui_type,
+          pg_type: isVirtual ? '' : pgType,
+          options: input.options ?? {},
+          position: input.position ?? 999,
+          width: input.width ?? 180,
+          is_primary: false,
+          is_required: input.is_required ?? false,
+          is_unique: input.is_unique ?? false,
+          is_system: false,
+          is_hidden: false,
+          description: input.description ?? null,
+          default_value: input.default_value ?? null,
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // For non-virtual types, add the actual column
+      if (!isVirtual) {
+        const ctx = await getTableContext(input.table_id);
+
+        const { error: ddlError } = await supabase.functions.invoke('ddl-executor', {
+          body: {
+            action: 'addColumn',
+            schemaName: ctx.schemaName,
+            tableName: ctx.pgTableName,
+            columnName: pgColumnName,
+            columnType: pgType,
+          },
+        });
+
+        if (ddlError) throw ddlError;
+      }
+
+      return field as FieldMeta;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
+    },
+  });
+}
+
+export function useUpdateField() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      table_id: string;
+      updates: Partial<Pick<FieldMeta, 'name' | 'options' | 'width' | 'is_hidden' | 'is_required' | 'is_unique' | 'description' | 'default_value' | 'position'>>;
+    }) => {
+      const { data, error } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .update(input.updates)
+        .eq('id', input.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as FieldMeta;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
+    },
+  });
+}
+
+export function useDeleteField() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { id: string; table_id: string }) => {
+      // Get the field to check if it's virtual
+      const { data: field, error: fieldError } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .select('pg_column_name, ui_type')
+        .eq('id', input.id)
+        .single();
+
+      if (fieldError) throw fieldError;
+
+      const isVirtual = VIRTUAL_TYPES.includes(field.ui_type as UIType);
+
+      // Drop the actual column if not virtual
+      if (!isVirtual && field.pg_column_name) {
+        const ctx = await getTableContext(input.table_id);
+
+        const { error: ddlError } = await supabase.functions.invoke('ddl-executor', {
+          body: {
+            action: 'dropColumn',
+            schemaName: ctx.schemaName,
+            tableName: ctx.pgTableName,
+            columnName: field.pg_column_name,
+          },
+        });
+
+        if (ddlError) throw ddlError;
+      }
+
+      const { error: deleteError } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .delete()
+        .eq('id', input.id);
+
+      if (deleteError) throw deleteError;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
+    },
+  });
+}

@@ -96,6 +96,7 @@ const Handbook          = lazy(() => import('./pages/Handbook'));
 const TimesheetsPage    = lazy(() => import('./pages/Timesheets'));
 const MyDashboard       = lazy(() => import('./pages/MyDashboard'));
 const ApprovalWorkflows = lazy(() => import('./pages/ApprovalWorkflows'));
+const DatabasePage      = lazy(() => import('./features/database/pages/DatabasePage'));
 
 // Kept deliberately conservative on staleTime — this app moves money, and a
 // stale balance shown to an approver is worse than an extra network round
@@ -188,6 +189,18 @@ function AppRoutes() {
         element={
           <AuthGuard>
             <Unauthorized />
+          </AuthGuard>
+        }
+      />
+
+      {/* Database Platform — full-screen app shell, no KDOps sidebar. */}
+      <Route
+        path="/data/*"
+        element={
+          <AuthGuard>
+            <ErrorBoundary>
+              <DatabasePage />
+            </ErrorBoundary>
           </AuthGuard>
         }
       />

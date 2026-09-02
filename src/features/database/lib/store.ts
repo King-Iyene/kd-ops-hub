@@ -1,0 +1,39 @@
+import { create } from 'zustand';
+
+interface DatabaseUIState {
+  activeBaseId: string | null;
+  activeTableId: string | null;
+  activeViewId: string | null;
+  sidebarOpen: boolean;
+  selectedCellId: string | null; // "rowId:fieldId"
+  editingCellId: string | null;
+  rowHeight: 'compact' | 'default' | 'tall' | 'extra-tall';
+
+  setActiveBase: (id: string | null) => void;
+  setActiveTable: (id: string | null) => void;
+  setActiveView: (id: string | null) => void;
+  toggleSidebar: () => void;
+  setSidebarOpen: (open: boolean) => void;
+  setSelectedCell: (id: string | null) => void;
+  setEditingCell: (id: string | null) => void;
+  setRowHeight: (h: 'compact' | 'default' | 'tall' | 'extra-tall') => void;
+}
+
+export const useDatabaseUI = create<DatabaseUIState>((set) => ({
+  activeBaseId: null,
+  activeTableId: null,
+  activeViewId: null,
+  sidebarOpen: true,
+  selectedCellId: null,
+  editingCellId: null,
+  rowHeight: 'default',
+
+  setActiveBase: (id) => set({ activeBaseId: id, activeTableId: null, activeViewId: null }),
+  setActiveTable: (id) => set({ activeTableId: id, activeViewId: null }),
+  setActiveView: (id) => set({ activeViewId: id }),
+  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  setSelectedCell: (id) => set({ selectedCellId: id }),
+  setEditingCell: (id) => set({ editingCellId: id }),
+  setRowHeight: (h) => set({ rowHeight: h }),
+}));

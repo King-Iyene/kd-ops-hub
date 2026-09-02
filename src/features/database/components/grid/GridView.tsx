@@ -1,0 +1,333 @@
+import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import type { FieldMeta, RecordRow } from '@/features/database/types';
+import { useDatabaseUI } from '../../lib/store';
+import { ColumnHeader } from './ColumnHeader';
+import { GridCell } from './GridCell';
+
+export interface GridViewProps {
+  fields: FieldMeta[];
+  records: RecordRow[];
+  totalCount: number;
+  isLoading: boolean;
+  onCellUpdate: (recordId: string, fieldId: string, value: any) => void;
+  onAddRow: () => void;
+  onAddField: () => void;
+  page: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+}
+
+const ROW_HEIGHTS: Record<string, number> = {
+  compact: 32,
+  default: 44,
+  tall: 64,
+  'extra-tall': 96,
+};
+
+const ROW_NUMBER_WIDTH = 64;
+const HEADER_HEIGHT = 36;
+
+export default function GridView({
+  fields,
+  records,
+  totalCount,
+  isLoading,
+  onCellUpdate,
+  onAddRow,
+  onAddField,
+  page,
+  pageSize,
+  onPageChange,
+}: GridViewProps) {
+  const rowHeight = useDatabaseUI((s) => s.rowHeight);
+  const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
+  const setSelectedCell = useDatabaseUI((s) => s.setSelectedCell);
+  const setEditingCell = useDatabaseUI((s) => s.setEditingCell);
+
+  const parentRef = useRef<HTMLDivElement>(null);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+
+  const visibleFields = useMemo(
+    () =>
+      fields
+        .filter((f) => !f.is_hidden)
+        .sort((a, b) => a.position - b.position),
+    [fields],
+  );
+
+  const getFieldWidth = useCallback(
+    (field: FieldMeta) => columnWidths[field.id] ?? field.width ?? 180,
+    [columnWidths],
+  );
+
+  const fieldsWithWidths = useMemo(
+    () =>
+      visibleFields.map((f) => ({
+        ...f,
+        width: getFieldWidth(f),
+      })),
+    [visibleFields, getFieldWidth],
+  );
+
+  const totalWidth = useMemo(
+    () => ROW_NUMBER_WIDTH + fieldsWithWidths.reduce((sum, f) => sum + f.width, 0),
+    [fieldsWithWidths],
+  );
+
+  const rowHeightPx = ROW_HEIGHTS[rowHeight] || ROW_HEIGHTS.default;
+
+  const virtualizer = useVirtualizer({
+    count: records.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => rowHeightPx,
+    overscan: 10,
+  });
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  const handleResize = useCallback((fieldId: string, width: number) => {
+    setColumnWidths((prev) => ({ ...prev, [fieldId]: width }));
+  }, []);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!selectedCellId) return;
+      const [rowId, fieldId] = selectedCellId.split(':');
+      const rowIdx = records.findIndex((r) => r.id === rowId);
+      const colIdx = fieldsWithWidths.findIndex((f) => f.id === fieldId);
+      if (rowIdx === -1 || colIdx === -1) return;
+
+      let nextRow = rowIdx;
+      let nextCol = colIdx;
+
+      if (e.key === 'ArrowUp') {
+        nextRow = Math.max(0, rowIdx - 1);
+      } else if (e.key === 'ArrowDown') {
+        nextRow = Math.min(records.length - 1, rowIdx + 1);
+      } else if (e.key === 'ArrowLeft') {
+        nextCol = Math.max(0, colIdx - 1);
+      } else if (e.key === 'ArrowRight') {
+        nextCol = Math.min(fieldsWithWidths.length - 1, colIdx + 1);
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          nextCol = colIdx - 1;
+          if (nextCol < 0) {
+            nextCol = fieldsWithWidths.length - 1;
+            nextRow = Math.max(0, rowIdx - 1);
+          }
+        } else {
+          nextCol = colIdx + 1;
+          if (nextCol >= fieldsWithWidths.length) {
+            nextCol = 0;
+            nextRow = Math.min(records.length - 1, rowIdx + 1);
+          }
+        }
+      } else if (e.key === 'Escape') {
+        setSelectedCell(null);
+        setEditingCell(null);
+        return;
+      } else {
+        return;
+      }
+
+      e.preventDefault();
+      const nextCellId = `${records[nextRow].id}:${fieldsWithWidths[nextCol].id}`;
+      setSelectedCell(nextCellId);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedCellId, records, fieldsWithWidths, setSelectedCell, setEditingCell]);
+
+  if (records.length === 0 && !isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
+        <p style={{ color: '#94A3B8', fontSize: 14 }}>
+          No records. Click + to add a row.
+        </p>
+        <button
+          onClick={onAddRow}
+          className="flex items-center gap-1 px-3 py-1.5 rounded text-sm hover:bg-gray-100"
+          style={{ color: '#006994' }}
+        >
+          <Plus size={14} /> Add row
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Grid */}
+      <div ref={parentRef} className="flex-1 overflow-auto">
+        <div style={{ minWidth: totalWidth }}>
+          {/* Header */}
+          <div
+            className="sticky top-0 z-20 flex"
+            style={{
+              height: HEADER_HEIGHT,
+              backgroundColor: '#F8FAFC',
+              borderBottom: '1px solid #E2E8F0',
+            }}
+          >
+            {/* Row number header */}
+            <div
+              className="sticky left-0 z-30 flex items-center justify-center shrink-0"
+              style={{
+                width: ROW_NUMBER_WIDTH,
+                minWidth: ROW_NUMBER_WIDTH,
+                backgroundColor: '#F8FAFC',
+                borderRight: '1px solid #E2E8F0',
+                fontSize: 11,
+                color: '#94A3B8',
+              }}
+            >
+              {isLoading && <Loader2 size={14} className="animate-spin" />}
+              {!isLoading && '#'}
+            </div>
+
+            {fieldsWithWidths.map((field) => (
+              <ColumnHeader
+                key={field.id}
+                field={field}
+                onResize={handleResize}
+              />
+            ))}
+
+            {/* Add field button */}
+            <div
+              className="flex items-center justify-center shrink-0 cursor-pointer hover:bg-gray-100"
+              style={{
+                width: 44,
+                minWidth: 44,
+                backgroundColor: '#F8FAFC',
+                borderRight: '1px solid #E2E8F0',
+                color: '#94A3B8',
+              }}
+              onClick={onAddField}
+            >
+              <Plus size={14} />
+            </div>
+          </div>
+
+          {/* Virtualized rows */}
+          <div
+            style={{
+              height: virtualizer.getTotalSize(),
+              position: 'relative',
+            }}
+          >
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const record = records[virtualRow.index];
+              const rowNum = page * pageSize + virtualRow.index + 1;
+              const isRowSelected = selectedCellId?.startsWith(record.id + ':');
+
+              return (
+                <div
+                  key={record.id}
+                  className="absolute left-0 w-full flex"
+                  style={{
+                    height: rowHeightPx,
+                    top: virtualRow.start,
+                    backgroundColor: isRowSelected ? '#EFF6FF' : undefined,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isRowSelected) {
+                      (e.currentTarget as HTMLElement).style.backgroundColor = '#F1F5F9';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isRowSelected) {
+                      (e.currentTarget as HTMLElement).style.backgroundColor = '';
+                    }
+                  }}
+                >
+                  {/* Row number */}
+                  <div
+                    className="sticky left-0 z-10 flex items-center justify-center shrink-0"
+                    style={{
+                      width: ROW_NUMBER_WIDTH,
+                      minWidth: ROW_NUMBER_WIDTH,
+                      backgroundColor: isRowSelected ? '#EFF6FF' : '#F8FAFC',
+                      borderRight: '1px solid #E2E8F0',
+                      borderBottom: '1px solid #E2E8F0',
+                      fontSize: 11,
+                      color: '#94A3B8',
+                    }}
+                  >
+                    {rowNum}
+                  </div>
+
+                  {fieldsWithWidths.map((field) => (
+                    <GridCell
+                      key={field.id}
+                      field={field}
+                      record={record}
+                      onCellUpdate={onCellUpdate}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Add row button */}
+          <div
+            className="flex items-center cursor-pointer hover:bg-gray-50"
+            style={{
+              height: rowHeightPx,
+              borderBottom: '1px solid #E2E8F0',
+            }}
+            onClick={onAddRow}
+          >
+            <div
+              className="flex items-center gap-1 px-4"
+              style={{ color: '#94A3B8', fontSize: 13 }}
+            >
+              <Plus size={14} /> Add row
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Pagination */}
+      <div
+        className="flex items-center justify-between px-4 shrink-0"
+        style={{
+          height: 40,
+          borderTop: '1px solid #E2E8F0',
+          backgroundColor: '#F8FAFC',
+          fontSize: 13,
+          color: '#475569',
+        }}
+      >
+        <span>
+          {totalCount} record{totalCount !== 1 ? 's' : ''}
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            className="p-1 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={page === 0}
+            onClick={() => onPageChange(page - 1)}
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span>
+            Page {page + 1} of {totalPages}
+          </span>
+          <button
+            className="p-1 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={page >= totalPages - 1}
+            onClick={() => onPageChange(page + 1)}
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
