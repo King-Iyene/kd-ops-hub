@@ -1,155 +1,211 @@
-import { useState } from 'react';
-import { Table2, ChevronDown, Plus, LayoutGrid } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  Plus,
+  MoreHorizontal,
+  Trash2,
+  Pencil,
+  Database,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useDatabaseUI } from '../lib/store';
-import { useBases, useTables, useViews } from '../hooks';
-import { CreateTableDialog } from './CreateTableDialog';
+import { useBases, useDeleteBase, useUpdateBase } from '../hooks';
 import { CreateBaseDialog } from './CreateBaseDialog';
 
+function InlineRenameInput({
+  value,
+  onCommit,
+  onCancel,
+}: {
+  value: string;
+  onCommit: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const [text, setText] = useState(value);
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
+
+  const commit = useCallback(() => {
+    const trimmed = text.trim();
+    if (trimmed && trimmed !== value) onCommit(trimmed);
+    else onCancel();
+  }, [text, value, onCommit, onCancel]);
+
+  return (
+    <input
+      ref={ref}
+      className="bg-white dark:bg-[hsl(200,30%,12%)] border border-[#3366FF] rounded px-1.5 py-0.5 text-[13px] w-full outline-none"
+      style={{ color: '#374151' }}
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit();
+        if (e.key === 'Escape') onCancel();
+      }}
+      onClick={(e) => e.stopPropagation()}
+    />
+  );
+}
+
 export function DatabaseSidebar() {
-  const {
-    activeBaseId,
-    activeTableId,
-    activeViewId,
-    sidebarOpen,
-    setActiveBase,
-    setActiveTable,
-    setActiveView,
-  } = useDatabaseUI();
-
+  const { activeBaseId, sidebarOpen, setActiveBase } = useDatabaseUI();
   const { data: bases } = useBases();
-  const { data: tables } = useTables(activeBaseId);
-  const { data: views } = useViews(activeTableId);
+  const deleteBase = useDeleteBase();
+  const updateBase = useUpdateBase();
 
-  const [createTableOpen, setCreateTableOpen] = useState(false);
   const [createBaseOpen, setCreateBaseOpen] = useState(false);
+  const [renamingBaseId, setRenamingBaseId] = useState<string | null>(null);
 
-  const activeBase = bases?.find((b: any) => b.id === activeBaseId);
+  const handleRenameBase = useCallback(
+    (baseId: string, name: string) => {
+      updateBase.mutate({ id: baseId, name });
+      setRenamingBaseId(null);
+    },
+    [updateBase],
+  );
+
+  const handleDeleteBase = useCallback(
+    (base: any) => {
+      if (
+        !confirm(
+          `Delete base "${base.name}"? All tables and data will be permanently deleted.`,
+        )
+      )
+        return;
+      deleteBase.mutate(base.id);
+      if (activeBaseId === base.id) setActiveBase(null);
+    },
+    [deleteBase, activeBaseId, setActiveBase],
+  );
 
   if (!sidebarOpen) return null;
 
   return (
-    <aside className="w-[260px] bg-white border-r border-[#E2E8F0] flex flex-col shrink-0 overflow-hidden">
-      {/* Base selector */}
-      <div className="p-3 border-b border-[#E2E8F0]">
-        <button
-          className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-50 text-left"
-          onClick={() => {
-            /* Could open a popover; for now cycle through or show dialog */
-          }}
-        >
-          <span className="text-xs font-medium text-[#0F172A] truncate">
-            {activeBase?.name ?? 'Select a base'}
-          </span>
-          <ChevronDown size={14} className="text-[#475569] shrink-0" />
-        </button>
-
-        {/* Base list dropdown inline */}
-        <div className="mt-1 space-y-0.5 max-h-[160px] overflow-y-auto">
-          {bases?.map((base: any) => (
-            <button
-              key={base.id}
-              className={cn(
-                'w-full text-left px-2 py-1 rounded text-xs truncate',
-                base.id === activeBaseId
-                  ? 'bg-[#006994]/10 text-[#006994] font-medium'
-                  : 'text-[#475569] hover:bg-gray-50'
-              )}
-              onClick={() => setActiveBase(base.id)}
-            >
-              {base.icon ? `${base.icon} ` : ''}
-              {base.name}
-            </button>
-          ))}
-        </div>
-
+    <aside className="w-[220px] bg-[#F9F9FA] dark:bg-[hsl(200,35%,6%)] border-r border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] flex flex-col shrink-0 overflow-hidden select-none">
+      {/* Header */}
+      <div className="h-11 flex items-center justify-between px-3 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+        <span className="text-[13px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
+          Bases
+        </span>
         <Button
           variant="ghost"
           size="sm"
-          className="w-full mt-1 text-[11px] text-[#006994] justify-start gap-1 h-7"
+          className="h-6 w-6 p-0 text-[#6A7184] hover:text-[#374151] hover:bg-[#E7E7E9]"
           onClick={() => setCreateBaseOpen(true)}
+          title="Create base"
         >
-          <Plus size={12} /> New Base
+          <Plus size={15} />
         </Button>
       </div>
 
-      {/* Tables */}
-      {activeBaseId && (
-        <div className="flex-1 overflow-y-auto">
-          <div className="px-3 pt-3 pb-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">
-              Tables
+      {/* Base list */}
+      <div className="flex-1 overflow-y-auto py-1.5">
+        {bases?.map((base: any) => (
+          <div
+            key={base.id}
+            className={cn(
+              'group flex items-center gap-2 mx-1.5 px-2 py-[7px] rounded-md cursor-pointer transition-colors',
+              base.id === activeBaseId
+                ? 'bg-[#3366FF]/10 dark:bg-[hsl(220,50%,14%)]'
+                : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,12%)]',
+            )}
+            onClick={() => setActiveBase(base.id)}
+          >
+            <span
+              className="w-6 h-6 rounded flex items-center justify-center text-[11px] shrink-0"
+              style={{ backgroundColor: base.color || '#3366FF' }}
+            >
+              <span className="text-white font-bold">
+                {base.name?.charAt(0)?.toUpperCase() || 'B'}
+              </span>
             </span>
-          </div>
-          <div className="space-y-0.5 px-2">
-            {tables?.map((table: any) => (
-              <button
-                key={table.id}
-                className={cn(
-                  'w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-left transition-colors',
-                  table.id === activeTableId
-                    ? 'bg-[#006994]/5 text-[#006994] font-medium border-l-2 border-[#006994]'
-                    : 'text-[#0F172A] hover:bg-gray-50'
-                )}
-                onClick={() => setActiveTable(table.id)}
+            {renamingBaseId === base.id ? (
+              <div
+                className="flex-1 min-w-0"
+                onClick={(e) => e.stopPropagation()}
               >
-                <Table2 size={14} className="shrink-0" />
-                <span className="truncate">{table.name}</span>
-              </button>
-            ))}
+                <InlineRenameInput
+                  value={base.name}
+                  onCommit={(name) => handleRenameBase(base.id, name)}
+                  onCancel={() => setRenamingBaseId(null)}
+                />
+              </div>
+            ) : (
+              <span
+                className={cn(
+                  'text-[13px] font-medium truncate flex-1',
+                  base.id === activeBaseId
+                    ? 'text-[#3366FF]'
+                    : 'text-[#374151] dark:text-[hsl(200,25%,88%)]',
+                )}
+              >
+                {base.name}
+              </span>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#D5D5D9] dark:hover:bg-[hsl(200,25%,20%)] transition-opacity shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal size={14} className="text-[#6A7184]" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem
+                  className="text-xs gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRenamingBaseId(base.id);
+                  }}
+                >
+                  <Pencil size={12} /> Rename
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-xs gap-2 text-red-500 focus:text-red-500"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteBase(base);
+                  }}
+                >
+                  <Trash2 size={12} /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          <div className="px-2 mt-1">
+        ))}
+
+        {(!bases || bases.length === 0) && (
+          <div className="px-4 py-8 text-center">
+            <div className="mx-auto w-10 h-10 rounded-xl bg-[#3366FF]/10 flex items-center justify-center mb-3">
+              <Database size={20} className="text-[#3366FF]" />
+            </div>
+            <p className="text-xs text-[#9AA2AF] mb-2">No bases yet</p>
             <Button
               variant="ghost"
               size="sm"
-              className="w-full text-[11px] text-[#006994] justify-start gap-1 h-7"
-              onClick={() => setCreateTableOpen(true)}
+              className="text-xs text-[#3366FF] hover:text-[#2952CC]"
+              onClick={() => setCreateBaseOpen(true)}
             >
-              <Plus size={12} /> New Table
+              <Plus size={12} className="mr-1" /> Create base
             </Button>
           </div>
+        )}
+      </div>
 
-          {/* Views */}
-          {activeTableId && (
-            <div className="mt-4">
-              <div className="px-3 pb-1">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">
-                  Views
-                </span>
-              </div>
-              <div className="space-y-0.5 px-2">
-                {views?.map((view: any) => (
-                  <button
-                    key={view.id}
-                    className={cn(
-                      'w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-left',
-                      view.id === activeViewId
-                        ? 'bg-[#006994]/5 text-[#006994] font-medium'
-                        : 'text-[#0F172A] hover:bg-gray-50'
-                    )}
-                    onClick={() => setActiveView(view.id)}
-                  >
-                    <LayoutGrid size={14} className="shrink-0" />
-                    <span className="truncate">{view.name}</span>
-                  </button>
-                ))}
-              </div>
-              <div className="px-2 mt-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full text-[11px] text-[#006994] justify-start gap-1 h-7"
-                >
-                  <Plus size={12} /> New View
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      <CreateTableDialog open={createTableOpen} onOpenChange={setCreateTableOpen} />
       <CreateBaseDialog open={createBaseOpen} onOpenChange={setCreateBaseOpen} />
     </aside>
   );
