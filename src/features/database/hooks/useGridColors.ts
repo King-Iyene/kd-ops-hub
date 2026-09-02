@@ -12,6 +12,7 @@ const LIGHT = {
   primary: '#3366FF',
   cellEditorBg: '#FFFFFF',
   cellEditorText: '#0F172A',
+  selectedRowBg: '#EBF0FF',
 };
 
 const DARK = {
@@ -25,6 +26,7 @@ const DARK = {
   primary: '#3366FF',
   cellEditorBg: 'hsl(200, 30%, 10%)',
   cellEditorText: 'hsl(200, 25%, 92%)',
+  selectedRowBg: 'hsl(220, 50%, 18%)',
 };
 
 export type GridColorTokens = typeof LIGHT;

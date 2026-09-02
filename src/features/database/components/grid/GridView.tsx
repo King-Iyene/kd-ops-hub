@@ -10,7 +10,7 @@ import { GridCell } from './GridCell';
 import { EditFieldDialog } from '../EditFieldDialog';
 import { BulkActionsBar } from './BulkActionsBar';
 import { GridSkeleton } from './GridSkeleton';
-import { useGridColors } from '../../hooks/useGridColors';
+import { useGridColors, type GridColorTokens } from '../../hooks/useGridColors';
 
 export interface GridViewProps {
   fields: FieldMeta[];
@@ -145,6 +145,7 @@ function SummaryRow({
   setSummaryDropdown,
   rowNumberWidth,
   frozenCount = 0,
+  colors,
 }: {
   fields: (FieldMeta & { width: number })[];
   records: RecordRow[];
@@ -154,14 +155,15 @@ function SummaryRow({
   setSummaryDropdown: (id: string | null) => void;
   rowNumberWidth: number;
   frozenCount?: number;
+  colors: GridColorTokens;
 }) {
   return (
     <div
       className="flex"
       style={{
-        backgroundColor: '#F9F9FA',
-        borderTop: '2px solid #E7E7E9',
-        borderBottom: '1px solid #E7E7E9',
+        backgroundColor: colors.headerBg,
+        borderTop: `2px solid ${colors.border}`,
+        borderBottom: `1px solid ${colors.border}`,
         minHeight: 40,
       }}
     >
@@ -171,9 +173,9 @@ function SummaryRow({
         style={{
           width: rowNumberWidth,
           minWidth: rowNumberWidth,
-          backgroundColor: '#F9F9FA',
-          borderRight: '1px solid #E7E7E9',
-          color: '#9AA2AF',
+          backgroundColor: colors.headerBg,
+          borderRight: `1px solid ${colors.border}`,
+          color: colors.muted,
         }}
       >
         <Sigma size={14} />
@@ -199,23 +201,25 @@ function SummaryRow({
             style={{
               width: field.width,
               minWidth: field.width,
-              borderRight: isLastFroz ? '3px solid #D0D0D4' : '1px solid #E7E7E9',
-              backgroundColor: '#F9F9FA',
+              borderRight: isLastFroz ? `3px solid ${colors.border}` : `1px solid ${colors.border}`,
+              backgroundColor: colors.headerBg,
               ...(isFroz ? { position: 'sticky' as const, left: cellLeft, zIndex: 10 } : {}),
             }}
           >
             <button
-              className="w-full h-full flex flex-col justify-center px-2 text-left hover:bg-gray-100"
+              className="w-full h-full flex flex-col justify-center px-2 text-left"
               style={{ minHeight: 40 }}
               onClick={() => setSummaryDropdown(isOpen ? null : field.id)}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
             >
               {fn !== 'none' ? (
                 <>
-                  <span className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" style={{ fontSize: 10, lineHeight: '14px' }}>{label}</span>
-                  <span className="text-[#374151] dark:text-[hsl(200,25%,88%)]" style={{ fontSize: 12, lineHeight: '16px', fontWeight: 500 }}>{value}</span>
+                  <span style={{ fontSize: 10, lineHeight: '14px', color: colors.muted }}>{label}</span>
+                  <span style={{ fontSize: 12, lineHeight: '16px', fontWeight: 500, color: colors.text }}>{value}</span>
                 </>
               ) : (
-                <span style={{ fontSize: 11, color: '#9AA2AF' }}>&#8211;</span>
+                <span style={{ fontSize: 11, color: colors.muted }}>&#8211;</span>
               )}
             </button>
 
@@ -223,20 +227,23 @@ function SummaryRow({
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setSummaryDropdown(null)} />
                 <div
-                  className="absolute left-0 bottom-full z-50 bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[150px]"
-                  style={{ marginBottom: 2 }}
+                  className="absolute left-0 bottom-full z-50 rounded-lg shadow-lg py-1 min-w-[150px]"
+                  style={{ marginBottom: 2, backgroundColor: colors.cellEditorBg, border: `1px solid ${colors.border}` }}
                 >
                   {SUMMARY_OPTIONS.filter((opt) => !opt.numericOnly || isNumeric).map((opt) => (
                     <button
                       key={opt.value}
-                      className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center justify-between text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                      className="w-full text-left px-3 py-1.5 text-[12px] flex items-center justify-between"
+                      style={{ color: colors.text }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                       onClick={() => {
                         setSummaryFunction(field.id, opt.value);
                         setSummaryDropdown(null);
                       }}
                     >
                       <span>{opt.label}</span>
-                      {fn === opt.value && <span style={{ color: '#3366FF' }}>&#10003;</span>}
+                      {fn === opt.value && <span style={{ color: colors.primary }}>&#10003;</span>}
                     </button>
                   ))}
                 </div>
@@ -640,7 +647,7 @@ export default function GridView({
     const lines = selectedRecords.map((rec) =>
       fieldsWithWidths.map((f) => cellToText(rec[f.pg_column_name])).join('\t'),
     );
-    navigator.clipboard.writeText(lines.join('\n'));
+    navigator.clipboard.writeText(lines.join('\n')).catch(() => {});
     showToast(`${selectedRecords.length} row${selectedRecords.length !== 1 ? 's' : ''} copied`);
   }, [records, selectedRowIds, fieldsWithWidths, cellToText, showToast]);
 
@@ -663,7 +670,7 @@ export default function GridView({
       lines.push(cells.join('\t'));
     }
     const cellCount = (r2 - r1 + 1) * (c2 - c1 + 1);
-    navigator.clipboard.writeText(lines.join('\n'));
+    navigator.clipboard.writeText(lines.join('\n')).catch(() => {});
     showToast(`${cellCount} cell${cellCount !== 1 ? 's' : ''} copied`);
   }, [records, fieldsWithWidths, cellToText, showToast]);
 
@@ -701,7 +708,7 @@ export default function GridView({
           const f = fieldsWithWidths.find((ff) => ff.id === fId);
           if (rIdx !== -1 && f) {
             const text = cellToText(records[rIdx][f.pg_column_name]);
-            navigator.clipboard.writeText(text);
+            navigator.clipboard.writeText(text).catch(() => {});
             showToast('1 cell copied');
           }
         }
@@ -717,7 +724,7 @@ export default function GridView({
           const cutField = fieldsWithWidths.find((f) => f.id === cutFieldId);
           if (cutRowIdx !== -1 && cutField) {
             const text = cellToText(records[cutRowIdx][cutField.pg_column_name]);
-            navigator.clipboard.writeText(text);
+            navigator.clipboard.writeText(text).catch(() => {});
             onCellUpdate(cutRowId, cutFieldId, null);
             showToast('Cell cut');
           }
@@ -728,7 +735,7 @@ export default function GridView({
       // --- Ctrl+V: paste rows or cell(s) ---
       if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
         e.preventDefault();
-        navigator.clipboard.readText().then((pastedText) => {
+        navigator.clipboard.readText().catch(() => '').then((pastedText) => {
           if (!pastedText) return;
           const lines = pastedText.split('\n').filter((l) => l.length > 0);
           const isMultiLine = lines.length > 1 || (lines.length === 1 && lines[0].includes('\t'));
@@ -905,13 +912,13 @@ export default function GridView({
                 backgroundColor: '#F4F4F5',
                 borderBottom: '1px solid #E7E7E9',
                 fontSize: 11,
-                color: '#6A7184',
+                color: GRID_COLORS.muted,
               }}
             >
               <span style={{ fontWeight: 500 }}>
                 Grouped by {groupFields.map((f) => f.name).join(' then ')}
               </span>
-              <span style={{ color: '#E7E7E9' }}>|</span>
+              <span style={{ color: GRID_COLORS.border }}>|</span>
               <button
                 className="flex items-center gap-1 hover:text-[#374151]"
                 onClick={expandAll}
@@ -934,8 +941,8 @@ export default function GridView({
             style={{
               top: groupByLevels.length > 0 ? 28 : 0,
               height: HEADER_HEIGHT,
-              backgroundColor: '#F9F9FA',
-              borderBottom: '1px solid #E7E7E9',
+              backgroundColor: GRID_COLORS.headerBg,
+              borderBottom: `1px solid ${GRID_COLORS.border}`,
             }}
           >
             <div
@@ -943,10 +950,10 @@ export default function GridView({
               style={{
                 width: ROW_NUMBER_WIDTH,
                 minWidth: ROW_NUMBER_WIDTH,
-                backgroundColor: '#F9F9FA',
-                borderRight: '1px solid #E7E7E9',
+                backgroundColor: GRID_COLORS.headerBg,
+                borderRight: `1px solid ${GRID_COLORS.border}`,
                 fontSize: 11,
-                color: '#9AA2AF',
+                color: GRID_COLORS.muted,
               }}
             >
               {isLoading && <Loader2 size={14} className="animate-spin" />}
@@ -1007,9 +1014,9 @@ export default function GridView({
               style={{
                 width: 44,
                 minWidth: 44,
-                backgroundColor: '#F9F9FA',
-                borderRight: '1px solid #E7E7E9',
-                color: '#9AA2AF',
+                backgroundColor: GRID_COLORS.headerBg,
+                borderRight: `1px solid ${GRID_COLORS.border}`,
+                color: GRID_COLORS.muted,
               }}
               onClick={onAddField}
               title="Add field"
@@ -1058,7 +1065,7 @@ export default function GridView({
                       style={{
                         height: GROUP_HEADER_HEIGHT,
                         top: virtualRow.start,
-                        backgroundColor: item.depth === 0 ? '#F4F4F5' : '#F9F9FA',
+                        backgroundColor: item.depth === 0 ? GRID_COLORS.groupHeaderBg : GRID_COLORS.headerBg,
                         borderBottom: '1px solid #E7E7E9',
                         borderLeft: item.depth > 0 ? `3px solid ${GRID_COLORS.primary}40` : undefined,
                         paddingLeft: 12 + indent,
@@ -1068,7 +1075,7 @@ export default function GridView({
                       <ChevronRight
                         size={14}
                         style={{
-                          color: '#6A7184',
+                          color: GRID_COLORS.muted,
                           transition: 'transform 150ms',
                           transform: isCollapsed ? 'rotate(0deg)' : 'rotate(90deg)',
                           flexShrink: 0,
@@ -1076,7 +1083,7 @@ export default function GridView({
                       />
                       <span
                         style={{
-                          color: '#6A7184',
+                          color: GRID_COLORS.muted,
                           fontSize: 11,
                           marginLeft: 6,
                           marginRight: 4,
@@ -1086,7 +1093,7 @@ export default function GridView({
                         {item.fieldName}
                       </span>
                       {isEmpty ? (
-                        <span style={{ color: '#9AA2AF', fontSize: 12, fontStyle: 'italic', marginLeft: 2 }}>(Empty)</span>
+                        <span style={{ color: GRID_COLORS.muted, fontSize: 12, fontStyle: 'italic', marginLeft: 2 }}>(Empty)</span>
                       ) : isSelectType && !isEmpty ? (
                         <span
                           style={{
@@ -1097,7 +1104,7 @@ export default function GridView({
                             padding: '1px 8px',
                             borderRadius: 10,
                             backgroundColor: pillBg,
-                            color: pillText || '#374151',
+                            color: pillText || GRID_COLORS.text,
                             marginLeft: 2,
                           }}
                         >
@@ -1108,11 +1115,11 @@ export default function GridView({
                           {item.groupValue}
                         </span>
                       )}
-                      <span style={{ color: '#9AA2AF', fontSize: 11, marginLeft: 8, flexShrink: 0 }}>
+                      <span style={{ color: GRID_COLORS.muted, fontSize: 11, marginLeft: 8, flexShrink: 0 }}>
                         ({item.count})
                       </span>
                       {summaryParts.length > 0 && (
-                        <span style={{ color: '#6A7184', fontSize: 10, marginLeft: 12, flexShrink: 0 }}>
+                        <span style={{ color: GRID_COLORS.muted, fontSize: 10, marginLeft: 12, flexShrink: 0 }}>
                           {summaryParts.join(' | ')}
                         </span>
                       )}
@@ -1138,7 +1145,7 @@ export default function GridView({
                       e.preventDefault();
                       setRowMenu({ x: e.clientX, y: e.clientY, record });
                     }}
-                    onMouseEnter={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = rowBg || '#F9F9FA'; }}
+                    onMouseEnter={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = rowBg || GRID_COLORS.headerBg; }}
                     onMouseLeave={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = rowBg || ''; }}
                   >
                     <div
@@ -1146,11 +1153,11 @@ export default function GridView({
                       style={{
                         width: ROW_NUMBER_WIDTH,
                         minWidth: ROW_NUMBER_WIDTH,
-                        backgroundColor: selectedRowIds.has(record.id) ? '#EBF0FF' : isRowSelected ? '#EBF0FF' : '#F9F9FA',
+                        backgroundColor: selectedRowIds.has(record.id) ? GRID_COLORS.selectedRowBg : isRowSelected ? GRID_COLORS.selectedRowBg : GRID_COLORS.headerBg,
                         borderRight: '1px solid #E7E7E9',
                         borderBottom: '1px solid #E7E7E9',
                         fontSize: 11,
-                        color: '#9AA2AF',
+                        color: GRID_COLORS.muted,
                       }}
                     >
                       {selectedRowIds.has(record.id) ? (
@@ -1223,7 +1230,7 @@ export default function GridView({
                   }}
                   onMouseEnter={(e) => {
                     if (!isRowSelected) {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = rowBgUngrouped || '#F9F9FA';
+                      (e.currentTarget as HTMLElement).style.backgroundColor = rowBgUngrouped || GRID_COLORS.headerBg;
                     }
                   }}
                   onMouseLeave={(e) => {
@@ -1238,12 +1245,12 @@ export default function GridView({
                     style={{
                       width: ROW_NUMBER_WIDTH,
                       minWidth: ROW_NUMBER_WIDTH,
-                      backgroundColor: selectedRowIds.has(record.id) ? '#EBF0FF' : isRowSelected ? '#EBF0FF' : '#F9F9FA',
+                      backgroundColor: selectedRowIds.has(record.id) ? GRID_COLORS.selectedRowBg : isRowSelected ? GRID_COLORS.selectedRowBg : GRID_COLORS.headerBg,
                       borderRight: '1px solid #E7E7E9',
                       borderBottom: '1px solid #E7E7E9',
                       borderTop: dropTargetIdx === virtualRow.index ? '2px solid #3366FF' : undefined,
                       fontSize: 11,
-                      color: '#9AA2AF',
+                      color: GRID_COLORS.muted,
                     }}
                     onDragOver={(e) => handleRowDragOver(e, virtualRow.index)}
                     onDrop={(e) => handleRowDrop(e, virtualRow.index)}
@@ -1373,6 +1380,7 @@ export default function GridView({
             setSummaryDropdown={setSummaryDropdown}
             rowNumberWidth={ROW_NUMBER_WIDTH}
             frozenCount={frozenCount}
+            colors={GRID_COLORS}
           />
 
           {/* Add row button */}
@@ -1388,7 +1396,7 @@ export default function GridView({
           >
             <div
               className="flex items-center gap-1 px-4"
-              style={{ color: '#9AA2AF', fontSize: 13 }}
+              style={{ color: GRID_COLORS.muted, fontSize: 13 }}
             >
               <Plus size={14} /> Add row
             </div>
@@ -1401,28 +1409,34 @@ export default function GridView({
         <>
           <div className="fixed inset-0 z-50" onClick={() => setRowMenu(null)} />
           <div
-            className="fixed z-50 bg-white border border-[#E7E7E9] rounded-lg shadow-lg py-1 min-w-[160px]"
-            style={{ left: rowMenu.x, top: rowMenu.y }}
+            className="fixed z-50 rounded-lg shadow-lg py-1 min-w-[160px]"
+            style={{ left: rowMenu.x, top: rowMenu.y, backgroundColor: GRID_COLORS.cellEditorBg, border: `1px solid ${GRID_COLORS.border}` }}
           >
             {onExpandRow && (
               <button
-                className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+                className="w-full text-left px-3 py-1.5 text-[13px] flex items-center gap-2"
+                style={{ color: GRID_COLORS.text }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = GRID_COLORS.hoverRow)}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                 onClick={() => { onExpandRow(rowMenu.record); setRowMenu(null); }}
               >
-                <Expand size={14} className="text-[#9AA2AF]" /> Expand row
+                <Expand size={14} style={{ color: GRID_COLORS.muted }} /> Expand row
               </button>
             )}
             {onDuplicateRow && (
               <button
-                className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+                className="w-full text-left px-3 py-1.5 text-[13px] flex items-center gap-2"
+                style={{ color: GRID_COLORS.text }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = GRID_COLORS.hoverRow)}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                 onClick={() => { onDuplicateRow(rowMenu.record); setRowMenu(null); }}
               >
-                <Copy size={14} className="text-[#9AA2AF]" /> Duplicate row
+                <Copy size={14} style={{ color: GRID_COLORS.muted }} /> Duplicate row
               </button>
             )}
             {onDeleteRow && (
               <>
-                <div className="h-px bg-[#E7E7E9] my-1" />
+                <div className="h-px my-1" style={{ backgroundColor: GRID_COLORS.border }} />
                 <button
                   className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-red-50 flex items-center gap-2 text-red-500"
                   onClick={() => { onDeleteRow(rowMenu.record.id); setRowMenu(null); }}
@@ -1451,13 +1465,13 @@ export default function GridView({
 
       {/* Pagination */}
       <div
-        className="flex items-center justify-between px-4 shrink-0 dark:bg-[hsl(200,30%,8%)] dark:border-[hsl(200,25%,18%)]"
+        className="flex items-center justify-between px-4 shrink-0"
         style={{
           height: 40,
-          borderTop: '1px solid #E7E7E9',
-          backgroundColor: '#F9F9FA',
+          borderTop: `1px solid ${GRID_COLORS.border}`,
+          backgroundColor: GRID_COLORS.headerBg,
           fontSize: 13,
-          color: '#6A7184',
+          color: GRID_COLORS.muted,
         }}
       >
         <div className="flex items-center gap-3">
