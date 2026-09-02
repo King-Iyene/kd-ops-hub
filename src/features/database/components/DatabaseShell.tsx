@@ -7,6 +7,7 @@ import { TableView } from '../pages/TableView';
 import { EmptyState } from '../pages/EmptyState';
 import { ToastContainer } from './Toast';
 import { KeyboardShortcutsDialog, useGlobalShortcuts } from './KeyboardShortcutsDialog';
+import { useRealtimeMetadata, usePresence } from '../hooks/useRealtime';
 
 export function DatabaseShell() {
   const activeBaseId = useDatabaseUI((s) => s.activeBaseId);
@@ -18,6 +19,9 @@ export function DatabaseShell() {
   useGlobalShortcuts({
     onOpenShortcuts: handleOpenShortcuts,
   });
+
+  useRealtimeMetadata();
+  usePresence(activeBaseId ?? undefined);
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-white dark:bg-[hsl(200,30%,8%)]">

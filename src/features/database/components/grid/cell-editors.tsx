@@ -46,15 +46,15 @@ export function TextCellEditor({ value, field, onCommit, onCancel }: CellEditorP
           if (e.key === 'Escape') onCancel();
         }}
         onBlur={() => onCommit(text)}
-        className="w-full h-full px-2 outline-none bg-white"
+        className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)]"
         style={{
           fontSize: 13,
-          color: '#0F172A',
+          color: 'inherit',
           border: valid ? 'none' : '2px solid #EF4444',
         }}
       />
       {!valid && (
-        <div className="absolute left-0 top-full z-50 bg-white border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
+        <div className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
           {errors[0]}
         </div>
       )}
@@ -85,15 +85,15 @@ export function NumberCellEditor({ value, field, onCommit, onCancel }: CellEdito
           if (e.key === 'Escape') onCancel();
         }}
         onBlur={() => onCommit(num === '' ? null : Number(num))}
-        className="w-full h-full px-2 outline-none bg-white text-right"
+        className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
         style={{
           fontSize: 13,
-          color: '#0F172A',
+          color: 'inherit',
           border: valid ? 'none' : '2px solid #EF4444',
         }}
       />
       {!valid && (
-        <div className="absolute right-0 top-full z-50 bg-white border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
+        <div className="absolute right-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
           {errors[0]}
         </div>
       )}
@@ -125,15 +125,15 @@ export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEdi
           if (e.key === 'Escape') onCancel();
         }}
         onBlur={() => onCommit(num === '' ? null : Number(num))}
-        className="w-full h-full px-2 outline-none bg-white text-right"
+        className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
         style={{
           fontSize: 13,
-          color: '#0F172A',
+          color: 'inherit',
           border: valid ? 'none' : '2px solid #EF4444',
         }}
       />
       {!valid && (
-        <div className="absolute right-0 top-full z-50 bg-white border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
+        <div className="absolute right-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
           {errors[0]}
         </div>
       )}
@@ -161,8 +161,8 @@ export function DateCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         if (e.key === 'Escape') onCancel();
       }}
       onBlur={() => onCommit(date || null)}
-      className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#374151' }}
+      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
+      style={{ fontSize: 13, color: 'inherit' }}
     />
   );
 }
@@ -200,8 +200,8 @@ export function DurationCellEditor({ value, onCommit, onCancel }: CellEditorProp
         if (e.key === 'Escape') onCancel();
       }}
       onBlur={() => onCommit(parseDuration(text))}
-      className="w-full h-full px-2 outline-none border-none bg-white text-right"
-      style={{ fontSize: 13, color: '#374151', fontVariantNumeric: 'tabular-nums' }}
+      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
+      style={{ fontSize: 13, color: 'inherit', fontVariantNumeric: 'tabular-nums' }}
     />
   );
 }
@@ -226,8 +226,8 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
         if (e.key === 'Escape') onCancel();
       }}
       onBlur={() => onCommit(text)}
-      className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#374151' }}
+      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
+      style={{ fontSize: 13, color: 'inherit' }}
     />
   );
 }
@@ -252,8 +252,8 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         if (e.key === 'Escape') onCancel();
       }}
       onBlur={() => onCommit(text)}
-      className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#374151' }}
+      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
+      style={{ fontSize: 13, color: 'inherit' }}
     />
   );
 }
@@ -278,8 +278,8 @@ export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorP
         if (e.key === 'Escape') onCancel();
       }}
       onBlur={() => onCommit(text)}
-      className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#374151' }}
+      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
+      style={{ fontSize: 13, color: 'inherit' }}
     />
   );
 }
@@ -290,7 +290,7 @@ export function RatingCellEditor({ value, field, onCommit }: CellEditorProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   return (
-    <div ref={ref} className="flex items-center gap-0.5 px-2 h-full bg-white">
+    <div ref={ref} className="flex items-center gap-0.5 px-2 h-full bg-white dark:bg-[hsl(200,30%,10%)]">
       {Array.from({ length: max }, (_, i) => (
         <button
           key={i}
@@ -327,7 +327,7 @@ export function SelectCellEditor({ value, field, onCommit, onCancel }: CellEdito
   return (
     <div
       ref={ref}
-      className="absolute left-0 top-full z-50 bg-white border rounded-md shadow-lg py-1 min-w-[180px] max-h-[240px] overflow-y-auto"
+      className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border rounded-md shadow-lg py-1 min-w-[180px] max-h-[240px] overflow-y-auto"
       style={{ borderColor: '#E7E7E9' }}
     >
       {choices.map((choice: SelectChoice) => {
@@ -386,7 +386,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: Cell
   return (
     <div
       ref={ref}
-      className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border rounded-md shadow-lg py-1 min-w-[180px] max-h-[240px] overflow-y-auto"
+      className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] dark:bg-[hsl(200,30%,10%)] border rounded-md shadow-lg py-1 min-w-[180px] max-h-[240px] overflow-y-auto"
       style={{ borderColor: '#E7E7E9' }}
     >
       {choices.map((choice: SelectChoice) => {
@@ -395,7 +395,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: Cell
         return (
           <button
             key={choice.title}
-            className="w-full text-left px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-white/5 flex items-center gap-2"
+            className="w-full text-left px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-white dark:bg-[hsl(200,30%,10%)]/5 flex items-center gap-2"
             onClick={() => toggle(choice.title)}
           >
             <span
@@ -419,7 +419,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: Cell
       })}
       {selected.length > 0 && (
         <button
-          className="w-full text-left px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-white/5 text-xs"
+          className="w-full text-left px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-white dark:bg-[hsl(200,30%,10%)]/5 text-xs"
           style={{ color: '#94A3B8' }}
           onClick={() => {
             setSelected([]);
@@ -443,7 +443,7 @@ export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps
       <input ref={ref} type="number" value={num} onChange={(e) => setNum(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') onCommit(num === '' ? null : Number(num)); if (e.key === 'Escape') onCancel(); }}
         onBlur={() => onCommit(num === '' ? null : Number(num))}
-        className="w-full h-full px-2 outline-none border-none bg-white text-right" style={{ fontSize: 13 }}
+        className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)] text-right" style={{ fontSize: 13 }}
       />
       <span className="pr-2 text-xs text-[#9AA2AF]">%</span>
     </div>
@@ -509,7 +509,7 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
   }, []);
 
   return (
-    <div className="absolute left-0 top-0 z-50 w-64 shadow-lg rounded border bg-white" style={{ minHeight: 80 }}>
+    <div className="absolute left-0 top-0 z-50 w-64 shadow-lg rounded border bg-white dark:bg-[hsl(200,30%,10%)]" style={{ minHeight: 80 }}>
       <textarea
         ref={ref}
         value={text}
@@ -520,10 +520,10 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
         }}
         onBlur={() => onCommit(text)}
         rows={4}
-        className="w-full p-2 outline-none resize-y border-none bg-white"
+        className="w-full p-2 outline-none resize-y border-none bg-white dark:bg-[hsl(200,30%,10%)]"
         style={{
           fontSize: 13,
-          color: '#0F172A',
+          color: 'inherit',
           border: valid ? 'none' : '2px solid #EF4444',
         }}
       />
@@ -558,15 +558,15 @@ export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEdit
           if (e.key === 'Escape') onCancel();
         }}
         onBlur={() => onCommit(num === '' ? null : Number(num))}
-        className="w-full h-full px-2 outline-none bg-white text-right"
+        className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
         style={{
           fontSize: 13,
-          color: '#0F172A',
+          color: 'inherit',
           border: valid ? 'none' : '2px solid #EF4444',
         }}
       />
       {!valid && (
-        <div className="absolute right-0 top-full z-50 bg-white border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
+        <div className="absolute right-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
           {errors[0]}
         </div>
       )}
@@ -594,8 +594,8 @@ export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProp
         if (e.key === 'Escape') onCancel();
       }}
       onBlur={() => onCommit(dt ? new Date(dt).toISOString() : null)}
-      className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#374151' }}
+      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
+      style={{ fontSize: 13, color: 'inherit' }}
     />
   );
 }
@@ -620,8 +620,8 @@ export function TimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         if (e.key === 'Escape') onCancel();
       }}
       onBlur={() => onCommit(time || null)}
-      className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#374151' }}
+      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
+      style={{ fontSize: 13, color: 'inherit' }}
     />
   );
 }

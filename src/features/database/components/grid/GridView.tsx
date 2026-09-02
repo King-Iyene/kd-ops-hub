@@ -10,6 +10,7 @@ import { GridCell } from './GridCell';
 import { EditFieldDialog } from '../EditFieldDialog';
 import { BulkActionsBar } from './BulkActionsBar';
 import { GridSkeleton } from './GridSkeleton';
+import { useGridColors } from '../../hooks/useGridColors';
 
 export interface GridViewProps {
   fields: FieldMeta[];
@@ -32,16 +33,6 @@ export interface GridViewProps {
   onPasteRows?: (rows: Record<string, any>[]) => void;
 }
 
-const GRID_COLORS = {
-  bg: '#FFFFFF',
-  headerBg: '#F9F9FA',
-  border: '#E7E7E9',
-  text: '#374151',
-  muted: '#6A7184',
-  hoverRow: '#F9F9FA',
-  groupHeaderBg: '#F4F4F5',
-  primary: '#3366FF',
-};
 
 const GROUP_PILL_COLORS = [
   '#3366FF', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899',
@@ -278,6 +269,7 @@ export default function GridView({
   pageSize,
   onPageChange,
 }: GridViewProps) {
+  const GRID_COLORS = useGridColors();
   const rowHeight = useDatabaseUI((s) => s.rowHeight);
   const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
   const setSelectedCell = useDatabaseUI((s) => s.setSelectedCell);

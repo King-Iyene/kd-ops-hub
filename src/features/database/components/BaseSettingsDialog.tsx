@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useUpdateBase, useDeleteBase } from '../hooks';
 import { useDatabaseUI } from '../lib/store';
+import { useSnapshots, useCreateSnapshot, useRestoreSnapshot, useDeleteSnapshot, useExportBase } from '../hooks/useBackups';
 import type { Base } from '../types';
 
 interface BaseSettingsDialogProps {
@@ -42,7 +43,7 @@ const EMOJI_OPTIONS = [
   '🏠', '🎨', '💼', '🔬', '📈',
 ];
 
-type Tab = 'general' | 'danger';
+type Tab = 'general' | 'backups' | 'danger';
 
 export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDialogProps) {
   const [tab, setTab] = useState<Tab>('general');
@@ -122,6 +123,17 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
           <button
             className={cn(
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
+              tab === 'backups'
+                ? 'border-[#3366FF] text-[#3366FF]'
+                : 'border-transparent text-[#6A7184] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
+            )}
+            onClick={() => setTab('backups')}
+          >
+            Backups
+          </button>
+          <button
+            className={cn(
+              'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'danger'
                 ? 'border-red-500 text-red-500'
                 : 'border-transparent text-[#6A7184] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
@@ -190,6 +202,10 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
 
             {error && <p className="text-xs text-red-500">{error}</p>}
           </div>
+        )}
+
+        {tab === 'backups' && (
+          <BackupsTab baseId={base.id} />
         )}
 
         {tab === 'danger' && (
@@ -267,5 +283,127 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function BackupsTab({ baseId }: { baseId: string }) {
+  const [snapshotName, setSnapshotName] = useState('');
+  const [restoreId, setRestoreId] = useState<string | null>(null);
+  const snapshots = useSnapshots(baseId);
+  const createSnapshot = useCreateSnapshot();
+  const restoreSnapshot = useRestoreSnapshot();
+  const deleteSnapshot = useDeleteSnapshot();
+  const exportBase = useExportBase();
+
+  const handleCreate = async () => {
+    const name = snapshotName.trim() || `Backup ${new Date().toLocaleString()}`;
+    await createSnapshot.mutateAsync({ baseId, name });
+    setSnapshotName('');
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label className="text-xs">Create Snapshot</Label>
+        <div className="flex gap-2">
+          <Input
+            value={snapshotName}
+            onChange={(e) => setSnapshotName(e.target.value)}
+            placeholder="Snapshot name (optional)"
+            className="flex-1"
+            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+          />
+          <Button
+            size="sm"
+            className="bg-[#3366FF] hover:bg-[#2952CC] shrink-0"
+            onClick={handleCreate}
+            disabled={createSnapshot.isPending}
+          >
+            {createSnapshot.isPending ? 'Creating...' : 'Create'}
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => exportBase.mutate(baseId)}
+          disabled={exportBase.isPending}
+        >
+          {exportBase.isPending ? 'Exporting...' : 'Export as JSON'}
+        </Button>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs">Snapshots</Label>
+        {snapshots.isLoading && (
+          <p className="text-xs text-muted-foreground">Loading...</p>
+        )}
+        {snapshots.data?.length === 0 && (
+          <p className="text-xs text-muted-foreground">No snapshots yet</p>
+        )}
+        <div className="max-h-48 overflow-y-auto space-y-1.5">
+          {snapshots.data?.map((snap) => (
+            <div
+              key={snap.id}
+              className="flex items-center justify-between p-2 rounded border border-border bg-muted/30"
+            >
+              <div className="min-w-0">
+                <p className="text-xs font-medium truncate">{snap.name}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {new Date(snap.created_at).toLocaleString()}
+                </p>
+              </div>
+              <div className="flex gap-1 shrink-0">
+                {restoreId === snap.id ? (
+                  <>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="text-[10px] h-6 px-2"
+                      onClick={async () => {
+                        await restoreSnapshot.mutateAsync(snap.id);
+                        setRestoreId(null);
+                      }}
+                      disabled={restoreSnapshot.isPending}
+                    >
+                      {restoreSnapshot.isPending ? 'Restoring...' : 'Confirm'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-[10px] h-6 px-2"
+                      onClick={() => setRestoreId(null)}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-[10px] h-6 px-2"
+                      onClick={() => setRestoreId(snap.id)}
+                    >
+                      Restore
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-[10px] h-6 px-2 text-red-500 hover:text-red-600"
+                      onClick={() => deleteSnapshot.mutate({ snapshotId: snap.id, baseId })}
+                    >
+                      Delete
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

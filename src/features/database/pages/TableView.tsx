@@ -27,6 +27,7 @@ import TimelineView from '../components/views/TimelineView';
 import { ExpandedRowModal } from '../components/ExpandedRowModal';
 import { CreateFieldDialog } from '../components/CreateFieldDialog';
 import type { RecordRow } from '../types';
+import { useRealtimeRecords } from '../hooks/useRealtime';
 
 export function TableView() {
   const {
@@ -39,6 +40,7 @@ export function TableView() {
     searchQuery,
   } = useDatabaseUI();
   useActiveView(activeTableId);
+  useRealtimeRecords(activeBaseId ?? undefined, activeTableId ?? undefined);
   const { data: fields } = useFields(activeTableId);
   const { data: views } = useViews(activeTableId);
   const [page, setPage] = useState(0);

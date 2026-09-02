@@ -470,7 +470,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 <select
                   value={targetTableId}
                   onChange={(e) => setTargetTableId(e.target.value)}
-                  className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
+                  className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
                 >
                   <option value="">Select a table...</option>
                   {tables
@@ -538,7 +538,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 <select
                   value={linkFieldId}
                   onChange={(e) => { setLinkFieldId(e.target.value); setLookupFieldId(''); setRollupFieldId(''); }}
-                  className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
+                  className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
                 >
                   <option value="">Select a link field...</option>
                   {linkFields.map((f: FieldMeta) => (
@@ -552,7 +552,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                   <select
                     value={lookupFieldId}
                     onChange={(e) => setLookupFieldId(e.target.value)}
-                    className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
+                    className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
                   >
                     <option value="">Select a field...</option>
                     {targetFields.map((f: FieldMeta) => (
@@ -568,7 +568,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                     <select
                       value={rollupFieldId}
                       onChange={(e) => setRollupFieldId(e.target.value)}
-                      className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
+                      className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
                     >
                       <option value="">Select a numeric field...</option>
                       {numericTargetFields.map((f: FieldMeta) => (
@@ -581,7 +581,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                     <select
                       value={rollupFn}
                       onChange={(e) => setRollupFn(e.target.value)}
-                      className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
+                      className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
                     >
                       {['COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'COUNTA', 'COUNTALL'].map((fn) => (
                         <option key={fn} value={fn}>{fn}</option>
