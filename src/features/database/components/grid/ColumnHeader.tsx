@@ -91,42 +91,16 @@ export const ColumnHeader = React.memo(function ColumnHeader({
   }, [field.id, toggleHiddenField]);
 
   const handleDelete = useCallback(() => {
-    if (!onDeleteField) return;
+    if (!onDelete) return;
     const confirmed = window.confirm(`Delete field "${field.name}"? This cannot be undone.`);
-    if (confirmed) onDeleteField(field.id);
+    if (confirmed) onDelete(field.id);
     setContextMenu(null);
-  }, [field.id, field.name, onDeleteField]);
+  }, [field.id, field.name, onDelete]);
 
   const handleEdit = useCallback(() => {
     onEditField?.(field);
     setContextMenu(null);
   }, [field, onEditField]);
-
-  const handleSortAsc = useCallback(() => {
-    const newSorts = sorts.filter((s) => s.field_id !== field.id);
-    newSorts.push({ field_id: field.id, direction: 'asc' });
-    setSorts(newSorts);
-    setContextMenu(null);
-  }, [field.id, sorts, setSorts]);
-
-  const handleSortDesc = useCallback(() => {
-    const newSorts = sorts.filter((s) => s.field_id !== field.id);
-    newSorts.push({ field_id: field.id, direction: 'desc' });
-    setSorts(newSorts);
-    setContextMenu(null);
-  }, [field.id, sorts, setSorts]);
-
-  const handleHide = useCallback(() => {
-    toggleHiddenField(field.id);
-    setContextMenu(null);
-  }, [field.id, toggleHiddenField]);
-
-  const handleDelete = useCallback(() => {
-    if (field.is_primary || field.is_system) return;
-    if (!confirm(`Delete field "${field.name}"?`)) return;
-    onDelete?.(field.id);
-    setContextMenu(null);
-  }, [field, onDelete]);
 
   return (
     <div
@@ -141,8 +115,6 @@ export const ColumnHeader = React.memo(function ColumnHeader({
         fontSize: 12,
         fontWeight: 600,
         cursor: 'pointer',
-        ...(frozen ? { left: frozenLeft, boxShadow: '1px 0 0 0 rgba(0,0,0,0.04)' } : {}),
-        ...(isDragOver ? { borderLeft: `2px solid ${GRID_COLORS.selected}` } : {}),
       }}
       draggable={isDraggable}
       onDragStart={onDragStart}

@@ -1,7 +1,7 @@
 import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, ChevronLeft, ChevronRight, Loader2, Expand, Copy, Trash2, MoreHorizontal, Sigma, Lock } from 'lucide-react';
-import type { FieldMeta, RecordRow, RowColorRule, UIType, ConditionalFormatRule } from '@/features/database/types';
+import { Plus, ChevronLeft, ChevronRight, ChevronDown, Loader2, Expand, Copy, Trash2, MoreHorizontal, Sigma, Lock, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
+import type { FieldMeta, RecordRow, RowColorRule, UIType, ConditionalFormatRule, Group } from '@/features/database/types';
 import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
 import { useUndoStore } from '../../lib/undo';
 import { ColumnHeader } from './ColumnHeader';
@@ -17,12 +17,6 @@ export interface GridViewProps {
   onCellUpdate: (recordId: string, fieldId: string, value: any) => void;
   onAddRow: () => void;
   onAddField: () => void;
-  onExpandRow?: (record: RecordRow) => void;
-  onDeleteRow?: (recordId: string) => void;
-  onDuplicateRow?: (record: RecordRow) => void;
-  onDeleteField?: (fieldId: string) => void;
-  onBulkDeleteRows?: (recordIds: string[]) => void;
-  onReorderFields?: (fieldIds: string[]) => void;
   page: number;
   pageSize: number;
   onPageChange: (page: number) => void;
@@ -34,6 +28,22 @@ export interface GridViewProps {
   onBulkDeleteRows?: (recordIds: string[]) => void;
   onReorderFields?: (fieldIds: string[]) => void;
 }
+
+const GRID_COLORS = {
+  bg: '#FFFFFF',
+  headerBg: '#F9F9FA',
+  border: '#E7E7E9',
+  text: '#374151',
+  muted: '#6A7184',
+  hoverRow: '#F9F9FA',
+  groupHeaderBg: '#F4F4F5',
+  primary: '#3366FF',
+};
+
+const GROUP_PILL_COLORS = [
+  '#3366FF', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899',
+  '#06B6D4', '#84CC16', '#F97316', '#6366F1',
+];
 
 const ROW_HEIGHTS: Record<string, number> = {
   compact: 32,
@@ -258,18 +268,12 @@ export default function GridView({
   onDeleteRow,
   onDuplicateRow,
   onDeleteField,
+  onDuplicateField,
   onBulkDeleteRows,
   onReorderFields,
   page,
   pageSize,
   onPageChange,
-  onExpandRow,
-  onDeleteRow,
-  onDuplicateRow,
-  onDeleteField,
-  onDuplicateField,
-  onBulkDeleteRows,
-  onReorderFields,
 }: GridViewProps) {
   const rowHeight = useDatabaseUI((s) => s.rowHeight);
   const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
@@ -481,79 +485,119 @@ export default function GridView({
 
   const rowHeightPx = ROW_HEIGHTS[rowHeight] || ROW_HEIGHTS.default;
 
-  // --- Group-by logic ---
-  const groupBy = useDatabaseUI((s) => s.groupBy);
+  // --- Multi-level group-by logic ---
+  const groupByLevels = useDatabaseUI((s) => s.groupByLevels);
 
-  const groupField = useMemo(() => {
-    if (!groupBy) return null;
-    return fieldsWithWidths.find((f) => f.id === groupBy.field_id) ?? null;
-  }, [groupBy, fieldsWithWidths]);
+  const groupFields = useMemo(() => {
+    return groupByLevels
+      .map((g) => fieldsWithWidths.find((f) => f.id === g.field_id) ?? null)
+      .filter((f): f is (FieldMeta & { width: number }) => f !== null);
+  }, [groupByLevels, fieldsWithWidths]);
 
-  const GROUP_HEADER_HEIGHT = 32;
+  const GROUP_HEADER_HEIGHT = 36;
 
+  // Collapsed groups keyed by their full path (e.g. "Status:Active" or "Status:Active|Priority:High")
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
-  const toggleGroupCollapse = useCallback((groupValue: string) => {
+  const toggleGroupCollapse = useCallback((groupKey: string) => {
     setCollapsedGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(groupValue)) next.delete(groupValue);
-      else next.add(groupValue);
+      if (next.has(groupKey)) next.delete(groupKey);
+      else next.add(groupKey);
       return next;
     });
   }, []);
 
-  const groupedRecords = useMemo(() => {
-    if (!groupField) return null;
-    const col = groupField.pg_column_name;
-    const map = new Map<string, RecordRow[]>();
-    for (const r of records) {
-      const raw = r[col];
-      const key = raw == null || raw === '' ? '(Empty)' : String(raw);
-      let arr = map.get(key);
-      if (!arr) { arr = []; map.set(key, arr); }
-      arr.push(r);
+  const collapseAll = useCallback(() => {
+    if (!flatItems) return;
+    const keys = new Set<string>();
+    for (const item of flatItems) {
+      if (item.type === 'header') keys.add(item.groupKey);
     }
-    // Sort groups: for SingleSelect, use choices order; otherwise alphabetical
-    const uiType = groupField.ui_type || (groupField as any).type || '';
-    const choices = groupField.options?.choices;
-    let keys: string[];
-    if (uiType === 'SingleSelect' && choices && choices.length > 0) {
-      const order = new Map(choices.map((c, i) => [c.label, i]));
-      keys = [...map.keys()].sort((a, b) => {
+    setCollapsedGroups(keys);
+  }, []);
+
+  const expandAll = useCallback(() => {
+    setCollapsedGroups(new Set());
+  }, []);
+
+  // Recursively group records by multiple levels
+  function sortGroupKeys(keys: string[], field: FieldMeta & { width: number }, direction: 'asc' | 'desc'): string[] {
+    const uiType = field.ui_type || '';
+    const choices = field.options?.choices;
+    let sorted: string[];
+    if ((uiType === 'SingleSelect' || uiType === 'MultiSelect') && choices && choices.length > 0) {
+      const order = new Map(choices.map((c: { label: string }, i: number) => [c.label, i]));
+      sorted = [...keys].sort((a, b) => {
         const oa = a === '(Empty)' ? Infinity : (order.get(a) ?? 999999);
         const ob = b === '(Empty)' ? Infinity : (order.get(b) ?? 999999);
         return oa - ob;
       });
     } else {
-      keys = [...map.keys()].sort((a, b) => {
+      sorted = [...keys].sort((a, b) => {
         if (a === '(Empty)') return 1;
         if (b === '(Empty)') return -1;
         return a.localeCompare(b);
       });
     }
-    if (groupBy?.direction === 'desc') keys.reverse();
-    return keys.map((k) => ({ groupValue: k, records: map.get(k)! }));
-  }, [groupField, records, groupBy]);
+    if (direction === 'desc') sorted.reverse();
+    return sorted;
+  }
 
-  // Build a flat list of items for grouped view: headers + record rows
-  type FlatItem = { type: 'header'; groupValue: string; count: number } | { type: 'row'; record: RecordRow; rowNum: number };
+  // Build a flat list of items for grouped view: headers at various depths + record rows
+  type FlatItem =
+    | { type: 'header'; groupKey: string; groupValue: string; count: number; depth: number; fieldName: string; field: FieldMeta & { width: number }; summaryRecords: RecordRow[] }
+    | { type: 'row'; record: RecordRow; rowNum: number };
+
   const flatItems = useMemo<FlatItem[] | null>(() => {
-    if (!groupedRecords) return null;
+    if (groupFields.length === 0 || groupByLevels.length === 0) return null;
     const items: FlatItem[] = [];
     let runningIdx = 0;
-    for (const g of groupedRecords) {
-      items.push({ type: 'header', groupValue: g.groupValue, count: g.records.length });
-      if (!collapsedGroups.has(g.groupValue)) {
-        for (const r of g.records) {
+
+    function buildLevel(recs: RecordRow[], depth: number, parentKey: string) {
+      if (depth >= groupFields.length || depth >= groupByLevels.length) {
+        // Leaf: emit rows
+        for (const r of recs) {
           items.push({ type: 'row', record: r, rowNum: page * pageSize + runningIdx + 1 });
           runningIdx++;
         }
-      } else {
-        runningIdx += g.records.length;
+        return;
+      }
+      const field = groupFields[depth];
+      const col = field.pg_column_name;
+      const map = new Map<string, RecordRow[]>();
+      for (const r of recs) {
+        const raw = r[col];
+        const key = raw == null || raw === '' ? '(Empty)' : String(raw);
+        let arr = map.get(key);
+        if (!arr) { arr = []; map.set(key, arr); }
+        arr.push(r);
+      }
+      const sortedKeys = sortGroupKeys([...map.keys()], field, groupByLevels[depth].direction);
+      for (const k of sortedKeys) {
+        const groupRecs = map.get(k)!;
+        const groupKey = parentKey ? `${parentKey}|${field.id}:${k}` : `${field.id}:${k}`;
+        items.push({
+          type: 'header',
+          groupKey,
+          groupValue: k,
+          count: groupRecs.length,
+          depth,
+          fieldName: field.name,
+          field,
+          summaryRecords: groupRecs,
+        });
+        if (!collapsedGroups.has(groupKey)) {
+          buildLevel(groupRecs, depth + 1, groupKey);
+        } else {
+          runningIdx += groupRecs.length;
+        }
       }
     }
+
+    buildLevel(records, 0, '');
     return items;
-  }, [groupedRecords, collapsedGroups, page, pageSize]);
+  }, [groupFields, groupByLevels, records, collapsedGroups, page, pageSize]);
 
   const virtualizer = useVirtualizer({
     count: flatItems ? flatItems.length : records.length,
