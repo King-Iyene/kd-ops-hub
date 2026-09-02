@@ -593,15 +593,15 @@ function SortPanel({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="absolute left-0 top-full z-40 mt-1 bg-white border border-[#E7E7E9] rounded-lg shadow-lg p-3 min-w-[320px]">
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[320px]">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-[#374151]">Sort</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100"><X size={14} className="text-[#9AA2AF]" /></button>
+        <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Sort</span>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]"><X size={14} className="text-[#9AA2AF]" /></button>
       </div>
       {sorts.map((sort, i) => (
         <div key={i} className="flex items-center gap-2 mb-2">
           <select
-            className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151] flex-1"
+            className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1"
             value={sort.field_id}
             onChange={(e) => updateSort(i, { field_id: e.target.value })}
           >
@@ -610,14 +610,14 @@ function SortPanel({ onClose }: { onClose: () => void }) {
             ))}
           </select>
           <select
-            className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151]"
+            className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)]"
             value={sort.direction}
             onChange={(e) => updateSort(i, { direction: e.target.value as 'asc' | 'desc' })}
           >
             <option value="asc">A → Z</option>
             <option value="desc">Z → A</option>
           </select>
-          <button onClick={() => removeSort(i)} className="p-0.5 rounded hover:bg-gray-100">
+          <button onClick={() => removeSort(i)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]">
             <X size={12} className="text-[#9AA2AF]" />
           </button>
         </div>
@@ -892,17 +892,17 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="absolute left-0 top-full z-40 mt-1 bg-white border border-[#E7E7E9] rounded-lg shadow-lg p-3 min-w-[440px]">
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[440px]">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-[#374151]">Row coloring</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100"><X size={14} className="text-[#9AA2AF]" /></button>
+        <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Row coloring</span>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]"><X size={14} className="text-[#9AA2AF]" /></button>
       </div>
       {rowColorRules.map((rule) => {
         const ops = COLOR_OPERATORS;
         return (
           <div key={rule.id} className="flex items-center gap-2 mb-2">
             <select
-              className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151] flex-1 max-w-[110px]"
+              className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1 max-w-[110px]"
               value={rule.field_id}
               onChange={(e) => updateRule(rule.id, { field_id: e.target.value })}
             >
@@ -911,7 +911,7 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
               ))}
             </select>
             <select
-              className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151]"
+              className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)]"
               value={rule.operator}
               onChange={(e) => updateRule(rule.id, { operator: e.target.value as FilterOperator })}
             >
@@ -921,7 +921,7 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
             </select>
             {rule.operator !== 'isEmpty' && rule.operator !== 'isNotEmpty' && (
               <input
-                className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151] flex-1 max-w-[90px]"
+                className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1 max-w-[90px]"
                 value={rule.value ?? ''}
                 onChange={(e) => updateRule(rule.id, { value: e.target.value })}
                 placeholder="Value"
@@ -942,7 +942,7 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
                 />
               ))}
             </div>
-            <button onClick={() => removeRule(rule.id)} className="p-0.5 rounded hover:bg-gray-100">
+            <button onClick={() => removeRule(rule.id)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]">
               <X size={12} className="text-[#9AA2AF]" />
             </button>
           </div>
@@ -1131,7 +1131,7 @@ export function Toolbar() {
                 ref={searchRef}
                 type="text"
                 placeholder="Search..."
-                className="h-7 w-48 text-xs pl-2 pr-6 border border-[#E7E7E9] rounded focus:outline-none focus:ring-1 focus:ring-[#3366FF]"
+                className="h-7 w-48 text-xs pl-2 pr-6 border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded focus:outline-none focus:ring-1 focus:ring-[#3366FF] dark:bg-[hsl(200,30%,12%)] dark:text-[hsl(200,25%,88%)]"
                 value={searchQuery}
                 onChange={handleSearchChange}
               />
@@ -1164,9 +1164,9 @@ export function Toolbar() {
             {moreOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
-                <div className="absolute right-0 top-full z-50 mt-1 bg-white border border-[#E7E7E9] rounded-lg shadow-lg py-1 min-w-[160px]">
+                <div className="absolute right-0 top-full z-50 mt-1 bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[160px]">
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
                     onClick={() => {
                       if (fieldsData && recordsData?.records) {
                         exportToCsv(fieldsData, recordsData.records, tableName);
@@ -1177,7 +1177,7 @@ export function Toolbar() {
                     <Download size={13} className="text-[#9AA2AF]" /> Export CSV
                   </button>
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
                     onClick={() => {
                       setImportCsvOpen(true);
                       setMoreOpen(false);
@@ -1186,7 +1186,7 @@ export function Toolbar() {
                     <Upload size={13} className="text-[#9AA2AF]" /> Import CSV
                   </button>
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
                     onClick={() => {
                       if (fieldsData && recordsData?.records) {
                         exportToJson(fieldsData, recordsData.records, tableName);
@@ -1197,7 +1197,7 @@ export function Toolbar() {
                     <FileJson size={13} className="text-[#9AA2AF]" /> Export JSON
                   </button>
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
                     onClick={() => {
                       setPrintViewOpen(true);
                       setMoreOpen(false);
@@ -1205,9 +1205,9 @@ export function Toolbar() {
                   >
                     <Printer size={13} className="text-[#9AA2AF]" /> Print view
                   </button>
-                  <div className="h-px bg-[#E7E7E9] my-0.5" />
+                  <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] my-0.5" />
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
                     onClick={() => {
                       setSearchReplaceOpen(true);
                       setMoreOpen(false);
@@ -1216,7 +1216,7 @@ export function Toolbar() {
                     <Replace size={13} className="text-[#9AA2AF]" /> Search & Replace
                   </button>
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
                     onClick={() => {
                       setConditionalFormatOpen(true);
                       setMoreOpen(false);

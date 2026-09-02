@@ -12,6 +12,9 @@ interface RowContextMenuProps {
   onDeleteRow: (recordId: string) => void;
 }
 
+const menuItemClass =
+  'flex w-full items-center gap-2 px-3 py-1.5 text-left text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] transition-colors';
+
 export function RowContextMenu({
   x,
   y,
@@ -45,66 +48,44 @@ export function RowContextMenu({
     <div className="fixed inset-0 z-50" onClick={onClose}>
       <div
         ref={menuRef}
-        className="fixed rounded-lg shadow-lg"
-        style={{
-          left: x,
-          top: y,
-          minWidth: 180,
-          background: '#FFFFFF',
-          border: '1px solid #E7E7E9',
-          fontSize: 12,
-          zIndex: 51,
-        }}
+        className="fixed rounded-lg shadow-lg bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] text-xs"
+        style={{ left: x, top: y, minWidth: 180, zIndex: 51 }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="py-1">
           <button
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-left"
-            style={{ color: '#374151' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#F4F4F5')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            className={menuItemClass}
             onClick={() => {
               onExpandRow(record);
               onClose();
             }}
           >
-            <Expand size={14} style={{ color: '#9AA2AF' }} />
+            <Expand size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
             Expand row
           </button>
 
           <button
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-left"
-            style={{ color: '#374151' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#F4F4F5')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            className={menuItemClass}
             onClick={() => {
               onDuplicateRow(record);
               onClose();
             }}
           >
-            <Copy size={14} style={{ color: '#9AA2AF' }} />
+            <Copy size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
             Duplicate row
           </button>
 
-          <div className="my-1 border-t" style={{ borderColor: '#E7E7E9' }} />
+          <div className="my-1 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]" />
 
-          <button
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-left"
-            style={{ color: '#374151' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#F4F4F5')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-            onClick={handleCopyRowLink}
-          >
-            <Link size={14} style={{ color: '#9AA2AF' }} />
+          <button className={menuItemClass} onClick={handleCopyRowLink}>
+            <Link size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
             Copy row link
           </button>
 
-          <div className="my-1 border-t" style={{ borderColor: '#E7E7E9' }} />
+          <div className="my-1 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]" />
 
           <button
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-red-500"
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#F4F4F5')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-red-500 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] transition-colors"
             onClick={() => {
               onDeleteRow(record.id);
               onClose();

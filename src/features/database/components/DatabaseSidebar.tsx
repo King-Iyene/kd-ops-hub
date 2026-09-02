@@ -60,8 +60,7 @@ function InlineRenameInput({
   return (
     <input
       ref={ref}
-      className="bg-white dark:bg-[hsl(200,30%,12%)] border border-[#3366FF] rounded px-1.5 py-0.5 text-[13px] w-full outline-none"
-      style={{ color: '#374151' }}
+      className="bg-white dark:bg-[hsl(200,30%,12%)] border border-[#3366FF] rounded px-1.5 py-0.5 text-[13px] w-full outline-none text-[#374151] dark:text-[hsl(200,25%,88%)]"
       value={text}
       onChange={(e) => setText(e.target.value)}
       onBlur={commit}

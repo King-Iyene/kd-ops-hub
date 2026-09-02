@@ -53,6 +53,7 @@ export function CreateBaseDialog({ open, onOpenChange }: CreateBaseDialogProps) 
       const result = await createBase.mutateAsync({
         name: name.trim(),
         color,
+        icon,
       });
       setActiveBase(result.id);
       resetForm();
@@ -76,7 +77,7 @@ export function CreateBaseDialog({ open, onOpenChange }: CreateBaseDialogProps) 
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label htmlFor="base-name" className="text-xs font-medium text-[#4A5268]">
+            <Label htmlFor="base-name" className="text-xs font-medium text-[#4A5268] dark:text-[hsl(200,20%,55%)]">
               Base name
             </Label>
             <Input
@@ -98,7 +99,7 @@ export function CreateBaseDialog({ open, onOpenChange }: CreateBaseDialogProps) 
                   key={emoji}
                   type="button"
                   className={cn(
-                    'w-8 h-8 rounded flex items-center justify-center text-base hover:bg-gray-100 transition-colors',
+                    'w-8 h-8 rounded flex items-center justify-center text-base hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)] transition-colors',
                     icon === emoji && 'ring-2 ring-[#3366FF] bg-[#3366FF]/5'
                   )}
                   onClick={() => setIcon(emoji)}

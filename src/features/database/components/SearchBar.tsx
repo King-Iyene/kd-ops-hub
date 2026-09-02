@@ -66,12 +66,11 @@ export function SearchBar() {
         onChange={(e) => setLocalValue(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Escape') handleClear(); }}
         placeholder="Search records..."
-        className="flex-1 text-xs outline-none bg-transparent"
-        style={{ color: '#374151' }}
+        className="flex-1 text-xs outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)]"
       />
       {localValue && (
-        <button onClick={handleClear} className="p-0.5 rounded hover:bg-gray-100">
-          <X size={12} style={{ color: '#9AA2AF' }} />
+        <button onClick={handleClear} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]">
+          <X size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
         </button>
       )}
     </div>

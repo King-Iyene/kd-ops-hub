@@ -220,8 +220,8 @@ function SummaryRow({
             >
               {fn !== 'none' ? (
                 <>
-                  <span style={{ fontSize: 10, color: '#9AA2AF', lineHeight: '14px' }}>{label}</span>
-                  <span style={{ fontSize: 12, color: '#374151', lineHeight: '16px', fontWeight: 500 }}>{value}</span>
+                  <span className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" style={{ fontSize: 10, lineHeight: '14px' }}>{label}</span>
+                  <span className="text-[#374151] dark:text-[hsl(200,25%,88%)]" style={{ fontSize: 12, lineHeight: '16px', fontWeight: 500 }}>{value}</span>
                 </>
               ) : (
                 <span style={{ fontSize: 11, color: '#9AA2AF' }}>&#8211;</span>
@@ -232,14 +232,13 @@ function SummaryRow({
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setSummaryDropdown(null)} />
                 <div
-                  className="absolute left-0 bottom-full z-50 bg-white border border-[#E7E7E9] rounded-lg shadow-lg py-1 min-w-[150px]"
+                  className="absolute left-0 bottom-full z-50 bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[150px]"
                   style={{ marginBottom: 2 }}
                 >
                   {SUMMARY_OPTIONS.filter((opt) => !opt.numericOnly || isNumeric).map((opt) => (
                     <button
                       key={opt.value}
-                      className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center justify-between"
-                      style={{ color: '#374151' }}
+                      className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center justify-between text-[#374151] dark:text-[hsl(200,25%,88%)]"
                       onClick={() => {
                         setSummaryFunction(field.id, opt.value);
                         setSummaryDropdown(null);
@@ -1114,7 +1113,7 @@ export default function GridView({
                           {item.groupValue}
                         </span>
                       ) : (
-                        <span style={{ color: '#374151', fontSize: 12, fontWeight: 600, marginLeft: 2 }}>
+                        <span className="text-[#374151] dark:text-[hsl(200,25%,88%)]" style={{ fontSize: 12, fontWeight: 600, marginLeft: 2 }}>
                           {item.groupValue}
                         </span>
                       )}
