@@ -166,6 +166,36 @@ export function useUpdateTable() {
       if (input.icon !== undefined) updates.icon = input.icon;
       if (input.position !== undefined) updates.position = input.position;
 
+      if (input.name !== undefined) {
+        const newPgName = toSnakeCase(input.name);
+        updates.pg_table_name = newPgName;
+
+        const { data: oldTable } = await supabase
+          .schema('nc_meta')
+          .from('tables')
+          .select('pg_table_name')
+          .eq('id', input.id)
+          .single();
+
+        const { data: base } = await supabase
+          .schema('nc_meta')
+          .from('bases')
+          .select('schema_name')
+          .eq('id', input.baseId)
+          .single();
+
+        if (oldTable && base && oldTable.pg_table_name !== newPgName) {
+          await supabase.functions.invoke('ddl-executor', {
+            body: {
+              action: 'renameTable',
+              schemaName: base.schema_name,
+              oldName: oldTable.pg_table_name,
+              newName: newPgName,
+            },
+          });
+        }
+      }
+
       const { data, error } = await supabase
         .schema('nc_meta')
         .from('tables')

@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { Toolbar } from '../components/Toolbar';
 import { ViewBar } from '../components/ViewBar';
 import { useDatabaseUI } from '../lib/store';
-import { useFields, useRecords, useCreateRecord, useUpdateRecord, useDeleteRecord, useBulkDeleteRecords, useDuplicateRecord, useDeleteField, useActiveView, useViews } from '../hooks';
+import { useFields, useRecords, useCreateRecord, useUpdateRecord, useDeleteRecord, useBulkDeleteRecords, useDuplicateRecord, useDeleteField, useReorderFields, useActiveView, useViews } from '../hooks';
 import GridView from '../components/grid/GridView';
 import KanbanView from '../components/views/KanbanView';
 import GalleryView from '../components/views/GalleryView';
@@ -40,6 +40,7 @@ export function TableView() {
   const duplicateRecord = useDuplicateRecord();
   const bulkDeleteRecords = useBulkDeleteRecords();
   const deleteField = useDeleteField();
+  const reorderFields = useReorderFields();
   const [expandedRecord, setExpandedRecord] = useState<RecordRow | null>(null);
 
   const visibleFields = useMemo(
@@ -86,6 +87,11 @@ export function TableView() {
     if (!activeTableId) return;
     deleteField.mutate({ id: fieldId, table_id: activeTableId });
   }, [activeTableId, deleteField]);
+
+  const handleReorderFields = useCallback((fieldIds: string[]) => {
+    if (!activeTableId) return;
+    reorderFields.mutate({ table_id: activeTableId, fieldIds });
+  }, [activeTableId, reorderFields]);
 
   const viewType = activeView?.type ?? 'grid';
 
@@ -157,6 +163,7 @@ export function TableView() {
             onDuplicateRow={handleDuplicateRow}
             onDeleteField={handleDeleteField}
             onBulkDeleteRows={handleBulkDeleteRows}
+            onReorderFields={handleReorderFields}
           />
         );
     }

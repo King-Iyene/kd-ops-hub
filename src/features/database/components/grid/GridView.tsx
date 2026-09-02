@@ -23,6 +23,7 @@ export interface GridViewProps {
   onDuplicateRow?: (record: RecordRow) => void;
   onDeleteField?: (fieldId: string) => void;
   onBulkDeleteRows?: (recordIds: string[]) => void;
+  onReorderFields?: (fieldIds: string[]) => void;
   page: number;
   pageSize: number;
   onPageChange: (page: number) => void;
@@ -51,6 +52,7 @@ export default function GridView({
   onDuplicateRow,
   onDeleteField,
   onBulkDeleteRows,
+  onReorderFields,
   page,
   pageSize,
   onPageChange,
@@ -68,6 +70,8 @@ export default function GridView({
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; record: RecordRow } | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const [dragFieldId, setDragFieldId] = useState<string | null>(null);
+  const [dragOverFieldId, setDragOverFieldId] = useState<string | null>(null);
 
   // Primary field is pinned first so it can be frozen while scrolling horizontally.
   const visibleFields = useMemo(() => {
@@ -129,6 +133,31 @@ export default function GridView({
       return new Set(records.map((r) => r.id));
     });
   }, [records]);
+
+  const handleFieldDragStart = useCallback((fieldId: string) => {
+    setDragFieldId(fieldId);
+  }, []);
+
+  const handleFieldDragOver = useCallback((fieldId: string) => {
+    setDragOverFieldId(fieldId);
+  }, []);
+
+  const handleFieldDrop = useCallback((targetFieldId: string) => {
+    if (!dragFieldId || dragFieldId === targetFieldId) {
+      setDragFieldId(null);
+      setDragOverFieldId(null);
+      return;
+    }
+    const ids = visibleFields.map((f) => f.id);
+    const fromIdx = ids.indexOf(dragFieldId);
+    const toIdx = ids.indexOf(targetFieldId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    ids.splice(fromIdx, 1);
+    ids.splice(toIdx, 0, dragFieldId);
+    onReorderFields?.(ids);
+    setDragFieldId(null);
+    setDragOverFieldId(null);
+  }, [dragFieldId, visibleFields, onReorderFields]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -283,6 +312,9 @@ export default function GridView({
                 onResize={handleResize}
                 onDeleteField={onDeleteField}
                 onEditField={setEditingField}
+                onDragStart={handleFieldDragStart}
+                onDragOver={handleFieldDragOver}
+                onDrop={handleFieldDrop}
                 frozen={field.is_primary}
                 frozenLeft={field.is_primary ? ROW_NUMBER_WIDTH : undefined}
               />

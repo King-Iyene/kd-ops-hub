@@ -310,6 +310,25 @@ async function handleRenameColumn(
   }
 }
 
+async function handleRenameTable(
+  pool: Pool,
+  body: { schemaName: string; oldName: string; newName: string },
+): Promise<void> {
+  const schema = sanitizeIdentifier(body.schemaName);
+  const oldTable = sanitizeIdentifier(body.oldName);
+  const newTable = sanitizeIdentifier(body.newName);
+  validateSchemaAccess(body.schemaName);
+
+  const conn = await pool.connect();
+  try {
+    await conn.queryObject(
+      `ALTER TABLE ${schema}.${oldTable} RENAME TO ${newTable}`,
+    );
+  } finally {
+    conn.release();
+  }
+}
+
 async function handleDropTable(
   pool: Pool,
   body: { schemaName: string; tableName: string },
@@ -424,6 +443,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
         break;
       case 'renameColumn':
         await handleRenameColumn(pool, body);
+        break;
+      case 'renameTable':
+        await handleRenameTable(pool, body);
         break;
       case 'dropTable':
         await handleDropTable(pool, body);

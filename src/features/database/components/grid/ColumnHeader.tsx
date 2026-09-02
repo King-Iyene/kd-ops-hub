@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useMemo } from 'react';
 import { ArrowDownAZ, ArrowUpAZ, Filter, EyeOff, Trash2, Plus, Info, Pencil } from 'lucide-react';
 import type { FieldMeta } from '@/features/database/types';
 import { getFieldTypeIcon } from './field-icons';
@@ -36,6 +36,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const { setSorts, sorts, toggleHiddenField } = useDatabaseUI();
 
   const handleMouseDown = useCallback(
@@ -108,11 +109,14 @@ export const ColumnHeader = React.memo(function ColumnHeader({
         fontWeight: 500,
         cursor: 'pointer',
         ...(frozen ? { left: frozenLeft, boxShadow: '1px 0 0 0 rgba(0,0,0,0.04)' } : {}),
+        ...(isDragOver ? { borderLeft: `2px solid ${GRID_COLORS.selected}` } : {}),
       }}
       draggable={!frozen}
-      onDragStart={() => onDragStart?.(field.id)}
-      onDragOver={(e) => { e.preventDefault(); onDragOver?.(field.id); }}
-      onDrop={() => onDrop?.(field.id)}
+      onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart?.(field.id); }}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setIsDragOver(true); onDragOver?.(field.id); }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={() => { setIsDragOver(false); onDrop?.(field.id); }}
+      onDragEnd={() => setIsDragOver(false)}
       onContextMenu={handleRightClick}
       {...(field.description ? { title: field.description } : {})}
     >
