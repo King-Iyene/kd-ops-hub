@@ -350,8 +350,9 @@ export default function GridView({
               const isHovered = hoveredRowId === record.id;
               const isChecked = selectedRowIds.has(record.id);
               const colorRuleBg = getRowColor(record, rowColorRules, fields);
-              const rowBg = isChecked || isActiveCellRow || isHovered ? GRID_COLORS.hoverRow : (colorRuleBg || GRID_COLORS.bg);
-              const rowNumBg = isChecked || isActiveCellRow || isHovered ? GRID_COLORS.hoverRow : GRID_COLORS.headerBg;
+              const zebraBg = virtualRow.index % 2 === 1 ? '#FAFBFC' : GRID_COLORS.bg;
+              const rowBg = isChecked || isActiveCellRow || isHovered ? GRID_COLORS.hoverRow : (colorRuleBg || zebraBg);
+              const rowNumBg = isChecked || isActiveCellRow || isHovered ? GRID_COLORS.hoverRow : (virtualRow.index % 2 === 1 ? '#FAFBFC' : GRID_COLORS.headerBg);
 
               return (
                 <div

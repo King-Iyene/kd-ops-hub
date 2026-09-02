@@ -230,18 +230,29 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 <SelectTrigger className="h-9">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {FIELD_TYPE_OPTIONS.map((opt) => {
-                    const Icon = opt.value === '_link' ? Link2 : getFieldTypeIcon(opt.value as UIType);
-                    return (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        <span className="flex items-center gap-2">
-                          <Icon size={14} className="text-[#9AA2AF]" />
-                          {opt.label}
-                        </span>
-                      </SelectItem>
-                    );
-                  })}
+                <SelectContent className="max-h-[320px]">
+                  {(() => {
+                    const groups: string[] = [];
+                    FIELD_TYPE_OPTIONS.forEach((o) => { if (!groups.includes(o.group)) groups.push(o.group); });
+                    return groups.map((group) => (
+                      <div key={group}>
+                        <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#9AA2AF] select-none">
+                          {group}
+                        </div>
+                        {FIELD_TYPE_OPTIONS.filter((o) => o.group === group).map((opt) => {
+                          const Icon = opt.value === '_link' ? Link2 : getFieldTypeIcon(opt.value as UIType);
+                          return (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              <span className="flex items-center gap-2">
+                                <Icon size={14} className="text-[#9AA2AF]" />
+                                {opt.label}
+                              </span>
+                            </SelectItem>
+                          );
+                        })}
+                      </div>
+                    ));
+                  })()}
                 </SelectContent>
               </Select>
             </div>

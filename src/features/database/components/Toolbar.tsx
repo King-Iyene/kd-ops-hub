@@ -126,6 +126,7 @@ export function Toolbar() {
             size="sm"
             className="h-7 text-[11px] text-[#6A7184] gap-1 px-2 hover:bg-[#E7E7E9]"
             onClick={nextHeight}
+            title="Row height"
           >
             <Rows3 size={13} /> {rowHeight}
           </Button>
@@ -165,6 +166,7 @@ export function Toolbar() {
             size="sm"
             className="h-7 text-[11px] text-[#3366FF] gap-1 px-2 font-medium hover:bg-[#3366FF]/10"
             onClick={() => setFieldDialogOpen(true)}
+            title="Add new field"
           >
             <Plus size={13} /> Field
           </Button>
