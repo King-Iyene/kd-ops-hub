@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Toolbar } from '../components/Toolbar';
 import { useDatabaseUI } from '../lib/store';
 import { useFields, useRecords, useCreateRecord, useUpdateRecord } from '../hooks';
@@ -7,7 +7,7 @@ import { ExpandedRowModal } from '../components/ExpandedRowModal';
 import type { RecordRow } from '../types';
 
 export function TableView() {
-  const { activeTableId, activeBaseId } = useDatabaseUI();
+  const { activeTableId, activeBaseId, filters, sorts, hiddenFieldIds, searchQuery } = useDatabaseUI();
   const { data: fields } = useFields(activeTableId);
   const [page, setPage] = useState(1);
   const pageSize = 50;
@@ -17,13 +17,22 @@ export function TableView() {
     tableId: activeTableId!,
     page,
     pageSize,
+    filters: filters.length > 0 ? filters : undefined,
+    sorts: sorts.length > 0 ? sorts : undefined,
+    search: searchQuery || undefined,
   });
 
   const createRecord = useCreateRecord();
   const updateRecord = useUpdateRecord();
   const [expandedRecord, setExpandedRecord] = useState<RecordRow | null>(null);
 
-  const visibleFields = (fields ?? []).filter(f => !f.is_hidden).sort((a, b) => a.position - b.position);
+  const visibleFields = useMemo(
+    () =>
+      (fields ?? [])
+        .filter((f) => !f.is_hidden && !hiddenFieldIds.has(f.id))
+        .sort((a, b) => a.position - b.position),
+    [fields, hiddenFieldIds],
+  );
 
   const handleCellUpdate = useCallback((recordId: string, fieldId: string, value: any) => {
     const field = fields?.find(f => f.id === fieldId);

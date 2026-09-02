@@ -37,36 +37,92 @@ async function resolveTableContext(baseId: string, tableId: string) {
   return { schemaName: base.schema_name, tableName: table.pg_table_name };
 }
 
+function applyFilter(query: any, col: string, filter: Filter): any {
+  const val = filter.value;
+  switch (filter.operator) {
+    case 'is':
+    case 'eq':
+      return query.eq(col, val);
+    case 'isNot':
+    case 'neq':
+      return query.neq(col, val);
+    case 'contains':
+      return query.ilike(col, `%${val}%`);
+    case 'doesNotContain':
+      return query.not(col, 'ilike', `%${val}%`);
+    case 'startsWith':
+      return query.ilike(col, `${val}%`);
+    case 'endsWith':
+      return query.ilike(col, `%${val}`);
+    case 'gt':
+      return query.gt(col, val);
+    case 'gte':
+      return query.gte(col, val);
+    case 'lt':
+      return query.lt(col, val);
+    case 'lte':
+      return query.lte(col, val);
+    case 'isEmpty':
+      return query.or(`${col}.is.null,${col}.eq.`);
+    case 'isNotEmpty':
+      return query.not(col, 'is', null).neq(col, '');
+    case 'isBefore':
+      return query.lt(col, val);
+    case 'isAfter':
+      return query.gt(col, val);
+    case 'isAnyOf':
+      if (Array.isArray(val) && val.length) return query.in(col, val);
+      return query;
+    default:
+      return query;
+  }
+}
+
 export function useRecords(params: UseRecordsParams) {
-  const { baseId, tableId, page = 1, pageSize = 50, sorts, search } = params;
+  const { baseId, tableId, page = 1, pageSize = 50, filters, sorts, search } = params;
 
   return useQuery({
-    queryKey: ['nc', 'records', baseId, tableId, page, pageSize, sorts, search],
+    queryKey: ['nc', 'records', baseId, tableId, page, pageSize, filters, sorts, search],
     enabled: !!baseId && !!tableId,
     queryFn: async (): Promise<RecordsResult> => {
       const ctx = await resolveTableContext(baseId, tableId);
+
+      // Fetch field metadata for resolving field_id -> pg_column_name
+      const { data: fieldsMeta } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .select('id, pg_column_name')
+        .eq('table_id', tableId);
+      const fieldMap = new Map((fieldsMeta ?? []).map((f: any) => [f.id, f.pg_column_name]));
 
       let query = supabase
         .schema(ctx.schemaName)
         .from(ctx.tableName)
         .select('*', { count: 'exact' });
 
-      // Pagination
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      query = query.range(from, to);
+      // Apply filters
+      if (filters && filters.length > 0) {
+        for (const filter of filters) {
+          const col = fieldMap.get(filter.field_id);
+          if (col && filter.value !== undefined && filter.value !== '') {
+            query = applyFilter(query, col, filter);
+          } else if (col && (filter.operator === 'isEmpty' || filter.operator === 'isNotEmpty')) {
+            query = applyFilter(query, col, filter);
+          }
+        }
+      }
+
+      // Search
+      if (search) {
+        const textCols = Array.from(fieldMap.values());
+        if (textCols.length > 0) {
+          const orClause = textCols.map((c) => `${c}.ilike.%${search}%`).join(',');
+          query = query.or(orClause);
+        }
+      }
 
       // Sorting
       if (sorts && sorts.length > 0) {
-        // Get field metadata to resolve field_id -> pg_column_name
-        const { data: fields } = await supabase
-          .schema('nc_meta')
-          .from('fields')
-          .select('id, pg_column_name')
-          .eq('table_id', tableId);
-
-        const fieldMap = new Map((fields ?? []).map((f: any) => [f.id, f.pg_column_name]));
-
         for (const sort of sorts) {
           const col = fieldMap.get(sort.field_id);
           if (col) {
@@ -76,6 +132,11 @@ export function useRecords(params: UseRecordsParams) {
       } else {
         query = query.order('nc_order', { ascending: true }).order('created_at', { ascending: true });
       }
+
+      // Pagination
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      query = query.range(from, to);
 
       const { data, error, count } = await query;
       if (error) throw error;

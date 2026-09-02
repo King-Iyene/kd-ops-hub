@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { Group, Search, Plus, Rows3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,36 +8,33 @@ import { CreateFieldDialog } from './CreateFieldDialog';
 import { FilterPanel } from './FilterPanel';
 import { SortPanel } from './SortPanel';
 import { FieldVisibilityPanel } from './FieldVisibilityPanel';
-import type { Filter, Sort } from '@/features/database/types';
 
 export function Toolbar() {
-  const { rowHeight, setRowHeight, activeTableId } = useDatabaseUI();
+  const {
+    rowHeight,
+    setRowHeight,
+    activeTableId,
+    filters,
+    setFilters,
+    sorts,
+    setSorts,
+    hiddenFieldIds,
+    toggleHiddenField,
+    setHiddenFieldIds,
+    searchQuery,
+    setSearchQuery,
+  } = useDatabaseUI();
   const [searchOpen, setSearchOpen] = useState(false);
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
-  const [filters, setFilters] = useState<Filter[]>([]);
-  const [sorts, setSorts] = useState<Sort[]>([]);
-  const [hiddenFieldIds, setHiddenFieldIds] = useState<Set<string>>(new Set());
 
   const { data: fields = [] } = useFields(activeTableId);
 
-  const handleToggleField = useCallback((fieldId: string) => {
-    setHiddenFieldIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(fieldId)) {
-        next.delete(fieldId);
-      } else {
-        next.add(fieldId);
-      }
-      return next;
-    });
-  }, []);
-
-  const handleShowAll = useCallback(() => setHiddenFieldIds(new Set()), []);
+  const handleShowAll = useCallback(() => setHiddenFieldIds(new Set()), [setHiddenFieldIds]);
 
   const handleHideAll = useCallback(() => {
     const ids = new Set(fields.filter((f) => !f.is_system).map((f) => f.id));
     setHiddenFieldIds(ids);
-  }, [fields]);
+  }, [fields, setHiddenFieldIds]);
 
   const rowHeightOptions: Array<'compact' | 'default' | 'tall' | 'extra-tall'> = [
     'compact',
@@ -70,7 +67,7 @@ export function Toolbar() {
           <FieldVisibilityPanel
             fields={fields}
             hiddenFieldIds={hiddenFieldIds}
-            onToggleField={handleToggleField}
+            onToggleField={toggleHiddenField}
             onShowAll={handleShowAll}
             onHideAll={handleHideAll}
           />
@@ -88,8 +85,11 @@ export function Toolbar() {
             <Input
               autoFocus
               placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="h-7 w-48 text-xs"
-              onBlur={() => setSearchOpen(false)}
+              onBlur={() => { if (!searchQuery) setSearchOpen(false); }}
+              onKeyDown={(e) => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false); } }}
             />
           ) : (
             <Button
