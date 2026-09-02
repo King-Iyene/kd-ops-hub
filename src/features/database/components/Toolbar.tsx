@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2 } from 'lucide-react';
+import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
 import { useUndoStore } from '../lib/undo';
-import { useFields } from '../hooks';
+import { useFields, useRecords } from '../hooks';
 import { CreateFieldDialog } from './CreateFieldDialog';
+import { exportToCsv } from '../lib/csv';
 import type { Filter as FilterType, Sort, FilterOperator } from '../types';
 import { OPERATORS_BY_TYPE } from '../types';
 
@@ -193,10 +194,13 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
 }
 
 export function Toolbar() {
-  const { rowHeight, setRowHeight, searchQuery, setSearchQuery, filters, sorts } = useDatabaseUI();
+  const { rowHeight, setRowHeight, searchQuery, setSearchQuery, filters, sorts, activeBaseId, activeTableId } = useDatabaseUI();
   const { undo, redo, stack, redoStack } = useUndoStore();
+  const { data: fieldsData } = useFields(activeTableId);
+  const { data: recordsData } = useRecords({ baseId: activeBaseId!, tableId: activeTableId!, pageSize: 10000 });
   const [searchOpen, setSearchOpen] = useState(false);
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [hideOpen, setHideOpen] = useState(false);
@@ -313,6 +317,34 @@ export function Toolbar() {
               <Search size={14} />
             </Button>
           )}
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-[#6A7184] gap-1"
+              onClick={() => setMoreOpen(!moreOpen)}
+            >
+              <MoreHorizontal size={14} />
+            </Button>
+            {moreOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
+                <div className="absolute right-0 top-full z-50 mt-1 bg-white border border-[#E7E7E9] rounded-lg shadow-lg py-1 min-w-[160px]">
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+                    onClick={() => {
+                      if (fieldsData && recordsData?.records) {
+                        exportToCsv(fieldsData, recordsData.records, 'table');
+                      }
+                      setMoreOpen(false);
+                    }}
+                  >
+                    <Download size={13} className="text-[#9AA2AF]" /> Export CSV
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <Button
             variant="ghost"
             size="sm"

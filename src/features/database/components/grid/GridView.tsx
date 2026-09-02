@@ -243,6 +243,10 @@ export default function GridView({
                     top: virtualRow.start,
                     backgroundColor: isRowSelected ? '#EBF0FF' : undefined,
                   }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setRowMenu({ x: e.clientX, y: e.clientY, record });
+                  }}
                   onMouseEnter={(e) => {
                     if (!isRowSelected) {
                       (e.currentTarget as HTMLElement).style.backgroundColor = '#F9F9FA';
