@@ -3,6 +3,12 @@ import { supabase } from '@/lib/supabase';
 import type { RecordRow, Filter, Sort } from '../types';
 import { toast } from '../components/Toast';
 
+function fireAutomations(event: string, baseId: string, tableId: string, record?: any, oldRecord?: any) {
+  supabase.functions.invoke('automation-runner', {
+    body: { event, baseId, tableId, record, oldRecord },
+  }).catch(() => {});
+}
+
 interface UseRecordsParams {
   baseId: string;
   tableId: string;
@@ -180,9 +186,10 @@ export function useCreateRecord() {
       if (error) throw error;
       return data as RecordRow;
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       toast.success('Record created');
+      fireAutomations('record.created', variables.baseId, variables.tableId, data);
     },
     onError: () => {
       toast.error('Failed to create record');
@@ -241,6 +248,9 @@ export function useUpdateRecord() {
         qc.setQueryData(context.queryKey, context.previous);
       }
     },
+    onSuccess: (data, variables) => {
+      fireAutomations('record.updated', variables.baseId, variables.tableId, data);
+    },
     onSettled: (_data, _error, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
     },
@@ -298,6 +308,7 @@ export function useDeleteRecord() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       toast.success('Record deleted');
+      fireAutomations('record.deleted', variables.baseId, variables.tableId, { id: variables.recordId });
     },
     onError: () => {
       toast.error('Failed to delete record');
