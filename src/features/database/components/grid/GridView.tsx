@@ -1052,6 +1052,7 @@ export default function GridView({
             summaryDropdown={summaryDropdown}
             setSummaryDropdown={setSummaryDropdown}
             rowNumberWidth={ROW_NUMBER_WIDTH}
+            frozenCount={frozenCount}
           />
 
           {/* Add row button */}
