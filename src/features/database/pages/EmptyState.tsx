@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Database, Plus, Table2, Users, Kanban, BarChart3, FileSpreadsheet, CheckSquare } from 'lucide-react';
+import { Database, Plus, Table2, Users, Kanban, BarChart3, FileSpreadsheet, CheckSquare, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreateBaseDialog } from '../components/CreateBaseDialog';
+import { ImportAirtableDialog } from '../components/ImportAirtableDialog';
 import { useDatabaseUI } from '../lib/store';
 
 const TEMPLATES = [
@@ -15,6 +16,7 @@ const TEMPLATES = [
 
 export function EmptyState() {
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const activeBaseId = useDatabaseUI((s) => s.activeBaseId);
 
   if (activeBaseId) {
@@ -51,12 +53,21 @@ export function EmptyState() {
             Build powerful databases, spreadsheets, and workflows. Select a base from the sidebar or start fresh.
           </p>
         </div>
-        <Button
-          className="bg-[#3366FF] hover:bg-[#2952CC] text-white gap-1.5"
-          onClick={() => setCreateOpen(true)}
-        >
-          <Plus size={16} /> Create Base
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            className="bg-[#3366FF] hover:bg-[#2952CC] text-white gap-1.5"
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus size={16} /> Create Base
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => setImportOpen(true)}
+          >
+            <Download size={16} /> Import from Airtable
+          </Button>
+        </div>
 
         <div className="pt-4">
           <p className="text-[12px] font-medium text-[#9AA2AF] uppercase tracking-wider mb-3">
@@ -89,6 +100,7 @@ export function EmptyState() {
         </div>
       </div>
       <CreateBaseDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <ImportAirtableDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }
