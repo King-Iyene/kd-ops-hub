@@ -176,14 +176,10 @@ export function useCreateTable() {
 
       // 4c. Create 3 empty default rows
       for (let i = 0; i < 3; i++) {
-        await supabase.functions.invoke('ddl-executor', {
-          body: {
-            action: 'insertRecord',
-            schemaName: base.schema_name,
-            tableName: pgTableName,
-            data: { nc_order: i + 1 },
-          },
-        });
+        await supabase
+          .schema(base.schema_name)
+          .from(pgTableName)
+          .insert({ nc_order: i + 1 });
       }
 
       // 5. Create default grid view
