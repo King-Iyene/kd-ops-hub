@@ -1,6 +1,7 @@
 import React from 'react';
 import { Check, ExternalLink, Copy, Star, Paperclip } from 'lucide-react';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
+import { LinkCellRenderer } from './LinkCellRenderer';
 import { PILL_COLORS } from '@/features/database/types';
 
 interface CellRendererProps {
@@ -380,10 +381,11 @@ export function getCellRenderer(uiType: string) {
     case 'CreatedBy':
     case 'LastModifiedBy':
       return SystemCellRenderer;
+    case 'Links':
+      return LinkCellRenderer;
     case 'Formula':
     case 'Rollup':
     case 'Lookup':
-    case 'Links':
       return ComputedCellRenderer;
     default:
       return TextCellRenderer;
