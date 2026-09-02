@@ -11,11 +11,14 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Plus, X } from 'lucide-react';
 import { useCreateField } from '../hooks';
+import { useCreateLink } from '../hooks/useLinks';
+import { useTables } from '../hooks/useTables';
 import { useDatabaseUI } from '../lib/store';
 import type { UIType, SelectChoice } from '../types';
 import { PILL_COLORS } from '../types';
 import { getFieldTypeIcon } from './grid/field-icons';
 import { cn } from '@/lib/utils';
+import { validateFormula, FORMULA_FUNCTIONS } from '../lib/formula';
 
 interface CreateFieldDialogProps {
   open: boolean;
@@ -47,11 +50,13 @@ const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
   { value: 'SingleSelect', label: 'Single Select', group: 'Selection' },
   { value: 'MultiSelect', label: 'Multi Select', group: 'Selection' },
   { value: 'Checkbox', label: 'Checkbox', group: 'Selection' },
+  { value: 'Formula', label: 'Formula', group: 'Computed' },
+  { value: 'Links', label: 'Links', group: 'Relations' },
   { value: 'Attachment', label: 'Attachment', group: 'Other' },
   { value: 'JSON', label: 'JSON', group: 'Other' },
 ];
 
-const GROUPS = ['Text', 'Numeric', 'Date & Time', 'Selection', 'Other'];
+const GROUPS = ['Text', 'Numeric', 'Date & Time', 'Selection', 'Computed', 'Other'];
 
 function ColorDot({ color, selected, onClick }: { color: typeof PILL_COLORS[0]; selected: boolean; onClick: () => void }) {
   return (
@@ -75,11 +80,25 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [isRequired, setIsRequired] = useState(false);
   const [choices, setChoices] = useState<SelectChoice[]>([]);
   const [newChoiceText, setNewChoiceText] = useState('');
+  const [formulaExpression, setFormulaExpression] = useState('');
+  const [formulaError, setFormulaError] = useState('');
   const [error, setError] = useState('');
   const { activeTableId } = useDatabaseUI();
   const createField = useCreateField();
 
   const isSelectType = uiType === 'SingleSelect' || uiType === 'MultiSelect';
+  const isLinksType = uiType === 'Links';
+  const isFormula = uiType === 'Formula';
+
+  const handleFormulaChange = useCallback((expr: string) => {
+    setFormulaExpression(expr);
+    if (expr.trim()) {
+      const result = validateFormula(expr);
+      setFormulaError(result.valid ? '' : (result.error ?? 'Invalid formula'));
+    } else {
+      setFormulaError('');
+    }
+  }, []);
 
   const addChoice = useCallback(() => {
     const title = newChoiceText.trim();
@@ -112,6 +131,18 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
       if (isSelectType && choices.length > 0) {
         options.choices = choices;
       }
+      if (isFormula) {
+        if (!formulaExpression.trim()) {
+          setError('Formula expression is required');
+          return;
+        }
+        const validation = validateFormula(formulaExpression);
+        if (!validation.valid) {
+          setError(validation.error ?? 'Invalid formula');
+          return;
+        }
+        options.expression = formulaExpression;
+      }
       await createField.mutateAsync({
         table_id: activeTableId,
         name: name.trim(),
@@ -126,6 +157,8 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
       setIsRequired(false);
       setChoices([]);
       setNewChoiceText('');
+      setFormulaExpression('');
+      setFormulaError('');
       onOpenChange(false);
     } catch (e: any) {
       setError(e?.message ?? 'Failed to create field');
@@ -136,6 +169,10 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setUiType(type);
     if (type !== 'SingleSelect' && type !== 'MultiSelect') {
       setChoices([]);
+    }
+    if (type !== 'Formula') {
+      setFormulaExpression('');
+      setFormulaError('');
     }
   };
 
@@ -274,6 +311,30 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 >
                   <Plus size={13} /> Add
                 </Button>
+              </div>
+            </div>
+          )}
+
+          {isFormula && (
+            <div className="space-y-2">
+              <Label className="text-xs text-[#6A7184]">Formula</Label>
+              <textarea
+                value={formulaExpression}
+                onChange={(e) => handleFormulaChange(e.target.value)}
+                placeholder='e.g. IF({Status} = "Done", 1, 0)'
+                className="w-full h-24 px-3 py-2 border border-[#E7E7E9] rounded-lg text-[13px] font-mono resize-y focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
+                spellCheck={false}
+              />
+              {formulaError && (
+                <p className="text-xs text-red-500">{formulaError}</p>
+              )}
+              {!formulaError && formulaExpression.trim() && (
+                <p className="text-xs text-green-600">Formula is valid</p>
+              )}
+              <div className="text-[10px] text-[#9AA2AF] leading-relaxed">
+                <span className="font-medium">Reference fields:</span> {'{FieldName}'} &middot;{' '}
+                <span className="font-medium">Functions:</span>{' '}
+                {FORMULA_FUNCTIONS.slice(0, 12).join(', ')}...
               </div>
             </div>
           )}

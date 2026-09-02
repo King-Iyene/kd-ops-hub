@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, ExternalLink, Copy, Paperclip, Star, Clock } from 'lucide-react';
+import { Check, ExternalLink, Copy, Paperclip, Star, Clock, Link2 } from 'lucide-react';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { PILL_COLORS } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
@@ -338,6 +338,44 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
   );
 });
 
+export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({
+  value,
+}: CellRendererProps) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'boolean') {
+    return (
+      <div className="flex items-center justify-center w-full">
+        {value ? (
+          <div className="w-4 h-4 rounded flex items-center justify-center" style={{ backgroundColor: '#0D9488' }}>
+            <Check size={12} color="#fff" strokeWidth={3} />
+          </div>
+        ) : (
+          <div className="w-4 h-4 rounded border-2" style={{ borderColor: '#94A3B8' }} />
+        )}
+      </div>
+    );
+  }
+  if (typeof value === 'number') {
+    return (
+      <span className="truncate block text-right w-full">
+        {value.toLocaleString()}
+      </span>
+    );
+  }
+  // Date strings (ISO format)
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    const date = new Date(value);
+    if (!isNaN(date.getTime())) {
+      return (
+        <span className="truncate">
+          {date.toLocaleDateString(undefined, { dateStyle: 'medium' })}
+        </span>
+      );
+    }
+  }
+  return <span className="truncate">{String(value)}</span>;
+});
+
 export const JsonCellRenderer = React.memo(function JsonCellRenderer({
   value,
 }: CellRendererProps) {
@@ -346,6 +384,22 @@ export const JsonCellRenderer = React.memo(function JsonCellRenderer({
   return (
     <span className="truncate font-mono text-[11px]" style={{ color: '#6A7184' }}>
       {text}
+    </span>
+  );
+});
+
+export const LinksCellRenderer = React.memo(function LinksCellRenderer({
+  value,
+}: CellRendererProps) {
+  const count = Array.isArray(value) ? value.length : 0;
+  if (count === 0) return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80"
+      style={{ backgroundColor: '#DBEAFE', color: '#1E40AF' }}
+    >
+      <Link2 size={12} />
+      {count} linked {count === 1 ? 'record' : 'records'}
     </span>
   );
 });
@@ -386,6 +440,10 @@ export function getCellRenderer(uiType: string) {
       return AttachmentCellRenderer;
     case 'JSON':
       return JsonCellRenderer;
+    case 'Formula':
+      return FormulaCellRenderer;
+    case 'Links':
+      return LinksCellRenderer;
     case 'ID':
     case 'CreatedTime':
     case 'LastModifiedTime':
