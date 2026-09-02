@@ -548,7 +548,7 @@ export function getCellRenderer(uiType: string) {
     case 'Formula':
       return FormulaCellRenderer;
     case 'Links':
-      return LinksCellRenderer;
+      return LinkCellRenderer;
     case 'Lookup':
       return LookupCellRenderer;
     case 'Rollup':
@@ -560,14 +560,6 @@ export function getCellRenderer(uiType: string) {
     case 'CreatedBy':
     case 'LastModifiedBy':
       return SystemCellRenderer;
-    case 'Links':
-      return LinkCellRenderer;
-    case 'Lookup':
-      return LookupCellRenderer;
-    case 'Rollup':
-      return RollupCellRenderer;
-    case 'Formula':
-      return ComputedCellRenderer;
     default:
       return TextCellRenderer;
   }
