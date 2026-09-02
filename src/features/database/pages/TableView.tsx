@@ -250,7 +250,7 @@ export function TableView() {
             totalCount={recordsData?.totalCount ?? 0}
             isLoading={isLoading}
             onExpandRow={setExpandedRecord}
-            onAddRow={() => handleAddRow()}
+            onAddRow={(record) => handleAddRow(record)}
           />
         );
       default:
@@ -295,6 +295,7 @@ export function TableView() {
         onCellUpdate={handleCellUpdate}
         records={recordsData?.records ?? []}
         onNavigate={setExpandedRecord}
+        onDeleteRecord={handleDeleteRow}
       />
       <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />
     </div>

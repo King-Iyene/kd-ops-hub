@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, Star, MessageSquare, ChevronDown, Paperclip } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, MessageSquare, ChevronDown, Paperclip, Link2, Trash2, Clock, Activity } from 'lucide-react';
 import { RecordComments } from './RecordComments';
 import type { FieldMeta, RecordRow, SelectChoice } from '../types';
 import { PILL_COLORS } from '../types';
@@ -17,6 +17,7 @@ interface ExpandedRowModalProps {
   onCellUpdate?: (recordId: string, fieldId: string, value: any) => void;
   records?: RecordRow[];
   onNavigate?: (record: RecordRow) => void;
+  onDeleteRecord?: (recordId: string) => void;
 }
 
 function getPillColor(colorName: string) {
@@ -33,6 +34,10 @@ const SYSTEM_TYPES = new Set([
 
 function isSystemField(field: FieldMeta): boolean {
   return SYSTEM_TYPES.has(field.ui_type) || !!field.is_system;
+}
+
+function isPrimaryField(field: FieldMeta): boolean {
+  return !!field.is_primary;
 }
 
 function InlineTextEditor({
@@ -252,28 +257,6 @@ function InlineRatingEditor({
   );
 }
 
-function CommentsSection({ baseId, tableId, recordId }: { baseId: string; tableId: string; recordId: string }) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <div className="mt-6 pt-4 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-1.5 text-[10px] font-semibold text-[#9AA2AF] uppercase tracking-wider mb-3 hover:text-[#6A7184] transition-colors"
-      >
-        <MessageSquare size={12} />
-        Comments
-        <ChevronDown size={12} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
-      </button>
-      {expanded && (
-        <div className="max-h-[260px] flex flex-col">
-          <RecordComments baseId={baseId} tableId={tableId} recordId={recordId} />
-        </div>
-      )}
-    </div>
-  );
-}
-
 function InlineAttachmentEditor({
   value,
   fieldId,
@@ -291,8 +274,7 @@ function InlineAttachmentEditor({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors hover:border-[#3366FF] hover:text-[#3366FF]"
-        style={{ borderColor: '#E7E7E9', color: '#6A7184' }}
+        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors border-[#E7E7E9] text-[#6A7184] hover:border-[#3366FF] hover:text-[#3366FF] dark:border-[hsl(200,25%,18%)] dark:text-[#9AA2AF] dark:hover:border-[#3366FF] dark:hover:text-[#3366FF]"
       >
         <Paperclip size={14} />
         {attachments.length > 0
@@ -304,7 +286,7 @@ function InlineAttachmentEditor({
           {attachments.map((att, i) => {
             const isImage = att.type?.startsWith('image/');
             return (
-              <div key={i} className="w-12 h-12 rounded border border-[#E7E7E9] overflow-hidden bg-[#FAFAFA] dark:bg-[hsl(200,30%,12%)]">
+              <div key={i} className="w-12 h-12 rounded border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] overflow-hidden bg-[#FAFAFA] dark:bg-[hsl(200,30%,12%)]">
                 {isImage ? (
                   <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
                 ) : (
@@ -328,6 +310,204 @@ function InlineAttachmentEditor({
   );
 }
 
+/* ── Tooltip wrapper ─────────────────────────────────────────────────── */
+function Tooltip({ text, children }: { text: string; children: React.ReactNode }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span
+      className="relative inline-flex"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      {show && (
+        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-[10px] rounded bg-[#374151] dark:bg-[hsl(200,25%,88%)] text-white dark:text-[hsl(200,30%,10%)] whitespace-nowrap z-50 pointer-events-none shadow">
+          {text}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/* ── Copied-link toast ───────────────────────────────────────────────── */
+function CopyLinkButton({ recordId }: { recordId: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('record', recordId);
+    navigator.clipboard.writeText(url.toString()).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [recordId]);
+
+  return (
+    <button
+      onClick={copy}
+      className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+      title="Copy record link"
+    >
+      {copied ? (
+        <span className="text-[10px] font-medium text-green-600 dark:text-green-400 px-1">Copied!</span>
+      ) : (
+        <Link2 size={15} className="text-[#6A7184] dark:text-[#9AA2AF]" />
+      )}
+    </button>
+  );
+}
+
+/* ── Delete button with confirmation ─────────────────────────────────── */
+function DeleteRecordButton({
+  onDelete,
+}: {
+  onDelete: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  if (confirming) {
+    return (
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => {
+            onDelete();
+            setConfirming(false);
+          }}
+          className="px-2 py-1 rounded text-[11px] font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+        >
+          Confirm
+        </button>
+        <button
+          onClick={() => setConfirming(false)}
+          className="px-2 py-1 rounded text-[11px] font-medium text-[#6A7184] hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setConfirming(true)}
+      className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+      title="Delete record"
+    >
+      <Trash2 size={15} className="text-red-500 dark:text-red-400" />
+    </button>
+  );
+}
+
+/* ── Comments section (sidebar) ──────────────────────────────────────── */
+function CommentsSection({ baseId, tableId, recordId }: { baseId: string; tableId: string; recordId: string }) {
+  return (
+    <div>
+      <h3 className="flex items-center gap-1.5 text-[10px] font-semibold text-[#9AA2AF] uppercase tracking-wider mb-3">
+        <MessageSquare size={12} />
+        Comments
+      </h3>
+      <div className="max-h-[320px] flex flex-col">
+        <RecordComments baseId={baseId} tableId={tableId} recordId={recordId} />
+      </div>
+    </div>
+  );
+}
+
+/* ── Activity / Audit trail section ──────────────────────────────────── */
+function ActivitySection({ record, fields }: { record: RecordRow; fields: FieldMeta[] }) {
+  const createdField = fields.find((f) => f.ui_type === 'CreatedTime');
+  const modifiedField = fields.find((f) => f.ui_type === 'LastModifiedTime');
+
+  const createdAt = createdField ? record[createdField.pg_column_name] : null;
+  const modifiedAt = modifiedField ? record[modifiedField.pg_column_name] : null;
+
+  const fmt = (v: unknown) => {
+    if (!v) return 'Unknown';
+    try {
+      return new Date(v as string).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+    } catch {
+      return String(v);
+    }
+  };
+
+  return (
+    <div>
+      <h3 className="flex items-center gap-1.5 text-[10px] font-semibold text-[#9AA2AF] uppercase tracking-wider mb-3">
+        <Activity size={12} />
+        Activity
+      </h3>
+      <div className="space-y-3">
+        <div className="flex items-start gap-2.5">
+          <div className="mt-0.5 w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
+            <Clock size={10} className="text-green-600 dark:text-green-400" />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Record created</p>
+            <p className="text-[10px] text-[#9AA2AF]">{fmt(createdAt)}</p>
+          </div>
+        </div>
+        {modifiedAt && modifiedAt !== createdAt && (
+          <div className="flex items-start gap-2.5">
+            <div className="mt-0.5 w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+              <Clock size={10} className="text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Last modified</p>
+              <p className="text-[10px] text-[#9AA2AF]">{fmt(modifiedAt)}</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── System fields accordion ─────────────────────────────────────────── */
+function SystemFieldsAccordion({
+  fields,
+  record,
+}: {
+  fields: FieldMeta[];
+  record: RecordRow;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (fields.length === 0) return null;
+
+  return (
+    <div className="border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] pt-4">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-1.5 text-[10px] font-semibold text-[#9AA2AF] uppercase tracking-wider mb-3 hover:text-[#6A7184] dark:hover:text-[hsl(200,25%,70%)] transition-colors"
+      >
+        <Clock size={12} />
+        System Fields
+        <ChevronDown size={12} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+      </button>
+      {expanded && (
+        <div className="grid grid-cols-2 gap-3">
+          {fields.map((field) => {
+            const val = record[field.pg_column_name];
+            const Renderer = getCellRenderer(field.ui_type);
+            return (
+              <div key={field.id}>
+                <label className="block text-[10px] font-medium text-[#9AA2AF] mb-0.5">{field.name}</label>
+                <div className="text-xs text-[#6A7184] dark:text-[hsl(200,25%,70%)]">
+                  <Renderer value={val} field={field} record={record} rowHeight="default" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ExpandedRowModal({
   open,
   onOpenChange,
@@ -338,6 +518,7 @@ export function ExpandedRowModal({
   onCellUpdate,
   records,
   onNavigate,
+  onDeleteRecord,
 }: ExpandedRowModalProps) {
   const currentIndex = records && record ? records.findIndex((r) => r.id === record.id) : -1;
   const hasPrev = currentIndex > 0;
@@ -377,7 +558,8 @@ export function ExpandedRowModal({
     .filter((f) => !f.is_hidden && f.ui_type !== 'ID')
     .sort((a, b) => a.position - b.position);
 
-  const editableFields = visibleFields.filter((f) => !isSystemField(f));
+  const primaryFields = visibleFields.filter((f) => isPrimaryField(f) && !isSystemField(f));
+  const regularFields = visibleFields.filter((f) => !isPrimaryField(f) && !isSystemField(f));
   const systemFields = visibleFields.filter((f) => isSystemField(f));
 
   const handleUpdate = (fieldId: string, value: any) => {
@@ -421,20 +603,42 @@ export function ExpandedRowModal({
     }
   };
 
+  const renderFieldRow = (field: FieldMeta) => {
+    const Icon = getFieldTypeIcon(field.ui_type);
+    return (
+      <div key={field.id}>
+        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-[#6A7184] dark:text-[#9AA2AF] uppercase tracking-wider mb-1.5">
+          {field.description ? (
+            <Tooltip text={field.description}>
+              <Icon size={11} className="text-[#9AA2AF]" />
+            </Tooltip>
+          ) : (
+            <Icon size={11} className="text-[#9AA2AF]" />
+          )}
+          {field.name}
+          {field.is_required && <span className="text-red-400">*</span>}
+        </label>
+        <div className="text-sm text-[#374151] dark:text-[hsl(200,25%,88%)] min-h-[28px] flex items-center">
+          {renderEditor(field)}
+        </div>
+      </div>
+    );
+  };
+
   const primaryField = fields.find((f) => f.is_primary);
   const title = primaryField ? record[primaryField.pg_column_name] : record.id;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/30"
+        className="absolute inset-0 bg-black/30 dark:bg-black/50"
         onClick={() => onOpenChange(false)}
       />
       <div
-        className="relative bg-white dark:bg-[hsl(200,30%,10%)] rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]"
+        className="relative bg-white dark:bg-[hsl(200,30%,10%)] rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <h2 className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
               {title || 'Untitled'}
@@ -444,79 +648,75 @@ export function ExpandedRowModal({
                 <button
                   onClick={goToPrev}
                   disabled={!hasPrev}
-                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5"
-                  style={{ opacity: hasPrev ? 1 : 0.3 }}
+                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-30 transition-colors"
                 >
-                  <ChevronLeft size={16} className="text-[#6A7184]" />
+                  <ChevronLeft size={16} className="text-[#6A7184] dark:text-[#9AA2AF]" />
                 </button>
-                <span className="text-xs text-[#9AA2AF] select-none">
-                  {currentIndex + 1} of {records.length}
+                <span className="text-xs text-[#9AA2AF] select-none tabular-nums">
+                  {currentIndex + 1} / {records.length}
                 </span>
                 <button
                   onClick={goToNext}
                   disabled={!hasNext}
-                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5"
-                  style={{ opacity: hasNext ? 1 : 0.3 }}
+                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-30 transition-colors"
                 >
-                  <ChevronRight size={16} className="text-[#6A7184]" />
+                  <ChevronRight size={16} className="text-[#6A7184] dark:text-[#9AA2AF]" />
                 </button>
               </div>
             )}
           </div>
-          <button
-            onClick={() => onOpenChange(false)}
-            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5"
-          >
-            <X size={16} className="text-[#6A7184] dark:text-[#9AA2AF]" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <CopyLinkButton recordId={record.id} />
+            {onDeleteRecord && (
+              <DeleteRecordButton
+                onDelete={() => {
+                  onDeleteRecord(record.id);
+                  onOpenChange(false);
+                }}
+              />
+            )}
+            <button
+              onClick={() => onOpenChange(false)}
+              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+            >
+              <X size={16} className="text-[#6A7184] dark:text-[#9AA2AF]" />
+            </button>
+          </div>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-5">
-          <div className="space-y-4">
-            {editableFields.map((field) => {
-              const Icon = getFieldTypeIcon(field.ui_type);
-              return (
-                <div key={field.id}>
-                  <label className="flex items-center gap-1.5 text-[11px] font-semibold text-[#6A7184] dark:text-[#9AA2AF] uppercase tracking-wider mb-1.5">
-                    <Icon size={11} className="text-[#9AA2AF]" />
-                    {field.name}
-                    {field.is_required && <span className="text-red-400">*</span>}
-                  </label>
-                  <div className="text-sm text-[#374151] dark:text-[hsl(200,25%,88%)] min-h-[28px] flex items-center">
-                    {renderEditor(field)}
-                  </div>
-                  {field.description && (
-                    <p className="mt-0.5 text-[10px] text-[#9AA2AF]">{field.description}</p>
-                  )}
-                </div>
-              );
-            })}
+        {/* Body — two-column on lg */}
+        <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row">
+          {/* Left: Fields */}
+          <div className="flex-1 lg:overflow-y-auto p-5 lg:border-r border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+            {/* Primary fields */}
+            {primaryFields.length > 0 && (
+              <div className="space-y-4 mb-6">
+                {primaryFields.map(renderFieldRow)}
+              </div>
+            )}
+
+            {/* Regular fields */}
+            {regularFields.length > 0 && (
+              <div className="space-y-4">
+                {regularFields.map(renderFieldRow)}
+              </div>
+            )}
+
+            {/* System fields accordion */}
+            {systemFields.length > 0 && (
+              <div className="mt-6">
+                <SystemFieldsAccordion fields={systemFields} record={record} />
+              </div>
+            )}
           </div>
 
-          {/* Comments section */}
-          <CommentsSection baseId={baseId} tableId={tableId} recordId={record.id} />
-
-          {/* System fields */}
-          {systemFields.length > 0 && (
+          {/* Right: Comments + Activity */}
+          <div className="lg:w-[320px] shrink-0 lg:overflow-y-auto p-5 border-t lg:border-t-0 border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+            <CommentsSection baseId={baseId} tableId={tableId} recordId={record.id} />
             <div className="mt-6 pt-4 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
-              <h3 className="text-[10px] font-semibold text-[#9AA2AF] uppercase tracking-wider mb-3">System</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {systemFields.map((field) => {
-                  const val = record[field.pg_column_name];
-                  const Renderer = getCellRenderer(field.ui_type);
-                  return (
-                    <div key={field.id}>
-                      <label className="block text-[10px] font-medium text-[#9AA2AF] mb-0.5">{field.name}</label>
-                      <div className="text-xs text-[#6A7184]">
-                        <Renderer value={val} field={field} record={record} rowHeight="default" />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <ActivitySection record={record} fields={fields} />
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

@@ -7,6 +7,7 @@ import {
   Database,
   Copy,
   Palette,
+  Settings,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,9 +19,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useDatabaseUI } from '../lib/store';
-import { useBases, useCreateBase, useDeleteBase, useUpdateBase } from '../hooks';
+import { useBases, useCreateBase, useDeleteBase, useUpdateBase, useDuplicateBase } from '../hooks';
 import { useWorkspaces } from '../hooks';
 import { CreateBaseDialog } from './CreateBaseDialog';
+import { BaseSettingsDialog } from './BaseSettingsDialog';
+import type { Base } from '../types';
 
 const BASE_COLORS = [
   '#3366FF', '#0D9488', '#8B5CF6', '#EC4899', '#F59E0B',
@@ -76,9 +79,12 @@ export function DatabaseSidebar() {
   const createBase = useCreateBase();
   const { data: workspaces } = useWorkspaces();
 
+  const duplicateBase = useDuplicateBase();
+
   const [createBaseOpen, setCreateBaseOpen] = useState(false);
   const [renamingBaseId, setRenamingBaseId] = useState<string | null>(null);
   const [colorPickerBaseId, setColorPickerBaseId] = useState<string | null>(null);
+  const [settingsBase, setSettingsBase] = useState<Base | null>(null);
 
   const handleRenameBase = useCallback(
     (baseId: string, name: string) => {
@@ -89,17 +95,10 @@ export function DatabaseSidebar() {
   );
 
   const handleDuplicateBase = useCallback(
-    (base: any) => {
-      const wsId = base.workspace_id || workspaces?.[0]?.id;
-      if (!wsId) return;
-      createBase.mutate({
-        workspace_id: wsId,
-        name: `${base.name} (copy)`,
-        color: base.color,
-        icon: base.icon,
-      });
+    (base: Base) => {
+      duplicateBase.mutate(base.id);
     },
-    [createBase, workspaces],
+    [duplicateBase],
   );
 
   const handleColorChange = useCallback(
@@ -244,6 +243,15 @@ export function DatabaseSidebar() {
                     ))}
                   </div>
                 )}
+                <DropdownMenuItem
+                  className="text-xs gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSettingsBase(base as Base);
+                  }}
+                >
+                  <Settings size={12} /> Settings
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-xs gap-2 text-red-500 focus:text-red-500"
@@ -278,6 +286,13 @@ export function DatabaseSidebar() {
       </div>
 
       <CreateBaseDialog open={createBaseOpen} onOpenChange={setCreateBaseOpen} />
+      {settingsBase && (
+        <BaseSettingsDialog
+          open={!!settingsBase}
+          onOpenChange={(open) => { if (!open) setSettingsBase(null); }}
+          base={settingsBase}
+        />
+      )}
     </aside>
   );
 }

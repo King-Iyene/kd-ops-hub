@@ -18,3 +18,4 @@ export { useApiTokens, useCreateApiToken, useDeleteApiToken } from './useApiToke
 export { useComments, useCreateComment, useDeleteComment } from './useComments';
 export { useAutomations, useCreateAutomation, useUpdateAutomation, useDeleteAutomation } from './useAutomations';
 export { useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook } from './useWebhooks';
+export { useDuplicateBase } from './useDuplicateBase';

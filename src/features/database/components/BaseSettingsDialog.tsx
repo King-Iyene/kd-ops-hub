@@ -1,0 +1,271 @@
+import { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import { useUpdateBase, useDeleteBase } from '../hooks';
+import { useDatabaseUI } from '../lib/store';
+import type { Base } from '../types';
+
+interface BaseSettingsDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  base: Base;
+}
+
+const COLOR_OPTIONS = [
+  { name: 'Blue', value: '#3366FF' },
+  { name: 'Green', value: '#10B981' },
+  { name: 'Teal', value: '#14B8A6' },
+  { name: 'Purple', value: '#8B5CF6' },
+  { name: 'Pink', value: '#EC4899' },
+  { name: 'Red', value: '#EF4444' },
+  { name: 'Orange', value: '#F97316' },
+  { name: 'Yellow', value: '#F59E0B' },
+  { name: 'Lime', value: '#84CC16' },
+  { name: 'Cyan', value: '#06B6D4' },
+  { name: 'Indigo', value: '#6366F1' },
+  { name: 'Gray', value: '#64748B' },
+];
+
+const EMOJI_OPTIONS = [
+  '📊', '📁', '📋', '📅', '📦',
+  '🚀', '⭐', '💡', '🎯', '🔧',
+  '📝', '📚', '🧩', '🌐', '❤️',
+  '🏠', '🎨', '💼', '🔬', '📈',
+];
+
+type Tab = 'general' | 'danger';
+
+export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDialogProps) {
+  const [tab, setTab] = useState<Tab>('general');
+  const [name, setName] = useState(base.name);
+  const [color, setColor] = useState(base.color ?? '#3366FF');
+  const [icon, setIcon] = useState(base.icon ?? '📊');
+  const [error, setError] = useState('');
+  const [confirmName, setConfirmName] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const updateBase = useUpdateBase();
+  const deleteBase = useDeleteBase();
+  const { activeBaseId, setActiveBase } = useDatabaseUI();
+
+  // Reset state when base changes or dialog opens
+  useEffect(() => {
+    if (open) {
+      setName(base.name);
+      setColor(base.color ?? '#3366FF');
+      setIcon(base.icon ?? '📊');
+      setError('');
+      setConfirmName('');
+      setShowDeleteConfirm(false);
+      setTab('general');
+    }
+  }, [open, base]);
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      setError('Base name is required');
+      return;
+    }
+    setError('');
+    try {
+      await updateBase.mutateAsync({
+        id: base.id,
+        name: name.trim(),
+        color,
+        icon,
+      });
+      onOpenChange(false);
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to update base');
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await deleteBase.mutateAsync(base.id);
+      if (activeBaseId === base.id) setActiveBase(null);
+      onOpenChange(false);
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to delete base');
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>Base Settings</DialogTitle>
+        </DialogHeader>
+
+        {/* Tabs */}
+        <div className="flex gap-1 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] mb-4">
+          <button
+            className={cn(
+              'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
+              tab === 'general'
+                ? 'border-[#3366FF] text-[#3366FF]'
+                : 'border-transparent text-[#6A7184] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
+            )}
+            onClick={() => setTab('general')}
+          >
+            General
+          </button>
+          <button
+            className={cn(
+              'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
+              tab === 'danger'
+                ? 'border-red-500 text-red-500'
+                : 'border-transparent text-[#6A7184] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
+            )}
+            onClick={() => setTab('danger')}
+          >
+            Danger Zone
+          </button>
+        </div>
+
+        {tab === 'general' && (
+          <div className="space-y-4">
+            {/* Name */}
+            <div className="space-y-1.5">
+              <Label htmlFor="settings-base-name" className="text-xs">
+                Base Name
+              </Label>
+              <Input
+                id="settings-base-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Base name"
+                onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+              />
+            </div>
+
+            {/* Color */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Color</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {COLOR_OPTIONS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    title={c.name}
+                    className={cn(
+                      'w-7 h-7 rounded-full transition-transform',
+                      color === c.value && 'ring-2 ring-offset-2 ring-[#3366FF] scale-110',
+                    )}
+                    style={{ backgroundColor: c.value }}
+                    onClick={() => setColor(c.value)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Icon */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Icon</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {EMOJI_OPTIONS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    className={cn(
+                      'w-8 h-8 rounded flex items-center justify-center text-base hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)] transition-colors',
+                      icon === emoji && 'ring-2 ring-[#3366FF] bg-[#3366FF]/5',
+                    )}
+                    onClick={() => setIcon(emoji)}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {error && <p className="text-xs text-red-500">{error}</p>}
+          </div>
+        )}
+
+        {tab === 'danger' && (
+          <div className="space-y-4">
+            <div className="rounded-md border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/5 p-4">
+              <h4 className="text-sm font-medium text-red-700 dark:text-red-400 mb-1">
+                Delete this base
+              </h4>
+              <p className="text-xs text-red-600/80 dark:text-red-400/70 mb-3">
+                This action cannot be undone. All tables, fields, and data in this base will be
+                permanently deleted.
+              </p>
+
+              {!showDeleteConfirm ? (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  Delete Base
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-delete" className="text-xs text-red-600 dark:text-red-400">
+                    Type <span className="font-semibold">{base.name}</span> to confirm
+                  </Label>
+                  <Input
+                    id="confirm-delete"
+                    value={confirmName}
+                    onChange={(e) => setConfirmName(e.target.value)}
+                    placeholder={base.name}
+                    className="border-red-300 dark:border-red-500/40"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={confirmName !== base.name || deleteBase.isPending}
+                      onClick={handleDelete}
+                    >
+                      {deleteBase.isPending ? 'Deleting...' : 'Permanently Delete'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setConfirmName('');
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+            {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+          </div>
+        )}
+
+        {tab === 'general' && (
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="bg-[#3366FF] hover:bg-[#2952CC]"
+              onClick={handleSave}
+              disabled={updateBase.isPending}
+            >
+              {updateBase.isPending ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
