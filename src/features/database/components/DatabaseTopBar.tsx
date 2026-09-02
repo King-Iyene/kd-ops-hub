@@ -196,6 +196,7 @@ export function DatabaseTopBar() {
       <ShareViewDialog open={shareViewOpen} onOpenChange={setShareViewOpen} viewId={activeViewId} tableId={activeTableId} />
       <ApiTokensDialog open={apiTokensOpen} onOpenChange={setApiTokensOpen} baseId={activeBaseId} />
       <AutomationsDialog open={automationsOpen} onOpenChange={setAutomationsOpen} tableId={activeTableId} baseId={activeBaseId} />
+      <WebhooksDialog open={webhooksOpen} onOpenChange={setWebhooksOpen} tableId={activeTableId} baseId={activeBaseId} />
 
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
         <DialogContent className="sm:max-w-[480px]">
