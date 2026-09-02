@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ArrowUp, ArrowDown, EyeOff, Pencil, Trash2, Copy, ArrowLeftRight, Info } from 'lucide-react';
+import { ArrowUp, ArrowDown, EyeOff, Pencil, Trash2, Copy, ArrowLeftRight, Info, Lock, Unlock } from 'lucide-react';
 import type { FieldMeta } from '@/features/database/types';
 import { getFieldTypeIcon } from './field-icons';
 import { useDatabaseUI } from '../../lib/store';
@@ -15,6 +15,9 @@ interface ColumnHeaderProps {
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: (e: React.DragEvent) => void;
+  columnIndex?: number;
+  onFreezeUpTo?: (columnIndex: number) => void;
+  isFrozen?: boolean;
 }
 
 export const ColumnHeader = React.memo(function ColumnHeader({
@@ -28,6 +31,9 @@ export const ColumnHeader = React.memo(function ColumnHeader({
   draggable: isDraggable,
   onDragStart,
   onDragEnd,
+  columnIndex,
+  onFreezeUpTo,
+  isFrozen,
 }: ColumnHeaderProps) {
   const Icon = getFieldTypeIcon(field.ui_type);
   const startXRef = useRef(0);
@@ -46,7 +52,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
 
       const handleMouseMove = (ev: MouseEvent) => {
         const diff = ev.clientX - startXRef.current;
-        const newWidth = Math.max(60, startWidthRef.current + diff);
+        const newWidth = Math.min(600, Math.max(80, startWidthRef.current + diff));
         onResize(field.id, newWidth);
       };
 
@@ -142,8 +148,13 @@ export const ColumnHeader = React.memo(function ColumnHeader({
       {/* Resize handle */}
       <div
         className="absolute right-0 top-0 h-full hover:bg-[#3366FF]"
-        style={{ width: 3, cursor: 'col-resize' }}
+        style={{ width: 4, cursor: 'col-resize' }}
         onMouseDown={handleMouseDown}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onResize(field.id, 180);
+        }}
       />
 
       {contextMenu && (
@@ -191,6 +202,18 @@ export const ColumnHeader = React.memo(function ColumnHeader({
                 onClick={handleHide}
               >
                 <EyeOff size={14} className="text-[#9AA2AF]" /> Hide field
+              </button>
+            )}
+            {columnIndex != null && onFreezeUpTo && (
+              <button
+                className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                onClick={() => {
+                  onFreezeUpTo(isFrozen ? 0 : columnIndex + 1);
+                  setContextMenu(null);
+                }}
+              >
+                {isFrozen ? <Unlock size={14} className="text-[#9AA2AF]" /> : <Lock size={14} className="text-[#9AA2AF]" />}
+                {isFrozen ? 'Unfreeze columns' : `Freeze up to this column`}
               </button>
             )}
             {!field.is_primary && !field.is_system && (

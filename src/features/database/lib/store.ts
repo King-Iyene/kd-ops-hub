@@ -30,6 +30,8 @@ interface DatabaseUIState {
   rowColorRules: RowColorRule[];
   conditionalFormats: ConditionalFormatRule[];
   summaryFunctions: Record<string, SummaryFunction>;
+  fieldWidths: Record<string, number>;
+  frozenColumns: number;
 
   setConditionalFormats: (rules: ConditionalFormatRule[]) => void;
   setActiveBase: (id: string | null) => void;
@@ -54,6 +56,8 @@ interface DatabaseUIState {
   setSearchQuery: (query: string) => void;
   setRowColorRules: (rules: RowColorRule[]) => void;
   setSummaryFunction: (fieldId: string, fn: SummaryFunction) => void;
+  setFieldWidth: (fieldId: string, width: number) => void;
+  setFrozenColumns: (count: number) => void;
 }
 
 export const useDatabaseUI = create<DatabaseUIState>((set) => ({
@@ -73,6 +77,8 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   rowColorRules: [],
   conditionalFormats: [],
   summaryFunctions: {},
+  fieldWidths: {},
+  frozenColumns: 0,
 
   setActiveBase: (id) =>
     set({
@@ -132,4 +138,9 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
     set((s) => ({
       summaryFunctions: { ...s.summaryFunctions, [fieldId]: fn },
     })),
+  setFieldWidth: (fieldId, width) =>
+    set((s) => ({
+      fieldWidths: { ...s.fieldWidths, [fieldId]: width },
+    })),
+  setFrozenColumns: (count) => set({ frozenColumns: count }),
 }));
