@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Loader2, Expand } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { ColumnHeader } from './ColumnHeader';
@@ -14,6 +14,7 @@ export interface GridViewProps {
   onCellUpdate: (recordId: string, fieldId: string, value: any) => void;
   onAddRow: () => void;
   onAddField: () => void;
+  onExpandRow?: (record: RecordRow) => void;
   page: number;
   pageSize: number;
   onPageChange: (page: number) => void;
@@ -37,6 +38,7 @@ export default function GridView({
   onCellUpdate,
   onAddRow,
   onAddField,
+  onExpandRow,
   page,
   pageSize,
   onPageChange,
@@ -48,11 +50,12 @@ export default function GridView({
 
   const parentRef = useRef<HTMLDivElement>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
 
   const visibleFields = useMemo(
     () =>
       fields
-        .filter((f) => !f.is_hidden)
+        .filter((f) => !f.is_hidden && !f.is_system)
         .sort((a, b) => a.position - b.position),
     [fields],
   );
@@ -72,7 +75,7 @@ export default function GridView({
   );
 
   const totalWidth = useMemo(
-    () => ROW_NUMBER_WIDTH + fieldsWithWidths.reduce((sum, f) => sum + f.width, 0),
+    () => ROW_NUMBER_WIDTH + fieldsWithWidths.reduce((sum, f) => sum + f.width, 0) + 44,
     [fieldsWithWidths],
   );
 
@@ -91,9 +94,11 @@ export default function GridView({
     setColumnWidths((prev) => ({ ...prev, [fieldId]: width }));
   }, []);
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+
       if (!selectedCellId) return;
       const [rowId, fieldId] = selectedCellId.split(':');
       const rowIdx = records.findIndex((r) => r.id === rowId);
@@ -130,6 +135,16 @@ export default function GridView({
         setSelectedCell(null);
         setEditingCell(null);
         return;
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        const field = fieldsWithWidths[colIdx];
+        if (field && !field.is_system) {
+          onCellUpdate(rowId, fieldId, null);
+        }
+        return;
+      } else if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setEditingCell(selectedCellId);
+        return;
       } else {
         return;
       }
@@ -141,7 +156,7 @@ export default function GridView({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedCellId, records, fieldsWithWidths, setSelectedCell, setEditingCell]);
+  }, [selectedCellId, records, fieldsWithWidths, setSelectedCell, setEditingCell, onCellUpdate]);
 
   if (records.length === 0 && !isLoading) {
     return (
@@ -162,7 +177,6 @@ export default function GridView({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Grid */}
       <div ref={parentRef} className="flex-1 overflow-auto">
         <div style={{ minWidth: totalWidth }}>
           {/* Header */}
@@ -174,7 +188,6 @@ export default function GridView({
               borderBottom: '1px solid #E2E8F0',
             }}
           >
-            {/* Row number header */}
             <div
               className="sticky left-0 z-30 flex items-center justify-center shrink-0"
               style={{
@@ -198,7 +211,6 @@ export default function GridView({
               />
             ))}
 
-            {/* Add field button */}
             <div
               className="flex items-center justify-center shrink-0 cursor-pointer hover:bg-gray-100"
               style={{
@@ -223,8 +235,9 @@ export default function GridView({
           >
             {virtualizer.getVirtualItems().map((virtualRow) => {
               const record = records[virtualRow.index];
-              const rowNum = page * pageSize + virtualRow.index + 1;
+              const rowNum = (page - 1) * pageSize + virtualRow.index + 1;
               const isRowSelected = selectedCellId?.startsWith(record.id + ':');
+              const isHovered = hoveredRowId === record.id;
 
               return (
                 <div
@@ -233,33 +246,35 @@ export default function GridView({
                   style={{
                     height: rowHeightPx,
                     top: virtualRow.start,
-                    backgroundColor: isRowSelected ? '#EFF6FF' : undefined,
+                    backgroundColor: isRowSelected ? '#EFF6FF' : isHovered ? '#F1F5F9' : undefined,
                   }}
-                  onMouseEnter={(e) => {
-                    if (!isRowSelected) {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = '#F1F5F9';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isRowSelected) {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = '';
-                    }
-                  }}
+                  onMouseEnter={() => setHoveredRowId(record.id)}
+                  onMouseLeave={() => setHoveredRowId(null)}
                 >
-                  {/* Row number */}
+                  {/* Row number + expand */}
                   <div
-                    className="sticky left-0 z-10 flex items-center justify-center shrink-0"
+                    className="sticky left-0 z-10 flex items-center justify-center shrink-0 group/rn"
                     style={{
                       width: ROW_NUMBER_WIDTH,
                       minWidth: ROW_NUMBER_WIDTH,
-                      backgroundColor: isRowSelected ? '#EFF6FF' : '#F8FAFC',
+                      backgroundColor: isRowSelected ? '#EFF6FF' : isHovered ? '#F1F5F9' : '#F8FAFC',
                       borderRight: '1px solid #E2E8F0',
                       borderBottom: '1px solid #E2E8F0',
                       fontSize: 11,
                       color: '#94A3B8',
                     }}
                   >
-                    {rowNum}
+                    {isHovered && onExpandRow ? (
+                      <button
+                        className="p-0.5 rounded hover:bg-[#006994]/10 hover:text-[#006994]"
+                        onClick={() => onExpandRow(record)}
+                        title="Expand record"
+                      >
+                        <Expand size={14} />
+                      </button>
+                    ) : (
+                      rowNum
+                    )}
                   </div>
 
                   {fieldsWithWidths.map((field) => (
@@ -294,7 +309,7 @@ export default function GridView({
         </div>
       </div>
 
-      {/* Pagination */}
+      {/* Pagination footer */}
       <div
         className="flex items-center justify-between px-4 shrink-0"
         style={{
@@ -311,17 +326,17 @@ export default function GridView({
         <div className="flex items-center gap-2">
           <button
             className="p-1 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
-            disabled={page === 0}
+            disabled={page <= 1}
             onClick={() => onPageChange(page - 1)}
           >
             <ChevronLeft size={16} />
           </button>
           <span>
-            Page {page + 1} of {totalPages}
+            Page {page} of {totalPages}
           </span>
           <button
             className="p-1 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
-            disabled={page >= totalPages - 1}
+            disabled={page >= totalPages}
             onClick={() => onPageChange(page + 1)}
           >
             <ChevronRight size={16} />

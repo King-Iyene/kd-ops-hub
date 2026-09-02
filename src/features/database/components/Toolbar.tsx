@@ -1,14 +1,43 @@
-import { useState } from 'react';
-import { Filter, ArrowUpDown, Group, EyeOff, Search, Plus, Rows3 } from 'lucide-react';
+import { useState, useCallback, useMemo } from 'react';
+import { Group, Search, Plus, Rows3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useDatabaseUI } from '../lib/store';
+import { useFields } from '../hooks';
 import { CreateFieldDialog } from './CreateFieldDialog';
+import { FilterPanel } from './FilterPanel';
+import { SortPanel } from './SortPanel';
+import { FieldVisibilityPanel } from './FieldVisibilityPanel';
+import type { Filter, Sort } from '@/features/database/types';
 
 export function Toolbar() {
-  const { rowHeight, setRowHeight } = useDatabaseUI();
+  const { rowHeight, setRowHeight, activeTableId } = useDatabaseUI();
   const [searchOpen, setSearchOpen] = useState(false);
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
+  const [filters, setFilters] = useState<Filter[]>([]);
+  const [sorts, setSorts] = useState<Sort[]>([]);
+  const [hiddenFieldIds, setHiddenFieldIds] = useState<Set<string>>(new Set());
+
+  const { data: fields = [] } = useFields(activeTableId);
+
+  const handleToggleField = useCallback((fieldId: string) => {
+    setHiddenFieldIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(fieldId)) {
+        next.delete(fieldId);
+      } else {
+        next.add(fieldId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleShowAll = useCallback(() => setHiddenFieldIds(new Set()), []);
+
+  const handleHideAll = useCallback(() => {
+    const ids = new Set(fields.filter((f) => !f.is_system).map((f) => f.id));
+    setHiddenFieldIds(ids);
+  }, [fields]);
 
   const rowHeightOptions: Array<'compact' | 'default' | 'tall' | 'extra-tall'> = [
     'compact',
@@ -25,18 +54,26 @@ export function Toolbar() {
     <>
       <div className="flex items-center justify-between h-10 px-3 bg-[#F8FAFC] border-b border-[#E2E8F0] shrink-0">
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" className="h-7 text-xs text-[#475569] gap-1">
-            <Filter size={14} /> Filter
-          </Button>
-          <Button variant="ghost" size="sm" className="h-7 text-xs text-[#475569] gap-1">
-            <ArrowUpDown size={14} /> Sort
-          </Button>
+          <FilterPanel
+            fields={fields}
+            filters={filters}
+            onFiltersChange={setFilters}
+          />
+          <SortPanel
+            fields={fields}
+            sorts={sorts}
+            onSortsChange={setSorts}
+          />
           <Button variant="ghost" size="sm" className="h-7 text-xs text-[#475569] gap-1">
             <Group size={14} /> Group
           </Button>
-          <Button variant="ghost" size="sm" className="h-7 text-xs text-[#475569] gap-1">
-            <EyeOff size={14} /> Hide Fields
-          </Button>
+          <FieldVisibilityPanel
+            fields={fields}
+            hiddenFieldIds={hiddenFieldIds}
+            onToggleField={handleToggleField}
+            onShowAll={handleShowAll}
+            onHideAll={handleHideAll}
+          />
           <Button
             variant="ghost"
             size="sm"

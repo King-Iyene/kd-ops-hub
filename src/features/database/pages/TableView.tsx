@@ -3,6 +3,8 @@ import { Toolbar } from '../components/Toolbar';
 import { useDatabaseUI } from '../lib/store';
 import { useFields, useRecords, useCreateRecord, useUpdateRecord } from '../hooks';
 import GridView from '../components/grid/GridView';
+import { ExpandedRowModal } from '../components/ExpandedRowModal';
+import type { RecordRow } from '../types';
 
 export function TableView() {
   const { activeTableId, activeBaseId } = useDatabaseUI();
@@ -19,6 +21,7 @@ export function TableView() {
 
   const createRecord = useCreateRecord();
   const updateRecord = useUpdateRecord();
+  const [expandedRecord, setExpandedRecord] = useState<RecordRow | null>(null);
 
   const visibleFields = (fields ?? []).filter(f => !f.is_hidden).sort((a, b) => a.position - b.position);
 
@@ -54,8 +57,17 @@ export function TableView() {
           page={page}
           pageSize={pageSize}
           onPageChange={setPage}
+          onExpandRow={setExpandedRecord}
         />
       </div>
+      <ExpandedRowModal
+        open={!!expandedRecord}
+        onOpenChange={(open) => { if (!open) setExpandedRecord(null); }}
+        record={expandedRecord}
+        fields={fields ?? []}
+        baseId={activeBaseId!}
+        tableId={activeTableId!}
+      />
     </div>
   );
 }
