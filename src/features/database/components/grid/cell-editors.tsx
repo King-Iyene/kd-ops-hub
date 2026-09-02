@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Star } from 'lucide-react';
+import { Star, Paperclip, X } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
 import { PILL_COLORS } from '@/features/database/types';
 
@@ -500,6 +501,156 @@ export function JSONCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   );
 }
 
+export function AttachmentCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+  const [files, setFiles] = useState<{ name: string; url: string; type: string; size: number }[]>(
+    Array.isArray(value) ? value : [],
+  );
+  const [uploading, setUploading] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onCancel();
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onCancel]);
+
+  function formatSize(bytes: number) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function removeFile(index: number) {
+    const next = files.filter((_, i) => i !== index);
+    setFiles(next);
+    onCommit(next.length > 0 ? next : null);
+  }
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files;
+    if (!selected || selected.length === 0) return;
+    setUploading(true);
+    const newFiles = [...files];
+    for (let i = 0; i < selected.length; i++) {
+      const file = selected[i];
+      const path = `attachments/${Date.now()}_${file.name}`;
+      const { error } = await supabase.storage.from('attachments').upload(path, file);
+      if (error) continue;
+      const { data: urlData } = supabase.storage.from('attachments').getPublicUrl(path);
+      newFiles.push({ name: file.name, url: urlData.publicUrl, type: file.type, size: file.size });
+    }
+    setFiles(newFiles);
+    setUploading(false);
+    onCommit(newFiles);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  return (
+    <div
+      ref={ref}
+      className="absolute left-0 top-full z-50 bg-white border rounded-md shadow-lg py-2 min-w-[240px] max-h-[300px] overflow-y-auto"
+      style={{ borderColor: '#E2E8F0' }}
+    >
+      {files.map((f, i) => (
+        <div key={i} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50">
+          <Paperclip size={14} color="#94A3B8" className="shrink-0" />
+          <span
+            className="text-xs truncate flex-1"
+            style={{ color: '#0F172A', maxWidth: 140 }}
+            title={f.name}
+          >
+            {f.name}
+          </span>
+          <span className="text-xs shrink-0" style={{ color: '#94A3B8' }}>
+            {formatSize(f.size)}
+          </span>
+          <button
+            type="button"
+            className="p-0 border-none bg-transparent cursor-pointer shrink-0"
+            onClick={() => removeFile(i)}
+          >
+            <X size={14} color="#94A3B8" />
+          </button>
+        </div>
+      ))}
+      <div className="px-3 pt-1">
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          onChange={handleUpload}
+          className="hidden"
+        />
+        <button
+          type="button"
+          className="w-full text-xs font-medium py-1.5 px-3 rounded cursor-pointer border-none text-white"
+          style={{ backgroundColor: '#006994' }}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+        >
+          {uploading ? 'Uploading...' : 'Add file'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+  const initial = value ? new Date(value).toISOString().slice(0, 16) : '';
+  const [dt, setDt] = useState(initial);
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    ref.current?.focus();
+  }, []);
+
+  return (
+    <input
+      ref={ref}
+      type="datetime-local"
+      value={dt}
+      onChange={(e) => setDt(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onCommit(dt || null);
+        if (e.key === 'Escape') onCancel();
+      }}
+      onBlur={() => onCommit(dt || null)}
+      className="w-full h-full px-2 outline-none border-none bg-white"
+      style={{ fontSize: 13, color: '#0F172A' }}
+    />
+  );
+}
+
+export function TimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+  const [time, setTime] = useState(value ?? '');
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    ref.current?.focus();
+  }, []);
+
+  return (
+    <input
+      ref={ref}
+      type="time"
+      value={time}
+      onChange={(e) => setTime(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onCommit(time || null);
+        if (e.key === 'Escape') onCancel();
+      }}
+      onBlur={() => onCommit(time || null)}
+      className="w-full h-full px-2 outline-none border-none bg-white"
+      style={{ fontSize: 13, color: '#0F172A' }}
+    />
+  );
+}
+
 export function getCellEditor(uiType: string) {
   switch (uiType) {
     case 'SingleLineText':
@@ -515,10 +666,12 @@ export function getCellEditor(uiType: string) {
     case 'Currency':
       return CurrencyCellEditor;
     case 'Date':
-    case 'DateTime':
     case 'Year':
-    case 'Time':
       return DateCellEditor;
+    case 'DateTime':
+      return DateTimeCellEditor;
+    case 'Time':
+      return TimeCellEditor;
     case 'Duration':
       return DurationCellEditor;
     case 'Email':
@@ -549,7 +702,7 @@ export function getCellEditor(uiType: string) {
     case 'Lookup':
     case 'Links':
     case 'Attachment':
-      return null;
+      return AttachmentCellEditor;
     default:
       return TextCellEditor;
   }

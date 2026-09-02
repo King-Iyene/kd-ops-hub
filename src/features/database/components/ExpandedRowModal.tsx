@@ -351,7 +351,14 @@ function FieldRow({
         </span>
         <SavedIndicator show={savedFieldId === field.id} />
       </div>
-      <div className="flex-1 min-w-0">{renderEditor()}</div>
+      <div className="flex-1 min-w-0">
+        {field.description && (
+          <div style={{ color: '#94A3B8', fontSize: 11, marginBottom: 4 }}>
+            {field.description}
+          </div>
+        )}
+        {renderEditor()}
+      </div>
     </div>
   );
 }

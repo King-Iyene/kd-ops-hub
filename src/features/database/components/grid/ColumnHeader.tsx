@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ArrowDownAZ, ArrowUpAZ, Filter, EyeOff, Trash2, Plus } from 'lucide-react';
+import { ArrowDownAZ, ArrowUpAZ, Filter, EyeOff, Trash2, Plus, Info } from 'lucide-react';
 import type { FieldMeta } from '@/features/database/types';
 import { getFieldTypeIcon } from './field-icons';
 import { useDatabaseUI } from '../../lib/store';
@@ -100,9 +100,13 @@ export const ColumnHeader = React.memo(function ColumnHeader({
       onDragOver={(e) => { e.preventDefault(); onDragOver?.(field.id); }}
       onDrop={() => onDrop?.(field.id)}
       onContextMenu={handleRightClick}
+      {...(field.description ? { title: field.description } : {})}
     >
       <Icon size={14} className="shrink-0" style={{ color: '#94A3B8' }} />
       <span className="truncate">{field.name}</span>
+      {field.description && (
+        <Info size={10} className="shrink-0" style={{ color: '#94A3B8' }} />
+      )}
 
       <div
         className="absolute right-0 top-0 h-full hover:bg-blue-400"

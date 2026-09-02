@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import { Group, Plus, Rows3, Download, Upload } from 'lucide-react';
+import { Plus, Rows3, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
 import { useFields, useRecords, useCreateRecord } from '../hooks';
@@ -7,6 +7,7 @@ import { CreateFieldDialog } from './CreateFieldDialog';
 import { FilterPanel } from './FilterPanel';
 import { SortPanel } from './SortPanel';
 import { FieldVisibilityPanel } from './FieldVisibilityPanel';
+import { GroupPanel } from './GroupPanel';
 import { SearchBar } from './SearchBar';
 import { exportToCSV, parseCSV, csvToRecords } from '../lib/csv';
 import { useState } from 'react';
@@ -21,6 +22,8 @@ export function Toolbar() {
     setFilters,
     sorts,
     setSorts,
+    groups,
+    setGroups,
     hiddenFieldIds,
     toggleHiddenField,
     setHiddenFieldIds,
@@ -97,9 +100,11 @@ export function Toolbar() {
             sorts={sorts}
             onSortsChange={setSorts}
           />
-          <Button variant="ghost" size="sm" className="h-7 text-xs text-[#475569] gap-1">
-            <Group size={14} /> Group
-          </Button>
+          <GroupPanel
+            fields={fields}
+            groups={groups}
+            onGroupsChange={setGroups}
+          />
           <FieldVisibilityPanel
             fields={fields}
             hiddenFieldIds={hiddenFieldIds}

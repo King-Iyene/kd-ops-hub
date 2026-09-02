@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Filter, Sort } from '../types';
+import type { Filter, Sort, Group } from '../types';
 
 interface DatabaseUIState {
   activeBaseId: string | null;
@@ -13,6 +13,7 @@ interface DatabaseUIState {
   sorts: Sort[];
   hiddenFieldIds: Set<string>;
   searchQuery: string;
+  groups: Group[];
   kanbanFieldId: string | null;
   calendarFieldId: string | null;
 
@@ -29,6 +30,7 @@ interface DatabaseUIState {
   setHiddenFieldIds: (ids: Set<string>) => void;
   toggleHiddenField: (id: string) => void;
   setSearchQuery: (q: string) => void;
+  setGroups: (groups: Group[]) => void;
   setKanbanFieldId: (id: string | null) => void;
   setCalendarFieldId: (id: string | null) => void;
 }
@@ -45,6 +47,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   sorts: [],
   hiddenFieldIds: new Set(),
   searchQuery: '',
+  groups: [],
   kanbanFieldId: null,
   calendarFieldId: null,
 
@@ -56,6 +59,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
     sorts: [],
     hiddenFieldIds: new Set(),
     searchQuery: '',
+    groups: [],
   }),
   setActiveTable: (id) => set({
     activeTableId: id,
@@ -64,6 +68,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
     sorts: [],
     hiddenFieldIds: new Set(),
     searchQuery: '',
+    groups: [],
   }),
   setActiveView: (id) => set({ activeViewId: id }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
@@ -80,6 +85,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
     return { hiddenFieldIds: next };
   }),
   setSearchQuery: (q) => set({ searchQuery: q }),
+  setGroups: (groups) => set({ groups }),
   setKanbanFieldId: (id) => set({ kanbanFieldId: id }),
   setCalendarFieldId: (id) => set({ calendarFieldId: id }),
 }));
