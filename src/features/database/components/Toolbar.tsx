@@ -7,6 +7,7 @@ import { useFields, useRecords } from '../hooks';
 import { CreateFieldDialog } from './CreateFieldDialog';
 import { ImportCsvDialog } from './ImportCsvDialog';
 import { SearchReplaceDialog } from './SearchReplaceDialog';
+import { ConditionalFormatDialog } from './ConditionalFormatDialog';
 import { exportToCsv, exportToJson } from '../lib/csv';
 import { useTables } from '../hooks';
 import { PrintView } from './PrintView';
@@ -269,36 +270,65 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
 }
 
 function HideFieldsPanel({ onClose }: { onClose: () => void }) {
-  const { hiddenFieldIds, toggleHiddenField, activeTableId } = useDatabaseUI();
+  const { hiddenFieldIds, toggleHiddenField, activeTableId, fieldOrder, setFieldOrder } = useDatabaseUI();
   const { data: fields } = useFields(activeTableId);
 
-  const toggleableFields = useMemo(
-    () => (fields ?? []).filter((f) => !f.is_system && f.ui_type !== 'ID').sort((a, b) => a.position - b.position),
+  const allFields = useMemo(
+    () => (fields ?? []).filter((f) => !f.is_system && f.ui_type !== 'ID'),
     [fields],
   );
 
-  const allHidden = toggleableFields.every((f) => hiddenFieldIds.has(f.id));
-  const noneHidden = toggleableFields.every((f) => !hiddenFieldIds.has(f.id));
+  // Order fields: use fieldOrder if set, otherwise fall back to position
+  const orderedFields = useMemo(() => {
+    if (fieldOrder.length > 0) {
+      const byId = new Map(allFields.map((f) => [f.id, f]));
+      const ordered: typeof allFields = [];
+      for (const id of fieldOrder) {
+        const f = byId.get(id);
+        if (f) { ordered.push(f); byId.delete(id); }
+      }
+      // Append any fields not in the order array
+      for (const f of allFields.sort((a, b) => a.position - b.position)) {
+        if (byId.has(f.id)) ordered.push(f);
+      }
+      return ordered;
+    }
+    return [...allFields].sort((a, b) => a.position - b.position);
+  }, [allFields, fieldOrder]);
+
+  const allHidden = orderedFields.every((f) => hiddenFieldIds.has(f.id));
+  const noneHidden = orderedFields.every((f) => !hiddenFieldIds.has(f.id));
 
   const showAll = () => {
-    for (const f of toggleableFields) {
+    for (const f of orderedFields) {
       if (hiddenFieldIds.has(f.id)) toggleHiddenField(f.id);
     }
   };
 
   const hideAll = () => {
-    for (const f of toggleableFields) {
+    for (const f of orderedFields) {
       if (!hiddenFieldIds.has(f.id)) toggleHiddenField(f.id);
     }
   };
 
+  const moveField = (fieldId: string, direction: 'up' | 'down') => {
+    const ids = orderedFields.map((f) => f.id);
+    const idx = ids.indexOf(fieldId);
+    if (idx === -1) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= ids.length) return;
+    const next = [...ids];
+    [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
+    setFieldOrder(next);
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
   const filtered = searchTerm
-    ? toggleableFields.filter((f) => f.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    : toggleableFields;
+    ? orderedFields.filter((f) => f.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    : orderedFields;
 
   return (
-    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[240px] max-h-[360px] flex flex-col">
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[280px] max-h-[360px] flex flex-col">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Fields</span>
         <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF]" /></button>
@@ -328,16 +358,33 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
         </button>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {filtered.map((f) => (
-          <label key={f.id} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-[#F4F4F5] dark:hover:bg-white/5 rounded px-1 -mx-1">
+        {filtered.map((f, i) => (
+          <div key={f.id} className="flex items-center gap-1 py-1 hover:bg-[#F4F4F5] dark:hover:bg-white/5 rounded px-1 -mx-1">
+            <GripVertical size={12} className="text-[#9AA2AF] shrink-0 cursor-grab" />
             <input
               type="checkbox"
-              className="w-3.5 h-3.5 accent-[#3366FF]"
+              className="w-3.5 h-3.5 accent-[#3366FF] shrink-0"
               checked={!hiddenFieldIds.has(f.id)}
               onChange={() => toggleHiddenField(f.id)}
             />
-            <span className="text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">{f.name}</span>
-          </label>
+            <span className="text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] truncate flex-1">{f.name}</span>
+            <button
+              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-white/10 disabled:opacity-20"
+              disabled={!searchTerm && i === 0}
+              onClick={() => moveField(f.id, 'up')}
+              title="Move up"
+            >
+              <ChevronUp size={12} className="text-[#6A7184]" />
+            </button>
+            <button
+              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-white/10 disabled:opacity-20"
+              disabled={!searchTerm && i === filtered.length - 1}
+              onClick={() => moveField(f.id, 'down')}
+              title="Move down"
+            >
+              <ChevronDown size={12} className="text-[#6A7184]" />
+            </button>
+          </div>
         ))}
       </div>
     </div>
@@ -464,21 +511,22 @@ export function Toolbar() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [importCsvOpen, setImportCsvOpen] = useState(false);
   const [searchReplaceOpen, setSearchReplaceOpen] = useState(false);
+  const [conditionalFormatOpen, setConditionalFormatOpen] = useState(false);
   const [printViewOpen, setPrintViewOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [hideOpen, setHideOpen] = useState(false);
   const [groupOpen, setGroupOpen] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
+  const [rowHeightOpen, setRowHeightOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const rowHeightOptions: Array<'compact' | 'default' | 'tall' | 'extra-tall'> = [
-    'compact', 'default', 'tall', 'extra-tall',
+  const ROW_HEIGHT_OPTIONS: { value: 'compact' | 'default' | 'tall' | 'extra-tall'; label: string; px: number }[] = [
+    { value: 'compact', label: 'Short', px: 32 },
+    { value: 'default', label: 'Medium', px: 44 },
+    { value: 'tall', label: 'Tall', px: 64 },
+    { value: 'extra-tall', label: 'Extra Tall', px: 88 },
   ];
-  const nextHeight = () => {
-    const idx = rowHeightOptions.indexOf(rowHeight);
-    setRowHeight(rowHeightOptions[(idx + 1) % rowHeightOptions.length]);
-  };
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value),
@@ -557,10 +605,27 @@ export function Toolbar() {
               variant="ghost"
               size="sm"
               className="h-7 text-xs text-[#6A7184] gap-1"
-              onClick={nextHeight}
+              onClick={() => { setRowHeightOpen(!rowHeightOpen); setFilterOpen(false); setSortOpen(false); setHideOpen(false); setGroupOpen(false); setColorOpen(false); }}
             >
-              <Rows3 size={14} /> {rowHeight}
+              <Rows3 size={14} /> {ROW_HEIGHT_OPTIONS.find((o) => o.value === rowHeight)?.label ?? 'Medium'}
             </Button>
+            {rowHeightOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setRowHeightOpen(false)} />
+                <div className="absolute left-0 top-full z-50 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[140px]">
+                  {ROW_HEIGHT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-white/5 flex items-center justify-between text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                      onClick={() => { setRowHeight(opt.value); setRowHeightOpen(false); }}
+                    >
+                      <span>{opt.label} <span className="text-[#9AA2AF] text-[10px]">({opt.px}px)</span></span>
+                      {rowHeight === opt.value && <span style={{ color: '#3366FF' }}>&#10003;</span>}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
           <Button
             variant="ghost"

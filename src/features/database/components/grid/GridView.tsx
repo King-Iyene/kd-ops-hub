@@ -32,7 +32,7 @@ const ROW_HEIGHTS: Record<string, number> = {
   compact: 32,
   default: 44,
   tall: 64,
-  'extra-tall': 96,
+  'extra-tall': 88,
 };
 
 const ROW_NUMBER_WIDTH = 64;
@@ -253,8 +253,10 @@ export default function GridView({
   const setSelectedCell = useDatabaseUI((s) => s.setSelectedCell);
   const setEditingCell = useDatabaseUI((s) => s.setEditingCell);
   const rowColorRules = useDatabaseUI((s) => s.rowColorRules);
+  const conditionalFormats = useDatabaseUI((s) => s.conditionalFormats);
   const summaryFunctions = useDatabaseUI((s) => s.summaryFunctions);
   const setSummaryFunction = useDatabaseUI((s) => s.setSummaryFunction);
+  const fieldOrder = useDatabaseUI((s) => s.fieldOrder);
 
   const parentRef = useRef<HTMLDivElement>(null);
   const [summaryDropdown, setSummaryDropdown] = useState<string | null>(null);
@@ -397,13 +399,35 @@ export default function GridView({
     return undefined;
   }, [rowColorRules, matchesRule]);
 
-  const visibleFields = useMemo(
-    () =>
-      fields
-        .filter((f) => !f.is_hidden)
-        .sort((a, b) => a.position - b.position),
-    [fields],
+  const getCellColor = useCallback(
+    (record: RecordRow, fieldId: string): string | undefined => {
+      for (const rule of conditionalFormats) {
+        if (rule.field_id === fieldId && evaluateCondition(record, rule, fields)) {
+          return rule.color;
+        }
+      }
+      return undefined;
+    },
+    [conditionalFormats, fields],
   );
+
+  const visibleFields = useMemo(() => {
+    const visible = fields.filter((f) => !f.is_hidden);
+    if (fieldOrder.length > 0) {
+      const byId = new Map(visible.map((f) => [f.id, f]));
+      const ordered: FieldMeta[] = [];
+      for (const id of fieldOrder) {
+        const f = byId.get(id);
+        if (f) { ordered.push(f); byId.delete(id); }
+      }
+      // Append any visible fields not in the order
+      for (const f of visible.sort((a, b) => a.position - b.position)) {
+        if (byId.has(f.id)) ordered.push(f);
+      }
+      return ordered;
+    }
+    return visible.sort((a, b) => a.position - b.position);
+  }, [fields, fieldOrder]);
 
   const getFieldWidth = useCallback(
     (field: FieldMeta) => columnWidths[field.id] ?? field.width ?? 180,
@@ -820,7 +844,7 @@ export default function GridView({
                       )}
                     </div>
                     {fieldsWithWidths.map((field) => (
-                      <GridCell key={field.id} field={field} record={record} onCellUpdate={onCellUpdate} />
+                      <GridCell key={field.id} field={field} record={record} onCellUpdate={onCellUpdate} backgroundColor={getCellColor(record, field.id)} />
                     ))}
                   </div>
                 );
@@ -926,6 +950,7 @@ export default function GridView({
                       field={field}
                       record={record}
                       onCellUpdate={onCellUpdate}
+                      backgroundColor={getCellColor(record, field.id)}
                     />
                   ))}
                 </div>
