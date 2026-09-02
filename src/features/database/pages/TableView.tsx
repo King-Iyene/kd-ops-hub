@@ -1,13 +1,15 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Toolbar } from '../components/Toolbar';
+import { ViewBar } from '../components/ViewBar';
 import { useDatabaseUI } from '../lib/store';
-import { useFields, useRecords, useCreateRecord, useUpdateRecord } from '../hooks';
+import { useFields, useRecords, useCreateRecord, useUpdateRecord, useActiveView } from '../hooks';
 import GridView from '../components/grid/GridView';
 import { ExpandedRowModal } from '../components/ExpandedRowModal';
 import type { RecordRow } from '../types';
 
 export function TableView() {
   const { activeTableId, activeBaseId, filters, sorts, hiddenFieldIds, searchQuery } = useDatabaseUI();
+  useActiveView(activeTableId);
   const { data: fields } = useFields(activeTableId);
   const [page, setPage] = useState(1);
   const pageSize = 50;
@@ -54,6 +56,7 @@ export function TableView() {
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <Toolbar />
+      <ViewBar />
       <div className="flex-1 min-h-0">
         <GridView
           fields={visibleFields}
