@@ -255,6 +255,7 @@ export function TableView() {
         fields={fields ?? []}
         baseId={activeBaseId!}
         tableId={activeTableId!}
+        onCellUpdate={handleCellUpdate}
       />
       <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />
     </div>

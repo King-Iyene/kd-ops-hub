@@ -50,6 +50,7 @@ export default function GridView({
   onDeleteRow,
   onDuplicateRow,
   onDeleteField,
+  onBulkDeleteRows,
 }: GridViewProps) {
   const rowHeight = useDatabaseUI((s) => s.rowHeight);
   const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
@@ -59,6 +60,30 @@ export default function GridView({
   const parentRef = useRef<HTMLDivElement>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; record: RecordRow } | null>(null);
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+
+  const toggleRowSelection = useCallback((id: string) => {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedRowIds((prev) => {
+      if (prev.size === records.length) return new Set();
+      return new Set(records.map((r) => r.id));
+    });
+  }, [records]);
+
+  const handleBulkDelete = useCallback(() => {
+    if (selectedRowIds.size === 0 || !onBulkDeleteRows) return;
+    if (!confirm(`Delete ${selectedRowIds.size} selected record(s)?`)) return;
+    onBulkDeleteRows(Array.from(selectedRowIds));
+    setSelectedRowIds(new Set());
+  }, [selectedRowIds, onBulkDeleteRows]);
 
   const visibleFields = useMemo(
     () =>
@@ -195,7 +220,15 @@ export default function GridView({
               }}
             >
               {isLoading && <Loader2 size={14} className="animate-spin" />}
-              {!isLoading && '#'}
+              {!isLoading && records.length > 0 && (
+                <input
+                  type="checkbox"
+                  className="w-3.5 h-3.5 accent-[#3366FF]"
+                  checked={selectedRowIds.size === records.length && records.length > 0}
+                  onChange={toggleSelectAll}
+                />
+              )}
+              {!isLoading && records.length === 0 && '#'}
             </div>
 
             {fieldsWithWidths.map((field) => (
@@ -258,39 +291,56 @@ export default function GridView({
                     }
                   }}
                 >
-                  {/* Row number with expand icon */}
+                  {/* Row number with checkbox + expand icon */}
                   <div
                     className="sticky left-0 z-10 flex items-center justify-center shrink-0 group/num"
                     style={{
                       width: ROW_NUMBER_WIDTH,
                       minWidth: ROW_NUMBER_WIDTH,
-                      backgroundColor: isRowSelected ? '#EBF0FF' : '#F9F9FA',
+                      backgroundColor: selectedRowIds.has(record.id) ? '#EBF0FF' : isRowSelected ? '#EBF0FF' : '#F9F9FA',
                       borderRight: '1px solid #E7E7E9',
                       borderBottom: '1px solid #E7E7E9',
                       fontSize: 11,
                       color: '#9AA2AF',
                     }}
                   >
-                    <span className="group-hover/row:hidden">{rowNum}</span>
-                    <div className="hidden group-hover/row:flex items-center gap-1">
-                      {onExpandRow && (
-                        <button
-                          className="p-0.5 rounded hover:bg-gray-200"
-                          onClick={(e) => { e.stopPropagation(); onExpandRow(record); }}
-                        >
-                          <Expand size={12} />
-                        </button>
-                      )}
-                      <button
-                        className="p-0.5 rounded hover:bg-gray-200"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRowMenu({ x: e.clientX, y: e.clientY, record });
-                        }}
-                      >
-                        <MoreHorizontal size={12} />
-                      </button>
-                    </div>
+                    {selectedRowIds.has(record.id) ? (
+                      <input
+                        type="checkbox"
+                        className="w-3.5 h-3.5 accent-[#3366FF]"
+                        checked
+                        onChange={() => toggleRowSelection(record.id)}
+                      />
+                    ) : (
+                      <>
+                        <span className="group-hover/row:hidden">{rowNum}</span>
+                        <div className="hidden group-hover/row:flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            className="w-3.5 h-3.5 accent-[#3366FF]"
+                            checked={false}
+                            onChange={() => toggleRowSelection(record.id)}
+                          />
+                          {onExpandRow && (
+                            <button
+                              className="p-0.5 rounded hover:bg-gray-200"
+                              onClick={(e) => { e.stopPropagation(); onExpandRow(record); }}
+                            >
+                              <Expand size={12} />
+                            </button>
+                          )}
+                          <button
+                            className="p-0.5 rounded hover:bg-gray-200"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRowMenu({ x: e.clientX, y: e.clientY, record });
+                            }}
+                          >
+                            <MoreHorizontal size={12} />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {fieldsWithWidths.map((field) => (
@@ -362,6 +412,33 @@ export default function GridView({
             )}
           </div>
         </>
+      )}
+
+      {/* Bulk action bar */}
+      {selectedRowIds.size > 0 && (
+        <div
+          className="flex items-center gap-3 px-4 shrink-0"
+          style={{
+            height: 36,
+            backgroundColor: '#3366FF',
+            color: '#fff',
+            fontSize: 13,
+          }}
+        >
+          <span className="font-medium">{selectedRowIds.size} record{selectedRowIds.size !== 1 ? 's' : ''} selected</span>
+          <button
+            className="flex items-center gap-1 px-2 py-0.5 rounded bg-white/20 hover:bg-white/30 text-xs font-medium"
+            onClick={handleBulkDelete}
+          >
+            <Trash2 size={12} /> Delete
+          </button>
+          <button
+            className="px-2 py-0.5 rounded bg-white/20 hover:bg-white/30 text-xs font-medium"
+            onClick={() => setSelectedRowIds(new Set())}
+          >
+            Cancel
+          </button>
+        </div>
       )}
 
       {/* Pagination */}

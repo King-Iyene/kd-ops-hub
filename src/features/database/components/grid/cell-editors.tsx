@@ -168,6 +168,79 @@ export function SelectCellEditor({ value, field, onCommit, onCancel }: CellEdito
   );
 }
 
+export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+  const choices = field.options?.choices || [];
+  const [selected, setSelected] = useState<string[]>(
+    Array.isArray(value) ? value : value ? [value] : [],
+  );
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onCommit(selected);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onCommit, selected]);
+
+  const toggle = (title: string) => {
+    setSelected((prev) =>
+      prev.includes(title) ? prev.filter((t) => t !== title) : [...prev, title],
+    );
+  };
+
+  return (
+    <div
+      ref={ref}
+      className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border rounded-md shadow-lg py-1 min-w-[180px] max-h-[240px] overflow-y-auto"
+      style={{ borderColor: '#E7E7E9' }}
+    >
+      {choices.map((choice: SelectChoice) => {
+        const color = getPillColor(choice.color);
+        const isChecked = selected.includes(choice.title);
+        return (
+          <button
+            key={choice.title}
+            className="w-full text-left px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-white/5 flex items-center gap-2"
+            onClick={() => toggle(choice.title)}
+          >
+            <span
+              className="inline-flex items-center justify-center w-4 h-4 rounded border text-[10px]"
+              style={{
+                borderColor: isChecked ? '#3366FF' : '#9AA2AF',
+                backgroundColor: isChecked ? '#3366FF' : 'transparent',
+                color: isChecked ? '#fff' : 'transparent',
+              }}
+            >
+              {isChecked ? '✓' : ''}
+            </span>
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+              style={{ backgroundColor: color.bg, color: color.text }}
+            >
+              {choice.title}
+            </span>
+          </button>
+        );
+      })}
+      {selected.length > 0 && (
+        <button
+          className="w-full text-left px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-white/5 text-xs"
+          style={{ color: '#94A3B8' }}
+          onClick={() => {
+            setSelected([]);
+            onCommit([]);
+          }}
+        >
+          Clear all
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function getCellEditor(uiType: string) {
   switch (uiType) {
     case 'Number':
@@ -180,6 +253,8 @@ export function getCellEditor(uiType: string) {
       return DateCellEditor;
     case 'SingleSelect':
       return SelectCellEditor;
+    case 'MultiSelect':
+      return MultiSelectCellEditor;
     case 'Checkbox':
       return null; // toggled directly in renderer
     default:

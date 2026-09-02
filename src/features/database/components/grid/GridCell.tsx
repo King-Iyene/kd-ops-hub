@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { getCellRenderer } from './cell-renderers';
@@ -81,14 +81,24 @@ export const GridCell = React.memo(function GridCell({
   const Renderer = getCellRenderer(field.ui_type);
   const Editor = getCellEditor(field.ui_type);
 
+  const isDark = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const dt = document.documentElement.getAttribute('data-theme');
+    if (dt === 'dark') return true;
+    if (dt === 'light') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }, []);
+
+  const borderColor = isDark ? 'hsl(200,25%,18%)' : '#E7E7E9';
+
   return (
     <div
       className="relative flex items-center px-2 overflow-hidden"
       style={{
         width: field.width || 180,
         minWidth: field.width || 180,
-        borderRight: '1px solid #E2E8F0',
-        borderBottom: '1px solid #E2E8F0',
+        borderRight: `1px solid ${borderColor}`,
+        borderBottom: `1px solid ${borderColor}`,
         outline: isSelected ? '2px solid #3366FF' : 'none',
         outlineOffset: -2,
         cursor: 'default',
