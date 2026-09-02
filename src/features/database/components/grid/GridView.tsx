@@ -51,6 +51,7 @@ export default function GridView({
   onDuplicateRow,
   onDeleteField,
   onBulkDeleteRows,
+  onReorderFields,
 }: GridViewProps) {
   const rowHeight = useDatabaseUI((s) => s.rowHeight);
   const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
@@ -61,6 +62,10 @@ export default function GridView({
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; record: RecordRow } | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const [dragRowId, setDragRowId] = useState<string | null>(null);
+  const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
+  const [dragColId, setDragColId] = useState<string | null>(null);
+  const [dropColTargetIdx, setDropColTargetIdx] = useState<number | null>(null);
 
   const toggleRowSelection = useCallback((id: string) => {
     setSelectedRowIds((prev) => {
@@ -84,6 +89,81 @@ export default function GridView({
     onBulkDeleteRows(Array.from(selectedRowIds));
     setSelectedRowIds(new Set());
   }, [selectedRowIds, onBulkDeleteRows]);
+
+  const handleRowDragStart = useCallback((e: React.DragEvent, recordId: string) => {
+    setDragRowId(recordId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', recordId);
+  }, []);
+
+  const handleRowDragOver = useCallback((e: React.DragEvent, idx: number) => {
+    if (dragRowId === null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropTargetIdx(idx);
+  }, [dragRowId]);
+
+  const handleRowDrop = useCallback((e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault();
+    if (!dragRowId) return;
+    const sourceIdx = records.findIndex((r) => r.id === dragRowId);
+    if (sourceIdx === -1 || sourceIdx === targetIdx) {
+      setDragRowId(null);
+      setDropTargetIdx(null);
+      return;
+    }
+    // Swap nc_order values
+    const sourceRecord = records[sourceIdx];
+    const targetRecord = records[targetIdx];
+    const sourceOrder = sourceRecord.nc_order ?? sourceIdx;
+    const targetOrder = targetRecord.nc_order ?? targetIdx;
+    onCellUpdate(sourceRecord.id, 'nc_order', targetOrder);
+    onCellUpdate(targetRecord.id, 'nc_order', sourceOrder);
+    setDragRowId(null);
+    setDropTargetIdx(null);
+  }, [dragRowId, records, onCellUpdate]);
+
+  const handleRowDragEnd = useCallback(() => {
+    setDragRowId(null);
+    setDropTargetIdx(null);
+  }, []);
+
+  // Column drag handlers
+  const handleColDragStart = useCallback((e: React.DragEvent, fieldId: string) => {
+    setDragColId(fieldId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', fieldId);
+  }, []);
+
+  const handleColDragOver = useCallback((e: React.DragEvent, idx: number) => {
+    if (dragColId === null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropColTargetIdx(idx);
+  }, [dragColId]);
+
+  const handleColDrop = useCallback((e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault();
+    if (!dragColId || !onReorderFields) return;
+    const currentIds = visibleFields.map((f) => f.id);
+    const sourceIdx = currentIds.indexOf(dragColId);
+    if (sourceIdx === -1 || sourceIdx === targetIdx) {
+      setDragColId(null);
+      setDropColTargetIdx(null);
+      return;
+    }
+    const newIds = [...currentIds];
+    const [removed] = newIds.splice(sourceIdx, 1);
+    newIds.splice(targetIdx, 0, removed);
+    onReorderFields(newIds);
+    setDragColId(null);
+    setDropColTargetIdx(null);
+  }, [dragColId, visibleFields, onReorderFields]);
+
+  const handleColDragEnd = useCallback(() => {
+    setDragColId(null);
+    setDropColTargetIdx(null);
+  }, []);
 
   const visibleFields = useMemo(
     () =>
@@ -231,13 +311,25 @@ export default function GridView({
               {!isLoading && records.length === 0 && '#'}
             </div>
 
-            {fieldsWithWidths.map((field) => (
-              <ColumnHeader
+            {fieldsWithWidths.map((field, colIdx) => (
+              <div
                 key={field.id}
-                field={field}
-                onResize={handleResize}
-                onDelete={onDeleteField}
-              />
+                className="relative"
+                style={{
+                  borderLeft: dropColTargetIdx === colIdx && dragColId !== null ? '2px solid #3366FF' : undefined,
+                }}
+                onDragOver={(e) => handleColDragOver(e, colIdx)}
+                onDrop={(e) => handleColDrop(e, colIdx)}
+              >
+                <ColumnHeader
+                  field={field}
+                  onResize={handleResize}
+                  onDelete={onDeleteField}
+                  draggable
+                  onDragStart={(e) => handleColDragStart(e, field.id)}
+                  onDragEnd={handleColDragEnd}
+                />
+              </div>
             ))}
 
             <div
@@ -291,7 +383,7 @@ export default function GridView({
                     }
                   }}
                 >
-                  {/* Row number with checkbox + expand icon */}
+                  {/* Row number with checkbox + expand icon + drag handle */}
                   <div
                     className="sticky left-0 z-10 flex items-center justify-center shrink-0 group/num"
                     style={{
@@ -300,9 +392,12 @@ export default function GridView({
                       backgroundColor: selectedRowIds.has(record.id) ? '#EBF0FF' : isRowSelected ? '#EBF0FF' : '#F9F9FA',
                       borderRight: '1px solid #E7E7E9',
                       borderBottom: '1px solid #E7E7E9',
+                      borderTop: dropTargetIdx === virtualRow.index ? '2px solid #3366FF' : undefined,
                       fontSize: 11,
                       color: '#9AA2AF',
                     }}
+                    onDragOver={(e) => handleRowDragOver(e, virtualRow.index)}
+                    onDrop={(e) => handleRowDrop(e, virtualRow.index)}
                   >
                     {selectedRowIds.has(record.id) ? (
                       <input
@@ -315,6 +410,15 @@ export default function GridView({
                       <>
                         <span className="group-hover/row:hidden">{rowNum}</span>
                         <div className="hidden group-hover/row:flex items-center gap-1">
+                          <span
+                            draggable
+                            className="cursor-grab active:cursor-grabbing px-0.5 text-[#9AA2AF] hover:text-[#374151]"
+                            onDragStart={(e) => handleRowDragStart(e, record.id)}
+                            onDragEnd={handleRowDragEnd}
+                            style={{ fontSize: 13 }}
+                          >
+                            &#8801;
+                          </span>
                           <input
                             type="checkbox"
                             className="w-3.5 h-3.5 accent-[#3366FF]"

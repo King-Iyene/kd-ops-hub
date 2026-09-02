@@ -5,6 +5,7 @@ import { useDatabaseUI } from '../lib/store';
 import { useUndoStore } from '../lib/undo';
 import { useFields, useRecords } from '../hooks';
 import { CreateFieldDialog } from './CreateFieldDialog';
+import { ImportCsvDialog } from './ImportCsvDialog';
 import { exportToCsv } from '../lib/csv';
 import type { Filter as FilterType, Sort, FilterOperator } from '../types';
 import { OPERATORS_BY_TYPE } from '../types';
@@ -201,6 +202,7 @@ export function Toolbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [importCsvOpen, setImportCsvOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [hideOpen, setHideOpen] = useState(false);
@@ -341,6 +343,15 @@ export function Toolbar() {
                   >
                     <Download size={13} className="text-[#9AA2AF]" /> Export CSV
                   </button>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+                    onClick={() => {
+                      setImportCsvOpen(true);
+                      setMoreOpen(false);
+                    }}
+                  >
+                    <Upload size={13} className="text-[#9AA2AF]" /> Import CSV
+                  </button>
                 </div>
               </>
             )}
@@ -357,6 +368,7 @@ export function Toolbar() {
         </div>
       </div>
       <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />
+      <ImportCsvDialog open={importCsvOpen} onOpenChange={setImportCsvOpen} />
     </>
   );
 }

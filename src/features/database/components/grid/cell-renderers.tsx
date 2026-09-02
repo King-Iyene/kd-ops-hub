@@ -2,12 +2,38 @@ import React from 'react';
 import { Check, ExternalLink, Copy } from 'lucide-react';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { PILL_COLORS } from '@/features/database/types';
+import { useDatabaseUI } from '../../lib/store';
 
 interface CellRendererProps {
   value: any;
   field: FieldMeta;
   record: RecordRow;
   rowHeight: 'compact' | 'default' | 'tall' | 'extra-tall';
+}
+
+function HighlightedText({ text, style, className }: { text: string; style?: React.CSSProperties; className?: string }) {
+  const searchQuery = useDatabaseUI((s) => s.searchQuery);
+  if (!searchQuery) {
+    return <span className={className} style={style}>{text}</span>;
+  }
+  const regex = new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+  if (parts.length === 1) {
+    return <span className={className} style={style}>{text}</span>;
+  }
+  return (
+    <span className={className} style={style}>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} style={{ backgroundColor: '#FEF08A', color: 'inherit', borderRadius: 2, padding: '0 1px' }}>
+            {part}
+          </mark>
+        ) : (
+          <React.Fragment key={i}>{part}</React.Fragment>
+        ),
+      )}
+    </span>
+  );
 }
 
 function getPillColor(colorName: string) {
@@ -23,22 +49,20 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
 
   if (field.ui_type === 'Email') {
     return (
-      <span className="truncate" style={{ color: '#0D9488' }}>
-        {text}
-      </span>
+      <HighlightedText text={text} className="truncate" style={{ color: '#0D9488' }} />
     );
   }
 
   if (field.ui_type === 'URL') {
     return (
       <span className="truncate flex items-center gap-1" style={{ color: '#0D9488' }}>
-        <span className="truncate">{text}</span>
+        <HighlightedText text={text} className="truncate" />
         <ExternalLink size={12} className="shrink-0" />
       </span>
     );
   }
 
-  return <span className="truncate">{text}</span>;
+  return <HighlightedText text={text} className="truncate" />;
 });
 
 export const NumberCellRenderer = React.memo(function NumberCellRenderer({

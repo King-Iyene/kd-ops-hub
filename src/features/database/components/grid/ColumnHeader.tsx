@@ -10,6 +10,9 @@ interface ColumnHeaderProps {
   onSort?: (fieldId: string) => void;
   onDelete?: (fieldId: string) => void;
   onContextMenu?: (fieldId: string, e: React.MouseEvent) => void;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragEnd?: (e: React.DragEvent) => void;
 }
 
 export const ColumnHeader = React.memo(function ColumnHeader({
@@ -18,6 +21,9 @@ export const ColumnHeader = React.memo(function ColumnHeader({
   onSort,
   onDelete,
   onContextMenu,
+  draggable: isDraggable,
+  onDragStart,
+  onDragEnd,
 }: ColumnHeaderProps) {
   const Icon = getFieldTypeIcon(field.ui_type);
   const startXRef = useRef(0);
@@ -103,6 +109,9 @@ export const ColumnHeader = React.memo(function ColumnHeader({
         fontWeight: 600,
         cursor: 'pointer',
       }}
+      draggable={isDraggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       onClick={() => onSort?.(field.id)}
       onContextMenu={handleRightClick}
     >
