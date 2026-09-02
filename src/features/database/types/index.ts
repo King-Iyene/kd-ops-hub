@@ -225,6 +225,25 @@ export interface WebhookConfig {
   created_at: string;
 }
 
+export interface AutomationAction {
+  id: string;
+  type: 'send_email' | 'send_webhook' | 'update_record' | 'create_record' | 'send_notification';
+  config: Record<string, any>;
+}
+
+export interface Automation {
+  id: string;
+  base_id: string;
+  table_id: string;
+  name: string;
+  enabled: boolean;
+  trigger_type: 'record_created' | 'record_updated' | 'record_deleted' | 'field_changed' | 'scheduled';
+  trigger_config: Record<string, any>;
+  actions: AutomationAction[];
+  created_at: string;
+  updated_at: string;
+}
+
 export const OPERATORS_BY_TYPE: Partial<Record<UIType, FilterOperator[]>> = {
   SingleLineText: ['is', 'isNot', 'contains', 'doesNotContain', 'startsWith', 'endsWith', 'isEmpty', 'isNotEmpty'],
   LongText: ['is', 'isNot', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],

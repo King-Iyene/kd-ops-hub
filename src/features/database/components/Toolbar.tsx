@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette } from 'lucide-react';
+import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, Replace } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
 import { useUndoStore } from '../lib/undo';
 import { useFields, useRecords } from '../hooks';
 import { CreateFieldDialog } from './CreateFieldDialog';
 import { ImportCsvDialog } from './ImportCsvDialog';
+import { SearchReplaceDialog } from './SearchReplaceDialog';
 import { exportToCsv } from '../lib/csv';
 import type { Filter as FilterType, Sort, Group, FilterOperator, RowColorRule } from '../types';
 import { OPERATORS_BY_TYPE } from '../types';
@@ -458,6 +459,7 @@ export function Toolbar() {
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [importCsvOpen, setImportCsvOpen] = useState(false);
+  const [searchReplaceOpen, setSearchReplaceOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [hideOpen, setHideOpen] = useState(false);
@@ -633,6 +635,16 @@ export function Toolbar() {
                   >
                     <Upload size={13} className="text-[#9AA2AF]" /> Import CSV
                   </button>
+                  <div className="h-px bg-[#E7E7E9] my-0.5" />
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+                    onClick={() => {
+                      setSearchReplaceOpen(true);
+                      setMoreOpen(false);
+                    }}
+                  >
+                    <Replace size={13} className="text-[#9AA2AF]" /> Search & Replace
+                  </button>
                 </div>
               </>
             )}
@@ -650,6 +662,7 @@ export function Toolbar() {
       </div>
       <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />
       <ImportCsvDialog open={importCsvOpen} onOpenChange={setImportCsvOpen} />
+      <SearchReplaceDialog open={searchReplaceOpen} onOpenChange={setSearchReplaceOpen} />
     </>
   );
 }

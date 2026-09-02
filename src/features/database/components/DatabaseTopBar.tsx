@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Webhook, Link2, Key } from 'lucide-react';
+import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Zap, Link2, Key } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuthStore } from '@/store/authStore';
 import { useDatabaseUI } from '../lib/store';
 import { useBases } from '../hooks';
-import { WebhooksDialog } from './WebhooksDialog';
+import { AutomationsDialog } from './AutomationsDialog';
 import { ShareViewDialog } from './ShareViewDialog';
 import { ApiTokensDialog } from './ApiTokensDialog';
 
@@ -17,7 +17,7 @@ export function DatabaseTopBar() {
   const [shareOpen, setShareOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [webhooksOpen, setWebhooksOpen] = useState(false);
+  const [automationsOpen, setAutomationsOpen] = useState(false);
   const [shareViewOpen, setShareViewOpen] = useState(false);
   const [apiTokensOpen, setApiTokensOpen] = useState(false);
   const activeViewId = useDatabaseUI((s) => s.activeViewId);
@@ -101,9 +101,9 @@ export function DatabaseTopBar() {
             variant="ghost"
             size="sm"
             className="h-7 px-2 text-[12px] text-[#6A7184] hover:bg-[#F4F4F5] gap-1"
-            onClick={() => setWebhooksOpen(true)}
+            onClick={() => setAutomationsOpen(true)}
           >
-            <Webhook size={13} /> Webhooks
+            <Zap size={13} /> Automations
           </Button>
           <Button
             variant="ghost"
@@ -181,7 +181,7 @@ export function DatabaseTopBar() {
 
       <ShareViewDialog open={shareViewOpen} onOpenChange={setShareViewOpen} viewId={activeViewId} tableId={activeTableId} />
       <ApiTokensDialog open={apiTokensOpen} onOpenChange={setApiTokensOpen} baseId={activeBaseId} />
-      <WebhooksDialog open={webhooksOpen} onOpenChange={setWebhooksOpen} tableId={activeTableId} />
+      <AutomationsDialog open={automationsOpen} onOpenChange={setAutomationsOpen} tableId={activeTableId} baseId={activeBaseId} />
 
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
         <DialogContent className="sm:max-w-[480px]">

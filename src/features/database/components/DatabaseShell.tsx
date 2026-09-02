@@ -4,6 +4,7 @@ import { TableTabBar } from './TableTabBar';
 import { useDatabaseUI } from '../lib/store';
 import { TableView } from '../pages/TableView';
 import { EmptyState } from '../pages/EmptyState';
+import { ToastContainer } from './Toast';
 
 export function DatabaseShell() {
   const activeBaseId = useDatabaseUI((s) => s.activeBaseId);
@@ -19,6 +20,7 @@ export function DatabaseShell() {
           {activeTableId ? <TableView /> : <EmptyState />}
         </main>
       </div>
+      <ToastContainer />
     </div>
   );
 }

@@ -70,7 +70,7 @@ export function ViewBar() {
   return (
     <>
       <div
-        className="flex items-center gap-0.5 px-2 shrink-0 overflow-x-auto"
+        className="flex items-center gap-0.5 px-2 shrink-0 overflow-x-auto dark:bg-[hsl(200,30%,8%)] dark:border-[hsl(200,25%,18%)]"
         style={{
           height: 34,
           borderBottom: '1px solid #E7E7E9',
@@ -131,13 +131,13 @@ export function ViewBar() {
           {addMenuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setAddMenuOpen(false)} />
-              <div className="absolute left-0 top-full z-50 mt-1 bg-white border border-[#E7E7E9] rounded-lg shadow-lg py-1 min-w-[160px]">
+              <div className="absolute left-0 top-full z-50 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[160px]">
                 {VIEW_TYPE_OPTIONS.map((opt) => {
                   const Icon = VIEW_ICONS[opt.type];
                   return (
                     <button
                       key={opt.type}
-                      className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+                      className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
                       onClick={() => handleAddView(opt.type)}
                     >
                       <Icon size={13} className="text-[#9AA2AF]" />
@@ -156,11 +156,11 @@ export function ViewBar() {
         <>
           <div className="fixed inset-0 z-50" onClick={() => setContextMenu(null)} />
           <div
-            className="fixed z-50 bg-white border border-[#E7E7E9] rounded-lg shadow-lg py-1 min-w-[140px]"
+            className="fixed z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[140px]"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             <button
-              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={() => {
                 const view = sorted.find((v) => v.id === contextMenu.viewId);
                 if (view) {
@@ -173,7 +173,7 @@ export function ViewBar() {
               <Pencil size={12} className="text-[#9AA2AF]" /> Rename
             </button>
             <button
-              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={() => {
                 if (!activeTableId) return;
                 const view = sorted.find((v) => v.id === contextMenu.viewId);
@@ -197,7 +197,7 @@ export function ViewBar() {
               <Copy size={12} className="text-[#9AA2AF]" /> Duplicate
             </button>
             <button
-              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={() => {
                 if (!activeTableId) return;
                 const view = sorted.find((v) => v.id === contextMenu.viewId);

@@ -16,3 +16,4 @@ export type { LinkMeta } from './useLinks';
 export { useSharedView, useCreateSharedView, useUpdateSharedView, useDeleteSharedView } from './useSharedViews';
 export { useApiTokens, useCreateApiToken, useDeleteApiToken } from './useApiTokens';
 export { useComments, useCreateComment, useDeleteComment } from './useComments';
+export { useAutomations, useCreateAutomation, useUpdateAutomation, useDeleteAutomation } from './useAutomations';

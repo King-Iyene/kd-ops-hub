@@ -157,13 +157,18 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
 
           <div className="space-y-1.5">
             <Label htmlFor="edit-field-desc" className="text-xs text-[#6A7184]">Description <span className="text-[#9AA2AF]">(optional)</span></Label>
-            <Input
+            <textarea
               id="edit-field-desc"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe this field..."
-              className="h-8 text-xs"
+              onChange={(e) => {
+                if (e.target.value.length <= 500) setDescription(e.target.value);
+              }}
+              placeholder="Add a description for this field..."
+              className="w-full rounded-md border border-[#E7E7E9] bg-white dark:bg-[hsl(200,30%,10%)] px-3 py-2 text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:outline-none focus:ring-2 focus:ring-[#3366FF] focus:border-transparent resize-none"
+              rows={3}
+              maxLength={500}
             />
+            <div className="text-[11px] text-[#9AA2AF] text-right">{description.length}/500</div>
           </div>
 
           <label className="flex items-center gap-2 cursor-pointer">

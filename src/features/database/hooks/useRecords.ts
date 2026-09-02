@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { RecordRow, Filter, Sort } from '../types';
+import { toast } from '../components/Toast';
 
 interface UseRecordsParams {
   baseId: string;
@@ -181,6 +182,10 @@ export function useCreateRecord() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
+      toast.success('Record created');
+    },
+    onError: () => {
+      toast.error('Failed to create record');
     },
   });
 }
@@ -263,6 +268,10 @@ export function useDeleteRecord() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
+      toast.success('Record deleted');
+    },
+    onError: () => {
+      toast.error('Failed to delete record');
     },
   });
 }
@@ -288,6 +297,10 @@ export function useBulkDeleteRecords() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
+      toast.success(`${variables.recordIds.length} record${variables.recordIds.length > 1 ? 's' : ''} deleted`);
+    },
+    onError: () => {
+      toast.error('Failed to delete records');
     },
   });
 }

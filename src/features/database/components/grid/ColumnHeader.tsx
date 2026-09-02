@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ArrowUp, ArrowDown, EyeOff, Pencil, Trash2, Copy, ArrowLeftRight } from 'lucide-react';
+import { ArrowUp, ArrowDown, EyeOff, Pencil, Trash2, Copy, ArrowLeftRight, Info } from 'lucide-react';
 import type { FieldMeta } from '@/features/database/types';
 import { getFieldTypeIcon } from './field-icons';
 import { useDatabaseUI } from '../../lib/store';
@@ -120,7 +120,15 @@ export const ColumnHeader = React.memo(function ColumnHeader({
       onContextMenu={handleRightClick}
     >
       <Icon size={13} className="shrink-0" style={{ color: '#9AA2AF' }} />
-      <span className="truncate" title={field.description || undefined}>{field.name}</span>
+      <span className="truncate">{field.name}</span>
+      {field.description && (
+        <span className="relative shrink-0 group/info">
+          <Info size={12} className="text-[#9AA2AF] hover:text-[#6A7184] cursor-help" />
+          <span className="hidden group-hover/info:block absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white dark:bg-[hsl(200,30%,12%)] shadow-lg rounded-md px-2.5 py-1.5 text-[11px] text-[#374151] dark:text-[hsl(200,25%,88%)] font-normal max-w-[200px] whitespace-normal leading-snug border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+            {field.description}
+          </span>
+        </span>
+      )}
       {currentSort && (
         <span className="shrink-0">
           {currentSort.direction === 'asc' ? (
