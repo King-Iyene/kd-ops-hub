@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Loader2, Expand, Copy, Trash2, MoreHorizontal } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { ColumnHeader } from './ColumnHeader';
@@ -50,8 +50,6 @@ export default function GridView({
   onDeleteRow,
   onDuplicateRow,
   onDeleteField,
-  onBulkDeleteRows,
-  onReorderFields,
 }: GridViewProps) {
   const rowHeight = useDatabaseUI((s) => s.rowHeight);
   const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
@@ -60,6 +58,7 @@ export default function GridView({
 
   const parentRef = useRef<HTMLDivElement>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [rowMenu, setRowMenu] = useState<{ x: number; y: number; record: RecordRow } | null>(null);
 
   const visibleFields = useMemo(
     () =>
@@ -103,7 +102,6 @@ export default function GridView({
     setColumnWidths((prev) => ({ ...prev, [fieldId]: width }));
   }, []);
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!selectedCellId) return;
@@ -174,7 +172,6 @@ export default function GridView({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Grid */}
       <div ref={parentRef} className="flex-1 overflow-auto">
         <div style={{ minWidth: totalWidth }}>
           {/* Header */}
@@ -182,20 +179,19 @@ export default function GridView({
             className="sticky top-0 z-20 flex"
             style={{
               height: HEADER_HEIGHT,
-              backgroundColor: '#F8FAFC',
-              borderBottom: '1px solid #E2E8F0',
+              backgroundColor: '#F9F9FA',
+              borderBottom: '1px solid #E7E7E9',
             }}
           >
-            {/* Row number header */}
             <div
               className="sticky left-0 z-30 flex items-center justify-center shrink-0"
               style={{
                 width: ROW_NUMBER_WIDTH,
                 minWidth: ROW_NUMBER_WIDTH,
-                backgroundColor: '#F8FAFC',
-                borderRight: '1px solid #E2E8F0',
+                backgroundColor: '#F9F9FA',
+                borderRight: '1px solid #E7E7E9',
                 fontSize: 11,
-                color: '#94A3B8',
+                color: '#9AA2AF',
               }}
             >
               {isLoading && <Loader2 size={14} className="animate-spin" />}
@@ -211,15 +207,14 @@ export default function GridView({
               />
             ))}
 
-            {/* Add field button */}
             <div
               className="flex items-center justify-center shrink-0 cursor-pointer hover:bg-gray-100"
               style={{
                 width: 44,
                 minWidth: 44,
-                backgroundColor: '#F8FAFC',
-                borderRight: '1px solid #E2E8F0',
-                color: '#94A3B8',
+                backgroundColor: '#F9F9FA',
+                borderRight: '1px solid #E7E7E9',
+                color: '#9AA2AF',
               }}
               onClick={onAddField}
             >
@@ -242,15 +237,15 @@ export default function GridView({
               return (
                 <div
                   key={record.id}
-                  className="absolute left-0 w-full flex"
+                  className="absolute left-0 w-full flex group/row"
                   style={{
                     height: rowHeightPx,
                     top: virtualRow.start,
-                    backgroundColor: isRowSelected ? '#EFF6FF' : undefined,
+                    backgroundColor: isRowSelected ? '#EBF0FF' : undefined,
                   }}
                   onMouseEnter={(e) => {
                     if (!isRowSelected) {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = '#F1F5F9';
+                      (e.currentTarget as HTMLElement).style.backgroundColor = '#F9F9FA';
                     }
                   }}
                   onMouseLeave={(e) => {
@@ -259,20 +254,39 @@ export default function GridView({
                     }
                   }}
                 >
-                  {/* Row number */}
+                  {/* Row number with expand icon */}
                   <div
-                    className="sticky left-0 z-10 flex items-center justify-center shrink-0"
+                    className="sticky left-0 z-10 flex items-center justify-center shrink-0 group/num"
                     style={{
                       width: ROW_NUMBER_WIDTH,
                       minWidth: ROW_NUMBER_WIDTH,
-                      backgroundColor: isRowSelected ? '#EFF6FF' : '#F8FAFC',
-                      borderRight: '1px solid #E2E8F0',
-                      borderBottom: '1px solid #E2E8F0',
+                      backgroundColor: isRowSelected ? '#EBF0FF' : '#F9F9FA',
+                      borderRight: '1px solid #E7E7E9',
+                      borderBottom: '1px solid #E7E7E9',
                       fontSize: 11,
-                      color: '#94A3B8',
+                      color: '#9AA2AF',
                     }}
                   >
-                    {rowNum}
+                    <span className="group-hover/row:hidden">{rowNum}</span>
+                    <div className="hidden group-hover/row:flex items-center gap-1">
+                      {onExpandRow && (
+                        <button
+                          className="p-0.5 rounded hover:bg-gray-200"
+                          onClick={(e) => { e.stopPropagation(); onExpandRow(record); }}
+                        >
+                          <Expand size={12} />
+                        </button>
+                      )}
+                      <button
+                        className="p-0.5 rounded hover:bg-gray-200"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRowMenu({ x: e.clientX, y: e.clientY, record });
+                        }}
+                      >
+                        <MoreHorizontal size={12} />
+                      </button>
+                    </div>
                   </div>
 
                   {fieldsWithWidths.map((field) => (
@@ -293,13 +307,13 @@ export default function GridView({
             className="flex items-center cursor-pointer hover:bg-gray-50"
             style={{
               height: rowHeightPx,
-              borderBottom: '1px solid #E2E8F0',
+              borderBottom: '1px solid #E7E7E9',
             }}
             onClick={onAddRow}
           >
             <div
               className="flex items-center gap-1 px-4"
-              style={{ color: '#94A3B8', fontSize: 13 }}
+              style={{ color: '#9AA2AF', fontSize: 13 }}
             >
               <Plus size={14} /> Add row
             </div>
@@ -307,15 +321,54 @@ export default function GridView({
         </div>
       </div>
 
+      {/* Row context menu */}
+      {rowMenu && (
+        <>
+          <div className="fixed inset-0 z-50" onClick={() => setRowMenu(null)} />
+          <div
+            className="fixed z-50 bg-white border border-[#E7E7E9] rounded-lg shadow-lg py-1 min-w-[160px]"
+            style={{ left: rowMenu.x, top: rowMenu.y }}
+          >
+            {onExpandRow && (
+              <button
+                className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+                onClick={() => { onExpandRow(rowMenu.record); setRowMenu(null); }}
+              >
+                <Expand size={14} className="text-[#9AA2AF]" /> Expand row
+              </button>
+            )}
+            {onDuplicateRow && (
+              <button
+                className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+                onClick={() => { onDuplicateRow(rowMenu.record); setRowMenu(null); }}
+              >
+                <Copy size={14} className="text-[#9AA2AF]" /> Duplicate row
+              </button>
+            )}
+            {onDeleteRow && (
+              <>
+                <div className="h-px bg-[#E7E7E9] my-1" />
+                <button
+                  className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-red-50 flex items-center gap-2 text-red-500"
+                  onClick={() => { onDeleteRow(rowMenu.record.id); setRowMenu(null); }}
+                >
+                  <Trash2 size={14} /> Delete row
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      )}
+
       {/* Pagination */}
       <div
         className="flex items-center justify-between px-4 shrink-0"
         style={{
           height: 40,
-          borderTop: '1px solid #E2E8F0',
-          backgroundColor: '#F8FAFC',
+          borderTop: '1px solid #E7E7E9',
+          backgroundColor: '#F9F9FA',
           fontSize: 13,
-          color: '#475569',
+          color: '#6A7184',
         }}
       >
         <span>
