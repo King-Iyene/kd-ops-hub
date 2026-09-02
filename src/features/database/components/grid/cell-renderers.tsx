@@ -134,7 +134,7 @@ export const DateCellRenderer = React.memo(function DateCellRenderer({
     field.ui_type === 'DateTime'
       ? { dateStyle: 'medium', timeStyle: 'short' }
       : { dateStyle: 'medium' };
-  return <span className="truncate">{date.toLocaleDateString(undefined, opts)}</span>;
+  return <span className="truncate">{date.toLocaleString(undefined, opts)}</span>;
 });
 
 export const CheckboxCellRenderer = React.memo(function CheckboxCellRenderer({
@@ -297,7 +297,7 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
     if (isNaN(date.getTime())) return <span style={{ color: '#9AA2AF' }}>{String(value)}</span>;
     return (
       <span className="truncate" style={{ color: '#9AA2AF' }}>
-        {date.toLocaleDateString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+        {date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
       </span>
     );
   }
