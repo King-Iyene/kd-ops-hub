@@ -11,10 +11,12 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link2, Plus, X, Star } from 'lucide-react';
-import { useCreateField } from '../hooks';
+import { useCreateField, useFields } from '../hooks';
 import { useDatabaseUI } from '../lib/store';
-import type { UIType, SelectChoice, FieldOptions } from '../types';
+import type { UIType, SelectChoice, FieldOptions, FieldMeta } from '../types';
 import { PILL_COLORS } from '../types';
+import { ROLLUP_FUNCTIONS } from '../lib/computations';
+import type { RollupFunction } from '../lib/computations';
 import { getFieldTypeIcon } from './grid/field-icons';
 import { CreateLinkDialog } from './CreateLinkDialog';
 
@@ -45,6 +47,8 @@ const FIELD_TYPE_OPTIONS: { value: UIType | '_link'; label: string; group: strin
   { value: 'Attachment', label: 'Attachment', group: 'Other' },
   { value: 'JSON', label: 'JSON', group: 'Other' },
   { value: '_link', label: 'Link to Another Table', group: 'Relations' },
+  { value: 'Lookup', label: 'Lookup', group: 'Relations' },
+  { value: 'Rollup', label: 'Rollup', group: 'Relations' },
 ];
 
 export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps) {
@@ -60,8 +64,23 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [precision, setPrecision] = useState(2);
 
+  const [selectedLinkFieldId, setSelectedLinkFieldId] = useState('');
+  const [selectedTargetFieldId, setSelectedTargetFieldId] = useState('');
+  const [selectedRollupFn, setSelectedRollupFn] = useState<RollupFunction>('COUNT');
+
   const { activeTableId } = useDatabaseUI();
   const createField = useCreateField();
+
+  // Fields for the current table (to find Link fields)
+  const { data: currentTableFields } = useFields(activeTableId);
+  const linkFields = (currentTableFields ?? []).filter((f: FieldMeta) => f.ui_type === 'Links');
+
+  // Resolve the related table from the selected link field
+  const selectedLinkField = linkFields.find((f: FieldMeta) => f.id === selectedLinkFieldId);
+  const relatedTableId = selectedLinkField?.options?.relatedTableId ?? null;
+
+  // Fields for the related table (to pick the target/lookup/rollup field)
+  const { data: relatedTableFields } = useFields(relatedTableId);
 
   const resetForm = useCallback(() => {
     setName('');
@@ -73,6 +92,9 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setRatingMax(5);
     setCurrencyCode('USD');
     setPrecision(2);
+    setSelectedLinkFieldId('');
+    setSelectedTargetFieldId('');
+    setSelectedRollupFn('COUNT');
   }, []);
 
   const handleTypeChange = (v: string) => {
@@ -82,6 +104,14 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
       return;
     }
     setUiType(v as UIType);
+    setSelectedLinkFieldId('');
+    setSelectedTargetFieldId('');
+    setSelectedRollupFn('COUNT');
+  };
+
+  const handleLinkFieldChange = (v: string) => {
+    setSelectedLinkFieldId(v);
+    setSelectedTargetFieldId('');
   };
 
   const addChoice = useCallback(() => {
@@ -112,6 +142,15 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     if (uiType === 'Decimal') {
       opts.precision = precision;
     }
+    if (uiType === 'Lookup') {
+      opts.linkFieldId = selectedLinkFieldId;
+      opts.lookupFieldId = selectedTargetFieldId;
+    }
+    if (uiType === 'Rollup') {
+      opts.linkFieldId = selectedLinkFieldId;
+      opts.rollupFieldId = selectedTargetFieldId;
+      opts.fn = selectedRollupFn;
+    }
     return opts;
   };
 
@@ -128,6 +167,16 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
       onOpenChange(false);
       setLinkDialogOpen(true);
       return;
+    }
+    if (uiType === 'Lookup' || uiType === 'Rollup') {
+      if (!selectedLinkFieldId) {
+        setError('Please select a link field');
+        return;
+      }
+      if (!selectedTargetFieldId) {
+        setError('Please select a target field');
+        return;
+      }
     }
     setError('');
     try {
@@ -149,6 +198,8 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const showRatingConfig = uiType === 'Rating';
   const showCurrencyConfig = uiType === 'Currency';
   const showPrecisionConfig = uiType === 'Decimal';
+  const showLookupRollupConfig = uiType === 'Lookup' || uiType === 'Rollup';
+  const showRollupFnConfig = uiType === 'Rollup';
 
   return (
     <>
@@ -301,6 +352,81 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {showLookupRollupConfig && (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-[#4A5268]">Link field</Label>
+                  {linkFields.length === 0 ? (
+                    <p className="text-xs text-[#6A7184]">
+                      No link fields in this table. Create a &quot;Link to Another Table&quot; field first.
+                    </p>
+                  ) : (
+                    <Select value={selectedLinkFieldId} onValueChange={handleLinkFieldChange}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select a link field..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {linkFields.map((f: FieldMeta) => (
+                          <SelectItem key={f.id} value={f.id}>
+                            <span className="flex items-center gap-2">
+                              <Link2 size={14} className="text-[#9AA2AF]" />
+                              {f.name}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                {selectedLinkFieldId && relatedTableId && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-[#4A5268]">
+                      {uiType === 'Lookup' ? 'Lookup field' : 'Rollup field'}
+                    </Label>
+                    {(relatedTableFields ?? []).length === 0 ? (
+                      <p className="text-xs text-[#6A7184]">No fields found in the related table.</p>
+                    ) : (
+                      <Select value={selectedTargetFieldId} onValueChange={setSelectedTargetFieldId}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select a field..." />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[200px]">
+                          {(relatedTableFields ?? []).map((f: FieldMeta) => {
+                            const Icon = getFieldTypeIcon(f.ui_type);
+                            return (
+                              <SelectItem key={f.id} value={f.id}>
+                                <span className="flex items-center gap-2">
+                                  <Icon size={14} className="text-[#9AA2AF]" />
+                                  {f.name}
+                                </span>
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )}
+
+                {showRollupFnConfig && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-[#4A5268]">Aggregate function</Label>
+                    <Select value={selectedRollupFn} onValueChange={(v) => setSelectedRollupFn(v as RollupFunction)}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ROLLUP_FUNCTIONS.map((fn) => (
+                          <SelectItem key={fn} value={fn}>{fn}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             )}
 

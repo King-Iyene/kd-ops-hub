@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ArrowDownAZ, ArrowUpAZ, Filter, EyeOff, Trash2, Plus, Info } from 'lucide-react';
+import { ArrowDownAZ, ArrowUpAZ, Filter, EyeOff, Trash2, Plus, Info, Pencil } from 'lucide-react';
 import type { FieldMeta } from '@/features/database/types';
 import { getFieldTypeIcon } from './field-icons';
 import { useDatabaseUI } from '../../lib/store';
@@ -9,6 +9,7 @@ interface ColumnHeaderProps {
   field: FieldMeta;
   onResize: (fieldId: string, width: number) => void;
   onDeleteField?: (fieldId: string) => void;
+  onEditField?: (field: FieldMeta) => void;
   onDragStart?: (fieldId: string) => void;
   onDragOver?: (fieldId: string) => void;
   onDrop?: (fieldId: string) => void;
@@ -24,6 +25,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
   field,
   onResize,
   onDeleteField,
+  onEditField,
   onDragStart,
   onDragOver,
   onDrop,
@@ -87,6 +89,11 @@ export const ColumnHeader = React.memo(function ColumnHeader({
     setContextMenu(null);
   }, [field.id, field.name, onDeleteField]);
 
+  const handleEdit = useCallback(() => {
+    onEditField?.(field);
+    setContextMenu(null);
+  }, [field, onEditField]);
+
   return (
     <div
       className={`relative flex items-center gap-1.5 px-2 select-none group ${frozen ? 'sticky z-20' : ''}`}
@@ -137,6 +144,15 @@ export const ColumnHeader = React.memo(function ColumnHeader({
               border: `1px solid ${GRID_COLORS.border}`,
             }}
           >
+            {!field.is_system && (
+              <>
+                <button className={menuItemClass} style={{ color: '#0F172A' }} onClick={handleEdit}>
+                  <Pencil size={14} style={{ color: '#64748B' }} /> Edit field
+                </button>
+                <div className="border-t my-1" style={{ borderColor: GRID_COLORS.border }} />
+              </>
+            )}
+
             <button className={menuItemClass} style={{ color: '#0F172A' }} onClick={handleSortAsc}>
               <ArrowDownAZ size={14} style={{ color: '#64748B' }} /> Sort A → Z
             </button>

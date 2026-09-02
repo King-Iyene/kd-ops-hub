@@ -1,6 +1,6 @@
 export { useWorkspaces } from './useWorkspaces';
-export { useBases, useCreateBase, useDeleteBase } from './useBases';
-export { useTables, useCreateTable, useDeleteTable } from './useTables';
+export { useBases, useCreateBase, useUpdateBase, useDeleteBase } from './useBases';
+export { useTables, useCreateTable, useUpdateTable, useDeleteTable } from './useTables';
 export { useFields, useCreateField, useUpdateField, useDeleteField } from './useFields';
 export { useViews, useCreateView, useUpdateView, useDeleteView } from './useViews';
 export { useActiveView } from './useActiveView';

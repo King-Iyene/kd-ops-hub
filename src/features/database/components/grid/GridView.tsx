@@ -1,11 +1,12 @@
 import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, ChevronLeft, ChevronRight, Loader2, Expand } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Loader2, Expand, Trash2 } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { ColumnHeader } from './ColumnHeader';
 import { GridCell } from './GridCell';
 import { RowContextMenu } from './RowContextMenu';
+import { EditFieldDialog } from '../EditFieldDialog';
 import { GRID_COLORS } from './grid-tokens';
 import { getRowColor } from '../../lib/row-colors';
 
@@ -57,8 +58,10 @@ export default function GridView({
   const setSelectedCell = useDatabaseUI((s) => s.setSelectedCell);
   const setEditingCell = useDatabaseUI((s) => s.setEditingCell);
   const rowColorRules = useDatabaseUI((s) => s.rowColorRules);
+  const activeTableId = useDatabaseUI((s) => s.activeTableId);
 
   const parentRef = useRef<HTMLDivElement>(null);
+  const [editingField, setEditingField] = useState<FieldMeta | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; record: RecordRow } | null>(null);
@@ -277,6 +280,7 @@ export default function GridView({
                 field={field}
                 onResize={handleResize}
                 onDeleteField={onDeleteField}
+                onEditField={setEditingField}
                 frozen={field.is_primary}
                 frozenLeft={field.is_primary ? ROW_NUMBER_WIDTH : undefined}
               />
@@ -406,6 +410,43 @@ export default function GridView({
         </div>
       </div>
 
+      {/* Bulk action bar */}
+      {selectedRowIds.size > 0 && (
+        <div
+          className="flex items-center gap-3 px-4 shrink-0"
+          style={{
+            height: 40,
+            borderTop: `1px solid ${GRID_COLORS.border}`,
+            backgroundColor: '#EEF2FF',
+            fontSize: 13,
+          }}
+        >
+          <span style={{ color: GRID_COLORS.selected, fontWeight: 500 }}>
+            {selectedRowIds.size} row{selectedRowIds.size !== 1 ? 's' : ''} selected
+          </span>
+          <button
+            className="px-2.5 py-1 rounded text-xs font-medium hover:bg-red-100 transition-colors"
+            style={{ color: '#DC2626' }}
+            onClick={() => {
+              if (window.confirm(`Delete ${selectedRowIds.size} record${selectedRowIds.size !== 1 ? 's' : ''}? This cannot be undone.`)) {
+                selectedRowIds.forEach((id) => onDeleteRow?.(id));
+                setSelectedRowIds(new Set());
+              }
+            }}
+          >
+            <Trash2 size={13} className="inline mr-1" style={{ verticalAlign: -2 }} />
+            Delete
+          </button>
+          <button
+            className="px-2.5 py-1 rounded text-xs font-medium hover:bg-gray-200 transition-colors"
+            style={{ color: GRID_COLORS.headerText }}
+            onClick={() => setSelectedRowIds(new Set())}
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
+
       {/* Pagination footer */}
       <div
         className="flex items-center justify-between px-4 shrink-0"
@@ -459,6 +500,14 @@ export default function GridView({
           }}
         />
       )}
+
+      {/* Edit field dialog */}
+      <EditFieldDialog
+        open={!!editingField}
+        onOpenChange={(open) => { if (!open) setEditingField(null); }}
+        field={editingField}
+        tableId={activeTableId ?? ''}
+      />
     </div>
   );
 }

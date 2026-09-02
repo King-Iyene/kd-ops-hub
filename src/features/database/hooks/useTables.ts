@@ -156,6 +156,33 @@ export function useCreateTable() {
   });
 }
 
+export function useUpdateTable() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { id: string; baseId: string; name?: string; icon?: string | null; position?: number }) => {
+      const updates: Record<string, any> = {};
+      if (input.name !== undefined) updates.name = input.name;
+      if (input.icon !== undefined) updates.icon = input.icon;
+      if (input.position !== undefined) updates.position = input.position;
+
+      const { data, error } = await supabase
+        .schema('nc_meta')
+        .from('tables')
+        .update(updates)
+        .eq('id', input.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as TableMeta;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'tables', variables.baseId] });
+    },
+  });
+}
+
 export function useDeleteTable() {
   const qc = useQueryClient();
 

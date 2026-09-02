@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   Table2,
   ChevronDown,
@@ -12,17 +12,28 @@ import {
   MoreHorizontal,
   Trash2,
   Pencil,
+  Copy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useDatabaseUI } from '../lib/store';
-import { useBases, useTables, useViews, useDeleteBase } from '../hooks';
+import {
+  useBases,
+  useTables,
+  useViews,
+  useDeleteBase,
+  useUpdateBase,
+  useDeleteTable,
+  useUpdateTable,
+  useCreateTable,
+} from '../hooks';
 import { CreateTableDialog } from './CreateTableDialog';
 import { CreateBaseDialog } from './CreateBaseDialog';
 
@@ -33,6 +44,49 @@ const VIEW_ICONS: Record<string, typeof LayoutGrid> = {
   form: FileText,
   calendar: Calendar,
 };
+
+function InlineRenameInput({
+  value,
+  onCommit,
+  onCancel,
+}: {
+  value: string;
+  onCommit: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const [text, setText] = useState(value);
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
+
+  const commit = useCallback(() => {
+    const trimmed = text.trim();
+    if (trimmed && trimmed !== value) {
+      onCommit(trimmed);
+    } else {
+      onCancel();
+    }
+  }, [text, value, onCommit, onCancel]);
+
+  return (
+    <input
+      ref={ref}
+      className="bg-white border border-[#3366FF] rounded px-1.5 py-0.5 text-[13px] w-full outline-none"
+      style={{ color: '#374151' }}
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit();
+        if (e.key === 'Escape') onCancel();
+      }}
+      onClick={(e) => e.stopPropagation()}
+    />
+  );
+}
 
 export function DatabaseSidebar() {
   const {
@@ -49,10 +103,16 @@ export function DatabaseSidebar() {
   const { data: tables } = useTables(activeBaseId);
   const { data: views } = useViews(activeTableId);
   const deleteBase = useDeleteBase();
+  const updateBase = useUpdateBase();
+  const deleteTable = useDeleteTable();
+  const updateTable = useUpdateTable();
+  const createTable = useCreateTable();
 
   const [createTableOpen, setCreateTableOpen] = useState(false);
   const [createBaseOpen, setCreateBaseOpen] = useState(false);
   const [expandedBases, setExpandedBases] = useState<Set<string>>(new Set());
+  const [renamingBaseId, setRenamingBaseId] = useState<string | null>(null);
+  const [renamingTableId, setRenamingTableId] = useState<string | null>(null);
 
   const toggleBase = (id: string) => {
     setActiveBase(id);
@@ -66,6 +126,76 @@ export function DatabaseSidebar() {
 
   const isBaseExpanded = (id: string) =>
     expandedBases.has(id) || id === activeBaseId;
+
+  const handleRenameBase = useCallback(
+    (baseId: string, name: string) => {
+      updateBase.mutate({ id: baseId, name });
+      setRenamingBaseId(null);
+    },
+    [updateBase],
+  );
+
+  const handleDeleteBase = useCallback(
+    (base: any) => {
+      if (confirm(`Delete base "${base.name}"? All tables and data will be permanently deleted.`)) {
+        deleteBase.mutate(base.id);
+        if (activeBaseId === base.id) {
+          setActiveBase(null as any);
+        }
+      }
+    },
+    [deleteBase, activeBaseId, setActiveBase],
+  );
+
+  const handleRenameTable = useCallback(
+    (tableId: string, name: string) => {
+      if (!activeBaseId) return;
+      updateTable.mutate({ id: tableId, baseId: activeBaseId, name });
+      setRenamingTableId(null);
+    },
+    [updateTable, activeBaseId],
+  );
+
+  const handleDeleteTable = useCallback(
+    (table: any) => {
+      if (!activeBaseId) return;
+      if (confirm(`Delete table "${table.name}"? All records will be permanently deleted.`)) {
+        deleteTable.mutate(
+          { tableId: table.id, baseId: activeBaseId },
+          {
+            onSuccess: () => {
+              if (activeTableId === table.id) {
+                const remaining = tables?.filter((t: any) => t.id !== table.id);
+                if (remaining && remaining.length > 0) {
+                  setActiveTable(remaining[0].id);
+                } else {
+                  setActiveTable(null as any);
+                }
+              }
+            },
+          },
+        );
+      }
+    },
+    [deleteTable, activeBaseId, activeTableId, tables, setActiveTable],
+  );
+
+  const handleDuplicateTable = useCallback(
+    (table: any) => {
+      if (!activeBaseId) return;
+      createTable.mutate(
+        {
+          base_id: activeBaseId,
+          name: `${table.name} (copy)`,
+          position: (tables?.length ?? 0),
+        },
+        {
+          onSuccess: (newTable) => setActiveTable(newTable.id),
+        },
+      );
+    },
+    [createTable, activeBaseId, tables, setActiveTable],
+  );
 
   if (!sidebarOpen) return null;
 
@@ -113,9 +243,19 @@ export function DatabaseSidebar() {
                   {base.name?.charAt(0)?.toUpperCase() || 'B'}
                 </span>
               </span>
-              <span className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate flex-1">
-                {base.name}
-              </span>
+              {renamingBaseId === base.id ? (
+                <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+                  <InlineRenameInput
+                    value={base.name}
+                    onCommit={(name) => handleRenameBase(base.id, name)}
+                    onCancel={() => setRenamingBaseId(null)}
+                  />
+                </div>
+              ) : (
+                <span className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate flex-1">
+                  {base.name}
+                </span>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -126,15 +266,21 @@ export function DatabaseSidebar() {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
-                  <DropdownMenuItem className="text-xs gap-2">
+                  <DropdownMenuItem
+                    className="text-xs gap-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRenamingBaseId(base.id);
+                    }}
+                  >
                     <Pencil size={12} /> Rename
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-xs gap-2 text-red-500 focus:text-red-500"
-                    onClick={() => {
-                      if (confirm(`Delete base "${base.name}"? This cannot be undone.`)) {
-                        deleteBase.mutate(base.id);
-                      }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteBase(base);
                     }}
                   >
                     <Trash2 size={12} /> Delete
@@ -147,19 +293,70 @@ export function DatabaseSidebar() {
             {isBaseExpanded(base.id) && base.id === activeBaseId && (
               <div className="ml-5 mt-0.5">
                 {tables?.map((table: any) => (
-                  <div key={table.id}>
-                    <button
+                  <div key={table.id} className="group/table">
+                    <div
                       className={cn(
-                        'w-full flex items-center gap-2 px-2 py-1 rounded-md text-[13px] text-left transition-colors',
+                        'flex items-center gap-1 pr-1 rounded-md transition-colors',
                         table.id === activeTableId
-                          ? 'bg-[#3366FF]/10 text-[#3366FF] font-medium'
-                          : 'text-[#4A5268] dark:text-[hsl(200,15%,60%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,12%)]',
+                          ? 'bg-[#3366FF]/10'
+                          : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,12%)]',
                       )}
-                      onClick={() => setActiveTable(table.id)}
                     >
-                      <Table2 size={14} className="shrink-0" />
-                      <span className="truncate">{table.name}</span>
-                    </button>
+                      {renamingTableId === table.id ? (
+                        <div className="flex-1 min-w-0 px-2 py-1">
+                          <InlineRenameInput
+                            value={table.name}
+                            onCommit={(name) => handleRenameTable(table.id, name)}
+                            onCancel={() => setRenamingTableId(null)}
+                          />
+                        </div>
+                      ) : (
+                        <button
+                          className={cn(
+                            'flex-1 flex items-center gap-2 px-2 py-1 text-[13px] text-left min-w-0',
+                            table.id === activeTableId
+                              ? 'text-[#3366FF] font-medium'
+                              : 'text-[#4A5268] dark:text-[hsl(200,15%,60%)]',
+                          )}
+                          onClick={() => setActiveTable(table.id)}
+                          onDoubleClick={() => setRenamingTableId(table.id)}
+                        >
+                          <Table2 size={14} className="shrink-0" />
+                          <span className="truncate">{table.name}</span>
+                        </button>
+                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="opacity-0 group-hover/table:opacity-100 p-0.5 rounded hover:bg-[#D5D5D9] transition-opacity shrink-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal size={12} className="text-[#6A7184]" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem
+                            className="text-xs gap-2"
+                            onClick={() => setRenamingTableId(table.id)}
+                          >
+                            <Pencil size={12} /> Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-xs gap-2"
+                            onClick={() => handleDuplicateTable(table)}
+                          >
+                            <Copy size={12} /> Duplicate
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-xs gap-2 text-red-500 focus:text-red-500"
+                            onClick={() => handleDeleteTable(table)}
+                          >
+                            <Trash2 size={12} /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
 
                     {/* Views under active table */}
                     {table.id === activeTableId && views && views.length > 0 && (
