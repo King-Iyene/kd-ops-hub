@@ -37,40 +37,110 @@ async function resolveTableContext(baseId: string, tableId: string) {
   return { schemaName: base.schema_name, tableName: table.pg_table_name };
 }
 
+function applyFilter(
+  query: any,
+  col: string,
+  operator: string,
+  value: any,
+  pgType: string,
+): any {
+  switch (operator) {
+    case 'is':
+    case 'eq':
+      return query.eq(col, value);
+    case 'isNot':
+    case 'neq':
+      return query.neq(col, value);
+    case 'contains':
+      if (pgType === 'TEXT[]') return query.contains(col, [value]);
+      return query.ilike(col, `%${value}%`);
+    case 'doesNotContain':
+      if (pgType === 'TEXT[]') return query.not(col, 'cs', `{${value}}`);
+      return query.not(col, 'ilike', `%${value}%`);
+    case 'startsWith':
+      return query.ilike(col, `${value}%`);
+    case 'endsWith':
+      return query.ilike(col, `%${value}`);
+    case 'isEmpty':
+      return query.is(col, null);
+    case 'isNotEmpty':
+      return query.not(col, 'is', null);
+    case 'gt':
+    case 'isAfter':
+      return query.gt(col, value);
+    case 'gte':
+    case 'isOnOrAfter':
+      return query.gte(col, value);
+    case 'lt':
+    case 'isBefore':
+      return query.lt(col, value);
+    case 'lte':
+    case 'isOnOrBefore':
+      return query.lte(col, value);
+    case 'isAnyOf':
+      return query.in(col, Array.isArray(value) ? value : [value]);
+    case 'isNoneOf':
+      return query.not(col, 'in', `(${(Array.isArray(value) ? value : [value]).map((v: string) => `"${v}"`).join(',')})`);
+    default:
+      return query;
+  }
+}
+
 export function useRecords(params: UseRecordsParams) {
-  const { baseId, tableId, page = 1, pageSize = 50, sorts, search } = params;
+  const { baseId, tableId, page = 0, pageSize = 50, filters, sorts, search } = params;
 
   return useQuery({
-    queryKey: ['nc', 'records', baseId, tableId, page, pageSize, sorts, search],
+    queryKey: ['nc', 'records', baseId, tableId, page, pageSize, filters, sorts, search],
     enabled: !!baseId && !!tableId,
     queryFn: async (): Promise<RecordsResult> => {
       const ctx = await resolveTableContext(baseId, tableId);
+
+      const { data: fieldsMeta } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .select('id, pg_column_name, pg_type, ui_type')
+        .eq('table_id', tableId);
+
+      const fieldMap = new Map(
+        (fieldsMeta ?? []).map((f: any) => [f.id, f]),
+      );
 
       let query = supabase
         .schema(ctx.schemaName)
         .from(ctx.tableName)
         .select('*', { count: 'exact' });
 
+      // Filters
+      if (filters && filters.length > 0) {
+        for (const filter of filters) {
+          const field = fieldMap.get(filter.field_id);
+          if (!field) continue;
+          query = applyFilter(query, field.pg_column_name, filter.operator, filter.value, field.pg_type);
+        }
+      }
+
+      // Search across text columns
+      if (search) {
+        const textCols = (fieldsMeta ?? [])
+          .filter((f: any) => ['TEXT'].includes(f.pg_type) && !f.pg_column_name.startsWith('nc_'))
+          .map((f: any) => f.pg_column_name);
+        if (textCols.length > 0) {
+          const orClause = textCols.map((c: string) => `${c}.ilike.%${search}%`).join(',');
+          query = query.or(orClause);
+        }
+      }
+
       // Pagination
-      const from = (page - 1) * pageSize;
+      const from = page * pageSize;
       const to = from + pageSize - 1;
       query = query.range(from, to);
 
       // Sorting
       if (sorts && sorts.length > 0) {
-        // Get field metadata to resolve field_id -> pg_column_name
-        const { data: fields } = await supabase
-          .schema('nc_meta')
-          .from('fields')
-          .select('id, pg_column_name')
-          .eq('table_id', tableId);
-
-        const fieldMap = new Map((fields ?? []).map((f: any) => [f.id, f.pg_column_name]));
-
         for (const sort of sorts) {
-          const col = fieldMap.get(sort.field_id);
-          if (col) {
-            query = query.order(col, { ascending: sort.direction === 'asc' });
+          const field = fieldMap.get(sort.field_id);
+          if (field) {
+            query = query.order(field.pg_column_name, { ascending: sort.direction === 'asc' });
           }
         }
       } else {

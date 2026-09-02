@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { Grid3X3, LayoutGrid, Columns3, FileText, Calendar, Plus, Pencil, Trash2 } from 'lucide-react';
 import { useDatabaseUI } from '../lib/store';
-import { useViews, useCreateView, useUpdateView } from '../hooks';
+import { useViews, useCreateView, useUpdateView, useDeleteView } from '../hooks';
 
 const VIEW_ICONS: Record<string, typeof Grid3X3> = {
   grid: Grid3X3,
@@ -24,6 +24,7 @@ export function ViewBar() {
   const { data: views } = useViews(activeTableId);
   const createView = useCreateView();
   const updateView = useUpdateView();
+  const deleteView = useDeleteView();
 
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; viewId: string } | null>(null);
@@ -173,6 +174,14 @@ export function ViewBar() {
             <button
               className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-red-50 flex items-center gap-2 text-red-500"
               onClick={() => {
+                if (!activeTableId) return;
+                const view = sorted.find((v) => v.id === contextMenu.viewId);
+                if (view?.is_default) return;
+                deleteView.mutate({ id: contextMenu.viewId, table_id: activeTableId });
+                if (activeViewId === contextMenu.viewId) {
+                  const fallback = sorted.find((v) => v.id !== contextMenu.viewId);
+                  if (fallback) setActiveView(fallback.id);
+                }
                 setContextMenu(null);
               }}
             >

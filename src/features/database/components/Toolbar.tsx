@@ -10,6 +10,32 @@ import { exportToCsv } from '../lib/csv';
 import type { Filter as FilterType, Sort, FilterOperator } from '../types';
 import { OPERATORS_BY_TYPE } from '../types';
 
+const OPERATOR_LABELS: Record<string, string> = {
+  is: 'is',
+  isNot: 'is not',
+  contains: 'contains',
+  doesNotContain: 'does not contain',
+  startsWith: 'starts with',
+  endsWith: 'ends with',
+  isEmpty: 'is empty',
+  isNotEmpty: 'is not empty',
+  eq: '=',
+  neq: '≠',
+  gt: '>',
+  gte: '≥',
+  lt: '<',
+  lte: '≤',
+  isBefore: 'is before',
+  isAfter: 'is after',
+  isOnOrBefore: 'is on or before',
+  isOnOrAfter: 'is on or after',
+  isBetween: 'is between',
+  isWithin: 'is within',
+  isAnyOf: 'is any of',
+  isNoneOf: 'is none of',
+  isExactly: 'is exactly',
+};
+
 function FilterPanel({ onClose }: { onClose: () => void }) {
   const { filters, setFilters, activeTableId } = useDatabaseUI();
   const { data: fields } = useFields(activeTableId);
@@ -78,15 +104,17 @@ function FilterPanel({ onClose }: { onClose: () => void }) {
               onChange={(e) => updateFilter(filter.id, { operator: e.target.value as FilterOperator })}
             >
               {ops.map((op) => (
-                <option key={op} value={op}>{op}</option>
+                <option key={op} value={op}>{OPERATOR_LABELS[op] ?? op}</option>
               ))}
             </select>
-            <input
-              className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151] flex-1 max-w-[120px]"
-              value={filter.value ?? ''}
-              onChange={(e) => updateFilter(filter.id, { value: e.target.value })}
-              placeholder="Value"
-            />
+            {filter.operator !== 'isEmpty' && filter.operator !== 'isNotEmpty' && (
+              <input
+                className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151] flex-1 max-w-[120px]"
+                value={filter.value ?? ''}
+                onChange={(e) => updateFilter(filter.id, { value: e.target.value })}
+                placeholder="Value"
+              />
+            )}
             <button onClick={() => removeFilter(filter.id)} className="p-0.5 rounded hover:bg-gray-100">
               <X size={12} className="text-[#9AA2AF]" />
             </button>

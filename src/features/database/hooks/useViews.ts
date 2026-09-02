@@ -92,6 +92,24 @@ export function useUpdateView() {
   });
 }
 
+export function useDeleteView() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { id: string; table_id: string }) => {
+      const { error } = await supabase
+        .schema('nc_meta')
+        .from('views')
+        .delete()
+        .eq('id', input.id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'views', variables.table_id] });
+    },
+  });
+}
+
 export function useActiveView(tableId: string | null | undefined) {
   const { data: views } = useViews(tableId);
   const activeViewId = useDatabaseUI((s) => s.activeViewId);
