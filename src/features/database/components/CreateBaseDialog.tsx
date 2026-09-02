@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,12 +10,24 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { useCreateBase } from '../hooks';
+import { useCreateBase, useCreateTable } from '../hooks';
 import { useDatabaseUI } from '../lib/store';
+import { Loader2 } from 'lucide-react';
+
+export interface TemplateConfig {
+  baseName: string;
+  baseIcon: string;
+  baseColor: string;
+  tables: Array<{
+    name: string;
+    icon?: string;
+  }>;
+}
 
 interface CreateBaseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  template?: TemplateConfig | null;
 }
 
 const EMOJI_OPTIONS = [
@@ -29,39 +41,94 @@ const COLOR_OPTIONS = [
   '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F97316',
 ];
 
-export function CreateBaseDialog({ open, onOpenChange }: CreateBaseDialogProps) {
+export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDialogProps) {
   const [name, setName] = useState('');
   const [icon, setIcon] = useState(EMOJI_OPTIONS[0]);
   const [color, setColor] = useState('#3366FF');
   const [error, setError] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
   const createBase = useCreateBase();
-  const { setActiveBase } = useDatabaseUI();
+  const createTable = useCreateTable();
+  const { setActiveBase, setActiveTable } = useDatabaseUI();
+  const templateTriggered = useRef(false);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setName('');
     setColor(COLOR_OPTIONS[0]);
     setError('');
-  };
+    setCreating(false);
+    setStatusMsg('');
+  }, []);
 
-  const handleCreate = async () => {
-    if (!name.trim()) {
-      setError('Base name is required');
-      return;
-    }
-    setError('');
+  const doCreate = useCallback(async (baseName: string, baseIcon: string, baseColor: string, tables: Array<{ name: string; icon?: string }>) => {
+    setCreating(true);
+    setStatusMsg('Creating base...');
     try {
       const result = await createBase.mutateAsync({
-        name: name.trim(),
-        color,
-        icon,
+        name: baseName,
+        color: baseColor,
+        icon: baseIcon,
       });
       setActiveBase(result.id);
+
+      let firstTableId: string | null = null;
+      for (let i = 0; i < tables.length; i++) {
+        setStatusMsg(`Creating table "${tables[i].name}"... (${i + 1}/${tables.length})`);
+        const t = await createTable.mutateAsync({
+          base_id: result.id,
+          name: tables[i].name,
+          icon: tables[i].icon ?? null,
+          position: i,
+        });
+        if (i === 0) firstTableId = t.id;
+      }
+
+      if (firstTableId) setActiveTable(firstTableId);
       resetForm();
       onOpenChange(false);
     } catch (e: any) {
       setError(e?.message ?? 'Failed to create base');
+      setCreating(false);
+      setStatusMsg('');
     }
+  }, [createBase, createTable, setActiveBase, setActiveTable, resetForm, onOpenChange]);
+
+  useEffect(() => {
+    if (open && template && !templateTriggered.current && !creating) {
+      templateTriggered.current = true;
+      doCreate(template.baseName, template.baseIcon, template.baseColor, template.tables);
+    }
+    if (!open) templateTriggered.current = false;
+  }, [open, template, creating, doCreate]);
+
+  const handleCreate = async () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setError('Base name is required');
+      return;
+    }
+    await doCreate(trimmedName, icon, color, [{ name: 'Table 1' }]);
   };
+
+  if (template && creating) {
+    return (
+      <Dialog open={open} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-[360px]">
+          <div className="flex flex-col items-center gap-4 py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-[#3366FF]" />
+            <div className="text-center">
+              <p className="text-sm font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                Setting up {template.baseName}
+              </p>
+              <p className="text-xs text-[#6A7184] mt-1">{statusMsg}</p>
+            </div>
+            {error && <p className="text-xs text-red-500">{error}</p>}
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog
@@ -110,7 +177,6 @@ export function CreateBaseDialog({ open, onOpenChange }: CreateBaseDialogProps) 
             </div>
           </div>
 
-          {/* Color picker */}
           <div className="space-y-1.5">
             <Label className="text-xs">Color</Label>
             <div className="flex flex-wrap gap-1.5">
@@ -146,9 +212,14 @@ export function CreateBaseDialog({ open, onOpenChange }: CreateBaseDialogProps) 
             size="sm"
             className="bg-[#3366FF] hover:bg-[#2952CC]"
             onClick={handleCreate}
-            disabled={createBase.isPending || !name.trim()}
+            disabled={creating || !name.trim()}
           >
-            {createBase.isPending ? 'Creating...' : 'Create Base'}
+            {creating ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                Creating...
+              </>
+            ) : 'Create Base'}
           </Button>
         </DialogFooter>
       </DialogContent>

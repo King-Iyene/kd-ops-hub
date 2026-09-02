@@ -89,21 +89,6 @@ async function authenticateCaller(
     throw new ForbiddenError('Invalid or expired token.');
   }
 
-  // Check the caller's role in the profiles table
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  if (profileError || !profile) {
-    throw new ForbiddenError('User profile not found.');
-  }
-
-  if (!['admin', 'super_admin'].includes(profile.role)) {
-    throw new ForbiddenError('Insufficient permissions. Admin or super_admin role required.');
-  }
-
   return { userId: user.id };
 }
 
@@ -192,42 +177,24 @@ async function handleCreateTable(
     `);
 
     await conn.queryObject(`
-      CREATE POLICY "Admins can insert"
+      CREATE POLICY "Authenticated users can insert"
         ON ${qualified} FOR INSERT
         TO authenticated
-        WITH CHECK (
-          EXISTS (
-            SELECT 1 FROM profiles
-            WHERE profiles.id = auth.uid()
-              AND profiles.role IN ('admin', 'super_admin')
-          )
-        )
+        WITH CHECK (true)
     `);
 
     await conn.queryObject(`
-      CREATE POLICY "Admins can update"
+      CREATE POLICY "Authenticated users can update"
         ON ${qualified} FOR UPDATE
         TO authenticated
-        USING (
-          EXISTS (
-            SELECT 1 FROM profiles
-            WHERE profiles.id = auth.uid()
-              AND profiles.role IN ('admin', 'super_admin')
-          )
-        )
+        USING (true)
     `);
 
     await conn.queryObject(`
-      CREATE POLICY "Admins can delete"
+      CREATE POLICY "Authenticated users can delete"
         ON ${qualified} FOR DELETE
         TO authenticated
-        USING (
-          EXISTS (
-            SELECT 1 FROM profiles
-            WHERE profiles.id = auth.uid()
-              AND profiles.role IN ('admin', 'super_admin')
-          )
-        )
+        USING (true)
     `);
   } finally {
     conn.release();
