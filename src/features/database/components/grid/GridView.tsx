@@ -134,6 +134,7 @@ function SummaryRow({
   summaryDropdown,
   setSummaryDropdown,
   rowNumberWidth,
+  frozenCount = 0,
 }: {
   fields: (FieldMeta & { width: number })[];
   records: RecordRow[];
@@ -142,6 +143,7 @@ function SummaryRow({
   summaryDropdown: string | null;
   setSummaryDropdown: (id: string | null) => void;
   rowNumberWidth: number;
+  frozenCount?: number;
 }) {
   return (
     <div
@@ -167,12 +169,18 @@ function SummaryRow({
         <Sigma size={14} />
       </div>
 
-      {fields.map((field) => {
+      {fields.map((field, colIdx) => {
         const fn = summaryFunctions[field.id] || 'none';
         const isNumeric = NUMERIC_TYPES.includes(field.ui_type);
         const value = computeSummary(fn, records, field.pg_column_name);
         const label = SUMMARY_LABELS[fn];
         const isOpen = summaryDropdown === field.id;
+        const isFroz = colIdx < frozenCount;
+        const isLastFroz = colIdx === frozenCount - 1;
+        let cellLeft = rowNumberWidth;
+        if (isFroz) {
+          for (let i = 0; i < colIdx; i++) cellLeft += fields[i].width;
+        }
 
         return (
           <div
@@ -181,7 +189,9 @@ function SummaryRow({
             style={{
               width: field.width,
               minWidth: field.width,
-              borderRight: '1px solid #E7E7E9',
+              borderRight: isLastFroz ? '3px solid #D0D0D4' : '1px solid #E7E7E9',
+              backgroundColor: '#F9F9FA',
+              ...(isFroz ? { position: 'sticky' as const, left: cellLeft, zIndex: 10 } : {}),
             }}
           >
             <button
@@ -1118,6 +1128,15 @@ export default function GridView({
           <span>
             {totalCount} record{totalCount !== 1 ? 's' : ''}
           </span>
+          {frozenCount > 0 && (
+            <button
+              className="flex items-center gap-1 text-[#3366FF] font-medium hover:underline"
+              onClick={() => setFrozenColumns(0)}
+              title="Click to unfreeze"
+            >
+              <Lock size={12} /> {frozenCount} frozen
+            </button>
+          )}
           {selectedRowIds.size > 0 && (
             <span className="text-[#3366FF] font-medium">
               ({selectedRowIds.size} selected)
