@@ -119,7 +119,7 @@ export function FilterPanel({ fields, filters, onFiltersChange }: FilterPanelPro
       );
     }
 
-    if (uiType === 'SingleSelect' && field.options.choices) {
+    if (uiType === 'SingleSelect' && field.options?.choices) {
       return (
         <Select
           value={String(filter.value ?? '')}

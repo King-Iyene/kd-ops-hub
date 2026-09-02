@@ -130,7 +130,7 @@ export function RowColorPanel({ fields, rules, onRulesChange }: RowColorPanelPro
       );
     }
 
-    if (uiType === 'SingleSelect' && field.options.choices) {
+    if (uiType === 'SingleSelect' && field.options?.choices) {
       return (
         <Select
           value={String(rule.value ?? '')}
