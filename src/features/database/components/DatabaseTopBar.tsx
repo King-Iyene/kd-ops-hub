@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Zap, Link2, Key } from 'lucide-react';
+import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Zap, Link2, Key, Webhook } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuthStore } from '@/store/authStore';
@@ -9,6 +9,7 @@ import { useBases } from '../hooks';
 import { AutomationsDialog } from './AutomationsDialog';
 import { ShareViewDialog } from './ShareViewDialog';
 import { ApiTokensDialog } from './ApiTokensDialog';
+import { WebhooksDialog } from './WebhooksDialog';
 import { PresenceIndicator } from './PresenceIndicator';
 import { NotificationsPanel } from './NotificationsPanel';
 
@@ -22,6 +23,7 @@ export function DatabaseTopBar() {
   const [automationsOpen, setAutomationsOpen] = useState(false);
   const [shareViewOpen, setShareViewOpen] = useState(false);
   const [apiTokensOpen, setApiTokensOpen] = useState(false);
+  const [webhooksOpen, setWebhooksOpen] = useState(false);
   const activeViewId = useDatabaseUI((s) => s.activeViewId);
 
   const activeBase = bases?.find((b: any) => b.id === activeBaseId);
@@ -106,6 +108,14 @@ export function DatabaseTopBar() {
             onClick={() => setAutomationsOpen(true)}
           >
             <Zap size={13} /> Automations
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-[12px] text-[#6A7184] hover:bg-[#F4F4F5] gap-1"
+            onClick={() => setWebhooksOpen(true)}
+          >
+            <Webhook size={13} /> Webhooks
           </Button>
           <Button
             variant="ghost"
