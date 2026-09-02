@@ -123,7 +123,7 @@ export interface ViewMeta {
   id: string;
   table_id: string;
   name: string;
-  type: 'grid' | 'kanban' | 'form' | 'calendar' | 'gallery' | 'timeline';
+  type: 'grid' | 'kanban' | 'form' | 'calendar' | 'gallery' | 'timeline' | 'gantt';
   filters: Filter[];
   sorts: Sort[];
   groups: Group[];

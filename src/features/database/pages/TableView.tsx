@@ -24,6 +24,7 @@ import GalleryView from '../components/views/GalleryView';
 import FormView from '../components/views/FormView';
 import CalendarView from '../components/views/CalendarView';
 import TimelineView from '../components/views/TimelineView';
+import GanttView from '../components/views/GanttView';
 import { ExpandedRowModal } from '../components/ExpandedRowModal';
 import { CreateFieldDialog } from '../components/CreateFieldDialog';
 import type { RecordRow } from '../types';
@@ -273,6 +274,17 @@ export function TableView() {
             records={recordsData?.records ?? []}
             totalCount={recordsData?.totalCount ?? 0}
             isLoading={isLoading}
+            onExpandRow={setExpandedRecord}
+          />
+        );
+      case 'gantt':
+        return (
+          <GanttView
+            fields={fields ?? []}
+            records={recordsData?.records ?? []}
+            totalCount={recordsData?.totalCount ?? 0}
+            isLoading={isLoading}
+            onCellUpdate={handleCellUpdate}
             onExpandRow={setExpandedRecord}
           />
         );
