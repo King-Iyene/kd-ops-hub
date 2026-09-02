@@ -11,3 +11,8 @@ export {
   useBulkDeleteRecords,
   useDuplicateRecord,
 } from './useRecords';
+export { useLinks, useCreateLink, useLinkedRecords } from './useLinks';
+export type { LinkMeta } from './useLinks';
+export { useSharedView, useCreateSharedView, useUpdateSharedView, useDeleteSharedView } from './useSharedViews';
+export { useApiTokens, useCreateApiToken, useDeleteApiToken } from './useApiTokens';
+export { useComments, useCreateComment, useDeleteComment } from './useComments';

@@ -810,7 +810,7 @@ export default function GridView({
 
       {/* Pagination */}
       <div
-        className="flex items-center justify-between px-4 shrink-0"
+        className="flex items-center justify-between px-4 shrink-0 dark:bg-[hsl(200,30%,8%)] dark:border-[hsl(200,25%,18%)]"
         style={{
           height: 40,
           borderTop: '1px solid #E7E7E9',
@@ -819,12 +819,19 @@ export default function GridView({
           color: '#6A7184',
         }}
       >
-        <span>
-          {totalCount} record{totalCount !== 1 ? 's' : ''}
-        </span>
+        <div className="flex items-center gap-3">
+          <span>
+            {totalCount} record{totalCount !== 1 ? 's' : ''}
+          </span>
+          {selectedRowIds.size > 0 && (
+            <span className="text-[#3366FF] font-medium">
+              ({selectedRowIds.size} selected)
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <button
-            className="p-1 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)] disabled:opacity-40 disabled:cursor-not-allowed"
             disabled={page === 0}
             onClick={() => onPageChange(page - 1)}
           >
@@ -834,7 +841,7 @@ export default function GridView({
             Page {page + 1} of {totalPages}
           </span>
           <button
-            className="p-1 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)] disabled:opacity-40 disabled:cursor-not-allowed"
             disabled={page >= totalPages - 1}
             onClick={() => onPageChange(page + 1)}
           >

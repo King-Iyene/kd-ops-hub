@@ -56,7 +56,9 @@ const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
   { value: 'JSON', label: 'JSON', group: 'Other' },
 ];
 
-const GROUPS = ['Text', 'Numeric', 'Date & Time', 'Selection', 'Computed', 'Other'];
+const GROUPS = ['Text', 'Numeric', 'Date & Time', 'Selection', 'Relations', 'Computed', 'Other'];
+
+type RelationType = 'one_to_one' | 'one_to_many' | 'many_to_many';
 
 function ColorDot({ color, selected, onClick }: { color: typeof PILL_COLORS[0]; selected: boolean; onClick: () => void }) {
   return (
@@ -82,9 +84,13 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [newChoiceText, setNewChoiceText] = useState('');
   const [formulaExpression, setFormulaExpression] = useState('');
   const [formulaError, setFormulaError] = useState('');
+  const [targetTableId, setTargetTableId] = useState('');
+  const [relationType, setRelationType] = useState<RelationType>('many_to_many');
   const [error, setError] = useState('');
-  const { activeTableId } = useDatabaseUI();
+  const { activeTableId, activeBaseId } = useDatabaseUI();
   const createField = useCreateField();
+  const createLink = useCreateLink();
+  const { data: tables = [] } = useTables(activeBaseId);
 
   const isSelectType = uiType === 'SingleSelect' || uiType === 'MultiSelect';
   const isLinksType = uiType === 'Links';
@@ -127,6 +133,35 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     }
     setError('');
     try {
+      if (isLinksType) {
+        if (!targetTableId) {
+          setError('Please select a target table');
+          return;
+        }
+        if (!activeBaseId) {
+          setError('No base selected');
+          return;
+        }
+        await createLink.mutateAsync({
+          base_id: activeBaseId,
+          table_id: activeTableId,
+          field_name: name.trim(),
+          target_table_id: targetTableId,
+          relation_type: relationType,
+        });
+        setName('');
+        setUiType('SingleLineText');
+        setDescription('');
+        setIsRequired(false);
+        setChoices([]);
+        setNewChoiceText('');
+        setTargetTableId('');
+        setRelationType('many_to_many');
+        setFormulaExpression('');
+        setFormulaError('');
+        onOpenChange(false);
+        return;
+      }
       const options: Record<string, any> = {};
       if (isSelectType && choices.length > 0) {
         options.choices = choices;
@@ -315,6 +350,50 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
             </div>
           )}
 
+          {isLinksType && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[#6A7184]">Target Table</Label>
+                <select
+                  value={targetTableId}
+                  onChange={(e) => setTargetTableId(e.target.value)}
+                  className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
+                >
+                  <option value="">Select a table...</option>
+                  {tables
+                    .filter((t) => t.id !== activeTableId)
+                    .map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[#6A7184]">Relation Type</Label>
+                <div className="flex gap-1">
+                  {([
+                    { value: 'one_to_one' as const, label: 'One-to-One' },
+                    { value: 'one_to_many' as const, label: 'One-to-Many' },
+                    { value: 'many_to_many' as const, label: 'Many-to-Many' },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={cn(
+                        'flex-1 px-2 py-1.5 rounded-md text-xs font-medium border transition-colors',
+                        relationType === opt.value
+                          ? 'bg-[#3366FF]/10 text-[#3366FF] border-[#3366FF]/30'
+                          : 'text-[#6A7184] border-[#E7E7E9] hover:bg-[#F4F4F5]',
+                      )}
+                      onClick={() => setRelationType(opt.value)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {isFormula && (
             <div className="space-y-2">
               <Label className="text-xs text-[#6A7184]">Formula</Label>
@@ -350,7 +429,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
             style={{ backgroundColor: '#3366FF' }}
             className="hover:opacity-90 text-white"
             onClick={handleCreate}
-            disabled={createField.isPending}
+            disabled={createField.isPending || createLink.isPending}
           >
             {createField.isPending ? 'Adding...' : 'Add Field'}
           </Button>

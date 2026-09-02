@@ -35,6 +35,45 @@ function escapeCsv(value: string): string {
   return value;
 }
 
+export function matchFieldsByHeader(
+  headers: string[],
+  fields: FieldMeta[],
+): Map<number, FieldMeta> {
+  const map = new Map<number, FieldMeta>();
+  const byName = new Map(fields.map((f) => [f.name.toLowerCase().trim(), f]));
+  headers.forEach((h, i) => {
+    const match = byName.get(h.toLowerCase().trim());
+    if (match && !match.is_system) map.set(i, match);
+  });
+  return map;
+}
+
+export function coerceValue(value: string, field: FieldMeta): any {
+  if (!value || value.trim() === '') return null;
+  const v = value.trim();
+  switch (field.ui_type) {
+    case 'Number':
+    case 'Decimal':
+    case 'Currency':
+    case 'Percent':
+    case 'Rating':
+    case 'Duration':
+    case 'Year': {
+      const n = Number(v);
+      return isNaN(n) ? null : n;
+    }
+    case 'Checkbox':
+      return ['true', '1', 'yes', 'y'].includes(v.toLowerCase());
+    case 'MultiSelect':
+      return v.split(',').map((s) => s.trim()).filter(Boolean);
+    case 'JSON':
+    case 'Attachment':
+      try { return JSON.parse(v); } catch { return null; }
+    default:
+      return v;
+  }
+}
+
 export function parseCsv(text: string): { headers: string[]; rows: string[][] } {
   const lines = text.split('\n').filter((l) => l.trim());
   if (lines.length === 0) return { headers: [], rows: [] };

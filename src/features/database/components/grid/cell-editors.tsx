@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Paperclip } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
 import { PILL_COLORS } from '@/features/database/types';
+import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
 
 interface CellEditorProps {
   value: any;
@@ -302,6 +304,50 @@ export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps
   );
 }
 
+export function AttachmentCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+  const [open, setOpen] = useState(true);
+  const attachments: AttachmentMeta[] = Array.isArray(value) ? value : [];
+
+  return (
+    <>
+      {/* Inline trigger showing count */}
+      <div
+        className="flex items-center gap-1 px-2 h-full cursor-pointer text-xs"
+        style={{ color: '#6A7184' }}
+        onClick={() => setOpen(true)}
+      >
+        <Paperclip size={12} />
+        <span>{attachments.length} file{attachments.length !== 1 ? 's' : ''}</span>
+      </div>
+      <AttachmentManager
+        open={open}
+        onOpenChange={(o) => {
+          setOpen(o);
+          if (!o) onCancel();
+        }}
+        value={attachments}
+        onCommit={(updated) => {
+          onCommit(updated);
+        }}
+        storagePath={field.id}
+      />
+    </>
+  );
+}
+
+/**
+ * LinksCellEditor - opens the LinkedRecordPicker dialog.
+ * The actual picker is rendered by the grid when it detects a Links field
+ * entering edit mode. This editor acts as a no-op placeholder so the grid
+ * knows to trigger the picker dialog instead.
+ */
+export function LinksCellEditor({ onCancel }: CellEditorProps) {
+  // The grid component intercepts Links editing and opens LinkedRecordPicker.
+  // This component renders nothing; onCancel is called immediately.
+  onCancel();
+  return null;
+}
+
 export function getCellEditor(uiType: string) {
   switch (uiType) {
     case 'Number':
@@ -322,6 +368,10 @@ export function getCellEditor(uiType: string) {
       return DurationCellEditor;
     case 'Percent':
       return PercentCellEditor;
+    case 'Attachment':
+      return AttachmentCellEditor;
+    case 'Links':
+      return LinksCellEditor;
     case 'Checkbox':
       return null;
     default:

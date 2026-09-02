@@ -1,9 +1,11 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, MessageSquare, ChevronDown, Paperclip } from 'lucide-react';
+import { RecordComments } from './RecordComments';
 import type { FieldMeta, RecordRow, SelectChoice } from '../types';
 import { PILL_COLORS } from '../types';
 import { getCellRenderer } from './grid/cell-renderers';
 import { getFieldTypeIcon } from './grid/field-icons';
+import { AttachmentManager, type AttachmentMeta } from './AttachmentManager';
 
 interface ExpandedRowModalProps {
   open: boolean;
@@ -250,11 +252,89 @@ function InlineRatingEditor({
   );
 }
 
+function CommentsSection({ baseId, tableId, recordId }: { baseId: string; tableId: string; recordId: string }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="mt-6 pt-4 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-1.5 text-[10px] font-semibold text-[#9AA2AF] uppercase tracking-wider mb-3 hover:text-[#6A7184] transition-colors"
+      >
+        <MessageSquare size={12} />
+        Comments
+        <ChevronDown size={12} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+      </button>
+      {expanded && (
+        <div className="max-h-[260px] flex flex-col">
+          <RecordComments baseId={baseId} tableId={tableId} recordId={recordId} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InlineAttachmentEditor({
+  value,
+  fieldId,
+  onCommit,
+}: {
+  value: AttachmentMeta[];
+  fieldId: string;
+  onCommit: (v: AttachmentMeta[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const attachments = Array.isArray(value) ? value : [];
+
+  return (
+    <div className="w-full">
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors hover:border-[#3366FF] hover:text-[#3366FF]"
+        style={{ borderColor: '#E7E7E9', color: '#6A7184' }}
+      >
+        <Paperclip size={14} />
+        {attachments.length > 0
+          ? `${attachments.length} attachment${attachments.length !== 1 ? 's' : ''} - click to manage`
+          : 'Add attachments'}
+      </button>
+      {attachments.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {attachments.map((att, i) => {
+            const isImage = att.type?.startsWith('image/');
+            return (
+              <div key={i} className="w-12 h-12 rounded border border-[#E7E7E9] overflow-hidden bg-[#FAFAFA] dark:bg-[hsl(200,30%,12%)]">
+                {isImage ? (
+                  <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Paperclip size={16} className="text-[#9AA2AF]" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <AttachmentManager
+        open={open}
+        onOpenChange={setOpen}
+        value={attachments}
+        onCommit={onCommit}
+        storagePath={fieldId}
+      />
+    </div>
+  );
+}
+
 export function ExpandedRowModal({
   open,
   onOpenChange,
   record,
   fields,
+  baseId,
+  tableId,
   onCellUpdate,
   records,
   onNavigate,
@@ -332,6 +412,8 @@ export function ExpandedRowModal({
         return <InlineDateEditor value={val as string | null} onCommit={(v) => handleUpdate(field.id, v)} />;
       case 'DateTime':
         return <InlineDateEditor value={val as string | null} onCommit={(v) => handleUpdate(field.id, v)} showTime />;
+      case 'Attachment':
+        return <InlineAttachmentEditor value={val as AttachmentMeta[] ?? []} fieldId={field.id} onCommit={(v) => handleUpdate(field.id, v)} />;
       case 'LongText':
         return <InlineLongTextEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
       default:
@@ -411,6 +493,9 @@ export function ExpandedRowModal({
               );
             })}
           </div>
+
+          {/* Comments section */}
+          <CommentsSection baseId={baseId} tableId={tableId} recordId={record.id} />
 
           {/* System fields */}
           {systemFields.length > 0 && (

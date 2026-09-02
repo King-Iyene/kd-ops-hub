@@ -1,12 +1,14 @@
 import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Webhook } from 'lucide-react';
+import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Webhook, Link2, Key } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuthStore } from '@/store/authStore';
 import { useDatabaseUI } from '../lib/store';
 import { useBases } from '../hooks';
 import { WebhooksDialog } from './WebhooksDialog';
+import { ShareViewDialog } from './ShareViewDialog';
+import { ApiTokensDialog } from './ApiTokensDialog';
 
 export function DatabaseTopBar() {
   const { toggleSidebar, activeBaseId, activeTableId } = useDatabaseUI();
@@ -15,6 +17,10 @@ export function DatabaseTopBar() {
   const [shareOpen, setShareOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [webhooksOpen, setWebhooksOpen] = useState(false);
+  const [shareViewOpen, setShareViewOpen] = useState(false);
+  const [apiTokensOpen, setApiTokensOpen] = useState(false);
+  const activeViewId = useDatabaseUI((s) => s.activeViewId);
 
   const activeBase = bases?.find((b: any) => b.id === activeBaseId);
 
@@ -79,9 +85,33 @@ export function DatabaseTopBar() {
             variant="ghost"
             size="sm"
             className="h-7 px-2 text-[12px] text-[#6A7184] hover:bg-[#F4F4F5] gap-1"
+            onClick={() => setApiTokensOpen(true)}
+          >
+            <Key size={13} /> API
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-[12px] text-[#6A7184] hover:bg-[#F4F4F5] gap-1"
+            onClick={() => setShareViewOpen(true)}
+          >
+            <Link2 size={13} /> Share
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-[12px] text-[#6A7184] hover:bg-[#F4F4F5] gap-1"
+            onClick={() => setWebhooksOpen(true)}
+          >
+            <Webhook size={13} /> Webhooks
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-[12px] text-[#6A7184] hover:bg-[#F4F4F5] gap-1"
             onClick={() => setShareOpen(true)}
           >
-            <Share2 size={13} /> Share
+            <Share2 size={13} /> Share Base
           </Button>
           <Button
             variant="ghost"
@@ -148,6 +178,10 @@ export function DatabaseTopBar() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ShareViewDialog open={shareViewOpen} onOpenChange={setShareViewOpen} viewId={activeViewId} tableId={activeTableId} />
+      <ApiTokensDialog open={apiTokensOpen} onOpenChange={setApiTokensOpen} baseId={activeBaseId} />
+      <WebhooksDialog open={webhooksOpen} onOpenChange={setWebhooksOpen} tableId={activeTableId} />
 
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
         <DialogContent className="sm:max-w-[480px]">
