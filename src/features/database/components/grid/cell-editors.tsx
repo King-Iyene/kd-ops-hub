@@ -394,6 +394,78 @@ export function SelectCellEditor({ value, field, onCommit, onCancel }: CellEdito
   );
 }
 
+export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+  const choices = field.options?.choices || [];
+  const selected: string[] = Array.isArray(value) ? value : value ? [value] : [];
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onCancel();
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onCancel]);
+
+  function toggle(title: string) {
+    const next = selected.includes(title)
+      ? selected.filter((s) => s !== title)
+      : [...selected, title];
+    onCommit(next.length > 0 ? next : null);
+  }
+
+  return (
+    <div
+      ref={ref}
+      className="absolute left-0 top-full z-50 bg-white border rounded-md shadow-lg py-1 min-w-[180px] max-h-[240px] overflow-y-auto"
+      style={{ borderColor: '#E2E8F0' }}
+    >
+      {choices.map((choice: SelectChoice) => {
+        const color = getPillColor(choice.color);
+        const isSelected = selected.includes(choice.title);
+        return (
+          <button
+            key={choice.title}
+            className="w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center gap-2"
+            onClick={() => toggle(choice.title)}
+          >
+            <span
+              className="w-4 h-4 rounded border flex items-center justify-center shrink-0"
+              style={{
+                borderColor: isSelected ? color.text : '#CBD5E1',
+                backgroundColor: isSelected ? color.bg : 'transparent',
+              }}
+            >
+              {isSelected && (
+                <svg width="10" height="10" viewBox="0 0 10 10">
+                  <path d="M2 5l2 2 4-4" stroke={color.text} strokeWidth="1.5" fill="none" />
+                </svg>
+              )}
+            </span>
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+              style={{ backgroundColor: color.bg, color: color.text }}
+            >
+              {choice.title}
+            </span>
+          </button>
+        );
+      })}
+      {selected.length > 0 && (
+        <button
+          className="w-full text-left px-3 py-1.5 hover:bg-gray-50 text-xs"
+          style={{ color: '#94A3B8' }}
+          onClick={() => onCommit(null)}
+        >
+          Clear all
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function JSONCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   const initial = typeof value === 'string' ? value : JSON.stringify(value, null, 2) ?? '';
   const [text, setText] = useState(initial);
@@ -459,6 +531,8 @@ export function getCellEditor(uiType: string) {
       return RatingCellEditor;
     case 'SingleSelect':
       return SelectCellEditor;
+    case 'MultiSelect':
+      return MultiSelectCellEditor;
     case 'JSON':
       return JSONCellEditor;
     case 'Checkbox':

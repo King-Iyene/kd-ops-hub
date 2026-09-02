@@ -13,6 +13,8 @@ interface DatabaseUIState {
   sorts: Sort[];
   hiddenFieldIds: Set<string>;
   searchQuery: string;
+  kanbanFieldId: string | null;
+  calendarFieldId: string | null;
 
   setActiveBase: (id: string | null) => void;
   setActiveTable: (id: string | null) => void;
@@ -27,6 +29,8 @@ interface DatabaseUIState {
   setHiddenFieldIds: (ids: Set<string>) => void;
   toggleHiddenField: (id: string) => void;
   setSearchQuery: (q: string) => void;
+  setKanbanFieldId: (id: string | null) => void;
+  setCalendarFieldId: (id: string | null) => void;
 }
 
 export const useDatabaseUI = create<DatabaseUIState>((set) => ({
@@ -41,6 +45,8 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   sorts: [],
   hiddenFieldIds: new Set(),
   searchQuery: '',
+  kanbanFieldId: null,
+  calendarFieldId: null,
 
   setActiveBase: (id) => set({
     activeBaseId: id,
@@ -74,4 +80,6 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
     return { hiddenFieldIds: next };
   }),
   setSearchQuery: (q) => set({ searchQuery: q }),
+  setKanbanFieldId: (id) => set({ kanbanFieldId: id }),
+  setCalendarFieldId: (id) => set({ calendarFieldId: id }),
 }));

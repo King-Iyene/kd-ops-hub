@@ -2,17 +2,27 @@ import { useState, useCallback, useMemo } from 'react';
 import { Toolbar } from '../components/Toolbar';
 import { ViewBar } from '../components/ViewBar';
 import { useDatabaseUI } from '../lib/store';
-import { useFields, useRecords, useCreateRecord, useUpdateRecord, useDeleteRecord, useDuplicateRecord, useDeleteField, useActiveView } from '../hooks';
+import { useFields, useRecords, useCreateRecord, useUpdateRecord, useDeleteRecord, useDuplicateRecord, useDeleteField, useActiveView, useViews } from '../hooks';
 import GridView from '../components/grid/GridView';
+import KanbanView from '../components/views/KanbanView';
+import GalleryView from '../components/views/GalleryView';
+import FormView from '../components/views/FormView';
+import CalendarView from '../components/views/CalendarView';
 import { ExpandedRowModal } from '../components/ExpandedRowModal';
 import type { RecordRow } from '../types';
 
 export function TableView() {
-  const { activeTableId, activeBaseId, filters, sorts, hiddenFieldIds, searchQuery } = useDatabaseUI();
+  const { activeTableId, activeBaseId, activeViewId, filters, sorts, hiddenFieldIds, searchQuery } = useDatabaseUI();
   useActiveView(activeTableId);
   const { data: fields } = useFields(activeTableId);
+  const { data: views } = useViews(activeTableId);
   const [page, setPage] = useState(1);
   const pageSize = 50;
+
+  const activeView = useMemo(
+    () => views?.find((v) => v.id === activeViewId),
+    [views, activeViewId],
+  );
 
   const { data: recordsData, isLoading } = useRecords({
     baseId: activeBaseId!,
@@ -51,9 +61,9 @@ export function TableView() {
     });
   }, [fields, activeBaseId, activeTableId, updateRecord]);
 
-  const handleAddRow = useCallback(() => {
+  const handleAddRow = useCallback((record?: Record<string, any>) => {
     if (!activeBaseId || !activeTableId) return;
-    createRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record: {} });
+    createRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record: record ?? {} });
   }, [activeBaseId, activeTableId, createRecord]);
 
   const handleDeleteRow = useCallback((recordId: string) => {
@@ -71,27 +81,86 @@ export function TableView() {
     deleteField.mutate({ id: fieldId, table_id: activeTableId });
   }, [activeTableId, deleteField]);
 
+  const viewType = activeView?.type ?? 'grid';
+
+  const renderView = () => {
+    switch (viewType) {
+      case 'kanban':
+        return (
+          <KanbanView
+            fields={visibleFields}
+            records={recordsData?.records ?? []}
+            totalCount={recordsData?.totalCount ?? 0}
+            isLoading={isLoading}
+            onCellUpdate={handleCellUpdate}
+            onAddRow={() => handleAddRow()}
+            onExpandRow={setExpandedRecord}
+            onDeleteRow={handleDeleteRow}
+          />
+        );
+      case 'gallery':
+        return (
+          <GalleryView
+            fields={visibleFields}
+            records={recordsData?.records ?? []}
+            totalCount={recordsData?.totalCount ?? 0}
+            isLoading={isLoading}
+            onCellUpdate={handleCellUpdate}
+            onAddRow={() => handleAddRow()}
+            onExpandRow={setExpandedRecord}
+            onDeleteRow={handleDeleteRow}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+          />
+        );
+      case 'form':
+        return (
+          <FormView
+            fields={fields ?? []}
+            onAddRow={handleAddRow}
+            isLoading={isLoading}
+          />
+        );
+      case 'calendar':
+        return (
+          <CalendarView
+            fields={fields ?? []}
+            records={recordsData?.records ?? []}
+            totalCount={recordsData?.totalCount ?? 0}
+            isLoading={isLoading}
+            onExpandRow={setExpandedRecord}
+            onAddRow={() => handleAddRow()}
+          />
+        );
+      default:
+        return (
+          <GridView
+            fields={visibleFields}
+            records={recordsData?.records ?? []}
+            totalCount={recordsData?.totalCount ?? 0}
+            isLoading={isLoading}
+            onCellUpdate={handleCellUpdate}
+            onAddRow={() => handleAddRow()}
+            onAddField={() => {}}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onExpandRow={setExpandedRecord}
+            onDeleteRow={handleDeleteRow}
+            onDuplicateRow={handleDuplicateRow}
+            onDeleteField={handleDeleteField}
+          />
+        );
+    }
+  };
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <Toolbar />
       <ViewBar />
       <div className="flex-1 min-h-0">
-        <GridView
-          fields={visibleFields}
-          records={recordsData?.records ?? []}
-          totalCount={recordsData?.totalCount ?? 0}
-          isLoading={isLoading}
-          onCellUpdate={handleCellUpdate}
-          onAddRow={handleAddRow}
-          onAddField={() => {}}
-          page={page}
-          pageSize={pageSize}
-          onPageChange={setPage}
-          onExpandRow={setExpandedRecord}
-          onDeleteRow={handleDeleteRow}
-          onDuplicateRow={handleDuplicateRow}
-          onDeleteField={handleDeleteField}
-        />
+        {renderView()}
       </div>
       <ExpandedRowModal
         open={!!expandedRecord}

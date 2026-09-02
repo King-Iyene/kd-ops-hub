@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useDatabaseUI } from '../lib/store';
-import { useViews, useCreateView, useUpdateView } from '../hooks';
+import { useViews, useCreateView, useUpdateView, useDeleteView } from '../hooks';
 import type { ViewMeta } from '../types';
 
 const VIEW_TYPE_ICON: Record<ViewMeta['type'], LucideIcon> = {
@@ -153,6 +153,7 @@ export function ViewBar() {
   const { data: views } = useViews(activeTableId);
   const createView = useCreateView();
   const updateView = useUpdateView();
+  const deleteViewMut = useDeleteView();
 
   // Auto-select default view when views load
   useEffect(() => {
@@ -206,13 +207,16 @@ export function ViewBar() {
   );
 
   const handleDelete = useCallback(
-    async (view: ViewMeta) => {
-      // We don't have a delete hook, so use supabase directly via update (mark as deleted)
-      // Actually, for now just remove from UI by not rendering. The task says context menu has delete.
-      // We'll need a delete mutation. For now, skip — the user only asked for the UI structure.
-      // Actually let's implement it properly.
+    (view: ViewMeta) => {
+      if (!window.confirm(`Delete view "${view.name}"?`)) return;
+      deleteViewMut.mutate({ id: view.id, table_id: view.table_id });
+      if (activeViewId === view.id) {
+        const remaining = views?.filter((v) => v.id !== view.id);
+        const next = remaining?.find((v) => v.is_default) ?? remaining?.[0];
+        if (next) setActiveView(next.id);
+      }
     },
-    [],
+    [deleteViewMut, views, activeViewId, setActiveView],
   );
 
   const handleAddView = useCallback(
@@ -300,13 +304,9 @@ export function ViewBar() {
               <DropdownMenuItem
                 key={type}
                 onClick={() => handleAddView(type)}
-                disabled={type !== 'grid'}
               >
                 <TypeIcon className="w-4 h-4 mr-2" />
                 {VIEW_TYPE_LABEL[type]}
-                {type !== 'grid' && (
-                  <span className="ml-auto text-[10px] text-slate-400">Soon</span>
-                )}
               </DropdownMenuItem>
             );
           })}
