@@ -12,6 +12,7 @@ import {
   useBulkDeleteRecords,
   useDuplicateRecord,
   useDeleteField,
+  useDuplicateField,
   useReorderFields,
   useActiveView,
   useViews,
@@ -89,6 +90,7 @@ export function TableView() {
   const duplicateRecord = useDuplicateRecord();
   const bulkDeleteRecords = useBulkDeleteRecords();
   const deleteField = useDeleteField();
+  const duplicateField = useDuplicateField();
   const reorderFields = useReorderFields();
   const [expandedRecord, setExpandedRecord] = useState<RecordRow | null>(null);
 
@@ -180,6 +182,14 @@ export function TableView() {
       deleteField.mutate({ id: fieldId, table_id: activeTableId });
     },
     [activeTableId, deleteField],
+  );
+
+  const handleDuplicateField = useCallback(
+    (fieldId: string) => {
+      if (!activeTableId) return;
+      duplicateField.mutate({ table_id: activeTableId, source_field_id: fieldId });
+    },
+    [activeTableId, duplicateField],
   );
 
   const handleReorderFields = useCallback(

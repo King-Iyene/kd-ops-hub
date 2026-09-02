@@ -157,6 +157,14 @@ export interface Group {
   direction: 'asc' | 'desc';
 }
 
+export interface RowColorRule {
+  id: string;
+  field_id: string;
+  operator: FilterOperator;
+  value: any;
+  color: string; // hex bg color
+}
+
 export type RecordRow = Record<string, any> & {
   id: string;
   created_at: string;

@@ -1,7 +1,7 @@
 import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Plus, ChevronLeft, ChevronRight, Loader2, Expand, Copy, Trash2, MoreHorizontal } from 'lucide-react';
-import type { FieldMeta, RecordRow } from '@/features/database/types';
+import type { FieldMeta, RecordRow, RowColorRule } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { ColumnHeader } from './ColumnHeader';
 import { GridCell } from './GridCell';
@@ -22,6 +22,7 @@ export interface GridViewProps {
   onDeleteRow?: (recordId: string) => void;
   onDuplicateRow?: (record: RecordRow) => void;
   onDeleteField?: (fieldId: string) => void;
+  onDuplicateField?: (fieldId: string) => void;
   onBulkDeleteRows?: (recordIds: string[]) => void;
   onReorderFields?: (fieldIds: string[]) => void;
 }
@@ -51,6 +52,7 @@ export default function GridView({
   onDeleteRow,
   onDuplicateRow,
   onDeleteField,
+  onDuplicateField,
   onBulkDeleteRows,
   onReorderFields,
 }: GridViewProps) {
@@ -58,6 +60,7 @@ export default function GridView({
   const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
   const setSelectedCell = useDatabaseUI((s) => s.setSelectedCell);
   const setEditingCell = useDatabaseUI((s) => s.setEditingCell);
+  const rowColorRules = useDatabaseUI((s) => s.rowColorRules);
 
   const parentRef = useRef<HTMLDivElement>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
@@ -166,6 +169,38 @@ export default function GridView({
     setDragColId(null);
     setDropColTargetIdx(null);
   }, []);
+
+  const matchesRule = useCallback((record: RecordRow, rule: RowColorRule): boolean => {
+    const field = fields.find((f) => f.id === rule.field_id);
+    if (!field) return false;
+    const val = record[field.pg_column_name];
+    const strVal = val == null ? '' : String(val);
+    switch (rule.operator) {
+      case 'is':
+      case 'eq':
+        return strVal === String(rule.value ?? '');
+      case 'isNot':
+      case 'neq':
+        return strVal !== String(rule.value ?? '');
+      case 'contains':
+        return strVal.toLowerCase().includes(String(rule.value ?? '').toLowerCase());
+      case 'isEmpty':
+        return val == null || strVal === '';
+      case 'isNotEmpty':
+        return val != null && strVal !== '';
+      default:
+        return false;
+    }
+  }, [fields]);
+
+  const getRowColor = useCallback((record: RecordRow): string | undefined => {
+    for (const rule of rowColorRules) {
+      if (matchesRule(record, rule)) {
+        return rule.color + '33'; // ~20% opacity hex suffix
+      }
+    }
+    return undefined;
+  }, [rowColorRules, matchesRule]);
 
   const visibleFields = useMemo(
     () =>
@@ -444,6 +479,7 @@ export default function GridView({
                   field={field}
                   onResize={handleResize}
                   onDelete={onDeleteField}
+                  onDuplicateField={onDuplicateField}
                   onEditField={setEditingField}
                   draggable
                   onDragStart={(e) => handleColDragStart(e, field.id)}
@@ -528,6 +564,7 @@ export default function GridView({
                 const record = item.record;
                 const rowNum = item.rowNum;
                 const isRowSelected = selectedCellId?.startsWith(record.id + ':');
+                const rowBg = isRowSelected ? '#EBF0FF' : getRowColor(record);
                 return (
                   <div
                     key={record.id}
@@ -535,14 +572,14 @@ export default function GridView({
                     style={{
                       height: rowHeightPx,
                       top: virtualRow.start,
-                      backgroundColor: isRowSelected ? '#EBF0FF' : undefined,
+                      backgroundColor: rowBg,
                     }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       setRowMenu({ x: e.clientX, y: e.clientY, record });
                     }}
-                    onMouseEnter={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = '#F9F9FA'; }}
-                    onMouseLeave={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
+                    onMouseEnter={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = rowBg || '#F9F9FA'; }}
+                    onMouseLeave={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = rowBg || ''; }}
                   >
                     <div
                       className="sticky left-0 z-10 flex items-center justify-center shrink-0 group/num"
@@ -583,6 +620,7 @@ export default function GridView({
               const record = records[virtualRow.index];
               const rowNum = page * pageSize + virtualRow.index + 1;
               const isRowSelected = selectedCellId?.startsWith(record.id + ':');
+              const rowBgUngrouped = isRowSelected ? '#EBF0FF' : getRowColor(record);
 
               return (
                 <div
@@ -591,7 +629,7 @@ export default function GridView({
                   style={{
                     height: rowHeightPx,
                     top: virtualRow.start,
-                    backgroundColor: isRowSelected ? '#EBF0FF' : undefined,
+                    backgroundColor: rowBgUngrouped,
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -599,12 +637,12 @@ export default function GridView({
                   }}
                   onMouseEnter={(e) => {
                     if (!isRowSelected) {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = '#F9F9FA';
+                      (e.currentTarget as HTMLElement).style.backgroundColor = rowBgUngrouped || '#F9F9FA';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isRowSelected) {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = '';
+                      (e.currentTarget as HTMLElement).style.backgroundColor = rowBgUngrouped || '';
                     }
                   }}
                 >

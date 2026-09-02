@@ -5,6 +5,8 @@ import {
   Trash2,
   Pencil,
   Database,
+  Copy,
+  Palette,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,8 +18,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useDatabaseUI } from '../lib/store';
-import { useBases, useDeleteBase, useUpdateBase } from '../hooks';
+import { useBases, useCreateBase, useDeleteBase, useUpdateBase } from '../hooks';
+import { useWorkspaces } from '../hooks';
 import { CreateBaseDialog } from './CreateBaseDialog';
+
+const BASE_COLORS = [
+  '#3366FF', '#0D9488', '#8B5CF6', '#EC4899', '#F59E0B',
+  '#EF4444', '#10B981', '#6366F1', '#F97316', '#64748B',
+];
 
 function InlineRenameInput({
   value,
@@ -65,13 +73,39 @@ export function DatabaseSidebar() {
   const deleteBase = useDeleteBase();
   const updateBase = useUpdateBase();
 
+  const createBase = useCreateBase();
+  const { data: workspaces } = useWorkspaces();
+
   const [createBaseOpen, setCreateBaseOpen] = useState(false);
   const [renamingBaseId, setRenamingBaseId] = useState<string | null>(null);
+  const [colorPickerBaseId, setColorPickerBaseId] = useState<string | null>(null);
 
   const handleRenameBase = useCallback(
     (baseId: string, name: string) => {
       updateBase.mutate({ id: baseId, name });
       setRenamingBaseId(null);
+    },
+    [updateBase],
+  );
+
+  const handleDuplicateBase = useCallback(
+    (base: any) => {
+      const wsId = base.workspace_id || workspaces?.[0]?.id;
+      if (!wsId) return;
+      createBase.mutate({
+        workspace_id: wsId,
+        name: `${base.name} (copy)`,
+        color: base.color,
+        icon: base.icon,
+      });
+    },
+    [createBase, workspaces],
+  );
+
+  const handleColorChange = useCallback(
+    (baseId: string, color: string) => {
+      updateBase.mutate({ id: baseId, color });
+      setColorPickerBaseId(null);
     },
     [updateBase],
   );
@@ -173,6 +207,43 @@ export function DatabaseSidebar() {
                 >
                   <Pencil size={12} /> Rename
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-xs gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDuplicateBase(base);
+                  }}
+                >
+                  <Copy size={12} /> Duplicate
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-xs gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setColorPickerBaseId(base.id === colorPickerBaseId ? null : base.id);
+                  }}
+                >
+                  <Palette size={12} /> Change color
+                </DropdownMenuItem>
+                {colorPickerBaseId === base.id && (
+                  <div className="px-3 py-2 flex flex-wrap gap-1.5">
+                    {BASE_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        className="w-5 h-5 rounded-full border-2 transition-all hover:scale-110"
+                        style={{
+                          backgroundColor: c,
+                          borderColor: base.color === c ? '#374151' : 'transparent',
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleColorChange(base.id, c);
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-xs gap-2 text-red-500 focus:text-red-500"

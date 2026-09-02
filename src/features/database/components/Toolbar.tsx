@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers } from 'lucide-react';
+import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
 import { useUndoStore } from '../lib/undo';
@@ -7,7 +7,7 @@ import { useFields, useRecords } from '../hooks';
 import { CreateFieldDialog } from './CreateFieldDialog';
 import { ImportCsvDialog } from './ImportCsvDialog';
 import { exportToCsv } from '../lib/csv';
-import type { Filter as FilterType, Sort, Group, FilterOperator } from '../types';
+import type { Filter as FilterType, Sort, Group, FilterOperator, RowColorRule } from '../types';
 import { OPERATORS_BY_TYPE } from '../types';
 
 const OPERATOR_LABELS: Record<string, string> = {

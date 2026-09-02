@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Filter, Sort, Group } from '../types';
+import type { Filter, Sort, Group, RowColorRule } from '../types';
 
 interface DatabaseUIState {
   activeBaseId: string | null;
@@ -14,6 +14,7 @@ interface DatabaseUIState {
   groupBy: Group | null;
   hiddenFieldIds: Set<string>;
   searchQuery: string;
+  rowColorRules: RowColorRule[];
 
   setActiveBase: (id: string | null) => void;
   setActiveTable: (id: string | null) => void;
@@ -33,6 +34,7 @@ interface DatabaseUIState {
   setGroupBy: (group: Group | null) => void;
   toggleHiddenField: (fieldId: string) => void;
   setSearchQuery: (query: string) => void;
+  setRowColorRules: (rules: RowColorRule[]) => void;
 }
 
 export const useDatabaseUI = create<DatabaseUIState>((set) => ({
@@ -48,6 +50,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   groupBy: null,
   hiddenFieldIds: new Set(),
   searchQuery: '',
+  rowColorRules: [],
 
   setActiveBase: (id) =>
     set({
@@ -59,6 +62,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       groupBy: null,
       hiddenFieldIds: new Set(),
       searchQuery: '',
+      rowColorRules: [],
     }),
   setActiveTable: (id) =>
     set({
@@ -69,6 +73,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       groupBy: null,
       hiddenFieldIds: new Set(),
       searchQuery: '',
+      rowColorRules: [],
     }),
   setActiveView: (id, viewConfig) => set({
     activeViewId: id,
@@ -95,4 +100,5 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       return { hiddenFieldIds: next };
     }),
   setSearchQuery: (query) => set({ searchQuery: query }),
+  setRowColorRules: (rules) => set({ rowColorRules: rules }),
 }));

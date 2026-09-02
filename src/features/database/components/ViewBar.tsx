@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import { Grid3X3, LayoutGrid, Columns3, FileText, Calendar, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Grid3X3, LayoutGrid, Columns3, FileText, Calendar, Plus, Pencil, Trash2, Copy, Lock, Unlock } from 'lucide-react';
 import { useDatabaseUI } from '../lib/store';
 import { useViews, useCreateView, useUpdateView, useDeleteView, useLoadViewConfig } from '../hooks';
 
@@ -115,6 +115,7 @@ export function ViewBar() {
             >
               <Icon size={13} />
               {v.name}
+              {v.is_locked && <Lock size={10} className="text-[#9AA2AF] ml-0.5" />}
             </button>
           );
         })}
@@ -170,6 +171,50 @@ export function ViewBar() {
               }}
             >
               <Pencil size={12} className="text-[#9AA2AF]" /> Rename
+            </button>
+            <button
+              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+              onClick={() => {
+                if (!activeTableId) return;
+                const view = sorted.find((v) => v.id === contextMenu.viewId);
+                if (view) {
+                  createView.mutate({
+                    table_id: activeTableId,
+                    name: `${view.name} (copy)`,
+                    type: view.type,
+                    filters: view.filters,
+                    sorts: view.sorts,
+                    groups: view.groups,
+                    field_order: view.field_order,
+                    field_visibility: view.field_visibility,
+                    field_widths: view.field_widths,
+                    position: (views?.length ?? 0) + 1,
+                  });
+                }
+                setContextMenu(null);
+              }}
+            >
+              <Copy size={12} className="text-[#9AA2AF]" /> Duplicate
+            </button>
+            <button
+              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2 text-[#374151]"
+              onClick={() => {
+                if (!activeTableId) return;
+                const view = sorted.find((v) => v.id === contextMenu.viewId);
+                if (view) {
+                  updateView.mutate({
+                    id: view.id,
+                    table_id: activeTableId,
+                    updates: { is_locked: !view.is_locked },
+                  });
+                }
+                setContextMenu(null);
+              }}
+            >
+              {sorted.find((v) => v.id === contextMenu.viewId)?.is_locked
+                ? <><Unlock size={12} className="text-[#9AA2AF]" /> Unlock view</>
+                : <><Lock size={12} className="text-[#9AA2AF]" /> Lock view</>
+              }
             </button>
             <div className="h-px bg-[#E7E7E9] my-0.5" />
             <button

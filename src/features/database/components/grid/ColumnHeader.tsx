@@ -10,6 +10,7 @@ interface ColumnHeaderProps {
   onSort?: (fieldId: string) => void;
   onDelete?: (fieldId: string) => void;
   onEditField?: (field: FieldMeta) => void;
+  onDuplicateField?: (fieldId: string) => void;
   onContextMenu?: (fieldId: string, e: React.MouseEvent) => void;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
@@ -22,6 +23,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
   onSort,
   onDelete,
   onEditField,
+  onDuplicateField,
   onContextMenu,
   draggable: isDraggable,
   onDragStart,
@@ -118,7 +120,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
       onContextMenu={handleRightClick}
     >
       <Icon size={13} className="shrink-0" style={{ color: '#9AA2AF' }} />
-      <span className="truncate">{field.name}</span>
+      <span className="truncate" title={field.description || undefined}>{field.name}</span>
       {currentSort && (
         <span className="shrink-0">
           {currentSort.direction === 'asc' ? (
@@ -165,6 +167,14 @@ export const ColumnHeader = React.memo(function ColumnHeader({
                 onClick={() => { onEditField(field); setContextMenu(null); }}
               >
                 <Pencil size={14} className="text-[#9AA2AF]" /> Edit field
+              </button>
+            )}
+            {!field.is_primary && !field.is_system && onDuplicateField && (
+              <button
+                className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                onClick={() => { onDuplicateField(field.id); setContextMenu(null); }}
+              >
+                <Copy size={14} className="text-[#9AA2AF]" /> Duplicate field
               </button>
             )}
             {!field.is_system && (
