@@ -23,7 +23,7 @@ interface DatabaseUIState {
   rowHeight: 'compact' | 'default' | 'tall' | 'extra-tall';
   filters: Filter[];
   sorts: Sort[];
-  groupBy: Group | null;
+  groupByLevels: Group[];
   hiddenFieldIds: Set<string>;
   fieldOrder: string[];
   searchQuery: string;
@@ -50,7 +50,7 @@ interface DatabaseUIState {
   setRowHeight: (h: 'compact' | 'default' | 'tall' | 'extra-tall') => void;
   setFilters: (filters: Filter[]) => void;
   setSorts: (sorts: Sort[]) => void;
-  setGroupBy: (group: Group | null) => void;
+  setGroupByLevels: (groups: Group[]) => void;
   toggleHiddenField: (fieldId: string) => void;
   setFieldOrder: (order: string[]) => void;
   setSearchQuery: (query: string) => void;
@@ -70,7 +70,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   rowHeight: 'default',
   filters: [],
   sorts: [],
-  groupBy: null,
+  groupByLevels: [],
   hiddenFieldIds: new Set(),
   fieldOrder: [],
   searchQuery: '',
@@ -87,7 +87,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       activeViewId: null,
       filters: [],
       sorts: [],
-      groupBy: null,
+      groupByLevels: [],
       hiddenFieldIds: new Set(),
       fieldOrder: [],
       searchQuery: '',
@@ -99,7 +99,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       activeViewId: null,
       filters: [],
       sorts: [],
-      groupBy: null,
+      groupByLevels: [],
       hiddenFieldIds: new Set(),
       fieldOrder: [],
       searchQuery: '',
@@ -110,7 +110,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
     ...(viewConfig ? {
       filters: viewConfig.filters ?? [],
       sorts: viewConfig.sorts ?? [],
-      groupBy: viewConfig.groups?.[0] ?? null,
+      groupByLevels: viewConfig.groups ?? [],
       hiddenFieldIds: viewConfig.hiddenFieldIds ?? new Set(),
       fieldOrder: viewConfig.fieldOrder ?? [],
     } : {}),
@@ -122,7 +122,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   setRowHeight: (h) => set({ rowHeight: h }),
   setFilters: (filters) => set({ filters }),
   setSorts: (sorts) => set({ sorts }),
-  setGroupBy: (group) => set({ groupBy: group }),
+  setGroupByLevels: (groups) => set({ groupByLevels: groups }),
   toggleHiddenField: (fieldId) =>
     set((s) => {
       const next = new Set(s.hiddenFieldIds);

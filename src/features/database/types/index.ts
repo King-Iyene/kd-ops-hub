@@ -117,7 +117,7 @@ export interface ViewMeta {
   id: string;
   table_id: string;
   name: string;
-  type: 'grid' | 'kanban' | 'form' | 'calendar' | 'gallery';
+  type: 'grid' | 'kanban' | 'form' | 'calendar' | 'gallery' | 'timeline';
   filters: Filter[];
   sorts: Sort[];
   groups: Group[];

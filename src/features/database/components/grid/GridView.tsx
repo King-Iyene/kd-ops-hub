@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, ChevronLeft, ChevronRight, Loader2, Expand, Copy, Trash2, MoreHorizontal, Sigma } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Loader2, Expand, Copy, Trash2, MoreHorizontal, Sigma, Lock } from 'lucide-react';
 import type { FieldMeta, RecordRow, RowColorRule, UIType, ConditionalFormatRule } from '@/features/database/types';
 import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
 import { useUndoStore } from '../../lib/undo';
@@ -258,10 +258,13 @@ export default function GridView({
   const summaryFunctions = useDatabaseUI((s) => s.summaryFunctions);
   const setSummaryFunction = useDatabaseUI((s) => s.setSummaryFunction);
   const fieldOrder = useDatabaseUI((s) => s.fieldOrder);
+  const fieldWidths = useDatabaseUI((s) => s.fieldWidths);
+  const setFieldWidth = useDatabaseUI((s) => s.setFieldWidth);
+  const frozenColumns = useDatabaseUI((s) => s.frozenColumns);
+  const setFrozenColumns = useDatabaseUI((s) => s.setFrozenColumns);
 
   const parentRef = useRef<HTMLDivElement>(null);
   const [summaryDropdown, setSummaryDropdown] = useState<string | null>(null);
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; record: RecordRow } | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [dragRowId, setDragRowId] = useState<string | null>(null);
@@ -431,8 +434,8 @@ export default function GridView({
   }, [fields, fieldOrder]);
 
   const getFieldWidth = useCallback(
-    (field: FieldMeta) => columnWidths[field.id] ?? field.width ?? 180,
-    [columnWidths],
+    (field: FieldMeta) => fieldWidths[field.id] ?? field.width ?? 180,
+    [fieldWidths],
   );
 
   const fieldsWithWidths = useMemo(
@@ -443,6 +446,11 @@ export default function GridView({
       })),
     [visibleFields, getFieldWidth],
   );
+
+  const frozenCount = Math.min(frozenColumns, fieldsWithWidths.length);
+  const frozenFields = useMemo(() => fieldsWithWidths.slice(0, frozenCount), [fieldsWithWidths, frozenCount]);
+  const scrollableFields = useMemo(() => fieldsWithWidths.slice(frozenCount), [fieldsWithWidths, frozenCount]);
+  const frozenWidth = useMemo(() => frozenFields.reduce((sum, f) => sum + f.width, 0), [frozenFields]);
 
   const totalWidth = useMemo(
     () => ROW_NUMBER_WIDTH + fieldsWithWidths.reduce((sum, f) => sum + f.width, 0),
@@ -538,8 +546,8 @@ export default function GridView({
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const handleResize = useCallback((fieldId: string, width: number) => {
-    setColumnWidths((prev) => ({ ...prev, [fieldId]: width }));
-  }, []);
+    setFieldWidth(fieldId, width);
+  }, [setFieldWidth]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -700,28 +708,46 @@ export default function GridView({
               {!isLoading && records.length === 0 && '#'}
             </div>
 
-            {fieldsWithWidths.map((field, colIdx) => (
-              <div
-                key={field.id}
-                className="relative"
-                style={{
-                  borderLeft: dropColTargetIdx === colIdx && dragColId !== null ? '2px solid #3366FF' : undefined,
-                }}
-                onDragOver={(e) => handleColDragOver(e, colIdx)}
-                onDrop={(e) => handleColDrop(e, colIdx)}
-              >
-                <ColumnHeader
-                  field={field}
-                  onResize={handleResize}
-                  onDelete={onDeleteField}
-                  onDuplicateField={onDuplicateField}
-                  onEditField={setEditingField}
-                  draggable
-                  onDragStart={(e) => handleColDragStart(e, field.id)}
-                  onDragEnd={handleColDragEnd}
-                />
-              </div>
-            ))}
+            {fieldsWithWidths.map((field, colIdx) => {
+              const isFrozen = colIdx < frozenCount;
+              const isLastFrozen = colIdx === frozenCount - 1;
+              // Compute left offset for sticky frozen columns
+              let stickyLeft = ROW_NUMBER_WIDTH;
+              if (isFrozen) {
+                for (let i = 0; i < colIdx; i++) stickyLeft += fieldsWithWidths[i].width;
+              }
+              return (
+                <div
+                  key={field.id}
+                  className="relative"
+                  style={{
+                    borderLeft: dropColTargetIdx === colIdx && dragColId !== null ? '2px solid #3366FF' : undefined,
+                    ...(isFrozen ? {
+                      position: 'sticky' as const,
+                      left: stickyLeft,
+                      zIndex: 25,
+                      borderRight: isLastFrozen ? '3px solid #D0D0D4' : undefined,
+                    } : {}),
+                  }}
+                  onDragOver={(e) => handleColDragOver(e, colIdx)}
+                  onDrop={(e) => handleColDrop(e, colIdx)}
+                >
+                  <ColumnHeader
+                    field={field}
+                    onResize={handleResize}
+                    onDelete={onDeleteField}
+                    onDuplicateField={onDuplicateField}
+                    onEditField={setEditingField}
+                    draggable
+                    onDragStart={(e) => handleColDragStart(e, field.id)}
+                    onDragEnd={handleColDragEnd}
+                    columnIndex={colIdx}
+                    onFreezeUpTo={setFrozenColumns}
+                    isFrozen={isFrozen}
+                  />
+                </div>
+              );
+            })}
 
             <div
               className="flex items-center justify-center shrink-0 cursor-pointer hover:bg-gray-100"
@@ -844,9 +870,27 @@ export default function GridView({
                         </>
                       )}
                     </div>
-                    {fieldsWithWidths.map((field) => (
-                      <GridCell key={field.id} field={field} record={record} onCellUpdate={onCellUpdate} backgroundColor={getCellColor(record, field.id)} />
-                    ))}
+                    {fieldsWithWidths.map((field, colIdx) => {
+                      const isFroz = colIdx < frozenCount;
+                      const isLastFroz = colIdx === frozenCount - 1;
+                      let cellLeft = ROW_NUMBER_WIDTH;
+                      if (isFroz) {
+                        for (let i = 0; i < colIdx; i++) cellLeft += fieldsWithWidths[i].width;
+                      }
+                      return (
+                        <div
+                          key={field.id}
+                          style={isFroz ? {
+                            position: 'sticky',
+                            left: cellLeft,
+                            zIndex: 5,
+                            borderRight: isLastFroz ? '3px solid #D0D0D4' : undefined,
+                          } : undefined}
+                        >
+                          <GridCell field={field} record={record} onCellUpdate={onCellUpdate} backgroundColor={getCellColor(record, field.id)} />
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               }
@@ -945,15 +989,32 @@ export default function GridView({
                     )}
                   </div>
 
-                  {fieldsWithWidths.map((field) => (
-                    <GridCell
-                      key={field.id}
-                      field={field}
-                      record={record}
-                      onCellUpdate={onCellUpdate}
-                      backgroundColor={getCellColor(record, field.id)}
-                    />
-                  ))}
+                  {fieldsWithWidths.map((field, colIdx) => {
+                    const isFroz = colIdx < frozenCount;
+                    const isLastFroz = colIdx === frozenCount - 1;
+                    let cellLeft = ROW_NUMBER_WIDTH;
+                    if (isFroz) {
+                      for (let i = 0; i < colIdx; i++) cellLeft += fieldsWithWidths[i].width;
+                    }
+                    return (
+                      <div
+                        key={field.id}
+                        style={isFroz ? {
+                          position: 'sticky',
+                          left: cellLeft,
+                          zIndex: 5,
+                          borderRight: isLastFroz ? '3px solid #D0D0D4' : undefined,
+                        } : undefined}
+                      >
+                        <GridCell
+                          field={field}
+                          record={record}
+                          onCellUpdate={onCellUpdate}
+                          backgroundColor={getCellColor(record, field.id)}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}

@@ -170,7 +170,7 @@ export function useSaveViewConfig() {
       updates: {
         filters: state.filters,
         sorts: state.sorts,
-        groups: state.groupBy ? [state.groupBy] : [],
+        groups: state.groupByLevels,
         field_visibility: fieldVisibility,
       },
     });

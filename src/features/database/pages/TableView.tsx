@@ -23,6 +23,7 @@ import KanbanView from '../components/views/KanbanView';
 import GalleryView from '../components/views/GalleryView';
 import FormView from '../components/views/FormView';
 import CalendarView from '../components/views/CalendarView';
+import TimelineView from '../components/views/TimelineView';
 import { ExpandedRowModal } from '../components/ExpandedRowModal';
 import { CreateFieldDialog } from '../components/CreateFieldDialog';
 import type { RecordRow } from '../types';
@@ -52,7 +53,7 @@ export function TableView() {
 
   const updateView = useUpdateView();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const groupBy = useDatabaseUI((s) => s.groupBy);
+  const groupByLevels = useDatabaseUI((s) => s.groupByLevels);
 
   useEffect(() => {
     if (!activeViewId || !activeTableId) return;
@@ -66,13 +67,13 @@ export function TableView() {
         updates: {
           filters,
           sorts,
-          groups: groupBy ? [groupBy] : [],
+          groups: groupByLevels,
           field_visibility: fieldVisibility,
         },
       });
     }, 1000);
     return () => clearTimeout(saveTimerRef.current);
-  }, [filters, sorts, groupBy, hiddenFieldIds, activeViewId, activeTableId]);
+  }, [filters, sorts, groupByLevels, hiddenFieldIds, activeViewId, activeTableId]);
 
   const { data: recordsData, isLoading } = useRecords({
     baseId: activeBaseId!,
@@ -251,6 +252,16 @@ export function TableView() {
             isLoading={isLoading}
             onExpandRow={setExpandedRecord}
             onAddRow={(record) => handleAddRow(record)}
+          />
+        );
+      case 'timeline':
+        return (
+          <TimelineView
+            fields={fields ?? []}
+            records={recordsData?.records ?? []}
+            totalCount={recordsData?.totalCount ?? 0}
+            isLoading={isLoading}
+            onExpandRow={setExpandedRecord}
           />
         );
       default:

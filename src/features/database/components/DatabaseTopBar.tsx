@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Zap, Link2, Key, Webhook, History } from 'lucide-react';
+import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Zap, Link2, Key, Webhook, History, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuthStore } from '@/store/authStore';
@@ -14,7 +14,7 @@ import { AuditLogDialog } from './AuditLogDialog';
 import { PresenceIndicator } from './PresenceIndicator';
 import { NotificationsPanel } from './NotificationsPanel';
 
-export function DatabaseTopBar() {
+export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => void }) {
   const { toggleSidebar, activeBaseId, activeTableId } = useDatabaseUI();
   const profile = useAuthStore((s) => s.profile);
   const { data: bases } = useBases();
@@ -136,6 +136,15 @@ export function DatabaseTopBar() {
             <Share2 size={13} /> Share Base
           </Button>
           <NotificationsPanel />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-[#6A7184] hover:bg-[#F4F4F5]"
+            onClick={() => onOpenShortcuts?.()}
+            title="Keyboard shortcuts (?)"
+          >
+            <Keyboard size={15} />
+          </Button>
           <Button
             variant="ghost"
             size="icon"

@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import { Grid3X3, LayoutGrid, Columns3, FileText, Calendar, Plus, Pencil, Trash2, Copy, Lock, Unlock } from 'lucide-react';
+import { Grid3X3, LayoutGrid, Columns3, FileText, Calendar, GanttChart, Plus, Pencil, Trash2, Copy, Lock, Unlock } from 'lucide-react';
 import { useDatabaseUI } from '../lib/store';
 import { useViews, useCreateView, useUpdateView, useDeleteView, useLoadViewConfig } from '../hooks';
 
@@ -9,14 +9,16 @@ const VIEW_ICONS: Record<string, typeof Grid3X3> = {
   gallery: LayoutGrid,
   form: FileText,
   calendar: Calendar,
+  timeline: GanttChart,
 };
 
-const VIEW_TYPE_OPTIONS: Array<{ type: 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar'; label: string }> = [
+const VIEW_TYPE_OPTIONS: Array<{ type: 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar' | 'timeline'; label: string }> = [
   { type: 'grid', label: 'Grid' },
   { type: 'kanban', label: 'Kanban' },
   { type: 'gallery', label: 'Gallery' },
   { type: 'form', label: 'Form' },
   { type: 'calendar', label: 'Calendar' },
+  { type: 'timeline', label: 'Timeline' },
 ];
 
 export function ViewBar() {
@@ -39,7 +41,7 @@ export function ViewBar() {
   );
 
   const handleAddView = useCallback(
-    (type: 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar') => {
+    (type: 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar' | 'timeline') => {
       if (!activeTableId) return;
       createView.mutate({
         table_id: activeTableId,
