@@ -67,7 +67,7 @@ function mapAirtableType(atType: string): { uiType: string; pgType: string } {
     rating: { uiType: 'Rating', pgType: 'INTEGER' },
     checkbox: { uiType: 'Checkbox', pgType: 'BOOLEAN' },
     singleSelect: { uiType: 'SingleSelect', pgType: 'TEXT' },
-    multipleSelects: { uiType: 'MultiSelect', pgType: 'JSONB' },
+    multiSelect: { uiType: 'MultiSelect', pgType: 'JSONB' },
     date: { uiType: 'Date', pgType: 'DATE' },
     dateTime: { uiType: 'DateTime', pgType: 'TIMESTAMPTZ' },
     createdTime: { uiType: 'CreatedTime', pgType: 'TIMESTAMPTZ' },
@@ -80,10 +80,11 @@ function mapAirtableType(atType: string): { uiType: string; pgType: string } {
     rollup: { uiType: 'Rollup', pgType: 'TEXT' },
     lookup: { uiType: 'Lookup', pgType: 'JSONB' },
     count: { uiType: 'Number', pgType: 'INTEGER' },
-    createdBy: { uiType: 'CreatedBy', pgType: 'UUID' },
-    lastModifiedBy: { uiType: 'LastModifiedBy', pgType: 'UUID' },
+    createdBy: { uiType: 'CreatedBy', pgType: 'JSONB' },
+    lastModifiedBy: { uiType: 'LastModifiedBy', pgType: 'JSONB' },
     button: { uiType: 'SingleLineText', pgType: 'TEXT' },
     externalSyncSource: { uiType: 'SingleLineText', pgType: 'TEXT' },
+    ai: { uiType: 'LongText', pgType: 'TEXT' },
     aiText: { uiType: 'LongText', pgType: 'TEXT' },
   };
   return map[atType] ?? { uiType: 'SingleLineText', pgType: 'TEXT' };
@@ -319,6 +320,9 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           (f) => !SYSTEM_UI_TYPES.has(mapAirtableType(f.type).uiType)
         );
 
+        // Track used column names to avoid duplicates
+        const usedColNames = new Set(SYSTEM_FIELDS.map((f) => f.pg_column_name));
+
         const fieldRows = userFields.map((f, idx) => {
           const mapped = mapAirtableType(f.type);
           const options: any = {};
@@ -329,7 +333,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               color: c.color ?? 'gray',
             }));
           }
-          if (f.type === 'multipleSelects' && f.options?.choices) {
+          if (f.type === 'multiSelect' && f.options?.choices) {
             options.choices = f.options.choices.map((c: any) => ({
               title: c.name,
               color: c.color ?? 'gray',
@@ -348,11 +352,19 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             options.formula = f.options?.formula ?? '';
           }
 
-          const pgColName = toSnakeCase(f.name);
+          let pgColName = toSnakeCase(f.name) || `field_${idx}`;
+          // Deduplicate column names
+          if (usedColNames.has(pgColName)) {
+            let suffix = 2;
+            while (usedColNames.has(`${pgColName}_${suffix}`)) suffix++;
+            pgColName = `${pgColName}_${suffix}`;
+          }
+          usedColNames.add(pgColName);
+
           return {
             table_id: table.id,
             name: f.name,
-            pg_column_name: pgColName || `field_${idx}`,
+            pg_column_name: pgColName,
             ui_type: mapped.uiType,
             pg_type: mapped.pgType,
             options,
@@ -408,10 +420,10 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         try {
           const records = await fetchAllRecords(selectedBaseId!, atTable.id);
           if (records.length > 0) {
-            // Build a field name → pg_column_name map
-            const fieldMap: Record<string, string> = {};
+            // Build a field name → { pg_column_name, pg_type } map
+            const fieldMap: Record<string, { col: string; pgType: string }> = {};
             for (const fr of fieldRows) {
-              fieldMap[fr.name] = fr.pg_column_name;
+              fieldMap[fr.name] = { col: fr.pg_column_name, pgType: fr.pg_type };
             }
 
             // Insert in batches of 50
@@ -421,12 +433,15 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               const rows = batch.map((rec: any, idx: number) => {
                 const row: Record<string, any> = { nc_order: b + idx + 1 };
                 for (const [fieldName, value] of Object.entries(rec.fields || {})) {
-                  const pgCol = fieldMap[fieldName];
-                  if (pgCol) {
-                    if (typeof value === 'object' && value !== null) {
-                      row[pgCol] = JSON.stringify(value);
+                  const mapping = fieldMap[fieldName];
+                  if (mapping) {
+                    // For JSONB columns, pass objects directly (PostgREST handles serialization).
+                    // For non-JSONB columns that received an object (e.g. createdBy as JSONB),
+                    // pass as-is too. Only stringify objects for TEXT/non-JSONB columns.
+                    if (typeof value === 'object' && value !== null && mapping.pgType !== 'JSONB') {
+                      row[mapping.col] = JSON.stringify(value);
                     } else {
-                      row[pgCol] = value;
+                      row[mapping.col] = value;
                     }
                   }
                 }
