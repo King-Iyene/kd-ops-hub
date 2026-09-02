@@ -13,8 +13,9 @@ import { Plus, X } from 'lucide-react';
 import { useCreateField } from '../hooks';
 import { useCreateLink } from '../hooks/useLinks';
 import { useTables } from '../hooks/useTables';
+import { useFields } from '../hooks/useFields';
 import { useDatabaseUI } from '../lib/store';
-import type { UIType, SelectChoice } from '../types';
+import type { UIType, SelectChoice, FieldMeta } from '../types';
 import { PILL_COLORS } from '../types';
 import { getFieldTypeIcon } from './grid/field-icons';
 import { cn } from '@/lib/utils';
@@ -51,6 +52,8 @@ const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
   { value: 'MultiSelect', label: 'Multi Select', group: 'Selection' },
   { value: 'Checkbox', label: 'Checkbox', group: 'Selection' },
   { value: 'Formula', label: 'Formula', group: 'Computed' },
+  { value: 'Lookup', label: 'Lookup', group: 'Computed' },
+  { value: 'Rollup', label: 'Rollup', group: 'Computed' },
   { value: 'Links', label: 'Links', group: 'Relations' },
   { value: 'Attachment', label: 'Attachment', group: 'Other' },
   { value: 'JSON', label: 'JSON', group: 'Other' },
@@ -86,15 +89,30 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [formulaError, setFormulaError] = useState('');
   const [targetTableId, setTargetTableId] = useState('');
   const [relationType, setRelationType] = useState<RelationType>('many_to_many');
+  const [linkFieldId, setLinkFieldId] = useState('');
+  const [lookupFieldId, setLookupFieldId] = useState('');
+  const [rollupFieldId, setRollupFieldId] = useState('');
+  const [rollupFn, setRollupFn] = useState('COUNT');
   const [error, setError] = useState('');
   const { activeTableId, activeBaseId } = useDatabaseUI();
   const createField = useCreateField();
   const createLink = useCreateLink();
   const { data: tables = [] } = useTables(activeBaseId);
 
+  const { data: currentTableFields = [] } = useFields(activeTableId);
+  const linkFields = currentTableFields.filter((f: FieldMeta) => f.ui_type === 'Links');
+  const selectedLinkField = linkFields.find((f: FieldMeta) => f.id === linkFieldId);
+  const targetTableIdFromLink = selectedLinkField?.options?.relatedTableId ?? null;
+  const { data: targetFields = [] } = useFields(targetTableIdFromLink);
+  const numericTargetFields = targetFields.filter((f: FieldMeta) =>
+    ['Number', 'Decimal', 'Currency', 'Percent', 'Duration', 'Rating'].includes(f.ui_type),
+  );
+
   const isSelectType = uiType === 'SingleSelect' || uiType === 'MultiSelect';
   const isLinksType = uiType === 'Links';
   const isFormula = uiType === 'Formula';
+  const isLookup = uiType === 'Lookup';
+  const isRollup = uiType === 'Rollup';
 
   const handleFormulaChange = useCallback((expr: string) => {
     setFormulaExpression(expr);
@@ -178,6 +196,19 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
         }
         options.expression = formulaExpression;
       }
+      if (isLookup) {
+        if (!linkFieldId) { setError('Please select a link field'); return; }
+        if (!lookupFieldId) { setError('Please select a lookup field'); return; }
+        options.linkFieldId = linkFieldId;
+        options.lookupFieldId = lookupFieldId;
+      }
+      if (isRollup) {
+        if (!linkFieldId) { setError('Please select a link field'); return; }
+        if (!rollupFieldId) { setError('Please select a rollup field'); return; }
+        options.linkFieldId = linkFieldId;
+        options.rollupFieldId = rollupFieldId;
+        options.fn = rollupFn;
+      }
       await createField.mutateAsync({
         table_id: activeTableId,
         name: name.trim(),
@@ -194,6 +225,10 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
       setNewChoiceText('');
       setFormulaExpression('');
       setFormulaError('');
+      setLinkFieldId('');
+      setLookupFieldId('');
+      setRollupFieldId('');
+      setRollupFn('COUNT');
       onOpenChange(false);
     } catch (e: any) {
       setError(e?.message ?? 'Failed to create field');
@@ -208,6 +243,12 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     if (type !== 'Formula') {
       setFormulaExpression('');
       setFormulaError('');
+    }
+    if (type !== 'Lookup' && type !== 'Rollup') {
+      setLinkFieldId('');
+      setLookupFieldId('');
+      setRollupFieldId('');
+      setRollupFn('COUNT');
     }
   };
 
@@ -415,6 +456,68 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 <span className="font-medium">Functions:</span>{' '}
                 {FORMULA_FUNCTIONS.slice(0, 12).join(', ')}...
               </div>
+            </div>
+          )}
+
+          {(isLookup || isRollup) && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[#6A7184]">Link Field</Label>
+                <select
+                  value={linkFieldId}
+                  onChange={(e) => { setLinkFieldId(e.target.value); setLookupFieldId(''); setRollupFieldId(''); }}
+                  className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
+                >
+                  <option value="">Select a link field...</option>
+                  {linkFields.map((f: FieldMeta) => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+              {isLookup && linkFieldId && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-[#6A7184]">Lookup Field</Label>
+                  <select
+                    value={lookupFieldId}
+                    onChange={(e) => setLookupFieldId(e.target.value)}
+                    className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
+                  >
+                    <option value="">Select a field...</option>
+                    {targetFields.map((f: FieldMeta) => (
+                      <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {isRollup && linkFieldId && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-[#6A7184]">Rollup Field</Label>
+                    <select
+                      value={rollupFieldId}
+                      onChange={(e) => setRollupFieldId(e.target.value)}
+                      className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
+                    >
+                      <option value="">Select a numeric field...</option>
+                      {numericTargetFields.map((f: FieldMeta) => (
+                        <option key={f.id} value={f.id}>{f.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-[#6A7184]">Function</Label>
+                    <select
+                      value={rollupFn}
+                      onChange={(e) => setRollupFn(e.target.value)}
+                      className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
+                    >
+                      {['COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'COUNTA', 'COUNTALL'].map((fn) => (
+                        <option key={fn} value={fn}>{fn}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

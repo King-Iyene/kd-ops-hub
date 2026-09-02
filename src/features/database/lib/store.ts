@@ -1,6 +1,18 @@
 import { create } from 'zustand';
 import type { Filter, Sort, Group, RowColorRule } from '../types';
 
+export type SummaryFunction =
+  | 'none'
+  | 'sum'
+  | 'avg'
+  | 'min'
+  | 'max'
+  | 'count'
+  | 'countEmpty'
+  | 'countFilled'
+  | 'percentEmpty'
+  | 'percentFilled';
+
 interface DatabaseUIState {
   activeBaseId: string | null;
   activeTableId: string | null;
@@ -15,6 +27,7 @@ interface DatabaseUIState {
   hiddenFieldIds: Set<string>;
   searchQuery: string;
   rowColorRules: RowColorRule[];
+  summaryFunctions: Record<string, SummaryFunction>;
 
   setActiveBase: (id: string | null) => void;
   setActiveTable: (id: string | null) => void;
@@ -35,6 +48,7 @@ interface DatabaseUIState {
   toggleHiddenField: (fieldId: string) => void;
   setSearchQuery: (query: string) => void;
   setRowColorRules: (rules: RowColorRule[]) => void;
+  setSummaryFunction: (fieldId: string, fn: SummaryFunction) => void;
 }
 
 export const useDatabaseUI = create<DatabaseUIState>((set) => ({
@@ -51,6 +65,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   hiddenFieldIds: new Set(),
   searchQuery: '',
   rowColorRules: [],
+  summaryFunctions: {},
 
   setActiveBase: (id) =>
     set({
@@ -101,4 +116,8 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
     }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setRowColorRules: (rules) => set({ rowColorRules: rules }),
+  setSummaryFunction: (fieldId, fn) =>
+    set((s) => ({
+      summaryFunctions: { ...s.summaryFunctions, [fieldId]: fn },
+    })),
 }));

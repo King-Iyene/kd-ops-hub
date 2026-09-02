@@ -7,6 +7,7 @@ import {
   Copy,
   Trash2,
   ChevronDown,
+  Smile,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -73,6 +74,9 @@ export function TableTabBar() {
   const updateTable = useUpdateTable();
   const duplicateTable = useDuplicateTable();
   const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [iconPickerId, setIconPickerId] = useState<string | null>(null);
+
+  const TABLE_ICONS = ['📊', '📋', '📁', '📅', '📦', '🚀', '⭐', '💡', '🎯', '🔧', '📝', '📚', '🧩', '🌐', '❤️', '🏠', '👥', '💰', '🎨', '📱'];
 
   const handleRename = useCallback(
     (tableId: string, name: string) => {
@@ -153,7 +157,11 @@ export function TableTabBar() {
             onClick={() => setActiveTable(table.id)}
             onDoubleClick={() => setRenamingId(table.id)}
           >
-            <Table2 size={14} className="shrink-0" />
+            {table.icon ? (
+              <span className="text-[13px] shrink-0">{table.icon}</span>
+            ) : (
+              <Table2 size={14} className="shrink-0" />
+            )}
             {renamingId === table.id ? (
               <InlineRenameInput
                 value={table.name}
@@ -190,6 +198,40 @@ export function TableTabBar() {
                 >
                   <Copy size={12} /> Duplicate
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-xs gap-2"
+                  onClick={() => setIconPickerId(iconPickerId === table.id ? null : table.id)}
+                >
+                  <Smile size={12} /> Change icon
+                </DropdownMenuItem>
+                {iconPickerId === table.id && (
+                  <div className="px-3 py-2 flex flex-wrap gap-1">
+                    {TABLE_ICONS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        className="w-7 h-7 rounded hover:bg-[#F4F4F5] flex items-center justify-center text-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (activeBaseId) updateTable.mutate({ id: table.id, baseId: activeBaseId, icon: emoji });
+                          setIconPickerId(null);
+                        }}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                    <button
+                      className="w-7 h-7 rounded hover:bg-[#F4F4F5] flex items-center justify-center text-[10px] text-[#9AA2AF]"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (activeBaseId) updateTable.mutate({ id: table.id, baseId: activeBaseId, icon: null });
+                        setIconPickerId(null);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-xs gap-2 text-red-500 focus:text-red-500"

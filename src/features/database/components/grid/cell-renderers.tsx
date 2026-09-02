@@ -388,6 +388,32 @@ export const JsonCellRenderer = React.memo(function JsonCellRenderer({
   );
 });
 
+export const LookupCellRenderer = React.memo(function LookupCellRenderer({
+  value,
+}: CellRendererProps) {
+  if (value == null || value === '') return null;
+  if (Array.isArray(value)) {
+    if (value.length === 0) return null;
+    return <span className="truncate">{value.join(', ')}</span>;
+  }
+  return <span className="truncate">{String(value)}</span>;
+});
+
+export const RollupCellRenderer = React.memo(function RollupCellRenderer({
+  value,
+}: CellRendererProps) {
+  if (value == null || value === '') {
+    return <span className="truncate block text-right w-full" style={{ color: '#94A3B8' }}>{'—'}</span>;
+  }
+  const num = Number(value);
+  if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
+  return (
+    <span className="truncate block text-right w-full">
+      {num.toLocaleString()}
+    </span>
+  );
+});
+
 export const LinksCellRenderer = React.memo(function LinksCellRenderer({
   value,
 }: CellRendererProps) {
@@ -444,6 +470,10 @@ export function getCellRenderer(uiType: string) {
       return FormulaCellRenderer;
     case 'Links':
       return LinksCellRenderer;
+    case 'Lookup':
+      return LookupCellRenderer;
+    case 'Rollup':
+      return RollupCellRenderer;
     case 'ID':
     case 'CreatedTime':
     case 'LastModifiedTime':

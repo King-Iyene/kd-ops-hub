@@ -1,8 +1,9 @@
 import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, ChevronLeft, ChevronRight, Loader2, Expand, Copy, Trash2, MoreHorizontal } from 'lucide-react';
-import type { FieldMeta, RecordRow, RowColorRule } from '@/features/database/types';
-import { useDatabaseUI } from '../../lib/store';
+import { Plus, ChevronLeft, ChevronRight, Loader2, Expand, Copy, Trash2, MoreHorizontal, Sigma, ChevronDown } from 'lucide-react';
+import type { FieldMeta, RecordRow, RowColorRule, UIType } from '@/features/database/types';
+import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
+import { useUndoStore } from '../../lib/undo';
 import { ColumnHeader } from './ColumnHeader';
 import { GridCell } from './GridCell';
 import { EditFieldDialog } from '../EditFieldDialog';
@@ -37,6 +38,161 @@ const ROW_HEIGHTS: Record<string, number> = {
 const ROW_NUMBER_WIDTH = 64;
 const HEADER_HEIGHT = 36;
 
+const NUMERIC_TYPES: UIType[] = ['Number', 'Decimal', 'Currency', 'Percent', 'Rating', 'Duration'];
+
+const SUMMARY_OPTIONS: { value: SummaryFunction; label: string; numericOnly: boolean }[] = [
+  { value: 'none', label: 'None', numericOnly: false },
+  { value: 'sum', label: 'Sum', numericOnly: true },
+  { value: 'avg', label: 'Average', numericOnly: true },
+  { value: 'min', label: 'Min', numericOnly: true },
+  { value: 'max', label: 'Max', numericOnly: true },
+  { value: 'count', label: 'Count all', numericOnly: false },
+  { value: 'countEmpty', label: 'Count empty', numericOnly: false },
+  { value: 'countFilled', label: 'Count filled', numericOnly: false },
+  { value: 'percentEmpty', label: '% Empty', numericOnly: false },
+  { value: 'percentFilled', label: '% Filled', numericOnly: false },
+];
+
+const SUMMARY_LABELS: Record<SummaryFunction, string> = {
+  none: '', sum: 'Sum', avg: 'Average', min: 'Min', max: 'Max',
+  count: 'Count', countEmpty: 'Empty', countFilled: 'Filled',
+  percentEmpty: '% Empty', percentFilled: '% Filled',
+};
+
+function computeSummary(
+  fn: SummaryFunction,
+  records: RecordRow[],
+  pgCol: string,
+): string {
+  if (fn === 'none') return '';
+  const total = records.length;
+  if (total === 0) return '';
+
+  if (fn === 'count') return total.toLocaleString();
+
+  const values = records.map((r) => r[pgCol]);
+  const filledCount = values.filter((v) => v != null && v !== '').length;
+  const emptyCount = total - filledCount;
+
+  if (fn === 'countEmpty') return emptyCount.toLocaleString();
+  if (fn === 'countFilled') return filledCount.toLocaleString();
+  if (fn === 'percentEmpty') return (total > 0 ? ((emptyCount / total) * 100).toFixed(1) + '%' : '0%');
+  if (fn === 'percentFilled') return (total > 0 ? ((filledCount / total) * 100).toFixed(1) + '%' : '0%');
+
+  const nums = values.map((v) => (typeof v === 'number' ? v : parseFloat(String(v)))).filter((n) => !isNaN(n));
+  if (nums.length === 0) return '';
+
+  if (fn === 'sum') return nums.reduce((a, b) => a + b, 0).toLocaleString(undefined, { maximumFractionDigits: 4 });
+  if (fn === 'avg') return (nums.reduce((a, b) => a + b, 0) / nums.length).toLocaleString(undefined, { maximumFractionDigits: 4 });
+  if (fn === 'min') return Math.min(...nums).toLocaleString(undefined, { maximumFractionDigits: 4 });
+  if (fn === 'max') return Math.max(...nums).toLocaleString(undefined, { maximumFractionDigits: 4 });
+  return '';
+}
+
+function SummaryRow({
+  fields,
+  records,
+  summaryFunctions,
+  setSummaryFunction,
+  summaryDropdown,
+  setSummaryDropdown,
+  rowNumberWidth,
+}: {
+  fields: (FieldMeta & { width: number })[];
+  records: RecordRow[];
+  summaryFunctions: Record<string, SummaryFunction>;
+  setSummaryFunction: (fieldId: string, fn: SummaryFunction) => void;
+  summaryDropdown: string | null;
+  setSummaryDropdown: (id: string | null) => void;
+  rowNumberWidth: number;
+}) {
+  return (
+    <div
+      className="flex"
+      style={{
+        backgroundColor: '#F9F9FA',
+        borderTop: '2px solid #E7E7E9',
+        borderBottom: '1px solid #E7E7E9',
+        minHeight: 40,
+      }}
+    >
+      {/* Sigma icon cell */}
+      <div
+        className="sticky left-0 z-10 flex items-center justify-center shrink-0"
+        style={{
+          width: rowNumberWidth,
+          minWidth: rowNumberWidth,
+          backgroundColor: '#F9F9FA',
+          borderRight: '1px solid #E7E7E9',
+          color: '#9AA2AF',
+        }}
+      >
+        <Sigma size={14} />
+      </div>
+
+      {fields.map((field) => {
+        const fn = summaryFunctions[field.id] || 'none';
+        const isNumeric = NUMERIC_TYPES.includes(field.ui_type);
+        const value = computeSummary(fn, records, field.pg_column_name);
+        const label = SUMMARY_LABELS[fn];
+        const isOpen = summaryDropdown === field.id;
+
+        return (
+          <div
+            key={field.id}
+            className="relative shrink-0"
+            style={{
+              width: field.width,
+              minWidth: field.width,
+              borderRight: '1px solid #E7E7E9',
+            }}
+          >
+            <button
+              className="w-full h-full flex flex-col justify-center px-2 text-left hover:bg-gray-100"
+              style={{ minHeight: 40 }}
+              onClick={() => setSummaryDropdown(isOpen ? null : field.id)}
+            >
+              {fn !== 'none' ? (
+                <>
+                  <span style={{ fontSize: 10, color: '#9AA2AF', lineHeight: '14px' }}>{label}</span>
+                  <span style={{ fontSize: 12, color: '#374151', lineHeight: '16px', fontWeight: 500 }}>{value}</span>
+                </>
+              ) : (
+                <span style={{ fontSize: 11, color: '#9AA2AF' }}>&#8211;</span>
+              )}
+            </button>
+
+            {isOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setSummaryDropdown(null)} />
+                <div
+                  className="absolute left-0 bottom-full z-50 bg-white border border-[#E7E7E9] rounded-lg shadow-lg py-1 min-w-[150px]"
+                  style={{ marginBottom: 2 }}
+                >
+                  {SUMMARY_OPTIONS.filter((opt) => !opt.numericOnly || isNumeric).map((opt) => (
+                    <button
+                      key={opt.value}
+                      className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center justify-between"
+                      style={{ color: '#374151' }}
+                      onClick={() => {
+                        setSummaryFunction(field.id, opt.value);
+                        setSummaryDropdown(null);
+                      }}
+                    >
+                      <span>{opt.label}</span>
+                      {fn === opt.value && <span style={{ color: '#3366FF' }}>&#10003;</span>}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function GridView({
   fields,
   records,
@@ -61,8 +217,11 @@ export default function GridView({
   const setSelectedCell = useDatabaseUI((s) => s.setSelectedCell);
   const setEditingCell = useDatabaseUI((s) => s.setEditingCell);
   const rowColorRules = useDatabaseUI((s) => s.rowColorRules);
+  const summaryFunctions = useDatabaseUI((s) => s.summaryFunctions);
+  const setSummaryFunction = useDatabaseUI((s) => s.setSummaryFunction);
 
   const parentRef = useRef<HTMLDivElement>(null);
+  const [summaryDropdown, setSummaryDropdown] = useState<string | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; record: RecordRow } | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
@@ -323,6 +482,17 @@ export default function GridView({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const { undo, redo } = useUndoStore.getState();
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        redo();
+        return;
+      }
       if (!selectedCellId) return;
       const [rowId, fieldId] = selectedCellId.split(':');
       const rowIdx = records.findIndex((r) => r.id === rowId);
@@ -393,6 +563,10 @@ export default function GridView({
             onCellUpdate(rowId, fieldId, pastedValue);
           }
         });
+        return;
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        setEditingCell(selectedCellId);
         return;
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         // Clear cell
@@ -722,6 +896,17 @@ export default function GridView({
               );
             })}
           </div>
+
+          {/* Summary row */}
+          <SummaryRow
+            fields={fieldsWithWidths}
+            records={records}
+            summaryFunctions={summaryFunctions}
+            setSummaryFunction={setSummaryFunction}
+            summaryDropdown={summaryDropdown}
+            setSummaryDropdown={setSummaryDropdown}
+            rowNumberWidth={ROW_NUMBER_WIDTH}
+          />
 
           {/* Add row button */}
           <div
