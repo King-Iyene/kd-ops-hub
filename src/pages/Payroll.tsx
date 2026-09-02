@@ -318,24 +318,25 @@ const Payroll = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error: runsErr } = await supabase
-      .from('payroll_runs')
-      .select('*')
-      .order('period', { ascending: false })
-      .limit(200);
-    if (runsErr) {
-      logWarn('Payroll', 'payroll_runs load failed: ' + runsErr.message);
-      toast({ title: 'Failed to load payroll runs', description: runsErr.message, variant: 'destructive' });
+    const [runsRes, advRes] = await Promise.all([
+      supabase
+        .from('payroll_runs')
+        .select('id, period, period_type, employee_count, total_contractor_ngn, total_employee_ngn, total_expenses_ngn, paye_ngn, pension_ngn, nhf_ngn, total_burn_ngn, employer_pension_ngn, bonuses_json, allowances_json, status, created_at, created_by, approved_by, payroll_segment_id, scheduled_disburse_at, is_auto_generated')
+        .order('period', { ascending: false })
+        .limit(200),
+      (supabase as any).from('advance_requests')
+        .select('id, employee_id, amount_ngn, repayment_months, reason, status, created_at, profiles:employee_id(full_name, first_name, last_name, email)')
+        .in('status', ['pending', 'approved'])
+        .order('created_at', { ascending: true }),
+    ]);
+    if (runsRes.error) {
+      logWarn('Payroll', 'payroll_runs load failed: ' + runsRes.error.message);
+      toast({ title: 'Failed to load payroll runs', description: runsRes.error.message, variant: 'destructive' });
     }
-    setRuns((data as PayrollRun[]) || []);
+    setRuns((runsRes.data as PayrollRun[]) || []);
 
-    // Salary-advance requests awaiting action (pending) or approved-not-yet-paid.
-    const { data: adv, error: advErr } = await (supabase as any).from('advance_requests')
-      .select('id, employee_id, amount_ngn, repayment_months, reason, status, created_at, profiles:employee_id(full_name, first_name, last_name, email)')
-      .in('status', ['pending', 'approved'])
-      .order('created_at', { ascending: true });
-    if (advErr) logWarn('Payroll', 'advance_requests load failed: ' + advErr.message);
-    setAdvanceQueue(((adv as any[]) || []).map((r) => ({
+    if (advRes.error) logWarn('Payroll', 'advance_requests load failed: ' + advRes.error.message);
+    setAdvanceQueue(((advRes.data as any[]) || []).map((r: any) => ({
       ...r,
       name: displayName(r.profiles?.first_name, r.profiles?.last_name, r.profiles?.full_name || r.profiles?.email),
     })));

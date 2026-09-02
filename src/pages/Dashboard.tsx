@@ -213,83 +213,6 @@ const Dashboard = () => {
   const [celebrations, setCelebrations] = useState<{ id: string; name: string; type: 'birthday' | 'anniversary'; date: string; detail: string }[]>([]);
 
   useEffect(() => {
-    if (!isPersonal) {
-      let cancelled = false;
-      const today = new Date().toISOString().slice(0, 10);
-      const in30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      Promise.all([
-        supabase
-          .from('documents')
-          .select('id, title, expires_at')
-          .is('deleted_at', null)
-          .gte('expires_at', today)
-          .lte('expires_at', in30)
-          .order('expires_at', { ascending: true })
-          .limit(5),
-        supabase
-          .from('compliance_filings')
-          .select('id, kind, period, due_date')
-          .neq('status', 'filed')
-          .gte('due_date', today)
-          .lte('due_date', in30)
-          .order('due_date', { ascending: true })
-          .limit(5),
-        supabase
-          .from('profiles')
-          .select('id, full_name, date_of_birth, start_date')
-          .eq('status', 'active')
-          .neq('is_anonymised', true)
-          .limit(500),
-        supabase
-          .from('profiles')
-          .select('id, full_name, contract_end_date')
-          .eq('status', 'active')
-          .not('contract_end_date', 'is', null)
-          .gte('contract_end_date', today)
-          .lte('contract_end_date', in30)
-          .order('contract_end_date', { ascending: true })
-          .limit(10),
-      ]).then(([docsRes, filingsRes, profilesRes, contractRes]) => {
-        if (cancelled) return;
-        setExpiringDocs((docsRes.data as any[]) || []);
-        setDueFilings((filingsRes.data as any[]) || []);
-        setExpiringContracts(((contractRes.data as any[]) || []).map((c: any) => ({
-          id: c.id, name: c.full_name || 'Employee', contract_end_date: c.contract_end_date,
-        })));
-
-        const now = new Date();
-        const in14 = new Date(now.getTime() + 14 * 86400000);
-        const items: typeof celebrations = [];
-        for (const p of (profilesRes.data || []) as any[]) {
-          if (p.date_of_birth) {
-            const dob = new Date(p.date_of_birth);
-            const thisYear = new Date(now.getFullYear(), dob.getMonth(), dob.getDate());
-            if (thisYear < now) thisYear.setFullYear(thisYear.getFullYear() + 1);
-            if (thisYear >= now && thisYear <= in14) {
-              items.push({ id: `bday-${p.id}`, name: p.full_name || 'Employee', type: 'birthday', date: thisYear.toISOString().slice(0, 10), detail: thisYear.toDateString() === now.toDateString() ? 'Today!' : `${formatDate(thisYear.toISOString().slice(0, 10))}` });
-            }
-          }
-          if (p.start_date) {
-            const sd = new Date(p.start_date);
-            const years = now.getFullYear() - sd.getFullYear();
-            if (years >= 1) {
-              const anniv = new Date(now.getFullYear(), sd.getMonth(), sd.getDate());
-              if (anniv < now) anniv.setFullYear(anniv.getFullYear() + 1);
-              const annivYears = anniv.getFullYear() - sd.getFullYear();
-              if (anniv >= now && anniv <= in14) {
-                items.push({ id: `anniv-${p.id}`, name: p.full_name || 'Employee', type: 'anniversary', date: anniv.toISOString().slice(0, 10), detail: `${annivYears} year${annivYears > 1 ? 's' : ''}` });
-              }
-            }
-          }
-        }
-        items.sort((a, b) => a.date.localeCompare(b.date));
-        setCelebrations(items.slice(0, 10));
-      });
-      return () => { cancelled = true; };
-    }
-  }, [isPersonal]);
-
-  useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-use-before-define -- safe: deferred call inside effect; fetchDashboard is initialized before the effect first runs
     fetchDashboard();
     refreshApprovals();
@@ -362,9 +285,13 @@ const Dashboard = () => {
       const today = now.toISOString().slice(0, 10);
       const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
+      const in30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const noopRes = Promise.resolve({ data: null } as { data: null });
+
       const [
         disbursedItemsRes, fuelRes, activityRes, subsRes, budgetsRes,
         expensesRes, processedBatchesRes, upcomingPaymentsRes, employeesRes,
+        docsRes, filingsRes, profilesRes, contractRes,
       ] = await Promise.all([
         // "Total Disbursed" tile = money that actually left the bank THIS
         // MONTH. Keyed off batch_items.processed_at — the moment a transfer
@@ -382,17 +309,30 @@ const Dashboard = () => {
           .eq('is_manually_resolved', false)
           .is('payment_batches.deleted_at', null)
           .gte('processed_at', monthStart)
-          .limit(5000),
+          .limit(2000), // reasonable month cap — can't do server-side SUM with Supabase client
         supabase.from('fuel_requests').select('amount_ngn').eq('status', 'approved').is('deleted_at', null).gte('created_at', weekStart),
         supabase.from('audit_logs').select('id, action_type, description, performed_by_name, created_at').order('created_at', { ascending: false }).limit(15),
         supabase.from('subscriptions').select('id, name, amount_ngn, next_renewal_date').eq('status', 'active').lte('next_renewal_date', inThirtyDays.toISOString().slice(0, 10)).order('next_renewal_date', { ascending: true }).limit(6),
         supabase.from('budgets').select('id, name, total_amount_ngn, period_start, period_end, status').eq('status', 'approved').is('deleted_at', null).limit(20),
-        supabase.from('expenses').select('amount_ngn, date, status').eq('status', 'approved').is('deleted_at', null).limit(2000),
+        supabase.from('expenses').select('amount_ngn, date, status').eq('status', 'approved').is('deleted_at', null).limit(500),
         // Used only by the Budget Utilization chart below (buckets actual
         // spend into each budget's period_start/period_end window).
         supabase.from('payment_batches').select('id, total_amount, payment_date, status').in('status', ['processed', 'partially_processed']).is('deleted_at', null).limit(500),
         supabase.from('payment_batches').select('id, name, total_amount, scheduled_date, status').gte('scheduled_date', today).lte('scheduled_date', sevenDaysFromNow).not('status', 'in', '("rejected","cancelled","failed")').is('deleted_at', null).order('scheduled_date', { ascending: true }).limit(5),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'active').neq('is_anonymised', true),
+        // ── Expiry / celebration queries — skipped for personal view ──
+        !isPersonal
+          ? supabase.from('documents').select('id, title, expires_at').is('deleted_at', null).gte('expires_at', today).lte('expires_at', in30).order('expires_at', { ascending: true }).limit(5)
+          : noopRes,
+        !isPersonal
+          ? supabase.from('compliance_filings').select('id, kind, period, due_date').neq('status', 'filed').gte('due_date', today).lte('due_date', in30).order('due_date', { ascending: true }).limit(5)
+          : noopRes,
+        !isPersonal
+          ? supabase.from('profiles').select('id, full_name, date_of_birth, start_date').eq('status', 'active').neq('is_anonymised', true).or('date_of_birth.not.is.null,start_date.not.is.null').limit(200)
+          : noopRes,
+        !isPersonal
+          ? supabase.from('profiles').select('id, full_name, contract_end_date').eq('status', 'active').not('contract_end_date', 'is', null).gte('contract_end_date', today).lte('contract_end_date', in30).order('contract_end_date', { ascending: true }).limit(10)
+          : noopRes,
       ]);
 
       const totalDisbursed = (disbursedItemsRes.data || []).reduce(
@@ -402,6 +342,42 @@ const Dashboard = () => {
       const fuelSpend = fuelRes.data?.reduce((sum, f) => sum + (f.amount_ngn || 0), 0) || 0;
 
       setStats({ totalEmployees, totalDisbursed, fuelSpend });
+
+      // ── Expiry alerts & celebrations (non-personal only) ──────────
+      if (!isPersonal) {
+        setExpiringDocs((docsRes.data as any[]) || []);
+        setDueFilings((filingsRes.data as any[]) || []);
+        setExpiringContracts(((contractRes.data as any[]) || []).map((c: any) => ({
+          id: c.id, name: c.full_name || 'Employee', contract_end_date: c.contract_end_date,
+        })));
+
+        const in14 = new Date(now.getTime() + 14 * 86400000);
+        const items: typeof celebrations = [];
+        for (const p of (profilesRes.data || []) as any[]) {
+          if (p.date_of_birth) {
+            const dob = new Date(p.date_of_birth);
+            const thisYear = new Date(now.getFullYear(), dob.getMonth(), dob.getDate());
+            if (thisYear < now) thisYear.setFullYear(thisYear.getFullYear() + 1);
+            if (thisYear >= now && thisYear <= in14) {
+              items.push({ id: `bday-${p.id}`, name: p.full_name || 'Employee', type: 'birthday', date: thisYear.toISOString().slice(0, 10), detail: thisYear.toDateString() === now.toDateString() ? 'Today!' : `${formatDate(thisYear.toISOString().slice(0, 10))}` });
+            }
+          }
+          if (p.start_date) {
+            const sd = new Date(p.start_date);
+            const years = now.getFullYear() - sd.getFullYear();
+            if (years >= 1) {
+              const anniv = new Date(now.getFullYear(), sd.getMonth(), sd.getDate());
+              if (anniv < now) anniv.setFullYear(anniv.getFullYear() + 1);
+              const annivYears = anniv.getFullYear() - sd.getFullYear();
+              if (anniv >= now && anniv <= in14) {
+                items.push({ id: `anniv-${p.id}`, name: p.full_name || 'Employee', type: 'anniversary', date: anniv.toISOString().slice(0, 10), detail: `${annivYears} year${annivYears > 1 ? 's' : ''}` });
+              }
+            }
+          }
+        }
+        items.sort((a, b) => a.date.localeCompare(b.date));
+        setCelebrations(items.slice(0, 10));
+      }
 
       // Budget Utilization chart's "actual" figure — separate from the Total
       // Disbursed tile above, still needs the batch-level netted amount
