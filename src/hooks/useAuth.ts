@@ -183,7 +183,12 @@ export const useAuth = () => {
       }
       if (session?.user) {
         setUser(session.user);
-        finish(session.user.id, false);
+        // Redirect from /login when an existing session is found — without
+        // this, getSession() sets the user in the store but never navigates,
+        // and the subsequent SIGNED_IN event (from a fresh signInWithPassword
+        // call) gets suppressed as a "same user" rehydration, deadlocking
+        // the user on the login page with no error.
+        finish(session.user.id, window.location.pathname === '/login');
         // The SIGNED_IN event for this session may have already fired
         // (and been missed — see hasFreshAuthRedirect above) before we got
         // here. If the URL still carries the redirect's auth tokens, this
@@ -247,11 +252,15 @@ export const useAuth = () => {
       }
       // SIGNED_IN while the same user is already active — Supabase fires this
       // on tab focus / session rehydration in some SDK versions. Suppress it to
-      // avoid running finish() (and its signOut fallback) on an active session.
+      // avoid running finish() (and its signOut fallback) on an active session,
+      // but NOT on /login — a user explicitly submitting the login form must
+      // always trigger the redirect flow even when getSession() already loaded
+      // the same user.
       if (
         event === 'SIGNED_IN' &&
         session?.user &&
-        useAuthStore.getState().user?.id === session.user.id
+        useAuthStore.getState().user?.id === session.user.id &&
+        window.location.pathname !== '/login'
       ) {
         return;
       }
