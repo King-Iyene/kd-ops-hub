@@ -7,6 +7,7 @@ import { ColumnHeader } from './ColumnHeader';
 import { GridCell } from './GridCell';
 import { RowContextMenu } from './RowContextMenu';
 import { GRID_COLORS } from './grid-tokens';
+import { getRowColor } from '../../lib/row-colors';
 
 export interface GridViewProps {
   fields: FieldMeta[];
@@ -55,6 +56,7 @@ export default function GridView({
   const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
   const setSelectedCell = useDatabaseUI((s) => s.setSelectedCell);
   const setEditingCell = useDatabaseUI((s) => s.setEditingCell);
+  const rowColorRules = useDatabaseUI((s) => s.rowColorRules);
 
   const parentRef = useRef<HTMLDivElement>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
@@ -309,7 +311,8 @@ export default function GridView({
               const isActiveCellRow = selectedCellId?.startsWith(record.id + ':');
               const isHovered = hoveredRowId === record.id;
               const isChecked = selectedRowIds.has(record.id);
-              const rowBg = isChecked || isActiveCellRow || isHovered ? GRID_COLORS.hoverRow : GRID_COLORS.bg;
+              const colorRuleBg = getRowColor(record, rowColorRules, fields);
+              const rowBg = isChecked || isActiveCellRow || isHovered ? GRID_COLORS.hoverRow : (colorRuleBg || GRID_COLORS.bg);
               const rowNumBg = isChecked || isActiveCellRow || isHovered ? GRID_COLORS.hoverRow : GRID_COLORS.headerBg;
 
               return (

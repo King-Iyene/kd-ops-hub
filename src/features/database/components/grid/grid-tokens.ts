@@ -7,5 +7,5 @@ export const GRID_COLORS = {
   hoverRow: '#F0F3FF',
   text: '#374151',
   headerText: '#6A7184',
-  muted: '#9AA2B1',
+  muted: '#9AA2AF',
 } as const;

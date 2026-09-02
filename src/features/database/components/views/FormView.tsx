@@ -142,7 +142,7 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
             transition: 'background 0.15s',
           }}
           onMouseEnter={(e) => {
-            if (!isLoading) (e.currentTarget.style.background = '#005577');
+            if (!isLoading) (e.currentTarget.style.background = '#2952CC');
           }}
           onMouseLeave={(e) => {
             if (!isLoading) (e.currentTarget.style.background = '#3366FF');
