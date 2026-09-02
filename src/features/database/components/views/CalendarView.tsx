@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '../../types';
 
 interface CalendarViewProps {
@@ -17,6 +17,7 @@ export default function CalendarView({
   fields,
   records,
   onExpandRow,
+  onAddRow,
 }: CalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
@@ -24,7 +25,8 @@ export default function CalendarView({
   });
 
   const dateField = useMemo(
-    () => fields.find((f) => f.ui_type === 'Date' || f.ui_type === 'DateTime' || f.ui_type === 'CreatedTime'),
+    () => fields.find((f) => f.ui_type === 'Date' || f.ui_type === 'DateTime') ??
+      fields.find((f) => f.ui_type === 'CreatedTime'),
     [fields],
   );
 
@@ -41,6 +43,7 @@ export default function CalendarView({
     const cells: (number | null)[] = [];
     for (let i = 0; i < firstDay; i++) cells.push(null);
     for (let d = 1; d <= lastDate; d++) cells.push(d);
+    while (cells.length % 7 !== 0) cells.push(null);
     return cells;
   }, [currentMonth]);
 
@@ -63,26 +66,63 @@ export default function CalendarView({
   const today = new Date();
   const isCurrentMonth = today.getMonth() === currentMonth.getMonth() && today.getFullYear() === currentMonth.getFullYear();
 
+  const goToToday = useCallback(() => {
+    const now = new Date();
+    setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+  }, []);
+
+  const prevMonth = useCallback(() => {
+    setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
+  }, []);
+
+  const nextMonth = useCallback(() => {
+    setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
+  }, []);
+
   if (!dateField) {
     return (
-      <div className="flex items-center justify-center h-64 text-[#6A7184] text-sm">
-        Add a Date or DateTime field to use Calendar view
+      <div className="flex flex-col items-center justify-center h-64 gap-2 text-[#6A7184] text-sm">
+        <p>Add a Date or DateTime field to use Calendar view</p>
+        <button
+          onClick={onAddRow}
+          className="flex items-center gap-1 text-xs text-[#3366FF] hover:underline"
+        >
+          <Plus size={12} /> Add record
+        </button>
       </div>
     );
   }
 
+  const totalEvents = records.filter((r) => r[dateField.pg_column_name]).length;
+
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[#E7E7E9]">
-        <button className="p-1 rounded hover:bg-gray-100" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}>
-          <ChevronLeft size={16} className="text-[#6A7184]" />
-        </button>
-        <span className="text-sm font-semibold text-[#374151]">
-          {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
-        </span>
-        <button className="p-1 rounded hover:bg-gray-100" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}>
-          <ChevronRight size={16} className="text-[#6A7184]" />
-        </button>
+      <div
+        className="flex items-center justify-between px-4 py-2 shrink-0"
+        style={{ borderBottom: '1px solid #E7E7E9', backgroundColor: '#F9F9FA' }}
+      >
+        <div className="flex items-center gap-2">
+          <button className="p-1 rounded hover:bg-gray-200" onClick={prevMonth}>
+            <ChevronLeft size={16} className="text-[#6A7184]" />
+          </button>
+          <span className="text-sm font-semibold text-[#374151] min-w-[140px] text-center">
+            {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+          </span>
+          <button className="p-1 rounded hover:bg-gray-200" onClick={nextMonth}>
+            <ChevronRight size={16} className="text-[#6A7184]" />
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className="px-2 py-0.5 rounded text-xs font-medium text-[#3366FF] hover:bg-[#EBF0FF]"
+            onClick={goToToday}
+          >
+            Today
+          </button>
+          <span className="text-xs text-[#9AA2AF]">
+            {totalEvents} event{totalEvents !== 1 ? 's' : ''}
+          </span>
+        </div>
       </div>
       <div className="flex-1 overflow-auto p-2">
         <div className="grid grid-cols-7 gap-px bg-[#E7E7E9] rounded-lg overflow-hidden">
@@ -91,40 +131,51 @@ export default function CalendarView({
               {d}
             </div>
           ))}
-          {daysInMonth.map((day, i) => (
-            <div
-              key={i}
-              className="bg-white min-h-[80px] p-1"
-            >
-              {day !== null && (
-                <>
-                  <div
-                    className="text-[11px] font-medium mb-1 w-5 h-5 flex items-center justify-center rounded-full"
-                    style={{
-                      color: isCurrentMonth && day === today.getDate() ? '#FFF' : '#374151',
-                      backgroundColor: isCurrentMonth && day === today.getDate() ? '#3366FF' : undefined,
-                    }}
-                  >
-                    {day}
-                  </div>
-                  {(recordsByDay.get(day) ?? []).slice(0, 3).map((r) => (
-                    <div
-                      key={r.id}
-                      className="text-[10px] px-1 py-0.5 mb-0.5 rounded bg-[#EBF0FF] text-[#3366FF] truncate cursor-pointer hover:bg-[#D6E0FF]"
-                      onClick={() => onExpandRow?.(r)}
-                    >
-                      {titleField ? r[titleField.pg_column_name] ?? '' : r.id}
+          {daysInMonth.map((day, i) => {
+            const dayRecords = day !== null ? (recordsByDay.get(day) ?? []) : [];
+            const isToday = isCurrentMonth && day === today.getDate();
+            return (
+              <div
+                key={i}
+                className="bg-white min-h-[90px] p-1"
+                style={{ backgroundColor: isToday ? '#FAFBFF' : undefined }}
+              >
+                {day !== null && (
+                  <>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <div
+                        className="text-[11px] font-medium w-5 h-5 flex items-center justify-center rounded-full"
+                        style={{
+                          color: isToday ? '#FFF' : '#374151',
+                          backgroundColor: isToday ? '#3366FF' : undefined,
+                        }}
+                      >
+                        {day}
+                      </div>
+                      {dayRecords.length > 0 && (
+                        <span className="text-[9px] text-[#9AA2AF]">{dayRecords.length}</span>
+                      )}
                     </div>
-                  ))}
-                  {(recordsByDay.get(day) ?? []).length > 3 && (
-                    <div className="text-[9px] text-[#9AA2AF] px-1">
-                      +{(recordsByDay.get(day)!.length - 3)} more
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          ))}
+                    {dayRecords.slice(0, 3).map((r) => (
+                      <div
+                        key={r.id}
+                        className="text-[10px] px-1.5 py-0.5 mb-0.5 rounded bg-[#EBF0FF] text-[#3366FF] truncate cursor-pointer hover:bg-[#D6E0FF] transition-colors"
+                        onClick={() => onExpandRow?.(r)}
+                        title={titleField ? String(r[titleField.pg_column_name] ?? '') : r.id}
+                      >
+                        {titleField ? r[titleField.pg_column_name] ?? '' : r.id}
+                      </div>
+                    ))}
+                    {dayRecords.length > 3 && (
+                      <div className="text-[9px] text-[#9AA2AF] px-1 cursor-pointer hover:text-[#3366FF]">
+                        +{dayRecords.length - 3} more
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
