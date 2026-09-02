@@ -7,6 +7,7 @@ import { useUndoStore } from '../../lib/undo';
 import { ColumnHeader } from './ColumnHeader';
 import { GridCell } from './GridCell';
 import { EditFieldDialog } from '../EditFieldDialog';
+import { BulkActionsBar } from './BulkActionsBar';
 
 export interface GridViewProps {
   fields: FieldMeta[];
@@ -1029,29 +1030,16 @@ export default function GridView({
 
       {/* Bulk action bar */}
       {selectedRowIds.size > 0 && (
-        <div
-          className="flex items-center gap-3 px-4 shrink-0"
-          style={{
-            height: 36,
-            backgroundColor: '#3366FF',
-            color: '#fff',
-            fontSize: 13,
-          }}
-        >
-          <span className="font-medium">{selectedRowIds.size} record{selectedRowIds.size !== 1 ? 's' : ''} selected</span>
-          <button
-            className="flex items-center gap-1 px-2 py-0.5 rounded bg-white/20 hover:bg-white/30 text-xs font-medium"
-            onClick={handleBulkDelete}
-          >
-            <Trash2 size={12} /> Delete
-          </button>
-          <button
-            className="px-2 py-0.5 rounded bg-white/20 hover:bg-white/30 text-xs font-medium"
-            onClick={() => setSelectedRowIds(new Set())}
-          >
-            Cancel
-          </button>
-        </div>
+        <BulkActionsBar
+          selectedRowIds={selectedRowIds}
+          records={records}
+          fields={fields}
+          totalCount={totalCount}
+          onClearSelection={() => setSelectedRowIds(new Set())}
+          onSelectAll={toggleSelectAll}
+          onBulkDelete={onBulkDeleteRows ? (ids) => { onBulkDeleteRows(ids); setSelectedRowIds(new Set()); } : undefined}
+          onCellUpdate={onCellUpdate}
+        />
       )}
 
       {/* Pagination */}

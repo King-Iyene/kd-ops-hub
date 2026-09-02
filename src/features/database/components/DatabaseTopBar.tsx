@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Zap, Link2, Key, Webhook } from 'lucide-react';
+import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Zap, Link2, Key, Webhook, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuthStore } from '@/store/authStore';
@@ -10,6 +10,7 @@ import { AutomationsDialog } from './AutomationsDialog';
 import { ShareViewDialog } from './ShareViewDialog';
 import { ApiTokensDialog } from './ApiTokensDialog';
 import { WebhooksDialog } from './WebhooksDialog';
+import { AuditLogDialog } from './AuditLogDialog';
 import { PresenceIndicator } from './PresenceIndicator';
 import { NotificationsPanel } from './NotificationsPanel';
 
@@ -24,6 +25,7 @@ export function DatabaseTopBar() {
   const [shareViewOpen, setShareViewOpen] = useState(false);
   const [apiTokensOpen, setApiTokensOpen] = useState(false);
   const [webhooksOpen, setWebhooksOpen] = useState(false);
+  const [auditLogOpen, setAuditLogOpen] = useState(false);
   const activeViewId = useDatabaseUI((s) => s.activeViewId);
 
   const activeBase = bases?.find((b: any) => b.id === activeBaseId);
@@ -121,6 +123,14 @@ export function DatabaseTopBar() {
             variant="ghost"
             size="sm"
             className="h-7 px-2 text-[12px] text-[#6A7184] hover:bg-[#F4F4F5] gap-1"
+            onClick={() => setAuditLogOpen(true)}
+          >
+            <History size={13} /> Audit Log
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-[12px] text-[#6A7184] hover:bg-[#F4F4F5] gap-1"
             onClick={() => setShareOpen(true)}
           >
             <Share2 size={13} /> Share Base
@@ -197,6 +207,7 @@ export function DatabaseTopBar() {
       <ApiTokensDialog open={apiTokensOpen} onOpenChange={setApiTokensOpen} baseId={activeBaseId} />
       <AutomationsDialog open={automationsOpen} onOpenChange={setAutomationsOpen} tableId={activeTableId} baseId={activeBaseId} />
       <WebhooksDialog open={webhooksOpen} onOpenChange={setWebhooksOpen} tableId={activeTableId} baseId={activeBaseId} />
+      <AuditLogDialog open={auditLogOpen} onOpenChange={setAuditLogOpen} baseId={activeBaseId} />
 
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
         <DialogContent className="sm:max-w-[480px]">

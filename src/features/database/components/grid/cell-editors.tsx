@@ -1,8 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Paperclip } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
 import { PILL_COLORS } from '@/features/database/types';
 import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
+import { validateField, type ValidationRule } from '../../lib/validation';
+
+function useEditorValidation(value: any, field: FieldMeta) {
+  return useMemo(() => {
+    const rules: ValidationRule[] = (field.options as any)?.validations ?? [];
+    if (rules.length === 0) return { valid: true, errors: [] as string[] };
+    return validateField(value, field, rules);
+  }, [value, field]);
+}
 
 interface CellEditorProps {
   value: any;
@@ -15,9 +24,10 @@ function getPillColor(colorName: string) {
   return PILL_COLORS.find((c) => c.name === colorName) || PILL_COLORS[7];
 }
 
-export function TextCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function TextCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
+  const { valid, errors } = useEditorValidation(text, field);
 
   useEffect(() => {
     ref.current?.focus();
@@ -25,19 +35,30 @@ export function TextCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   }, []);
 
   return (
-    <input
-      ref={ref}
-      type="text"
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(text);
-        if (e.key === 'Escape') onCancel();
-      }}
-      onBlur={() => onCommit(text)}
-      className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#0F172A' }}
-    />
+    <div className="relative w-full h-full">
+      <input
+        ref={ref}
+        type="text"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onCommit(text);
+          if (e.key === 'Escape') onCancel();
+        }}
+        onBlur={() => onCommit(text)}
+        className="w-full h-full px-2 outline-none bg-white"
+        style={{
+          fontSize: 13,
+          color: '#0F172A',
+          border: valid ? 'none' : '2px solid #EF4444',
+        }}
+      />
+      {!valid && (
+        <div className="absolute left-0 top-full z-50 bg-white border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
+          {errors[0]}
+        </div>
+      )}
+    </div>
   );
 }
 

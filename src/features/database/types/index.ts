@@ -89,6 +89,7 @@ export interface FieldOptions {
   maxSizeMB?: number;
   allowedTypes?: string[];
   prefix?: string;
+  validations?: import('../lib/validation').ValidationRule[];
 }
 
 export interface FieldMeta {

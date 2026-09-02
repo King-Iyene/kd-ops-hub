@@ -15,6 +15,12 @@ import type { FieldMeta, SelectChoice } from '../types';
 import { PILL_COLORS } from '../types';
 import { getFieldTypeIcon } from './grid/field-icons';
 import { cn } from '@/lib/utils';
+import {
+  DEFAULT_VALIDATIONS,
+  RULE_LABELS,
+  ruleNeedsValue,
+  type ValidationRule,
+} from '../lib/validation';
 
 interface EditFieldDialogProps {
   open: boolean;
@@ -67,6 +73,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const [choices, setChoices] = useState<SelectChoice[]>([]);
   const [newChoiceText, setNewChoiceText] = useState('');
   const [error, setError] = useState('');
+  const [validationRules, setValidationRules] = useState<ValidationRule[]>([]);
   const updateField = useUpdateField();
 
   // Populate form when field changes
@@ -79,6 +86,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       setChoices(Array.isArray(fieldChoices) ? [...fieldChoices] : []);
       setNewChoiceText('');
       setError('');
+      const existingRules = (field.options as any)?.validations;
+      setValidationRules(Array.isArray(existingRules) ? [...existingRules] : []);
     }
   }, [field]);
 
@@ -114,7 +123,9 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       if (newDesc !== (field.description ?? null)) updates.description = newDesc;
       if (isRequired !== field.is_required) updates.is_required = isRequired;
       if (isSelectType) {
-        updates.options = { ...(field.options as any), choices };
+        updates.options = { ...(field.options as any), choices, validations: validationRules.length > 0 ? validationRules : undefined };
+      } else if (validationRules.length > 0 || (field.options as any)?.validations?.length) {
+        updates.options = { ...(field.options as any), validations: validationRules.length > 0 ? validationRules : undefined };
       }
       if (Object.keys(updates).length === 0) {
         onOpenChange(false);
@@ -253,6 +264,74 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
               </div>
             </div>
           )}
+
+          {/* Validation Rules */}
+          {(() => {
+            const available = DEFAULT_VALIDATIONS[field.ui_type] ?? [];
+            if (available.length === 0) return null;
+            return (
+              <div className="space-y-2">
+                <Label className="text-xs text-[#6A7184]">Validation</Label>
+                <div className="space-y-2">
+                  {available.map((ruleType) => {
+                    const existing = validationRules.find((r) => r.type === ruleType);
+                    const enabled = !!existing;
+                    return (
+                      <div key={ruleType} className="space-y-1">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="w-3.5 h-3.5 accent-[#3366FF]"
+                            checked={enabled}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setValidationRules([...validationRules, { type: ruleType }]);
+                              } else {
+                                setValidationRules(validationRules.filter((r) => r.type !== ruleType));
+                              }
+                            }}
+                          />
+                          <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                            {RULE_LABELS[ruleType]}
+                          </span>
+                        </label>
+                        {enabled && (
+                          <div className="pl-6 space-y-1">
+                            {ruleNeedsValue(ruleType) && (
+                              <Input
+                                value={existing.value ?? ''}
+                                onChange={(e) => {
+                                  setValidationRules(
+                                    validationRules.map((r) =>
+                                      r.type === ruleType ? { ...r, value: e.target.value } : r,
+                                    ),
+                                  );
+                                }}
+                                placeholder={ruleType === 'regex' ? 'e.g. ^[A-Z]' : 'Value'}
+                                className="h-7 text-xs"
+                              />
+                            )}
+                            <Input
+                              value={existing.message ?? ''}
+                              onChange={(e) => {
+                                setValidationRules(
+                                  validationRules.map((r) =>
+                                    r.type === ruleType ? { ...r, message: e.target.value || undefined } : r,
+                                  ),
+                                );
+                              }}
+                              placeholder="Custom error message (optional)"
+                              className="h-7 text-xs"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
