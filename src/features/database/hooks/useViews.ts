@@ -110,6 +110,21 @@ export function useDeleteView() {
   });
 }
 
+function viewConfigFromMeta(view: ViewMeta) {
+  const hiddenFieldIds = new Set<string>();
+  if (view.field_visibility) {
+    for (const [fid, visible] of Object.entries(view.field_visibility)) {
+      if (!visible) hiddenFieldIds.add(fid);
+    }
+  }
+  return {
+    filters: view.filters ?? [],
+    sorts: view.sorts ?? [],
+    groups: view.groups ?? [],
+    hiddenFieldIds,
+  };
+}
+
 export function useActiveView(tableId: string | null | undefined) {
   const { data: views } = useViews(tableId);
   const activeViewId = useDatabaseUI((s) => s.activeViewId);
@@ -119,6 +134,45 @@ export function useActiveView(tableId: string | null | undefined) {
     if (!views || views.length === 0) return;
     if (activeViewId && views.some((v) => v.id === activeViewId)) return;
     const defaultView = views.find((v) => v.is_default) ?? views[0];
-    setActiveView(defaultView.id);
+    setActiveView(defaultView.id, viewConfigFromMeta(defaultView));
   }, [views, activeViewId, setActiveView]);
+}
+
+export function useLoadViewConfig() {
+  const { data: views } = useViews(useDatabaseUI((s) => s.activeTableId));
+  const setActiveView = useDatabaseUI((s) => s.setActiveView);
+
+  return (viewId: string) => {
+    const view = views?.find((v) => v.id === viewId);
+    if (view) {
+      setActiveView(viewId, viewConfigFromMeta(view));
+    } else {
+      setActiveView(viewId);
+    }
+  };
+}
+
+export function useSaveViewConfig() {
+  const updateView = useUpdateView();
+  const activeViewId = useDatabaseUI((s) => s.activeViewId);
+  const activeTableId = useDatabaseUI((s) => s.activeTableId);
+
+  return () => {
+    if (!activeViewId || !activeTableId) return;
+    const state = useDatabaseUI.getState();
+    const fieldVisibility: Record<string, boolean> = {};
+    for (const fid of state.hiddenFieldIds) {
+      fieldVisibility[fid] = false;
+    }
+    updateView.mutate({
+      id: activeViewId,
+      table_id: activeTableId,
+      updates: {
+        filters: state.filters,
+        sorts: state.sorts,
+        groups: state.groupBy ? [state.groupBy] : [],
+        field_visibility: fieldVisibility,
+      },
+    });
+  };
 }

@@ -17,7 +17,12 @@ interface DatabaseUIState {
 
   setActiveBase: (id: string | null) => void;
   setActiveTable: (id: string | null) => void;
-  setActiveView: (id: string | null) => void;
+  setActiveView: (id: string | null, viewConfig?: {
+    filters?: Filter[];
+    sorts?: Sort[];
+    groups?: Group[];
+    hiddenFieldIds?: Set<string>;
+  }) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setSelectedCell: (id: string | null) => void;
@@ -65,7 +70,15 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       hiddenFieldIds: new Set(),
       searchQuery: '',
     }),
-  setActiveView: (id) => set({ activeViewId: id }),
+  setActiveView: (id, viewConfig) => set({
+    activeViewId: id,
+    ...(viewConfig ? {
+      filters: viewConfig.filters ?? [],
+      sorts: viewConfig.sorts ?? [],
+      groupBy: viewConfig.groups?.[0] ?? null,
+      hiddenFieldIds: viewConfig.hiddenFieldIds ?? new Set(),
+    } : {}),
+  }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setSelectedCell: (id) => set({ selectedCellId: id }),

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Toolbar } from '../components/Toolbar';
 import { ViewBar } from '../components/ViewBar';
 import { useDatabaseUI } from '../lib/store';
@@ -15,6 +15,7 @@ import {
   useReorderFields,
   useActiveView,
   useViews,
+  useUpdateView,
 } from '../hooks';
 import GridView from '../components/grid/GridView';
 import KanbanView from '../components/views/KanbanView';
@@ -47,6 +48,30 @@ export function TableView() {
     () => views?.find((v) => v.id === activeViewId),
     [views, activeViewId],
   );
+
+  const updateView = useUpdateView();
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const groupBy = useDatabaseUI((s) => s.groupBy);
+
+  useEffect(() => {
+    if (!activeViewId || !activeTableId) return;
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      const fieldVisibility: Record<string, boolean> = {};
+      for (const fid of hiddenFieldIds) fieldVisibility[fid] = false;
+      updateView.mutate({
+        id: activeViewId,
+        table_id: activeTableId,
+        updates: {
+          filters,
+          sorts,
+          groups: groupBy ? [groupBy] : [],
+          field_visibility: fieldVisibility,
+        },
+      });
+    }, 1000);
+    return () => clearTimeout(saveTimerRef.current);
+  }, [filters, sorts, groupBy, hiddenFieldIds, activeViewId, activeTableId]);
 
   const { data: recordsData, isLoading } = useRecords({
     baseId: activeBaseId!,

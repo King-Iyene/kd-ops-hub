@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, ExternalLink, Copy } from 'lucide-react';
+import { Check, ExternalLink, Copy, Paperclip, Star, Clock } from 'lucide-react';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { PILL_COLORS } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
@@ -225,6 +225,131 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
   );
 });
 
+export const RatingCellRenderer = React.memo(function RatingCellRenderer({
+  value,
+  field,
+}: CellRendererProps) {
+  const max = field.options?.max ?? 5;
+  const rating = typeof value === 'number' ? value : 0;
+  return (
+    <div className="flex items-center gap-0.5">
+      {Array.from({ length: max }, (_, i) => (
+        <Star
+          key={i}
+          size={14}
+          fill={i < rating ? '#F59E0B' : 'none'}
+          stroke={i < rating ? '#F59E0B' : '#D1D5DB'}
+          strokeWidth={1.5}
+        />
+      ))}
+    </div>
+  );
+});
+
+export const PercentCellRenderer = React.memo(function PercentCellRenderer({
+  value,
+}: CellRendererProps) {
+  if (value == null || value === '') return null;
+  const num = Number(value);
+  if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
+  return (
+    <div className="flex items-center gap-2 w-full">
+      <div className="flex-1 h-1.5 rounded-full bg-[#E7E7E9] overflow-hidden">
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${Math.min(100, Math.max(0, num))}%`, backgroundColor: '#3366FF' }}
+        />
+      </div>
+      <span className="text-xs shrink-0" style={{ color: '#6A7184' }}>{num}%</span>
+    </div>
+  );
+});
+
+export const DurationCellRenderer = React.memo(function DurationCellRenderer({
+  value,
+}: CellRendererProps) {
+  if (value == null || value === '') return null;
+  const seconds = Number(value);
+  if (isNaN(seconds)) return <span className="truncate">{String(value)}</span>;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const parts = [];
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0 || h > 0) parts.push(`${m}m`);
+  parts.push(`${s}s`);
+  return (
+    <span className="flex items-center gap-1 truncate" style={{ color: '#6A7184' }}>
+      <Clock size={12} className="shrink-0 text-[#9AA2AF]" />
+      {parts.join(' ')}
+    </span>
+  );
+});
+
+export const TimeCellRenderer = React.memo(function TimeCellRenderer({
+  value,
+}: CellRendererProps) {
+  if (value == null || value === '') return null;
+  return <span className="truncate">{String(value)}</span>;
+});
+
+export const YearCellRenderer = React.memo(function YearCellRenderer({
+  value,
+}: CellRendererProps) {
+  if (value == null || value === '') return null;
+  return <span className="truncate">{String(value)}</span>;
+});
+
+export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer({
+  value,
+}: CellRendererProps) {
+  if (!value) return null;
+  const files = Array.isArray(value) ? value : [];
+  if (files.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1 overflow-hidden">
+      {files.slice(0, 3).map((file: any, i: number) => {
+        const isImage = file.type?.startsWith('image/');
+        if (isImage && file.url) {
+          return (
+            <img
+              key={i}
+              src={file.url}
+              alt={file.name || 'attachment'}
+              className="w-6 h-6 rounded object-cover border border-[#E7E7E9]"
+            />
+          );
+        }
+        return (
+          <div
+            key={i}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#F4F4F5] text-[10px] text-[#6A7184] truncate"
+          >
+            <Paperclip size={10} className="shrink-0" />
+            <span className="truncate max-w-[60px]">{file.name || 'file'}</span>
+          </div>
+        );
+      })}
+      {files.length > 3 && (
+        <span className="text-[10px]" style={{ color: '#94A3B8' }}>+{files.length - 3}</span>
+      )}
+    </div>
+  );
+});
+
+export const JsonCellRenderer = React.memo(function JsonCellRenderer({
+  value,
+}: CellRendererProps) {
+  if (value == null || value === '') return null;
+  const text = typeof value === 'string' ? value : JSON.stringify(value);
+  return (
+    <span className="truncate font-mono text-[11px]" style={{ color: '#6A7184' }}>
+      {text}
+    </span>
+  );
+});
+
 export function getCellRenderer(uiType: string) {
   switch (uiType) {
     case 'SingleLineText':
@@ -247,6 +372,20 @@ export function getCellRenderer(uiType: string) {
       return SelectCellRenderer;
     case 'MultiSelect':
       return MultiSelectCellRenderer;
+    case 'Rating':
+      return RatingCellRenderer;
+    case 'Percent':
+      return PercentCellRenderer;
+    case 'Duration':
+      return DurationCellRenderer;
+    case 'Time':
+      return TimeCellRenderer;
+    case 'Year':
+      return YearCellRenderer;
+    case 'Attachment':
+      return AttachmentCellRenderer;
+    case 'JSON':
+      return JsonCellRenderer;
     case 'ID':
     case 'CreatedTime':
     case 'LastModifiedTime':
