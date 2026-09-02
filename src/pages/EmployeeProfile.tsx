@@ -265,6 +265,8 @@ const EmployeeProfile = () => {
   // Active employees (used as the Reports-to dropdown).
   const [managers, setManagers] = useState<Array<{ id: string; full_name: string | null; email: string }>>([]);
   const [selectedPayslipId, setSelectedPayslipId] = useState<string>('');
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
   const companySetting = useMemo(() => ({
     company_name: (companySettingsData as any)?.company_name || 'KD Squares Ltd',
     logo_url: (companySettingsData as any)?.logo_url || null,
@@ -541,8 +543,8 @@ const EmployeeProfile = () => {
   const load = useCallback(async () => {
     loadedTabs.current.clear();
     await loadProfile();
-    await loadTabData(activeTab, true);
-  }, [loadProfile, loadTabData, activeTab]);
+    await loadTabData(activeTabRef.current, true);
+  }, [loadProfile, loadTabData]);
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
   useEffect(() => {
@@ -1625,13 +1627,15 @@ const EmployeeProfile = () => {
       )}
 
       {activeTab === 'documents' && (
-        <DocumentsTab
-          employeeId={id}
-          documents={documents}
-          canManage={canManage}
-          onOpenUploadDialog={() => setDocUploadOpen(true)}
-          onDeleteDocument={setPendingDeleteDoc}
-        />
+        tabLoading && documents.length === 0
+          ? <div className="py-8"><TableSkeleton /></div>
+          : <DocumentsTab
+              employeeId={id}
+              documents={documents}
+              canManage={canManage}
+              onOpenUploadDialog={() => setDocUploadOpen(true)}
+              onDeleteDocument={setPendingDeleteDoc}
+            />
       )}
 
       {/* ── Document upload dialog ────────────────────────────────────── */}
@@ -1723,83 +1727,103 @@ const EmployeeProfile = () => {
       </Dialog>
 
       {activeTab === 'tasks' && (
-        <TasksTab tasks={tasks} />
+        tabLoading && tasks.length === 0
+          ? <div className="py-8"><TableSkeleton /></div>
+          : <TasksTab tasks={tasks} />
       )}
 
       {activeTab === 'logs' && (
-        <LogsTab auditLogs={auditLogs} />
+        tabLoading && auditLogs.length === 0
+          ? <div className="py-8"><TableSkeleton /></div>
+          : <LogsTab auditLogs={auditLogs} />
       )}
 
       {activeTab === 'leave' && id && (
-        <LeaveTab
-          employeeId={id}
-          employee={employee}
-          leaves={leaves}
-          leaveTaken={leaveTaken}
-        />
+        tabLoading && leaves.length === 0
+          ? <div className="py-8"><TableSkeleton /></div>
+          : <LeaveTab
+              employeeId={id}
+              employee={employee}
+              leaves={leaves}
+              leaveTaken={leaveTaken}
+            />
       )}
 
       {activeTab === 'expenses' && (
-        <ExpensesTab expenses={expenses} />
+        tabLoading && expenses.length === 0
+          ? <div className="py-8"><TableSkeleton /></div>
+          : <ExpensesTab expenses={expenses} />
       )}
 
       {activeTab === 'payroll' && (
-        <PayrollTab
-          payslips={payslips}
-          payments={employeePayments}
-          humanPeriod={humanPeriod}
-          previewPayslip={previewPayslip}
-          downloadPayslip={downloadPayslip}
-        />
+        tabLoading && payslips.length === 0 && employeePayments.length === 0
+          ? <div className="py-8"><TableSkeleton /></div>
+          : <PayrollTab
+              payslips={payslips}
+              payments={employeePayments}
+              humanPeriod={humanPeriod}
+              previewPayslip={previewPayslip}
+              downloadPayslip={downloadPayslip}
+            />
       )}
 
       {activeTab === 'total_cost' && canFinance && (
-        <TotalCostTab
-          totalCostOfEmployment={totalCostOfEmployment}
-          payrollTotal={payrollTotal}
-          payrollGross={payrollGross}
-          payrollEmployerPension={payrollEmployerPension}
-          payrollEmployerNsitf={payrollEmployerNsitf}
-          nsitfEnabled={nsitfEnabled}
-          payslipsInRange={payslipsInRange}
-          expensesTotal={expensesTotal}
-          approvedExpenses={approvedExpenses}
-          expensesCount={approvedExpenses.length}
-          benefitsAnnualized={benefitsAnnualized}
-          costedBenefits={costedBenefits}
-          assignedAssets={assignedAssets}
-          assetsBookValue={assetsBookValue}
-        />
+        tabLoading && benefits.length === 0 && assignedAssets.length === 0
+          ? <div className="py-8"><TableSkeleton /></div>
+          : <TotalCostTab
+              totalCostOfEmployment={totalCostOfEmployment}
+              payrollTotal={payrollTotal}
+              payrollGross={payrollGross}
+              payrollEmployerPension={payrollEmployerPension}
+              payrollEmployerNsitf={payrollEmployerNsitf}
+              nsitfEnabled={nsitfEnabled}
+              payslipsInRange={payslipsInRange}
+              expensesTotal={expensesTotal}
+              approvedExpenses={approvedExpenses}
+              expensesCount={approvedExpenses.length}
+              benefitsAnnualized={benefitsAnnualized}
+              costedBenefits={costedBenefits}
+              assignedAssets={assignedAssets}
+              assetsBookValue={assetsBookValue}
+            />
       )}
 
       {activeTab === 'deductions' && canFinance && (
-        <DeductionsTab
-          deductions={deductions}
-          canFinance={canFinance}
-          onShowDeductionDialog={() => setShowDeductionDialog(true)}
-          onDeactivateDeduction={deactivateDeduction}
-        />
+        tabLoading && deductions.length === 0
+          ? <div className="py-8"><TableSkeleton /></div>
+          : <DeductionsTab
+              deductions={deductions}
+              canFinance={canFinance}
+              onShowDeductionDialog={() => setShowDeductionDialog(true)}
+              onDeactivateDeduction={deactivateDeduction}
+            />
       )}
 
       {activeTab === 'earnings' && canFinance && (
-        <EarningsTab
-          earnings={earnings}
-          canFinance={canFinance}
-          onShowEarningDialog={() => setShowEarningDialog(true)}
-          onDeactivateEarning={deactivateEarning}
-        />
+        tabLoading && earnings.length === 0
+          ? <div className="py-8"><TableSkeleton /></div>
+          : <EarningsTab
+              earnings={earnings}
+              canFinance={canFinance}
+              onShowEarningDialog={() => setShowEarningDialog(true)}
+              onDeactivateEarning={deactivateEarning}
+            />
       )}
 
       {activeTab === 'increments' && (
-        <IncrementsTab
-          increments={increments}
-          canManage={canManage}
-          onShowIncrementDialog={() => setShowIncrementDialog(true)}
-        />
+        tabLoading && increments.length === 0
+          ? <div className="py-8"><TableSkeleton /></div>
+          : <IncrementsTab
+              increments={increments}
+              canManage={canManage}
+              onShowIncrementDialog={() => setShowIncrementDialog(true)}
+            />
       )}
 
       {activeTab === 'advances' && (
-        <AdvancesTab advances={advances} />
+        tabLoading && advances.length === 0
+          ? <div className="py-8"><TableSkeleton /></div>
+          : <AdvancesTab advances={advances} />
       )}
 
       {activeTab === 'permissions' && canManage && (
@@ -1827,10 +1851,12 @@ const EmployeeProfile = () => {
       )}
 
       {activeTab === 'placements' && (
-        <PlacementsTab
-          empPlacements={empPlacements}
-          empPlacementPayments={empPlacementPayments}
-        />
+        tabLoading && empPlacements.length === 0
+          ? <div className="py-8"><TableSkeleton /></div>
+          : <PlacementsTab
+              empPlacements={empPlacements}
+              empPlacementPayments={empPlacementPayments}
+            />
       )}
 
 
