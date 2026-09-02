@@ -165,6 +165,19 @@ export interface RowColorRule {
   color: string; // hex bg color
 }
 
+export type ConditionalFormatOperator =
+  | 'is' | 'isNot' | 'contains' | 'doesNotContain'
+  | 'isEmpty' | 'isNotEmpty'
+  | 'gt' | 'lt' | 'gte' | 'lte';
+
+export interface ConditionalFormatRule {
+  id: string;
+  field_id: string;
+  operator: ConditionalFormatOperator;
+  value: any;
+  color: string; // hex bg color for the cell
+}
+
 export type RecordRow = Record<string, any> & {
   id: string;
   created_at: string;

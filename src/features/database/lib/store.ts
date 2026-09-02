@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Filter, Sort, Group, RowColorRule } from '../types';
+import type { Filter, Sort, Group, RowColorRule, ConditionalFormatRule } from '../types';
 
 export type SummaryFunction =
   | 'none'
@@ -25,10 +25,13 @@ interface DatabaseUIState {
   sorts: Sort[];
   groupBy: Group | null;
   hiddenFieldIds: Set<string>;
+  fieldOrder: string[];
   searchQuery: string;
   rowColorRules: RowColorRule[];
+  conditionalFormats: ConditionalFormatRule[];
   summaryFunctions: Record<string, SummaryFunction>;
 
+  setConditionalFormats: (rules: ConditionalFormatRule[]) => void;
   setActiveBase: (id: string | null) => void;
   setActiveTable: (id: string | null) => void;
   setActiveView: (id: string | null, viewConfig?: {
@@ -36,6 +39,7 @@ interface DatabaseUIState {
     sorts?: Sort[];
     groups?: Group[];
     hiddenFieldIds?: Set<string>;
+    fieldOrder?: string[];
   }) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
@@ -46,6 +50,7 @@ interface DatabaseUIState {
   setSorts: (sorts: Sort[]) => void;
   setGroupBy: (group: Group | null) => void;
   toggleHiddenField: (fieldId: string) => void;
+  setFieldOrder: (order: string[]) => void;
   setSearchQuery: (query: string) => void;
   setRowColorRules: (rules: RowColorRule[]) => void;
   setSummaryFunction: (fieldId: string, fn: SummaryFunction) => void;
@@ -63,8 +68,10 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   sorts: [],
   groupBy: null,
   hiddenFieldIds: new Set(),
+  fieldOrder: [],
   searchQuery: '',
   rowColorRules: [],
+  conditionalFormats: [],
   summaryFunctions: {},
 
   setActiveBase: (id) =>
@@ -76,6 +83,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       sorts: [],
       groupBy: null,
       hiddenFieldIds: new Set(),
+      fieldOrder: [],
       searchQuery: '',
       rowColorRules: [],
     }),
@@ -87,6 +95,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       sorts: [],
       groupBy: null,
       hiddenFieldIds: new Set(),
+      fieldOrder: [],
       searchQuery: '',
       rowColorRules: [],
     }),
@@ -97,6 +106,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       sorts: viewConfig.sorts ?? [],
       groupBy: viewConfig.groups?.[0] ?? null,
       hiddenFieldIds: viewConfig.hiddenFieldIds ?? new Set(),
+      fieldOrder: viewConfig.fieldOrder ?? [],
     } : {}),
   }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
@@ -114,8 +124,10 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       else next.add(fieldId);
       return { hiddenFieldIds: next };
     }),
+  setFieldOrder: (order) => set({ fieldOrder: order }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setRowColorRules: (rules) => set({ rowColorRules: rules }),
+  setConditionalFormats: (rules) => set({ conditionalFormats: rules }),
   setSummaryFunction: (fieldId, fn) =>
     set((s) => ({
       summaryFunctions: { ...s.summaryFunctions, [fieldId]: fn },
