@@ -4,6 +4,6 @@ export { useTables, useCreateTable, useUpdateTable, useDeleteTable } from './use
 export { useFields, useCreateField, useUpdateField, useDeleteField } from './useFields';
 export { useViews, useCreateView, useUpdateView, useDeleteView } from './useViews';
 export { useActiveView } from './useActiveView';
-export { useRecords, useCreateRecord, useUpdateRecord, useDuplicateRecord, useDeleteRecord } from './useRecords';
+export { useRecords, useCreateRecord, useUpdateRecord, useDuplicateRecord, useBulkDeleteRecords, useDeleteRecord } from './useRecords';
 export { useLinks, useCreateLink, useLinkedRecords } from './useLinks';
 export type { LinkMeta } from './useLinks';

@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { Toolbar } from '../components/Toolbar';
 import { ViewBar } from '../components/ViewBar';
 import { useDatabaseUI } from '../lib/store';
-import { useFields, useRecords, useCreateRecord, useUpdateRecord, useDeleteRecord, useDuplicateRecord, useDeleteField, useActiveView, useViews } from '../hooks';
+import { useFields, useRecords, useCreateRecord, useUpdateRecord, useDeleteRecord, useBulkDeleteRecords, useDuplicateRecord, useDeleteField, useActiveView, useViews } from '../hooks';
 import GridView from '../components/grid/GridView';
 import KanbanView from '../components/views/KanbanView';
 import GalleryView from '../components/views/GalleryView';
@@ -38,6 +38,7 @@ export function TableView() {
   const updateRecord = useUpdateRecord();
   const deleteRecord = useDeleteRecord();
   const duplicateRecord = useDuplicateRecord();
+  const bulkDeleteRecords = useBulkDeleteRecords();
   const deleteField = useDeleteField();
   const [expandedRecord, setExpandedRecord] = useState<RecordRow | null>(null);
 
@@ -75,6 +76,11 @@ export function TableView() {
     if (!activeBaseId || !activeTableId) return;
     duplicateRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record });
   }, [activeBaseId, activeTableId, duplicateRecord]);
+
+  const handleBulkDeleteRows = useCallback((recordIds: string[]) => {
+    if (!activeBaseId || !activeTableId) return;
+    bulkDeleteRecords.mutate({ baseId: activeBaseId, tableId: activeTableId, recordIds });
+  }, [activeBaseId, activeTableId, bulkDeleteRecords]);
 
   const handleDeleteField = useCallback((fieldId: string) => {
     if (!activeTableId) return;
@@ -150,6 +156,7 @@ export function TableView() {
             onDeleteRow={handleDeleteRow}
             onDuplicateRow={handleDuplicateRow}
             onDeleteField={handleDeleteField}
+            onBulkDeleteRows={handleBulkDeleteRows}
           />
         );
     }

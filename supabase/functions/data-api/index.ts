@@ -104,12 +104,37 @@ function buildWhereClause(filters: FilterDef[], paramOffset: number): { sql: str
         clauses.push(`${col} > $${++idx}`);
         params.push(f.value);
         break;
+      case 'isOnOrBefore':
+        clauses.push(`${col} <= $${++idx}`);
+        params.push(f.value);
+        break;
+      case 'isOnOrAfter':
+        clauses.push(`${col} >= $${++idx}`);
+        params.push(f.value);
+        break;
+      case 'isBetween':
+        if (Array.isArray(f.value) && f.value.length === 2) {
+          clauses.push(`${col} >= $${++idx} AND ${col} <= $${++idx}`);
+          params.push(f.value[0], f.value[1]);
+        }
+        break;
       case 'isAnyOf':
         if (Array.isArray(f.value) && f.value.length) {
           const placeholders = f.value.map(() => `$${++idx}`).join(', ');
           clauses.push(`${col} IN (${placeholders})`);
           params.push(...f.value);
         }
+        break;
+      case 'isNoneOf':
+        if (Array.isArray(f.value) && f.value.length) {
+          const placeholders = f.value.map(() => `$${++idx}`).join(', ');
+          clauses.push(`${col} NOT IN (${placeholders})`);
+          params.push(...f.value);
+        }
+        break;
+      case 'isExactly':
+        clauses.push(`${col}::text = $${++idx}`);
+        params.push(JSON.stringify(f.value));
         break;
       default:
         break;
@@ -272,6 +297,73 @@ Deno.serve(async (req) => {
             [recordId],
           );
           return jsonResponse({ success: true });
+        }
+
+        case 'bulkCreate': {
+          const records = body.records;
+          if (!Array.isArray(records) || !records.length) {
+            return jsonResponse({ error: 'records array required' }, 400);
+          }
+          const maxBatch = 500;
+          if (records.length > maxBatch) {
+            return jsonResponse({ error: `Max ${maxBatch} records per batch` }, 400);
+          }
+          const created: unknown[] = [];
+          for (const rec of records) {
+            const r = { ...rec, created_by: user.id };
+            const keys = Object.keys(r);
+            const cols = keys.map(k => validateId(k)).join(', ');
+            const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
+            const vals = keys.map(k => r[k]);
+            const result = await conn.queryObject(
+              `INSERT INTO ${fqn} (${cols}) VALUES (${placeholders}) RETURNING *`,
+              vals,
+            );
+            created.push(result.rows[0]);
+          }
+          return jsonResponse({ records: created, count: created.length }, 201);
+        }
+
+        case 'bulkUpdate': {
+          const updates = body.updates;
+          if (!Array.isArray(updates) || !updates.length) {
+            return jsonResponse({ error: 'updates array required (each with id and fields)' }, 400);
+          }
+          const maxBatch = 500;
+          if (updates.length > maxBatch) {
+            return jsonResponse({ error: `Max ${maxBatch} updates per batch` }, 400);
+          }
+          const updated: unknown[] = [];
+          for (const upd of updates) {
+            if (!upd.id || !upd.fields || !Object.keys(upd.fields).length) continue;
+            const keys = Object.keys(upd.fields);
+            const setClauses = keys.map((k, i) => `${validateId(k)} = $${i + 1}`).join(', ');
+            const vals = keys.map(k => upd.fields[k]);
+            vals.push(upd.id);
+            const result = await conn.queryObject(
+              `UPDATE ${fqn} SET ${setClauses} WHERE "id" = $${vals.length} RETURNING *`,
+              vals,
+            );
+            if (result.rows.length) updated.push(result.rows[0]);
+          }
+          return jsonResponse({ records: updated, count: updated.length });
+        }
+
+        case 'bulkDelete': {
+          const recordIds = body.recordIds;
+          if (!Array.isArray(recordIds) || !recordIds.length) {
+            return jsonResponse({ error: 'recordIds array required' }, 400);
+          }
+          const maxBatch = 500;
+          if (recordIds.length > maxBatch) {
+            return jsonResponse({ error: `Max ${maxBatch} deletes per batch` }, 400);
+          }
+          const placeholders = recordIds.map((_: unknown, i: number) => `$${i + 1}`).join(', ');
+          const result = await conn.queryObject(
+            `DELETE FROM ${fqn} WHERE "id" IN (${placeholders}) RETURNING "id"`,
+            recordIds,
+          );
+          return jsonResponse({ deleted: result.rows.length });
         }
 
         default:

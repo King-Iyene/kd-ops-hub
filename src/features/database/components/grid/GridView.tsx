@@ -22,6 +22,7 @@ export interface GridViewProps {
   onDeleteRow?: (recordId: string) => void;
   onDuplicateRow?: (record: RecordRow) => void;
   onDeleteField?: (fieldId: string) => void;
+  onBulkDeleteRows?: (recordIds: string[]) => void;
   page: number;
   pageSize: number;
   onPageChange: (page: number) => void;
@@ -49,6 +50,7 @@ export default function GridView({
   onDeleteRow,
   onDuplicateRow,
   onDeleteField,
+  onBulkDeleteRows,
   page,
   pageSize,
   onPageChange,
@@ -429,7 +431,12 @@ export default function GridView({
             style={{ color: '#DC2626' }}
             onClick={() => {
               if (window.confirm(`Delete ${selectedRowIds.size} record${selectedRowIds.size !== 1 ? 's' : ''}? This cannot be undone.`)) {
-                selectedRowIds.forEach((id) => onDeleteRow?.(id));
+                const ids = Array.from(selectedRowIds);
+                if (onBulkDeleteRows) {
+                  onBulkDeleteRows(ids);
+                } else {
+                  ids.forEach((id) => onDeleteRow?.(id));
+                }
                 setSelectedRowIds(new Set());
               }
             }}

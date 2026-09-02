@@ -262,6 +262,34 @@ export function useDuplicateRecord() {
   });
 }
 
+export function useBulkDeleteRecords() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      baseId: string;
+      tableId: string;
+      recordIds: string[];
+    }) => {
+      const ctx = await resolveTableContext(input.baseId, input.tableId);
+
+      const { data } = await supabase.functions.invoke('data-api', {
+        body: {
+          action: 'bulkDelete',
+          schemaName: ctx.schemaName,
+          tableName: ctx.tableName,
+          recordIds: input.recordIds,
+        },
+      });
+
+      return data;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
+    },
+  });
+}
+
 export function useDeleteRecord() {
   const qc = useQueryClient();
 
