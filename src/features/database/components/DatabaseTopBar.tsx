@@ -1,23 +1,34 @@
 import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, X, Users, Globe, Lock } from 'lucide-react';
+import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Zap, Link2, Key, Webhook, History, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuthStore } from '@/store/authStore';
 import { useDatabaseUI } from '../lib/store';
-import { useBases, useTables } from '../hooks';
+import { useBases } from '../hooks';
+import { AutomationsDialog } from './AutomationsDialog';
+import { ShareViewDialog } from './ShareViewDialog';
+import { ApiTokensDialog } from './ApiTokensDialog';
+import { WebhooksDialog } from './WebhooksDialog';
+import { AuditLogDialog } from './AuditLogDialog';
+import { PresenceIndicator } from './PresenceIndicator';
+import { NotificationsPanel } from './NotificationsPanel';
 
-export function DatabaseTopBar() {
+export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => void }) {
   const { toggleSidebar, activeBaseId, activeTableId } = useDatabaseUI();
   const profile = useAuthStore((s) => s.profile);
   const { data: bases } = useBases();
-  const { data: tables } = useTables(activeBaseId);
   const [shareOpen, setShareOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [automationsOpen, setAutomationsOpen] = useState(false);
+  const [shareViewOpen, setShareViewOpen] = useState(false);
+  const [apiTokensOpen, setApiTokensOpen] = useState(false);
+  const [webhooksOpen, setWebhooksOpen] = useState(false);
+  const [auditLogOpen, setAuditLogOpen] = useState(false);
+  const activeViewId = useDatabaseUI((s) => s.activeViewId);
 
   const activeBase = bases?.find((b: any) => b.id === activeBaseId);
-  const activeTable = tables?.find((t: any) => t.id === activeTableId);
 
   const initials = profile?.full_name
     ? profile.full_name
@@ -52,27 +63,25 @@ export function DatabaseTopBar() {
           >
             <Menu size={16} />
           </Button>
-          <div className="flex items-center gap-1 ml-1">
-            <span className="text-[13px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
-              KDOps Data
-            </span>
-            {activeBase && (
+          <div className="flex items-center gap-1.5 ml-1">
+            {activeBase ? (
               <>
-                <span className="text-[#D5D5D9] text-sm mx-0.5">/</span>
                 <span
-                  className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium truncate max-w-[160px]"
+                  className="w-5 h-5 rounded flex items-center justify-center text-[10px] shrink-0"
+                  style={{ backgroundColor: activeBase.color || '#3366FF' }}
                 >
+                  <span className="text-white font-bold">
+                    {activeBase.name?.charAt(0)?.toUpperCase() || 'B'}
+                  </span>
+                </span>
+                <span className="text-[14px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
                   {activeBase.name}
                 </span>
               </>
-            )}
-            {activeTable && (
-              <>
-                <span className="text-[#D5D5D9] text-sm mx-0.5">/</span>
-                <span className="text-[13px] text-[#6A7184] truncate max-w-[160px]">
-                  {activeTable.name}
-                </span>
-              </>
+            ) : (
+              <span className="text-[14px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                KDOps Data
+              </span>
             )}
           </div>
         </div>
@@ -82,9 +91,59 @@ export function DatabaseTopBar() {
             variant="ghost"
             size="sm"
             className="h-7 px-2 text-[12px] text-[#6A7184] hover:bg-[#F4F4F5] gap-1"
+            onClick={() => setApiTokensOpen(true)}
+          >
+            <Key size={13} /> API
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-[12px] text-[#6A7184] hover:bg-[#F4F4F5] gap-1"
+            onClick={() => setShareViewOpen(true)}
+          >
+            <Link2 size={13} /> Share
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-[12px] text-[#6A7184] hover:bg-[#F4F4F5] gap-1"
+            onClick={() => setAutomationsOpen(true)}
+          >
+            <Zap size={13} /> Automations
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-[12px] text-[#6A7184] hover:bg-[#F4F4F5] gap-1"
+            onClick={() => setWebhooksOpen(true)}
+          >
+            <Webhook size={13} /> Webhooks
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-[12px] text-[#6A7184] hover:bg-[#F4F4F5] gap-1"
+            onClick={() => setAuditLogOpen(true)}
+          >
+            <History size={13} /> Audit Log
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-[12px] text-[#6A7184] hover:bg-[#F4F4F5] gap-1"
             onClick={() => setShareOpen(true)}
           >
-            <Share2 size={13} /> Share
+            <Share2 size={13} /> Share Base
+          </Button>
+          <NotificationsPanel />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-[#6A7184] hover:bg-[#F4F4F5]"
+            onClick={() => onOpenShortcuts?.()}
+            title="Keyboard shortcuts (?)"
+          >
+            <Keyboard size={15} />
           </Button>
           <Button
             variant="ghost"
@@ -94,6 +153,7 @@ export function DatabaseTopBar() {
           >
             <HelpCircle size={15} />
           </Button>
+          <PresenceIndicator />
           <div
             className="h-7 w-7 rounded-full bg-[#3366FF] text-white flex items-center justify-center text-[10px] font-semibold select-none ml-1"
             title={profile?.full_name ?? ''}
@@ -103,7 +163,6 @@ export function DatabaseTopBar() {
         </div>
       </header>
 
-      {/* Share Dialog */}
       <Dialog open={shareOpen} onOpenChange={setShareOpen}>
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
@@ -124,7 +183,7 @@ export function DatabaseTopBar() {
               <label className="text-[12px] font-medium text-[#4A5268] mb-1.5 block">Copy link</label>
               <div className="flex gap-2">
                 <div className="flex-1 px-3 py-1.5 rounded-md border border-[#E7E7E9] bg-white text-[12px] text-[#6A7184] truncate">
-                  {window.location.href}
+                  {typeof window !== 'undefined' ? window.location.href : ''}
                 </div>
                 <Button
                   size="sm"
@@ -153,7 +212,12 @@ export function DatabaseTopBar() {
         </DialogContent>
       </Dialog>
 
-      {/* Help Dialog */}
+      <ShareViewDialog open={shareViewOpen} onOpenChange={setShareViewOpen} viewId={activeViewId} tableId={activeTableId} />
+      <ApiTokensDialog open={apiTokensOpen} onOpenChange={setApiTokensOpen} baseId={activeBaseId} />
+      <AutomationsDialog open={automationsOpen} onOpenChange={setAutomationsOpen} tableId={activeTableId} baseId={activeBaseId} />
+      <WebhooksDialog open={webhooksOpen} onOpenChange={setWebhooksOpen} tableId={activeTableId} baseId={activeBaseId} />
+      <AuditLogDialog open={auditLogOpen} onOpenChange={setAuditLogOpen} baseId={activeBaseId} />
+
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>

@@ -1,7 +1,35 @@
-import React from 'react';
-import { Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import type { FieldMeta, RecordRow, SelectChoice } from '@/features/database/types';
-import { PILL_COLORS } from '@/features/database/types';
+import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import {
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Expand,
+  Trash2,
+  Copy,
+  Check,
+  Star,
+  Image as ImageIcon,
+  ChevronDown,
+  LayoutGrid,
+  Link2,
+  Mail,
+  Paperclip,
+  Database,
+} from 'lucide-react';
+import type { FieldMeta, RecordRow } from '../../types';
+import { PILL_COLORS } from '../../types';
+
+/* ------------------------------------------------------------------ */
+/*  Types & constants                                                 */
+/* ------------------------------------------------------------------ */
+
+type CardSize = 'small' | 'medium' | 'large';
+
+const CARD_SIZE_CONFIG: Record<CardSize, { minWidth: string; maxFields: number }> = {
+  small:  { minWidth: '220px', maxFields: 3 },
+  medium: { minWidth: '300px', maxFields: 5 },
+  large:  { minWidth: '400px', maxFields: 8 },
+};
 
 interface GalleryViewProps {
   fields: FieldMeta[];
@@ -12,277 +40,520 @@ interface GalleryViewProps {
   onAddRow: () => void;
   onExpandRow?: (record: RecordRow) => void;
   onDeleteRow?: (recordId: string) => void;
+  onDuplicateRow?: (record: RecordRow) => void;
   page: number;
   pageSize: number;
   onPageChange: (page: number) => void;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                           */
+/* ------------------------------------------------------------------ */
+
 function getPillColor(colorName: string) {
-  return (
-    PILL_COLORS.find((c) => c.name.toLowerCase() === colorName.toLowerCase()) ??
-    PILL_COLORS[7] // Gray fallback
-  );
+  return PILL_COLORS.find((c) => c.name === colorName) || PILL_COLORS[7];
 }
 
-function formatDate(value: string | null | undefined): string {
-  if (!value) return '';
-  try {
-    return new Date(value).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  } catch {
-    return String(value);
+function formatDate(val: unknown): string {
+  if (!val) return '';
+  const d = new Date(val as string);
+  if (isNaN(d.getTime())) return String(val);
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function extractImageUrl(val: unknown): string | null {
+  if (!val) return null;
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.url) return parsed[0].url;
+    } catch {
+      if (val.startsWith('http')) return val;
+    }
+    return null;
   }
-}
-
-function formatDateTime(value: string | null | undefined): string {
-  if (!value) return '';
-  try {
-    return new Date(value).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  } catch {
-    return String(value);
+  if (Array.isArray(val) && val.length > 0) {
+    const first = val[0];
+    if (typeof first === 'string' && first.startsWith('http')) return first;
+    if (first?.url) return first.url;
+    if (first?.signedUrl) return first.signedUrl;
   }
+  return null;
 }
 
-function SelectPill({ label, color }: { label: string; color: string }) {
-  const pill = getPillColor(color);
-  return (
-    <span
-      className="inline-block rounded-full px-2 py-0.5 text-xs font-medium mr-1 mb-1"
-      style={{ backgroundColor: pill.bg, color: pill.text }}
-    >
-      {label}
-    </span>
-  );
-}
+/* ------------------------------------------------------------------ */
+/*  Dropdown                                                          */
+/* ------------------------------------------------------------------ */
 
-function CellValue({
-  field,
+function Dropdown({
+  label,
   value,
+  options,
+  onChange,
 }: {
-  field: FieldMeta;
-  value: any;
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
 }) {
-  if (value == null || value === '') {
-    return <span className="text-[#9AA2AF] text-sm italic">Empty</span>;
-  }
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
-  switch (field.ui_type) {
-    case 'Checkbox':
-      return (
-        <span className="text-sm">
-          {value ? (
-            <svg width="16" height="16" viewBox="0 0 16 16" className="inline-block text-[#3366FF]">
-              <rect x="1" y="1" width="14" height="14" rx="3" fill="currentColor" />
-              <path d="M4.5 8L7 10.5L11.5 5.5" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 16 16" className="inline-block text-[#9AA2AF]">
-              <rect x="1" y="1" width="14" height="14" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
-          )}
-        </span>
-      );
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
-    case 'SingleSelect': {
-      const choices = field.options?.choices ?? [];
-      const choice = choices.find((c: SelectChoice) => c.title === value);
-      return <SelectPill label={String(value)} color={choice?.color ?? 'Gray'} />;
-    }
+  const current = options.find((o) => o.value === value);
 
-    case 'MultiSelect': {
-      const choices = field.options?.choices ?? [];
-      const values = Array.isArray(value) ? value : [];
-      return (
-        <div className="flex flex-wrap">
-          {values.map((v: string) => {
-            const choice = choices.find((c: SelectChoice) => c.title === v);
-            return <SelectPill key={v} label={v} color={choice?.color ?? 'Gray'} />;
-          })}
-        </div>
-      );
-    }
-
-    case 'Date':
-    case 'CreatedTime':
-      return <span className="text-sm text-[#374151]">{formatDate(value)}</span>;
-
-    case 'DateTime':
-    case 'LastModifiedTime':
-      return <span className="text-sm text-[#374151]">{formatDateTime(value)}</span>;
-
-    default:
-      return (
-        <span className="text-sm text-[#374151] line-clamp-2">
-          {String(value)}
-        </span>
-      );
-  }
-}
-
-function SkeletonCard() {
   return (
-    <div className="bg-white border border-[#E7E7E9] rounded-lg p-4 animate-pulse">
-      <div className="h-5 bg-[#E7E7E9] rounded w-3/4 mb-4" />
-      <div className="space-y-3">
-        <div>
-          <div className="h-3 bg-[#E7E7E9] rounded w-1/3 mb-1" />
-          <div className="h-4 bg-[#E7E7E9] rounded w-2/3" />
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border
+          border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,12%)]
+          text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-gray-50 dark:hover:bg-[hsl(200,30%,15%)]
+          transition-colors"
+      >
+        <span className="text-[#9AA2AF] dark:text-[hsl(200,25%,55%)]">{label}:</span>
+        <span className="font-medium">{current?.label ?? value}</span>
+        <ChevronDown size={12} />
+      </button>
+      {open && (
+        <div
+          className="absolute top-full left-0 mt-1 z-50 min-w-[160px] rounded-lg border
+            border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,12%)]
+            shadow-lg py-1"
+        >
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F3F4F6] dark:hover:bg-[hsl(200,30%,16%)]
+                transition-colors ${opt.value === value ? 'text-[#3366FF] font-medium' : 'text-[#374151] dark:text-[hsl(200,25%,88%)]'}`}
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
-        <div>
-          <div className="h-3 bg-[#E7E7E9] rounded w-1/4 mb-1" />
-          <div className="h-4 bg-[#E7E7E9] rounded w-1/2" />
-        </div>
-        <div>
-          <div className="h-3 bg-[#E7E7E9] rounded w-1/3 mb-1" />
-          <div className="h-4 bg-[#E7E7E9] rounded w-3/5" />
-        </div>
-      </div>
-      <div className="mt-4 pt-3 border-t border-[#E7E7E9]">
-        <div className="h-3 bg-[#E7E7E9] rounded w-1/3" />
-      </div>
+      )}
     </div>
   );
 }
 
-function GalleryView({
-  fields,
-  records,
-  totalCount,
-  isLoading,
-  onCellUpdate: _onCellUpdate,
-  onAddRow,
-  onExpandRow,
-  onDeleteRow: _onDeleteRow,
-  page,
-  pageSize,
-  onPageChange,
-}: GalleryViewProps) {
-  const visibleFields = fields.filter((f) => !f.is_system && !f.is_hidden);
-  const primaryField = visibleFields.find((f) => f.is_primary) ?? visibleFields[0];
-  const bodyFields = visibleFields
-    .filter((f) => f.id !== primaryField?.id)
-    .slice(0, 6);
+/* ------------------------------------------------------------------ */
+/*  Field value renderer                                              */
+/* ------------------------------------------------------------------ */
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const startRecord = (page - 1) * pageSize + 1;
-  const endRecord = Math.min(page * pageSize, totalCount);
+function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
+  const { ui_type } = field;
 
-  if (isLoading) {
+  if (value === null || value === undefined || value === '') {
+    return <span className="text-[#D1D5DB] dark:text-[hsl(200,25%,35%)] italic text-[11px]">Empty</span>;
+  }
+
+  // Checkbox
+  if (ui_type === 'Checkbox') {
+    return value ? (
+      <Check size={14} className="text-[#3366FF]" />
+    ) : (
+      <div className="w-3.5 h-3.5 rounded border border-[#D1D5DB] dark:border-[hsl(200,25%,30%)]" />
+    );
+  }
+
+  // Rating
+  if (ui_type === 'Rating') {
+    const max = field.options?.max ?? 5;
+    const num = typeof value === 'number' ? value : parseInt(String(value), 10) || 0;
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center justify-center py-3 border-t border-[#E7E7E9] bg-[#F9F9FA]">
-          <Loader2 className="w-4 h-4 animate-spin text-[#9AA2AF] mr-2" />
-          <span className="text-sm text-[#9AA2AF]">Loading records...</span>
-        </div>
+      <div className="flex gap-0.5">
+        {Array.from({ length: max }, (_, i) => (
+          <Star
+            key={i}
+            size={13}
+            className={i < num ? 'text-amber-400 fill-amber-400' : 'text-[#D1D5DB] dark:text-[hsl(200,25%,30%)]'}
+          />
+        ))}
       </div>
     );
   }
 
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {records.map((record) => {
-            const primaryValue = primaryField
-              ? record[primaryField.pg_column_name]
-              : record.id;
+  // SingleSelect
+  if (ui_type === 'SingleSelect' && value) {
+    const choice = field.options?.choices?.find((c) => c.title === value);
+    const color = choice ? getPillColor(choice.color) : getPillColor('Gray');
+    return (
+      <span
+        className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
+        style={{ backgroundColor: color.bg, color: color.text }}
+      >
+        {String(value)}
+      </span>
+    );
+  }
 
-            return (
-              <div
-                key={record.id}
-                className="bg-white border border-[#E7E7E9] rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col"
-                onClick={() => onExpandRow?.(record)}
-              >
-                {/* Header */}
-                <div className="px-4 pt-4 pb-2 border-b border-[#E7E7E9]">
-                  <h3 className="font-semibold text-[#374151] text-sm truncate">
-                    {primaryValue != null && primaryValue !== ''
-                      ? String(primaryValue)
-                      : 'Untitled'}
-                  </h3>
-                </div>
+  // MultiSelect
+  if (ui_type === 'MultiSelect') {
+    const items: string[] = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',').map((s) => s.trim()) : [];
+    return (
+      <div className="flex flex-wrap gap-1">
+        {items.map((item) => {
+          const choice = field.options?.choices?.find((c) => c.title === item);
+          const color = choice ? getPillColor(choice.color) : getPillColor('Gray');
+          return (
+            <span
+              key={item}
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
+              style={{ backgroundColor: color.bg, color: color.text }}
+            >
+              {item}
+            </span>
+          );
+        })}
+      </div>
+    );
+  }
 
-                {/* Body */}
-                <div className="px-4 py-3 flex-1 space-y-2.5">
-                  {bodyFields.map((field) => (
-                    <div key={field.id}>
-                      <div className="text-xs text-[#9AA2AF] mb-0.5 truncate">
-                        {field.name}
-                      </div>
-                      <CellValue
-                        field={field}
-                        value={record[field.pg_column_name]}
-                      />
-                    </div>
-                  ))}
-                </div>
+  // Date / DateTime
+  if (ui_type === 'Date' || ui_type === 'DateTime' || ui_type === 'CreatedTime' || ui_type === 'LastModifiedTime') {
+    return <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)]">{formatDate(value)}</span>;
+  }
 
-                {/* Footer */}
-                <div className="px-4 py-2 border-t border-[#E7E7E9]">
-                  <span className="text-xs text-[#9AA2AF]">
-                    {formatDate(record.created_at)}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+  // URL
+  if (ui_type === 'URL') {
+    const str = String(value);
+    return (
+      <span className="flex items-center gap-1 text-xs text-[#3366FF] truncate">
+        <Link2 size={11} className="shrink-0" />
+        <span className="truncate">{str.replace(/^https?:\/\//, '').slice(0, 30)}</span>
+      </span>
+    );
+  }
 
-          {/* Add Record Card */}
-          <button
-            onClick={onAddRow}
-            className="border-2 border-dashed border-[#E7E7E9] rounded-lg flex flex-col items-center justify-center min-h-[200px] hover:border-[#3366FF] hover:text-[#3366FF] text-[#9AA2AF] transition-colors cursor-pointer bg-transparent"
-          >
-            <Plus className="w-8 h-8 mb-2" />
-            <span className="text-sm font-medium">Add Record</span>
-          </button>
+  // Email
+  if (ui_type === 'Email') {
+    return (
+      <span className="flex items-center gap-1 text-xs text-[#3366FF] truncate">
+        <Mail size={11} className="shrink-0" />
+        <span className="truncate">{String(value)}</span>
+      </span>
+    );
+  }
+
+  // Attachment
+  if (ui_type === 'Attachment') {
+    const url = extractImageUrl(value);
+    if (url) {
+      return (
+        <div className="flex items-center gap-1.5">
+          <img src={url} alt="" className="w-8 h-8 rounded object-cover border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]" />
+          <span className="text-[11px] text-[#6A7184] dark:text-[hsl(200,25%,55%)]">
+            {Array.isArray(value) ? `${(value as unknown[]).length} file(s)` : '1 file'}
+          </span>
         </div>
+      );
+    }
+    return (
+      <span className="flex items-center gap-1 text-xs text-[#6A7184] dark:text-[hsl(200,25%,55%)]">
+        <Paperclip size={11} /> Attachment
+      </span>
+    );
+  }
+
+  // Default
+  return (
+    <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] line-clamp-2">
+      {String(value)}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  GalleryCard                                                       */
+/* ------------------------------------------------------------------ */
+
+function GalleryCard({
+  record,
+  titleField,
+  previewFields,
+  coverFieldId,
+  fields,
+  onExpand,
+  onDelete,
+  onDuplicate,
+}: {
+  record: RecordRow;
+  titleField: FieldMeta | undefined;
+  previewFields: FieldMeta[];
+  coverFieldId: string | null;
+  fields: FieldMeta[];
+  onExpand?: (r: RecordRow) => void;
+  onDelete?: (id: string) => void;
+  onDuplicate?: (r: RecordRow) => void;
+}) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const coverField = coverFieldId ? fields.find((f) => f.id === coverFieldId) : null;
+  const coverUrl = coverField ? extractImageUrl(record[coverField.pg_column_name]) : null;
+
+  return (
+    <div
+      className="relative bg-white dark:bg-[hsl(200,30%,12%)] rounded-lg border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]
+        overflow-hidden cursor-pointer hover:shadow-md dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)]
+        transition-all duration-200 group"
+      onClick={() => onExpand?.(record)}
+    >
+      {/* Cover image */}
+      {coverUrl ? (
+        <div className="w-full h-36 bg-[#F3F4F6] dark:bg-[hsl(200,30%,8%)] overflow-hidden">
+          <img src={coverUrl} alt="" className="w-full h-full object-cover" />
+        </div>
+      ) : (
+        <div className="h-1.5 bg-[#3366FF]/60" />
+      )}
+
+      {/* Hover action bar */}
+      <div
+        className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100
+          transition-opacity duration-150 z-10"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          title="Expand"
+          className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(200,30%,15%)]/90 border border-[#E7E7E9] dark:border-[hsl(200,25%,22%)]
+            text-[#6A7184] dark:text-[hsl(200,25%,70%)] hover:text-[#3366FF] hover:border-[#3366FF]/30 transition-colors shadow-sm"
+          onClick={() => onExpand?.(record)}
+        >
+          <Expand size={13} />
+        </button>
+        <button
+          title="Duplicate"
+          className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(200,30%,15%)]/90 border border-[#E7E7E9] dark:border-[hsl(200,25%,22%)]
+            text-[#6A7184] dark:text-[hsl(200,25%,70%)] hover:text-[#3366FF] hover:border-[#3366FF]/30 transition-colors shadow-sm"
+          onClick={() => onDuplicate?.(record)}
+        >
+          <Copy size={13} />
+        </button>
+        {confirmDelete ? (
+          <button
+            title="Confirm delete"
+            className="p-1.5 rounded-md bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800
+              text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors shadow-sm"
+            onClick={() => { onDelete?.(record.id); setConfirmDelete(false); }}
+            onMouseLeave={() => setConfirmDelete(false)}
+          >
+            <Trash2 size={13} />
+          </button>
+        ) : (
+          <button
+            title="Delete"
+            className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(200,30%,15%)]/90 border border-[#E7E7E9] dark:border-[hsl(200,25%,22%)]
+              text-[#6A7184] dark:text-[hsl(200,25%,70%)] hover:text-red-500 hover:border-red-200 dark:hover:border-red-800 transition-colors shadow-sm"
+            onClick={() => setConfirmDelete(true)}
+          >
+            <Trash2 size={13} />
+          </button>
+        )}
       </div>
 
-      {/* Pagination Footer */}
-      <div className="flex items-center justify-between px-4 py-2 border-t border-[#E7E7E9] bg-[#F9F9FA] text-sm">
-        <span className="text-[#9AA2AF]">
-          {totalCount === 0
-            ? 'No records'
-            : `${startRecord}-${endRecord} of ${totalCount} records`}
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => onPageChange(page - 1)}
-            disabled={page <= 1}
-            className="p-1 rounded hover:bg-[#E7E7E9] disabled:opacity-30 disabled:cursor-not-allowed text-[#374151]"
+      {/* Card content */}
+      <div className="p-4">
+        <div className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,90%)] truncate mb-3">
+          {titleField ? record[titleField.pg_column_name] ?? (
+            <span className="text-[#D1D5DB] dark:text-[hsl(200,25%,35%)] italic font-normal">(empty)</span>
+          ) : record.id}
+        </div>
+        {previewFields.map((f) => (
+          <div key={f.id} className="mb-2.5 last:mb-0">
+            <div className="text-[10px] font-semibold text-[#9AA2AF] dark:text-[hsl(200,25%,50%)] uppercase tracking-wider mb-0.5">
+              {f.name}
+            </div>
+            <FieldValue field={f} value={record[f.pg_column_name]} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main component                                                    */
+/* ------------------------------------------------------------------ */
+
+export default function GalleryView({
+  fields,
+  records,
+  totalCount,
+  onAddRow,
+  onExpandRow,
+  onDeleteRow,
+  onDuplicateRow,
+  page,
+  pageSize,
+  onPageChange,
+}: GalleryViewProps) {
+  const [cardSize, setCardSize] = useState<CardSize>('medium');
+  const [coverFieldId, setCoverFieldId] = useState<string | null>(() => {
+    const attachmentField = fields.find((f) => f.ui_type === 'Attachment');
+    return attachmentField?.id ?? null;
+  });
+
+  // Sync default cover field when fields change
+  useEffect(() => {
+    if (coverFieldId && !fields.find((f) => f.id === coverFieldId)) {
+      const attachmentField = fields.find((f) => f.ui_type === 'Attachment');
+      setCoverFieldId(attachmentField?.id ?? null);
+    }
+  }, [fields, coverFieldId]);
+
+  const titleField = useMemo(
+    () => fields.find((f) => f.is_primary) ?? fields[0],
+    [fields],
+  );
+
+  const config = CARD_SIZE_CONFIG[cardSize];
+
+  const previewFields = useMemo(
+    () =>
+      fields
+        .filter((f) => !f.is_primary && !f.is_system && f.ui_type !== 'ID' && f.id !== coverFieldId)
+        .sort((a, b) => a.position - b.position)
+        .slice(0, config.maxFields),
+    [fields, config.maxFields, coverFieldId],
+  );
+
+  const coverFieldOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [{ value: '__none__', label: 'None' }];
+    fields
+      .filter((f) => f.ui_type === 'Attachment')
+      .forEach((f) => opts.push({ value: f.id, label: f.name }));
+    return opts;
+  }, [fields]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  const handleCoverChange = useCallback((v: string) => {
+    setCoverFieldId(v === '__none__' ? null : v);
+  }, []);
+
+  return (
+    <div className="flex flex-col h-full bg-white dark:bg-[hsl(200,30%,10%)]">
+      {/* Toolbar */}
+      <div
+        className="flex items-center gap-3 px-4 shrink-0 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]"
+        style={{ height: 44 }}
+      >
+        <LayoutGrid size={14} className="text-[#6A7184] dark:text-[hsl(200,25%,55%)]" />
+
+        {coverFieldOptions.length > 1 && (
+          <Dropdown
+            label="Cover"
+            value={coverFieldId ?? '__none__'}
+            options={coverFieldOptions}
+            onChange={handleCoverChange}
+          />
+        )}
+
+        <Dropdown
+          label="Size"
+          value={cardSize}
+          options={[
+            { value: 'small', label: 'Small' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'large', label: 'Large' },
+          ]}
+          onChange={(v) => setCardSize(v as CardSize)}
+        />
+      </div>
+
+      {/* Cards grid */}
+      <div className="flex-1 overflow-auto p-4">
+        {records.length === 0 ? (
+          /* Empty state */
+          <div className="flex flex-col items-center justify-center h-full text-center py-20">
+            <div
+              className="w-16 h-16 rounded-2xl bg-[#F3F4F6] dark:bg-[hsl(200,30%,14%)] flex items-center justify-center mb-4"
+            >
+              <Database size={28} className="text-[#D1D5DB] dark:text-[hsl(200,25%,30%)]" />
+            </div>
+            <h3 className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] mb-1">
+              No records yet
+            </h3>
+            <p className="text-xs text-[#6A7184] dark:text-[hsl(200,25%,55%)] mb-4 max-w-[260px]">
+              Add your first record to see it appear as a card in the gallery.
+            </p>
+            <button
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#3366FF] hover:bg-[#2952CC] text-white text-xs font-medium transition-colors"
+              onClick={onAddRow}
+            >
+              <Plus size={14} /> Add record
+            </button>
+          </div>
+        ) : (
+          <div
+            className="grid gap-4"
+            style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${config.minWidth}, 1fr))` }}
           >
-            <ChevronLeft className="w-4 h-4" />
+            {records.map((r) => (
+              <GalleryCard
+                key={r.id}
+                record={r}
+                titleField={titleField}
+                previewFields={previewFields}
+                coverFieldId={coverFieldId}
+                fields={fields}
+                onExpand={onExpandRow}
+                onDelete={onDeleteRow}
+                onDuplicate={onDuplicateRow}
+              />
+            ))}
+            <button
+              className="flex items-center justify-center gap-1 rounded-lg border-2 border-dashed
+                border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] min-h-[140px]
+                text-[#9AA2AF] dark:text-[hsl(200,25%,45%)]
+                hover:border-[#3366FF] hover:text-[#3366FF] dark:hover:border-[#3366FF] dark:hover:text-[#3366FF]
+                transition-colors text-sm"
+              onClick={onAddRow}
+            >
+              <Plus size={14} /> Add record
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Footer / pagination */}
+      <div
+        className="flex items-center justify-between px-4 shrink-0 border-t
+          border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]
+          bg-[#F9F9FA] dark:bg-[hsl(200,30%,8%)]"
+        style={{ height: 40, fontSize: 13 }}
+      >
+        <span className="text-[#6A7184] dark:text-[hsl(200,25%,55%)]">
+          {totalCount} record{totalCount !== 1 ? 's' : ''}
+        </span>
+        <div className="flex items-center gap-2 text-[#6A7184] dark:text-[hsl(200,25%,55%)]">
+          <button
+            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,30%,16%)] disabled:opacity-40 transition-colors"
+            disabled={page === 0}
+            onClick={() => onPageChange(page - 1)}
+          >
+            <ChevronLeft size={16} />
           </button>
-          <span className="px-2 text-[#374151]">
-            {page} / {totalPages}
+          <span>
+            Page {page + 1} of {totalPages}
           </span>
           <button
+            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,30%,16%)] disabled:opacity-40 transition-colors"
+            disabled={page >= totalPages - 1}
             onClick={() => onPageChange(page + 1)}
-            disabled={page >= totalPages}
-            className="p-1 rounded hover:bg-[#E7E7E9] disabled:opacity-30 disabled:cursor-not-allowed text-[#374151]"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight size={16} />
           </button>
         </div>
       </div>
     </div>
   );
 }
-
-export default GalleryView;

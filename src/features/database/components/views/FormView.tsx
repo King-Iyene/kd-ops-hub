@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Star } from 'lucide-react';
-import type { FieldMeta, UIType, SelectChoice } from '@/features/database/types';
-import { PILL_COLORS, VIRTUAL_TYPES } from '@/features/database/types';
+import { useState, useMemo, useCallback } from 'react';
+import { CheckCircle, Star, GripVertical, ImageIcon, RotateCcw } from 'lucide-react';
+import type { FieldMeta } from '../../types';
+import { PILL_COLORS, VIRTUAL_TYPES } from '../../types';
+import { getFieldTypeIcon } from '../grid/field-icons';
 
 interface FormViewProps {
   fields: FieldMeta[];
@@ -9,385 +10,398 @@ interface FormViewProps {
   isLoading: boolean;
 }
 
-const SYSTEM_TYPES: UIType[] = [
-  'CreatedTime', 'LastModifiedTime', 'Formula', 'Rollup',
-  'Lookup', 'Links', 'ID', 'AutoNumber', 'CreatedBy', 'LastModifiedBy',
-];
-
-function getChoiceColor(colorName: string) {
-  return PILL_COLORS.find((c) => c.name === colorName) ?? PILL_COLORS[7];
+function getPillColor(colorName: string) {
+  return PILL_COLORS.find((c) => c.name === colorName) || PILL_COLORS[7];
 }
 
-function buildInitialValues(fields: FieldMeta[]): Record<string, any> {
-  const vals: Record<string, any> = {};
-  for (const f of fields) {
-    if (f.is_system || f.is_hidden || SYSTEM_TYPES.includes(f.ui_type)) continue;
-    switch (f.ui_type) {
-      case 'Checkbox':
-        vals[f.id] = false;
-        break;
-      case 'MultiSelect':
-        vals[f.id] = [] as string[];
-        break;
-      case 'Rating':
-        vals[f.id] = 0;
-        break;
-      default:
-        vals[f.id] = '';
-    }
-  }
-  return vals;
+function MultiSelectInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: FieldMeta;
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const choices = field.options?.choices ?? [];
+  const toggle = (title: string) => {
+    onChange(
+      value.includes(title) ? value.filter((v) => v !== title) : [...value, title],
+    );
+  };
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {choices.map((c) => {
+        const color = getPillColor(c.color);
+        const selected = value.includes(c.title);
+        return (
+          <button
+            key={c.title}
+            type="button"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+            style={{
+              backgroundColor: selected ? color.bg : undefined,
+              color: selected ? color.text : undefined,
+              outline: selected ? `2px solid ${color.text}40` : 'none',
+            }}
+            onClick={() => toggle(c.title)}
+          >
+            {c.title}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
+
+function RatingInput({
+  value,
+  max,
+  onChange,
+}: {
+  value: number;
+  max: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="flex gap-0.5">
+      {Array.from({ length: max }, (_, i) => (
+        <button
+          key={i}
+          type="button"
+          className="text-lg transition-colors"
+          style={{ color: i < value ? '#F59E0B' : '#E2E8F0' }}
+          onClick={() => onChange(i + 1 === value ? 0 : i + 1)}
+        >
+          ★
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const SYSTEM_TYPES = new Set<string>([
+  'ID', 'AutoNumber', 'CreatedTime', 'LastModifiedTime', 'CreatedBy', 'LastModifiedBy',
+]);
 
 export default function FormView({ fields, onAddRow, isLoading }: FormViewProps) {
-  const [values, setValues] = useState<Record<string, any>>(() => buildInitialValues(fields));
-  const [showSuccess, setShowSuccess] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  const visibleFields = fields.filter(
-    (f) => !f.is_system && !f.is_hidden && !SYSTEM_TYPES.includes(f.ui_type),
+  const editableFields = useMemo(
+    () =>
+      fields
+        .filter(
+          (f) =>
+            !f.is_system &&
+            !f.is_hidden &&
+            !SYSTEM_TYPES.has(f.ui_type) &&
+            !VIRTUAL_TYPES.includes(f.ui_type),
+        )
+        .sort((a, b) => a.position - b.position),
+    [fields],
   );
 
-  const setValue = useCallback((fieldId: string, value: any) => {
-    setValues((prev) => ({ ...prev, [fieldId]: value }));
+  const [values, setValues] = useState<Record<string, any>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [formTitle, setFormTitle] = useState('New Record');
+  const [formDescription, setFormDescription] = useState('Fill out the fields below to submit a new record.');
+  const [requiredOverrides, setRequiredOverrides] = useState<Record<string, boolean>>({});
+
+  const isFieldRequired = useCallback(
+    (f: FieldMeta) => requiredOverrides[f.id] ?? f.is_required,
+    [requiredOverrides],
+  );
+
+  const toggleRequired = useCallback((fieldId: string, currentRequired: boolean) => {
+    setRequiredOverrides((prev) => ({ ...prev, [fieldId]: !currentRequired }));
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const record: Record<string, any> = {};
-    for (const f of visibleFields) {
-      const v = values[f.id];
-      if (v === '' || v === undefined || v === null) continue;
-      if (f.ui_type === 'MultiSelect' && Array.isArray(v) && v.length === 0) continue;
-      if (f.ui_type === 'Rating' && v === 0) continue;
-      record[f.pg_column_name] = v;
+    for (const f of editableFields) {
+      if (values[f.id] !== undefined && values[f.id] !== '') {
+        record[f.pg_column_name] = values[f.id];
+      }
     }
     onAddRow(record);
-    setValues(buildInitialValues(fields));
-    setShowSuccess(true);
-    timerRef.current = setTimeout(() => setShowSuccess(false), 2000);
+    setValues({});
+    setSubmitted(true);
   };
 
-  return (
-    <div style={{ minHeight: '100%', background: '#F9F9FA', padding: '32px 16px' }}>
-      {showSuccess && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 4,
-            background: '#10B981',
-            zIndex: 9999,
-            animation: 'formSuccessFade 2s ease-out forwards',
-          }}
-        />
-      )}
-      <style>{`
-        @keyframes formSuccessFade {
-          0%, 60% { opacity: 1; }
-          100% { opacity: 0; }
-        }
-      `}</style>
-
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          maxWidth: 640,
-          margin: '0 auto',
-          background: '#FFFFFF',
-          borderRadius: 8,
-          border: '1px solid #E7E7E9',
-          padding: '32px 28px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-        }}
-      >
-        <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700, color: '#374151' }}>
-          New Record
-        </h2>
-        <p style={{ margin: '0 0 28px', fontSize: 14, color: '#9AA2AF' }}>
-          Fill in the fields below to create a new record.
-        </p>
-
-        {visibleFields.map((field) => (
-          <FieldInput
-            key={field.id}
-            field={field}
-            value={values[field.id]}
-            onChange={(v) => setValue(field.id, v)}
-          />
-        ))}
-
-        <button
-          type="submit"
-          disabled={isLoading}
-          style={{
-            width: '100%',
-            padding: '10px 0',
-            background: isLoading ? '#5AA5BB' : '#3366FF',
-            color: '#FFFFFF',
-            border: 'none',
-            borderRadius: 6,
-            fontSize: 15,
-            fontWeight: 600,
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            marginTop: 8,
-            transition: 'background 0.15s',
-          }}
-          onMouseEnter={(e) => {
-            if (!isLoading) (e.currentTarget.style.background = '#2952CC');
-          }}
-          onMouseLeave={(e) => {
-            if (!isLoading) (e.currentTarget.style.background = '#3366FF');
-          }}
-        >
-          {isLoading ? 'Creating...' : 'Create Record'}
-        </button>
-      </form>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-
-interface FieldInputProps {
-  field: FieldMeta;
-  value: any;
-  onChange: (v: any) => void;
-}
-
-const inputBase: React.CSSProperties = {
-  width: '100%',
-  padding: '8px 12px',
-  fontSize: 14,
-  color: '#374151',
-  border: '1px solid #E7E7E9',
-  borderRadius: 6,
-  outline: 'none',
-  background: '#FFFFFF',
-  boxSizing: 'border-box',
-  transition: 'border-color 0.15s',
-};
-
-function FieldInput({ field, value, onChange }: FieldInputProps) {
-  const inputType = (): string => {
-    switch (field.ui_type) {
-      case 'Email': return 'email';
-      case 'URL': return 'url';
-      case 'PhoneNumber': return 'tel';
-      case 'Number': case 'Decimal': case 'Currency': case 'Percent':
-        return 'number';
-      case 'Date': return 'date';
-      case 'DateTime': return 'datetime-local';
-      default: return 'text';
-    }
+  const handleSubmitAnother = () => {
+    setSubmitted(false);
+    setValues({});
   };
 
-  const step = (): string | undefined => {
-    switch (field.ui_type) {
-      case 'Number': return '1';
-      case 'Decimal': return '0.0001';
-      case 'Currency': return '0.01';
-      case 'Percent': return '0.01';
-      default: return undefined;
-    }
-  };
+  const inputClass =
+    'w-full border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg px-3 py-2.5 text-sm text-[#374151] dark:text-[hsl(200,25%,88%)] bg-white dark:bg-[hsl(200,30%,8%)] focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(200,25%,40%)] transition-colors';
 
-  const renderInput = () => {
-    switch (field.ui_type) {
+  const renderInput = (f: FieldMeta) => {
+    const req = isFieldRequired(f);
+
+    switch (f.ui_type) {
       case 'LongText':
         return (
           <textarea
-            rows={3}
-            value={value ?? ''}
-            onChange={(e) => onChange(e.target.value)}
-            style={{ ...inputBase, resize: 'vertical' }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = '#3366FF')}
-            onBlur={(e) => (e.currentTarget.style.borderColor = '#E7E7E9')}
+            className={inputClass + ' resize-none'}
+            rows={4}
+            value={values[f.id] ?? ''}
+            onChange={(e) => setValues((v) => ({ ...v, [f.id]: e.target.value }))}
+            required={req}
+            placeholder={f.description ?? `Enter ${f.name.toLowerCase()}...`}
           />
         );
-
       case 'Checkbox':
         return (
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <div
-              onClick={() => onChange(!value)}
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: 4,
-                border: `2px solid ${value ? '#3366FF' : '#E7E7E9'}`,
-                background: value ? '#3366FF' : '#FFFFFF',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-                flexShrink: 0,
-              }}
-            >
-              {value && (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path d="M2.5 6L5 8.5L9.5 3.5" stroke="#FFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              )}
-            </div>
-            <span style={{ fontSize: 14, color: '#374151' }}>
-              {value ? 'Checked' : 'Unchecked'}
-            </span>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={!!values[f.id]}
+              onChange={(e) => setValues((v) => ({ ...v, [f.id]: e.target.checked }))}
+            />
+            <div className="w-9 h-5 bg-[#E7E7E9] dark:bg-[hsl(200,25%,20%)] peer-focus:ring-2 peer-focus:ring-[#3366FF]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#3366FF]" />
           </label>
         );
-
-      case 'SingleSelect': {
-        const choices = field.options.choices ?? [];
-        return (
-          <select
-            value={value ?? ''}
-            onChange={(e) => onChange(e.target.value)}
-            style={{ ...inputBase, cursor: 'pointer' }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = '#3366FF')}
-            onBlur={(e) => (e.currentTarget.style.borderColor = '#E7E7E9')}
-          >
-            <option value="">Select an option</option>
-            {choices.map((c) => {
-              const color = getChoiceColor(c.color);
-              return (
-                <option key={c.title} value={c.title} style={{ color: color.text, background: color.bg }}>
-                  {c.title}
-                </option>
-              );
-            })}
-          </select>
-        );
-      }
-
-      case 'MultiSelect': {
-        const choices = field.options.choices ?? [];
-        const selected: string[] = Array.isArray(value) ? value : [];
-        const toggle = (title: string) => {
-          onChange(
-            selected.includes(title)
-              ? selected.filter((s) => s !== title)
-              : [...selected, title],
-          );
-        };
-        return (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {choices.map((c) => {
-              const color = getChoiceColor(c.color);
-              const active = selected.includes(c.title);
-              return (
-                <button
-                  type="button"
-                  key={c.title}
-                  onClick={() => toggle(c.title)}
-                  style={{
-                    padding: '4px 12px',
-                    borderRadius: 12,
-                    fontSize: 13,
-                    fontWeight: 500,
-                    border: active ? `2px solid ${color.text}` : '2px solid transparent',
-                    background: color.bg,
-                    color: color.text,
-                    cursor: 'pointer',
-                    opacity: active ? 1 : 0.6,
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {c.title}
-                </button>
-              );
-            })}
-            {choices.length === 0 && (
-              <span style={{ fontSize: 13, color: '#9AA2AF' }}>No choices defined</span>
-            )}
-          </div>
-        );
-      }
-
-      case 'Rating': {
-        const max = field.options.max ?? 5;
-        const current = typeof value === 'number' ? value : 0;
-        return (
-          <div style={{ display: 'flex', gap: 4 }}>
-            {Array.from({ length: max }, (_, i) => (
-              <button
-                type="button"
-                key={i}
-                onClick={() => onChange(current === i + 1 ? 0 : i + 1)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: 2,
-                  cursor: 'pointer',
-                  transition: 'transform 0.1s',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.15)')}
-                onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-              >
-                <Star
-                  size={22}
-                  fill={i < current ? '#F59E0B' : 'none'}
-                  stroke={i < current ? '#F59E0B' : '#CBD5E1'}
-                  strokeWidth={1.5}
-                />
-              </button>
-            ))}
-          </div>
-        );
-      }
-
+      case 'Number':
+      case 'Decimal':
+      case 'Currency':
+      case 'Percent':
       case 'Duration':
         return (
           <input
-            type="text"
-            value={value ?? ''}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="HH:MM:SS"
-            style={inputBase}
-            onFocus={(e) => (e.currentTarget.style.borderColor = '#3366FF')}
-            onBlur={(e) => (e.currentTarget.style.borderColor = '#E7E7E9')}
+            type="number"
+            className={inputClass}
+            value={values[f.id] ?? ''}
+            onChange={(e) => setValues((v) => ({ ...v, [f.id]: e.target.value }))}
+            required={req}
+            step="any"
+            placeholder={`Enter ${f.name.toLowerCase()}...`}
           />
         );
-
+      case 'Rating':
+        return (
+          <RatingInput
+            value={values[f.id] ?? 0}
+            max={f.options?.max ?? 5}
+            onChange={(v) => setValues((prev) => ({ ...prev, [f.id]: v }))}
+          />
+        );
+      case 'Date':
+        return (
+          <input
+            type="date"
+            className={inputClass}
+            value={values[f.id] ?? ''}
+            onChange={(e) => setValues((v) => ({ ...v, [f.id]: e.target.value }))}
+            required={req}
+          />
+        );
+      case 'DateTime':
+        return (
+          <input
+            type="datetime-local"
+            className={inputClass}
+            value={values[f.id] ?? ''}
+            onChange={(e) => setValues((v) => ({ ...v, [f.id]: e.target.value }))}
+            required={req}
+          />
+        );
+      case 'Time':
+        return (
+          <input
+            type="time"
+            className={inputClass}
+            value={values[f.id] ?? ''}
+            onChange={(e) => setValues((v) => ({ ...v, [f.id]: e.target.value }))}
+            required={req}
+          />
+        );
+      case 'Year':
+        return (
+          <input
+            type="number"
+            className={inputClass}
+            value={values[f.id] ?? ''}
+            onChange={(e) => setValues((v) => ({ ...v, [f.id]: e.target.value }))}
+            required={req}
+            min={1900}
+            max={2100}
+            placeholder="YYYY"
+          />
+        );
+      case 'SingleSelect':
+        return (
+          <select
+            className={inputClass}
+            value={values[f.id] ?? ''}
+            onChange={(e) => setValues((v) => ({ ...v, [f.id]: e.target.value }))}
+            required={req}
+          >
+            <option value="">Select...</option>
+            {(f.options?.choices ?? []).map((c) => (
+              <option key={c.title} value={c.title}>{c.title}</option>
+            ))}
+          </select>
+        );
+      case 'MultiSelect':
+        return (
+          <MultiSelectInput
+            field={f}
+            value={Array.isArray(values[f.id]) ? values[f.id] : []}
+            onChange={(v) => setValues((prev) => ({ ...prev, [f.id]: v }))}
+          />
+        );
       default:
         return (
           <input
-            type={inputType()}
-            value={value ?? ''}
-            step={step()}
-            onChange={(e) => onChange(
-              inputType() === 'number' && e.target.value !== ''
-                ? parseFloat(e.target.value)
-                : e.target.value,
-            )}
-            style={inputBase}
-            onFocus={(e) => (e.currentTarget.style.borderColor = '#3366FF')}
-            onBlur={(e) => (e.currentTarget.style.borderColor = '#E7E7E9')}
+            type={f.ui_type === 'Email' ? 'email' : f.ui_type === 'URL' ? 'url' : f.ui_type === 'PhoneNumber' ? 'tel' : 'text'}
+            className={inputClass}
+            value={values[f.id] ?? ''}
+            onChange={(e) => setValues((v) => ({ ...v, [f.id]: e.target.value }))}
+            required={req}
+            placeholder={f.description ?? `Enter ${f.name.toLowerCase()}...`}
           />
         );
     }
   };
 
+  if (submitted) {
+    return (
+      <div className="flex-1 overflow-auto flex justify-center items-start py-10 px-4 bg-[#F9F9FA] dark:bg-[hsl(200,30%,10%)]">
+        <div className="w-full max-w-2xl mx-auto">
+          <div className="bg-white dark:bg-[hsl(200,30%,12%)] rounded-xl border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shadow-sm overflow-hidden">
+            <div className="h-1.5" style={{ background: 'linear-gradient(90deg, #22C55E, #4ADE80)' }} />
+            <div className="p-10 flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-full bg-green-50 dark:bg-green-900/20 flex items-center justify-center mb-5">
+                <CheckCircle size={32} className="text-green-500" />
+              </div>
+              <h2 className="text-xl font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] mb-2">
+                Record submitted successfully
+              </h2>
+              <p className="text-sm text-[#6A7184] dark:text-[hsl(200,25%,60%)] mb-6">
+                Your response has been recorded.
+              </p>
+              <button
+                type="button"
+                onClick={handleSubmitAnother}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
+                style={{ backgroundColor: '#3366FF' }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#2952CC')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#3366FF')}
+              >
+                <RotateCcw size={14} />
+                Submit another response
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ marginBottom: 20 }}>
-      <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500, color: '#374151' }}>
-        {field.name}
-        {field.is_required && <span style={{ color: '#EF4444', marginLeft: 2 }}>*</span>}
-      </label>
-      {field.description && (
-        <p style={{ margin: '0 0 6px', fontSize: 13, color: '#9AA2AF' }}>
-          {field.description}
-        </p>
-      )}
-      {renderInput()}
+    <div className="flex-1 overflow-auto flex justify-center py-10 px-4 bg-[#F9F9FA] dark:bg-[hsl(200,30%,10%)]">
+      <div className="w-full max-w-2xl mx-auto">
+        <form onSubmit={handleSubmit}>
+          {/* Cover image placeholder */}
+          <div className="rounded-t-xl border border-b-0 border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-gradient-to-br from-[#EEF2FF] to-[#E0E7FF] dark:from-[hsl(220,30%,14%)] dark:to-[hsl(230,25%,16%)] h-36 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-1.5 text-[#9AA2AF] dark:text-[hsl(200,25%,40%)]">
+              <ImageIcon size={28} />
+              <span className="text-xs font-medium">Add cover image</span>
+            </div>
+          </div>
+
+          {/* Form header */}
+          <div className="bg-white dark:bg-[hsl(200,30%,12%)] border-x border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] px-8 pt-6 pb-4">
+            <input
+              type="text"
+              value={formTitle}
+              onChange={(e) => setFormTitle(e.target.value)}
+              className="w-full text-2xl font-bold text-[#374151] dark:text-[hsl(200,25%,88%)] bg-transparent border-none outline-none placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(200,25%,40%)]"
+              placeholder="Form title"
+            />
+            <input
+              type="text"
+              value={formDescription}
+              onChange={(e) => setFormDescription(e.target.value)}
+              className="w-full mt-1.5 text-sm text-[#6A7184] dark:text-[hsl(200,25%,60%)] bg-transparent border-none outline-none placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(200,25%,40%)]"
+              placeholder="Add a description..."
+            />
+          </div>
+
+          {/* Form fields */}
+          <div className="space-y-0">
+            {editableFields.map((f) => {
+              const Icon = getFieldTypeIcon(f.ui_type);
+              const req = isFieldRequired(f);
+              return (
+                <div
+                  key={f.id}
+                  className="bg-white dark:bg-[hsl(200,30%,12%)] border-x border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] px-8 py-5 group"
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Drag handle */}
+                    <div className="mt-0.5 opacity-0 group-hover:opacity-40 transition-opacity cursor-grab text-[#6A7184] dark:text-[hsl(200,25%,50%)]">
+                      <GripVertical size={16} />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Icon size={14} className="text-[#9AA2AF] dark:text-[hsl(200,25%,45%)] shrink-0" />
+                        <span className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                          {f.name}
+                        </span>
+                        {req && (
+                          <span className="text-red-400 text-xs">*</span>
+                        )}
+                        {/* Required toggle */}
+                        <button
+                          type="button"
+                          onClick={() => toggleRequired(f.id, req)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
+                          title={req ? 'Mark as optional' : 'Mark as required'}
+                        >
+                          <Star
+                            size={14}
+                            className={
+                              req
+                                ? 'text-amber-400 fill-amber-400'
+                                : 'text-[#9AA2AF] dark:text-[hsl(200,25%,40%)]'
+                            }
+                          />
+                        </button>
+                      </div>
+                      {f.description && (
+                        <p className="text-xs text-[#9AA2AF] dark:text-[hsl(200,25%,45%)] mb-2">{f.description}</p>
+                      )}
+                      {renderInput(f)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Submit button */}
+          <div className="bg-white dark:bg-[hsl(200,30%,12%)] border-x border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-b-xl px-8 py-6">
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="px-8 py-2.5 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50"
+              style={{ backgroundColor: '#3366FF' }}
+              onMouseEnter={(e) => {
+                if (!isLoading) e.currentTarget.style.backgroundColor = '#2952CC';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#3366FF';
+              }}
+            >
+              {isLoading ? 'Submitting...' : 'Submit'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

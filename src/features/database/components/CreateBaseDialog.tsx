@@ -18,14 +18,21 @@ interface CreateBaseDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const BASE_COLORS = [
-  '#3366FF', '#2D9CDB', '#10B981', '#F59E0B', '#EF4444',
+const EMOJI_OPTIONS = [
+  '📊', '📁', '📋', '📅', '📦',
+  '🚀', '⭐', '💡', '🎯', '🔧',
+  '📝', '📚', '🧩', '🌐', '❤️',
+];
+
+const COLOR_OPTIONS = [
+  '#3366FF', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444',
   '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F97316',
 ];
 
 export function CreateBaseDialog({ open, onOpenChange }: CreateBaseDialogProps) {
   const [name, setName] = useState('');
-  const [color, setColor] = useState(BASE_COLORS[0]);
+  const [icon, setIcon] = useState(EMOJI_OPTIONS[0]);
+  const [color, setColor] = useState('#3366FF');
   const [error, setError] = useState('');
   const createBase = useCreateBase();
   const { setActiveBase } = useDatabaseUI();
@@ -84,17 +91,35 @@ export function CreateBaseDialog({ open, onOpenChange }: CreateBaseDialogProps) 
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-[#4A5268]">Color</Label>
-            <div className="flex items-center gap-2">
-              {BASE_COLORS.map((c) => (
+            <Label className="text-xs">Icon</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {EMOJI_OPTIONS.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  className={cn(
+                    'w-8 h-8 rounded flex items-center justify-center text-base hover:bg-gray-100 transition-colors',
+                    icon === emoji && 'ring-2 ring-[#3366FF] bg-[#3366FF]/5'
+                  )}
+                  onClick={() => setIcon(emoji)}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Color picker */}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Color</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {COLOR_OPTIONS.map((c) => (
                 <button
                   key={c}
                   type="button"
                   className={cn(
-                    'w-6 h-6 rounded-full transition-all',
-                    color === c
-                      ? 'ring-2 ring-offset-2 ring-[#3366FF] scale-110'
-                      : 'hover:scale-105',
+                    'w-7 h-7 rounded-full transition-transform',
+                    color === c && 'ring-2 ring-offset-2 ring-[#3366FF] scale-110'
                   )}
                   style={{ backgroundColor: c }}
                   onClick={() => setColor(c)}
@@ -118,7 +143,7 @@ export function CreateBaseDialog({ open, onOpenChange }: CreateBaseDialogProps) 
           </Button>
           <Button
             size="sm"
-            className="bg-[#3366FF] hover:bg-[#2952CC] text-white"
+            className="bg-[#3366FF] hover:bg-[#2952CC]"
             onClick={handleCreate}
             disabled={createBase.isPending || !name.trim()}
           >

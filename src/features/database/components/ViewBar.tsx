@@ -1,317 +1,243 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import {
-  Grid3X3,
-  Columns3,
-  ClipboardList,
-  Image,
-  CalendarDays,
-  Plus,
-  type LucideIcon,
-} from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import { Grid3X3, LayoutGrid, Columns3, FileText, Calendar, GanttChart, Plus, Pencil, Trash2, Copy, Lock, Unlock } from 'lucide-react';
 import { useDatabaseUI } from '../lib/store';
-import { useViews, useCreateView, useUpdateView, useDeleteView } from '../hooks';
-import type { ViewMeta } from '../types';
+import { useViews, useCreateView, useUpdateView, useDeleteView, useLoadViewConfig } from '../hooks';
 
-const VIEW_TYPE_ICON: Record<ViewMeta['type'], LucideIcon> = {
+const VIEW_ICONS: Record<string, typeof Grid3X3> = {
   grid: Grid3X3,
   kanban: Columns3,
-  form: ClipboardList,
-  gallery: Image,
-  calendar: CalendarDays,
+  gallery: LayoutGrid,
+  form: FileText,
+  calendar: Calendar,
+  timeline: GanttChart,
 };
 
-const VIEW_TYPE_LABEL: Record<ViewMeta['type'], string> = {
-  grid: 'Grid',
-  kanban: 'Kanban',
-  form: 'Form',
-  gallery: 'Gallery',
-  calendar: 'Calendar',
-};
-
-interface ViewTabProps {
-  view: ViewMeta;
-  isActive: boolean;
-  onSelect: () => void;
-  onRename: (name: string) => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
-}
-
-function ViewTab({ view, isActive, onSelect, onRename, onDuplicate, onDelete }: ViewTabProps) {
-  const Icon = VIEW_TYPE_ICON[view.type];
-  const [editing, setEditing] = useState(false);
-  const [editName, setEditName] = useState(view.name);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [contextOpen, setContextOpen] = useState(false);
-
-  useEffect(() => {
-    if (editing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [editing]);
-
-  const commitRename = useCallback(() => {
-    const trimmed = editName.trim();
-    if (trimmed && trimmed !== view.name) {
-      onRename(trimmed);
-    } else {
-      setEditName(view.name);
-    }
-    setEditing(false);
-  }, [editName, view.name, onRename]);
-
-  // Drag state
-  const handleDragStart = useCallback(
-    (e: React.DragEvent) => {
-      e.dataTransfer.setData('text/plain', view.id);
-      e.dataTransfer.effectAllowed = 'move';
-    },
-    [view.id],
-  );
-
-  return (
-    <DropdownMenu open={contextOpen} onOpenChange={setContextOpen}>
-      <DropdownMenuTrigger asChild>
-        <button
-          className={`
-            flex items-center gap-1.5 px-3 h-full text-xs whitespace-nowrap
-            border-b-2 transition-colors cursor-pointer select-none
-            ${
-              isActive
-                ? 'border-[#3366FF] text-[#3366FF] font-semibold'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-            }
-          `}
-          draggable
-          onDragStart={handleDragStart}
-          onClick={(e) => {
-            // Prevent dropdown from opening on left click
-            e.preventDefault();
-            onSelect();
-          }}
-          onDoubleClick={(e) => {
-            e.preventDefault();
-            setEditName(view.name);
-            setEditing(true);
-          }}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            setContextOpen(true);
-          }}
-        >
-          <Icon className="w-3.5 h-3.5 shrink-0" />
-          {editing ? (
-            <input
-              ref={inputRef}
-              className="bg-white border border-slate-300 rounded px-1 py-0 text-xs w-24 outline-none"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              onBlur={commitRename}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitRename();
-                if (e.key === 'Escape') {
-                  setEditName(view.name);
-                  setEditing(false);
-                }
-              }}
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <span>{view.name}</span>
-          )}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-40">
-        <DropdownMenuItem
-          onClick={() => {
-            setEditName(view.name);
-            setEditing(true);
-          }}
-        >
-          Rename
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={onDuplicate}>Duplicate</DropdownMenuItem>
-        {!view.is_default && (
-          <DropdownMenuItem className="text-red-600" onClick={onDelete}>
-            Delete
-          </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
+const VIEW_TYPE_OPTIONS: Array<{ type: 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar' | 'timeline'; label: string }> = [
+  { type: 'grid', label: 'Grid' },
+  { type: 'kanban', label: 'Kanban' },
+  { type: 'gallery', label: 'Gallery' },
+  { type: 'form', label: 'Form' },
+  { type: 'calendar', label: 'Calendar' },
+  { type: 'timeline', label: 'Timeline' },
+];
 
 export function ViewBar() {
   const { activeTableId, activeViewId, setActiveView } = useDatabaseUI();
   const { data: views } = useViews(activeTableId);
   const createView = useCreateView();
   const updateView = useUpdateView();
-  const deleteViewMut = useDeleteView();
+  const deleteView = useDeleteView();
+  const loadViewConfig = useLoadViewConfig();
 
-  // Auto-select default view when views load
-  useEffect(() => {
-    if (!views || views.length === 0 || !activeTableId) return;
-    if (activeViewId && views.some((v) => v.id === activeViewId)) return;
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; viewId: string } | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameText, setRenameText] = useState('');
+  const renameRef = useRef<HTMLInputElement>(null);
 
-    const defaultView = views.find((v) => v.is_default) ?? views[0];
-    setActiveView(defaultView.id);
-  }, [views, activeTableId, activeViewId, setActiveView]);
-
-  // Auto-create default view when none exist
-  useEffect(() => {
-    if (views && views.length === 0 && activeTableId && !createView.isPending) {
-      createView.mutate({
-        table_id: activeTableId,
-        name: 'Grid View',
-        type: 'grid',
-        position: 0,
-      });
-    }
-  }, [views, activeTableId, createView]);
-
-  const handleRename = useCallback(
-    (view: ViewMeta, name: string) => {
-      updateView.mutate({ id: view.id, table_id: view.table_id, updates: { name } });
-    },
-    [updateView],
-  );
-
-  const handleDuplicate = useCallback(
-    (view: ViewMeta) => {
-      createView.mutate(
-        {
-          table_id: view.table_id,
-          name: `${view.name} (copy)`,
-          type: view.type,
-          filters: view.filters,
-          sorts: view.sorts,
-          groups: view.groups,
-          field_order: view.field_order,
-          field_visibility: view.field_visibility,
-          field_widths: view.field_widths,
-          position: (views?.length ?? 0),
-        },
-        {
-          onSuccess: (newView) => setActiveView(newView.id),
-        },
-      );
-    },
-    [createView, views, setActiveView],
-  );
-
-  const handleDelete = useCallback(
-    (view: ViewMeta) => {
-      if (!window.confirm(`Delete view "${view.name}"?`)) return;
-      deleteViewMut.mutate({ id: view.id, table_id: view.table_id });
-      if (activeViewId === view.id) {
-        const remaining = views?.filter((v) => v.id !== view.id);
-        const next = remaining?.find((v) => v.is_default) ?? remaining?.[0];
-        if (next) setActiveView(next.id);
-      }
-    },
-    [deleteViewMut, views, activeViewId, setActiveView],
+  const sorted = useMemo(
+    () => (views ?? []).slice().sort((a, b) => a.position - b.position),
+    [views],
   );
 
   const handleAddView = useCallback(
-    (type: ViewMeta['type']) => {
+    (type: 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar' | 'timeline') => {
       if (!activeTableId) return;
-      const label = VIEW_TYPE_LABEL[type];
-      createView.mutate(
-        {
-          table_id: activeTableId,
-          name: `${label} View`,
-          type,
-          position: (views?.length ?? 0),
-        },
-        {
-          onSuccess: (newView) => setActiveView(newView.id),
-        },
-      );
-    },
-    [activeTableId, createView, views, setActiveView],
-  );
-
-  // Drop handler for reordering
-  const handleDrop = useCallback(
-    (e: React.DragEvent, targetIndex: number) => {
-      e.preventDefault();
-      const draggedId = e.dataTransfer.getData('text/plain');
-      if (!views || !activeTableId) return;
-
-      const draggedIndex = views.findIndex((v) => v.id === draggedId);
-      if (draggedIndex === -1 || draggedIndex === targetIndex) return;
-
-      // Reorder: update positions
-      const reordered = [...views];
-      const [moved] = reordered.splice(draggedIndex, 1);
-      reordered.splice(targetIndex, 0, moved);
-
-      reordered.forEach((v, i) => {
-        if (v.position !== i) {
-          updateView.mutate({ id: v.id, table_id: activeTableId, updates: { position: i } });
-        }
+      createView.mutate({
+        table_id: activeTableId,
+        name: `${type.charAt(0).toUpperCase() + type.slice(1)} view`,
+        type,
+        position: (views?.length ?? 0) + 1,
       });
+      setAddMenuOpen(false);
     },
-    [views, activeTableId, updateView],
+    [activeTableId, createView, views],
   );
 
-  if (!activeTableId) return null;
+  const handleRename = useCallback(
+    (viewId: string) => {
+      const trimmed = renameText.trim();
+      if (trimmed) {
+        updateView.mutate({ id: viewId, table_id: activeTableId!, updates: { name: trimmed } });
+      }
+      setRenamingId(null);
+    },
+    [renameText, updateView, activeTableId],
+  );
+
+  useEffect(() => {
+    if (renamingId) renameRef.current?.focus();
+  }, [renamingId]);
 
   return (
-    <div
-      className="flex items-center h-9 bg-white dark:bg-[hsl(200,30%,8%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] px-2 gap-0.5 overflow-x-auto"
-      style={{ minHeight: 36, maxHeight: 36 }}
-    >
-      {views?.map((view, index) => (
-        <div
-          key={view.id}
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-          }}
-          onDrop={(e) => handleDrop(e, index)}
-          className="h-full flex items-center"
-        >
-          <ViewTab
-            view={view}
-            isActive={view.id === activeViewId}
-            onSelect={() => setActiveView(view.id)}
-            onRename={(name) => handleRename(view, name)}
-            onDuplicate={() => handleDuplicate(view)}
-            onDelete={() => handleDelete(view)}
-          />
-        </div>
-      ))}
+    <>
+      <div
+        className="flex items-center gap-0.5 px-2 shrink-0 overflow-x-auto dark:bg-[hsl(200,30%,8%)] dark:border-[hsl(200,25%,18%)]"
+        style={{
+          height: 34,
+          borderBottom: '1px solid #E7E7E9',
+          backgroundColor: '#FAFAFA',
+        }}
+      >
+        {sorted.map((v) => {
+          const Icon = VIEW_ICONS[v.type] ?? Grid3X3;
+          const isActive = v.id === activeViewId;
 
-      {/* Add View button */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className="flex items-center justify-center w-7 h-7 ml-1 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors">
-            <Plus className="w-4 h-4" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-44">
-          {(Object.keys(VIEW_TYPE_ICON) as ViewMeta['type'][]).map((type) => {
-            const TypeIcon = VIEW_TYPE_ICON[type];
+          if (renamingId === v.id) {
             return (
-              <DropdownMenuItem
-                key={type}
-                onClick={() => handleAddView(type)}
-              >
-                <TypeIcon className="w-4 h-4 mr-2" />
-                {VIEW_TYPE_LABEL[type]}
-              </DropdownMenuItem>
+              <div key={v.id} className="flex items-center gap-1">
+                <input
+                  ref={renameRef}
+                  className="h-6 w-28 px-1.5 text-[12px] border border-[#3366FF] rounded outline-none"
+                  value={renameText}
+                  onChange={(e) => setRenameText(e.target.value)}
+                  onBlur={() => handleRename(v.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleRename(v.id);
+                    if (e.key === 'Escape') setRenamingId(null);
+                  }}
+                />
+              </div>
             );
-          })}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+          }
+
+          return (
+            <button
+              key={v.id}
+              onClick={() => loadViewConfig(v.id)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setContextMenu({ x: e.clientX, y: e.clientY, viewId: v.id });
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[12px] font-medium whitespace-nowrap transition-colors"
+              style={{
+                color: isActive ? '#3366FF' : '#6A7184',
+                backgroundColor: isActive ? '#EBF0FF' : 'transparent',
+              }}
+            >
+              <Icon size={13} />
+              {v.name}
+              {v.is_locked && <Lock size={10} className="text-[#9AA2AF] ml-0.5" />}
+            </button>
+          );
+        })}
+
+        <div className="relative">
+          <button
+            onClick={() => setAddMenuOpen(!addMenuOpen)}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[12px] hover:bg-gray-100 whitespace-nowrap"
+            style={{ color: '#9AA2AF' }}
+          >
+            <Plus size={12} />
+          </button>
+          {addMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setAddMenuOpen(false)} />
+              <div className="absolute left-0 top-full z-50 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[160px]">
+                {VIEW_TYPE_OPTIONS.map((opt) => {
+                  const Icon = VIEW_ICONS[opt.type];
+                  return (
+                    <button
+                      key={opt.type}
+                      className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                      onClick={() => handleAddView(opt.type)}
+                    >
+                      <Icon size={13} className="text-[#9AA2AF]" />
+                      {opt.label} view
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* View context menu */}
+      {contextMenu && (
+        <>
+          <div className="fixed inset-0 z-50" onClick={() => setContextMenu(null)} />
+          <div
+            className="fixed z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[140px]"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+          >
+            <button
+              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              onClick={() => {
+                const view = sorted.find((v) => v.id === contextMenu.viewId);
+                if (view) {
+                  setRenameText(view.name);
+                  setRenamingId(view.id);
+                }
+                setContextMenu(null);
+              }}
+            >
+              <Pencil size={12} className="text-[#9AA2AF]" /> Rename
+            </button>
+            <button
+              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              onClick={() => {
+                if (!activeTableId) return;
+                const view = sorted.find((v) => v.id === contextMenu.viewId);
+                if (view) {
+                  createView.mutate({
+                    table_id: activeTableId,
+                    name: `${view.name} (copy)`,
+                    type: view.type,
+                    filters: view.filters,
+                    sorts: view.sorts,
+                    groups: view.groups,
+                    field_order: view.field_order,
+                    field_visibility: view.field_visibility,
+                    field_widths: view.field_widths,
+                    position: (views?.length ?? 0) + 1,
+                  });
+                }
+                setContextMenu(null);
+              }}
+            >
+              <Copy size={12} className="text-[#9AA2AF]" /> Duplicate
+            </button>
+            <button
+              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              onClick={() => {
+                if (!activeTableId) return;
+                const view = sorted.find((v) => v.id === contextMenu.viewId);
+                if (view) {
+                  updateView.mutate({
+                    id: view.id,
+                    table_id: activeTableId,
+                    updates: { is_locked: !view.is_locked },
+                  });
+                }
+                setContextMenu(null);
+              }}
+            >
+              {sorted.find((v) => v.id === contextMenu.viewId)?.is_locked
+                ? <><Unlock size={12} className="text-[#9AA2AF]" /> Unlock view</>
+                : <><Lock size={12} className="text-[#9AA2AF]" /> Lock view</>
+              }
+            </button>
+            <div className="h-px bg-[#E7E7E9] my-0.5" />
+            <button
+              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-red-50 flex items-center gap-2 text-red-500"
+              onClick={() => {
+                if (!activeTableId) return;
+                const view = sorted.find((v) => v.id === contextMenu.viewId);
+                if (view?.is_default) return;
+                deleteView.mutate({ id: contextMenu.viewId, table_id: activeTableId });
+                if (activeViewId === contextMenu.viewId) {
+                  const fallback = sorted.find((v) => v.id !== contextMenu.viewId);
+                  if (fallback) loadViewConfig(fallback.id);
+                }
+                setContextMenu(null);
+              }}
+            >
+              <Trash2 size={12} /> Delete
+            </button>
+          </div>
+        </>
+      )}
+    </>
   );
 }

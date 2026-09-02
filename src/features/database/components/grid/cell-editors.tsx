@@ -1,8 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Star, Paperclip, X } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Paperclip } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
 import { PILL_COLORS } from '@/features/database/types';
+import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
+import { validateField, type ValidationRule } from '../../lib/validation';
+
+function useEditorValidation(value: any, field: FieldMeta) {
+  return useMemo(() => {
+    const rules: ValidationRule[] = (field.options as any)?.validations ?? [];
+    if (rules.length === 0) return { valid: true, errors: [] as string[] };
+    return validateField(value, field, rules);
+  }, [value, field]);
+}
 
 interface CellEditorProps {
   value: any;
@@ -15,9 +24,10 @@ function getPillColor(colorName: string) {
   return PILL_COLORS.find((c) => c.name === colorName) || PILL_COLORS[7];
 }
 
-export function TextCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function TextCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
+  const { valid, errors } = useEditorValidation(text, field);
 
   useEffect(() => {
     ref.current?.focus();
@@ -25,51 +35,38 @@ export function TextCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   }, []);
 
   return (
-    <input
-      ref={ref}
-      type="text"
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(text);
-        if (e.key === 'Escape') onCancel();
-      }}
-      onBlur={() => onCommit(text)}
-      className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#374151' }}
-    />
+    <div className="relative w-full h-full">
+      <input
+        ref={ref}
+        type="text"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onCommit(text);
+          if (e.key === 'Escape') onCancel();
+        }}
+        onBlur={() => onCommit(text)}
+        className="w-full h-full px-2 outline-none bg-white"
+        style={{
+          fontSize: 13,
+          color: '#0F172A',
+          border: valid ? 'none' : '2px solid #EF4444',
+        }}
+      />
+      {!valid && (
+        <div className="absolute left-0 top-full z-50 bg-white border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
+          {errors[0]}
+        </div>
+      )}
+    </div>
   );
 }
 
-export function LongTextCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const [text, setText] = useState(value ?? '');
-  const ref = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
-
-  return (
-    <textarea
-      ref={ref}
-      rows={4}
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) onCommit(text);
-        if (e.key === 'Escape') onCancel();
-      }}
-      onBlur={() => onCommit(text)}
-      className="w-full px-2 py-1 outline-none border-none bg-white resize-none"
-      style={{ fontSize: 13, color: '#374151', minHeight: 80 }}
-    />
-  );
-}
-
-export function NumberCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function NumberCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const [num, setNum] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
+  const numVal = num === '' ? null : Number(num);
+  const { valid, errors } = useEditorValidation(numVal, field);
 
   useEffect(() => {
     ref.current?.focus();
@@ -77,60 +74,7 @@ export function NumberCellEditor({ value, onCommit, onCancel }: CellEditorProps)
   }, []);
 
   return (
-    <input
-      ref={ref}
-      type="number"
-      value={num}
-      onChange={(e) => setNum(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
-        if (e.key === 'Escape') onCancel();
-      }}
-      onBlur={() => onCommit(num === '' ? null : Number(num))}
-      className="w-full h-full px-2 outline-none border-none bg-white text-right"
-      style={{ fontSize: 13, color: '#374151' }}
-    />
-  );
-}
-
-export function DecimalCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const [num, setNum] = useState(value ?? '');
-  const ref = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
-
-  return (
-    <input
-      ref={ref}
-      type="number"
-      step="0.01"
-      value={num}
-      onChange={(e) => setNum(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
-        if (e.key === 'Escape') onCancel();
-      }}
-      onBlur={() => onCommit(num === '' ? null : Number(num))}
-      className="w-full h-full px-2 outline-none border-none bg-white text-right"
-      style={{ fontSize: 13, color: '#374151' }}
-    />
-  );
-}
-
-export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const [num, setNum] = useState(value ?? '');
-  const ref = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
-
-  return (
-    <div className="flex items-center w-full h-full bg-white">
+    <div className="relative w-full h-full">
       <input
         ref={ref}
         type="number"
@@ -141,17 +85,27 @@ export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps
           if (e.key === 'Escape') onCancel();
         }}
         onBlur={() => onCommit(num === '' ? null : Number(num))}
-        className="w-full h-full px-2 outline-none border-none bg-white text-right"
-        style={{ fontSize: 13, color: '#374151' }}
+        className="w-full h-full px-2 outline-none bg-white text-right"
+        style={{
+          fontSize: 13,
+          color: '#0F172A',
+          border: valid ? 'none' : '2px solid #EF4444',
+        }}
       />
-      <span className="pr-2 shrink-0" style={{ fontSize: 13, color: '#9AA2AF' }}>%</span>
+      {!valid && (
+        <div className="absolute right-0 top-full z-50 bg-white border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
+          {errors[0]}
+        </div>
+      )}
     </div>
   );
 }
 
-export function CurrencyCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const [num, setNum] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
+  const numVal = num === '' ? null : Number(num);
+  const { valid, errors } = useEditorValidation(numVal, field);
 
   useEffect(() => {
     ref.current?.focus();
@@ -159,20 +113,31 @@ export function CurrencyCellEditor({ value, onCommit, onCancel }: CellEditorProp
   }, []);
 
   return (
-    <input
-      ref={ref}
-      type="number"
-      step="0.01"
-      value={num}
-      onChange={(e) => setNum(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
-        if (e.key === 'Escape') onCancel();
-      }}
-      onBlur={() => onCommit(num === '' ? null : Number(num))}
-      className="w-full h-full px-2 outline-none border-none bg-white text-right"
-      style={{ fontSize: 13, color: '#374151' }}
-    />
+    <div className="relative w-full h-full">
+      <input
+        ref={ref}
+        type="number"
+        step="0.01"
+        value={num}
+        onChange={(e) => setNum(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
+          if (e.key === 'Escape') onCancel();
+        }}
+        onBlur={() => onCommit(num === '' ? null : Number(num))}
+        className="w-full h-full px-2 outline-none bg-white text-right"
+        style={{
+          fontSize: 13,
+          color: '#0F172A',
+          border: valid ? 'none' : '2px solid #EF4444',
+        }}
+      />
+      {!valid && (
+        <div className="absolute right-0 top-full z-50 bg-white border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
+          {errors[0]}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -397,53 +362,51 @@ export function SelectCellEditor({ value, field, onCommit, onCancel }: CellEdito
 
 export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const choices = field.options?.choices || [];
-  const selected: string[] = Array.isArray(value) ? value : value ? [value] : [];
+  const [selected, setSelected] = useState<string[]>(
+    Array.isArray(value) ? value : value ? [value] : [],
+  );
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        onCancel();
+        onCommit(selected);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [onCancel]);
+  }, [onCommit, selected]);
 
-  function toggle(title: string) {
-    const next = selected.includes(title)
-      ? selected.filter((s) => s !== title)
-      : [...selected, title];
-    onCommit(next.length > 0 ? next : null);
-  }
+  const toggle = (title: string) => {
+    setSelected((prev) =>
+      prev.includes(title) ? prev.filter((t) => t !== title) : [...prev, title],
+    );
+  };
 
   return (
     <div
       ref={ref}
-      className="absolute left-0 top-full z-50 bg-white border rounded-md shadow-lg py-1 min-w-[180px] max-h-[240px] overflow-y-auto"
+      className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border rounded-md shadow-lg py-1 min-w-[180px] max-h-[240px] overflow-y-auto"
       style={{ borderColor: '#E7E7E9' }}
     >
       {choices.map((choice: SelectChoice) => {
         const color = getPillColor(choice.color);
-        const isSelected = selected.includes(choice.title);
+        const isChecked = selected.includes(choice.title);
         return (
           <button
             key={choice.title}
-            className="w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center gap-2"
+            className="w-full text-left px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-white/5 flex items-center gap-2"
             onClick={() => toggle(choice.title)}
           >
             <span
-              className="w-4 h-4 rounded border flex items-center justify-center shrink-0"
+              className="inline-flex items-center justify-center w-4 h-4 rounded border text-[10px]"
               style={{
-                borderColor: isSelected ? color.text : '#CBD5E1',
-                backgroundColor: isSelected ? color.bg : 'transparent',
+                borderColor: isChecked ? '#3366FF' : '#9AA2AF',
+                backgroundColor: isChecked ? '#3366FF' : 'transparent',
+                color: isChecked ? '#fff' : 'transparent',
               }}
             >
-              {isSelected && (
-                <svg width="10" height="10" viewBox="0 0 10 10">
-                  <path d="M2 5l2 2 4-4" stroke={color.text} strokeWidth="1.5" fill="none" />
-                </svg>
-              )}
+              {isChecked ? '✓' : ''}
             </span>
             <span
               className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
@@ -456,9 +419,12 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: Cell
       })}
       {selected.length > 0 && (
         <button
-          className="w-full text-left px-3 py-1.5 hover:bg-gray-50 text-xs"
-          style={{ color: '#9AA2AF' }}
-          onClick={() => onCommit(null)}
+          className="w-full text-left px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-white/5 text-xs"
+          style={{ color: '#94A3B8' }}
+          onClick={() => {
+            setSelected([]);
+            onCommit([]);
+          }}
         >
           Clear all
         </button>
@@ -467,225 +433,109 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: Cell
   );
 }
 
-export function JSONCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const initial = typeof value === 'string' ? value : JSON.stringify(value, null, 2) ?? '';
-  const [text, setText] = useState(initial);
-  const ref = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    ref.current?.focus();
-  }, []);
-
-  function commitJSON() {
-    try {
-      onCommit(JSON.parse(text));
-    } catch {
-      onCommit(text);
-    }
-  }
+export function RatingCellEditor({ value, field, onCommit }: CellEditorProps) {
+  const max = field.options?.max ?? 5;
+  const current = typeof value === 'number' ? value : 0;
 
   return (
-    <textarea
-      ref={ref}
-      rows={4}
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) commitJSON();
-        if (e.key === 'Escape') onCancel();
-      }}
-      onBlur={() => commitJSON()}
-      className="w-full px-2 py-1 outline-none border-none bg-white resize-none"
-      style={{ fontSize: 12, color: '#374151', fontFamily: 'monospace', minHeight: 80 }}
-    />
-  );
-}
-
-export function AttachmentCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const [files, setFiles] = useState<{ name: string; url: string; type: string; size: number }[]>(
-    Array.isArray(value) ? value : [],
-  );
-  const [uploading, setUploading] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onCancel();
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [onCancel]);
-
-  function formatSize(bytes: number) {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-
-  function removeFile(index: number) {
-    const next = files.filter((_, i) => i !== index);
-    setFiles(next);
-    onCommit(next.length > 0 ? next : null);
-  }
-
-  async function uploadFiles(fileList: FileList | File[]) {
-    setUploading(true);
-    const newFiles = [...files];
-    const items = Array.from(fileList);
-    for (const file of items) {
-      const path = `attachments/${Date.now()}_${file.name}`;
-      const { error } = await supabase.storage.from('attachments').upload(path, file);
-      if (error) continue;
-      const { data: urlData } = supabase.storage.from('attachments').getPublicUrl(path);
-      newFiles.push({ name: file.name, url: urlData.publicUrl, type: file.type, size: file.size });
-    }
-    setFiles(newFiles);
-    setUploading(false);
-    onCommit(newFiles);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }
-
-  const isImage = (type: string) => type?.startsWith('image/');
-
-  return (
-    <div
-      ref={ref}
-      className="absolute left-0 top-full z-50 bg-white border rounded-lg shadow-xl min-w-[320px] max-h-[400px] overflow-y-auto"
-      style={{ borderColor: '#E7E7E9' }}
-    >
-      {/* Drag & Drop Zone */}
-      <div
-        className="m-3 mb-2 rounded-lg border-2 border-dashed flex flex-col items-center justify-center py-5 px-4 cursor-pointer transition-colors"
-        style={{
-          borderColor: dragOver ? '#3366FF' : '#D5D5D9',
-          backgroundColor: dragOver ? '#EEF2FF' : '#FAFAFA',
-        }}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragOver(false);
-          if (e.dataTransfer.files?.length) uploadFiles(e.dataTransfer.files);
-        }}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <Paperclip size={20} style={{ color: dragOver ? '#3366FF' : '#9AA2AF' }} />
-        <p className="text-xs mt-1.5 font-medium" style={{ color: '#6A7184' }}>
-          {uploading ? 'Uploading...' : 'Click or drag files here'}
-        </p>
-        <p className="text-[10px] mt-0.5" style={{ color: '#9AA2AF' }}>
-          Supports any file type
-        </p>
-      </div>
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        onChange={(e) => e.target.files && uploadFiles(e.target.files)}
-        className="hidden"
-      />
-
-      {/* File list */}
-      {files.length > 0 && (
-        <div className="px-3 pb-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: '#9AA2AF' }}>
-            {files.length} {files.length === 1 ? 'file' : 'files'}
-          </p>
-          <div className="space-y-1">
-            {files.map((f, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#F4F4F5] group"
-              >
-                {isImage(f.type) ? (
-                  <img
-                    src={f.url}
-                    alt={f.name}
-                    className="h-8 w-8 rounded object-cover border border-[#E7E7E9] shrink-0"
-                  />
-                ) : (
-                  <div className="h-8 w-8 rounded bg-[#F4F4F5] border border-[#E7E7E9] flex items-center justify-center shrink-0">
-                    <Paperclip size={12} className="text-[#9AA2AF]" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs truncate" style={{ color: '#374151' }} title={f.name}>
-                    {f.name}
-                  </p>
-                  <p className="text-[10px]" style={{ color: '#9AA2AF' }}>
-                    {formatSize(f.size)}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="p-1 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                  onClick={(e) => { e.stopPropagation(); removeFile(i); }}
-                  title="Remove"
-                >
-                  <X size={13} color="#DC2626" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="flex items-center gap-0.5 px-1 h-full">
+      {Array.from({ length: max }, (_, i) => (
+        <button
+          key={i}
+          type="button"
+          className="p-0"
+          onClick={() => onCommit(i + 1 === current ? 0 : i + 1)}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill={i < current ? '#F59E0B' : 'none'} stroke={i < current ? '#F59E0B' : '#D1D5DB'} strokeWidth="1.5">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+          </svg>
+        </button>
+      ))}
     </div>
   );
 }
 
-export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const initial = value ? new Date(value).toISOString().slice(0, 16) : '';
-  const [dt, setDt] = useState(initial);
+export function DurationCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+  const seconds = typeof value === 'number' ? value : 0;
+  const [h, setH] = useState(Math.floor(seconds / 3600));
+  const [m, setM] = useState(Math.floor((seconds % 3600) / 60));
+  const [s, setS] = useState(Math.floor(seconds % 60));
   const ref = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    ref.current?.focus();
-  }, []);
+  useEffect(() => { ref.current?.focus(); }, []);
+
+  const commit = () => onCommit(h * 3600 + m * 60 + s);
 
   return (
-    <input
-      ref={ref}
-      type="datetime-local"
-      value={dt}
-      onChange={(e) => setDt(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(dt || null);
-        if (e.key === 'Escape') onCancel();
-      }}
-      onBlur={() => onCommit(dt || null)}
-      className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#374151' }}
-    />
+    <div className="flex items-center gap-1 px-1 h-full">
+      <input ref={ref} type="number" min={0} value={h} onChange={(e) => setH(+e.target.value)} className="w-10 h-6 text-center text-xs border rounded outline-none" onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') onCancel(); }} />
+      <span className="text-[10px] text-[#9AA2AF]">h</span>
+      <input type="number" min={0} max={59} value={m} onChange={(e) => setM(+e.target.value)} className="w-10 h-6 text-center text-xs border rounded outline-none" onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') onCancel(); }} />
+      <span className="text-[10px] text-[#9AA2AF]">m</span>
+      <input type="number" min={0} max={59} value={s} onChange={(e) => setS(+e.target.value)} className="w-10 h-6 text-center text-xs border rounded outline-none" onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') onCancel(); }} onBlur={commit} />
+      <span className="text-[10px] text-[#9AA2AF]">s</span>
+    </div>
   );
 }
 
-export function TimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const [time, setTime] = useState(value ?? '');
+export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+  const [num, setNum] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
+  return (
+    <div className="flex items-center w-full h-full">
+      <input ref={ref} type="number" value={num} onChange={(e) => setNum(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') onCommit(num === '' ? null : Number(num)); if (e.key === 'Escape') onCancel(); }}
+        onBlur={() => onCommit(num === '' ? null : Number(num))}
+        className="w-full h-full px-2 outline-none border-none bg-white text-right" style={{ fontSize: 13 }}
+      />
+      <span className="pr-2 text-xs text-[#9AA2AF]">%</span>
+    </div>
+  );
+}
 
-  useEffect(() => {
-    ref.current?.focus();
-  }, []);
+export function AttachmentCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+  const [open, setOpen] = useState(true);
+  const attachments: AttachmentMeta[] = Array.isArray(value) ? value : [];
 
   return (
-    <input
-      ref={ref}
-      type="time"
-      value={time}
-      onChange={(e) => setTime(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(time || null);
-        if (e.key === 'Escape') onCancel();
-      }}
-      onBlur={() => onCommit(time || null)}
-      className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#374151' }}
-    />
+    <>
+      {/* Inline trigger showing count */}
+      <div
+        className="flex items-center gap-1 px-2 h-full cursor-pointer text-xs"
+        style={{ color: '#6A7184' }}
+        onClick={() => setOpen(true)}
+      >
+        <Paperclip size={12} />
+        <span>{attachments.length} file{attachments.length !== 1 ? 's' : ''}</span>
+      </div>
+      <AttachmentManager
+        open={open}
+        onOpenChange={(o) => {
+          setOpen(o);
+          if (!o) onCancel();
+        }}
+        value={attachments}
+        onCommit={(updated) => {
+          onCommit(updated);
+        }}
+        storagePath={field.id}
+      />
+    </>
   );
+}
+
+/**
+ * LinksCellEditor - opens the LinkedRecordPicker dialog.
+ * The actual picker is rendered by the grid when it detects a Links field
+ * entering edit mode. This editor acts as a no-op placeholder so the grid
+ * knows to trigger the picker dialog instead.
+ */
+export function LinksCellEditor({ onCancel }: CellEditorProps) {
+  // The grid component intercepts Links editing and opens LinkedRecordPicker.
+  // This component renders nothing; onCancel is called immediately.
+  onCancel();
+  return null;
 }
 
 export function getCellEditor(uiType: string) {
@@ -723,22 +573,17 @@ export function getCellEditor(uiType: string) {
       return SelectCellEditor;
     case 'MultiSelect':
       return MultiSelectCellEditor;
-    case 'JSON':
-      return JSONCellEditor;
-    case 'Checkbox':
-      return null;
+    case 'Rating':
+      return RatingCellEditor;
+    case 'Duration':
+      return DurationCellEditor;
+    case 'Percent':
+      return PercentCellEditor;
     case 'Attachment':
       return AttachmentCellEditor;
-    case 'CreatedTime':
-    case 'LastModifiedTime':
-    case 'CreatedBy':
-    case 'LastModifiedBy':
-    case 'AutoNumber':
-    case 'ID':
-    case 'Formula':
-    case 'Rollup':
-    case 'Lookup':
     case 'Links':
+      return LinksCellEditor;
+    case 'Checkbox':
       return null;
     default:
       return TextCellEditor;

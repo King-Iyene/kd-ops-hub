@@ -89,6 +89,7 @@ export interface FieldOptions {
   maxSizeMB?: number;
   allowedTypes?: string[];
   prefix?: string;
+  validations?: import('../lib/validation').ValidationRule[];
 }
 
 export interface FieldMeta {
@@ -116,7 +117,7 @@ export interface ViewMeta {
   id: string;
   table_id: string;
   name: string;
-  type: 'grid' | 'kanban' | 'form' | 'calendar' | 'gallery';
+  type: 'grid' | 'kanban' | 'form' | 'calendar' | 'gallery' | 'timeline';
   filters: Filter[];
   sorts: Sort[];
   groups: Group[];
@@ -155,6 +156,27 @@ export interface Sort {
 export interface Group {
   field_id: string;
   direction: 'asc' | 'desc';
+}
+
+export interface RowColorRule {
+  id: string;
+  field_id: string;
+  operator: FilterOperator;
+  value: any;
+  color: string; // hex bg color
+}
+
+export type ConditionalFormatOperator =
+  | 'is' | 'isNot' | 'contains' | 'doesNotContain'
+  | 'isEmpty' | 'isNotEmpty'
+  | 'gt' | 'lt' | 'gte' | 'lte';
+
+export interface ConditionalFormatRule {
+  id: string;
+  field_id: string;
+  operator: ConditionalFormatOperator;
+  value: any;
+  color: string; // hex bg color for the cell
 }
 
 export type RecordRow = Record<string, any> & {
@@ -205,12 +227,60 @@ export const PILL_COLORS = [
   { name: 'Indigo', bg: '#E0E7FF', text: '#3730A3' },
 ];
 
-export interface RowColorRule {
+export interface WebhookConfig {
   id: string;
-  field_id: string;
-  operator: FilterOperator;
-  value: any;
-  color: string;
+  table_id: string;
+  name: string;
+  event: 'record.created' | 'record.updated' | 'record.deleted';
+  url: string;
+  method: 'POST' | 'PUT' | 'PATCH';
+  headers: Record<string, string>;
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface WebhookMeta {
+  id: string;
+  base_id: string;
+  table_id: string;
+  name: string;
+  event: 'record.created' | 'record.updated' | 'record.deleted';
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  url: string;
+  headers: Record<string, string>;
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface AutomationAction {
+  id: string;
+  type: 'send_email' | 'send_webhook' | 'update_record' | 'create_record' | 'send_notification';
+  config: Record<string, any>;
+}
+
+export interface Automation {
+  id: string;
+  base_id: string;
+  table_id: string;
+  name: string;
+  enabled: boolean;
+  trigger_type: 'record_created' | 'record_updated' | 'record_deleted' | 'field_changed' | 'scheduled';
+  trigger_config: Record<string, any>;
+  actions: AutomationAction[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  base_id: string;
+  table_id: string;
+  record_id: string | null;
+  user_email: string;
+  action: 'INSERT' | 'UPDATE' | 'DELETE' | 'BULK_DELETE' | 'CREATE_TABLE' | 'DELETE_TABLE' | 'CREATE_FIELD' | 'DELETE_FIELD';
+  description: string;
+  changes: Record<string, { old: any; new: any }> | null;
+  created_at: string;
 }
 
 export const OPERATORS_BY_TYPE: Partial<Record<UIType, FilterOperator[]>> = {

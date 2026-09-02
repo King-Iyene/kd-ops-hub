@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 
-const MAX_UNDO_STACK = 50;
-
-export interface UndoAction {
+interface UndoEntry {
   type: string;
   payload: any;
   undo: () => Promise<void>;
@@ -10,71 +8,39 @@ export interface UndoAction {
 }
 
 interface UndoState {
-  undoStack: UndoAction[];
-  redoStack: UndoAction[];
-  canUndo: boolean;
-  canRedo: boolean;
-  push: (action: UndoAction) => void;
-  undo: () => Promise<void>;
-  redo: () => Promise<void>;
+  stack: UndoEntry[];
+  redoStack: UndoEntry[];
+  push: (entry: UndoEntry) => void;
+  undo: () => void;
+  redo: () => void;
 }
 
 export const useUndoStore = create<UndoState>((set, get) => ({
-  undoStack: [],
+  stack: [],
   redoStack: [],
-  canUndo: false,
-  canRedo: false,
-
-  push: (action: UndoAction) => {
-    set((state) => {
-      const newStack = [...state.undoStack, action];
-      if (newStack.length > MAX_UNDO_STACK) {
-        newStack.shift();
-      }
-      return {
-        undoStack: newStack,
-        redoStack: [],
-        canUndo: true,
-        canRedo: false,
-      };
-    });
+  push: (entry) =>
+    set((s) => ({
+      stack: [...s.stack.slice(-49), entry],
+      redoStack: [],
+    })),
+  undo: () => {
+    const { stack } = get();
+    if (stack.length === 0) return;
+    const entry = stack[stack.length - 1];
+    entry.undo();
+    set((s) => ({
+      stack: s.stack.slice(0, -1),
+      redoStack: [...s.redoStack, entry],
+    }));
   },
-
-  undo: async () => {
-    const { undoStack } = get();
-    if (undoStack.length === 0) return;
-
-    const action = undoStack[undoStack.length - 1];
-    await action.undo();
-
-    set((state) => {
-      const newUndoStack = state.undoStack.slice(0, -1);
-      const newRedoStack = [...state.redoStack, action];
-      return {
-        undoStack: newUndoStack,
-        redoStack: newRedoStack,
-        canUndo: newUndoStack.length > 0,
-        canRedo: true,
-      };
-    });
-  },
-
-  redo: async () => {
+  redo: () => {
     const { redoStack } = get();
     if (redoStack.length === 0) return;
-
-    const action = redoStack[redoStack.length - 1];
-    await action.redo();
-
-    set((state) => {
-      const newRedoStack = state.redoStack.slice(0, -1);
-      const newUndoStack = [...state.undoStack, action];
-      return {
-        undoStack: newUndoStack,
-        redoStack: newRedoStack,
-        canUndo: true,
-        canRedo: newRedoStack.length > 0,
-      };
-    });
+    const entry = redoStack[redoStack.length - 1];
+    entry.redo();
+    set((s) => ({
+      redoStack: s.redoStack.slice(0, -1),
+      stack: [...s.stack, entry],
+    }));
   },
 }));

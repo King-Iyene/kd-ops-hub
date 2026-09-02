@@ -216,3 +216,99 @@ export function useDeleteField() {
     },
   });
 }
+
+export function useDuplicateField() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { table_id: string; source_field_id: string }) => {
+      // Read the source field
+      const { data: source, error: sourceError } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .select('*')
+        .eq('id', input.source_field_id)
+        .single();
+
+      if (sourceError) throw sourceError;
+
+      const isVirtual = VIRTUAL_TYPES.includes(source.ui_type as UIType);
+      const newName = `${source.name} (copy)`;
+      const pgColumnName = isVirtual ? '' : toSnakeCase(newName);
+
+      // Insert the duplicated field metadata
+      const { data: field, error: insertError } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .insert({
+          table_id: input.table_id,
+          name: newName,
+          pg_column_name: pgColumnName,
+          ui_type: source.ui_type,
+          pg_type: source.pg_type,
+          options: source.options ?? {},
+          position: (source.position ?? 999) + 1,
+          width: source.width ?? 180,
+          is_primary: false,
+          is_required: source.is_required ?? false,
+          is_unique: false,
+          is_system: false,
+          is_hidden: false,
+          description: source.description ?? null,
+          default_value: source.default_value ?? null,
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // For non-virtual types, add the actual column
+      if (!isVirtual && pgColumnName) {
+        const ctx = await getTableContext(input.table_id);
+
+        const { error: ddlError } = await supabase.functions.invoke('ddl-executor', {
+          body: {
+            action: 'addColumn',
+            schemaName: ctx.schemaName,
+            tableName: ctx.pgTableName,
+            columnName: pgColumnName,
+            columnType: source.pg_type,
+          },
+        });
+
+        if (ddlError) throw ddlError;
+      }
+
+      return field as FieldMeta;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
+    },
+  });
+}
+
+export function useReorderFields() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { table_id: string; fieldIds: string[] }) => {
+      const updates = input.fieldIds.map((id, i) => ({
+        id,
+        table_id: input.table_id,
+        position: i,
+      }));
+
+      for (const u of updates) {
+        const { error } = await supabase
+          .schema('nc_meta')
+          .from('fields')
+          .update({ position: u.position })
+          .eq('id', u.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
+    },
+  });
+}

@@ -160,3 +160,32 @@ export function useDeleteBase() {
     },
   });
 }
+
+export function useUpdateBase() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      name?: string;
+      icon?: string | null;
+      color?: string | null;
+      position?: number;
+    }) => {
+      const { id, ...updates } = input;
+      const { data, error } = await supabase
+        .schema('nc_meta')
+        .from('bases')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as Base;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['nc', 'bases'] });
+    },
+  });
+}

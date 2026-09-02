@@ -1,19 +1,19 @@
 import type { FieldMeta, RecordRow } from '../types';
 
-export function exportToCSV(fields: FieldMeta[], records: RecordRow[], tableName: string) {
-  const visibleFields = fields
-    .filter((f) => !f.is_hidden && !f.is_system)
+export function exportToCsv(fields: FieldMeta[], records: RecordRow[], tableName: string) {
+  const exportFields = fields
+    .filter((f) => !f.is_hidden && f.ui_type !== 'ID')
     .sort((a, b) => a.position - b.position);
 
-  const header = visibleFields.map((f) => escapeCSV(f.name)).join(',');
-  const rows = records.map((record) =>
-    visibleFields
+  const header = exportFields.map((f) => escapeCsv(f.name)).join(',');
+
+  const rows = records.map((r) =>
+    exportFields
       .map((f) => {
-        const val = record[f.pg_column_name];
+        const val = r[f.pg_column_name];
         if (val == null) return '';
-        if (Array.isArray(val)) return escapeCSV(val.join(', '));
-        if (typeof val === 'object') return escapeCSV(JSON.stringify(val));
-        return escapeCSV(String(val));
+        if (Array.isArray(val)) return escapeCsv(val.join(', '));
+        return escapeCsv(String(val));
       })
       .join(','),
   );
@@ -28,18 +28,81 @@ export function exportToCSV(fields: FieldMeta[], records: RecordRow[], tableName
   URL.revokeObjectURL(url);
 }
 
-function escapeCSV(value: string): string {
+function escapeCsv(value: string): string {
   if (value.includes(',') || value.includes('"') || value.includes('\n')) {
     return `"${value.replace(/"/g, '""')}"`;
   }
   return value;
 }
 
-export function parseCSV(text: string): { headers: string[]; rows: string[][] } {
+export function exportToJson(fields: FieldMeta[], records: RecordRow[], tableName: string) {
+  const exportFields = fields
+    .filter((f) => !f.is_hidden && !f.is_system && f.ui_type !== 'ID')
+    .sort((a, b) => a.position - b.position);
+
+  const data = records.map((r) => {
+    const obj: Record<string, any> = {};
+    for (const f of exportFields) {
+      const val = r[f.pg_column_name];
+      obj[f.name] = val ?? null;
+    }
+    return obj;
+  });
+
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${tableName || 'export'}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function matchFieldsByHeader(
+  headers: string[],
+  fields: FieldMeta[],
+): Map<number, FieldMeta> {
+  const map = new Map<number, FieldMeta>();
+  const byName = new Map(fields.map((f) => [f.name.toLowerCase().trim(), f]));
+  headers.forEach((h, i) => {
+    const match = byName.get(h.toLowerCase().trim());
+    if (match && !match.is_system) map.set(i, match);
+  });
+  return map;
+}
+
+export function coerceValue(value: string, field: FieldMeta): any {
+  if (!value || value.trim() === '') return null;
+  const v = value.trim();
+  switch (field.ui_type) {
+    case 'Number':
+    case 'Decimal':
+    case 'Currency':
+    case 'Percent':
+    case 'Rating':
+    case 'Duration':
+    case 'Year': {
+      const n = Number(v);
+      return isNaN(n) ? null : n;
+    }
+    case 'Checkbox':
+      return ['true', '1', 'yes', 'y'].includes(v.toLowerCase());
+    case 'MultiSelect':
+      return v.split(',').map((s) => s.trim()).filter(Boolean);
+    case 'JSON':
+    case 'Attachment':
+      try { return JSON.parse(v); } catch { return null; }
+    default:
+      return v;
+  }
+}
+
+export function parseCsv(text: string): { headers: string[]; rows: string[][] } {
   const lines = text.split('\n').filter((l) => l.trim());
   if (lines.length === 0) return { headers: [], rows: [] };
 
-  const parseLine = (line: string): string[] => {
+  const parseRow = (line: string): string[] => {
     const result: string[] = [];
     let current = '';
     let inQuotes = false;
@@ -47,13 +110,11 @@ export function parseCSV(text: string): { headers: string[]; rows: string[][] } 
     for (let i = 0; i < line.length; i++) {
       const ch = line[i];
       if (inQuotes) {
-        if (ch === '"') {
-          if (i + 1 < line.length && line[i + 1] === '"') {
-            current += '"';
-            i++;
-          } else {
-            inQuotes = false;
-          }
+        if (ch === '"' && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else if (ch === '"') {
+          inQuotes = false;
         } else {
           current += ch;
         }
@@ -72,53 +133,7 @@ export function parseCSV(text: string): { headers: string[]; rows: string[][] } 
     return result;
   };
 
-  const headers = parseLine(lines[0]);
-  const rows = lines.slice(1).map(parseLine);
+  const headers = parseRow(lines[0]);
+  const rows = lines.slice(1).map(parseRow);
   return { headers, rows };
-}
-
-export function csvToRecords(
-  headers: string[],
-  rows: string[][],
-  fields: FieldMeta[],
-): Record<string, any>[] {
-  const fieldByName = new Map(fields.map((f) => [f.name.toLowerCase(), f]));
-
-  const columnMap: (FieldMeta | null)[] = headers.map(
-    (h) => fieldByName.get(h.toLowerCase()) ?? null,
-  );
-
-  return rows.map((row) => {
-    const record: Record<string, any> = {};
-    row.forEach((val, i) => {
-      const field = columnMap[i];
-      if (!field || field.is_system || !val) return;
-      record[field.pg_column_name] = coerceValue(val, field);
-    });
-    return record;
-  });
-}
-
-function coerceValue(val: string, field: FieldMeta): any {
-  switch (field.ui_type) {
-    case 'Number':
-    case 'Decimal':
-    case 'Currency':
-    case 'Percent':
-    case 'Rating':
-    case 'Duration':
-    case 'Year':
-    case 'AutoNumber': {
-      const n = Number(val);
-      return isNaN(n) ? null : n;
-    }
-    case 'Checkbox':
-      return val.toLowerCase() === 'true' || val === '1';
-    case 'MultiSelect':
-      return val.split(',').map((s) => s.trim()).filter(Boolean);
-    case 'JSON':
-      try { return JSON.parse(val); } catch { return val; }
-    default:
-      return val;
-  }
 }

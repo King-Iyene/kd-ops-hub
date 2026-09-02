@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { getCellRenderer } from './cell-renderers';
@@ -9,20 +9,14 @@ interface GridCellProps {
   field: FieldMeta;
   record: RecordRow;
   onCellUpdate: (recordId: string, fieldId: string, value: any) => void;
-  /** Frozen (sticky) primary column when scrolling horizontally. */
-  frozen?: boolean;
-  frozenLeft?: number;
-  /** Background of the parent row, so a frozen cell matches hover/selection tint. */
-  rowBg?: string;
+  backgroundColor?: string;
 }
 
 export const GridCell = React.memo(function GridCell({
   field,
   record,
   onCellUpdate,
-  frozen,
-  frozenLeft,
-  rowBg,
+  backgroundColor,
 }: GridCellProps) {
   const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
   const editingCellId = useDatabaseUI((s) => s.editingCellId);
@@ -93,15 +87,26 @@ export const GridCell = React.memo(function GridCell({
   const Renderer = getCellRenderer(field.ui_type);
   const Editor = getCellEditor(field.ui_type);
 
+  const isDark = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const dt = document.documentElement.getAttribute('data-theme');
+    if (dt === 'dark') return true;
+    if (dt === 'light') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }, []);
+
+  const borderColor = isDark ? 'hsl(200,25%,18%)' : '#E7E7E9';
+
   return (
     <div
       className={`relative flex items-center px-2 overflow-hidden ${frozen ? 'sticky z-10' : ''}`}
       style={{
         width: field.width || 180,
         minWidth: field.width || 180,
-        borderRight: `1px solid ${GRID_COLORS.border}`,
-        borderBottom: `1px solid ${GRID_COLORS.border}`,
-        outline: isSelected ? `2px solid ${GRID_COLORS.selected}` : 'none',
+        borderRight: `1px solid ${borderColor}`,
+        borderBottom: `1px solid ${borderColor}`,
+        backgroundColor: backgroundColor || undefined,
+        outline: isSelected ? '2px solid #3366FF' : 'none',
         outlineOffset: -2,
         cursor: 'default',
         fontSize: 13,

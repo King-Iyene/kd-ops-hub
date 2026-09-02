@@ -1,8 +1,8 @@
-import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { Loader2, Plus, Trash2, Expand } from 'lucide-react';
-import type { FieldMeta, RecordRow, SelectChoice } from '@/features/database/types';
-import { PILL_COLORS } from '@/features/database/types';
-import { useDatabaseUI } from '../../lib/store';
+import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import { Plus, GripVertical, MoreHorizontal, ChevronRight, ChevronDown } from 'lucide-react';
+import type { FieldMeta, RecordRow } from '../../types';
+import { PILL_COLORS } from '../../types';
+import { getCellRenderer } from '../grid/cell-renderers';
 
 interface KanbanViewProps {
   fields: FieldMeta[];
@@ -10,637 +10,634 @@ interface KanbanViewProps {
   totalCount: number;
   isLoading: boolean;
   onCellUpdate: (recordId: string, fieldId: string, value: any) => void;
-  onAddRow: () => void;
+  onAddRow: (record?: Record<string, any>) => void;
   onExpandRow?: (record: RecordRow) => void;
   onDeleteRow?: (recordId: string) => void;
 }
 
-const TEAL = '#3366FF';
-const TEXT_COLOR = '#374151';
-const MUTED = '#9AA2AF';
-const BORDER = '#E7E7E9';
-const SURFACE = '#F9F9FA';
+const CARDS_PER_PAGE = 20;
 
-const SYSTEM_FIELDS = new Set(['id', 'created_at', 'updated_at']);
-
-function getPillColor(colorName: string): { bg: string; text: string } {
-  const found = PILL_COLORS.find(
-    (c) => c.name.toLowerCase() === colorName.toLowerCase()
-  );
-  return found ?? { bg: '#F1F5F9', text: '#334155' };
+function getPillColor(colorName: string) {
+  return PILL_COLORS.find((c) => c.name === colorName) || PILL_COLORS[7];
 }
 
-function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-interface ContextMenuState {
-  x: number;
-  y: number;
-  recordId: string;
+/** Extract the first image URL from an Attachment field value. */
+function getFirstImageUrl(value: unknown): string | null {
+  if (!Array.isArray(value)) return null;
+  for (const item of value) {
+    if (item && typeof item === 'object' && typeof item.url === 'string') {
+      const ext = (item.name ?? item.url ?? '').toLowerCase();
+      if (/\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)/.test(ext) || item.type?.startsWith('image/')) {
+        return item.url;
+      }
+    }
+  }
+  return null;
 }
 
 export default function KanbanView({
   fields,
   records,
-  totalCount,
-  isLoading,
   onCellUpdate,
   onAddRow,
   onExpandRow,
-  onDeleteRow,
 }: KanbanViewProps) {
-  const { kanbanFieldId, setKanbanFieldId } = useDatabaseUI();
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const contextMenuRef = useRef<HTMLDivElement>(null);
+  const groupField = useMemo(
+    () => fields.find((f) => f.ui_type === 'SingleSelect'),
+    [fields],
+  );
 
-  // Close context menu on outside click
+  const titleField = useMemo(
+    () => fields.find((f) => f.is_primary) ?? fields[0],
+    [fields],
+  );
+
+  const attachmentField = useMemo(
+    () => fields.find((f) => f.ui_type === 'Attachment'),
+    [fields],
+  );
+
+  const previewFields = useMemo(
+    () =>
+      fields
+        .filter(
+          (f) =>
+            !f.is_primary &&
+            !f.is_system &&
+            f.ui_type !== 'ID' &&
+            f.ui_type !== 'SingleSelect' &&
+            f.ui_type !== 'Attachment',
+        )
+        .slice(0, 3),
+    [fields],
+  );
+
+  const choices = useMemo(() => {
+    const opts = groupField?.options?.choices ?? [];
+    return [{ title: 'Uncategorized', color: 'Gray' }, ...opts];
+  }, [groupField]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, RecordRow[]>();
+    for (const c of choices) map.set(c.title, []);
+    for (const r of records) {
+      const val = groupField
+        ? (r[groupField.pg_column_name] ?? 'Uncategorized')
+        : 'Uncategorized';
+      const list = map.get(val) ?? map.get('Uncategorized')!;
+      list.push(r);
+    }
+    return map;
+  }, [records, groupField, choices]);
+
+  const [dragRecordId, setDragRecordId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [addingInCol, setAddingInCol] = useState<string | null>(null);
+  const [newCardTitle, setNewCardTitle] = useState('');
+  const newCardRef = useRef<HTMLInputElement>(null);
+
+  // Collapsed columns
+  const [collapsedCols, setCollapsedCols] = useState<Set<string>>(new Set());
+  const toggleCollapse = useCallback((colTitle: string) => {
+    setCollapsedCols((prev) => {
+      const next = new Set(prev);
+      if (next.has(colTitle)) next.delete(colTitle);
+      else next.add(colTitle);
+      return next;
+    });
+  }, []);
+
+  // Column action menus
+  const [menuOpenCol, setMenuOpenCol] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Stacking limit — per-column expansion
+  const [expandedCols, setExpandedCols] = useState<Set<string>>(new Set());
+  const toggleExpanded = useCallback((colTitle: string) => {
+    setExpandedCols((prev) => {
+      const next = new Set(prev);
+      if (next.has(colTitle)) next.delete(colTitle);
+      else next.add(colTitle);
+      return next;
+    });
+  }, []);
+
+  // Rename state
+  const [renamingCol, setRenamingCol] = useState<string | null>(null);
+  const [renameText, setRenameText] = useState('');
+  const renameRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
-    if (!contextMenu) return;
+    if (addingInCol) newCardRef.current?.focus();
+  }, [addingInCol]);
+
+  useEffect(() => {
+    if (renamingCol) renameRef.current?.focus();
+  }, [renamingCol]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpenCol) return;
     const handler = (e: MouseEvent) => {
-      if (
-        contextMenuRef.current &&
-        !contextMenuRef.current.contains(e.target as Node)
-      ) {
-        setContextMenu(null);
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpenCol(null);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [contextMenu]);
+  }, [menuOpenCol]);
 
-  // Fields eligible for kanban grouping
-  const selectFields = useMemo(
-    () =>
-      fields.filter(
-        (f) => f.ui_type === 'SingleSelect' || f.ui_type === 'MultiSelect'
-      ),
-    [fields]
-  );
-
-  // Active grouping field
-  const groupField = useMemo(
-    () => fields.find((f) => f.id === kanbanFieldId) ?? null,
-    [fields, kanbanFieldId]
-  );
-
-  // Primary field (first non-system field)
-  const primaryField = useMemo(
-    () => fields.find((f) => !f.is_system && !SYSTEM_FIELDS.has(f.pg_column_name)),
-    [fields]
-  );
-
-  // Display fields for cards (up to 3 non-primary, non-system, non-grouping)
-  const cardFields = useMemo(() => {
-    return fields
-      .filter(
-        (f) =>
-          !f.is_system &&
-          !SYSTEM_FIELDS.has(f.pg_column_name) &&
-          f.id !== primaryField?.id &&
-          f.id !== groupField?.id
-      )
-      .slice(0, 3);
-  }, [fields, primaryField, groupField]);
-
-  // Choices from the grouping field
-  const choices = useMemo<SelectChoice[]>(
-    () => groupField?.options?.choices ?? [],
-    [groupField]
-  );
-
-  // Group records into columns
-  const columns = useMemo(() => {
-    if (!groupField) return [];
-
-    const columnMap = new Map<string | null, RecordRow[]>();
-    // Initialize with null for uncategorized
-    columnMap.set(null, []);
-    for (const choice of choices) {
-      columnMap.set(choice.title, []);
-    }
-
-    for (const record of records) {
-      const val = record[groupField.pg_column_name];
-      if (groupField.ui_type === 'MultiSelect' && Array.isArray(val)) {
-        if (val.length === 0) {
-          columnMap.get(null)!.push(record);
-        } else {
-          for (const v of val) {
-            const bucket = columnMap.get(v);
-            if (bucket) {
-              bucket.push(record);
-            } else {
-              columnMap.get(null)!.push(record);
-            }
-          }
-        }
-      } else {
-        const strVal = val != null && val !== '' ? String(val) : null;
-        const bucket = columnMap.get(strVal);
-        if (bucket) {
-          bucket.push(record);
-        } else {
-          columnMap.get(null)!.push(record);
-        }
+  const handleAddCard = useCallback(
+    (colTitle: string) => {
+      const title = newCardTitle.trim();
+      if (!title || !titleField || !groupField) {
+        setAddingInCol(null);
+        setNewCardTitle('');
+        return;
       }
-    }
-
-    const result: {
-      key: string;
-      label: string;
-      color: { bg: string; text: string };
-      records: RecordRow[];
-    }[] = [];
-
-    // Uncategorized first
-    const uncategorized = columnMap.get(null)!;
-    result.push({
-      key: '__uncategorized__',
-      label: 'Uncategorized',
-      color: { bg: '#F1F5F9', text: '#334155' },
-      records: uncategorized,
-    });
-
-    for (const choice of choices) {
-      result.push({
-        key: choice.title,
-        label: choice.title,
-        color: getPillColor(choice.color),
-        records: columnMap.get(choice.title) ?? [],
-      });
-    }
-
-    return result;
-  }, [groupField, choices, records]);
-
-  const handleCardClick = useCallback(
-    (record: RecordRow) => {
-      onExpandRow?.(record);
+      const record: Record<string, any> = {
+        [titleField.pg_column_name]: title,
+      };
+      if (colTitle !== 'Uncategorized') {
+        record[groupField.pg_column_name] = colTitle;
+      }
+      onAddRow(record);
+      setAddingInCol(null);
+      setNewCardTitle('');
     },
-    [onExpandRow]
+    [newCardTitle, titleField, groupField, onAddRow],
   );
 
-  const handleContextMenu = useCallback(
-    (e: React.MouseEvent, recordId: string) => {
-      e.preventDefault();
-      setContextMenu({ x: e.clientX, y: e.clientY, recordId });
+  const handleRenameSubmit = useCallback(
+    (oldTitle: string) => {
+      const newTitle = renameText.trim();
+      if (!newTitle || newTitle === oldTitle || !groupField) {
+        setRenamingCol(null);
+        setRenameText('');
+        return;
+      }
+      // Update all records in this column to the new value
+      const colRecords = grouped.get(oldTitle) ?? [];
+      for (const r of colRecords) {
+        onCellUpdate(r.id, groupField.id, newTitle);
+      }
+      setRenamingCol(null);
+      setRenameText('');
     },
-    []
+    [renameText, groupField, grouped, onCellUpdate],
   );
 
-  const handleDelete = useCallback(() => {
-    if (contextMenu) {
-      onDeleteRow?.(contextMenu.recordId);
-      setContextMenu(null);
-    }
-  }, [contextMenu, onDeleteRow]);
-
-  const handleAddToColumn = useCallback(
-    (choiceValue: string | null) => {
-      onAddRow();
-      // If groupField exists, pre-fill with the column value after creation
-      // The parent is expected to handle onAddRow creating the row,
-      // then we update the cell with the column value
-      // For simplicity, we just call onAddRow -- the parent can extend this
+  const handleDeleteColumn = useCallback(
+    (colTitle: string) => {
+      if (!groupField || colTitle === 'Uncategorized') return;
+      // Move all records to Uncategorized
+      const colRecords = grouped.get(colTitle) ?? [];
+      for (const r of colRecords) {
+        onCellUpdate(r.id, groupField.id, null);
+      }
+      setMenuOpenCol(null);
     },
-    [onAddRow]
+    [groupField, grouped, onCellUpdate],
   );
 
-  const formatCellValue = useCallback((field: FieldMeta, value: any): string => {
-    if (value == null || value === '') return '';
-    if (field.ui_type === 'Checkbox') return value ? 'Yes' : 'No';
-    if (Array.isArray(value)) return value.join(', ');
-    if (typeof value === 'object') return JSON.stringify(value);
-    return String(value);
+  const handleDragStart = useCallback((recordId: string) => {
+    setDragRecordId(recordId);
   }, []);
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div style={styles.centerContainer}>
-        <Loader2
-          size={32}
-          color={TEAL}
-          style={{ animation: 'spin 1s linear infinite' }}
-        />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
-  }
+  const handleDragOver = useCallback((e: React.DragEvent, colTitle: string) => {
+    e.preventDefault();
+    setDropTarget(colTitle);
+  }, []);
 
-  // Empty state: no grouping field selected
+  const handleDragLeave = useCallback(() => {
+    setDropTarget(null);
+  }, []);
+
+  const handleDrop = useCallback(
+    (colTitle: string) => {
+      if (dragRecordId && groupField) {
+        const newValue = colTitle === 'Uncategorized' ? null : colTitle;
+        onCellUpdate(dragRecordId, groupField.id, newValue);
+      }
+      setDragRecordId(null);
+      setDropTarget(null);
+    },
+    [dragRecordId, groupField, onCellUpdate],
+  );
+
   if (!groupField) {
     return (
-      <div style={styles.emptyContainer}>
-        <div style={styles.emptyContent}>
-          <div style={styles.emptyIcon}>
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke={MUTED}
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3" y="3" width="7" height="18" rx="1" />
-              <rect x="14" y="3" width="7" height="10" rx="1" />
-            </svg>
-          </div>
-          <h3 style={styles.emptyTitle}>No grouping field selected</h3>
-          <p style={styles.emptyDesc}>
-            Choose a Single Select or Multi Select field to group records into columns.
-          </p>
-          {selectFields.length > 0 && (
-            <select
-              value=""
-              onChange={(e) => setKanbanFieldId(e.target.value || null)}
-              style={styles.emptySelect}
-            >
-              <option value="">Select a field...</option>
-              {selectFields.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
-          )}
-          {selectFields.length === 0 && (
-            <p style={{ ...styles.emptyDesc, marginTop: 8, fontSize: 13 }}>
-              No Single Select or Multi Select fields available in this table.
-            </p>
-          )}
-        </div>
+      <div className="flex items-center justify-center h-64 text-sm kanban-muted-text">
+        Add a Single Select field to use Kanban view
       </div>
     );
   }
 
   return (
-    <div style={styles.wrapper}>
-      {/* Toolbar */}
-      <div style={styles.toolbar}>
-        <label style={styles.toolbarLabel}>
-          Group by:
-          <select
-            value={kanbanFieldId ?? ''}
-            onChange={(e) => setKanbanFieldId(e.target.value || null)}
-            style={styles.fieldSelect}
-          >
-            <option value="">None</option>
-            {selectFields.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <span style={styles.recordCount}>
-          {totalCount} record{totalCount !== 1 ? 's' : ''}
-        </span>
-      </div>
+    <>
+      <style>{`
+        .kanban-root {
+          --kanban-bg: #F9F9FA;
+          --kanban-card-bg: #ffffff;
+          --kanban-border: #E7E7E9;
+          --kanban-text: #374151;
+          --kanban-muted: #6A7184;
+          --kanban-subtle: #9AA2AF;
+          --kanban-primary: #3366FF;
+          --kanban-primary-hover: #2952CC;
+          --kanban-empty-border: #D1D5DB;
+          --kanban-card-shadow: 0 1px 2px rgba(0,0,0,0.06);
+          --kanban-card-shadow-hover: 0 4px 12px rgba(0,0,0,0.1);
+          --kanban-collapsed-bg: #F3F4F6;
+        }
+        @media (prefers-color-scheme: dark) {
+          :root:not([data-theme="light"]) .kanban-root {
+            --kanban-bg: hsl(200,30%,12%);
+            --kanban-card-bg: hsl(200,28%,14%);
+            --kanban-border: hsl(200,25%,18%);
+            --kanban-text: hsl(200,25%,88%);
+            --kanban-muted: hsl(200,20%,60%);
+            --kanban-subtle: hsl(200,15%,50%);
+            --kanban-primary: #5588FF;
+            --kanban-primary-hover: #3366FF;
+            --kanban-empty-border: hsl(200,20%,25%);
+            --kanban-card-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            --kanban-card-shadow-hover: 0 4px 12px rgba(0,0,0,0.4);
+            --kanban-collapsed-bg: hsl(200,28%,13%);
+          }
+        }
+        :root[data-theme="dark"] .kanban-root {
+          --kanban-bg: hsl(200,30%,12%);
+          --kanban-card-bg: hsl(200,28%,14%);
+          --kanban-border: hsl(200,25%,18%);
+          --kanban-text: hsl(200,25%,88%);
+          --kanban-muted: hsl(200,20%,60%);
+          --kanban-subtle: hsl(200,15%,50%);
+          --kanban-primary: #5588FF;
+          --kanban-primary-hover: #3366FF;
+          --kanban-empty-border: hsl(200,20%,25%);
+          --kanban-card-shadow: 0 1px 2px rgba(0,0,0,0.3);
+          --kanban-card-shadow-hover: 0 4px 12px rgba(0,0,0,0.4);
+          --kanban-collapsed-bg: hsl(200,28%,13%);
+        }
+        .kanban-muted-text { color: var(--kanban-muted); }
+      `}</style>
+      <div className="kanban-root flex gap-3 p-4 h-full overflow-x-auto">
+        {choices.map((col) => {
+          const items = grouped.get(col.title) ?? [];
+          const color = getPillColor(col.color);
+          const isOver = dropTarget === col.title;
+          const isCollapsed = collapsedCols.has(col.title);
+          const isExpanded = expandedCols.has(col.title);
+          const visibleItems = isExpanded ? items : items.slice(0, CARDS_PER_PAGE);
+          const hiddenCount = items.length - visibleItems.length;
 
-      {/* Columns */}
-      <div style={styles.columnsContainer}>
-        {columns.map((col) => (
-          <div
-            key={col.key}
-            style={{
-              ...styles.column,
-              backgroundColor: hexToRgba(col.color.bg, 0.3),
-            }}
-          >
-            {/* Column header */}
-            <div style={styles.columnHeader}>
-              <div style={styles.columnHeaderLeft}>
-                <span
-                  style={{
-                    ...styles.choicePill,
-                    backgroundColor: col.color.bg,
-                    color: col.color.text,
-                  }}
-                >
-                  {col.label}
-                </span>
-                <span style={styles.columnCount}>{col.records.length}</span>
-              </div>
-            </div>
-
-            {/* Cards */}
-            <div style={styles.cardsContainer}>
-              {col.records.map((record) => (
-                <div
-                  key={record.id}
-                  style={styles.card}
-                  onClick={() => handleCardClick(record)}
-                  onContextMenu={(e) => handleContextMenu(e, record.id)}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.boxShadow =
-                      '0 2px 8px rgba(0, 0, 0, 0.1)';
-                    (e.currentTarget as HTMLDivElement).style.borderColor =
-                      TEAL;
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.boxShadow =
-                      '0 1px 2px rgba(0, 0, 0, 0.04)';
-                    (e.currentTarget as HTMLDivElement).style.borderColor =
-                      BORDER;
-                  }}
-                >
-                  {/* Primary field as title */}
-                  {primaryField && (
-                    <div style={styles.cardTitle}>
-                      {formatCellValue(
-                        primaryField,
-                        record[primaryField.pg_column_name]
-                      ) || (
-                        <span style={{ color: MUTED, fontStyle: 'italic' }}>
-                          Untitled
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Additional fields */}
-                  {cardFields.map((field) => {
-                    const val = formatCellValue(
-                      field,
-                      record[field.pg_column_name]
-                    );
-                    if (!val) return null;
-                    return (
-                      <div key={field.id} style={styles.cardField}>
-                        <span style={styles.cardFieldLabel}>{field.name}</span>
-                        <span style={styles.cardFieldValue}>{val}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-
-              {/* Add row button */}
-              <button
-                onClick={() =>
-                  handleAddToColumn(
-                    col.key === '__uncategorized__' ? null : col.key
-                  )
-                }
-                style={styles.addButton}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-                    '#EDF2F7';
+          if (isCollapsed) {
+            return (
+              <div
+                key={col.title}
+                className="flex flex-col items-center shrink-0 rounded-lg cursor-pointer transition-all"
+                style={{
+                  width: 44,
+                  backgroundColor: var(--kanban-collapsed-bg),
+                  border: `1px solid var(--kanban-border)`,
+                  minHeight: 200,
                 }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-                    'transparent';
+                onClick={() => toggleCollapse(col.title)}
+                onDragOver={(e) => handleDragOver(e, col.title)}
+                onDragLeave={handleDragLeave}
+                onDrop={() => handleDrop(col.title)}
+              >
+                <div
+                  className="w-full rounded-t-lg flex items-center justify-center py-2"
+                  style={{ backgroundColor: color.bg }}
+                >
+                  <ChevronRight size={14} style={{ color: color.text }} />
+                </div>
+                <div
+                  className="flex items-center justify-center rounded-full text-[10px] font-bold mt-2"
+                  style={{
+                    width: 22,
+                    height: 22,
+                    backgroundColor: color.bg,
+                    color: color.text,
+                  }}
+                >
+                  {items.length}
+                </div>
+                <div
+                  className="mt-3 text-[11px] font-semibold"
+                  style={{
+                    writingMode: 'vertical-rl',
+                    textOrientation: 'mixed',
+                    color: color.text,
+                    maxHeight: 140,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {col.title}
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div
+              key={col.title}
+              className="flex flex-col shrink-0 rounded-lg overflow-hidden transition-shadow"
+              style={{
+                width: 280,
+                backgroundColor: 'var(--kanban-bg)',
+                border: isOver
+                  ? `2px solid var(--kanban-primary)`
+                  : `1px solid var(--kanban-border)`,
+              }}
+              onDragOver={(e) => handleDragOver(e, col.title)}
+              onDragLeave={handleDragLeave}
+              onDrop={() => handleDrop(col.title)}
+            >
+              {/* Column header */}
+              <div
+                className="flex items-center justify-between px-3 py-2 relative"
+                style={{
+                  backgroundColor: color.bg,
+                  borderBottom: `1px solid var(--kanban-border)`,
                 }}
               >
-                <Plus size={14} color={MUTED} />
-                <span>New</span>
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+                <div className="flex items-center gap-2 min-w-0">
+                  {renamingCol === col.title ? (
+                    <input
+                      ref={renameRef}
+                      className="text-xs font-semibold px-1 py-0.5 rounded border outline-none"
+                      style={{
+                        borderColor: 'var(--kanban-primary)',
+                        backgroundColor: 'var(--kanban-card-bg)',
+                        color: color.text,
+                        width: 120,
+                      }}
+                      value={renameText}
+                      onChange={(e) => setRenameText(e.target.value)}
+                      onBlur={() => handleRenameSubmit(col.title)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRenameSubmit(col.title);
+                        if (e.key === 'Escape') {
+                          setRenamingCol(null);
+                          setRenameText('');
+                        }
+                      }}
+                    />
+                  ) : (
+                    <span
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold truncate"
+                      style={{ backgroundColor: color.bg, color: color.text }}
+                    >
+                      {col.title}
+                    </span>
+                  )}
+                  <span
+                    className="text-[10px] font-medium shrink-0"
+                    style={{ color: color.text, opacity: 0.6 }}
+                  >
+                    {items.length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    className="p-0.5 rounded hover:bg-black/5 transition-colors"
+                    onClick={() => toggleCollapse(col.title)}
+                    title="Collapse column"
+                  >
+                    <ChevronDown size={14} style={{ color: color.text, opacity: 0.6 }} />
+                  </button>
+                  <button
+                    className="p-0.5 rounded hover:bg-black/5 transition-colors"
+                    onClick={() =>
+                      setMenuOpenCol(menuOpenCol === col.title ? null : col.title)
+                    }
+                    title="Column actions"
+                  >
+                    <MoreHorizontal size={14} style={{ color: color.text, opacity: 0.6 }} />
+                  </button>
+                </div>
+                {/* Dropdown menu */}
+                {menuOpenCol === col.title && (
+                  <div
+                    ref={menuRef}
+                    className="absolute right-2 top-full mt-1 rounded-lg shadow-lg py-1 z-50 text-xs min-w-[140px]"
+                    style={{
+                      backgroundColor: 'var(--kanban-card-bg)',
+                      border: `1px solid var(--kanban-border)`,
+                      color: 'var(--kanban-text)',
+                    }}
+                  >
+                    {col.title !== 'Uncategorized' && (
+                      <button
+                        className="w-full text-left px-3 py-1.5 hover:bg-black/5 transition-colors"
+                        onClick={() => {
+                          setRenamingCol(col.title);
+                          setRenameText(col.title);
+                          setMenuOpenCol(null);
+                        }}
+                      >
+                        Rename
+                      </button>
+                    )}
+                    <button
+                      className="w-full text-left px-3 py-1.5 hover:bg-black/5 transition-colors"
+                      onClick={() => {
+                        toggleCollapse(col.title);
+                        setMenuOpenCol(null);
+                      }}
+                    >
+                      Collapse
+                    </button>
+                    {col.title !== 'Uncategorized' && (
+                      <button
+                        className="w-full text-left px-3 py-1.5 hover:bg-black/5 transition-colors text-red-600"
+                        onClick={() => handleDeleteColumn(col.title)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
 
-      {/* Context menu */}
-      {contextMenu && onDeleteRow && (
-        <div
-          ref={contextMenuRef}
-          style={{
-            ...styles.contextMenu,
-            top: contextMenu.y,
-            left: contextMenu.x,
-          }}
-        >
-          <button onClick={handleDelete} style={styles.contextMenuItem}>
-            <Trash2 size={14} />
-            <span>Delete record</span>
-          </button>
-        </div>
-      )}
-    </div>
+              {/* Cards */}
+              <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                {visibleItems.length === 0 && (
+                  <div
+                    className="flex items-center justify-center rounded-md py-8 text-xs"
+                    style={{
+                      border: `1.5px dashed var(--kanban-empty-border)`,
+                      color: 'var(--kanban-subtle)',
+                    }}
+                  >
+                    No records
+                  </div>
+                )}
+                {visibleItems.map((r) => {
+                  const coverUrl = attachmentField
+                    ? getFirstImageUrl(r[attachmentField.pg_column_name])
+                    : null;
+                  return (
+                    <div
+                      key={r.id}
+                      className="rounded-md overflow-hidden cursor-pointer group transition-shadow"
+                      style={{
+                        backgroundColor: 'var(--kanban-card-bg)',
+                        borderLeft: `3px solid ${color.text}`,
+                        borderTop: `1px solid var(--kanban-border)`,
+                        borderRight: `1px solid var(--kanban-border)`,
+                        borderBottom: `1px solid var(--kanban-border)`,
+                        boxShadow: 'var(--kanban-card-shadow)',
+                      }}
+                      draggable
+                      onDragStart={() => handleDragStart(r.id)}
+                      onClick={() => onExpandRow?.(r)}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.boxShadow =
+                          'var(--kanban-card-shadow-hover)';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.boxShadow =
+                          'var(--kanban-card-shadow)';
+                      }}
+                    >
+                      {coverUrl && (
+                        <div
+                          className="w-full h-[120px] bg-cover bg-center"
+                          style={{ backgroundImage: `url(${coverUrl})` }}
+                        />
+                      )}
+                      <div className="p-3">
+                        <div className="flex items-start gap-1">
+                          <GripVertical
+                            size={12}
+                            className="mt-0.5 shrink-0 opacity-0 group-hover:opacity-100 cursor-grab"
+                            style={{ color: 'var(--kanban-subtle)' }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div
+                              className="text-sm font-medium truncate"
+                              style={{ color: 'var(--kanban-text)' }}
+                            >
+                              {titleField
+                                ? r[titleField.pg_column_name] ?? '(empty)'
+                                : r.id}
+                            </div>
+                            {previewFields.map((f) => {
+                              const Renderer = getCellRenderer(f.ui_type);
+                              return (
+                                <div key={f.id} className="mt-1.5">
+                                  <div
+                                    className="text-[9px] font-semibold uppercase tracking-wider mb-0.5"
+                                    style={{ color: 'var(--kanban-subtle)' }}
+                                  >
+                                    {f.name}
+                                  </div>
+                                  <div
+                                    className="text-xs"
+                                    style={{ color: 'var(--kanban-muted)' }}
+                                  >
+                                    <Renderer
+                                      value={r[f.pg_column_name]}
+                                      field={f}
+                                      record={r}
+                                      rowHeight="compact"
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {hiddenCount > 0 && (
+                  <button
+                    className="w-full text-center text-xs py-2 rounded-md transition-colors"
+                    style={{
+                      color: 'var(--kanban-primary)',
+                      backgroundColor: 'transparent',
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.backgroundColor =
+                        'var(--kanban-bg)';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.backgroundColor =
+                        'transparent';
+                    }}
+                    onClick={() => toggleExpanded(col.title)}
+                  >
+                    Show {hiddenCount} more
+                  </button>
+                )}
+                {isExpanded && items.length > CARDS_PER_PAGE && (
+                  <button
+                    className="w-full text-center text-xs py-2 rounded-md transition-colors"
+                    style={{ color: 'var(--kanban-subtle)' }}
+                    onClick={() => toggleExpanded(col.title)}
+                  >
+                    Show fewer
+                  </button>
+                )}
+              </div>
+
+              {/* Add card */}
+              {addingInCol === col.title ? (
+                <div
+                  className="px-2 py-2"
+                  style={{ borderTop: `1px solid var(--kanban-border)` }}
+                >
+                  <input
+                    ref={newCardRef}
+                    className="w-full px-2 py-1.5 text-xs rounded outline-none"
+                    style={{
+                      border: `1px solid var(--kanban-primary)`,
+                      backgroundColor: 'var(--kanban-card-bg)',
+                      color: 'var(--kanban-text)',
+                    }}
+                    placeholder="Card title..."
+                    value={newCardTitle}
+                    onChange={(e) => setNewCardTitle(e.target.value)}
+                    onBlur={() => handleAddCard(col.title)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddCard(col.title);
+                      if (e.key === 'Escape') {
+                        setAddingInCol(null);
+                        setNewCardTitle('');
+                      }
+                    }}
+                  />
+                </div>
+              ) : (
+                <button
+                  className="flex items-center gap-1 px-3 py-2 text-xs transition-colors"
+                  style={{
+                    color: 'var(--kanban-subtle)',
+                    borderTop: `1px solid var(--kanban-border)`,
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.color =
+                      'var(--kanban-primary)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.color =
+                      'var(--kanban-subtle)';
+                  }}
+                  onClick={() => setAddingInCol(col.title)}
+                >
+                  <Plus size={12} /> New
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  centerContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    minHeight: 300,
-  },
-  emptyContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    minHeight: 400,
-  },
-  emptyContent: {
-    textAlign: 'center',
-    maxWidth: 360,
-  },
-  emptyIcon: {
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: 600,
-    color: TEXT_COLOR,
-    margin: '0 0 8px',
-  },
-  emptyDesc: {
-    fontSize: 14,
-    color: MUTED,
-    margin: 0,
-    lineHeight: 1.5,
-  },
-  emptySelect: {
-    marginTop: 16,
-    padding: '8px 12px',
-    fontSize: 14,
-    border: `1px solid ${BORDER}`,
-    borderRadius: 6,
-    backgroundColor: 'white',
-    color: TEXT_COLOR,
-    cursor: 'pointer',
-    outline: 'none',
-    minWidth: 200,
-  },
-  wrapper: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
-    overflow: 'hidden',
-  },
-  toolbar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '8px 16px',
-    borderBottom: `1px solid ${BORDER}`,
-    backgroundColor: 'white',
-    flexShrink: 0,
-  },
-  toolbarLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    fontSize: 13,
-    fontWeight: 500,
-    color: TEXT_COLOR,
-  },
-  fieldSelect: {
-    padding: '4px 8px',
-    fontSize: 13,
-    border: `1px solid ${BORDER}`,
-    borderRadius: 4,
-    backgroundColor: 'white',
-    color: TEXT_COLOR,
-    cursor: 'pointer',
-    outline: 'none',
-  },
-  recordCount: {
-    fontSize: 13,
-    color: MUTED,
-  },
-  columnsContainer: {
-    display: 'flex',
-    gap: 12,
-    padding: 16,
-    overflowX: 'auto',
-    overflowY: 'hidden',
-    flex: 1,
-    alignItems: 'flex-start',
-  },
-  column: {
-    minWidth: 280,
-    maxWidth: 320,
-    borderRadius: 8,
-    border: `1px solid ${BORDER}`,
-    display: 'flex',
-    flexDirection: 'column',
-    maxHeight: '100%',
-    flexShrink: 0,
-  },
-  columnHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '10px 12px',
-    borderBottom: `1px solid ${BORDER}`,
-  },
-  columnHeaderLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-  choicePill: {
-    display: 'inline-block',
-    padding: '2px 10px',
-    borderRadius: 12,
-    fontSize: 12,
-    fontWeight: 600,
-    lineHeight: '20px',
-    whiteSpace: 'nowrap',
-  },
-  columnCount: {
-    fontSize: 12,
-    color: MUTED,
-    fontWeight: 500,
-  },
-  cardsContainer: {
-    padding: 8,
-    overflowY: 'auto',
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-  },
-  card: {
-    backgroundColor: 'white',
-    border: `1px solid ${BORDER}`,
-    borderRadius: 6,
-    padding: '10px 12px',
-    cursor: 'pointer',
-    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
-    transition: 'box-shadow 150ms, border-color 150ms',
-  },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: TEXT_COLOR,
-    marginBottom: 4,
-    lineHeight: 1.4,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  cardField: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    gap: 8,
-    marginTop: 4,
-  },
-  cardFieldLabel: {
-    fontSize: 11,
-    color: MUTED,
-    fontWeight: 500,
-    flexShrink: 0,
-  },
-  cardFieldValue: {
-    fontSize: 12,
-    color: TEXT_COLOR,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-    textAlign: 'right',
-  },
-  addButton: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    padding: '6px 8px',
-    border: 'none',
-    borderRadius: 4,
-    backgroundColor: 'transparent',
-    color: MUTED,
-    fontSize: 13,
-    cursor: 'pointer',
-    transition: 'background-color 150ms',
-    width: '100%',
-    marginTop: 2,
-  },
-  contextMenu: {
-    position: 'fixed',
-    backgroundColor: 'white',
-    border: `1px solid ${BORDER}`,
-    borderRadius: 6,
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
-    padding: 4,
-    zIndex: 1000,
-    minWidth: 160,
-  },
-  contextMenuItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    width: '100%',
-    padding: '6px 10px',
-    border: 'none',
-    borderRadius: 4,
-    backgroundColor: 'transparent',
-    color: '#DC2626',
-    fontSize: 13,
-    cursor: 'pointer',
-    textAlign: 'left',
-  },
-};

@@ -1,74 +1,120 @@
-import React from 'react';
-import { Expand, ArrowUp, ArrowDown, Copy, Trash2, Link2 } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { Expand, Copy, Link, Trash2 } from 'lucide-react';
+import { RecordRow } from '../../types';
 
 interface RowContextMenuProps {
   x: number;
   y: number;
+  record: RecordRow;
   onClose: () => void;
-  onExpand: () => void;
-  onInsertAbove: () => void;
-  onInsertBelow: () => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
+  onExpandRow: (record: RecordRow) => void;
+  onDuplicateRow: (record: RecordRow) => void;
+  onDeleteRow: (recordId: string) => void;
 }
-
-const itemClass =
-  'w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-[#F1F5F9] transition-colors';
 
 export function RowContextMenu({
   x,
   y,
+  record,
   onClose,
-  onExpand,
-  onInsertAbove,
-  onInsertBelow,
-  onDuplicate,
-  onDelete,
+  onExpandRow,
+  onDuplicateRow,
+  onDeleteRow,
 }: RowContextMenuProps) {
-  const adjustedY = Math.min(y, window.innerHeight - 280);
-  const adjustedX = Math.min(x, window.innerWidth - 240);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = menuRef.current;
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    if (rect.right > window.innerWidth) {
+      el.style.left = `${window.innerWidth - rect.width - 8}px`;
+    }
+    if (rect.bottom > window.innerHeight) {
+      el.style.top = `${window.innerHeight - rect.height - 8}px`;
+    }
+  }, [x, y]);
+
+  const handleCopyRowLink = () => {
+    navigator.clipboard.writeText(record.id);
+    onClose();
+  };
 
   return (
-    <>
-      <div className="fixed inset-0 z-50" onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }} />
+    <div className="fixed inset-0 z-50" onClick={onClose}>
       <div
-        className="fixed z-50 bg-white rounded-lg shadow-lg py-1"
+        ref={menuRef}
+        className="fixed rounded-lg shadow-lg"
         style={{
-          left: adjustedX,
-          top: adjustedY,
-          width: 220,
-          border: '1px solid #E2E8F0',
+          left: x,
+          top: y,
+          minWidth: 180,
+          background: '#FFFFFF',
+          border: '1px solid #E7E7E9',
+          fontSize: 12,
+          zIndex: 51,
         }}
-        onClick={onClose}
+        onClick={(e) => e.stopPropagation()}
       >
-        <button className={itemClass} style={{ color: '#0F172A' }} onClick={onExpand}>
-          <Expand size={14} style={{ color: '#64748B' }} /> Expand record
-        </button>
+        <div className="py-1">
+          <button
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left"
+            style={{ color: '#374151' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#F4F4F5')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            onClick={() => {
+              onExpandRow(record);
+              onClose();
+            }}
+          >
+            <Expand size={14} style={{ color: '#9AA2AF' }} />
+            Expand row
+          </button>
 
-        <div className="border-t my-1" style={{ borderColor: '#E2E8F0' }} />
+          <button
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left"
+            style={{ color: '#374151' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#F4F4F5')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            onClick={() => {
+              onDuplicateRow(record);
+              onClose();
+            }}
+          >
+            <Copy size={14} style={{ color: '#9AA2AF' }} />
+            Duplicate row
+          </button>
 
-        <button className={itemClass} style={{ color: '#0F172A' }} onClick={onInsertAbove}>
-          <ArrowUp size={14} style={{ color: '#64748B' }} /> Insert row above
-        </button>
-        <button className={itemClass} style={{ color: '#0F172A' }} onClick={onInsertBelow}>
-          <ArrowDown size={14} style={{ color: '#64748B' }} /> Insert row below
-        </button>
-        <button className={itemClass} style={{ color: '#0F172A' }} onClick={onDuplicate}>
-          <Copy size={14} style={{ color: '#64748B' }} /> Duplicate row
-        </button>
+          <div className="my-1 border-t" style={{ borderColor: '#E7E7E9' }} />
 
-        <div className="border-t my-1" style={{ borderColor: '#E2E8F0' }} />
+          <button
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left"
+            style={{ color: '#374151' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#F4F4F5')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            onClick={handleCopyRowLink}
+          >
+            <Link size={14} style={{ color: '#9AA2AF' }} />
+            Copy row link
+          </button>
 
-        <button className={itemClass} style={{ color: '#0F172A' }}>
-          <Link2 size={14} style={{ color: '#64748B' }} /> Copy row link
-        </button>
+          <div className="my-1 border-t" style={{ borderColor: '#E7E7E9' }} />
 
-        <div className="border-t my-1" style={{ borderColor: '#E2E8F0' }} />
-
-        <button className={itemClass} style={{ color: '#DC2626' }} onClick={onDelete}>
-          <Trash2 size={14} style={{ color: '#DC2626' }} /> Delete row
-        </button>
+          <button
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-red-500"
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#F4F4F5')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            onClick={() => {
+              onDeleteRow(record.id);
+              onClose();
+            }}
+          >
+            <Trash2 size={14} className="text-red-500" />
+            Delete row
+          </button>
+        </div>
       </div>
-    </>
+    </div>
   );
 }

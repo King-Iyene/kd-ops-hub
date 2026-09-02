@@ -9,21 +9,41 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, X, Star } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { useUpdateField } from '../hooks';
-import type { FieldMeta, SelectChoice, FieldOptions, UIType } from '../types';
+import type { FieldMeta, SelectChoice } from '../types';
 import { PILL_COLORS } from '../types';
 import { getFieldTypeIcon } from './grid/field-icons';
+import { cn } from '@/lib/utils';
+import {
+  DEFAULT_VALIDATIONS,
+  RULE_LABELS,
+  ruleNeedsValue,
+  type ValidationRule,
+} from '../lib/validation';
 
 interface EditFieldDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   field: FieldMeta | null;
-  tableId: string;
 }
 
-const UI_TYPE_LABELS: Partial<Record<UIType, string>> = {
+function ColorDot({ color, selected, onClick }: { color: typeof PILL_COLORS[0]; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        'w-5 h-5 rounded-full border-2 transition-all',
+        selected ? 'border-[#374151] scale-110' : 'border-transparent hover:scale-105',
+      )}
+      style={{ backgroundColor: color.bg }}
+      onClick={onClick}
+      title={color.name}
+    />
+  );
+}
+
+const FIELD_TYPE_LABELS: Record<string, string> = {
   SingleLineText: 'Single Line Text',
   LongText: 'Long Text',
   Email: 'Email',
@@ -33,104 +53,88 @@ const UI_TYPE_LABELS: Partial<Record<UIType, string>> = {
   Decimal: 'Decimal',
   Currency: 'Currency',
   Percent: 'Percent',
-  Duration: 'Duration',
   Rating: 'Rating',
+  Duration: 'Duration',
   Date: 'Date',
   DateTime: 'Date & Time',
   Year: 'Year',
   Time: 'Time',
-  CreatedTime: 'Created Time',
-  LastModifiedTime: 'Last Modified Time',
   SingleSelect: 'Single Select',
   MultiSelect: 'Multi Select',
   Checkbox: 'Checkbox',
-  Links: 'Link',
-  Lookup: 'Lookup',
-  Rollup: 'Rollup',
-  Formula: 'Formula',
   Attachment: 'Attachment',
-  ID: 'ID',
-  AutoNumber: 'Auto Number',
-  CreatedBy: 'Created By',
-  LastModifiedBy: 'Last Modified By',
   JSON: 'JSON',
 };
 
-export function EditFieldDialog({ open, onOpenChange, field, tableId }: EditFieldDialogProps) {
+export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [error, setError] = useState('');
-
+  const [isRequired, setIsRequired] = useState(false);
   const [choices, setChoices] = useState<SelectChoice[]>([]);
   const [newChoiceText, setNewChoiceText] = useState('');
-  const [ratingMax, setRatingMax] = useState(5);
-  const [currencyCode, setCurrencyCode] = useState('USD');
-  const [precision, setPrecision] = useState(2);
-
+  const [error, setError] = useState('');
+  const [validationRules, setValidationRules] = useState<ValidationRule[]>([]);
   const updateField = useUpdateField();
 
-  // Sync form state when field changes
+  // Populate form when field changes
   useEffect(() => {
     if (field) {
       setName(field.name);
       setDescription(field.description ?? '');
-      setChoices(field.options?.choices ?? []);
-      setRatingMax(field.options?.max ?? 5);
-      setCurrencyCode(field.options?.currencyCode ?? 'USD');
-      setPrecision(field.options?.precision ?? 2);
-      setError('');
+      setIsRequired(field.is_required);
+      const fieldChoices = (field.options as any)?.choices;
+      setChoices(Array.isArray(fieldChoices) ? [...fieldChoices] : []);
       setNewChoiceText('');
+      setError('');
+      const existingRules = (field.options as any)?.validations;
+      setValidationRules(Array.isArray(existingRules) ? [...existingRules] : []);
     }
   }, [field]);
 
+  const isSelectType = field?.ui_type === 'SingleSelect' || field?.ui_type === 'MultiSelect';
+
   const addChoice = useCallback(() => {
-    const text = newChoiceText.trim();
-    if (!text || choices.some((c) => c.title === text)) return;
+    const title = newChoiceText.trim();
+    if (!title || choices.some((c) => c.title === title)) return;
     const colorIdx = choices.length % PILL_COLORS.length;
-    setChoices([...choices, { title: text, color: PILL_COLORS[colorIdx].name }]);
+    setChoices([...choices, { title, color: PILL_COLORS[colorIdx].name }]);
     setNewChoiceText('');
   }, [newChoiceText, choices]);
 
-  const removeChoice = useCallback(
-    (title: string) => setChoices(choices.filter((c) => c.title !== title)),
-    [choices],
-  );
+  const removeChoice = useCallback((title: string) => {
+    setChoices(choices.filter((c) => c.title !== title));
+  }, [choices]);
 
-  const buildOptions = (): FieldOptions => {
-    if (!field) return {};
-    const opts: FieldOptions = { ...field.options };
-    if (field.ui_type === 'SingleSelect' || field.ui_type === 'MultiSelect') {
-      opts.choices = choices;
-    }
-    if (field.ui_type === 'Rating') {
-      opts.max = ratingMax;
-    }
-    if (field.ui_type === 'Currency') {
-      opts.currencyCode = currencyCode;
-      opts.precision = precision;
-    }
-    if (field.ui_type === 'Decimal') {
-      opts.precision = precision;
-    }
-    return opts;
-  };
+  const updateChoiceColor = useCallback((title: string, color: string) => {
+    setChoices(choices.map((c) => c.title === title ? { ...c, color } : c));
+  }, [choices]);
 
   const handleSave = async () => {
+    if (!field) return;
     if (!name.trim()) {
       setError('Field name is required');
       return;
     }
-    if (!field) return;
     setError('');
     try {
+      const updates: Record<string, any> = {};
+      if (name.trim() !== field.name) updates.name = name.trim();
+      const newDesc = description.trim() || null;
+      if (newDesc !== (field.description ?? null)) updates.description = newDesc;
+      if (isRequired !== field.is_required) updates.is_required = isRequired;
+      if (isSelectType) {
+        updates.options = { ...(field.options as any), choices, validations: validationRules.length > 0 ? validationRules : undefined };
+      } else if (validationRules.length > 0 || (field.options as any)?.validations?.length) {
+        updates.options = { ...(field.options as any), validations: validationRules.length > 0 ? validationRules : undefined };
+      }
+      if (Object.keys(updates).length === 0) {
+        onOpenChange(false);
+        return;
+      }
       await updateField.mutateAsync({
         id: field.id,
-        table_id: tableId,
-        updates: {
-          name: name.trim(),
-          description: description.trim() || null,
-          options: buildOptions(),
-        },
+        table_id: field.table_id,
+        updates,
       });
       onOpenChange(false);
     } catch (e: any) {
@@ -141,96 +145,105 @@ export function EditFieldDialog({ open, onOpenChange, field, tableId }: EditFiel
   if (!field) return null;
 
   const Icon = getFieldTypeIcon(field.ui_type);
-  const typeLabel = UI_TYPE_LABELS[field.ui_type] ?? field.ui_type;
-
-  const showChoicesEditor = field.ui_type === 'SingleSelect' || field.ui_type === 'MultiSelect';
-  const showRatingConfig = field.ui_type === 'Rating';
-  const showCurrencyConfig = field.ui_type === 'Currency';
-  const showPrecisionConfig = field.ui_type === 'Decimal';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[460px]">
+      <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-base font-semibold">Edit Field</DialogTitle>
+          <DialogTitle className="text-[15px] font-semibold text-[#374151]">Edit Field</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          {/* Field type (read-only) */}
+        <div className="space-y-4 py-1">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-[#4A5268]">Field type</Label>
-            <div
-              className="flex items-center gap-2 px-3 h-9 rounded-md border text-sm"
-              style={{
-                borderColor: '#E7E7E9',
-                backgroundColor: '#F9F9FA',
-                color: '#6A7184',
-              }}
-            >
-              <Icon size={14} className="text-[#9AA2AF]" />
-              {typeLabel}
-            </div>
-          </div>
-
-          {/* Field name */}
-          <div className="space-y-1.5">
-            <Label htmlFor="edit-field-name" className="text-xs font-medium text-[#4A5268]">
-              Field name
-            </Label>
+            <Label htmlFor="edit-field-name" className="text-xs text-[#6A7184]">Field Name</Label>
             <Input
               id="edit-field-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Amount, Status"
+              placeholder="Field name"
+              className="h-9"
               autoFocus
-              className="h-9"
-              onKeyDown={(e) => e.key === 'Enter' && !showChoicesEditor && handleSave()}
+              onKeyDown={(e) => e.key === 'Enter' && !isSelectType && handleSave()}
             />
           </div>
 
-          {/* Description */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-[#4A5268]">
-              Description <span className="text-[#9AA2AF] font-normal">(optional)</span>
-            </Label>
-            <Input
+            <Label htmlFor="edit-field-desc" className="text-xs text-[#6A7184]">Description <span className="text-[#9AA2AF]">(optional)</span></Label>
+            <textarea
+              id="edit-field-desc"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe this field..."
-              className="h-9"
+              onChange={(e) => {
+                if (e.target.value.length <= 500) setDescription(e.target.value);
+              }}
+              placeholder="Add a description for this field..."
+              className="w-full rounded-md border border-[#E7E7E9] bg-white dark:bg-[hsl(200,30%,10%)] px-3 py-2 text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:outline-none focus:ring-2 focus:ring-[#3366FF] focus:border-transparent resize-none"
+              rows={3}
+              maxLength={500}
             />
+            <div className="text-[11px] text-[#9AA2AF] text-right">{description.length}/500</div>
           </div>
 
-          {/* Choices editor for SingleSelect / MultiSelect */}
-          {showChoicesEditor && (
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              className="w-3.5 h-3.5 accent-[#3366FF]"
+              checked={isRequired}
+              onChange={(e) => setIsRequired(e.target.checked)}
+            />
+            <span className="text-xs text-[#374151]">Required field</span>
+          </label>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs text-[#6A7184]">Field Type</Label>
+            <div className="flex items-center gap-2 px-3 py-2 border border-[#E7E7E9] rounded-lg bg-[#F9F9FA]">
+              <Icon size={14} className="text-[#9AA2AF]" />
+              <span className="text-[13px] text-[#374151]">
+                {FIELD_TYPE_LABELS[field.ui_type] ?? field.ui_type}
+              </span>
+              <span className="text-[11px] text-[#9AA2AF] ml-auto">Cannot be changed</span>
+            </div>
+          </div>
+
+          {isSelectType && (
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-[#4A5268]">Options</Label>
-              <div className="space-y-1.5 max-h-[160px] overflow-y-auto">
+              <Label className="text-xs text-[#6A7184]">Options</Label>
+              <div className="space-y-1.5">
                 {choices.map((choice) => {
-                  const color = PILL_COLORS.find((c) => c.name === choice.color) || PILL_COLORS[7];
+                  const pillColor = PILL_COLORS.find((c) => c.name === choice.color) || PILL_COLORS[7];
                   return (
-                    <div key={choice.title} className="flex items-center gap-2">
+                    <div key={choice.title} className="flex items-center gap-2 group">
                       <span
-                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-1 min-w-0"
-                        style={{ backgroundColor: color.bg, color: color.text }}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium flex-1 min-w-0 truncate"
+                        style={{ backgroundColor: pillColor.bg, color: pillColor.text }}
                       >
-                        <span className="truncate">{choice.title}</span>
+                        {choice.title}
                       </span>
+                      <div className="flex items-center gap-0.5">
+                        {PILL_COLORS.map((pc) => (
+                          <ColorDot
+                            key={pc.name}
+                            color={pc}
+                            selected={choice.color === pc.name}
+                            onClick={() => updateChoiceColor(choice.title, pc.name)}
+                          />
+                        ))}
+                      </div>
                       <button
-                        className="p-0.5 rounded hover:bg-[#F4F4F5] shrink-0"
+                        type="button"
+                        className="p-0.5 rounded hover:bg-red-50 text-[#9AA2AF] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                         onClick={() => removeChoice(choice.title)}
                       >
-                        <X size={12} className="text-[#9AA2AF]" />
+                        <X size={14} />
                       </button>
                     </div>
                   );
                 })}
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex gap-2">
                 <Input
                   value={newChoiceText}
                   onChange={(e) => setNewChoiceText(e.target.value)}
-                  placeholder="Add an option..."
-                  className="text-xs h-8"
+                  placeholder="Add an option"
+                  className="h-8 text-xs flex-1"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -238,68 +251,87 @@ export function EditFieldDialog({ open, onOpenChange, field, tableId }: EditFiel
                     }
                   }}
                 />
-                <Button variant="ghost" size="sm" className="h-8 px-2 shrink-0 hover:bg-[#F4F4F5]" onClick={addChoice}>
-                  <Plus size={14} />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs text-[#3366FF] hover:text-[#2952CC] gap-1"
+                  onClick={addChoice}
+                  disabled={!newChoiceText.trim()}
+                >
+                  <Plus size={13} /> Add
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Rating max selector */}
-          {showRatingConfig && (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-[#4A5268]">Max rating</Label>
-              <div className="flex items-center gap-2">
-                {[3, 5, 10].map((n) => (
-                  <button
-                    key={n}
-                    className={`px-3 py-1 rounded text-xs border transition-colors ${
-                      ratingMax === n
-                        ? 'bg-[#3366FF] text-white border-[#3366FF]'
-                        : 'bg-white text-[#4A5268] border-[#E7E7E9] hover:border-[#3366FF]'
-                    }`}
-                    onClick={() => setRatingMax(n)}
-                  >
-                    {n} <Star size={10} className="inline" />
-                  </button>
-                ))}
+          {/* Validation Rules */}
+          {(() => {
+            const available = DEFAULT_VALIDATIONS[field.ui_type] ?? [];
+            if (available.length === 0) return null;
+            return (
+              <div className="space-y-2">
+                <Label className="text-xs text-[#6A7184]">Validation</Label>
+                <div className="space-y-2">
+                  {available.map((ruleType) => {
+                    const existing = validationRules.find((r) => r.type === ruleType);
+                    const enabled = !!existing;
+                    return (
+                      <div key={ruleType} className="space-y-1">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="w-3.5 h-3.5 accent-[#3366FF]"
+                            checked={enabled}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setValidationRules([...validationRules, { type: ruleType }]);
+                              } else {
+                                setValidationRules(validationRules.filter((r) => r.type !== ruleType));
+                              }
+                            }}
+                          />
+                          <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                            {RULE_LABELS[ruleType]}
+                          </span>
+                        </label>
+                        {enabled && (
+                          <div className="pl-6 space-y-1">
+                            {ruleNeedsValue(ruleType) && (
+                              <Input
+                                value={existing.value ?? ''}
+                                onChange={(e) => {
+                                  setValidationRules(
+                                    validationRules.map((r) =>
+                                      r.type === ruleType ? { ...r, value: e.target.value } : r,
+                                    ),
+                                  );
+                                }}
+                                placeholder={ruleType === 'regex' ? 'e.g. ^[A-Z]' : 'Value'}
+                                className="h-7 text-xs"
+                              />
+                            )}
+                            <Input
+                              value={existing.message ?? ''}
+                              onChange={(e) => {
+                                setValidationRules(
+                                  validationRules.map((r) =>
+                                    r.type === ruleType ? { ...r, message: e.target.value || undefined } : r,
+                                  ),
+                                );
+                              }}
+                              placeholder="Custom error message (optional)"
+                              className="h-7 text-xs"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Currency code selector */}
-          {showCurrencyConfig && (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-[#4A5268]">Currency</Label>
-              <Select value={currencyCode} onValueChange={setCurrencyCode}>
-                <SelectTrigger className="h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {['USD', 'EUR', 'GBP', 'NGN', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'].map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Decimal precision selector */}
-          {showPrecisionConfig && (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-[#4A5268]">Decimal places</Label>
-              <Select value={String(precision)} onValueChange={(v) => setPrecision(Number(v))}>
-                <SelectTrigger className="h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[0, 1, 2, 3, 4].map((n) => (
-                    <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+            );
+          })()}
 
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
@@ -309,11 +341,12 @@ export function EditFieldDialog({ open, onOpenChange, field, tableId }: EditFiel
           </Button>
           <Button
             size="sm"
-            className="bg-[#3366FF] hover:bg-[#2952CC] text-white"
+            style={{ backgroundColor: '#3366FF' }}
+            className="hover:opacity-90 text-white"
             onClick={handleSave}
-            disabled={updateField.isPending || !name.trim()}
+            disabled={updateField.isPending}
           >
-            {updateField.isPending ? 'Saving...' : 'Save'}
+            {updateField.isPending ? 'Saving...' : 'Save Changes'}
           </Button>
         </DialogFooter>
       </DialogContent>
