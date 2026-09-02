@@ -440,7 +440,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                 {/* Actions */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-[11px] font-medium text-[#6A7184]">Actions ({draft.actions.length})</label>
+                    <label className="text-[11px] font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Actions ({draft.actions.length})</label>
                     <div className="relative">
                       <Button
                         size="sm"
@@ -451,15 +451,14 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                         <Plus size={11} /> Add action <ChevronDown size={10} />
                       </Button>
                       {showActionPicker && (
-                        <div className="absolute right-0 top-7 z-50 bg-white rounded-lg border shadow-lg py-1 w-48" style={{ borderColor: '#E7E7E9' }}>
+                        <div className="absolute right-0 top-7 z-50 bg-white dark:bg-[hsl(200,25%,13%)] rounded-lg border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shadow-lg py-1 w-48">
                           {ACTION_TYPES.map(({ type, label, icon: Icon }) => (
                             <button
                               key={type}
-                              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] flex items-center gap-2"
-                              style={{ color: '#374151' }}
+                              className="w-full text-left px-3 py-1.5 text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2"
                               onClick={() => addAction(type)}
                             >
-                              <Icon size={13} className="text-[#6A7184]" /> {label}
+                              <Icon size={13} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]" /> {label}
                             </button>
                           ))}
                         </div>
@@ -468,8 +467,8 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                   </div>
 
                   {draft.actions.length === 0 && (
-                    <div className="py-4 text-center rounded-lg border border-dashed" style={{ borderColor: '#E7E7E9' }}>
-                      <p className="text-[12px] text-[#6A7184]">No actions configured</p>
+                    <div className="py-4 text-center rounded-lg border border-dashed border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+                      <p className="text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">No actions configured</p>
                     </div>
                   )}
 
@@ -478,15 +477,15 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                       const meta = ACTION_TYPES.find((t) => t.type === action.type);
                       const Icon = meta?.icon ?? Bell;
                       return (
-                        <div key={action.id} className="rounded-lg border p-3" style={{ borderColor: '#E7E7E9' }}>
+                        <div key={action.id} className="rounded-lg border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] p-3 bg-white dark:bg-[hsl(200,25%,13%)]">
                           <div className="flex items-center gap-2 mb-2">
-                            <GripVertical size={12} className="text-[#D1D5DB] shrink-0" />
+                            <GripVertical size={12} className="text-[#D1D5DB] dark:text-[hsl(200,25%,25%)] shrink-0" />
                             <Icon size={13} className="text-[#3366FF] shrink-0" />
-                            <span className="text-[12px] font-medium" style={{ color: '#374151' }}>
+                            <span className="text-[12px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
                               {idx + 1}. {meta?.label ?? action.type}
                             </span>
                             <button
-                              className="ml-auto p-1 rounded hover:bg-[#FEE2E2] text-[#6A7184] hover:text-[#991B1B] transition-colors"
+                              className="ml-auto p-1 rounded hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#991B1B] dark:hover:text-[#FCA5A5] transition-colors"
                               onClick={() => removeAction(action.id)}
                               title="Remove action"
                             >
@@ -505,7 +504,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                 </div>
 
                 {/* Save / Delete buttons */}
-                <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: '#E7E7E9' }}>
+                <div className="flex items-center gap-2 pt-2 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
                   <Button
                     size="sm"
                     className="h-8 px-4 text-[12px]"
@@ -517,7 +516,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 px-3 text-[12px] text-[#991B1B] border-[#FEE2E2] hover:bg-[#FEE2E2]"
+                    className="h-8 px-3 text-[12px] text-[#991B1B] dark:text-[#FCA5A5] border-[#FEE2E2] dark:border-[hsl(0,40%,18%)] hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)]"
                     onClick={handleDelete}
                   >
                     <Trash2 size={12} className="mr-1" /> Delete
