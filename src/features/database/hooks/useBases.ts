@@ -31,29 +31,49 @@ function toSnakeCase(name: string): string {
     .substring(0, 63);
 }
 
+async function ensureWorkspace(): Promise<string> {
+  const { data, error } = await supabase
+    .schema('nc_meta')
+    .from('workspaces')
+    .select('id')
+    .order('created_at')
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (data) return data.id;
+
+  const { data: created, error: createErr } = await supabase
+    .schema('nc_meta')
+    .from('workspaces')
+    .insert({ name: 'Default Workspace' })
+    .select('id')
+    .single();
+  if (createErr) throw createErr;
+  return created.id;
+}
+
 export function useCreateBase() {
   const qc = useQueryClient();
 
   return useMutation({
     mutationFn: async (input: {
-      workspace_id: string;
       name: string;
       icon?: string | null;
       color?: string | null;
-      position?: number;
     }) => {
+      const workspaceId = await ensureWorkspace();
       const schemaName = `nc_${toSnakeCase(input.name)}_${Date.now()}`;
 
       const { data: base, error: insertError } = await supabase
         .schema('nc_meta')
         .from('bases')
         .insert({
-          workspace_id: input.workspace_id,
+          workspace_id: workspaceId,
           name: input.name,
           schema_name: schemaName,
           icon: input.icon ?? null,
           color: input.color ?? null,
-          position: input.position ?? 0,
+          position: 0,
         })
         .select()
         .single();
@@ -65,6 +85,12 @@ export function useCreateBase() {
       });
 
       if (ddlError) throw ddlError;
+
+      const { error: exposeError } = await supabase.functions.invoke('ddl-executor', {
+        body: { action: 'exposeSchema', schemaName },
+      });
+
+      if (exposeError) throw exposeError;
 
       return base as Base;
     },

@@ -1,12 +1,12 @@
 import { create } from 'zustand';
-import type { Filter, Sort, Group } from '../types';
+import type { Filter, Sort, Group, RowColorRule } from '../types';
 
 interface DatabaseUIState {
   activeBaseId: string | null;
   activeTableId: string | null;
   activeViewId: string | null;
   sidebarOpen: boolean;
-  selectedCellId: string | null; // "rowId:fieldId"
+  selectedCellId: string | null;
   editingCellId: string | null;
   rowHeight: 'compact' | 'default' | 'tall' | 'extra-tall';
   filters: Filter[];
@@ -16,6 +16,7 @@ interface DatabaseUIState {
   groups: Group[];
   kanbanFieldId: string | null;
   calendarFieldId: string | null;
+  rowColorRules: RowColorRule[];
 
   setActiveBase: (id: string | null) => void;
   setActiveTable: (id: string | null) => void;
@@ -33,6 +34,7 @@ interface DatabaseUIState {
   setGroups: (groups: Group[]) => void;
   setKanbanFieldId: (id: string | null) => void;
   setCalendarFieldId: (id: string | null) => void;
+  setRowColorRules: (rules: RowColorRule[]) => void;
 }
 
 export const useDatabaseUI = create<DatabaseUIState>((set) => ({
@@ -50,6 +52,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   groups: [],
   kanbanFieldId: null,
   calendarFieldId: null,
+  rowColorRules: [],
 
   setActiveBase: (id) => set({
     activeBaseId: id,
@@ -60,6 +63,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
     hiddenFieldIds: new Set(),
     searchQuery: '',
     groups: [],
+    rowColorRules: [],
   }),
   setActiveTable: (id) => set({
     activeTableId: id,
@@ -69,6 +73,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
     hiddenFieldIds: new Set(),
     searchQuery: '',
     groups: [],
+    rowColorRules: [],
   }),
   setActiveView: (id) => set({ activeViewId: id }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
@@ -88,4 +93,5 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   setGroups: (groups) => set({ groups }),
   setKanbanFieldId: (id) => set({ kanbanFieldId: id }),
   setCalendarFieldId: (id) => set({ calendarFieldId: id }),
+  setRowColorRules: (rules) => set({ rowColorRules: rules }),
 }));

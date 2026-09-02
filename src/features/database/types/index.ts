@@ -205,6 +205,14 @@ export const PILL_COLORS = [
   { name: 'Indigo', bg: '#E0E7FF', text: '#3730A3' },
 ];
 
+export interface RowColorRule {
+  id: string;
+  field_id: string;
+  operator: FilterOperator;
+  value: any;
+  color: string;
+}
+
 export const OPERATORS_BY_TYPE: Partial<Record<UIType, FilterOperator[]>> = {
   SingleLineText: ['is', 'isNot', 'contains', 'doesNotContain', 'startsWith', 'endsWith', 'isEmpty', 'isNotEmpty'],
   LongText: ['is', 'isNot', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],

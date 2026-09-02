@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Menu, Search } from 'lucide-react';
+import { ArrowLeft, Menu, Search, HelpCircle, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/authStore';
 import { useDatabaseUI } from '../lib/store';
@@ -24,46 +24,69 @@ export function DatabaseTopBar() {
     : '?';
 
   return (
-    <div className="flex items-center justify-between h-12 px-3 bg-white border-b border-[#E2E8F0] shrink-0">
-      {/* Left */}
-      <div className="flex items-center gap-2">
-        <Link to="/" className="p-1.5 rounded hover:bg-gray-100 text-[#475569]">
-          <ArrowLeft size={18} />
+    <header className="flex items-center justify-between h-11 px-3 bg-white dark:bg-[hsl(200,30%,8%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shrink-0">
+      <div className="flex items-center gap-1.5">
+        <Link
+          to="/"
+          className="p-1.5 rounded-md hover:bg-[#F4F4F5] text-[#6A7184] transition-colors"
+        >
+          <ArrowLeft size={16} />
         </Link>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleSidebar}>
-          <Menu size={18} />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-[#6A7184] hover:bg-[#F4F4F5]"
+          onClick={toggleSidebar}
+        >
+          <Menu size={16} />
         </Button>
-        <span className="text-sm font-semibold text-[#006994] select-none">KDOps Data</span>
-        {activeBase && (
-          <>
-            <span className="text-[#94A3B8] text-xs">/</span>
-            <span className="text-xs text-[#0F172A] font-medium truncate max-w-[140px]">
-              {activeBase.name}
-            </span>
-          </>
-        )}
-        {activeTable && (
-          <>
-            <span className="text-[#94A3B8] text-xs">/</span>
-            <span className="text-xs text-[#475569] truncate max-w-[140px]">
-              {activeTable.name}
-            </span>
-          </>
-        )}
+        <div className="flex items-center gap-1 ml-1">
+          <span className="text-[13px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
+            KDOps Data
+          </span>
+          {activeBase && (
+            <>
+              <span className="text-[#D5D5D9] text-sm mx-0.5">/</span>
+              <span
+                className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium truncate max-w-[160px]"
+              >
+                {activeBase.name}
+              </span>
+            </>
+          )}
+          {activeTable && (
+            <>
+              <span className="text-[#D5D5D9] text-sm mx-0.5">/</span>
+              <span className="text-[13px] text-[#6A7184] truncate max-w-[160px]">
+                {activeTable.name}
+              </span>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Right */}
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-[#475569]">
-          <Search size={16} />
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-[12px] text-[#6A7184] hover:bg-[#F4F4F5] gap-1"
+        >
+          <Share2 size={13} /> Share
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-[#6A7184] hover:bg-[#F4F4F5]"
+        >
+          <HelpCircle size={15} />
         </Button>
         <div
-          className="h-7 w-7 rounded-full bg-[#006994] text-white flex items-center justify-center text-[11px] font-medium select-none"
+          className="h-7 w-7 rounded-full bg-[#3366FF] text-white flex items-center justify-center text-[10px] font-semibold select-none ml-1"
           title={profile?.full_name ?? ''}
         >
           {initials}
         </div>
       </div>
-    </div>
+    </header>
   );
 }

@@ -326,6 +326,59 @@ async function handleDropTable(
   }
 }
 
+async function handleDropSchema(
+  pool: Pool,
+  body: { schemaName: string },
+): Promise<void> {
+  const schema = sanitizeIdentifier(body.schemaName);
+  validateSchemaAccess(body.schemaName);
+
+  const conn = await pool.connect();
+  try {
+    await conn.queryObject(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+  } finally {
+    conn.release();
+  }
+}
+
+async function handleExposeSchema(
+  pool: Pool,
+  body: { schemaName: string },
+): Promise<void> {
+  const rawName = body.schemaName;
+  validateSchemaAccess(rawName);
+  if (!IDENTIFIER_RE.test(rawName)) {
+    throw new Error(`Invalid schema name: ${rawName}`);
+  }
+
+  const conn = await pool.connect();
+  try {
+    await conn.queryObject(`GRANT USAGE ON SCHEMA "${rawName}" TO authenticated, anon`);
+    await conn.queryObject(
+      `ALTER DEFAULT PRIVILEGES IN SCHEMA "${rawName}" GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated`,
+    );
+    await conn.queryObject(
+      `ALTER DEFAULT PRIVILEGES IN SCHEMA "${rawName}" GRANT SELECT ON TABLES TO anon`,
+    );
+
+    const { rows } = await conn.queryObject<{ setting: string }>(
+      `SELECT current_setting('pgrst.db_schemas', true) AS setting`,
+    );
+    const current = rows[0]?.setting ?? 'public';
+    const schemas = current.split(',').map((s: string) => s.trim()).filter(Boolean);
+    if (!schemas.includes(rawName)) {
+      schemas.push(rawName);
+      await conn.queryObject(
+        `ALTER ROLE authenticator SET pgrst.db_schemas = '${schemas.join(', ')}'`,
+      );
+      await conn.queryObject(`NOTIFY pgrst, 'reload config'`);
+      await conn.queryObject(`NOTIFY pgrst, 'reload schema'`);
+    }
+  } finally {
+    conn.release();
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main handler
 // ---------------------------------------------------------------------------
@@ -374,6 +427,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
         break;
       case 'dropTable':
         await handleDropTable(pool, body);
+        break;
+      case 'dropSchema':
+        await handleDropSchema(pool, body);
+        break;
+      case 'exposeSchema':
+        await handleExposeSchema(pool, body);
         break;
       default:
         return json({ success: false, error: `Unknown action: ${action}` }, 400);

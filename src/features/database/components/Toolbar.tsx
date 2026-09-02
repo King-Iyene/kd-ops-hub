@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Plus, Rows3, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
@@ -7,10 +7,11 @@ import { CreateFieldDialog } from './CreateFieldDialog';
 import { FilterPanel } from './FilterPanel';
 import { SortPanel } from './SortPanel';
 import { FieldVisibilityPanel } from './FieldVisibilityPanel';
+import { RowColorPanel } from './RowColorPanel';
 import { GroupPanel } from './GroupPanel';
 import { SearchBar } from './SearchBar';
+import { UndoRedoButtons } from './UndoRedoButtons';
 import { exportToCSV, parseCSV, csvToRecords } from '../lib/csv';
-import { useState } from 'react';
 
 export function Toolbar() {
   const {
@@ -27,6 +28,8 @@ export function Toolbar() {
     hiddenFieldIds,
     toggleHiddenField,
     setHiddenFieldIds,
+    rowColorRules,
+    setRowColorRules,
   } = useDatabaseUI();
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -88,8 +91,8 @@ export function Toolbar() {
 
   return (
     <>
-      <div className="flex items-center justify-between h-10 px-3 bg-[#F8FAFC] border-b border-[#E2E8F0] shrink-0">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between h-9 px-3 bg-[#F9F9FA] dark:bg-[hsl(200,30%,8%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shrink-0">
+        <div className="flex items-center gap-0.5">
           <FilterPanel
             fields={fields}
             filters={filters}
@@ -112,34 +115,42 @@ export function Toolbar() {
             onShowAll={handleShowAll}
             onHideAll={handleHideAll}
           />
+          <RowColorPanel
+            fields={fields}
+            rules={rowColorRules}
+            onRulesChange={setRowColorRules}
+          />
+          <div className="w-px h-4 bg-[#E7E7E9] mx-1" />
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-[#475569] gap-1"
+            className="h-7 text-[11px] text-[#6A7184] gap-1 px-2 hover:bg-[#E7E7E9]"
             onClick={nextHeight}
           >
-            <Rows3 size={14} /> {rowHeight}
+            <Rows3 size={13} /> {rowHeight}
           </Button>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
+          <UndoRedoButtons />
           <SearchBar />
+          <div className="w-px h-4 bg-[#E7E7E9] mx-1" />
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-[#475569] gap-1"
+            className="h-7 text-[11px] text-[#6A7184] gap-1 px-2 hover:bg-[#E7E7E9]"
             onClick={handleExport}
             title="Export CSV"
           >
-            <Download size={14} />
+            <Download size={13} />
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-[#475569] gap-1"
+            className="h-7 text-[11px] text-[#6A7184] gap-1 px-2 hover:bg-[#E7E7E9]"
             onClick={() => fileInputRef.current?.click()}
             title="Import CSV"
           >
-            <Upload size={14} />
+            <Upload size={13} />
           </Button>
           <input
             ref={fileInputRef}
@@ -148,13 +159,14 @@ export function Toolbar() {
             className="hidden"
             onChange={handleImport}
           />
+          <div className="w-px h-4 bg-[#E7E7E9] mx-1" />
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-[#006994] gap-1 font-medium"
+            className="h-7 text-[11px] text-[#3366FF] gap-1 px-2 font-medium hover:bg-[#3366FF]/10"
             onClick={() => setFieldDialogOpen(true)}
           >
-            <Plus size={14} /> New Field
+            <Plus size={13} /> Field
           </Button>
         </div>
       </div>
