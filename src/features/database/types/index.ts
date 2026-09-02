@@ -270,6 +270,18 @@ export interface Automation {
   updated_at: string;
 }
 
+export interface AuditLogEntry {
+  id: string;
+  base_id: string;
+  table_id: string;
+  record_id: string | null;
+  user_email: string;
+  action: 'INSERT' | 'UPDATE' | 'DELETE' | 'BULK_DELETE' | 'CREATE_TABLE' | 'DELETE_TABLE' | 'CREATE_FIELD' | 'DELETE_FIELD';
+  description: string;
+  changes: Record<string, { old: any; new: any }> | null;
+  created_at: string;
+}
+
 export const OPERATORS_BY_TYPE: Partial<Record<UIType, FilterOperator[]>> = {
   SingleLineText: ['is', 'isNot', 'contains', 'doesNotContain', 'startsWith', 'endsWith', 'isEmpty', 'isNotEmpty'],
   LongText: ['is', 'isNot', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
