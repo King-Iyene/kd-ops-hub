@@ -100,33 +100,6 @@ export function useCreateBase() {
   });
 }
 
-export function useUpdateBase() {
-  const qc = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (input: { id: string; name?: string; color?: string; icon?: string | null }) => {
-      const updates: Record<string, any> = {};
-      if (input.name !== undefined) updates.name = input.name;
-      if (input.color !== undefined) updates.color = input.color;
-      if (input.icon !== undefined) updates.icon = input.icon;
-
-      const { data, error } = await supabase
-        .schema('nc_meta')
-        .from('bases')
-        .update(updates)
-        .eq('id', input.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data as Base;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['nc', 'bases'] });
-    },
-  });
-}
-
 export function useDeleteBase() {
   const qc = useQueryClient();
 

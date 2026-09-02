@@ -433,50 +433,6 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: Cell
   );
 }
 
-export function RatingCellEditor({ value, field, onCommit }: CellEditorProps) {
-  const max = field.options?.max ?? 5;
-  const current = typeof value === 'number' ? value : 0;
-
-  return (
-    <div className="flex items-center gap-0.5 px-1 h-full">
-      {Array.from({ length: max }, (_, i) => (
-        <button
-          key={i}
-          type="button"
-          className="p-0"
-          onClick={() => onCommit(i + 1 === current ? 0 : i + 1)}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill={i < current ? '#F59E0B' : 'none'} stroke={i < current ? '#F59E0B' : '#D1D5DB'} strokeWidth="1.5">
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-          </svg>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-export function DurationCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const seconds = typeof value === 'number' ? value : 0;
-  const [h, setH] = useState(Math.floor(seconds / 3600));
-  const [m, setM] = useState(Math.floor((seconds % 3600) / 60));
-  const [s, setS] = useState(Math.floor(seconds % 60));
-  const ref = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { ref.current?.focus(); }, []);
-
-  const commit = () => onCommit(h * 3600 + m * 60 + s);
-
-  return (
-    <div className="flex items-center gap-1 px-1 h-full">
-      <input ref={ref} type="number" min={0} value={h} onChange={(e) => setH(+e.target.value)} className="w-10 h-6 text-center text-xs border rounded outline-none" onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') onCancel(); }} />
-      <span className="text-[10px] text-[#9AA2AF]">h</span>
-      <input type="number" min={0} max={59} value={m} onChange={(e) => setM(+e.target.value)} className="w-10 h-6 text-center text-xs border rounded outline-none" onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') onCancel(); }} />
-      <span className="text-[10px] text-[#9AA2AF]">m</span>
-      <input type="number" min={0} max={59} value={s} onChange={(e) => setS(+e.target.value)} className="w-10 h-6 text-center text-xs border rounded outline-none" onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') onCancel(); }} onBlur={commit} />
-      <span className="text-[10px] text-[#9AA2AF]">s</span>
-    </div>
-  );
-}
 
 export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   const [num, setNum] = useState(value ?? '');

@@ -299,7 +299,7 @@ export default function KanbanView({
                 className="flex flex-col items-center shrink-0 rounded-lg cursor-pointer transition-all"
                 style={{
                   width: 44,
-                  backgroundColor: var(--kanban-collapsed-bg),
+                  backgroundColor: 'var(--kanban-collapsed-bg)',
                   border: `1px solid var(--kanban-border)`,
                   minHeight: 200,
                 }}

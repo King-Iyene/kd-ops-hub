@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Filter, Sort, Group, RowColorRule, ConditionalFormatRule } from '../types';
+import type { Filter, FilterGroup, Sort, Group, RowColorRule, ConditionalFormatRule } from '../types';
 
 export type SummaryFunction =
   | 'none'
@@ -18,10 +18,13 @@ interface DatabaseUIState {
   activeTableId: string | null;
   activeViewId: string | null;
   sidebarOpen: boolean;
+  sidebarCollapsed: boolean;
+  sidebarWidth: number;
   selectedCellId: string | null;
   editingCellId: string | null;
   rowHeight: 'compact' | 'default' | 'tall' | 'extra-tall';
   filters: Filter[];
+  filterGroups: FilterGroup[];
   sorts: Sort[];
   groupByLevels: Group[];
   hiddenFieldIds: Set<string>;
@@ -32,6 +35,7 @@ interface DatabaseUIState {
   summaryFunctions: Record<string, SummaryFunction>;
   fieldWidths: Record<string, number>;
   frozenColumns: number;
+  focusedFilterId: string | null;
 
   setConditionalFormats: (rules: ConditionalFormatRule[]) => void;
   setActiveBase: (id: string | null) => void;
@@ -45,10 +49,15 @@ interface DatabaseUIState {
   }) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  toggleSidebarCollapsed: () => void;
+  setSidebarWidth: (width: number) => void;
   setSelectedCell: (id: string | null) => void;
   setEditingCell: (id: string | null) => void;
   setRowHeight: (h: 'compact' | 'default' | 'tall' | 'extra-tall') => void;
   setFilters: (filters: Filter[]) => void;
+  setFilterGroups: (groups: FilterGroup[]) => void;
+  setFocusedFilterId: (id: string | null) => void;
   setSorts: (sorts: Sort[]) => void;
   setGroupByLevels: (groups: Group[]) => void;
   toggleHiddenField: (fieldId: string) => void;
@@ -65,10 +74,14 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   activeTableId: null,
   activeViewId: null,
   sidebarOpen: true,
+  sidebarCollapsed: false,
+  sidebarWidth: 260,
   selectedCellId: null,
   editingCellId: null,
   rowHeight: 'default',
   filters: [],
+  filterGroups: [],
+  focusedFilterId: null,
   sorts: [],
   groupByLevels: [],
   hiddenFieldIds: new Set(),
@@ -86,6 +99,8 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       activeTableId: null,
       activeViewId: null,
       filters: [],
+      filterGroups: [],
+      focusedFilterId: null,
       sorts: [],
       groupByLevels: [],
       hiddenFieldIds: new Set(),
@@ -98,6 +113,8 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       activeTableId: id,
       activeViewId: null,
       filters: [],
+      filterGroups: [],
+      focusedFilterId: null,
       sorts: [],
       groupByLevels: [],
       hiddenFieldIds: new Set(),
@@ -117,10 +134,15 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+  toggleSidebarCollapsed: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+  setSidebarWidth: (width) => set({ sidebarWidth: Math.min(400, Math.max(200, width)) }),
   setSelectedCell: (id) => set({ selectedCellId: id }),
   setEditingCell: (id) => set({ editingCellId: id }),
   setRowHeight: (h) => set({ rowHeight: h }),
   setFilters: (filters) => set({ filters }),
+  setFilterGroups: (groups) => set({ filterGroups: groups }),
+  setFocusedFilterId: (id) => set({ focusedFilterId: id }),
   setSorts: (sorts) => set({ sorts }),
   setGroupByLevels: (groups) => set({ groupByLevels: groups }),
   toggleHiddenField: (fieldId) =>

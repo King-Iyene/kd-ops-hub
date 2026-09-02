@@ -443,31 +443,3 @@ export function useDuplicateTable() {
   });
 }
 
-export function useUpdateTable() {
-  const qc = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (input: {
-      id: string;
-      baseId: string;
-      name?: string;
-      icon?: string | null;
-      position?: number;
-    }) => {
-      const { id, baseId, ...updates } = input;
-      const { data, error } = await supabase
-        .schema('nc_meta')
-        .from('tables')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data as TableMeta;
-    },
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['nc', 'tables', variables.baseId] });
-    },
-  });
-}

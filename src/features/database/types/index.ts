@@ -137,7 +137,10 @@ export type FilterOperator =
   | 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte'
   | 'isBefore' | 'isAfter' | 'isOnOrBefore' | 'isOnOrAfter'
   | 'isBetween' | 'isWithin'
+  | 'isWithinPastWeek' | 'isWithinPastMonth' | 'isWithinPastYear'
   | 'isAnyOf' | 'isNoneOf' | 'isExactly'
+  | 'containsAnyOf' | 'doesNotContainAnyOf'
+  | 'isChecked' | 'isNotChecked'
   | 'linkCountIs' | 'linkCountGt' | 'linkCountLt';
 
 export interface Filter {
@@ -146,6 +149,13 @@ export interface Filter {
   operator: FilterOperator;
   value: any;
   conjunction: 'and' | 'or';
+}
+
+export interface FilterGroup {
+  id: string;
+  conjunction: 'and' | 'or';
+  filters: Filter[];
+  groups: FilterGroup[];
 }
 
 export interface Sort {
@@ -289,11 +299,11 @@ export const OPERATORS_BY_TYPE: Partial<Record<UIType, FilterOperator[]>> = {
   Number: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isEmpty', 'isNotEmpty'],
   Currency: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isEmpty', 'isNotEmpty'],
   Percent: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isEmpty', 'isNotEmpty'],
-  Date: ['is', 'isBefore', 'isAfter', 'isOnOrBefore', 'isOnOrAfter', 'isBetween', 'isEmpty', 'isNotEmpty'],
-  DateTime: ['is', 'isBefore', 'isAfter', 'isOnOrBefore', 'isOnOrAfter', 'isBetween', 'isEmpty', 'isNotEmpty'],
+  Date: ['is', 'isBefore', 'isAfter', 'isOnOrBefore', 'isOnOrAfter', 'isBetween', 'isWithin', 'isWithinPastWeek', 'isWithinPastMonth', 'isWithinPastYear', 'isEmpty', 'isNotEmpty'],
+  DateTime: ['is', 'isBefore', 'isAfter', 'isOnOrBefore', 'isOnOrAfter', 'isBetween', 'isWithin', 'isWithinPastWeek', 'isWithinPastMonth', 'isWithinPastYear', 'isEmpty', 'isNotEmpty'],
   SingleSelect: ['is', 'isNot', 'isAnyOf', 'isNoneOf', 'isEmpty', 'isNotEmpty'],
-  MultiSelect: ['contains', 'doesNotContain', 'isExactly', 'isEmpty', 'isNotEmpty'],
-  Checkbox: ['is'],
+  MultiSelect: ['contains', 'doesNotContain', 'containsAnyOf', 'doesNotContainAnyOf', 'isExactly', 'isEmpty', 'isNotEmpty'],
+  Checkbox: ['isChecked', 'isNotChecked'],
   Email: ['is', 'isNot', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
   URL: ['is', 'isNot', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
 };

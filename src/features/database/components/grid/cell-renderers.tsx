@@ -106,19 +106,6 @@ export const DecimalCellRenderer = React.memo(function DecimalCellRenderer({
   );
 });
 
-export const PercentCellRenderer = React.memo(function PercentCellRenderer({
-  value,
-}: CellRendererProps) {
-  if (value == null || value === '') return null;
-  const num = Number(value);
-  if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
-  return (
-    <span className="truncate block text-right w-full">
-      {num}%
-    </span>
-  );
-});
-
 export const CurrencyCellRenderer = React.memo(function CurrencyCellRenderer({
   value,
   field,
@@ -150,25 +137,6 @@ export const DateCellRenderer = React.memo(function DateCellRenderer({
   return <span className="truncate">{date.toLocaleDateString(undefined, opts)}</span>;
 });
 
-export const DurationCellRenderer = React.memo(function DurationCellRenderer({
-  value,
-}: CellRendererProps) {
-  if (value == null || value === '') return null;
-  const totalSeconds = Number(value);
-  if (isNaN(totalSeconds)) return <span className="truncate">{String(value)}</span>;
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  const display = h > 0
-    ? `${h}h ${m}m`
-    : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  return (
-    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums' }}>
-      {display}
-    </span>
-  );
-});
-
 export const CheckboxCellRenderer = React.memo(function CheckboxCellRenderer({
   value,
 }: CellRendererProps) {
@@ -188,27 +156,6 @@ export const CheckboxCellRenderer = React.memo(function CheckboxCellRenderer({
           style={{ borderColor: '#9AA2AF' }}
         />
       )}
-    </div>
-  );
-});
-
-export const RatingCellRenderer = React.memo(function RatingCellRenderer({
-  value,
-  field,
-}: CellRendererProps) {
-  const max = field.options?.max || 5;
-  const rating = Number(value) || 0;
-  return (
-    <div className="flex items-center gap-0.5">
-      {Array.from({ length: max }, (_, i) => (
-        <Star
-          key={i}
-          size={14}
-          fill={i < rating ? '#F59E0B' : 'none'}
-          color={i < rating ? '#F59E0B' : '#E7E7E9'}
-          strokeWidth={1.5}
-        />
-      ))}
     </div>
   );
 });
@@ -467,43 +414,6 @@ export const YearCellRenderer = React.memo(function YearCellRenderer({
   return <span className="truncate">{String(value)}</span>;
 });
 
-export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer({
-  value,
-}: CellRendererProps) {
-  if (!value) return null;
-  const files = Array.isArray(value) ? value : [];
-  if (files.length === 0) return null;
-
-  return (
-    <div className="flex items-center gap-1 overflow-hidden">
-      {files.slice(0, 3).map((file: any, i: number) => {
-        const isImage = file.type?.startsWith('image/');
-        if (isImage && file.url) {
-          return (
-            <img
-              key={i}
-              src={file.url}
-              alt={file.name || 'attachment'}
-              className="w-6 h-6 rounded object-cover border border-[#E7E7E9]"
-            />
-          );
-        }
-        return (
-          <div
-            key={i}
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#F4F4F5] text-[10px] text-[#6A7184] truncate"
-          >
-            <Paperclip size={10} className="shrink-0" />
-            <span className="truncate max-w-[60px]">{file.name || 'file'}</span>
-          </div>
-        );
-      })}
-      {files.length > 3 && (
-        <span className="text-[10px]" style={{ color: '#94A3B8' }}>+{files.length - 3}</span>
-      )}
-    </div>
-  );
-});
 
 export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({
   value,

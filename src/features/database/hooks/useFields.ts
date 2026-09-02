@@ -145,31 +145,6 @@ export function useUpdateField() {
   });
 }
 
-export function useReorderFields() {
-  const qc = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (input: { table_id: string; fieldIds: string[] }) => {
-      const updates = input.fieldIds.map((id, index) => ({
-        id,
-        position: (index + 1) * 10,
-      }));
-
-      for (const u of updates) {
-        const { error } = await supabase
-          .schema('nc_meta')
-          .from('fields')
-          .update({ position: u.position })
-          .eq('id', u.id);
-        if (error) throw error;
-      }
-    },
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
-    },
-  });
-}
-
 export function useDeleteField() {
   const qc = useQueryClient();
 

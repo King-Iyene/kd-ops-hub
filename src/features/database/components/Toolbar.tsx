@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, Replace, Printer, FileJson, GripVertical, ChevronUp, ChevronDown, Paintbrush } from 'lucide-react';
+import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, Replace, Printer, FileJson, GripVertical, ChevronUp, ChevronDown, Paintbrush, FolderPlus, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
 import { useUndoStore } from '../lib/undo';
-import { useFields, useRecords } from '../hooks';
+import { useFields, useRecords, useCreateView } from '../hooks';
 import { CreateFieldDialog } from './CreateFieldDialog';
 import { ImportCsvDialog } from './ImportCsvDialog';
 import { SearchReplaceDialog } from './SearchReplaceDialog';
@@ -11,7 +11,7 @@ import { ConditionalFormatDialog } from './ConditionalFormatDialog';
 import { exportToCsv, exportToJson } from '../lib/csv';
 import { useTables } from '../hooks';
 import { PrintView } from './PrintView';
-import type { Filter as FilterType, Sort, Group, FilterOperator, RowColorRule } from '../types';
+import type { Filter as FilterType, FilterGroup, Sort, Group, FilterOperator, RowColorRule, FieldMeta } from '../types';
 import { OPERATORS_BY_TYPE } from '../types';
 
 const OPERATOR_LABELS: Record<string, string> = {
@@ -35,17 +35,295 @@ const OPERATOR_LABELS: Record<string, string> = {
   isOnOrAfter: 'is on or after',
   isBetween: 'is between',
   isWithin: 'is within',
+  isWithinPastWeek: 'is within past week',
+  isWithinPastMonth: 'is within past month',
+  isWithinPastYear: 'is within past year',
   isAnyOf: 'is any of',
   isNoneOf: 'is none of',
   isExactly: 'is exactly',
+  containsAnyOf: 'contains any of',
+  doesNotContainAnyOf: 'does not contain any of',
+  isChecked: 'is checked',
+  isNotChecked: 'is not checked',
 };
 
-function FilterPanel({ onClose }: { onClose: () => void }) {
-  const { filters, setFilters, activeTableId } = useDatabaseUI();
+const NO_VALUE_OPERATORS = new Set<string>([
+  'isEmpty', 'isNotEmpty', 'isChecked', 'isNotChecked',
+  'isWithinPastWeek', 'isWithinPastMonth', 'isWithinPastYear',
+]);
+
+function FilterValueInput({
+  filter,
+  field,
+  onChange,
+}: {
+  filter: FilterType;
+  field: FieldMeta | undefined;
+  onChange: (value: any) => void;
+}) {
+  if (NO_VALUE_OPERATORS.has(filter.operator)) return null;
+
+  const uiType = field?.ui_type;
+
+  // Select fields: show a dropdown of choices
+  if (
+    (uiType === 'SingleSelect' || uiType === 'MultiSelect') &&
+    field?.options?.choices &&
+    field.options.choices.length > 0
+  ) {
+    return (
+      <select
+        className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1 max-w-[120px]"
+        value={filter.value ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">Select...</option>
+        {field.options.choices.map((c) => (
+          <option key={c.title} value={c.title}>{c.title}</option>
+        ))}
+      </select>
+    );
+  }
+
+  // Date fields: use date input
+  if (uiType === 'Date' || uiType === 'DateTime') {
+    return (
+      <input
+        type="date"
+        className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1 max-w-[130px]"
+        value={filter.value ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  }
+
+  // Number fields
+  if (uiType === 'Number' || uiType === 'Currency' || uiType === 'Percent' || uiType === 'Decimal') {
+    return (
+      <input
+        type="number"
+        className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1 max-w-[120px]"
+        value={filter.value ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Value"
+      />
+    );
+  }
+
+  return (
+    <input
+      className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1 max-w-[120px]"
+      value={filter.value ?? ''}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Value"
+    />
+  );
+}
+
+function FilterRuleRow({
+  filter,
+  index,
+  filterableFields,
+  onUpdate,
+  onRemove,
+  isFocused,
+}: {
+  filter: FilterType;
+  index: number;
+  filterableFields: FieldMeta[];
+  onUpdate: (id: string, updates: Partial<FilterType>) => void;
+  onRemove: (id: string) => void;
+  isFocused: boolean;
+}) {
+  const field = filterableFields.find((f) => f.id === filter.field_id);
+  const ops = field ? (OPERATORS_BY_TYPE[field.ui_type] ?? ['is', 'isNot']) : (['is'] as FilterOperator[]);
+
+  return (
+    <div
+      className={`flex items-center gap-2 mb-2 px-1 py-0.5 rounded ${isFocused ? 'ring-1 ring-[#3366FF] bg-[#3366FF]/5' : ''}`}
+    >
+      {index > 0 ? (
+        <select
+          className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:bg-[hsl(200,30%,12%)]"
+          value={filter.conjunction}
+          onChange={(e) => onUpdate(filter.id, { conjunction: e.target.value as 'and' | 'or' })}
+        >
+          <option value="and">And</option>
+          <option value="or">Or</option>
+        </select>
+      ) : (
+        <span className="text-[11px] text-[#9AA2AF] w-8">Where</span>
+      )}
+      <select
+        className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1 max-w-[120px]"
+        value={filter.field_id}
+        onChange={(e) => {
+          const newField = filterableFields.find((f) => f.id === e.target.value);
+          const newOps = newField ? (OPERATORS_BY_TYPE[newField.ui_type] ?? ['is', 'isNot']) : ['is'];
+          onUpdate(filter.id, { field_id: e.target.value, operator: newOps[0] as FilterOperator, value: '' });
+        }}
+      >
+        {filterableFields.map((f) => (
+          <option key={f.id} value={f.id}>{f.name}</option>
+        ))}
+      </select>
+      <select
+        className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)]"
+        value={filter.operator}
+        onChange={(e) => onUpdate(filter.id, { operator: e.target.value as FilterOperator })}
+      >
+        {ops.map((op) => (
+          <option key={op} value={op}>{OPERATOR_LABELS[op] ?? op}</option>
+        ))}
+      </select>
+      <FilterValueInput
+        filter={filter}
+        field={field}
+        onChange={(value) => onUpdate(filter.id, { value })}
+      />
+      <button onClick={() => onRemove(filter.id)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5">
+        <X size={12} className="text-[#9AA2AF]" />
+      </button>
+    </div>
+  );
+}
+
+function FilterGroupBlock({
+  group,
+  depth,
+  filterableFields,
+  onUpdateGroup,
+  onRemoveGroup,
+  focusedFilterId,
+}: {
+  group: FilterGroup;
+  depth: number;
+  filterableFields: FieldMeta[];
+  onUpdateGroup: (id: string, updated: FilterGroup) => void;
+  onRemoveGroup: (id: string) => void;
+  focusedFilterId: string | null;
+}) {
+  const addFilter = () => {
+    if (filterableFields.length === 0) return;
+    const f = filterableFields[0];
+    const ops = OPERATORS_BY_TYPE[f.ui_type] ?? ['is', 'isNot'];
+    const newFilter: FilterType = {
+      id: crypto.randomUUID(),
+      field_id: f.id,
+      operator: ops[0],
+      value: '',
+      conjunction: group.filters.length > 0 || group.groups.length > 0 ? group.conjunction : 'and',
+    };
+    onUpdateGroup(group.id, { ...group, filters: [...group.filters, newFilter] });
+  };
+
+  const addSubGroup = () => {
+    const subGroup: FilterGroup = {
+      id: crypto.randomUUID(),
+      conjunction: 'and',
+      filters: [],
+      groups: [],
+    };
+    onUpdateGroup(group.id, { ...group, groups: [...group.groups, subGroup] });
+  };
+
+  const updateFilter = (id: string, updates: Partial<FilterType>) => {
+    onUpdateGroup(group.id, {
+      ...group,
+      filters: group.filters.map((f) => (f.id === id ? { ...f, ...updates } : f)),
+    });
+  };
+
+  const removeFilter = (id: string) => {
+    onUpdateGroup(group.id, {
+      ...group,
+      filters: group.filters.filter((f) => f.id !== id),
+    });
+  };
+
+  const updateSubGroup = (id: string, updated: FilterGroup) => {
+    onUpdateGroup(group.id, {
+      ...group,
+      groups: group.groups.map((g) => (g.id === id ? updated : g)),
+    });
+  };
+
+  const removeSubGroup = (id: string) => {
+    onUpdateGroup(group.id, {
+      ...group,
+      groups: group.groups.filter((g) => g.id !== id),
+    });
+  };
+
+  return (
+    <div
+      className="relative mb-2"
+      style={{ marginLeft: depth > 0 ? 16 : 0 }}
+    >
+      {depth > 0 && (
+        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#3366FF]/30 rounded" style={{ left: -8 }} />
+      )}
+      {depth > 0 && (
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1.5">
+            <ChevronRight size={10} className="text-[#9AA2AF]" />
+            <select
+              className="text-[10px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:bg-[hsl(200,30%,12%)] font-medium"
+              value={group.conjunction}
+              onChange={(e) => onUpdateGroup(group.id, { ...group, conjunction: e.target.value as 'and' | 'or' })}
+            >
+              <option value="and">AND</option>
+              <option value="or">OR</option>
+            </select>
+            <span className="text-[10px] text-[#9AA2AF]">group</span>
+          </div>
+          <button onClick={() => onRemoveGroup(group.id)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5">
+            <X size={11} className="text-[#9AA2AF]" />
+          </button>
+        </div>
+      )}
+      {group.filters.map((filter, i) => (
+        <FilterRuleRow
+          key={filter.id}
+          filter={filter}
+          index={i}
+          filterableFields={filterableFields}
+          onUpdate={updateFilter}
+          onRemove={removeFilter}
+          isFocused={focusedFilterId === filter.id}
+        />
+      ))}
+      {group.groups.map((subGroup) => (
+        <FilterGroupBlock
+          key={subGroup.id}
+          group={subGroup}
+          depth={depth + 1}
+          filterableFields={filterableFields}
+          onUpdateGroup={updateSubGroup}
+          onRemoveGroup={removeSubGroup}
+          focusedFilterId={focusedFilterId}
+        />
+      ))}
+      <div className="flex items-center gap-2 mt-1">
+        <button className="text-[11px] text-[#3366FF] hover:underline" onClick={addFilter}>
+          + Add filter
+        </button>
+        {depth < 2 && (
+          <button className="text-[11px] text-[#3366FF] hover:underline" onClick={addSubGroup}>
+            + Add filter group
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FilterPanel({ onClose, onSaveAsView }: { onClose: () => void; onSaveAsView: () => void }) {
+  const { filters, setFilters, filterGroups, setFilterGroups, activeTableId, focusedFilterId, setFocusedFilterId } = useDatabaseUI();
   const { data: fields } = useFields(activeTableId);
 
   const filterableFields = useMemo(
-    () => (fields ?? []).filter((f) => !f.is_system && f.ui_type !== 'ID'),
+    () => (fields ?? []).filter((f: FieldMeta) => !f.is_system && f.ui_type !== 'ID'),
     [fields],
   );
 
@@ -69,96 +347,223 @@ function FilterPanel({ onClose }: { onClose: () => void }) {
 
   const removeFilter = (id: string) => {
     setFilters(filters.filter((f) => f.id !== id));
+    if (focusedFilterId === id) setFocusedFilterId(null);
   };
 
-  const handleExport = useCallback(() => {
-    if (!recordsData?.records || !fields.length) return;
-    const table = fields[0]?.table_id ?? 'export';
-    exportToCSV(fields, recordsData.records, table);
-  }, [fields, recordsData]);
+  const addFilterGroup = () => {
+    const group: FilterGroup = {
+      id: crypto.randomUUID(),
+      conjunction: 'and',
+      filters: [],
+      groups: [],
+    };
+    setFilterGroups([...filterGroups, group]);
+  };
 
-  const handleImport = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file || !activeBaseId || !activeTableId) return;
+  const updateGroup = (id: string, updated: FilterGroup) => {
+    setFilterGroups(filterGroups.map((g) => (g.id === id ? updated : g)));
+  };
 
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const text = ev.target?.result as string;
-        const { headers, rows } = parseCSV(text);
-        const records = csvToRecords(headers, rows, fields);
+  const removeGroup = (id: string) => {
+    setFilterGroups(filterGroups.filter((g) => g.id !== id));
+  };
 
-        for (const record of records) {
-          createRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record });
-        }
-      };
-      reader.readAsText(file);
+  const totalFilterCount = filters.length + filterGroups.reduce(function countGroup(acc: number, g: FilterGroup): number {
+    return acc + g.filters.length + g.groups.reduce(countGroup, 0);
+  }, 0);
 
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    },
-    [activeBaseId, activeTableId, fields, createRecord],
-  );
+  const clearAll = () => {
+    setFilters([]);
+    setFilterGroups([]);
+    setFocusedFilterId(null);
+  };
 
   return (
-    <div className="absolute left-0 top-full z-40 mt-1 bg-white border border-[#E7E7E9] rounded-lg shadow-lg p-3 min-w-[400px]">
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[480px] max-h-[420px] overflow-y-auto">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-[#374151]">Filters</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100"><X size={14} className="text-[#9AA2AF]" /></button>
-      </div>
-      {filters.map((filter, i) => {
-        const field = filterableFields.find((f) => f.id === filter.field_id);
-        const ops = field ? (OPERATORS_BY_TYPE[field.ui_type] ?? ['is', 'isNot']) : ['is'];
-        return (
-          <div key={filter.id} className="flex items-center gap-2 mb-2">
-            {i > 0 && (
-              <select
-                className="text-[11px] border border-[#E7E7E9] rounded px-1 py-0.5 text-[#6A7184]"
-                value={filter.conjunction}
-                onChange={(e) => updateFilter(filter.id, { conjunction: e.target.value as 'and' | 'or' })}
-              >
-                <option value="and">And</option>
-                <option value="or">Or</option>
-              </select>
-            )}
-            {i === 0 && <span className="text-[11px] text-[#9AA2AF] w-8">Where</span>}
-            <select
-              className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151] flex-1 max-w-[120px]"
-              value={filter.field_id}
-              onChange={(e) => updateFilter(filter.id, { field_id: e.target.value })}
-            >
-              {filterableFields.map((f) => (
-                <option key={f.id} value={f.id}>{f.name}</option>
-              ))}
-            </select>
-            <select
-              className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151]"
-              value={filter.operator}
-              onChange={(e) => updateFilter(filter.id, { operator: e.target.value as FilterOperator })}
-            >
-              {ops.map((op) => (
-                <option key={op} value={op}>{OPERATOR_LABELS[op] ?? op}</option>
-              ))}
-            </select>
-            {filter.operator !== 'isEmpty' && filter.operator !== 'isNotEmpty' && (
-              <input
-                className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151] flex-1 max-w-[120px]"
-                value={filter.value ?? ''}
-                onChange={(e) => updateFilter(filter.id, { value: e.target.value })}
-                placeholder="Value"
-              />
-            )}
-            <button onClick={() => removeFilter(filter.id)} className="p-0.5 rounded hover:bg-gray-100">
-              <X size={12} className="text-[#9AA2AF]" />
+        <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Filters</span>
+        <div className="flex items-center gap-2">
+          {totalFilterCount > 0 && (
+            <button onClick={clearAll} className="text-[10px] text-[#6A7184] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]">
+              Clear all
             </button>
-          </div>
-        );
-      })}
-      <button
-        className="text-[11px] text-[#3366FF] hover:underline"
-        onClick={addFilter}
-      >
-        + Add filter
-      </button>
+          )}
+          <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF]" /></button>
+        </div>
+      </div>
+
+      {/* Top-level filters */}
+      {filters.map((filter, i) => (
+        <FilterRuleRow
+          key={filter.id}
+          filter={filter}
+          index={i}
+          filterableFields={filterableFields}
+          onUpdate={updateFilter}
+          onRemove={removeFilter}
+          isFocused={focusedFilterId === filter.id}
+        />
+      ))}
+
+      {/* Filter groups */}
+      {filterGroups.map((group) => (
+        <FilterGroupBlock
+          key={group.id}
+          group={group}
+          depth={1}
+          filterableFields={filterableFields}
+          onUpdateGroup={updateGroup}
+          onRemoveGroup={removeGroup}
+          focusedFilterId={focusedFilterId}
+        />
+      ))}
+
+      <div className="flex items-center gap-3 mt-1">
+        <button className="text-[11px] text-[#3366FF] hover:underline" onClick={addFilter}>
+          + Add filter
+        </button>
+        <button className="text-[11px] text-[#3366FF] hover:underline" onClick={addFilterGroup}>
+          + Add filter group
+        </button>
+      </div>
+
+      {/* Save as view */}
+      {totalFilterCount > 0 && (
+        <div className="mt-3 pt-2 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+          <button
+            className="flex items-center gap-1.5 text-[11px] text-[#3366FF] hover:underline"
+            onClick={onSaveAsView}
+          >
+            <FolderPlus size={12} /> Save as new view
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QuickFilterBar() {
+  const { filters, setFilters, filterGroups, activeTableId, focusedFilterId, setFocusedFilterId } = useDatabaseUI();
+  const { data: fields } = useFields(activeTableId);
+
+  const filterableFields = useMemo(
+    () => (fields ?? []).filter((f: FieldMeta) => !f.is_system && f.ui_type !== 'ID'),
+    [fields],
+  );
+
+  const totalCount = filters.length + filterGroups.reduce(function countGroup(acc: number, g: FilterGroup): number {
+    return acc + g.filters.length + g.groups.reduce(countGroup, 0);
+  }, 0);
+
+  if (totalCount === 0) return null;
+
+  const getFieldName = (fieldId: string) => filterableFields.find((f) => f.id === fieldId)?.name ?? 'Unknown';
+
+  const formatPill = (filter: FilterType) => {
+    const fieldName = getFieldName(filter.field_id);
+    const opLabel = OPERATOR_LABELS[filter.operator] ?? filter.operator;
+    if (NO_VALUE_OPERATORS.has(filter.operator)) {
+      return `${fieldName} ${opLabel}`;
+    }
+    const val = filter.value != null && filter.value !== '' ? String(filter.value) : '...';
+    return `${fieldName} ${opLabel} ${val}`;
+  };
+
+  return (
+    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F4F4F5] dark:bg-[hsl(200,35%,8%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] overflow-x-auto shrink-0">
+      <span className="text-[10px] text-[#9AA2AF] shrink-0 mr-0.5">Filtered by:</span>
+      {filters.map((filter) => (
+        <button
+          key={filter.id}
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border shrink-0 transition-colors ${
+            focusedFilterId === filter.id
+              ? 'bg-[#3366FF]/10 border-[#3366FF]/30 text-[#3366FF]'
+              : 'bg-white dark:bg-[hsl(200,30%,12%)] border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] text-[#374151] dark:text-[hsl(200,25%,88%)] hover:border-[#3366FF]/40'
+          }`}
+          onClick={() => setFocusedFilterId(focusedFilterId === filter.id ? null : filter.id)}
+          title={formatPill(filter)}
+        >
+          <span className="max-w-[180px] truncate">{formatPill(filter)}</span>
+          <span
+            className="ml-0.5 hover:text-red-500"
+            onClick={(e) => {
+              e.stopPropagation();
+              setFilters(filters.filter((f) => f.id !== filter.id));
+              if (focusedFilterId === filter.id) setFocusedFilterId(null);
+            }}
+          >
+            <X size={10} />
+          </span>
+        </button>
+      ))}
+      {filterGroups.length > 0 && (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#3366FF]/10 border border-[#3366FF]/20 text-[#3366FF] shrink-0">
+          +{filterGroups.length} group{filterGroups.length > 1 ? 's' : ''}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function SaveFilterAsViewDialog({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState('');
+  const { filters, filterGroups, sorts, groupByLevels, activeTableId } = useDatabaseUI();
+  const createView = useCreateView();
+
+  if (!open) return null;
+
+  const handleSave = () => {
+    if (!name.trim() || !activeTableId) return;
+    createView.mutate({
+      table_id: activeTableId,
+      name: name.trim(),
+      type: 'grid',
+      filters,
+      sorts,
+      groups: groupByLevels,
+    });
+    setName('');
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+      <div className="bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-xl p-4 w-80">
+        <h3 className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] mb-3">Save filters as view</h3>
+        <input
+          type="text"
+          autoFocus
+          placeholder="View name"
+          className="w-full px-2 py-1.5 text-[12px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] focus:border-[#3366FF] mb-3"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
+        />
+        <p className="text-[10px] text-[#9AA2AF] mb-3">
+          {filters.length} filter{filters.length !== 1 ? 's' : ''}{filterGroups.length > 0 ? ` + ${filterGroups.length} group${filterGroups.length > 1 ? 's' : ''}` : ''} will be saved to this view.
+        </p>
+        <div className="flex items-center justify-end gap-2">
+          <button
+            className="px-3 py-1 text-[11px] rounded border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] text-[#6A7184] hover:bg-gray-50 dark:hover:bg-white/5"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button
+            className="px-3 py-1 text-[11px] rounded bg-[#3366FF] text-white hover:bg-[#2952CC] disabled:opacity-40"
+            disabled={!name.trim()}
+            onClick={handleSave}
+          >
+            Save view
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -554,7 +959,7 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
 }
 
 export function Toolbar() {
-  const { rowHeight, setRowHeight, searchQuery, setSearchQuery, filters, sorts, groupByLevels, activeBaseId, activeTableId, rowColorRules } = useDatabaseUI();
+  const { rowHeight, setRowHeight, searchQuery, setSearchQuery, filters, filterGroups, sorts, groupByLevels, activeBaseId, activeTableId, rowColorRules } = useDatabaseUI();
   const { undo, redo, stack, redoStack } = useUndoStore();
   const { data: fieldsData } = useFields(activeTableId);
   const { data: recordsData } = useRecords({ baseId: activeBaseId!, tableId: activeTableId!, pageSize: 10000 });
@@ -573,7 +978,12 @@ export function Toolbar() {
   const [groupOpen, setGroupOpen] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
   const [rowHeightOpen, setRowHeightOpen] = useState(false);
+  const [saveFilterViewOpen, setSaveFilterViewOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  const totalFilterCount = filters.length + filterGroups.reduce(function countGroup(acc: number, g: FilterGroup): number {
+    return acc + g.filters.length + g.groups.reduce(countGroup, 0);
+  }, 0);
 
   const ROW_HEIGHT_OPTIONS: { value: 'compact' | 'default' | 'tall' | 'extra-tall'; label: string; px: number }[] = [
     { value: 'compact', label: 'Short', px: 32 },
@@ -599,13 +1009,18 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs gap-1"
-              style={{ color: filters.length > 0 ? '#3366FF' : '#6A7184' }}
+              className="h-7 text-xs gap-1 relative"
+              style={{ color: totalFilterCount > 0 ? '#3366FF' : '#6A7184' }}
               onClick={() => { setFilterOpen(!filterOpen); setSortOpen(false); setHideOpen(false); setGroupOpen(false); }}
             >
-              <Filter size={14} /> Filter{filters.length > 0 ? ` (${filters.length})` : ''}
+              <Filter size={14} /> Filter
+              {totalFilterCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-[#3366FF] text-white text-[9px] font-bold leading-none">
+                  {totalFilterCount}
+                </span>
+              )}
             </Button>
-            {filterOpen && <FilterPanel onClose={() => setFilterOpen(false)} />}
+            {filterOpen && <FilterPanel onClose={() => setFilterOpen(false)} onSaveAsView={() => { setFilterOpen(false); setSaveFilterViewOpen(true); }} />}
           </div>
           <div className="relative">
             <Button
@@ -841,7 +1256,9 @@ export function Toolbar() {
           </Button>
         </div>
       </div>
+      <QuickFilterBar />
       <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />
+      <SaveFilterAsViewDialog open={saveFilterViewOpen} onClose={() => setSaveFilterViewOpen(false)} />
       <ImportCsvDialog open={importCsvOpen} onOpenChange={setImportCsvOpen} />
       <SearchReplaceDialog open={searchReplaceOpen} onOpenChange={setSearchReplaceOpen} />
       <ConditionalFormatDialog open={conditionalFormatOpen} onOpenChange={setConditionalFormatOpen} />

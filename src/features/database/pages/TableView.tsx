@@ -153,6 +153,16 @@ export function TableView() {
     [activeBaseId, activeTableId, createRecord],
   );
 
+  const handlePasteRows = useCallback(
+    (rows: Record<string, any>[]) => {
+      if (!activeBaseId || !activeTableId) return;
+      for (const row of rows) {
+        createRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record: row });
+      }
+    },
+    [activeBaseId, activeTableId, createRecord],
+  );
+
   const handleDeleteRow = useCallback(
     (recordId: string) => {
       if (!activeBaseId || !activeTableId) return;
@@ -284,107 +294,7 @@ export function TableView() {
             onDuplicateField={handleDuplicateField}
             onBulkDeleteRows={handleBulkDeleteRows}
             onReorderFields={handleReorderFields}
-          />
-        );
-    }
-  };
-
-  const handleDeleteRow = useCallback((recordId: string) => {
-    if (!activeBaseId || !activeTableId) return;
-    deleteRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, recordId });
-  }, [activeBaseId, activeTableId, deleteRecord]);
-
-  const handleDuplicateRow = useCallback((record: RecordRow) => {
-    if (!activeBaseId || !activeTableId) return;
-    duplicateRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record });
-  }, [activeBaseId, activeTableId, duplicateRecord]);
-
-  const handleBulkDeleteRows = useCallback((recordIds: string[]) => {
-    if (!activeBaseId || !activeTableId) return;
-    bulkDeleteRecords.mutate({ baseId: activeBaseId, tableId: activeTableId, recordIds });
-  }, [activeBaseId, activeTableId, bulkDeleteRecords]);
-
-  const handleDeleteField = useCallback((fieldId: string) => {
-    if (!activeTableId) return;
-    deleteField.mutate({ id: fieldId, table_id: activeTableId });
-  }, [activeTableId, deleteField]);
-
-  const handleReorderFields = useCallback((fieldIds: string[]) => {
-    if (!activeTableId) return;
-    reorderFields.mutate({ table_id: activeTableId, fieldIds });
-  }, [activeTableId, reorderFields]);
-
-  const viewType = activeView?.type ?? 'grid';
-
-  const renderView = () => {
-    switch (viewType) {
-      case 'kanban':
-        return (
-          <KanbanView
-            fields={visibleFields}
-            records={recordsData?.records ?? []}
-            totalCount={recordsData?.totalCount ?? 0}
-            isLoading={isLoading}
-            onCellUpdate={handleCellUpdate}
-            onAddRow={() => handleAddRow()}
-            onExpandRow={setExpandedRecord}
-            onDeleteRow={handleDeleteRow}
-          />
-        );
-      case 'gallery':
-        return (
-          <GalleryView
-            fields={visibleFields}
-            records={recordsData?.records ?? []}
-            totalCount={recordsData?.totalCount ?? 0}
-            isLoading={isLoading}
-            onCellUpdate={handleCellUpdate}
-            onAddRow={() => handleAddRow()}
-            onExpandRow={setExpandedRecord}
-            onDeleteRow={handleDeleteRow}
-            page={page}
-            pageSize={pageSize}
-            onPageChange={setPage}
-          />
-        );
-      case 'form':
-        return (
-          <FormView
-            fields={fields ?? []}
-            onAddRow={handleAddRow}
-            isLoading={isLoading}
-          />
-        );
-      case 'calendar':
-        return (
-          <CalendarView
-            fields={fields ?? []}
-            records={recordsData?.records ?? []}
-            totalCount={recordsData?.totalCount ?? 0}
-            isLoading={isLoading}
-            onExpandRow={setExpandedRecord}
-            onAddRow={() => handleAddRow()}
-          />
-        );
-      default:
-        return (
-          <GridView
-            fields={visibleFields}
-            records={recordsData?.records ?? []}
-            totalCount={recordsData?.totalCount ?? 0}
-            isLoading={isLoading}
-            onCellUpdate={handleCellUpdate}
-            onAddRow={() => handleAddRow()}
-            onAddField={() => setFieldDialogOpen(true)}
-            page={page}
-            pageSize={pageSize}
-            onPageChange={setPage}
-            onExpandRow={setExpandedRecord}
-            onDeleteRow={handleDeleteRow}
-            onDuplicateRow={handleDuplicateRow}
-            onDeleteField={handleDeleteField}
-            onBulkDeleteRows={handleBulkDeleteRows}
-            onReorderFields={handleReorderFields}
+            onPasteRows={handlePasteRows}
           />
         );
     }

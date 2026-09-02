@@ -93,6 +93,13 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [lookupFieldId, setLookupFieldId] = useState('');
   const [rollupFieldId, setRollupFieldId] = useState('');
   const [rollupFn, setRollupFn] = useState('COUNT');
+  const [selectedLinkFieldId, setSelectedLinkFieldId] = useState('');
+  const [selectedTargetFieldId, setSelectedTargetFieldId] = useState('');
+  const [selectedRollupFn, setSelectedRollupFn] = useState('COUNT');
+  const [ratingMax, setRatingMax] = useState(5);
+  const [currencyCode, setCurrencyCode] = useState('USD');
+  const [precision, setPrecision] = useState(2);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [error, setError] = useState('');
   const { activeTableId, activeBaseId } = useDatabaseUI();
   const createField = useCreateField();
@@ -140,15 +147,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setChoices(choices.map((c) => c.title === title ? { ...c, color } : c));
   }, [choices]);
 
-  // Fields for the current table (to find Link fields)
-  const { data: currentTableFields } = useFields(activeTableId);
-  const linkFields = (currentTableFields ?? []).filter((f: FieldMeta) => f.ui_type === 'Links');
-
-  // Resolve the related table from the selected link field
-  const selectedLinkField = linkFields.find((f: FieldMeta) => f.id === selectedLinkFieldId);
   const relatedTableId = selectedLinkField?.options?.relatedTableId ?? null;
-
-  // Fields for the related table (to pick the target/lookup/rollup field)
   const { data: relatedTableFields } = useFields(relatedTableId);
 
   const resetForm = useCallback(() => {
@@ -166,35 +165,27 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setSelectedRollupFn('COUNT');
   }, []);
 
-  const handleTypeChange = (v: string) => {
-    if (v === '_link') {
-      onOpenChange(false);
-      setLinkDialogOpen(true);
-      return;
+  const handleTypeChange = (type: UIType) => {
+    setUiType(type);
+    if (type !== 'SingleSelect' && type !== 'MultiSelect') {
+      setChoices([]);
     }
-    setUiType(v as UIType);
-    setSelectedLinkFieldId('');
-    setSelectedTargetFieldId('');
-    setSelectedRollupFn('COUNT');
+    if (type !== 'Formula') {
+      setFormulaExpression('');
+      setFormulaError('');
+    }
+    if (type !== 'Lookup' && type !== 'Rollup') {
+      setLinkFieldId('');
+      setLookupFieldId('');
+      setRollupFieldId('');
+      setRollupFn('COUNT');
+    }
   };
 
   const handleLinkFieldChange = (v: string) => {
     setSelectedLinkFieldId(v);
     setSelectedTargetFieldId('');
   };
-
-  const addChoice = useCallback(() => {
-    const text = newChoiceText.trim();
-    if (!text || choices.some((c) => c.title === text)) return;
-    const colorIdx = choices.length % PILL_COLORS.length;
-    setChoices([...choices, { title: text, color: PILL_COLORS[colorIdx].name }]);
-    setNewChoiceText('');
-  }, [newChoiceText, choices]);
-
-  const removeChoice = useCallback(
-    (title: string) => setChoices(choices.filter((c) => c.title !== title)),
-    [choices],
-  );
 
   const buildOptions = (): FieldOptions => {
     const opts: FieldOptions = {};
@@ -330,23 +321,6 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
       onOpenChange(false);
     } catch (e: any) {
       setError(e?.message ?? 'Failed to create field');
-    }
-  };
-
-  const handleTypeChange = (type: UIType) => {
-    setUiType(type);
-    if (type !== 'SingleSelect' && type !== 'MultiSelect') {
-      setChoices([]);
-    }
-    if (type !== 'Formula') {
-      setFormulaExpression('');
-      setFormulaError('');
-    }
-    if (type !== 'Lookup' && type !== 'Rollup') {
-      setLinkFieldId('');
-      setLookupFieldId('');
-      setRollupFieldId('');
-      setRollupFn('COUNT');
     }
   };
 

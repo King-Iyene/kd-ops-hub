@@ -148,11 +148,6 @@ export function useRecords(params: UseRecordsParams) {
         query = query.order('nc_order', { ascending: true }).order('created_at', { ascending: true });
       }
 
-      // Pagination
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      query = query.range(from, to);
-
       const { data, error, count } = await query;
       if (error) throw error;
 
@@ -281,34 +276,6 @@ export function useDuplicateRecord() {
   });
 }
 
-export function useBulkDeleteRecords() {
-  const qc = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (input: {
-      baseId: string;
-      tableId: string;
-      recordIds: string[];
-    }) => {
-      const ctx = await resolveTableContext(input.baseId, input.tableId);
-
-      const { data } = await supabase.functions.invoke('data-api', {
-        body: {
-          action: 'bulkDelete',
-          schemaName: ctx.schemaName,
-          tableName: ctx.tableName,
-          recordIds: input.recordIds,
-        },
-      });
-
-      return data;
-    },
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
-    },
-  });
-}
-
 export function useDeleteRecord() {
   const qc = useQueryClient();
 
@@ -367,31 +334,3 @@ export function useBulkDeleteRecords() {
   });
 }
 
-export function useDuplicateRecord() {
-  const qc = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (input: {
-      baseId: string;
-      tableId: string;
-      record: Record<string, any>;
-    }) => {
-      const ctx = await resolveTableContext(input.baseId, input.tableId);
-
-      const { id, created_at, updated_at, nc_order, ...rest } = input.record;
-
-      const { data, error } = await supabase
-        .schema(ctx.schemaName)
-        .from(ctx.tableName)
-        .insert(rest)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data as RecordRow;
-    },
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
-    },
-  });
-}
