@@ -245,6 +245,46 @@ export default function GridView({
         setSelectedCell(null);
         setEditingCell(null);
         return;
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+        // Copy cell value
+        const record = records[rowIdx];
+        const field = fieldsWithWidths[colIdx];
+        const value = record[field.pg_column_name];
+        let text = '';
+        if (value == null) {
+          text = '';
+        } else if (Array.isArray(value)) {
+          text = value.join(',');
+        } else if (typeof value === 'object') {
+          text = JSON.stringify(value);
+        } else {
+          text = String(value);
+        }
+        navigator.clipboard.writeText(text);
+        e.preventDefault();
+        return;
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
+        // Paste into cell
+        e.preventDefault();
+        navigator.clipboard.readText().then((pastedValue) => {
+          const field = fieldsWithWidths[colIdx];
+          const fieldType = field.ui_type || field.type || '';
+          if (fieldType === 'Checkbox') {
+            const boolVal = ['true', '1', 'yes'].includes(pastedValue.toLowerCase());
+            onCellUpdate(rowId, fieldId, boolVal);
+          } else if (['Number', 'Decimal', 'Currency', 'Percent'].includes(fieldType)) {
+            const num = parseFloat(pastedValue);
+            onCellUpdate(rowId, fieldId, isNaN(num) ? pastedValue : num);
+          } else {
+            onCellUpdate(rowId, fieldId, pastedValue);
+          }
+        });
+        return;
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Clear cell
+        e.preventDefault();
+        onCellUpdate(rowId, fieldId, null);
+        return;
       } else {
         return;
       }
@@ -256,7 +296,7 @@ export default function GridView({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedCellId, records, fieldsWithWidths, setSelectedCell, setEditingCell]);
+  }, [selectedCellId, records, fieldsWithWidths, setSelectedCell, setEditingCell, onCellUpdate]);
 
   if (records.length === 0 && !isLoading) {
     return (

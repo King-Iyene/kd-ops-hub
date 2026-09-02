@@ -256,6 +256,8 @@ export function TableView() {
         baseId={activeBaseId!}
         tableId={activeTableId!}
         onCellUpdate={handleCellUpdate}
+        records={recordsData?.records ?? []}
+        onNavigate={setExpandedRecord}
       />
       <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />
     </div>

@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { X } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { FieldMeta, RecordRow, SelectChoice } from '../types';
 import { PILL_COLORS } from '../types';
 import { getCellRenderer } from './grid/cell-renderers';
@@ -12,6 +12,8 @@ interface ExpandedRowModalProps {
   baseId: string;
   tableId: string;
   onCellUpdate?: (recordId: string, fieldId: string, value: any) => void;
+  records?: RecordRow[];
+  onNavigate?: (record: RecordRow) => void;
 }
 
 function getPillColor(colorName: string) {
@@ -101,7 +103,41 @@ export function ExpandedRowModal({
   record,
   fields,
   onCellUpdate,
+  records,
+  onNavigate,
 }: ExpandedRowModalProps) {
+  const currentIndex = records && record ? records.findIndex((r) => r.id === record.id) : -1;
+  const hasPrev = currentIndex > 0;
+  const hasNext = records ? currentIndex >= 0 && currentIndex < records.length - 1 : false;
+
+  const goToPrev = useCallback(() => {
+    if (hasPrev && records && onNavigate) {
+      onNavigate(records[currentIndex - 1]);
+    }
+  }, [hasPrev, records, onNavigate, currentIndex]);
+
+  const goToNext = useCallback(() => {
+    if (hasNext && records && onNavigate) {
+      onNavigate(records[currentIndex + 1]);
+    }
+  }, [hasNext, records, onNavigate, currentIndex]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (!e.altKey) return;
+      if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        goToPrev();
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        goToNext();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [open, goToPrev, goToNext]);
+
   if (!open || !record) return null;
 
   const visibleFields = fields
@@ -166,9 +202,34 @@ export function ExpandedRowModal({
         className="relative bg-white dark:bg-[hsl(200,30%,10%)] rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]"
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
-          <h2 className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
-            Record Detail
-          </h2>
+          <div className="flex items-center gap-1">
+            <h2 className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
+              Record Detail
+            </h2>
+            {records && records.length > 0 && currentIndex >= 0 && (
+              <div className="flex items-center gap-1 ml-3">
+                <button
+                  onClick={goToPrev}
+                  disabled={!hasPrev}
+                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5"
+                  style={{ opacity: hasPrev ? 1 : 0.3 }}
+                >
+                  <ChevronLeft size={16} className="text-[#6A7184]" />
+                </button>
+                <span className="text-xs text-[#9AA2AF] select-none">
+                  {currentIndex + 1} of {records.length}
+                </span>
+                <button
+                  onClick={goToNext}
+                  disabled={!hasNext}
+                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5"
+                  style={{ opacity: hasNext ? 1 : 0.3 }}
+                >
+                  <ChevronRight size={16} className="text-[#6A7184]" />
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => onOpenChange(false)}
             className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5"

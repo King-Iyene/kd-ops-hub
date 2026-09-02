@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal } from 'lucide-react';
+import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
 import { useUndoStore } from '../lib/undo';
@@ -7,7 +7,7 @@ import { useFields, useRecords } from '../hooks';
 import { CreateFieldDialog } from './CreateFieldDialog';
 import { ImportCsvDialog } from './ImportCsvDialog';
 import { exportToCsv } from '../lib/csv';
-import type { Filter as FilterType, Sort, FilterOperator } from '../types';
+import type { Filter as FilterType, Sort, Group, FilterOperator } from '../types';
 import { OPERATORS_BY_TYPE } from '../types';
 
 const OPERATOR_LABELS: Record<string, string> = {
@@ -192,6 +192,79 @@ function SortPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+function GroupPanel({ onClose }: { onClose: () => void }) {
+  const { groupBy, setGroupBy, activeTableId } = useDatabaseUI();
+  const { data: fields } = useFields(activeTableId);
+
+  const groupableFields = useMemo(
+    () => (fields ?? []).filter((f) => f.ui_type === 'SingleSelect' || f.ui_type === 'MultiSelect'),
+    [fields],
+  );
+
+  const handleFieldChange = (fieldId: string) => {
+    setGroupBy({ field_id: fieldId, direction: groupBy?.direction ?? 'asc' });
+  };
+
+  const handleDirectionChange = (direction: 'asc' | 'desc') => {
+    if (groupBy) {
+      setGroupBy({ ...groupBy, direction });
+    }
+  };
+
+  return (
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white border border-[#E7E7E9] rounded-lg shadow-lg p-3 min-w-[280px]">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-[#374151]">Group</span>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100"><X size={14} className="text-[#9AA2AF]" /></button>
+      </div>
+      {groupableFields.length === 0 ? (
+        <p className="text-[11px] text-[#9AA2AF]">No select fields available for grouping.</p>
+      ) : groupBy ? (
+        <>
+          <div className="flex items-center gap-2 mb-2">
+            <select
+              className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151] flex-1"
+              value={groupBy.field_id}
+              onChange={(e) => handleFieldChange(e.target.value)}
+            >
+              {groupableFields.map((f) => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+            <select
+              className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151]"
+              value={groupBy.direction}
+              onChange={(e) => handleDirectionChange(e.target.value as 'asc' | 'desc')}
+            >
+              <option value="asc">A &rarr; Z</option>
+              <option value="desc">Z &rarr; A</option>
+            </select>
+          </div>
+          <button
+            className="text-[11px] text-[#3366FF] hover:underline"
+            onClick={() => setGroupBy(null)}
+          >
+            Clear grouping
+          </button>
+        </>
+      ) : (
+        <div className="flex items-center gap-2">
+          <select
+            className="text-[11px] border border-[#E7E7E9] rounded px-1.5 py-1 text-[#374151] flex-1"
+            value=""
+            onChange={(e) => handleFieldChange(e.target.value)}
+          >
+            <option value="" disabled>Pick a field...</option>
+            {groupableFields.map((f) => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function HideFieldsPanel({ onClose }: { onClose: () => void }) {
   const { hiddenFieldIds, toggleHiddenField, activeTableId } = useDatabaseUI();
   const { data: fields } = useFields(activeTableId);
@@ -223,7 +296,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
 }
 
 export function Toolbar() {
-  const { rowHeight, setRowHeight, searchQuery, setSearchQuery, filters, sorts, activeBaseId, activeTableId } = useDatabaseUI();
+  const { rowHeight, setRowHeight, searchQuery, setSearchQuery, filters, sorts, groupBy, setGroupBy, activeBaseId, activeTableId } = useDatabaseUI();
   const { undo, redo, stack, redoStack } = useUndoStore();
   const { data: fieldsData } = useFields(activeTableId);
   const { data: recordsData } = useRecords({ baseId: activeBaseId!, tableId: activeTableId!, pageSize: 10000 });
@@ -234,6 +307,7 @@ export function Toolbar() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [hideOpen, setHideOpen] = useState(false);
+  const [groupOpen, setGroupOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const rowHeightOptions: Array<'compact' | 'default' | 'tall' | 'extra-tall'> = [

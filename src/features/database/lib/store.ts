@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Filter, Sort } from '../types';
+import type { Filter, Sort, Group } from '../types';
 
 interface DatabaseUIState {
   activeBaseId: string | null;
@@ -11,6 +11,7 @@ interface DatabaseUIState {
   rowHeight: 'compact' | 'default' | 'tall' | 'extra-tall';
   filters: Filter[];
   sorts: Sort[];
+  groupBy: Group | null;
   hiddenFieldIds: Set<string>;
   searchQuery: string;
 
@@ -24,6 +25,7 @@ interface DatabaseUIState {
   setRowHeight: (h: 'compact' | 'default' | 'tall' | 'extra-tall') => void;
   setFilters: (filters: Filter[]) => void;
   setSorts: (sorts: Sort[]) => void;
+  setGroupBy: (group: Group | null) => void;
   toggleHiddenField: (fieldId: string) => void;
   setSearchQuery: (query: string) => void;
 }
@@ -38,6 +40,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   rowHeight: 'default',
   filters: [],
   sorts: [],
+  groupBy: null,
   hiddenFieldIds: new Set(),
   searchQuery: '',
 
@@ -48,6 +51,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       activeViewId: null,
       filters: [],
       sorts: [],
+      groupBy: null,
       hiddenFieldIds: new Set(),
       searchQuery: '',
     }),
@@ -57,6 +61,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       activeViewId: null,
       filters: [],
       sorts: [],
+      groupBy: null,
       hiddenFieldIds: new Set(),
       searchQuery: '',
     }),
@@ -68,6 +73,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   setRowHeight: (h) => set({ rowHeight: h }),
   setFilters: (filters) => set({ filters }),
   setSorts: (sorts) => set({ sorts }),
+  setGroupBy: (group) => set({ groupBy: group }),
   toggleHiddenField: (fieldId) =>
     set((s) => {
       const next = new Set(s.hiddenFieldIds);

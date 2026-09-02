@@ -71,6 +71,8 @@ function ColorDot({ color, selected, onClick }: { color: typeof PILL_COLORS[0]; 
 export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps) {
   const [name, setName] = useState('');
   const [uiType, setUiType] = useState<UIType>('SingleLineText');
+  const [description, setDescription] = useState('');
+  const [isRequired, setIsRequired] = useState(false);
   const [choices, setChoices] = useState<SelectChoice[]>([]);
   const [newChoiceText, setNewChoiceText] = useState('');
   const [error, setError] = useState('');
@@ -115,9 +117,13 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
         name: name.trim(),
         ui_type: uiType,
         options: Object.keys(options).length > 0 ? options : undefined,
+        description: description.trim() || undefined,
+        is_required: isRequired || undefined,
       });
       setName('');
       setUiType('SingleLineText');
+      setDescription('');
+      setIsRequired(false);
       setChoices([]);
       setNewChoiceText('');
       onOpenChange(false);
@@ -152,6 +158,27 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
               onKeyDown={(e) => e.key === 'Enter' && !isSelectType && handleCreate()}
             />
           </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="field-desc" className="text-xs text-[#6A7184]">Description <span className="text-[#9AA2AF]">(optional)</span></Label>
+            <Input
+              id="field-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe this field..."
+              className="h-8 text-xs"
+            />
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              className="w-3.5 h-3.5 accent-[#3366FF]"
+              checked={isRequired}
+              onChange={(e) => setIsRequired(e.target.checked)}
+            />
+            <span className="text-xs text-[#374151]">Required field</span>
+          </label>
 
           <div className="space-y-1.5">
             <Label className="text-xs text-[#6A7184]">Field Type</Label>
