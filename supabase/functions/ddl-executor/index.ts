@@ -380,19 +380,24 @@ async function handleExposeSchema(
       `ALTER DEFAULT PRIVILEGES IN SCHEMA "${rawName}" GRANT SELECT ON TABLES TO anon`,
     );
 
-    const { rows } = await conn.queryObject<{ setting: string }>(
-      `SELECT current_setting('pgrst.db_schemas', true) AS setting`,
+    const { rows } = await conn.queryObject<{ config: string }>(
+      `SELECT c AS config FROM (
+         SELECT unnest(setconfig) AS c
+         FROM pg_catalog.pg_db_role_setting
+         JOIN pg_catalog.pg_roles ON pg_roles.oid = pg_db_role_setting.setrole
+         WHERE rolname = 'authenticator'
+       ) sub WHERE c LIKE 'pgrst.db_schemas=%'`,
     );
-    const current = rows[0]?.setting ?? 'public';
+    const current = rows[0]?.config?.replace('pgrst.db_schemas=', '') ?? 'public';
     const schemas = current.split(',').map((s: string) => s.trim()).filter(Boolean);
-    if (!schemas.includes(rawName)) {
-      schemas.push(rawName);
-      await conn.queryObject(
-        `ALTER ROLE authenticator SET pgrst.db_schemas = '${schemas.join(', ')}'`,
-      );
-      await conn.queryObject(`NOTIFY pgrst, 'reload config'`);
-      await conn.queryObject(`NOTIFY pgrst, 'reload schema'`);
-    }
+    if (!schemas.includes('nc_meta')) schemas.push('nc_meta');
+    if (!schemas.includes(rawName)) schemas.push(rawName);
+
+    await conn.queryObject(
+      `ALTER ROLE authenticator SET pgrst.db_schemas = '${schemas.join(', ')}'`,
+    );
+    await conn.queryObject(`NOTIFY pgrst, 'reload config'`);
+    await conn.queryObject(`NOTIFY pgrst, 'reload schema'`);
   } finally {
     conn.release();
   }
