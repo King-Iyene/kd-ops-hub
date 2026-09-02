@@ -17,6 +17,12 @@ export interface GridViewProps {
   page: number;
   pageSize: number;
   onPageChange: (page: number) => void;
+  onExpandRow?: (record: RecordRow) => void;
+  onDeleteRow?: (recordId: string) => void;
+  onDuplicateRow?: (record: RecordRow) => void;
+  onDeleteField?: (fieldId: string) => void;
+  onBulkDeleteRows?: (recordIds: string[]) => void;
+  onReorderFields?: (fieldIds: string[]) => void;
 }
 
 const ROW_HEIGHTS: Record<string, number> = {
@@ -40,6 +46,12 @@ export default function GridView({
   page,
   pageSize,
   onPageChange,
+  onExpandRow,
+  onDeleteRow,
+  onDuplicateRow,
+  onDeleteField,
+  onBulkDeleteRows,
+  onReorderFields,
 }: GridViewProps) {
   const rowHeight = useDatabaseUI((s) => s.rowHeight);
   const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
@@ -195,6 +207,7 @@ export default function GridView({
                 key={field.id}
                 field={field}
                 onResize={handleResize}
+                onDelete={onDeleteField}
               />
             ))}
 

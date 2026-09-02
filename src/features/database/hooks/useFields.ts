@@ -191,3 +191,29 @@ export function useDeleteField() {
     },
   });
 }
+
+export function useReorderFields() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { table_id: string; fieldIds: string[] }) => {
+      const updates = input.fieldIds.map((id, i) => ({
+        id,
+        table_id: input.table_id,
+        position: i,
+      }));
+
+      for (const u of updates) {
+        const { error } = await supabase
+          .schema('nc_meta')
+          .from('fields')
+          .update({ position: u.position })
+          .eq('id', u.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
+    },
+  });
+}

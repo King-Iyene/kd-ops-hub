@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { ViewMeta } from '../types';
+import { useDatabaseUI } from '../lib/store';
 
 export function useViews(tableId: string | null | undefined) {
   return useQuery({
@@ -88,4 +90,17 @@ export function useUpdateView() {
       qc.invalidateQueries({ queryKey: ['nc', 'views', variables.table_id] });
     },
   });
+}
+
+export function useActiveView(tableId: string | null | undefined) {
+  const { data: views } = useViews(tableId);
+  const activeViewId = useDatabaseUI((s) => s.activeViewId);
+  const setActiveView = useDatabaseUI((s) => s.setActiveView);
+
+  useEffect(() => {
+    if (!views || views.length === 0) return;
+    if (activeViewId && views.some((v) => v.id === activeViewId)) return;
+    const defaultView = views.find((v) => v.is_default) ?? views[0];
+    setActiveView(defaultView.id);
+  }, [views, activeViewId, setActiveView]);
 }

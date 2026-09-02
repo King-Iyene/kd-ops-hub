@@ -1,11 +1,14 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { ArrowUp, ArrowDown, EyeOff, Pencil, Trash2, Copy, ArrowLeftRight } from 'lucide-react';
 import type { FieldMeta } from '@/features/database/types';
 import { getFieldTypeIcon } from './field-icons';
+import { useDatabaseUI } from '../../lib/store';
 
 interface ColumnHeaderProps {
   field: FieldMeta;
   onResize: (fieldId: string, width: number) => void;
   onSort?: (fieldId: string) => void;
+  onDelete?: (fieldId: string) => void;
   onContextMenu?: (fieldId: string, e: React.MouseEvent) => void;
 }
 
@@ -13,12 +16,16 @@ export const ColumnHeader = React.memo(function ColumnHeader({
   field,
   onResize,
   onSort,
+  onDelete,
   onContextMenu,
 }: ColumnHeaderProps) {
   const Icon = getFieldTypeIcon(field.ui_type);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const { sorts, setSorts, toggleHiddenField } = useDatabaseUI();
+
+  const currentSort = sorts.find((s) => s.field_id === field.id);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -56,34 +63,68 @@ export const ColumnHeader = React.memo(function ColumnHeader({
     [field.id, onContextMenu],
   );
 
+  const handleSortAsc = useCallback(() => {
+    const newSorts = sorts.filter((s) => s.field_id !== field.id);
+    newSorts.push({ field_id: field.id, direction: 'asc' });
+    setSorts(newSorts);
+    setContextMenu(null);
+  }, [field.id, sorts, setSorts]);
+
+  const handleSortDesc = useCallback(() => {
+    const newSorts = sorts.filter((s) => s.field_id !== field.id);
+    newSorts.push({ field_id: field.id, direction: 'desc' });
+    setSorts(newSorts);
+    setContextMenu(null);
+  }, [field.id, sorts, setSorts]);
+
+  const handleHide = useCallback(() => {
+    toggleHiddenField(field.id);
+    setContextMenu(null);
+  }, [field.id, toggleHiddenField]);
+
+  const handleDelete = useCallback(() => {
+    if (field.is_primary || field.is_system) return;
+    if (!confirm(`Delete field "${field.name}"?`)) return;
+    onDelete?.(field.id);
+    setContextMenu(null);
+  }, [field, onDelete]);
+
   return (
     <div
-      className="relative flex items-center gap-1.5 px-2 select-none"
+      className="relative flex items-center gap-1.5 px-2 select-none group/col"
       style={{
         width: field.width || 180,
         minWidth: field.width || 180,
         height: '100%',
-        borderRight: '1px solid #E2E8F0',
-        backgroundColor: '#F8FAFC',
-        color: '#475569',
+        borderRight: '1px solid #E7E7E9',
+        backgroundColor: '#F9F9FA',
+        color: '#6A7184',
         fontSize: 12,
-        fontWeight: 500,
+        fontWeight: 600,
         cursor: 'pointer',
       }}
       onClick={() => onSort?.(field.id)}
       onContextMenu={handleRightClick}
     >
-      <Icon size={14} className="shrink-0" style={{ color: '#94A3B8' }} />
+      <Icon size={13} className="shrink-0" style={{ color: '#9AA2AF' }} />
       <span className="truncate">{field.name}</span>
+      {currentSort && (
+        <span className="shrink-0">
+          {currentSort.direction === 'asc' ? (
+            <ArrowUp size={11} className="text-[#3366FF]" />
+          ) : (
+            <ArrowDown size={11} className="text-[#3366FF]" />
+          )}
+        </span>
+      )}
 
       {/* Resize handle */}
       <div
-        className="absolute right-0 top-0 h-full hover:bg-blue-400"
-        style={{ width: 4, cursor: 'col-resize' }}
+        className="absolute right-0 top-0 h-full hover:bg-[#3366FF]"
+        style={{ width: 3, cursor: 'col-resize' }}
         onMouseDown={handleMouseDown}
       />
 
-      {/* Context menu */}
       {contextMenu && (
         <>
           <div
@@ -91,34 +132,41 @@ export const ColumnHeader = React.memo(function ColumnHeader({
             onClick={() => setContextMenu(null)}
           />
           <div
-            className="fixed z-50 bg-white border rounded-md shadow-lg py-1 min-w-[160px]"
-            style={{
-              left: contextMenu.x,
-              top: contextMenu.y,
-              borderColor: '#E2E8F0',
-            }}
+            className="fixed z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[180px]"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             <button
-              className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50"
-              style={{ color: '#0F172A' }}
-              onClick={() => setContextMenu(null)}
+              className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              onClick={handleSortAsc}
             >
-              Edit field
+              <ArrowUp size={14} className="text-[#9AA2AF]" /> Sort ascending
             </button>
             <button
-              className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50"
-              style={{ color: '#0F172A' }}
-              onClick={() => setContextMenu(null)}
+              className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              onClick={handleSortDesc}
             >
-              Hide field
+              <ArrowDown size={14} className="text-[#9AA2AF]" /> Sort descending
             </button>
-            <button
-              className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50"
-              style={{ color: '#DC2626' }}
-              onClick={() => setContextMenu(null)}
-            >
-              Delete field
-            </button>
+            <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] my-1" />
+            {!field.is_system && (
+              <button
+                className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                onClick={handleHide}
+              >
+                <EyeOff size={14} className="text-[#9AA2AF]" /> Hide field
+              </button>
+            )}
+            {!field.is_primary && !field.is_system && (
+              <>
+                <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] my-1" />
+                <button
+                  className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-red-500"
+                  onClick={handleDelete}
+                >
+                  <Trash2 size={14} /> Delete field
+                </button>
+              </>
+            )}
           </div>
         </>
       )}
