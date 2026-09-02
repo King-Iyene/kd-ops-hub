@@ -51,8 +51,11 @@ export const GridCell = React.memo(function GridCell({
         return;
       }
       setSelectedCell(cellId);
+      if (field.ui_type === 'Attachment' && !isSystemField) {
+        setEditingCell(cellId);
+      }
     },
-    [cellId, field, record.id, value, isSystemField, onCellUpdate, setSelectedCell],
+    [cellId, field, record.id, value, isSystemField, onCellUpdate, setSelectedCell, setEditingCell],
   );
 
   const handleDoubleClick = useCallback(() => {

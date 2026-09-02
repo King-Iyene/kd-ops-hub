@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { Toolbar } from '../components/Toolbar';
 import { ViewBar } from '../components/ViewBar';
 import { useDatabaseUI } from '../lib/store';
+import { useUndoStore } from '../lib/undo';
 import { useFields, useRecords, useCreateRecord, useUpdateRecord, useDeleteRecord, useBulkDeleteRecords, useDuplicateRecord, useDeleteField, useReorderFields, useActiveView, useViews } from '../hooks';
 import GridView from '../components/grid/GridView';
 import KanbanView from '../components/views/KanbanView';
@@ -9,6 +10,7 @@ import GalleryView from '../components/views/GalleryView';
 import FormView from '../components/views/FormView';
 import CalendarView from '../components/views/CalendarView';
 import { ExpandedRowModal } from '../components/ExpandedRowModal';
+import { CreateFieldDialog } from '../components/CreateFieldDialog';
 import type { RecordRow } from '../types';
 
 export function TableView() {
@@ -18,6 +20,8 @@ export function TableView() {
   const { data: views } = useViews(activeTableId);
   const [page, setPage] = useState(1);
   const pageSize = 50;
+  const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
+  const pushUndo = useUndoStore((s) => s.push);
 
   const activeView = useMemo(
     () => views?.find((v) => v.id === activeViewId),
@@ -54,6 +58,10 @@ export function TableView() {
   const handleCellUpdate = useCallback((recordId: string, fieldId: string, value: any) => {
     const field = fields?.find(f => f.id === fieldId);
     if (!field || !activeBaseId || !activeTableId) return;
+
+    const record = recordsData?.records?.find((r: RecordRow) => r.id === recordId);
+    const oldValue = record?.[field.pg_column_name];
+
     updateRecord.mutate({
       baseId: activeBaseId,
       tableId: activeTableId,
@@ -61,7 +69,30 @@ export function TableView() {
       field: field.pg_column_name,
       value,
     });
-  }, [fields, activeBaseId, activeTableId, updateRecord]);
+
+    pushUndo({
+      type: 'cell_update',
+      payload: { recordId, fieldId, oldValue, newValue: value },
+      undo: async () => {
+        updateRecord.mutate({
+          baseId: activeBaseId,
+          tableId: activeTableId,
+          recordId,
+          field: field.pg_column_name,
+          value: oldValue,
+        });
+      },
+      redo: async () => {
+        updateRecord.mutate({
+          baseId: activeBaseId,
+          tableId: activeTableId,
+          recordId,
+          field: field.pg_column_name,
+          value,
+        });
+      },
+    });
+  }, [fields, activeBaseId, activeTableId, updateRecord, recordsData, pushUndo]);
 
   const handleAddRow = useCallback((record?: Record<string, any>) => {
     if (!activeBaseId || !activeTableId) return;
@@ -154,7 +185,7 @@ export function TableView() {
             isLoading={isLoading}
             onCellUpdate={handleCellUpdate}
             onAddRow={() => handleAddRow()}
-            onAddField={() => {}}
+            onAddField={() => setFieldDialogOpen(true)}
             page={page}
             pageSize={pageSize}
             onPageChange={setPage}
@@ -184,6 +215,7 @@ export function TableView() {
         baseId={activeBaseId!}
         tableId={activeTableId!}
       />
+      <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />
     </div>
   );
 }

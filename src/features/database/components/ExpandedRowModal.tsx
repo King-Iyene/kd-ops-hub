@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Copy, Check, Trash2, X } from 'lucide-react';
+import { Copy, Check, Trash2, X, Paperclip, Upload, Star } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -12,6 +12,7 @@ import type {
   SelectChoice,
 } from '@/features/database/types';
 import { PILL_COLORS } from '@/features/database/types';
+import { supabase } from '@/lib/supabase';
 import { useUpdateRecord, useDeleteRecord } from '../hooks';
 import { getFieldTypeIcon } from './grid/field-icons';
 
@@ -285,6 +286,87 @@ function InlineMultiSelect({
 }
 
 // ---------------------------------------------------------------------------
+// Inline attachment editor
+// ---------------------------------------------------------------------------
+
+function InlineAttachment({ value, onSave }: { value: any; onSave: (v: any) => void }) {
+  const [files, setFiles] = React.useState<{ name: string; url: string; type: string; size: number }[]>(
+    Array.isArray(value) ? value : [],
+  );
+  const [uploading, setUploading] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  function formatSize(bytes: number) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  async function handleUpload(fileList: FileList) {
+    setUploading(true);
+    const newFiles = [...files];
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      const path = `attachments/${Date.now()}_${file.name}`;
+      const { error } = await supabase.storage.from('attachments').upload(path, file);
+      if (error) continue;
+      const { data: urlData } = supabase.storage.from('attachments').getPublicUrl(path);
+      newFiles.push({ name: file.name, url: urlData.publicUrl, type: file.type, size: file.size });
+    }
+    setFiles(newFiles);
+    setUploading(false);
+    onSave(newFiles.length > 0 ? newFiles : null);
+    if (inputRef.current) inputRef.current.value = '';
+  }
+
+  function removeFile(index: number) {
+    const next = files.filter((_, i) => i !== index);
+    setFiles(next);
+    onSave(next.length > 0 ? next : null);
+  }
+
+  const isImage = (type: string) => type?.startsWith('image/');
+
+  return (
+    <div>
+      {files.map((f, i) => (
+        <div key={i} className="flex items-center gap-2 py-1.5 group">
+          {isImage(f.type) ? (
+            <img src={f.url} alt={f.name} className="h-10 w-10 rounded object-cover border border-[#E7E7E9]" />
+          ) : (
+            <div className="h-10 w-10 rounded bg-[#F4F4F5] border border-[#E7E7E9] flex items-center justify-center">
+              <Paperclip size={14} className="text-[#9AA2AF]" />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <a href={f.url} target="_blank" rel="noreferrer" className="text-sm text-[#3366FF] hover:underline truncate block">{f.name}</a>
+            <span className="text-[11px] text-[#9AA2AF]">{formatSize(f.size)}</span>
+          </div>
+          <button
+            type="button"
+            className="p-1 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={() => removeFile(i)}
+          >
+            <X size={14} color="#DC2626" />
+          </button>
+        </div>
+      ))}
+      <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => e.target.files && handleUpload(e.target.files)} />
+      <button
+        type="button"
+        className="flex items-center gap-1.5 px-3 py-1.5 mt-1 rounded-md border border-dashed text-xs font-medium transition-colors hover:bg-[#F4F4F5]"
+        style={{ borderColor: '#D5D5D9', color: '#6A7184' }}
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+      >
+        <Upload size={13} />
+        {uploading ? 'Uploading...' : 'Add attachment'}
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Field row
 // ---------------------------------------------------------------------------
 
@@ -331,6 +413,41 @@ function FieldRow({
         return <InlineSingleSelect value={value} field={field} onSave={onSave} />;
       case 'MultiSelect':
         return <InlineMultiSelect value={value} field={field} onSave={onSave} />;
+      case 'Attachment':
+        return <InlineAttachment value={value} onSave={onSave} />;
+      case 'Rating': {
+        const max = field.options?.max ?? 5;
+        const current = Number(value) || 0;
+        return (
+          <div className="flex items-center gap-0.5">
+            {Array.from({ length: max }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onSave(current === i + 1 ? null : i + 1)}
+                className="p-0 border-none bg-transparent cursor-pointer"
+              >
+                <Star
+                  size={18}
+                  fill={i < current ? '#FBBF24' : 'none'}
+                  stroke={i < current ? '#FBBF24' : '#D5D5D9'}
+                />
+              </button>
+            ))}
+          </div>
+        );
+      }
+      case 'URL':
+        return (
+          <div className="flex items-center gap-2">
+            <InlineTextInput value={value} field={field} onSave={onSave} />
+            {value && (
+              <a href={String(value)} target="_blank" rel="noreferrer" className="shrink-0 text-[#3366FF] hover:underline text-xs">
+                Open
+              </a>
+            )}
+          </div>
+        );
       default:
         return <InlineTextInput value={value} field={field} onSave={onSave} />;
     }

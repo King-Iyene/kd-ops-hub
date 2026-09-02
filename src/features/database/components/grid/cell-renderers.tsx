@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, ExternalLink, Copy, Star, Paperclip } from 'lucide-react';
+import { Check, ExternalLink, Copy, Star, Paperclip, Plus } from 'lucide-react';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { LinkCellRenderer } from './LinkCellRenderer';
 import { LookupCellRenderer, RollupCellRenderer } from './LookupRollupCellRenderer';
@@ -245,13 +245,42 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
   value,
 }: CellRendererProps) {
   if (value == null) return null;
-  const files = Array.isArray(value) ? value : [];
-  if (files.length === 0) return null;
+  const files: { name: string; url: string; type: string; size: number }[] = Array.isArray(value) ? value : [];
+  if (files.length === 0) {
+    return (
+      <span className="flex items-center gap-1 text-xs cursor-pointer" style={{ color: '#C4C9D4' }}>
+        <Plus size={13} className="shrink-0" />
+      </span>
+    );
+  }
+  const isImage = (type: string) => type?.startsWith('image/');
   return (
-    <span className="flex items-center gap-1 truncate" style={{ color: '#9AA2AF' }}>
-      <Paperclip size={13} className="shrink-0" />
-      <span className="text-xs">{files.length} {files.length === 1 ? 'file' : 'files'}</span>
-    </span>
+    <div className="flex items-center gap-1 h-full overflow-hidden">
+      {files.slice(0, 3).map((f, i) =>
+        isImage(f.type) ? (
+          <img
+            key={i}
+            src={f.url}
+            alt={f.name}
+            className="h-6 w-6 rounded object-cover border border-[#E7E7E9] shrink-0"
+            title={f.name}
+          />
+        ) : (
+          <span
+            key={i}
+            className="h-6 px-1.5 rounded bg-[#F4F4F5] border border-[#E7E7E9] flex items-center shrink-0"
+            title={f.name}
+          >
+            <Paperclip size={11} className="text-[#9AA2AF]" />
+          </span>
+        ),
+      )}
+      {files.length > 3 && (
+        <span className="text-[10px] shrink-0" style={{ color: '#9AA2AF' }}>
+          +{files.length - 3}
+        </span>
+      )}
+    </div>
   );
 });
 

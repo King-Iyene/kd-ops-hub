@@ -506,6 +506,7 @@ export function AttachmentCellEditor({ value, onCommit, onCancel }: CellEditorPr
     Array.isArray(value) ? value : [],
   );
   const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -531,13 +532,11 @@ export function AttachmentCellEditor({ value, onCommit, onCancel }: CellEditorPr
     onCommit(next.length > 0 ? next : null);
   }
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = e.target.files;
-    if (!selected || selected.length === 0) return;
+  async function uploadFiles(fileList: FileList | File[]) {
     setUploading(true);
     const newFiles = [...files];
-    for (let i = 0; i < selected.length; i++) {
-      const file = selected[i];
+    const items = Array.from(fileList);
+    for (const file of items) {
       const path = `attachments/${Date.now()}_${file.name}`;
       const { error } = await supabase.storage.from('attachments').upload(path, file);
       if (error) continue;
@@ -550,52 +549,90 @@ export function AttachmentCellEditor({ value, onCommit, onCancel }: CellEditorPr
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
+  const isImage = (type: string) => type?.startsWith('image/');
+
   return (
     <div
       ref={ref}
-      className="absolute left-0 top-full z-50 bg-white border rounded-md shadow-lg py-2 min-w-[240px] max-h-[300px] overflow-y-auto"
+      className="absolute left-0 top-full z-50 bg-white border rounded-lg shadow-xl min-w-[320px] max-h-[400px] overflow-y-auto"
       style={{ borderColor: '#E7E7E9' }}
     >
-      {files.map((f, i) => (
-        <div key={i} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50">
-          <Paperclip size={14} color="#9AA2AF" className="shrink-0" />
-          <span
-            className="text-xs truncate flex-1"
-            style={{ color: '#374151', maxWidth: 140 }}
-            title={f.name}
-          >
-            {f.name}
-          </span>
-          <span className="text-xs shrink-0" style={{ color: '#9AA2AF' }}>
-            {formatSize(f.size)}
-          </span>
-          <button
-            type="button"
-            className="p-0 border-none bg-transparent cursor-pointer shrink-0"
-            onClick={() => removeFile(i)}
-          >
-            <X size={14} color="#9AA2AF" />
-          </button>
-        </div>
-      ))}
-      <div className="px-3 pt-1">
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          onChange={handleUpload}
-          className="hidden"
-        />
-        <button
-          type="button"
-          className="w-full text-xs font-medium py-1.5 px-3 rounded cursor-pointer border-none text-white"
-          style={{ backgroundColor: '#3366FF' }}
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-        >
-          {uploading ? 'Uploading...' : 'Add file'}
-        </button>
+      {/* Drag & Drop Zone */}
+      <div
+        className="m-3 mb-2 rounded-lg border-2 border-dashed flex flex-col items-center justify-center py-5 px-4 cursor-pointer transition-colors"
+        style={{
+          borderColor: dragOver ? '#3366FF' : '#D5D5D9',
+          backgroundColor: dragOver ? '#EEF2FF' : '#FAFAFA',
+        }}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          if (e.dataTransfer.files?.length) uploadFiles(e.dataTransfer.files);
+        }}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <Paperclip size={20} style={{ color: dragOver ? '#3366FF' : '#9AA2AF' }} />
+        <p className="text-xs mt-1.5 font-medium" style={{ color: '#6A7184' }}>
+          {uploading ? 'Uploading...' : 'Click or drag files here'}
+        </p>
+        <p className="text-[10px] mt-0.5" style={{ color: '#9AA2AF' }}>
+          Supports any file type
+        </p>
       </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        onChange={(e) => e.target.files && uploadFiles(e.target.files)}
+        className="hidden"
+      />
+
+      {/* File list */}
+      {files.length > 0 && (
+        <div className="px-3 pb-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: '#9AA2AF' }}>
+            {files.length} {files.length === 1 ? 'file' : 'files'}
+          </p>
+          <div className="space-y-1">
+            {files.map((f, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#F4F4F5] group"
+              >
+                {isImage(f.type) ? (
+                  <img
+                    src={f.url}
+                    alt={f.name}
+                    className="h-8 w-8 rounded object-cover border border-[#E7E7E9] shrink-0"
+                  />
+                ) : (
+                  <div className="h-8 w-8 rounded bg-[#F4F4F5] border border-[#E7E7E9] flex items-center justify-center shrink-0">
+                    <Paperclip size={12} className="text-[#9AA2AF]" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs truncate" style={{ color: '#374151' }} title={f.name}>
+                    {f.name}
+                  </p>
+                  <p className="text-[10px]" style={{ color: '#9AA2AF' }}>
+                    {formatSize(f.size)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="p-1 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                  onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                  title="Remove"
+                >
+                  <X size={13} color="#DC2626" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -689,8 +726,9 @@ export function getCellEditor(uiType: string) {
     case 'JSON':
       return JSONCellEditor;
     case 'Checkbox':
-      return null; // toggled directly in renderer
-    // Read-only / system / computed fields — no editor
+      return null;
+    case 'Attachment':
+      return AttachmentCellEditor;
     case 'CreatedTime':
     case 'LastModifiedTime':
     case 'CreatedBy':
@@ -701,8 +739,7 @@ export function getCellEditor(uiType: string) {
     case 'Rollup':
     case 'Lookup':
     case 'Links':
-    case 'Attachment':
-      return AttachmentCellEditor;
+      return null;
     default:
       return TextCellEditor;
   }
