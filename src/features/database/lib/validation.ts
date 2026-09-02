@@ -1,10 +1,6 @@
-import type { FieldMeta, UIType } from '../types';
+import type { FieldMeta, UIType, ValidationRule } from '../types';
 
-export interface ValidationRule {
-  type: 'required' | 'min' | 'max' | 'minLength' | 'maxLength' | 'regex' | 'unique' | 'email' | 'url';
-  value?: any;
-  message?: string;
-}
+export type { ValidationRule };
 
 export interface ValidationResult {
   valid: boolean;

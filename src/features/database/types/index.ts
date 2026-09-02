@@ -66,6 +66,12 @@ export interface SelectChoice {
   color: string;
 }
 
+export interface ValidationRule {
+  type: 'required' | 'min' | 'max' | 'minLength' | 'maxLength' | 'regex' | 'unique' | 'email' | 'url';
+  value?: any;
+  message?: string;
+}
+
 export interface FieldOptions {
   maxLength?: number;
   richText?: boolean;
@@ -89,7 +95,7 @@ export interface FieldOptions {
   maxSizeMB?: number;
   allowedTypes?: string[];
   prefix?: string;
-  validations?: import('../lib/validation').ValidationRule[];
+  validations?: ValidationRule[];
 }
 
 export interface FieldMeta {
