@@ -10,6 +10,9 @@ interface GridCellProps {
   record: RecordRow;
   onCellUpdate: (recordId: string, fieldId: string, value: any) => void;
   backgroundColor?: string;
+  frozen?: boolean;
+  frozenLeft?: number;
+  rowBg?: string;
 }
 
 export const GridCell = React.memo(function GridCell({
@@ -17,6 +20,9 @@ export const GridCell = React.memo(function GridCell({
   record,
   onCellUpdate,
   backgroundColor,
+  frozen = false,
+  frozenLeft = 0,
+  rowBg,
 }: GridCellProps) {
   const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
   const editingCellId = useDatabaseUI((s) => s.editingCellId);
@@ -105,13 +111,12 @@ export const GridCell = React.memo(function GridCell({
         minWidth: field.width || 180,
         borderRight: `1px solid ${borderColor}`,
         borderBottom: `1px solid ${borderColor}`,
-        backgroundColor: backgroundColor || undefined,
+        backgroundColor: frozen ? (rowBg ?? GRID_COLORS.bg) : (backgroundColor || undefined),
         outline: isSelected ? '2px solid #3366FF' : 'none',
         outlineOffset: -2,
         cursor: 'default',
         fontSize: 13,
         color: GRID_COLORS.text,
-        backgroundColor: frozen ? (rowBg ?? GRID_COLORS.bg) : undefined,
         ...(frozen ? { left: frozenLeft, boxShadow: '1px 0 0 0 rgba(0,0,0,0.04)' } : {}),
       }}
       onClick={handleClick}
