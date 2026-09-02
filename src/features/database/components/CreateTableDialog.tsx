@@ -47,7 +47,7 @@ export function CreateTableDialog({ open, onOpenChange }: CreateTableDialogProps
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
-          <DialogTitle>Create Table</DialogTitle>
+          <DialogTitle className="text-base font-semibold">Create Table</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div className="space-y-1.5">
@@ -71,9 +71,9 @@ export function CreateTableDialog({ open, onOpenChange }: CreateTableDialogProps
           </Button>
           <Button
             size="sm"
-            className="bg-[#006994] hover:bg-[#005a7d]"
+            className="bg-[#3366FF] hover:bg-[#2952CC]"
             onClick={handleCreate}
-            disabled={createTable.isPending}
+            disabled={createTable.isPending || !name.trim()}
           >
             {createTable.isPending ? 'Creating...' : 'Create'}
           </Button>

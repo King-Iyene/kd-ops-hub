@@ -3,6 +3,7 @@ import { ArrowDownAZ, ArrowUpAZ, Filter, EyeOff, Trash2, Plus, Info } from 'luci
 import type { FieldMeta } from '@/features/database/types';
 import { getFieldTypeIcon } from './field-icons';
 import { useDatabaseUI } from '../../lib/store';
+import { GRID_COLORS } from './grid-tokens';
 
 interface ColumnHeaderProps {
   field: FieldMeta;
@@ -11,6 +12,9 @@ interface ColumnHeaderProps {
   onDragStart?: (fieldId: string) => void;
   onDragOver?: (fieldId: string) => void;
   onDrop?: (fieldId: string) => void;
+  /** Frozen (sticky) primary column when scrolling horizontally. */
+  frozen?: boolean;
+  frozenLeft?: number;
 }
 
 const menuItemClass =
@@ -23,6 +27,8 @@ export const ColumnHeader = React.memo(function ColumnHeader({
   onDragStart,
   onDragOver,
   onDrop,
+  frozen,
+  frozenLeft,
 }: ColumnHeaderProps) {
   const Icon = getFieldTypeIcon(field.ui_type);
   const startXRef = useRef(0);
@@ -83,34 +89,35 @@ export const ColumnHeader = React.memo(function ColumnHeader({
 
   return (
     <div
-      className="relative flex items-center gap-1.5 px-2 select-none"
+      className={`relative flex items-center gap-1.5 px-2 select-none group ${frozen ? 'sticky z-20' : ''}`}
       style={{
         width: field.width || 180,
         minWidth: field.width || 180,
         height: '100%',
-        borderRight: '1px solid #E2E8F0',
-        backgroundColor: '#F8FAFC',
-        color: '#475569',
+        borderRight: `1px solid ${GRID_COLORS.border}`,
+        backgroundColor: GRID_COLORS.headerBg,
+        color: GRID_COLORS.headerText,
         fontSize: 12,
         fontWeight: 500,
         cursor: 'pointer',
+        ...(frozen ? { left: frozenLeft, boxShadow: '1px 0 0 0 rgba(0,0,0,0.04)' } : {}),
       }}
-      draggable
+      draggable={!frozen}
       onDragStart={() => onDragStart?.(field.id)}
       onDragOver={(e) => { e.preventDefault(); onDragOver?.(field.id); }}
       onDrop={() => onDrop?.(field.id)}
       onContextMenu={handleRightClick}
       {...(field.description ? { title: field.description } : {})}
     >
-      <Icon size={14} className="shrink-0" style={{ color: '#94A3B8' }} />
+      <Icon size={14} className="shrink-0" style={{ color: GRID_COLORS.muted }} />
       <span className="truncate">{field.name}</span>
       {field.description && (
-        <Info size={10} className="shrink-0" style={{ color: '#94A3B8' }} />
+        <Info size={10} className="shrink-0" style={{ color: GRID_COLORS.muted }} />
       )}
 
       <div
-        className="absolute right-0 top-0 h-full hover:bg-blue-400"
-        style={{ width: 4, cursor: 'col-resize' }}
+        className="absolute right-0 top-0 h-full opacity-0 group-hover:opacity-100"
+        style={{ width: 4, cursor: 'col-resize', backgroundColor: GRID_COLORS.selected }}
         onMouseDown={handleMouseDown}
       />
 
@@ -127,7 +134,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
               left: Math.min(contextMenu.x, window.innerWidth - 220),
               top: Math.min(contextMenu.y, window.innerHeight - 260),
               width: 220,
-              border: '1px solid #E2E8F0',
+              border: `1px solid ${GRID_COLORS.border}`,
             }}
           >
             <button className={menuItemClass} style={{ color: '#0F172A' }} onClick={handleSortAsc}>
@@ -137,13 +144,13 @@ export const ColumnHeader = React.memo(function ColumnHeader({
               <ArrowUpAZ size={14} style={{ color: '#64748B' }} /> Sort Z → A
             </button>
 
-            <div className="border-t my-1" style={{ borderColor: '#E2E8F0' }} />
+            <div className="border-t my-1" style={{ borderColor: GRID_COLORS.border }} />
 
             <button className={menuItemClass} style={{ color: '#0F172A' }} onClick={handleHide}>
               <EyeOff size={14} style={{ color: '#64748B' }} /> Hide field
             </button>
 
-            <div className="border-t my-1" style={{ borderColor: '#E2E8F0' }} />
+            <div className="border-t my-1" style={{ borderColor: GRID_COLORS.border }} />
 
             {!field.is_system && (
               <button className={menuItemClass} style={{ color: '#DC2626' }} onClick={handleDelete}>

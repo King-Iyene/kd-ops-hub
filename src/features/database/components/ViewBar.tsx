@@ -85,7 +85,7 @@ function ViewTab({ view, isActive, onSelect, onRename, onDuplicate, onDelete }: 
             border-b-2 transition-colors cursor-pointer select-none
             ${
               isActive
-                ? 'border-[#006994] text-[#006994] font-semibold'
+                ? 'border-[#3366FF] text-[#3366FF] font-semibold'
                 : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
             }
           `}
@@ -266,7 +266,7 @@ export function ViewBar() {
 
   return (
     <div
-      className="flex items-center h-9 bg-[#F8FAFC] border-b border-slate-200 px-2 gap-0.5 overflow-x-auto"
+      className="flex items-center h-9 bg-white dark:bg-[hsl(200,30%,8%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] px-2 gap-0.5 overflow-x-auto"
       style={{ minHeight: 36, maxHeight: 36 }}
     >
       {views?.map((view, index) => (

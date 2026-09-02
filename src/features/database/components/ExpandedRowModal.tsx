@@ -142,12 +142,12 @@ function InlineTextInput({
       onKeyDown={(e) => {
         if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
       }}
-      className={`w-full rounded-md border px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-[#0D9488] ${
+      className={`w-full rounded-md border px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-[#3366FF] ${
         align === 'right' ? 'text-right' : 'text-left'
       }`}
       style={{
-        borderColor: '#E2E8F0',
-        color: '#0F172A',
+        borderColor: '#E7E7E9',
+        color: '#374151',
       }}
     />
   );
@@ -174,8 +174,8 @@ function InlineDateInput({
         setDate(e.target.value);
         onSave(e.target.value || null);
       }}
-      className="w-full rounded-md border px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-[#0D9488]"
-      style={{ borderColor: '#E2E8F0', color: '#0F172A' }}
+      className="w-full rounded-md border px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-[#3366FF]"
+      style={{ borderColor: '#E7E7E9', color: '#374151' }}
     />
   );
 }
@@ -201,13 +201,13 @@ function InlineCheckbox({
         }`}
         style={
           checked
-            ? { backgroundColor: '#0D9488' }
-            : { borderColor: '#94A3B8' }
+            ? { backgroundColor: '#3366FF' }
+            : { borderColor: '#9AA2AF' }
         }
       >
         {checked && <Check size={14} color="#fff" strokeWidth={3} />}
       </div>
-      <span className="text-sm" style={{ color: '#0F172A' }}>
+      <span className="text-sm" style={{ color: '#374151' }}>
         {checked ? 'Checked' : 'Unchecked'}
       </span>
     </button>
@@ -229,8 +229,8 @@ function InlineSingleSelect({
     <select
       value={value ?? ''}
       onChange={(e) => onSave(e.target.value || null)}
-      className="w-full rounded-md border px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-[#0D9488]"
-      style={{ borderColor: '#E2E8F0', color: '#0F172A' }}
+      className="w-full rounded-md border px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-[#3366FF]"
+      style={{ borderColor: '#E7E7E9', color: '#374151' }}
     >
       <option value="">-- None --</option>
       {choices.map((c: SelectChoice) => (
@@ -305,7 +305,7 @@ function FieldRow({
   const renderEditor = () => {
     if (isSystem) {
       return (
-        <span className="text-sm" style={{ color: '#94A3B8' }}>
+        <span className="text-sm" style={{ color: '#9AA2AF' }}>
           {formatDisplayValue(value, field)}
         </span>
       );
@@ -339,13 +339,13 @@ function FieldRow({
   return (
     <div
       className="flex items-start gap-4 border-b px-4 py-3"
-      style={{ borderColor: '#E2E8F0' }}
+      style={{ borderColor: '#E7E7E9' }}
     >
       <div className="w-[180px] shrink-0 flex items-center gap-1.5 pt-1.5">
-        <Icon size={14} style={{ color: '#94A3B8' }} />
+        <Icon size={14} style={{ color: '#9AA2AF' }} />
         <span
           className="text-xs font-medium uppercase tracking-wider truncate"
-          style={{ color: '#475569' }}
+          style={{ color: '#6A7184' }}
         >
           {field.name}
         </span>
@@ -353,7 +353,7 @@ function FieldRow({
       </div>
       <div className="flex-1 min-w-0">
         {field.description && (
-          <div style={{ color: '#94A3B8', fontSize: 11, marginBottom: 4 }}>
+          <div style={{ color: '#9AA2AF', fontSize: 11, marginBottom: 4 }}>
             {field.description}
           </div>
         )}
@@ -464,11 +464,11 @@ export function ExpandedRowModal({
         className="w-full max-w-[640px] p-0 flex flex-col overflow-hidden bg-white"
       >
         {/* Header */}
-        <SheetHeader className="px-4 py-4 border-b" style={{ borderColor: '#E2E8F0' }}>
+        <SheetHeader className="px-4 py-4 border-b" style={{ borderColor: '#E7E7E9' }}>
           <div className="flex items-center justify-between">
             <SheetTitle
               className="text-lg font-semibold truncate"
-              style={{ color: '#0F172A' }}
+              style={{ color: '#374151' }}
             >
               {String(primaryValue)}
             </SheetTitle>
@@ -483,7 +483,7 @@ export function ExpandedRowModal({
 
           {/* Record ID */}
           <div className="flex items-center gap-1.5 mt-1">
-            <span className="text-xs" style={{ color: '#94A3B8' }}>
+            <span className="text-xs" style={{ color: '#9AA2AF' }}>
               ID: {record.id}
             </span>
             <button
@@ -495,7 +495,7 @@ export function ExpandedRowModal({
               {copiedId ? (
                 <Check size={12} style={{ color: '#059669' }} />
               ) : (
-                <Copy size={12} style={{ color: '#94A3B8' }} />
+                <Copy size={12} style={{ color: '#9AA2AF' }} />
               )}
             </button>
           </div>
@@ -519,11 +519,11 @@ export function ExpandedRowModal({
             <>
               <div
                 className="px-4 py-2 mt-2"
-                style={{ backgroundColor: '#F8FAFC' }}
+                style={{ backgroundColor: '#F9F9FA' }}
               >
                 <span
                   className="text-xs font-medium uppercase tracking-wider"
-                  style={{ color: '#94A3B8' }}
+                  style={{ color: '#9AA2AF' }}
                 >
                   System
                 </span>
@@ -544,9 +544,9 @@ export function ExpandedRowModal({
         {/* Footer */}
         <div
           className="px-4 py-3 border-t flex items-center justify-between"
-          style={{ borderColor: '#E2E8F0' }}
+          style={{ borderColor: '#E7E7E9' }}
         >
-          <span className="text-xs" style={{ color: '#94A3B8' }}>
+          <span className="text-xs" style={{ color: '#9AA2AF' }}>
             Created {new Date(record.created_at).toLocaleString(undefined, {
               dateStyle: 'medium',
               timeStyle: 'short',

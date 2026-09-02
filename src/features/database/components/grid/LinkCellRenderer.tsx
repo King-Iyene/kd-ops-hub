@@ -273,7 +273,7 @@ function LinkedRecordsPopover({
       <PopoverTrigger asChild>
         <button
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity"
-          style={{ backgroundColor: '#E0F2FE', color: '#006994' }}
+          style={{ backgroundColor: '#E0F2FE', color: '#3366FF' }}
           onClick={(e) => e.stopPropagation()}
         >
           <Link2 size={12} />
@@ -285,9 +285,9 @@ function LinkedRecordsPopover({
         align="start"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-3 border-b border-[#E2E8F0]">
+        <div className="p-3 border-b border-[#E7E7E9]">
           <div className="flex items-center gap-2">
-            <Search size={14} className="text-[#94A3B8]" />
+            <Search size={14} className="text-[#9AA2AF]" />
             <Input
               placeholder="Search records to link..."
               value={searchTerm}
@@ -300,10 +300,10 @@ function LinkedRecordsPopover({
         <div className="max-h-60 overflow-y-auto">
           {/* Linked records */}
           {isLoading ? (
-            <div className="p-3 text-xs text-[#94A3B8]">Loading...</div>
+            <div className="p-3 text-xs text-[#9AA2AF]">Loading...</div>
           ) : linkedRecords.length > 0 ? (
             <div className="p-1">
-              <p className="px-2 py-1 text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider">
+              <p className="px-2 py-1 text-[10px] font-medium text-[#9AA2AF] uppercase tracking-wider">
                 Linked
               </p>
               {linkedRecords.map((rec: any) => (
@@ -315,22 +315,22 @@ function LinkedRecordsPopover({
                     {getDisplayValue(rec)}
                   </span>
                   <button
-                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#E2E8F0] transition-opacity"
+                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#E7E7E9] transition-opacity"
                     onClick={() => handleUnlink(rec.id)}
                   >
-                    <X size={12} className="text-[#94A3B8]" />
+                    <X size={12} className="text-[#9AA2AF]" />
                   </button>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="p-3 text-xs text-[#94A3B8]">No linked records</div>
+            <div className="p-3 text-xs text-[#9AA2AF]">No linked records</div>
           )}
 
           {/* Search results to link */}
           {searchTerm && filteredSearchResults.length > 0 && (
-            <div className="p-1 border-t border-[#E2E8F0]">
-              <p className="px-2 py-1 text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider">
+            <div className="p-1 border-t border-[#E7E7E9]">
+              <p className="px-2 py-1 text-[10px] font-medium text-[#9AA2AF] uppercase tracking-wider">
                 Link new
               </p>
               {filteredSearchResults.map((rec: any) => (
@@ -345,7 +345,7 @@ function LinkedRecordsPopover({
                     className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#DBEAFE] transition-opacity"
                     onClick={() => handleLink(rec.id)}
                   >
-                    <Plus size={12} className="text-[#006994]" />
+                    <Plus size={12} className="text-[#3366FF]" />
                   </button>
                 </div>
               ))}
@@ -353,7 +353,7 @@ function LinkedRecordsPopover({
           )}
 
           {searchTerm && filteredSearchResults.length === 0 && (
-            <div className="p-3 text-xs text-[#94A3B8] border-t border-[#E2E8F0]">
+            <div className="p-3 text-xs text-[#9AA2AF] border-t border-[#E7E7E9]">
               No matching records found
             </div>
           )}

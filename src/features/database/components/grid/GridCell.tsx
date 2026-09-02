@@ -3,17 +3,26 @@ import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { getCellRenderer } from './cell-renderers';
 import { getCellEditor } from './cell-editors';
+import { GRID_COLORS } from './grid-tokens';
 
 interface GridCellProps {
   field: FieldMeta;
   record: RecordRow;
   onCellUpdate: (recordId: string, fieldId: string, value: any) => void;
+  /** Frozen (sticky) primary column when scrolling horizontally. */
+  frozen?: boolean;
+  frozenLeft?: number;
+  /** Background of the parent row, so a frozen cell matches hover/selection tint. */
+  rowBg?: string;
 }
 
 export const GridCell = React.memo(function GridCell({
   field,
   record,
   onCellUpdate,
+  frozen,
+  frozenLeft,
+  rowBg,
 }: GridCellProps) {
   const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
   const editingCellId = useDatabaseUI((s) => s.editingCellId);
@@ -83,15 +92,19 @@ export const GridCell = React.memo(function GridCell({
 
   return (
     <div
-      className="relative flex items-center px-2 overflow-hidden"
+      className={`relative flex items-center px-2 overflow-hidden ${frozen ? 'sticky z-10' : ''}`}
       style={{
         width: field.width || 180,
         minWidth: field.width || 180,
-        borderRight: '1px solid #E2E8F0',
-        borderBottom: '1px solid #E2E8F0',
-        outline: isSelected ? '2px solid #006994' : 'none',
+        borderRight: `1px solid ${GRID_COLORS.border}`,
+        borderBottom: `1px solid ${GRID_COLORS.border}`,
+        outline: isSelected ? `2px solid ${GRID_COLORS.selected}` : 'none',
         outlineOffset: -2,
         cursor: 'default',
+        fontSize: 13,
+        color: GRID_COLORS.text,
+        backgroundColor: frozen ? (rowBg ?? GRID_COLORS.bg) : undefined,
+        ...(frozen ? { left: frozenLeft, boxShadow: '1px 0 0 0 rgba(0,0,0,0.04)' } : {}),
       }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}

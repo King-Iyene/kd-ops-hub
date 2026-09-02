@@ -130,7 +130,7 @@ export function CreateLinkDialog({ open, onOpenChange }: CreateLinkDialogProps) 
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[10px] text-[#94A3B8]">
+            <p className="text-[10px] text-[#9AA2AF]">
               {relType === 'hm' && 'One record here links to many records in the related table.'}
               {relType === 'bt' && 'Each record here belongs to one record in the related table.'}
               {relType === 'mm' && 'Records on both sides can link to many records. A junction table is created.'}
@@ -148,7 +148,7 @@ export function CreateLinkDialog({ open, onOpenChange }: CreateLinkDialogProps) 
           </Button>
           <Button
             size="sm"
-            className="bg-[#006994] hover:bg-[#005a7d]"
+            className="bg-[#3366FF] hover:bg-[#2952CC]"
             onClick={handleCreate}
             disabled={createLink.isPending}
           >

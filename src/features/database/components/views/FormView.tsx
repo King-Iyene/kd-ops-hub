@@ -75,7 +75,7 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
   };
 
   return (
-    <div style={{ minHeight: '100%', background: '#F8FAFC', padding: '32px 16px' }}>
+    <div style={{ minHeight: '100%', background: '#F9F9FA', padding: '32px 16px' }}>
       {showSuccess && (
         <div
           style={{
@@ -104,15 +104,15 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
           margin: '0 auto',
           background: '#FFFFFF',
           borderRadius: 8,
-          border: '1px solid #E2E8F0',
+          border: '1px solid #E7E7E9',
           padding: '32px 28px',
           boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
-        <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700, color: '#0F172A' }}>
+        <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700, color: '#374151' }}>
           New Record
         </h2>
-        <p style={{ margin: '0 0 28px', fontSize: 14, color: '#94A3B8' }}>
+        <p style={{ margin: '0 0 28px', fontSize: 14, color: '#9AA2AF' }}>
           Fill in the fields below to create a new record.
         </p>
 
@@ -131,7 +131,7 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
           style={{
             width: '100%',
             padding: '10px 0',
-            background: isLoading ? '#5AA5BB' : '#006994',
+            background: isLoading ? '#5AA5BB' : '#3366FF',
             color: '#FFFFFF',
             border: 'none',
             borderRadius: 6,
@@ -145,7 +145,7 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
             if (!isLoading) (e.currentTarget.style.background = '#005577');
           }}
           onMouseLeave={(e) => {
-            if (!isLoading) (e.currentTarget.style.background = '#006994');
+            if (!isLoading) (e.currentTarget.style.background = '#3366FF');
           }}
         >
           {isLoading ? 'Creating...' : 'Create Record'}
@@ -167,8 +167,8 @@ const inputBase: React.CSSProperties = {
   width: '100%',
   padding: '8px 12px',
   fontSize: 14,
-  color: '#0F172A',
-  border: '1px solid #E2E8F0',
+  color: '#374151',
+  border: '1px solid #E7E7E9',
   borderRadius: 6,
   outline: 'none',
   background: '#FFFFFF',
@@ -209,8 +209,8 @@ function FieldInput({ field, value, onChange }: FieldInputProps) {
             value={value ?? ''}
             onChange={(e) => onChange(e.target.value)}
             style={{ ...inputBase, resize: 'vertical' }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = '#006994')}
-            onBlur={(e) => (e.currentTarget.style.borderColor = '#E2E8F0')}
+            onFocus={(e) => (e.currentTarget.style.borderColor = '#3366FF')}
+            onBlur={(e) => (e.currentTarget.style.borderColor = '#E7E7E9')}
           />
         );
 
@@ -223,8 +223,8 @@ function FieldInput({ field, value, onChange }: FieldInputProps) {
                 width: 20,
                 height: 20,
                 borderRadius: 4,
-                border: `2px solid ${value ? '#006994' : '#E2E8F0'}`,
-                background: value ? '#006994' : '#FFFFFF',
+                border: `2px solid ${value ? '#3366FF' : '#E7E7E9'}`,
+                background: value ? '#3366FF' : '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -239,7 +239,7 @@ function FieldInput({ field, value, onChange }: FieldInputProps) {
                 </svg>
               )}
             </div>
-            <span style={{ fontSize: 14, color: '#0F172A' }}>
+            <span style={{ fontSize: 14, color: '#374151' }}>
               {value ? 'Checked' : 'Unchecked'}
             </span>
           </label>
@@ -252,8 +252,8 @@ function FieldInput({ field, value, onChange }: FieldInputProps) {
             value={value ?? ''}
             onChange={(e) => onChange(e.target.value)}
             style={{ ...inputBase, cursor: 'pointer' }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = '#006994')}
-            onBlur={(e) => (e.currentTarget.style.borderColor = '#E2E8F0')}
+            onFocus={(e) => (e.currentTarget.style.borderColor = '#3366FF')}
+            onBlur={(e) => (e.currentTarget.style.borderColor = '#E7E7E9')}
           >
             <option value="">Select an option</option>
             {choices.map((c) => {
@@ -306,7 +306,7 @@ function FieldInput({ field, value, onChange }: FieldInputProps) {
               );
             })}
             {choices.length === 0 && (
-              <span style={{ fontSize: 13, color: '#94A3B8' }}>No choices defined</span>
+              <span style={{ fontSize: 13, color: '#9AA2AF' }}>No choices defined</span>
             )}
           </div>
         );
@@ -352,8 +352,8 @@ function FieldInput({ field, value, onChange }: FieldInputProps) {
             onChange={(e) => onChange(e.target.value)}
             placeholder="HH:MM:SS"
             style={inputBase}
-            onFocus={(e) => (e.currentTarget.style.borderColor = '#006994')}
-            onBlur={(e) => (e.currentTarget.style.borderColor = '#E2E8F0')}
+            onFocus={(e) => (e.currentTarget.style.borderColor = '#3366FF')}
+            onBlur={(e) => (e.currentTarget.style.borderColor = '#E7E7E9')}
           />
         );
 
@@ -369,8 +369,8 @@ function FieldInput({ field, value, onChange }: FieldInputProps) {
                 : e.target.value,
             )}
             style={inputBase}
-            onFocus={(e) => (e.currentTarget.style.borderColor = '#006994')}
-            onBlur={(e) => (e.currentTarget.style.borderColor = '#E2E8F0')}
+            onFocus={(e) => (e.currentTarget.style.borderColor = '#3366FF')}
+            onBlur={(e) => (e.currentTarget.style.borderColor = '#E7E7E9')}
           />
         );
     }
@@ -378,12 +378,12 @@ function FieldInput({ field, value, onChange }: FieldInputProps) {
 
   return (
     <div style={{ marginBottom: 20 }}>
-      <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500, color: '#0F172A' }}>
+      <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500, color: '#374151' }}>
         {field.name}
         {field.is_required && <span style={{ color: '#EF4444', marginLeft: 2 }}>*</span>}
       </label>
       {field.description && (
-        <p style={{ margin: '0 0 6px', fontSize: 13, color: '#94A3B8' }}>
+        <p style={{ margin: '0 0 6px', fontSize: 13, color: '#9AA2AF' }}>
           {field.description}
         </p>
       )}

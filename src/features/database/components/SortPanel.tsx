@@ -78,11 +78,11 @@ export function SortPanel({ fields, sorts, onSortsChange }: SortPanelProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 text-xs text-[#475569] gap-1">
+        <Button variant="ghost" size="sm" className="h-7 text-xs text-[#6A7184] gap-1">
           <ArrowUpDown size={14} />
           Sort
           {activeCount > 0 && (
-            <span className="ml-0.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-[#006994] text-white text-[10px] font-medium">
+            <span className="ml-0.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-[#3366FF] text-white text-[10px] font-medium">
               {activeCount}
             </span>
           )}
@@ -110,7 +110,7 @@ export function SortPanel({ fields, sorts, onSortsChange }: SortPanelProps) {
                       return (
                         <SelectItem key={f.id} value={f.id}>
                           <span className="flex items-center gap-1.5">
-                            <Icon size={12} className="text-[#94A3B8]" />
+                            <Icon size={12} className="text-[#9AA2AF]" />
                             {f.name}
                           </span>
                         </SelectItem>
@@ -137,7 +137,7 @@ export function SortPanel({ fields, sorts, onSortsChange }: SortPanelProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0 text-[#94A3B8] hover:text-red-500 shrink-0"
+                  className="h-7 w-7 p-0 text-[#9AA2AF] hover:text-red-500 shrink-0"
                   onClick={() => removeSort(idx)}
                 >
                   <X size={14} />
@@ -147,18 +147,18 @@ export function SortPanel({ fields, sorts, onSortsChange }: SortPanelProps) {
           })}
         </div>
 
-        <div className="flex items-center justify-between mt-3 pt-2 border-t border-[#E2E8F0]">
+        <div className="flex items-center justify-between mt-3 pt-2 border-t border-[#E7E7E9]">
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-[#006994] gap-1 font-medium"
+            className="h-7 text-xs text-[#3366FF] gap-1 font-medium"
             onClick={addSort}
           >
             <Plus size={14} /> Add sort
           </Button>
           {sorts.length > 0 && (
             <button
-              className="text-xs text-[#94A3B8] hover:text-[#475569] transition-colors"
+              className="text-xs text-[#9AA2AF] hover:text-[#6A7184] transition-colors"
               onClick={() => onSortsChange([])}
             >
               Clear all

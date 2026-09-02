@@ -36,7 +36,7 @@ export function TextCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
       }}
       onBlur={() => onCommit(text)}
       className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#0F172A' }}
+      style={{ fontSize: 13, color: '#374151' }}
     />
   );
 }
@@ -62,7 +62,7 @@ export function LongTextCellEditor({ value, onCommit, onCancel }: CellEditorProp
       }}
       onBlur={() => onCommit(text)}
       className="w-full px-2 py-1 outline-none border-none bg-white resize-none"
-      style={{ fontSize: 13, color: '#0F172A', minHeight: 80 }}
+      style={{ fontSize: 13, color: '#374151', minHeight: 80 }}
     />
   );
 }
@@ -88,7 +88,7 @@ export function NumberCellEditor({ value, onCommit, onCancel }: CellEditorProps)
       }}
       onBlur={() => onCommit(num === '' ? null : Number(num))}
       className="w-full h-full px-2 outline-none border-none bg-white text-right"
-      style={{ fontSize: 13, color: '#0F172A' }}
+      style={{ fontSize: 13, color: '#374151' }}
     />
   );
 }
@@ -115,7 +115,7 @@ export function DecimalCellEditor({ value, onCommit, onCancel }: CellEditorProps
       }}
       onBlur={() => onCommit(num === '' ? null : Number(num))}
       className="w-full h-full px-2 outline-none border-none bg-white text-right"
-      style={{ fontSize: 13, color: '#0F172A' }}
+      style={{ fontSize: 13, color: '#374151' }}
     />
   );
 }
@@ -142,9 +142,9 @@ export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps
         }}
         onBlur={() => onCommit(num === '' ? null : Number(num))}
         className="w-full h-full px-2 outline-none border-none bg-white text-right"
-        style={{ fontSize: 13, color: '#0F172A' }}
+        style={{ fontSize: 13, color: '#374151' }}
       />
-      <span className="pr-2 shrink-0" style={{ fontSize: 13, color: '#94A3B8' }}>%</span>
+      <span className="pr-2 shrink-0" style={{ fontSize: 13, color: '#9AA2AF' }}>%</span>
     </div>
   );
 }
@@ -171,7 +171,7 @@ export function CurrencyCellEditor({ value, onCommit, onCancel }: CellEditorProp
       }}
       onBlur={() => onCommit(num === '' ? null : Number(num))}
       className="w-full h-full px-2 outline-none border-none bg-white text-right"
-      style={{ fontSize: 13, color: '#0F172A' }}
+      style={{ fontSize: 13, color: '#374151' }}
     />
   );
 }
@@ -197,7 +197,7 @@ export function DateCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
       }}
       onBlur={() => onCommit(date || null)}
       className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#0F172A' }}
+      style={{ fontSize: 13, color: '#374151' }}
     />
   );
 }
@@ -236,7 +236,7 @@ export function DurationCellEditor({ value, onCommit, onCancel }: CellEditorProp
       }}
       onBlur={() => onCommit(parseDuration(text))}
       className="w-full h-full px-2 outline-none border-none bg-white text-right"
-      style={{ fontSize: 13, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}
+      style={{ fontSize: 13, color: '#374151', fontVariantNumeric: 'tabular-nums' }}
     />
   );
 }
@@ -262,7 +262,7 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
       }}
       onBlur={() => onCommit(text)}
       className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#0F172A' }}
+      style={{ fontSize: 13, color: '#374151' }}
     />
   );
 }
@@ -288,7 +288,7 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
       }}
       onBlur={() => onCommit(text)}
       className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#0F172A' }}
+      style={{ fontSize: 13, color: '#374151' }}
     />
   );
 }
@@ -314,7 +314,7 @@ export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorP
       }}
       onBlur={() => onCommit(text)}
       className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#0F172A' }}
+      style={{ fontSize: 13, color: '#374151' }}
     />
   );
 }
@@ -336,7 +336,7 @@ export function RatingCellEditor({ value, field, onCommit }: CellEditorProps) {
           <Star
             size={16}
             fill={i < rating ? '#F59E0B' : 'none'}
-            color={i < rating ? '#F59E0B' : '#E2E8F0'}
+            color={i < rating ? '#F59E0B' : '#E7E7E9'}
             strokeWidth={1.5}
           />
         </button>
@@ -363,7 +363,7 @@ export function SelectCellEditor({ value, field, onCommit, onCancel }: CellEdito
     <div
       ref={ref}
       className="absolute left-0 top-full z-50 bg-white border rounded-md shadow-lg py-1 min-w-[180px] max-h-[240px] overflow-y-auto"
-      style={{ borderColor: '#E2E8F0' }}
+      style={{ borderColor: '#E7E7E9' }}
     >
       {choices.map((choice: SelectChoice) => {
         const color = getPillColor(choice.color);
@@ -385,7 +385,7 @@ export function SelectCellEditor({ value, field, onCommit, onCancel }: CellEdito
       {value && (
         <button
           className="w-full text-left px-3 py-1.5 hover:bg-gray-50 text-xs"
-          style={{ color: '#94A3B8' }}
+          style={{ color: '#9AA2AF' }}
           onClick={() => onCommit(null)}
         >
           Clear
@@ -421,7 +421,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: Cell
     <div
       ref={ref}
       className="absolute left-0 top-full z-50 bg-white border rounded-md shadow-lg py-1 min-w-[180px] max-h-[240px] overflow-y-auto"
-      style={{ borderColor: '#E2E8F0' }}
+      style={{ borderColor: '#E7E7E9' }}
     >
       {choices.map((choice: SelectChoice) => {
         const color = getPillColor(choice.color);
@@ -457,7 +457,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: Cell
       {selected.length > 0 && (
         <button
           className="w-full text-left px-3 py-1.5 hover:bg-gray-50 text-xs"
-          style={{ color: '#94A3B8' }}
+          style={{ color: '#9AA2AF' }}
           onClick={() => onCommit(null)}
         >
           Clear all
@@ -496,7 +496,7 @@ export function JSONCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
       }}
       onBlur={() => commitJSON()}
       className="w-full px-2 py-1 outline-none border-none bg-white resize-none"
-      style={{ fontSize: 12, color: '#0F172A', fontFamily: 'monospace', minHeight: 80 }}
+      style={{ fontSize: 12, color: '#374151', fontFamily: 'monospace', minHeight: 80 }}
     />
   );
 }
@@ -554,19 +554,19 @@ export function AttachmentCellEditor({ value, onCommit, onCancel }: CellEditorPr
     <div
       ref={ref}
       className="absolute left-0 top-full z-50 bg-white border rounded-md shadow-lg py-2 min-w-[240px] max-h-[300px] overflow-y-auto"
-      style={{ borderColor: '#E2E8F0' }}
+      style={{ borderColor: '#E7E7E9' }}
     >
       {files.map((f, i) => (
         <div key={i} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50">
-          <Paperclip size={14} color="#94A3B8" className="shrink-0" />
+          <Paperclip size={14} color="#9AA2AF" className="shrink-0" />
           <span
             className="text-xs truncate flex-1"
-            style={{ color: '#0F172A', maxWidth: 140 }}
+            style={{ color: '#374151', maxWidth: 140 }}
             title={f.name}
           >
             {f.name}
           </span>
-          <span className="text-xs shrink-0" style={{ color: '#94A3B8' }}>
+          <span className="text-xs shrink-0" style={{ color: '#9AA2AF' }}>
             {formatSize(f.size)}
           </span>
           <button
@@ -574,7 +574,7 @@ export function AttachmentCellEditor({ value, onCommit, onCancel }: CellEditorPr
             className="p-0 border-none bg-transparent cursor-pointer shrink-0"
             onClick={() => removeFile(i)}
           >
-            <X size={14} color="#94A3B8" />
+            <X size={14} color="#9AA2AF" />
           </button>
         </div>
       ))}
@@ -589,7 +589,7 @@ export function AttachmentCellEditor({ value, onCommit, onCancel }: CellEditorPr
         <button
           type="button"
           className="w-full text-xs font-medium py-1.5 px-3 rounded cursor-pointer border-none text-white"
-          style={{ backgroundColor: '#006994' }}
+          style={{ backgroundColor: '#3366FF' }}
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
         >
@@ -621,7 +621,7 @@ export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProp
       }}
       onBlur={() => onCommit(dt || null)}
       className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#0F172A' }}
+      style={{ fontSize: 13, color: '#374151' }}
     />
   );
 }
@@ -646,7 +646,7 @@ export function TimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
       }}
       onBlur={() => onCommit(time || null)}
       className="w-full h-full px-2 outline-none border-none bg-white"
-      style={{ fontSize: 13, color: '#0F172A' }}
+      style={{ fontSize: 13, color: '#374151' }}
     />
   );
 }

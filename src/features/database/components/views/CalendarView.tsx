@@ -12,11 +12,11 @@ interface CalendarViewProps {
   onAddRow: () => void;
 }
 
-const TEAL = '#006994';
-const TEXT = '#0F172A';
-const MUTED = '#94A3B8';
-const BORDER = '#E2E8F0';
-const SURFACE = '#F8FAFC';
+const TEAL = '#3366FF';
+const TEXT = '#374151';
+const MUTED = '#9AA2AF';
+const BORDER = '#E7E7E9';
+const SURFACE = '#F9F9FA';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MAX_VISIBLE_RECORDS = 3;

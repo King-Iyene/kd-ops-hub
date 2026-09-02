@@ -46,7 +46,7 @@ export function SearchBar() {
     return (
       <button
         className="h-7 px-2 rounded text-xs flex items-center gap-1 hover:bg-gray-100"
-        style={{ color: '#475569' }}
+        style={{ color: '#6A7184' }}
         onClick={handleOpen}
       >
         <Search size={14} />
@@ -57,9 +57,9 @@ export function SearchBar() {
   return (
     <div
       className="flex items-center h-7 rounded border px-2 gap-1.5"
-      style={{ borderColor: '#006994', width: 240 }}
+      style={{ borderColor: '#3366FF', width: 240 }}
     >
-      <Search size={13} style={{ color: '#94A3B8' }} className="shrink-0" />
+      <Search size={13} style={{ color: '#9AA2AF' }} className="shrink-0" />
       <input
         ref={inputRef}
         value={localValue}
@@ -67,11 +67,11 @@ export function SearchBar() {
         onKeyDown={(e) => { if (e.key === 'Escape') handleClear(); }}
         placeholder="Search records..."
         className="flex-1 text-xs outline-none bg-transparent"
-        style={{ color: '#0F172A' }}
+        style={{ color: '#374151' }}
       />
       {localValue && (
         <button onClick={handleClear} className="p-0.5 rounded hover:bg-gray-100">
-          <X size={12} style={{ color: '#94A3B8' }} />
+          <X size={12} style={{ color: '#9AA2AF' }} />
         </button>
       )}
     </div>

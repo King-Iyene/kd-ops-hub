@@ -2,6 +2,7 @@ import React from 'react';
 import { Check, ExternalLink, Copy, Star, Paperclip } from 'lucide-react';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { LinkCellRenderer } from './LinkCellRenderer';
+import { LookupCellRenderer, RollupCellRenderer } from './LookupRollupCellRenderer';
 import { PILL_COLORS } from '@/features/database/types';
 
 interface CellRendererProps {
@@ -24,7 +25,7 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
 
   if (field.ui_type === 'Email') {
     return (
-      <span className="truncate" style={{ color: '#006994' }}>
+      <span className="truncate" style={{ color: '#3366FF' }}>
         {text}
       </span>
     );
@@ -32,7 +33,7 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
 
   if (field.ui_type === 'URL') {
     return (
-      <span className="truncate flex items-center gap-1" style={{ color: '#006994' }}>
+      <span className="truncate flex items-center gap-1" style={{ color: '#3366FF' }}>
         <span className="truncate">{text}</span>
         <ExternalLink size={12} className="shrink-0" />
       </span>
@@ -160,7 +161,7 @@ export const CheckboxCellRenderer = React.memo(function CheckboxCellRenderer({
       ) : (
         <div
           className="w-4 h-4 rounded border-2"
-          style={{ borderColor: '#94A3B8' }}
+          style={{ borderColor: '#9AA2AF' }}
         />
       )}
     </div>
@@ -180,7 +181,7 @@ export const RatingCellRenderer = React.memo(function RatingCellRenderer({
           key={i}
           size={14}
           fill={i < rating ? '#F59E0B' : 'none'}
-          color={i < rating ? '#F59E0B' : '#E2E8F0'}
+          color={i < rating ? '#F59E0B' : '#E7E7E9'}
           strokeWidth={1.5}
         />
       ))}
@@ -232,7 +233,7 @@ export const MultiSelectCellRenderer = React.memo(function MultiSelectCellRender
         );
       })}
       {remaining > 0 && (
-        <span className="text-xs" style={{ color: '#94A3B8' }}>
+        <span className="text-xs" style={{ color: '#9AA2AF' }}>
           +{remaining}
         </span>
       )}
@@ -247,7 +248,7 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
   const files = Array.isArray(value) ? value : [];
   if (files.length === 0) return null;
   return (
-    <span className="flex items-center gap-1 truncate" style={{ color: '#94A3B8' }}>
+    <span className="flex items-center gap-1 truncate" style={{ color: '#9AA2AF' }}>
       <Paperclip size={13} className="shrink-0" />
       <span className="text-xs">{files.length} {files.length === 1 ? 'file' : 'files'}</span>
     </span>
@@ -279,7 +280,7 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
     return (
       <span
         className="truncate cursor-pointer flex items-center gap-1 group"
-        style={{ color: '#94A3B8' }}
+        style={{ color: '#9AA2AF' }}
         onClick={(e) => {
           e.stopPropagation();
           navigator.clipboard.writeText(text);
@@ -293,9 +294,9 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
 
   if (field.ui_type === 'CreatedTime' || field.ui_type === 'LastModifiedTime') {
     const date = new Date(value);
-    if (isNaN(date.getTime())) return <span style={{ color: '#94A3B8' }}>{String(value)}</span>;
+    if (isNaN(date.getTime())) return <span style={{ color: '#9AA2AF' }}>{String(value)}</span>;
     return (
-      <span className="truncate" style={{ color: '#94A3B8' }}>
+      <span className="truncate" style={{ color: '#9AA2AF' }}>
         {date.toLocaleDateString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
       </span>
     );
@@ -303,7 +304,7 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
 
   if (field.ui_type === 'AutoNumber') {
     return (
-      <span className="truncate block text-right w-full" style={{ color: '#94A3B8', fontFamily: 'monospace', fontSize: 12 }}>
+      <span className="truncate block text-right w-full" style={{ color: '#9AA2AF', fontFamily: 'monospace', fontSize: 12 }}>
         {String(value)}
       </span>
     );
@@ -314,14 +315,14 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
       ? value.email || value.name || 'Unknown'
       : String(value || 'Unknown');
     return (
-      <span className="truncate" style={{ color: '#94A3B8' }}>
+      <span className="truncate" style={{ color: '#9AA2AF' }}>
         {display}
       </span>
     );
   }
 
   return (
-    <span className="truncate" style={{ color: '#94A3B8' }}>
+    <span className="truncate" style={{ color: '#9AA2AF' }}>
       {String(value)}
     </span>
   );
@@ -332,7 +333,7 @@ export const ComputedCellRenderer = React.memo(function ComputedCellRenderer({
 }: CellRendererProps) {
   if (value == null || value === '') return null;
   return (
-    <span className="truncate" style={{ color: '#94A3B8' }}>
+    <span className="truncate" style={{ color: '#9AA2AF' }}>
       {String(value)}
     </span>
   );
@@ -383,9 +384,11 @@ export function getCellRenderer(uiType: string) {
       return SystemCellRenderer;
     case 'Links':
       return LinkCellRenderer;
-    case 'Formula':
-    case 'Rollup':
     case 'Lookup':
+      return LookupCellRenderer;
+    case 'Rollup':
+      return RollupCellRenderer;
+    case 'Formula':
       return ComputedCellRenderer;
     default:
       return TextCellRenderer;

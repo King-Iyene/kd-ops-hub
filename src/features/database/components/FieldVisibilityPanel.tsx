@@ -33,7 +33,7 @@ export function FieldVisibilityPanel({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 text-xs text-[#475569] gap-1">
+        <Button variant="ghost" size="sm" className="h-7 text-xs text-[#6A7184] gap-1">
           <EyeOff size={14} /> Hide Fields
         </Button>
       </PopoverTrigger>
@@ -42,7 +42,7 @@ export function FieldVisibilityPanel({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 text-xs text-[#006994] font-medium"
+            className="h-6 text-xs text-[#3366FF] font-medium"
             onClick={onShowAll}
           >
             Show All
@@ -50,7 +50,7 @@ export function FieldVisibilityPanel({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 text-xs text-[#006994] font-medium"
+            className="h-6 text-xs text-[#3366FF] font-medium"
             onClick={onHideAll}
           >
             Hide All
@@ -65,8 +65,8 @@ export function FieldVisibilityPanel({
                 key={field.id}
                 className="flex items-center justify-between py-1 px-1 rounded hover:bg-[#F1F5F9]"
               >
-                <span className="flex items-center gap-2 text-xs text-[#0F172A]">
-                  <Icon size={14} className="text-[#94A3B8]" />
+                <span className="flex items-center gap-2 text-xs text-[#374151]">
+                  <Icon size={14} className="text-[#9AA2AF]" />
                   {field.name}
                 </span>
                 <Switch

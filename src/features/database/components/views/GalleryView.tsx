@@ -72,7 +72,7 @@ function CellValue({
   value: any;
 }) {
   if (value == null || value === '') {
-    return <span className="text-[#94A3B8] text-sm italic">Empty</span>;
+    return <span className="text-[#9AA2AF] text-sm italic">Empty</span>;
   }
 
   switch (field.ui_type) {
@@ -80,12 +80,12 @@ function CellValue({
       return (
         <span className="text-sm">
           {value ? (
-            <svg width="16" height="16" viewBox="0 0 16 16" className="inline-block text-[#006994]">
+            <svg width="16" height="16" viewBox="0 0 16 16" className="inline-block text-[#3366FF]">
               <rect x="1" y="1" width="14" height="14" rx="3" fill="currentColor" />
               <path d="M4.5 8L7 10.5L11.5 5.5" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           ) : (
-            <svg width="16" height="16" viewBox="0 0 16 16" className="inline-block text-[#94A3B8]">
+            <svg width="16" height="16" viewBox="0 0 16 16" className="inline-block text-[#9AA2AF]">
               <rect x="1" y="1" width="14" height="14" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
             </svg>
           )}
@@ -113,15 +113,15 @@ function CellValue({
 
     case 'Date':
     case 'CreatedTime':
-      return <span className="text-sm text-[#0F172A]">{formatDate(value)}</span>;
+      return <span className="text-sm text-[#374151]">{formatDate(value)}</span>;
 
     case 'DateTime':
     case 'LastModifiedTime':
-      return <span className="text-sm text-[#0F172A]">{formatDateTime(value)}</span>;
+      return <span className="text-sm text-[#374151]">{formatDateTime(value)}</span>;
 
     default:
       return (
-        <span className="text-sm text-[#0F172A] line-clamp-2">
+        <span className="text-sm text-[#374151] line-clamp-2">
           {String(value)}
         </span>
       );
@@ -130,24 +130,24 @@ function CellValue({
 
 function SkeletonCard() {
   return (
-    <div className="bg-white border border-[#E2E8F0] rounded-lg p-4 animate-pulse">
-      <div className="h-5 bg-[#E2E8F0] rounded w-3/4 mb-4" />
+    <div className="bg-white border border-[#E7E7E9] rounded-lg p-4 animate-pulse">
+      <div className="h-5 bg-[#E7E7E9] rounded w-3/4 mb-4" />
       <div className="space-y-3">
         <div>
-          <div className="h-3 bg-[#E2E8F0] rounded w-1/3 mb-1" />
-          <div className="h-4 bg-[#E2E8F0] rounded w-2/3" />
+          <div className="h-3 bg-[#E7E7E9] rounded w-1/3 mb-1" />
+          <div className="h-4 bg-[#E7E7E9] rounded w-2/3" />
         </div>
         <div>
-          <div className="h-3 bg-[#E2E8F0] rounded w-1/4 mb-1" />
-          <div className="h-4 bg-[#E2E8F0] rounded w-1/2" />
+          <div className="h-3 bg-[#E7E7E9] rounded w-1/4 mb-1" />
+          <div className="h-4 bg-[#E7E7E9] rounded w-1/2" />
         </div>
         <div>
-          <div className="h-3 bg-[#E2E8F0] rounded w-1/3 mb-1" />
-          <div className="h-4 bg-[#E2E8F0] rounded w-3/5" />
+          <div className="h-3 bg-[#E7E7E9] rounded w-1/3 mb-1" />
+          <div className="h-4 bg-[#E7E7E9] rounded w-3/5" />
         </div>
       </div>
-      <div className="mt-4 pt-3 border-t border-[#E2E8F0]">
-        <div className="h-3 bg-[#E2E8F0] rounded w-1/3" />
+      <div className="mt-4 pt-3 border-t border-[#E7E7E9]">
+        <div className="h-3 bg-[#E7E7E9] rounded w-1/3" />
       </div>
     </div>
   );
@@ -186,9 +186,9 @@ function GalleryView({
             ))}
           </div>
         </div>
-        <div className="flex items-center justify-center py-3 border-t border-[#E2E8F0] bg-[#F8FAFC]">
-          <Loader2 className="w-4 h-4 animate-spin text-[#94A3B8] mr-2" />
-          <span className="text-sm text-[#94A3B8]">Loading records...</span>
+        <div className="flex items-center justify-center py-3 border-t border-[#E7E7E9] bg-[#F9F9FA]">
+          <Loader2 className="w-4 h-4 animate-spin text-[#9AA2AF] mr-2" />
+          <span className="text-sm text-[#9AA2AF]">Loading records...</span>
         </div>
       </div>
     );
@@ -206,12 +206,12 @@ function GalleryView({
             return (
               <div
                 key={record.id}
-                className="bg-white border border-[#E2E8F0] rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col"
+                className="bg-white border border-[#E7E7E9] rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col"
                 onClick={() => onExpandRow?.(record)}
               >
                 {/* Header */}
-                <div className="px-4 pt-4 pb-2 border-b border-[#E2E8F0]">
-                  <h3 className="font-semibold text-[#0F172A] text-sm truncate">
+                <div className="px-4 pt-4 pb-2 border-b border-[#E7E7E9]">
+                  <h3 className="font-semibold text-[#374151] text-sm truncate">
                     {primaryValue != null && primaryValue !== ''
                       ? String(primaryValue)
                       : 'Untitled'}
@@ -222,7 +222,7 @@ function GalleryView({
                 <div className="px-4 py-3 flex-1 space-y-2.5">
                   {bodyFields.map((field) => (
                     <div key={field.id}>
-                      <div className="text-xs text-[#94A3B8] mb-0.5 truncate">
+                      <div className="text-xs text-[#9AA2AF] mb-0.5 truncate">
                         {field.name}
                       </div>
                       <CellValue
@@ -234,8 +234,8 @@ function GalleryView({
                 </div>
 
                 {/* Footer */}
-                <div className="px-4 py-2 border-t border-[#E2E8F0]">
-                  <span className="text-xs text-[#94A3B8]">
+                <div className="px-4 py-2 border-t border-[#E7E7E9]">
+                  <span className="text-xs text-[#9AA2AF]">
                     {formatDate(record.created_at)}
                   </span>
                 </div>
@@ -246,7 +246,7 @@ function GalleryView({
           {/* Add Record Card */}
           <button
             onClick={onAddRow}
-            className="border-2 border-dashed border-[#E2E8F0] rounded-lg flex flex-col items-center justify-center min-h-[200px] hover:border-[#006994] hover:text-[#006994] text-[#94A3B8] transition-colors cursor-pointer bg-transparent"
+            className="border-2 border-dashed border-[#E7E7E9] rounded-lg flex flex-col items-center justify-center min-h-[200px] hover:border-[#3366FF] hover:text-[#3366FF] text-[#9AA2AF] transition-colors cursor-pointer bg-transparent"
           >
             <Plus className="w-8 h-8 mb-2" />
             <span className="text-sm font-medium">Add Record</span>
@@ -255,8 +255,8 @@ function GalleryView({
       </div>
 
       {/* Pagination Footer */}
-      <div className="flex items-center justify-between px-4 py-2 border-t border-[#E2E8F0] bg-[#F8FAFC] text-sm">
-        <span className="text-[#94A3B8]">
+      <div className="flex items-center justify-between px-4 py-2 border-t border-[#E7E7E9] bg-[#F9F9FA] text-sm">
+        <span className="text-[#9AA2AF]">
           {totalCount === 0
             ? 'No records'
             : `${startRecord}-${endRecord} of ${totalCount} records`}
@@ -265,17 +265,17 @@ function GalleryView({
           <button
             onClick={() => onPageChange(page - 1)}
             disabled={page <= 1}
-            className="p-1 rounded hover:bg-[#E2E8F0] disabled:opacity-30 disabled:cursor-not-allowed text-[#0F172A]"
+            className="p-1 rounded hover:bg-[#E7E7E9] disabled:opacity-30 disabled:cursor-not-allowed text-[#374151]"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="px-2 text-[#0F172A]">
+          <span className="px-2 text-[#374151]">
             {page} / {totalPages}
           </span>
           <button
             onClick={() => onPageChange(page + 1)}
             disabled={page >= totalPages}
-            className="p-1 rounded hover:bg-[#E2E8F0] disabled:opacity-30 disabled:cursor-not-allowed text-[#0F172A]"
+            className="p-1 rounded hover:bg-[#E7E7E9] disabled:opacity-30 disabled:cursor-not-allowed text-[#374151]"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
