@@ -3,6 +3,7 @@ import { ArrowUp, ArrowDown, EyeOff, Pencil, Trash2, Copy, ArrowLeftRight, Info,
 import type { FieldMeta } from '@/features/database/types';
 import { getFieldTypeIcon } from './field-icons';
 import { useDatabaseUI } from '../../lib/store';
+import { useGridColors } from '../../hooks/useGridColors';
 
 interface ColumnHeaderProps {
   field: FieldMeta;
@@ -43,6 +44,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
   const startWidthRef = useRef(0);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const { sorts, setSorts, toggleHiddenField } = useDatabaseUI();
+  const colors = useGridColors();
 
   const currentSort = sorts.find((s) => s.field_id === field.id);
 
@@ -109,9 +111,9 @@ export const ColumnHeader = React.memo(function ColumnHeader({
         width: field.width || 180,
         minWidth: field.width || 180,
         height: '100%',
-        borderRight: '1px solid #E7E7E9',
-        backgroundColor: '#F9F9FA',
-        color: '#6A7184',
+        borderRight: `1px solid ${colors.border}`,
+        backgroundColor: colors.headerBg,
+        color: colors.muted,
         fontSize: 12,
         fontWeight: 600,
         cursor: 'pointer',
