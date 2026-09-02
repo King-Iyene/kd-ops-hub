@@ -67,7 +67,7 @@ export function Toolbar() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-[#006994] gap-1 font-medium"
+            className="h-7 text-xs text-[#3366FF] gap-1 font-medium"
             onClick={() => setFieldDialogOpen(true)}
           >
             <Plus size={14} /> New Field

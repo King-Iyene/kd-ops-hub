@@ -89,7 +89,7 @@ export const GridCell = React.memo(function GridCell({
         minWidth: field.width || 180,
         borderRight: '1px solid #E2E8F0',
         borderBottom: '1px solid #E2E8F0',
-        outline: isSelected ? '2px solid #006994' : 'none',
+        outline: isSelected ? '2px solid #3366FF' : 'none',
         outlineOffset: -2,
         cursor: 'default',
       }}

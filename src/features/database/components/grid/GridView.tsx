@@ -152,7 +152,7 @@ export default function GridView({
         <button
           onClick={onAddRow}
           className="flex items-center gap-1 px-3 py-1.5 rounded text-sm hover:bg-gray-100"
-          style={{ color: '#006994' }}
+          style={{ color: '#3366FF' }}
         >
           <Plus size={14} /> Add row
         </button>

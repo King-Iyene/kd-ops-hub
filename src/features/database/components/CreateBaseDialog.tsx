@@ -25,14 +25,14 @@ const EMOJI_OPTIONS = [
 ];
 
 const COLOR_OPTIONS = [
-  '#006994', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444',
+  '#3366FF', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444',
   '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F97316',
 ];
 
 export function CreateBaseDialog({ open, onOpenChange }: CreateBaseDialogProps) {
   const [name, setName] = useState('');
   const [icon, setIcon] = useState(EMOJI_OPTIONS[0]);
-  const [color, setColor] = useState(COLOR_OPTIONS[0]);
+  const [color, setColor] = useState('#3366FF');
   const [error, setError] = useState('');
   const createBase = useCreateBase();
   const { data: workspaces } = useWorkspaces();
@@ -87,7 +87,7 @@ export function CreateBaseDialog({ open, onOpenChange }: CreateBaseDialogProps) 
                   type="button"
                   className={cn(
                     'w-8 h-8 rounded flex items-center justify-center text-base hover:bg-gray-100 transition-colors',
-                    icon === emoji && 'ring-2 ring-[#006994] bg-[#006994]/5'
+                    icon === emoji && 'ring-2 ring-[#3366FF] bg-[#3366FF]/5'
                   )}
                   onClick={() => setIcon(emoji)}
                 >
@@ -107,7 +107,7 @@ export function CreateBaseDialog({ open, onOpenChange }: CreateBaseDialogProps) 
                   type="button"
                   className={cn(
                     'w-7 h-7 rounded-full transition-transform',
-                    color === c && 'ring-2 ring-offset-2 ring-[#006994] scale-110'
+                    color === c && 'ring-2 ring-offset-2 ring-[#3366FF] scale-110'
                   )}
                   style={{ backgroundColor: c }}
                   onClick={() => setColor(c)}
@@ -124,7 +124,7 @@ export function CreateBaseDialog({ open, onOpenChange }: CreateBaseDialogProps) 
           </Button>
           <Button
             size="sm"
-            className="bg-[#006994] hover:bg-[#005a7d]"
+            className="bg-[#3366FF] hover:bg-[#2952CC]"
             onClick={handleCreate}
             disabled={createBase.isPending}
           >

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,42 +9,91 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, X } from 'lucide-react';
 import { useCreateField } from '../hooks';
 import { useDatabaseUI } from '../lib/store';
-import type { UIType } from '../types';
-import { UI_TYPE_TO_PG_TYPE } from '../types';
+import type { UIType, SelectChoice } from '../types';
+import { PILL_COLORS } from '../types';
+import { getFieldTypeIcon } from './grid/field-icons';
+import { cn } from '@/lib/utils';
 
 interface CreateFieldDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const FIELD_TYPE_OPTIONS: { value: UIType; label: string }[] = [
-  { value: 'SingleLineText', label: 'Single Line Text' },
-  { value: 'LongText', label: 'Long Text' },
-  { value: 'Number', label: 'Number' },
-  { value: 'Decimal', label: 'Decimal' },
-  { value: 'Currency', label: 'Currency' },
-  { value: 'Percent', label: 'Percent' },
-  { value: 'Date', label: 'Date' },
-  { value: 'DateTime', label: 'Date & Time' },
-  { value: 'Checkbox', label: 'Checkbox' },
-  { value: 'SingleSelect', label: 'Single Select' },
-  { value: 'MultiSelect', label: 'Multi Select' },
-  { value: 'Email', label: 'Email' },
-  { value: 'PhoneNumber', label: 'Phone Number' },
-  { value: 'URL', label: 'URL' },
-  { value: 'Rating', label: 'Rating' },
-  { value: 'JSON', label: 'JSON' },
+interface FieldTypeOption {
+  value: UIType;
+  label: string;
+  group: string;
+}
+
+const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
+  { value: 'SingleLineText', label: 'Single Line Text', group: 'Text' },
+  { value: 'LongText', label: 'Long Text', group: 'Text' },
+  { value: 'Email', label: 'Email', group: 'Text' },
+  { value: 'PhoneNumber', label: 'Phone Number', group: 'Text' },
+  { value: 'URL', label: 'URL', group: 'Text' },
+  { value: 'Number', label: 'Number', group: 'Numeric' },
+  { value: 'Decimal', label: 'Decimal', group: 'Numeric' },
+  { value: 'Currency', label: 'Currency', group: 'Numeric' },
+  { value: 'Percent', label: 'Percent', group: 'Numeric' },
+  { value: 'Rating', label: 'Rating', group: 'Numeric' },
+  { value: 'Duration', label: 'Duration', group: 'Numeric' },
+  { value: 'Date', label: 'Date', group: 'Date & Time' },
+  { value: 'DateTime', label: 'Date & Time', group: 'Date & Time' },
+  { value: 'Year', label: 'Year', group: 'Date & Time' },
+  { value: 'Time', label: 'Time', group: 'Date & Time' },
+  { value: 'SingleSelect', label: 'Single Select', group: 'Selection' },
+  { value: 'MultiSelect', label: 'Multi Select', group: 'Selection' },
+  { value: 'Checkbox', label: 'Checkbox', group: 'Selection' },
+  { value: 'Attachment', label: 'Attachment', group: 'Other' },
+  { value: 'JSON', label: 'JSON', group: 'Other' },
 ];
+
+const GROUPS = ['Text', 'Numeric', 'Date & Time', 'Selection', 'Other'];
+
+function ColorDot({ color, selected, onClick }: { color: typeof PILL_COLORS[0]; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        'w-5 h-5 rounded-full border-2 transition-all',
+        selected ? 'border-[#374151] scale-110' : 'border-transparent hover:scale-105',
+      )}
+      style={{ backgroundColor: color.bg }}
+      onClick={onClick}
+      title={color.name}
+    />
+  );
+}
 
 export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps) {
   const [name, setName] = useState('');
   const [uiType, setUiType] = useState<UIType>('SingleLineText');
+  const [choices, setChoices] = useState<SelectChoice[]>([]);
+  const [newChoiceText, setNewChoiceText] = useState('');
   const [error, setError] = useState('');
   const { activeTableId } = useDatabaseUI();
   const createField = useCreateField();
+
+  const isSelectType = uiType === 'SingleSelect' || uiType === 'MultiSelect';
+
+  const addChoice = useCallback(() => {
+    const title = newChoiceText.trim();
+    if (!title || choices.some((c) => c.title === title)) return;
+    const colorIdx = choices.length % PILL_COLORS.length;
+    setChoices([...choices, { title, color: PILL_COLORS[colorIdx].name }]);
+    setNewChoiceText('');
+  }, [newChoiceText, choices]);
+
+  const removeChoice = useCallback((title: string) => {
+    setChoices(choices.filter((c) => c.title !== title));
+  }, [choices]);
+
+  const updateChoiceColor = useCallback((title: string, color: string) => {
+    setChoices(choices.map((c) => c.title === title ? { ...c, color } : c));
+  }, [choices]);
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -57,52 +106,151 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     }
     setError('');
     try {
+      const options: Record<string, any> = {};
+      if (isSelectType && choices.length > 0) {
+        options.choices = choices;
+      }
       await createField.mutateAsync({
         table_id: activeTableId,
         name: name.trim(),
         ui_type: uiType,
+        options: Object.keys(options).length > 0 ? options : undefined,
       });
       setName('');
       setUiType('SingleLineText');
+      setChoices([]);
+      setNewChoiceText('');
       onOpenChange(false);
     } catch (e: any) {
       setError(e?.message ?? 'Failed to create field');
     }
   };
 
+  const handleTypeChange = (type: UIType) => {
+    setUiType(type);
+    if (type !== 'SingleSelect' && type !== 'MultiSelect') {
+      setChoices([]);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[420px]">
+      <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Field</DialogTitle>
+          <DialogTitle className="text-[15px] font-semibold text-[#374151]">Add Field</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-1">
           <div className="space-y-1.5">
-            <Label htmlFor="field-name" className="text-xs">Field Name</Label>
+            <Label htmlFor="field-name" className="text-xs text-[#6A7184]">Field Name</Label>
             <Input
               id="field-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Amount, Status"
+              placeholder="e.g. Status, Amount, Email"
+              className="h-9"
               autoFocus
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              onKeyDown={(e) => e.key === 'Enter' && !isSelectType && handleCreate()}
             />
           </div>
+
           <div className="space-y-1.5">
-            <Label className="text-xs">Field Type</Label>
-            <Select value={uiType} onValueChange={(v) => setUiType(v as UIType)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {FIELD_TYPE_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label className="text-xs text-[#6A7184]">Field Type</Label>
+            <div className="border border-[#E7E7E9] rounded-lg max-h-[200px] overflow-y-auto">
+              {GROUPS.map((group) => {
+                const items = FIELD_TYPE_OPTIONS.filter((o) => o.group === group);
+                if (items.length === 0) return null;
+                return (
+                  <div key={group}>
+                    <div className="px-3 py-1 text-[10px] font-semibold text-[#9AA2AF] uppercase tracking-wider bg-[#F9F9FA] sticky top-0">
+                      {group}
+                    </div>
+                    {items.map((opt) => {
+                      const Icon = getFieldTypeIcon(opt.value);
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          className={cn(
+                            'w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left transition-colors',
+                            uiType === opt.value
+                              ? 'bg-[#3366FF]/10 text-[#3366FF] font-medium'
+                              : 'text-[#374151] hover:bg-[#F4F4F5]',
+                          )}
+                          onClick={() => handleTypeChange(opt.value)}
+                        >
+                          <Icon size={14} className={uiType === opt.value ? 'text-[#3366FF]' : 'text-[#9AA2AF]'} />
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
           </div>
+
+          {isSelectType && (
+            <div className="space-y-2">
+              <Label className="text-xs text-[#6A7184]">Options</Label>
+              <div className="space-y-1.5">
+                {choices.map((choice) => {
+                  const pillColor = PILL_COLORS.find((c) => c.name === choice.color) || PILL_COLORS[7];
+                  return (
+                    <div key={choice.title} className="flex items-center gap-2 group">
+                      <span
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium flex-1 min-w-0 truncate"
+                        style={{ backgroundColor: pillColor.bg, color: pillColor.text }}
+                      >
+                        {choice.title}
+                      </span>
+                      <div className="flex items-center gap-0.5">
+                        {PILL_COLORS.map((pc) => (
+                          <ColorDot
+                            key={pc.name}
+                            color={pc}
+                            selected={choice.color === pc.name}
+                            onClick={() => updateChoiceColor(choice.title, pc.name)}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className="p-0.5 rounded hover:bg-red-50 text-[#9AA2AF] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                        onClick={() => removeChoice(choice.title)}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newChoiceText}
+                  onChange={(e) => setNewChoiceText(e.target.value)}
+                  placeholder="Add an option"
+                  className="h-8 text-xs flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addChoice();
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs text-[#3366FF] hover:text-[#2952CC] gap-1"
+                  onClick={addChoice}
+                  disabled={!newChoiceText.trim()}
+                >
+                  <Plus size={13} /> Add
+                </Button>
+              </div>
+            </div>
+          )}
+
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
         <DialogFooter>
@@ -111,7 +259,8 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
           </Button>
           <Button
             size="sm"
-            className="bg-[#006994] hover:bg-[#005a7d]"
+            style={{ backgroundColor: '#3366FF' }}
+            className="hover:opacity-90 text-white"
             onClick={handleCreate}
             disabled={createField.isPending}
           >
