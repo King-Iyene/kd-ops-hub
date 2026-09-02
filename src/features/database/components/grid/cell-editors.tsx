@@ -529,12 +529,6 @@ export function getCellEditor(uiType: string) {
       return SelectCellEditor;
     case 'MultiSelect':
       return MultiSelectCellEditor;
-    case 'Rating':
-      return RatingCellEditor;
-    case 'Duration':
-      return DurationCellEditor;
-    case 'Percent':
-      return PercentCellEditor;
     case 'Attachment':
       return AttachmentCellEditor;
     case 'Links':

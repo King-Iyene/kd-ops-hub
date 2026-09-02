@@ -216,396 +216,6 @@ function CalendarEvent({
 }
 
 
-export default function CalendarView({
-  fields,
-  records,
-  onExpandRow,
-  onAddRow,
-}: CalendarViewProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('month');
-  const [currentDate, setCurrentDate] = useState(() => new Date());
-  const [showMiniCal, setShowMiniCal] = useState(false);
-
-  const dateField = useMemo(
-    () =>
-      fields.find((f) => f.ui_type === 'Date' || f.ui_type === 'DateTime') ??
-      fields.find((f) => f.ui_type === 'CreatedTime'),
-    [fields],
-  );
-
-  const titleField = useMemo(
-    () => fields.find((f) => f.is_primary) ?? fields[0],
-    [fields],
-  );
-
-  const secondaryField = useMemo(
-    () => fields.find((f) => !f.is_primary && !f.is_system && !f.is_hidden && f.ui_type !== 'Date' && f.ui_type !== 'DateTime' && f.ui_type !== 'CreatedTime'),
-    [fields],
-  );
-
-  // Find first SingleSelect / MultiSelect field for color coding
-  const colorField = useMemo(
-    () => fields.find((f) => (f.ui_type === 'SingleSelect' || f.ui_type === 'MultiSelect') && f.options?.choices?.length),
-    [fields],
-  );
-
-  const currentMonth = useMemo(
-    () => new Date(currentDate.getFullYear(), currentDate.getMonth(), 1),
-    [currentDate],
-  );
-
-  // Month view cells
-  const daysInMonth = useMemo(() => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const lastDate = new Date(year, month + 1, 0).getDate();
-    const cells: (number | null)[] = [];
-    for (let i = 0; i < firstDay; i++) cells.push(null);
-    for (let d = 1; d <= lastDate; d++) cells.push(d);
-    while (cells.length % 7 !== 0) cells.push(null);
-    return cells;
-  }, [currentMonth]);
-
-  // Week view days
-  const weekDays = useMemo(() => {
-    const start = getWeekStart(currentDate);
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(d.getDate() + i);
-      return d;
-    });
-  }, [currentDate]);
-
-  // Records grouped by date string (YYYY-MM-DD)
-  const recordsByDateKey = useMemo(() => {
-    const map = new Map<string, RecordRow[]>();
-    if (!dateField) return map;
-    for (const r of records) {
-      const val = r[dateField.pg_column_name];
-      if (!val) continue;
-      const d = new Date(val);
-      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(r);
-    }
-    return map;
-  }, [records, dateField]);
-
-  const getRecordsForDate = useCallback(
-    (d: Date) => recordsByDateKey.get(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`) ?? [],
-    [recordsByDateKey],
-  );
-
-  // Records for month view by day number
-  const recordsByDay = useMemo(() => {
-    const map = new Map<number, RecordRow[]>();
-    if (!dateField) return map;
-    for (const r of records) {
-      const val = r[dateField.pg_column_name];
-      if (!val) continue;
-      const d = new Date(val);
-      if (d.getMonth() === currentMonth.getMonth() && d.getFullYear() === currentMonth.getFullYear()) {
-        const day = d.getDate();
-        if (!map.has(day)) map.set(day, []);
-        map.get(day)!.push(r);
-      }
-    }
-    return map;
-  }, [records, dateField, currentMonth]);
-
-  const today = new Date();
-
-  const goToToday = useCallback(() => setCurrentDate(new Date()), []);
-
-  const navigate = useCallback(
-    (dir: -1 | 1) => {
-      setCurrentDate((d) => {
-        const next = new Date(d);
-        if (viewMode === 'month') next.setMonth(next.getMonth() + dir);
-        else if (viewMode === 'week') next.setDate(next.getDate() + dir * 7);
-        else next.setDate(next.getDate() + dir);
-        return next;
-      });
-    },
-    [viewMode],
-  );
-
-  const handleMiniSelect = useCallback((d: Date) => {
-    setCurrentDate(d);
-    setShowMiniCal(false);
-  }, []);
-
-  const handleClickEmptyDay = useCallback(
-    (date: Date) => {
-      if (!dateField) return;
-      onAddRow({ [dateField.pg_column_name]: date.toISOString() });
-    },
-    [dateField, onAddRow],
-  );
-
-  const headerLabel = useMemo(() => {
-    if (viewMode === 'month') {
-      return currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
-    }
-    if (viewMode === 'week') {
-      const start = weekDays[0];
-      const end = weekDays[6];
-      if (start.getMonth() === end.getMonth()) {
-        return `${start.toLocaleString('default', { month: 'long' })} ${start.getDate()} - ${end.getDate()}, ${start.getFullYear()}`;
-      }
-      return `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
-    }
-    return currentDate.toLocaleString('default', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-  }, [viewMode, currentMonth, weekDays, currentDate]);
-
-  const totalEvents = dateField ? records.filter((r) => r[dateField.pg_column_name]).length : 0;
-
-  if (!dateField) {
-    return (
-      <div className="calendar-empty">
-        <p>Add a Date or DateTime field to use Calendar view</p>
-        <button onClick={() => onAddRow()} className="calendar-empty-add">
-          <Plus size={12} /> Add record
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="calendar-root">
-      <style>{calendarStyles}</style>
-
-      {/* ---- Toolbar ---- */}
-      <div className="calendar-toolbar">
-        <div className="calendar-toolbar-left">
-          <button className="calendar-nav-btn" onClick={() => navigate(-1)}>
-            <ChevronLeft size={16} />
-          </button>
-          <span className="calendar-header-label">{headerLabel}</span>
-          <button className="calendar-nav-btn" onClick={() => navigate(1)}>
-            <ChevronRight size={16} />
-          </button>
-        </div>
-        <div className="calendar-toolbar-right">
-          <button className="calendar-today-btn" onClick={goToToday}>Today</button>
-          <div className="calendar-mini-toggle-wrap">
-            <button
-              className="calendar-nav-btn"
-              onClick={() => setShowMiniCal((v) => !v)}
-              title="Mini calendar"
-            >
-              <Calendar size={14} />
-            </button>
-            {showMiniCal && (
-              <div className="calendar-mini-popover">
-                <MiniCalendar currentDate={currentDate} onSelectDate={handleMiniSelect} />
-              </div>
-            )}
-          </div>
-          <div className="calendar-view-toggle">
-            {(['month', 'week', 'day'] as const).map((m) => (
-              <button
-                key={m}
-                className={`calendar-view-btn${viewMode === m ? ' active' : ''}`}
-                onClick={() => setViewMode(m)}
-              >
-                {m.charAt(0).toUpperCase() + m.slice(1)}
-              </button>
-            ))}
-          </div>
-          <span className="calendar-event-count">
-            {totalEvents} event{totalEvents !== 1 ? 's' : ''}
-          </span>
-        </div>
-      </div>
-
-      {/* ---- Month View ---- */}
-      {viewMode === 'month' && (
-        <div className="calendar-body">
-          <div className="calendar-month-grid">
-            {DAYS.map((d) => (
-              <div key={d} className="calendar-col-header">{d}</div>
-            ))}
-            {daysInMonth.map((day, i) => {
-              const dayRecords = day !== null ? (recordsByDay.get(day) ?? []) : [];
-              const cellDate = day !== null ? new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day) : null;
-              const isToday = cellDate !== null && isSameDay(cellDate, today);
-              return (
-                <div
-                  key={i}
-                  className={`calendar-month-cell${isToday ? ' today' : ''}${day === null ? ' empty' : ''}`}
-                  onDoubleClick={() => {
-                    if (cellDate && dayRecords.length === 0) handleClickEmptyDay(cellDate);
-                  }}
-                >
-                  {day !== null && (
-                    <>
-                      <div className="calendar-month-cell-header">
-                        <div className={`calendar-day-number${isToday ? ' today' : ''}`}>{day}</div>
-                        {dayRecords.length > 0 && (
-                          <span className="calendar-day-count">{dayRecords.length}</span>
-                        )}
-                        <button
-                          className="calendar-add-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleClickEmptyDay(cellDate!);
-                          }}
-                          title="Add record"
-                        >
-                          <Plus size={10} />
-                        </button>
-                      </div>
-                      {dayRecords.slice(0, 3).map((r) => (
-                        <CalendarEvent
-                          key={r.id}
-                          record={r}
-                          titleField={titleField}
-                          secondaryField={secondaryField}
-                          colorField={colorField}
-                          fields={fields}
-                          compact
-                          onExpandRow={onExpandRow}
-                        />
-                      ))}
-                      {dayRecords.length > 3 && (
-                        <div className="calendar-more-link">
-                          +{dayRecords.length - 3} more
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ---- Week View ---- */}
-      {viewMode === 'week' && (
-        <div className="calendar-body">
-          <div className="calendar-time-grid">
-            <div className="calendar-time-gutter">
-              <div className="calendar-col-header" />
-              {HOURS.map((h) => (
-                <div key={h} className="calendar-hour-label">{formatHour(h)}</div>
-              ))}
-            </div>
-            {weekDays.map((wd, ci) => {
-              const dayRecords = getRecordsForDate(wd);
-              const isToday = isSameDay(wd, today);
-              return (
-                <div key={ci} className="calendar-time-col">
-                  <div className={`calendar-col-header${isToday ? ' today' : ''}`}>
-                    <span className="calendar-col-day-name">{DAYS[wd.getDay()]}</span>
-                    <span className={`calendar-col-day-num${isToday ? ' today' : ''}`}>{wd.getDate()}</span>
-                  </div>
-                  <div className="calendar-hour-slots">
-                    {HOURS.map((h) => (
-                      <div
-                        key={h}
-                        className="calendar-hour-slot"
-                        onDoubleClick={() => {
-                          const d = new Date(wd);
-                          d.setHours(h, 0, 0, 0);
-                          handleClickEmptyDay(d);
-                        }}
-                      />
-                    ))}
-                    {/* Render events positioned by hour */}
-                    {dayRecords.map((r) => {
-                      const val = r[dateField.pg_column_name];
-                      const d = new Date(val);
-                      const hour = d.getHours();
-                      const minute = d.getMinutes();
-                      const topPct = ((hour - 8 + minute / 60) / 13) * 100;
-                      if (hour < 8 || hour >= 21) return null;
-                      return (
-                        <div
-                          key={r.id}
-                          className="calendar-time-event-wrap"
-                          style={{ top: `${Math.max(0, topPct)}%`, height: `${(1 / 13) * 100}%` }}
-                        >
-                          <CalendarEvent
-                            record={r}
-                            titleField={titleField}
-                            secondaryField={secondaryField}
-                            colorField={colorField}
-                            fields={fields}
-                            onExpandRow={onExpandRow}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ---- Day View ---- */}
-      {viewMode === 'day' && (
-        <div className="calendar-body">
-          <div className="calendar-day-view">
-            <div className="calendar-time-gutter">
-              <div className="calendar-col-header" />
-              {HOURS.map((h) => (
-                <div key={h} className="calendar-hour-label">{formatHour(h)}</div>
-              ))}
-            </div>
-            <div className="calendar-time-col single">
-              <div className={`calendar-col-header${isSameDay(currentDate, today) ? ' today' : ''}`}>
-                <span className="calendar-col-day-name">{DAYS[currentDate.getDay()]}</span>
-                <span className={`calendar-col-day-num${isSameDay(currentDate, today) ? ' today' : ''}`}>{currentDate.getDate()}</span>
-              </div>
-              <div className="calendar-hour-slots">
-                {HOURS.map((h) => (
-                  <div
-                    key={h}
-                    className="calendar-hour-slot"
-                    onDoubleClick={() => {
-                      const d = new Date(currentDate);
-                      d.setHours(h, 0, 0, 0);
-                      handleClickEmptyDay(d);
-                    }}
-                  />
-                ))}
-                {getRecordsForDate(currentDate).map((r) => {
-                  const val = r[dateField.pg_column_name];
-                  const d = new Date(val);
-                  const hour = d.getHours();
-                  const minute = d.getMinutes();
-                  const topPct = ((hour - 8 + minute / 60) / 13) * 100;
-                  if (hour < 8 || hour >= 21) return null;
-                  return (
-                    <div
-                      key={r.id}
-                      className="calendar-time-event-wrap"
-                      style={{ top: `${Math.max(0, topPct)}%`, height: `${(1 / 13) * 100}%` }}
-                    >
-                      <CalendarEvent
-                        record={r}
-                        titleField={titleField}
-                        secondaryField={secondaryField}
-                        colorField={colorField}
-                        fields={fields}
-                        onExpandRow={onExpandRow}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ---------- Styles ----------
 const calendarStyles = `
@@ -1111,3 +721,395 @@ const calendarStyles = `
   box-sizing: border-box;
 }
 `;
+
+export default function CalendarView({
+  fields,
+  records,
+  onExpandRow,
+  onAddRow,
+}: CalendarViewProps) {
+  const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [currentDate, setCurrentDate] = useState(() => new Date());
+  const [showMiniCal, setShowMiniCal] = useState(false);
+
+  const dateField = useMemo(
+    () =>
+      fields.find((f) => f.ui_type === 'Date' || f.ui_type === 'DateTime') ??
+      fields.find((f) => f.ui_type === 'CreatedTime'),
+    [fields],
+  );
+
+  const titleField = useMemo(
+    () => fields.find((f) => f.is_primary) ?? fields[0],
+    [fields],
+  );
+
+  const secondaryField = useMemo(
+    () => fields.find((f) => !f.is_primary && !f.is_system && !f.is_hidden && f.ui_type !== 'Date' && f.ui_type !== 'DateTime' && f.ui_type !== 'CreatedTime'),
+    [fields],
+  );
+
+  // Find first SingleSelect / MultiSelect field for color coding
+  const colorField = useMemo(
+    () => fields.find((f) => (f.ui_type === 'SingleSelect' || f.ui_type === 'MultiSelect') && f.options?.choices?.length),
+    [fields],
+  );
+
+  const currentMonth = useMemo(
+    () => new Date(currentDate.getFullYear(), currentDate.getMonth(), 1),
+    [currentDate],
+  );
+
+  // Month view cells
+  const daysInMonth = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const lastDate = new Date(year, month + 1, 0).getDate();
+    const cells: (number | null)[] = [];
+    for (let i = 0; i < firstDay; i++) cells.push(null);
+    for (let d = 1; d <= lastDate; d++) cells.push(d);
+    while (cells.length % 7 !== 0) cells.push(null);
+    return cells;
+  }, [currentMonth]);
+
+  // Week view days
+  const weekDays = useMemo(() => {
+    const start = getWeekStart(currentDate);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }, [currentDate]);
+
+  // Records grouped by date string (YYYY-MM-DD)
+  const recordsByDateKey = useMemo(() => {
+    const map = new Map<string, RecordRow[]>();
+    if (!dateField) return map;
+    for (const r of records) {
+      const val = r[dateField.pg_column_name];
+      if (!val) continue;
+      const d = new Date(val);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(r);
+    }
+    return map;
+  }, [records, dateField]);
+
+  const getRecordsForDate = useCallback(
+    (d: Date) => recordsByDateKey.get(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`) ?? [],
+    [recordsByDateKey],
+  );
+
+  // Records for month view by day number
+  const recordsByDay = useMemo(() => {
+    const map = new Map<number, RecordRow[]>();
+    if (!dateField) return map;
+    for (const r of records) {
+      const val = r[dateField.pg_column_name];
+      if (!val) continue;
+      const d = new Date(val);
+      if (d.getMonth() === currentMonth.getMonth() && d.getFullYear() === currentMonth.getFullYear()) {
+        const day = d.getDate();
+        if (!map.has(day)) map.set(day, []);
+        map.get(day)!.push(r);
+      }
+    }
+    return map;
+  }, [records, dateField, currentMonth]);
+
+  const today = new Date();
+
+  const goToToday = useCallback(() => setCurrentDate(new Date()), []);
+
+  const navigate = useCallback(
+    (dir: -1 | 1) => {
+      setCurrentDate((d) => {
+        const next = new Date(d);
+        if (viewMode === 'month') next.setMonth(next.getMonth() + dir);
+        else if (viewMode === 'week') next.setDate(next.getDate() + dir * 7);
+        else next.setDate(next.getDate() + dir);
+        return next;
+      });
+    },
+    [viewMode],
+  );
+
+  const handleMiniSelect = useCallback((d: Date) => {
+    setCurrentDate(d);
+    setShowMiniCal(false);
+  }, []);
+
+  const handleClickEmptyDay = useCallback(
+    (date: Date) => {
+      if (!dateField) return;
+      onAddRow({ [dateField.pg_column_name]: date.toISOString() });
+    },
+    [dateField, onAddRow],
+  );
+
+  const headerLabel = useMemo(() => {
+    if (viewMode === 'month') {
+      return currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+    }
+    if (viewMode === 'week') {
+      const start = weekDays[0];
+      const end = weekDays[6];
+      if (start.getMonth() === end.getMonth()) {
+        return `${start.toLocaleString('default', { month: 'long' })} ${start.getDate()} - ${end.getDate()}, ${start.getFullYear()}`;
+      }
+      return `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
+    }
+    return currentDate.toLocaleString('default', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  }, [viewMode, currentMonth, weekDays, currentDate]);
+
+  const totalEvents = dateField ? records.filter((r) => r[dateField.pg_column_name]).length : 0;
+
+  if (!dateField) {
+    return (
+      <div className="calendar-empty">
+        <p>Add a Date or DateTime field to use Calendar view</p>
+        <button onClick={() => onAddRow()} className="calendar-empty-add">
+          <Plus size={12} /> Add record
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="calendar-root">
+      <style>{calendarStyles}</style>
+
+      {/* ---- Toolbar ---- */}
+      <div className="calendar-toolbar">
+        <div className="calendar-toolbar-left">
+          <button className="calendar-nav-btn" onClick={() => navigate(-1)}>
+            <ChevronLeft size={16} />
+          </button>
+          <span className="calendar-header-label">{headerLabel}</span>
+          <button className="calendar-nav-btn" onClick={() => navigate(1)}>
+            <ChevronRight size={16} />
+          </button>
+        </div>
+        <div className="calendar-toolbar-right">
+          <button className="calendar-today-btn" onClick={goToToday}>Today</button>
+          <div className="calendar-mini-toggle-wrap">
+            <button
+              className="calendar-nav-btn"
+              onClick={() => setShowMiniCal((v) => !v)}
+              title="Mini calendar"
+            >
+              <Calendar size={14} />
+            </button>
+            {showMiniCal && (
+              <div className="calendar-mini-popover">
+                <MiniCalendar currentDate={currentDate} onSelectDate={handleMiniSelect} />
+              </div>
+            )}
+          </div>
+          <div className="calendar-view-toggle">
+            {(['month', 'week', 'day'] as const).map((m) => (
+              <button
+                key={m}
+                className={`calendar-view-btn${viewMode === m ? ' active' : ''}`}
+                onClick={() => setViewMode(m)}
+              >
+                {m.charAt(0).toUpperCase() + m.slice(1)}
+              </button>
+            ))}
+          </div>
+          <span className="calendar-event-count">
+            {totalEvents} event{totalEvents !== 1 ? 's' : ''}
+          </span>
+        </div>
+      </div>
+
+      {/* ---- Month View ---- */}
+      {viewMode === 'month' && (
+        <div className="calendar-body">
+          <div className="calendar-month-grid">
+            {DAYS.map((d) => (
+              <div key={d} className="calendar-col-header">{d}</div>
+            ))}
+            {daysInMonth.map((day, i) => {
+              const dayRecords = day !== null ? (recordsByDay.get(day) ?? []) : [];
+              const cellDate = day !== null ? new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day) : null;
+              const isToday = cellDate !== null && isSameDay(cellDate, today);
+              return (
+                <div
+                  key={i}
+                  className={`calendar-month-cell${isToday ? ' today' : ''}${day === null ? ' empty' : ''}`}
+                  onDoubleClick={() => {
+                    if (cellDate && dayRecords.length === 0) handleClickEmptyDay(cellDate);
+                  }}
+                >
+                  {day !== null && (
+                    <>
+                      <div className="calendar-month-cell-header">
+                        <div className={`calendar-day-number${isToday ? ' today' : ''}`}>{day}</div>
+                        {dayRecords.length > 0 && (
+                          <span className="calendar-day-count">{dayRecords.length}</span>
+                        )}
+                        <button
+                          className="calendar-add-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleClickEmptyDay(cellDate!);
+                          }}
+                          title="Add record"
+                        >
+                          <Plus size={10} />
+                        </button>
+                      </div>
+                      {dayRecords.slice(0, 3).map((r) => (
+                        <CalendarEvent
+                          key={r.id}
+                          record={r}
+                          titleField={titleField}
+                          secondaryField={secondaryField}
+                          colorField={colorField}
+                          fields={fields}
+                          compact
+                          onExpandRow={onExpandRow}
+                        />
+                      ))}
+                      {dayRecords.length > 3 && (
+                        <div className="calendar-more-link">
+                          +{dayRecords.length - 3} more
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ---- Week View ---- */}
+      {viewMode === 'week' && (
+        <div className="calendar-body">
+          <div className="calendar-time-grid">
+            <div className="calendar-time-gutter">
+              <div className="calendar-col-header" />
+              {HOURS.map((h) => (
+                <div key={h} className="calendar-hour-label">{formatHour(h)}</div>
+              ))}
+            </div>
+            {weekDays.map((wd, ci) => {
+              const dayRecords = getRecordsForDate(wd);
+              const isToday = isSameDay(wd, today);
+              return (
+                <div key={ci} className="calendar-time-col">
+                  <div className={`calendar-col-header${isToday ? ' today' : ''}`}>
+                    <span className="calendar-col-day-name">{DAYS[wd.getDay()]}</span>
+                    <span className={`calendar-col-day-num${isToday ? ' today' : ''}`}>{wd.getDate()}</span>
+                  </div>
+                  <div className="calendar-hour-slots">
+                    {HOURS.map((h) => (
+                      <div
+                        key={h}
+                        className="calendar-hour-slot"
+                        onDoubleClick={() => {
+                          const d = new Date(wd);
+                          d.setHours(h, 0, 0, 0);
+                          handleClickEmptyDay(d);
+                        }}
+                      />
+                    ))}
+                    {/* Render events positioned by hour */}
+                    {dayRecords.map((r) => {
+                      const val = r[dateField.pg_column_name];
+                      const d = new Date(val);
+                      const hour = d.getHours();
+                      const minute = d.getMinutes();
+                      const topPct = ((hour - 8 + minute / 60) / 13) * 100;
+                      if (hour < 8 || hour >= 21) return null;
+                      return (
+                        <div
+                          key={r.id}
+                          className="calendar-time-event-wrap"
+                          style={{ top: `${Math.max(0, topPct)}%`, height: `${(1 / 13) * 100}%` }}
+                        >
+                          <CalendarEvent
+                            record={r}
+                            titleField={titleField}
+                            secondaryField={secondaryField}
+                            colorField={colorField}
+                            fields={fields}
+                            onExpandRow={onExpandRow}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ---- Day View ---- */}
+      {viewMode === 'day' && (
+        <div className="calendar-body">
+          <div className="calendar-day-view">
+            <div className="calendar-time-gutter">
+              <div className="calendar-col-header" />
+              {HOURS.map((h) => (
+                <div key={h} className="calendar-hour-label">{formatHour(h)}</div>
+              ))}
+            </div>
+            <div className="calendar-time-col single">
+              <div className={`calendar-col-header${isSameDay(currentDate, today) ? ' today' : ''}`}>
+                <span className="calendar-col-day-name">{DAYS[currentDate.getDay()]}</span>
+                <span className={`calendar-col-day-num${isSameDay(currentDate, today) ? ' today' : ''}`}>{currentDate.getDate()}</span>
+              </div>
+              <div className="calendar-hour-slots">
+                {HOURS.map((h) => (
+                  <div
+                    key={h}
+                    className="calendar-hour-slot"
+                    onDoubleClick={() => {
+                      const d = new Date(currentDate);
+                      d.setHours(h, 0, 0, 0);
+                      handleClickEmptyDay(d);
+                    }}
+                  />
+                ))}
+                {getRecordsForDate(currentDate).map((r) => {
+                  const val = r[dateField.pg_column_name];
+                  const d = new Date(val);
+                  const hour = d.getHours();
+                  const minute = d.getMinutes();
+                  const topPct = ((hour - 8 + minute / 60) / 13) * 100;
+                  if (hour < 8 || hour >= 21) return null;
+                  return (
+                    <div
+                      key={r.id}
+                      className="calendar-time-event-wrap"
+                      style={{ top: `${Math.max(0, topPct)}%`, height: `${(1 / 13) * 100}%` }}
+                    >
+                      <CalendarEvent
+                        record={r}
+                        titleField={titleField}
+                        secondaryField={secondaryField}
+                        colorField={colorField}
+                        fields={fields}
+                        onExpandRow={onExpandRow}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+

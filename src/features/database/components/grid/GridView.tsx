@@ -379,6 +379,23 @@ export default function GridView({
     setDropTargetIdx(null);
   }, []);
 
+  const visibleFields = useMemo(() => {
+    const visible = fields.filter((f) => !f.is_hidden);
+    if (fieldOrder.length > 0) {
+      const byId = new Map(visible.map((f) => [f.id, f]));
+      const ordered: FieldMeta[] = [];
+      for (const id of fieldOrder) {
+        const f = byId.get(id);
+        if (f) { ordered.push(f); byId.delete(id); }
+      }
+      for (const f of visible.sort((a, b) => a.position - b.position)) {
+        if (byId.has(f.id)) ordered.push(f);
+      }
+      return ordered;
+    }
+    return visible.sort((a, b) => a.position - b.position);
+  }, [fields, fieldOrder]);
+
   // Column drag handlers
   const handleColDragStart = useCallback((e: React.DragEvent, fieldId: string) => {
     setDragColId(fieldId);
@@ -459,24 +476,6 @@ export default function GridView({
     },
     [conditionalFormats, fields],
   );
-
-  const visibleFields = useMemo(() => {
-    const visible = fields.filter((f) => !f.is_hidden);
-    if (fieldOrder.length > 0) {
-      const byId = new Map(visible.map((f) => [f.id, f]));
-      const ordered: FieldMeta[] = [];
-      for (const id of fieldOrder) {
-        const f = byId.get(id);
-        if (f) { ordered.push(f); byId.delete(id); }
-      }
-      // Append any visible fields not in the order
-      for (const f of visible.sort((a, b) => a.position - b.position)) {
-        if (byId.has(f.id)) ordered.push(f);
-      }
-      return ordered;
-    }
-    return visible.sort((a, b) => a.position - b.position);
-  }, [fields, fieldOrder]);
 
   const getFieldWidth = useCallback(
     (field: FieldMeta) => fieldWidths[field.id] ?? field.width ?? 180,

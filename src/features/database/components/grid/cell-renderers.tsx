@@ -528,7 +528,7 @@ export function getCellRenderer(uiType: string) {
     case 'DateTime':
     case 'Year':
     case 'Time':
-      return DateCellRenderer;
+      return TimeCellRenderer;
     case 'Duration':
       return DurationCellRenderer;
     case 'Checkbox':
@@ -539,8 +539,6 @@ export function getCellRenderer(uiType: string) {
       return SelectCellRenderer;
     case 'MultiSelect':
       return MultiSelectCellRenderer;
-    case 'Time':
-      return TimeCellRenderer;
     case 'Attachment':
       return AttachmentCellRenderer;
     case 'JSON':
