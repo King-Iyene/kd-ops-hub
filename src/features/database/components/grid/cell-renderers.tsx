@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, ExternalLink, Copy, Paperclip, Star, Clock, Link2 } from 'lucide-react';
+import { Check, ExternalLink, Copy, Paperclip, Plus, Star, Clock, Link2 } from 'lucide-react';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { LinkCellRenderer } from './LinkCellRenderer';
 // LookupCellRenderer and RollupCellRenderer are defined locally below

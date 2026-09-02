@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Paperclip } from 'lucide-react';
+import { Paperclip, Star } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
 import { PILL_COLORS } from '@/features/database/types';
 import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
@@ -492,6 +492,138 @@ export function LinksCellEditor({ onCancel }: CellEditorProps) {
   // This component renders nothing; onCancel is called immediately.
   onCancel();
   return null;
+}
+
+export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+  const [text, setText] = useState(value ?? '');
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const { valid, errors } = useEditorValidation(text, field);
+
+  useEffect(() => {
+    ref.current?.focus();
+    const el = ref.current;
+    if (el) {
+      el.selectionStart = el.value.length;
+      el.selectionEnd = el.value.length;
+    }
+  }, []);
+
+  return (
+    <div className="absolute left-0 top-0 z-50 w-64 shadow-lg rounded border bg-white" style={{ minHeight: 80 }}>
+      <textarea
+        ref={ref}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onCancel();
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) onCommit(text);
+        }}
+        onBlur={() => onCommit(text)}
+        rows={4}
+        className="w-full p-2 outline-none resize-y border-none bg-white"
+        style={{
+          fontSize: 13,
+          color: '#0F172A',
+          border: valid ? 'none' : '2px solid #EF4444',
+        }}
+      />
+      {!valid && (
+        <div className="px-2 py-1 text-[11px] text-red-600">{errors[0]}</div>
+      )}
+    </div>
+  );
+}
+
+export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+  const [num, setNum] = useState(value ?? '');
+  const ref = useRef<HTMLInputElement>(null);
+  const numVal = num === '' ? null : Number(num);
+  const { valid, errors } = useEditorValidation(numVal, field);
+
+  useEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
+
+  return (
+    <div className="relative w-full h-full">
+      <input
+        ref={ref}
+        type="number"
+        step="any"
+        value={num}
+        onChange={(e) => setNum(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
+          if (e.key === 'Escape') onCancel();
+        }}
+        onBlur={() => onCommit(num === '' ? null : Number(num))}
+        className="w-full h-full px-2 outline-none bg-white text-right"
+        style={{
+          fontSize: 13,
+          color: '#0F172A',
+          border: valid ? 'none' : '2px solid #EF4444',
+        }}
+      />
+      {!valid && (
+        <div className="absolute right-0 top-full z-50 bg-white border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
+          {errors[0]}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+  const initial = value ? new Date(value).toISOString().slice(0, 16) : '';
+  const [dt, setDt] = useState(initial);
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    ref.current?.focus();
+  }, []);
+
+  return (
+    <input
+      ref={ref}
+      type="datetime-local"
+      value={dt}
+      onChange={(e) => setDt(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onCommit(dt ? new Date(dt).toISOString() : null);
+        if (e.key === 'Escape') onCancel();
+      }}
+      onBlur={() => onCommit(dt ? new Date(dt).toISOString() : null)}
+      className="w-full h-full px-2 outline-none border-none bg-white"
+      style={{ fontSize: 13, color: '#374151' }}
+    />
+  );
+}
+
+export function TimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+  const [time, setTime] = useState(value ?? '');
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    ref.current?.focus();
+  }, []);
+
+  return (
+    <input
+      ref={ref}
+      type="time"
+      step="1"
+      value={time}
+      onChange={(e) => setTime(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onCommit(time || null);
+        if (e.key === 'Escape') onCancel();
+      }}
+      onBlur={() => onCommit(time || null)}
+      className="w-full h-full px-2 outline-none border-none bg-white"
+      style={{ fontSize: 13, color: '#374151' }}
+    />
+  );
 }
 
 export function getCellEditor(uiType: string) {
