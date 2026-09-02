@@ -78,7 +78,7 @@ export function TableView() {
     return () => clearTimeout(saveTimerRef.current);
   }, [filters, sorts, groupByLevels, hiddenFieldIds, activeViewId, activeTableId]);
 
-  const { data: recordsData, isLoading } = useRecords({
+  const { data: recordsData, isLoading, isError, refetch } = useRecords({
     baseId: activeBaseId!,
     tableId: activeTableId!,
     page,
@@ -318,7 +318,19 @@ export function TableView() {
     <div className="flex flex-col flex-1 min-h-0">
       <ViewBar />
       <Toolbar />
-      <div className="flex-1 min-h-0">{renderView()}</div>
+      <div className="flex-1 min-h-0">
+        {isError ? (
+          <div className="flex flex-col items-center justify-center h-full gap-3">
+            <p className="text-sm text-gray-500 dark:text-[hsl(200,20%,55%)]">Failed to load records</p>
+            <button
+              className="px-3 py-1.5 text-sm rounded-md bg-blue-500 text-white hover:bg-blue-600"
+              onClick={() => refetch()}
+            >
+              Retry
+            </button>
+          </div>
+        ) : renderView()}
+      </div>
       <ExpandedRowModal
         open={!!expandedRecord}
         onOpenChange={(open) => {
