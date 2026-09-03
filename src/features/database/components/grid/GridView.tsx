@@ -96,8 +96,8 @@ function computeSummary(
 
   if (fn === 'sum') return nums.reduce((a, b) => a + b, 0).toLocaleString(undefined, { maximumFractionDigits: 4 });
   if (fn === 'avg') return (nums.reduce((a, b) => a + b, 0) / nums.length).toLocaleString(undefined, { maximumFractionDigits: 4 });
-  if (fn === 'min') return Math.min(...nums).toLocaleString(undefined, { maximumFractionDigits: 4 });
-  if (fn === 'max') return Math.max(...nums).toLocaleString(undefined, { maximumFractionDigits: 4 });
+  if (fn === 'min') return nums.reduce((a, b) => (b < a ? b : a), nums[0]).toLocaleString(undefined, { maximumFractionDigits: 4 });
+  if (fn === 'max') return nums.reduce((a, b) => (b > a ? b : a), nums[0]).toLocaleString(undefined, { maximumFractionDigits: 4 });
   return '';
 }
 
@@ -158,6 +158,15 @@ function SummaryRow({
   frozenCount?: number;
   colors: GridColorTokens;
 }) {
+  const summaryValues = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const field of fields) {
+      const fn = summaryFunctions[field.id] || 'none';
+      map[field.id] = computeSummary(fn, records, field.pg_column_name);
+    }
+    return map;
+  }, [fields, records, summaryFunctions]);
+
   return (
     <div
       className="flex"
@@ -185,7 +194,7 @@ function SummaryRow({
       {fields.map((field, colIdx) => {
         const fn = summaryFunctions[field.id] || 'none';
         const isNumeric = NUMERIC_TYPES.includes(field.ui_type);
-        const value = computeSummary(fn, records, field.pg_column_name);
+        const value = summaryValues[field.id] ?? '';
         const label = SUMMARY_LABELS[fn];
         const isOpen = summaryDropdown === field.id;
         const isFroz = colIdx < frozenCount;
