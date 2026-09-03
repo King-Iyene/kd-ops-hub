@@ -3,6 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { Plus, ChevronLeft, ChevronRight, ChevronDown, Loader2, Expand, Copy, Trash2, MoreHorizontal, Sigma, Lock, ChevronsUpDown, ChevronsDownUp, Rows3, ClipboardCopy, PlusCircle } from 'lucide-react';
 import type { FieldMeta, RecordRow, RowColorRule, UIType, ConditionalFormatRule, Group } from '@/features/database/types';
 import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
+import { useUndoStore } from '../../lib/undo';
 import { coerceValue } from '../../lib/csv';
 import { ColumnHeader } from './ColumnHeader';
 import { GridCell } from './GridCell';
@@ -10,9 +11,7 @@ import { EditFieldDialog } from '../EditFieldDialog';
 import { BulkActionsBar } from './BulkActionsBar';
 import { GridSkeleton } from './GridSkeleton';
 import { RowContextMenu } from './RowContextMenu';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useGridColors, type GridColorTokens } from '../../hooks/useGridColors';
-import { useGridKeyboard } from '../../hooks/useGridKeyboard';
 import { confirm as styledConfirm } from '@/hooks/use-confirm';
 
 export interface GridViewProps {
@@ -179,7 +178,7 @@ const SummaryRow = React.memo(function SummaryRow({
 
   return (
     <div
-      className="flex shrink-0 overflow-x-hidden"
+      className="flex"
       style={{
         backgroundColor: colors.headerBg,
         borderTop: `1px solid ${colors.borderStrong}`,
@@ -187,6 +186,7 @@ const SummaryRow = React.memo(function SummaryRow({
         minHeight: 36,
       }}
     >
+      {/* Sigma icon cell */}
       <div
         className="sticky left-0 z-10 flex items-center justify-center shrink-0"
         style={{
@@ -215,51 +215,51 @@ const SummaryRow = React.memo(function SummaryRow({
         }
 
         return (
-          <Popover
+          <div
             key={field.id}
-            open={isOpen}
-            onOpenChange={(open) => setSummaryDropdown(open ? field.id : null)}
+            className="relative shrink-0"
+            style={{
+              width: field.width,
+              minWidth: field.width,
+              borderRight: isLastFroz ? `1px solid ${colors.border}` : `1px solid ${colors.border}`,
+              backgroundColor: colors.headerBg,
+              ...(isFroz ? { position: 'sticky' as const, left: cellLeft, zIndex: 10, boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined } : {}),
+            }}
           >
-            <div
-              className="relative shrink-0"
-              style={{
-                width: field.width,
-                minWidth: field.width,
-                borderRight: `1px solid ${colors.border}`,
-                backgroundColor: colors.headerBg,
-                ...(isFroz ? { position: 'sticky' as const, left: cellLeft, zIndex: 10, boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined } : {}),
-              }}
+            <button
+              data-summary-field={field.id}
+              className="w-full h-full flex flex-col justify-center px-2 text-left"
+              style={{ minHeight: 40 }}
+              onClick={() => setSummaryDropdown(isOpen ? null : field.id)}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
             >
-              <PopoverTrigger asChild>
-                <button
-                  className="w-full h-full flex flex-col justify-center px-2 text-left"
-                  style={{ minHeight: 40 }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              {fn !== 'none' ? (
+                <>
+                  <span style={{ fontSize: 10, lineHeight: '14px', color: colors.muted }}>{label}</span>
+                  <span style={{ fontSize: 12, lineHeight: '16px', fontWeight: 500, color: colors.text }}>{value}</span>
+                </>
+              ) : (
+                <span style={{ fontSize: 11, color: colors.muted }}>&#8211;</span>
+              )}
+            </button>
+
+            {isOpen && (() => {
+              const btnEl = document.querySelector(`[data-summary-field="${field.id}"]`);
+              const rect = btnEl?.getBoundingClientRect();
+              return (
+              <>
+                <div className="fixed inset-0 z-[9998]" onClick={() => setSummaryDropdown(null)} />
+                <div
+                  className="fixed z-[9999] rounded-lg shadow-lg py-1 min-w-[150px]"
+                  style={{
+                    left: rect ? rect.left : 0,
+                    top: rect ? rect.top - 4 : 0,
+                    transform: 'translateY(-100%)',
+                    backgroundColor: colors.cellEditorBg,
+                    border: `1px solid ${colors.border}`,
+                  }}
                 >
-                  {fn !== 'none' ? (
-                    <>
-                      <span style={{ fontSize: 10, lineHeight: '14px', color: colors.muted }}>{label}</span>
-                      <span style={{ fontSize: 12, lineHeight: '16px', fontWeight: 500, color: colors.text }}>{value}</span>
-                    </>
-                  ) : (
-                    <span style={{ fontSize: 11, color: colors.muted }}>&#8211;</span>
-                  )}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                side="top"
-                align="start"
-                sideOffset={4}
-                className="p-0 w-auto"
-                style={{
-                  minWidth: 150,
-                  backgroundColor: colors.cellEditorBg,
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: 8,
-                }}
-              >
-                <div className="py-1">
                   {SUMMARY_OPTIONS.filter((opt) => !opt.numericOnly || isNumeric).map((opt) => (
                     <button
                       key={opt.value}
@@ -277,9 +277,10 @@ const SummaryRow = React.memo(function SummaryRow({
                     </button>
                   ))}
                 </div>
-              </PopoverContent>
-            </div>
-          </Popover>
+              </>
+              );
+            })()}
+          </div>
         );
       })}
     </div>
@@ -683,15 +684,6 @@ export default function GridView({
     overscan: 10,
   });
 
-  const columnVirtualizer = useVirtualizer({
-    horizontal: true,
-    count: scrollableFields.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: (index) => scrollableFields[index].width || 180,
-    overscan: 3,
-    paddingStart: ROW_NUMBER_WIDTH + frozenWidth,
-  });
-
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const handleResize = useCallback((fieldId: string, width: number) => {
@@ -740,25 +732,247 @@ export default function GridView({
     showToast(`${cellCount} cell${cellCount !== 1 ? 's' : ''} copied`);
   }, [records, fieldsWithWidths, cellToText, showToast]);
 
-  useGridKeyboard({
-    records,
-    fields: fieldsWithWidths,
-    onCellUpdate,
-    onExpandRow,
-    onAddRow,
-    onPasteRows,
-    selectedRowIds,
-    copySelectedRows,
-    copyRange,
-    cellToText,
-    showToast,
-    flashCellIds,
-    selectionRange,
-    setSelectionRange,
-    selectionAnchor,
-    setSelectionAnchor,
-    coerceValue,
-  });
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const { undo, redo } = useUndoStore.getState();
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      // --- Ctrl+C: copy rows, range, or single cell ---
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+        e.preventDefault();
+        // Priority 1: selected rows
+        if (selectedRowIds.size > 0) {
+          copySelectedRows();
+          return;
+        }
+        // Priority 2: cell range
+        if (selectionRange) {
+          copyRange(selectionRange);
+          return;
+        }
+        // Priority 3: single focused cell
+        if (selectedCellId) {
+          const [, fId] = selectedCellId.split(':');
+          const rIdx = records.findIndex((r) => r.id === selectedCellId.split(':')[0]);
+          const f = fieldsWithWidths.find((ff) => ff.id === fId);
+          if (rIdx !== -1 && f) {
+            const text = cellToText(records[rIdx][f.pg_column_name]);
+            navigator.clipboard.writeText(text).catch(() => {});
+            showToast('1 cell copied');
+          }
+        }
+        return;
+      }
+
+      // --- Ctrl+X: cut (copy + clear) focused cell ---
+      if ((e.metaKey || e.ctrlKey) && e.key === 'x') {
+        e.preventDefault();
+        if (selectedCellId) {
+          const [cutRowId, cutFieldId] = selectedCellId.split(':');
+          const cutRowIdx = records.findIndex((r) => r.id === cutRowId);
+          const cutField = fieldsWithWidths.find((f) => f.id === cutFieldId);
+          if (cutRowIdx !== -1 && cutField) {
+            const text = cellToText(records[cutRowIdx][cutField.pg_column_name]);
+            navigator.clipboard.writeText(text).catch(() => {});
+            onCellUpdate(cutRowId, cutFieldId, null);
+            showToast('Cell cut');
+          }
+        }
+        return;
+      }
+
+      // --- Ctrl+V: paste rows or cell(s) ---
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
+        e.preventDefault();
+        navigator.clipboard.readText().catch(() => '').then((pastedText) => {
+          if (!pastedText) return;
+          const lines = pastedText.split('\n').filter((l) => l.length > 0);
+          const isMultiLine = lines.length > 1 || (lines.length === 1 && lines[0].includes('\t'));
+          const hasTabSep = lines.some((l) => l.includes('\t'));
+
+          // Multi-row paste: create new records when rows are selected or no cell focused
+          if (isMultiLine && hasTabSep && !selectedCellId && onPasteRows) {
+            const newRows: Record<string, any>[] = [];
+            for (const line of lines) {
+              const cols = line.split('\t');
+              const rec: Record<string, any> = {};
+              cols.forEach((val, ci) => {
+                const field = fieldsWithWidths[ci];
+                if (field) {
+                  rec[field.pg_column_name] = coerceValue(val, field);
+                }
+              });
+              newRows.push(rec);
+            }
+            onPasteRows(newRows);
+            showToast(`${newRows.length} row${newRows.length !== 1 ? 's' : ''} pasted`);
+            return;
+          }
+
+          // Multi-cell paste into grid starting at focused cell
+          if (isMultiLine && selectedCellId) {
+            const [startRowId] = selectedCellId.split(':');
+            const startRowIdx = records.findIndex((r) => r.id === startRowId);
+            const startColIdx = fieldsWithWidths.findIndex((f) => f.id === selectedCellId.split(':')[1]);
+            if (startRowIdx === -1 || startColIdx === -1) return;
+            const flashIds: string[] = [];
+            let cellCount = 0;
+            lines.forEach((line, li) => {
+              const rowIdx = startRowIdx + li;
+              if (rowIdx >= records.length) return;
+              const cols = line.split('\t');
+              cols.forEach((val, ci) => {
+                const colIdx = startColIdx + ci;
+                if (colIdx >= fieldsWithWidths.length) return;
+                const field = fieldsWithWidths[colIdx];
+                const rec = records[rowIdx];
+                const coerced = coerceValue(val, field);
+                onCellUpdate(rec.id, field.id, coerced);
+                flashIds.push(`${rec.id}:${field.id}`);
+                cellCount++;
+              });
+            });
+            flashCellIds(flashIds);
+            showToast(`${cellCount} cell${cellCount !== 1 ? 's' : ''} pasted`);
+            return;
+          }
+
+          // Single cell paste
+          if (selectedCellId) {
+            const [rowId, fieldId] = selectedCellId.split(':');
+            const field = fieldsWithWidths.find((f) => f.id === fieldId);
+            if (field) {
+              const coerced = coerceValue(pastedText.trim(), field);
+              onCellUpdate(rowId, fieldId, coerced);
+              flashCellIds([selectedCellId]);
+              showToast('1 cell pasted');
+            }
+          }
+        });
+        return;
+      }
+
+      if (!selectedCellId) return;
+      // Don't navigate when a cell is being edited — let the editor handle arrow keys
+      if (editingCellId && (e.key.startsWith('Arrow') || e.key === 'Tab' || e.key === 'Home' || e.key === 'End' || e.key === 'PageUp' || e.key === 'PageDown')) return;
+      const [rowId, fieldId] = selectedCellId.split(':');
+      const rowIdx = records.findIndex((r) => r.id === rowId);
+      const colIdx = fieldsWithWidths.findIndex((f) => f.id === fieldId);
+      if (rowIdx === -1 || colIdx === -1) return;
+
+      let nextRow = rowIdx;
+      let nextCol = colIdx;
+
+      if (e.key === 'ArrowUp') {
+        nextRow = Math.max(0, rowIdx - 1);
+      } else if (e.key === 'ArrowDown') {
+        nextRow = Math.min(records.length - 1, rowIdx + 1);
+      } else if (e.key === 'ArrowLeft') {
+        nextCol = Math.max(0, colIdx - 1);
+      } else if (e.key === 'ArrowRight') {
+        nextCol = Math.min(fieldsWithWidths.length - 1, colIdx + 1);
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          nextCol = colIdx - 1;
+          if (nextCol < 0) {
+            nextCol = fieldsWithWidths.length - 1;
+            nextRow = Math.max(0, rowIdx - 1);
+          }
+        } else {
+          nextCol = colIdx + 1;
+          if (nextCol >= fieldsWithWidths.length) {
+            nextCol = 0;
+            nextRow = Math.min(records.length - 1, rowIdx + 1);
+          }
+        }
+      } else if (e.key === 'Home') {
+        if (e.ctrlKey || e.metaKey) { nextRow = 0; nextCol = 0; }
+        else { nextCol = 0; }
+      } else if (e.key === 'End') {
+        if (e.ctrlKey || e.metaKey) { nextRow = records.length - 1; nextCol = fieldsWithWidths.length - 1; }
+        else { nextCol = fieldsWithWidths.length - 1; }
+      } else if (e.key === 'PageUp') {
+        nextRow = Math.max(0, rowIdx - 20);
+      } else if (e.key === 'PageDown') {
+        nextRow = Math.min(records.length - 1, rowIdx + 20);
+      } else if (e.key === 'Escape') {
+        setSelectedCell(null);
+        setEditingCell(null);
+        setSelectionRange(null);
+        setSelectionAnchor(null);
+        return;
+      } else if (e.key === ' ' && !editingCellId) {
+        e.preventDefault();
+        onExpandRow?.(records[rowIdx]);
+        return;
+      } else if (e.key === 'Enter' && e.shiftKey) {
+        e.preventDefault();
+        onAddRow();
+        return;
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        setEditingCell(selectedCellId);
+        return;
+      } else if (e.key === 'd' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (rowIdx > 0) {
+          const aboveRecord = records[rowIdx - 1];
+          const field = fieldsWithWidths[colIdx];
+          const valueAbove = aboveRecord[field.pg_column_name];
+          if (valueAbove !== undefined) {
+            onCellUpdate(rowId, fieldId, valueAbove);
+          }
+        }
+        return;
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        onCellUpdate(rowId, fieldId, null);
+        return;
+      } else if (
+        !editingCellId &&
+        e.key.length === 1 &&
+        !e.ctrlKey && !e.metaKey && !e.altKey
+      ) {
+        setEditingCell(selectedCellId);
+        return;
+      } else {
+        return;
+      }
+
+      e.preventDefault();
+
+      // Shift+Arrow extends selection range
+      if (e.shiftKey && (e.key.startsWith('Arrow'))) {
+        const anchor = selectionAnchor ?? { row: rowIdx, col: colIdx };
+        if (!selectionAnchor) setSelectionAnchor(anchor);
+        setSelectionRange({
+          startRow: anchor.row,
+          startCol: anchor.col,
+          endRow: nextRow,
+          endCol: nextCol,
+        });
+      } else {
+        setSelectionRange(null);
+        setSelectionAnchor(null);
+      }
+
+      const nextCellId = `${records[nextRow].id}:${fieldsWithWidths[nextCol].id}`;
+      setSelectedCell(nextCellId);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedCellId, editingCellId, records, fieldsWithWidths, setSelectedCell, setEditingCell, onCellUpdate, selectedRowIds, selectionRange, selectionAnchor, copySelectedRows, copyRange, cellToText, showToast, flashCellIds, onPasteRows, onExpandRow, onAddRow]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -803,7 +1017,7 @@ export default function GridView({
   return (
     <div className="flex flex-col h-full">
       <div ref={parentRef} className="flex-1 overflow-auto">
-        <div style={{ minWidth: Math.max(totalWidth, columnVirtualizer.getTotalSize() + 44) }} role="grid" aria-colcount={fieldsWithWidths.length} aria-rowcount={records.length}>
+        <div style={{ minWidth: totalWidth }} role="grid" aria-colcount={fieldsWithWidths.length} aria-rowcount={records.length}>
           {/* Group collapse/expand bar */}
           {groupByLevels.length > 0 && (
             <div
@@ -843,11 +1057,8 @@ export default function GridView({
             style={{
               top: groupByLevels.length > 0 ? 28 : 0,
               height: HEADER_HEIGHT,
-              width: columnVirtualizer.getTotalSize() + 44,
-              minWidth: totalWidth,
               backgroundColor: GRID_COLORS.headerBg,
               borderBottom: `1px solid ${GRID_COLORS.borderStrong}`,
-              position: 'relative',
             }}
           >
             <div
@@ -875,10 +1086,14 @@ export default function GridView({
               {!isLoading && records.length === 0 && '#'}
             </div>
 
-            {frozenFields.map((field, colIdx) => {
+            {fieldsWithWidths.map((field, colIdx) => {
+              const isFrozen = colIdx < frozenCount;
               const isLastFrozen = colIdx === frozenCount - 1;
+              // Compute left offset for sticky frozen columns
               let stickyLeft = ROW_NUMBER_WIDTH;
-              for (let i = 0; i < colIdx; i++) stickyLeft += frozenFields[i].width;
+              if (isFrozen) {
+                for (let i = 0; i < colIdx; i++) stickyLeft += fieldsWithWidths[i].width;
+              }
               return (
                 <div
                   key={field.id}
@@ -889,12 +1104,14 @@ export default function GridView({
                     width: field.width || 180,
                     minWidth: field.width || 180,
                     borderLeft: dropColTargetIdx === colIdx && dragColId !== null ? `2px solid ${GRID_COLORS.primary}` : undefined,
-                    position: 'sticky' as const,
-                    left: stickyLeft,
-                    zIndex: 25,
-                    backgroundColor: GRID_COLORS.headerBg,
-                    borderRight: isLastFrozen ? `1px solid ${GRID_COLORS.border}` : undefined,
-                    boxShadow: isLastFrozen ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
+                    ...(isFrozen ? {
+                      position: 'sticky' as const,
+                      left: stickyLeft,
+                      zIndex: 25,
+                      backgroundColor: GRID_COLORS.headerBg,
+                      borderRight: isLastFrozen ? `1px solid ${GRID_COLORS.border}` : undefined,
+                      boxShadow: isLastFrozen ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
+                    } : {}),
                   }}
                   onDragOver={(e) => handleColDragOver(e, colIdx)}
                   onDrop={(e) => handleColDrop(e, colIdx)}
@@ -910,41 +1127,7 @@ export default function GridView({
                     onDragEnd={handleColDragEnd}
                     columnIndex={colIdx}
                     onFreezeUpTo={setFrozenColumns}
-                    isFrozen
-                  />
-                </div>
-              );
-            })}
-            {columnVirtualizer.getVirtualItems().map((virtualCol) => {
-              const field = scrollableFields[virtualCol.index];
-              const colIdx = frozenCount + virtualCol.index;
-              return (
-                <div
-                  key={field.id}
-                  className="absolute top-0"
-                  role="columnheader"
-                  aria-colindex={colIdx + 1}
-                  style={{
-                    width: virtualCol.size,
-                    height: HEADER_HEIGHT,
-                    left: virtualCol.start,
-                    borderLeft: dropColTargetIdx === colIdx && dragColId !== null ? `2px solid ${GRID_COLORS.primary}` : undefined,
-                  }}
-                  onDragOver={(e) => handleColDragOver(e, colIdx)}
-                  onDrop={(e) => handleColDrop(e, colIdx)}
-                >
-                  <ColumnHeader
-                    field={field}
-                    onResize={handleResize}
-                    onDelete={onDeleteField}
-                    onDuplicateField={onDuplicateField}
-                    onEditField={setEditingField}
-                    draggable
-                    onDragStart={(e) => handleColDragStart(e, field.id)}
-                    onDragEnd={handleColDragEnd}
-                    columnIndex={colIdx}
-                    onFreezeUpTo={setFrozenColumns}
-                    isFrozen={false}
+                    isFrozen={isFrozen}
                   />
                 </div>
               );
@@ -1149,10 +1332,13 @@ export default function GridView({
                         </>
                       )}
                     </div>
-                    {frozenFields.map((field, colIdx) => {
+                    {fieldsWithWidths.map((field, colIdx) => {
+                      const isFroz = colIdx < frozenCount;
                       const isLastFroz = colIdx === frozenCount - 1;
                       let cellLeft = ROW_NUMBER_WIDTH;
-                      for (let i = 0; i < colIdx; i++) cellLeft += frozenFields[i].width;
+                      if (isFroz) {
+                        for (let i = 0; i < colIdx; i++) cellLeft += fieldsWithWidths[i].width;
+                      }
                       return (
                         <div
                           key={field.id}
@@ -1163,40 +1349,13 @@ export default function GridView({
                             height: '100%',
                             width: field.width || 180,
                             minWidth: field.width || 180,
-                            position: 'sticky' as const,
-                            left: cellLeft,
-                            zIndex: 5,
-                            borderRight: isLastFroz ? `1px solid ${GRID_COLORS.border}` : undefined,
-                            boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
-                          }}
-                        >
-                          <div
-                            style={{
-                              height: '100%',
-                              ...(flashCells.has(`${record.id}:${field.id}`) ? {
-                                boxShadow: `inset 0 0 0 2px ${GRID_COLORS.primary}`,
-                                transition: 'box-shadow 0.3s ease-out',
-                              } : {}),
-                            }}
-                          >
-                            <GridCell field={field} record={record} onCellUpdate={onCellUpdate} backgroundColor={getCellColor(record, field.id)} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {columnVirtualizer.getVirtualItems().map((virtualCol) => {
-                      const field = scrollableFields[virtualCol.index];
-                      const colIdx = frozenCount + virtualCol.index;
-                      return (
-                        <div
-                          key={field.id}
-                          className="absolute top-0"
-                          role="gridcell"
-                          aria-colindex={colIdx + 1}
-                          style={{
-                            height: '100%',
-                            width: virtualCol.size,
-                            left: virtualCol.start,
+                            ...(isFroz ? {
+                              position: 'sticky' as const,
+                              left: cellLeft,
+                              zIndex: 5,
+                              borderRight: isLastFroz ? `1px solid ${GRID_COLORS.border}` : undefined,
+                              boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
+                            } : {}),
                           }}
                         >
                           <div
@@ -1331,10 +1490,13 @@ export default function GridView({
                     )}
                   </div>
 
-                  {frozenFields.map((field, colIdx) => {
+                  {fieldsWithWidths.map((field, colIdx) => {
+                    const isFroz = colIdx < frozenCount;
                     const isLastFroz = colIdx === frozenCount - 1;
                     let cellLeft = ROW_NUMBER_WIDTH;
-                    for (let i = 0; i < colIdx; i++) cellLeft += frozenFields[i].width;
+                    if (isFroz) {
+                      for (let i = 0; i < colIdx; i++) cellLeft += fieldsWithWidths[i].width;
+                    }
                     const isFlash = flashCells.has(`${record.id}:${field.id}`);
                     const isInRange = selectionRange && (() => {
                       const r1 = Math.min(selectionRange.startRow, selectionRange.endRow);
@@ -1353,11 +1515,13 @@ export default function GridView({
                           height: '100%',
                           width: field.width || 180,
                           minWidth: field.width || 180,
-                          position: 'sticky' as const,
-                          left: cellLeft,
-                          zIndex: 5,
-                          borderRight: isLastFroz ? `1px solid ${GRID_COLORS.border}` : undefined,
-                          boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
+                          ...(isFroz ? {
+                            position: 'sticky' as const,
+                            left: cellLeft,
+                            zIndex: 5,
+                            borderRight: isLastFroz ? `1px solid ${GRID_COLORS.border}` : undefined,
+                            boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
+                          } : {}),
                         }}
                       >
                         <div
@@ -1394,71 +1558,9 @@ export default function GridView({
                             record={record}
                             onCellUpdate={onCellUpdate}
                             backgroundColor={getCellColor(record, field.id)}
-                            frozen
+                            frozen={isFroz}
                             frozenLeft={cellLeft}
                             rowBg={rowBgUngrouped}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {columnVirtualizer.getVirtualItems().map((virtualCol) => {
-                    const field = scrollableFields[virtualCol.index];
-                    const colIdx = frozenCount + virtualCol.index;
-                    const isFlash = flashCells.has(`${record.id}:${field.id}`);
-                    const isInRange = selectionRange && (() => {
-                      const r1 = Math.min(selectionRange.startRow, selectionRange.endRow);
-                      const r2 = Math.max(selectionRange.startRow, selectionRange.endRow);
-                      const c1 = Math.min(selectionRange.startCol, selectionRange.endCol);
-                      const c2 = Math.max(selectionRange.startCol, selectionRange.endCol);
-                      return virtualRow.index >= r1 && virtualRow.index <= r2 && colIdx >= c1 && colIdx <= c2;
-                    })();
-                    return (
-                      <div
-                        key={field.id}
-                        className="absolute top-0"
-                        role="gridcell"
-                        aria-colindex={colIdx + 1}
-                        style={{
-                          height: '100%',
-                          width: virtualCol.size,
-                          left: virtualCol.start,
-                        }}
-                      >
-                        <div
-                          style={{
-                            height: '100%',
-                            ...(isFlash ? {
-                              boxShadow: `inset 0 0 0 2px ${GRID_COLORS.primary}`,
-                              transition: 'box-shadow 0.3s ease-out',
-                            } : {}),
-                            ...(isInRange ? { backgroundColor: `${GRID_COLORS.primary}14` } : {}),
-                          }}
-                          onClick={(e) => {
-                            if (e.shiftKey && selectedCellId) {
-                              const [, anchorFid] = selectedCellId.split(':');
-                              const anchorRowIdx = records.findIndex((r) => r.id === selectedCellId.split(':')[0]);
-                              const anchorColIdx = fieldsWithWidths.findIndex((f) => f.id === anchorFid);
-                              if (anchorRowIdx !== -1 && anchorColIdx !== -1) {
-                                setSelectionAnchor({ row: anchorRowIdx, col: anchorColIdx });
-                                setSelectionRange({
-                                  startRow: anchorRowIdx,
-                                  startCol: anchorColIdx,
-                                  endRow: virtualRow.index,
-                                  endCol: colIdx,
-                                });
-                              }
-                            } else {
-                              setSelectionRange(null);
-                              setSelectionAnchor(null);
-                            }
-                          }}
-                        >
-                          <GridCell
-                            field={field}
-                            record={record}
-                            onCellUpdate={onCellUpdate}
-                            backgroundColor={getCellColor(record, field.id)}
                           />
                         </div>
                       </div>
@@ -1468,6 +1570,19 @@ export default function GridView({
               );
             })}
           </div>
+
+          {/* Summary row */}
+          <SummaryRow
+            fields={fieldsWithWidths}
+            records={records}
+            summaryFunctions={summaryFunctions}
+            setSummaryFunction={setSummaryFunction}
+            summaryDropdown={summaryDropdown}
+            setSummaryDropdown={setSummaryDropdown}
+            rowNumberWidth={ROW_NUMBER_WIDTH}
+            frozenCount={frozenCount}
+            colors={GRID_COLORS}
+          />
 
           {/* Add row button */}
           <button
@@ -1489,19 +1604,6 @@ export default function GridView({
           </button>
         </div>
       </div>
-
-      {/* Pinned summary row — outside scroll container */}
-      <SummaryRow
-        fields={fieldsWithWidths}
-        records={records}
-        summaryFunctions={summaryFunctions}
-        setSummaryFunction={setSummaryFunction}
-        summaryDropdown={summaryDropdown}
-        setSummaryDropdown={setSummaryDropdown}
-        rowNumberWidth={ROW_NUMBER_WIDTH}
-        frozenCount={frozenCount}
-        colors={GRID_COLORS}
-      />
 
       {/* Row context menu */}
       {rowMenu && (
