@@ -102,7 +102,7 @@ function toSnakeCase(name: string): string {
 }
 
 const SYSTEM_FIELDS = [
-  { name: 'ID', pg_column_name: 'id', ui_type: 'ID', pg_type: 'UUID', is_primary: true, position: 0 },
+  { name: 'ID', pg_column_name: 'id', ui_type: 'ID', pg_type: 'UUID', is_primary: false, position: 0 },
   { name: 'Created At', pg_column_name: 'created_at', ui_type: 'CreatedTime', pg_type: 'TIMESTAMPTZ', is_primary: false, position: 1 },
   { name: 'Updated At', pg_column_name: 'updated_at', ui_type: 'LastModifiedTime', pg_type: 'TIMESTAMPTZ', is_primary: false, position: 2 },
   { name: 'Created By', pg_column_name: 'created_by', ui_type: 'CreatedBy', pg_type: 'UUID', is_primary: false, position: 3 },
@@ -295,11 +295,11 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           options: {},
           position: f.position,
           width: 150,
-          is_primary: f.is_primary,
+          is_primary: false,
           is_required: f.pg_column_name === 'id',
           is_unique: f.pg_column_name === 'id',
           is_system: true,
-          is_hidden: f.pg_column_name === 'nc_order',
+          is_hidden: true,
         }));
 
         const { data: sysFields, error: sysError } = await supabase
@@ -308,15 +308,6 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           .insert(sysRows)
           .select();
         if (sysError) throw sysError;
-
-        const primaryField = sysFields?.find((f: any) => f.is_primary);
-        if (primaryField) {
-          await supabase
-            .schema('nc_meta')
-            .from('tables')
-            .update({ primary_field_id: primaryField.id })
-            .eq('id', table.id);
-        }
 
         // Map and create user fields from Airtable schema
         const userFields = atTable.fields.filter(
@@ -373,7 +364,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             options,
             position: SYSTEM_FIELDS.length + idx,
             width: 180,
-            is_primary: false,
+            is_primary: idx === 0,
             is_required: false,
             is_unique: false,
             is_system: false,
@@ -402,6 +393,16 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           .select();
 
         const allFields = [...(sysFields ?? []), ...(createdFields ?? [])];
+
+        // Set primary_field_id to the first user field (Airtable's primary)
+        const primaryField = (createdFields as any[])?.find((f: any) => f.is_primary);
+        if (primaryField) {
+          await supabase
+            .schema('nc_meta')
+            .from('tables')
+            .update({ primary_field_id: primaryField.id })
+            .eq('id', table.id);
+        }
 
         // Create default grid view
         await supabase.schema('nc_meta').from('views').insert({
