@@ -33,7 +33,7 @@ export function FieldVisibilityPanel({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 text-xs text-[#6A7184] gap-1">
+        <Button variant="ghost" size="sm" className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1">
           <EyeOff size={14} /> Hide Fields
         </Button>
       </PopoverTrigger>

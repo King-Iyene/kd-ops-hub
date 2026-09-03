@@ -233,13 +233,13 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
             key={i}
             src={f.url}
             alt={f.name}
-            className="h-6 w-6 rounded object-cover border border-[#E7E7E9] shrink-0"
+            className="h-6 w-6 rounded object-cover border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shrink-0"
             title={f.name}
           />
         ) : (
           <span
             key={i}
-            className="h-6 px-1.5 rounded bg-[#F4F4F5] border border-[#E7E7E9] flex items-center shrink-0"
+            className="h-6 px-1.5 rounded bg-[#F4F4F5] dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] flex items-center shrink-0"
             title={f.name}
           >
             <Paperclip size={11} className="text-[#9AA2AF]" />
@@ -368,7 +368,7 @@ export const PercentCellRenderer = React.memo(function PercentCellRenderer({
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
   return (
     <div className="flex items-center gap-2 w-full">
-      <div className="flex-1 h-1.5 rounded-full bg-[#E7E7E9] overflow-hidden">
+      <div className="flex-1 h-1.5 rounded-full bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] overflow-hidden">
         <div
           className="h-full rounded-full"
           style={{ width: `${Math.min(100, Math.max(0, num))}%`, backgroundColor: '#3366FF' }}

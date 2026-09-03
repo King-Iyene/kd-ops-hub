@@ -121,7 +121,7 @@ export function LinkedRecordPicker({
         </div>
 
         {/* Record list */}
-        <div className="flex-1 overflow-y-auto border border-[#E7E7E9] rounded-lg max-h-[300px]">
+        <div className="flex-1 overflow-y-auto border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg max-h-[300px]">
           {filteredRecords.length === 0 ? (
             <div className="p-4 text-center text-xs text-[#9AA2AF]">
               No records found
@@ -133,7 +133,7 @@ export function LinkedRecordPicker({
                 <button
                   key={record.id}
                   type="button"
-                  className="w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-[#F4F4F5] border-b border-[#E7E7E9] last:border-b-0 transition-colors"
+                  className="w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] last:border-b-0 transition-colors"
                   onClick={() => toggle(record.id)}
                 >
                   {isSingleSelect ? (
@@ -162,7 +162,7 @@ export function LinkedRecordPicker({
                       {isChecked ? '✓' : ''}
                     </span>
                   )}
-                  <span className="text-[13px] text-[#374151] truncate">
+                  <span className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
                     {getPrimaryValue(record)}
                   </span>
                 </button>

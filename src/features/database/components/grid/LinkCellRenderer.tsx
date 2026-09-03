@@ -285,7 +285,7 @@ function LinkedRecordsPopover({
         align="start"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-3 border-b border-[#E7E7E9]">
+        <div className="p-3 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
           <div className="flex items-center gap-2">
             <Search size={14} className="text-[#9AA2AF]" />
             <Input
@@ -309,13 +309,13 @@ function LinkedRecordsPopover({
               {linkedRecords.map((rec: any) => (
                 <div
                   key={rec.id}
-                  className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-[#F1F5F9] group"
+                  className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-[#F1F5F9] dark:hover:bg-[hsl(200,25%,14%)] group"
                 >
                   <span className="text-xs text-[#334155] truncate">
                     {getDisplayValue(rec)}
                   </span>
                   <button
-                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#E7E7E9] transition-opacity"
+                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#E7E7E9] dark:hover:bg-[hsl(200,25%,18%)] transition-opacity"
                     onClick={() => handleUnlink(rec.id)}
                   >
                     <X size={12} className="text-[#9AA2AF]" />
@@ -329,14 +329,14 @@ function LinkedRecordsPopover({
 
           {/* Search results to link */}
           {searchTerm && filteredSearchResults.length > 0 && (
-            <div className="p-1 border-t border-[#E7E7E9]">
+            <div className="p-1 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
               <p className="px-2 py-1 text-[10px] font-medium text-[#9AA2AF] uppercase tracking-wider">
                 Link new
               </p>
               {filteredSearchResults.map((rec: any) => (
                 <div
                   key={rec.id}
-                  className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-[#F1F5F9] group"
+                  className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-[#F1F5F9] dark:hover:bg-[hsl(200,25%,14%)] group"
                 >
                   <span className="text-xs text-[#334155] truncate">
                     {getDisplayValue(rec)}
@@ -353,7 +353,7 @@ function LinkedRecordsPopover({
           )}
 
           {searchTerm && filteredSearchResults.length === 0 && (
-            <div className="p-3 text-xs text-[#9AA2AF] border-t border-[#E7E7E9]">
+            <div className="p-3 text-xs text-[#9AA2AF] border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
               No matching records found
             </div>
           )}

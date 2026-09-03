@@ -173,7 +173,7 @@ export function RowColorPanel({ fields, rules, onRulesChange }: RowColorPanelPro
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 text-xs text-[#6A7184] gap-1">
+        <Button variant="ghost" size="sm" className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1">
           <Palette size={14} />
           Color
           {activeCount > 0 && (
@@ -277,7 +277,7 @@ export function RowColorPanel({ fields, rules, onRulesChange }: RowColorPanelPro
           })}
         </div>
 
-        <div className="flex items-center justify-between mt-3 pt-2 border-t border-[#E7E7E9]">
+        <div className="flex items-center justify-between mt-3 pt-2 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
           <Button
             variant="ghost"
             size="sm"
@@ -288,7 +288,7 @@ export function RowColorPanel({ fields, rules, onRulesChange }: RowColorPanelPro
           </Button>
           {rules.length > 0 && (
             <button
-              className="text-xs text-[#9AA2AF] hover:text-[#6A7184] transition-colors"
+              className="text-xs text-[#9AA2AF] hover:text-[#6A7184] dark:hover:text-[hsl(200,20%,55%)] transition-colors"
               onClick={() => onRulesChange([])}
             >
               Clear all

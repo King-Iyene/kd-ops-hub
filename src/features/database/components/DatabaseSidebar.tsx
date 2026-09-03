@@ -267,7 +267,7 @@ export function DatabaseSidebar() {
                       className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#D5D5D9] dark:hover:bg-[hsl(200,25%,20%)] transition-opacity shrink-0"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <MoreHorizontal size={14} className="text-[#6A7184]" />
+                      <MoreHorizontal size={14} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-40">
