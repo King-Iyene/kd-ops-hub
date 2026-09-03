@@ -36,6 +36,7 @@ export function TableView() {
     activeBaseId,
     activeViewId,
     filters,
+    filterGroups,
     sorts,
     hiddenFieldIds,
     searchQuery,
@@ -88,6 +89,7 @@ export function TableView() {
     page,
     pageSize,
     filters: filters.length > 0 ? filters : undefined,
+    filterGroups: filterGroups.length > 0 ? filterGroups : undefined,
     sorts: sorts.length > 0 ? sorts : undefined,
     search: searchQuery || undefined,
   });

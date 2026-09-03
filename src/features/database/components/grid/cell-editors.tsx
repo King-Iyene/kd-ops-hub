@@ -311,7 +311,7 @@ export function RatingCellEditor({ value, field, onCommit }: CellEditorProps) {
   );
 }
 
-export function SelectCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpdate }: CellEditorProps) {
   const choices = field.options?.choices || [];
   const ref = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState('');
@@ -335,23 +335,35 @@ export function SelectCellEditor({ value, field, onCommit, onCancel }: CellEdito
     ? choices.filter((c: SelectChoice) => c.title.toLowerCase().includes(search.toLowerCase()))
     : choices;
 
+  const exactMatch = search
+    ? choices.some((c: SelectChoice) => c.title.toLowerCase() === search.trim().toLowerCase())
+    : true;
+
+  const handleCreateOption = () => {
+    const trimmed = search.trim();
+    if (!trimmed) return;
+    const randomColor = SELECT_COLOR_NAMES[Math.floor(Math.random() * SELECT_COLOR_NAMES.length)];
+    const newChoice: SelectChoice = { title: trimmed, color: randomColor };
+    const updatedChoices = [...choices, newChoice];
+    onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices } as any);
+    onCommit(trimmed);
+  };
+
   return (
     <div
       ref={ref}
       className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg min-w-[200px] max-h-[280px] flex flex-col animate-[panelSlideDown_150ms_ease-out]"
     >
-      {choices.length > 5 && (
-        <div className="px-2 pt-2 pb-1 shrink-0">
-          <input
-            ref={searchRef}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}
-            placeholder="Find an option"
-            className="w-full px-2 py-1 text-xs rounded border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:border-[#3366FF]"
-          />
-        </div>
-      )}
+      <div className="px-2 pt-2 pb-1 shrink-0">
+        <input
+          ref={searchRef}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}
+          placeholder="Find or create an option"
+          className="w-full px-2 py-1 text-xs rounded border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:border-[#3366FF]"
+        />
+      </div>
       <div className="overflow-y-auto py-1">
         {filtered.map((choice: SelectChoice) => {
           const color = getPillColor(choice.color);
@@ -370,7 +382,15 @@ export function SelectCellEditor({ value, field, onCommit, onCancel }: CellEdito
             </button>
           );
         })}
-        {filtered.length === 0 && (
+        {!exactMatch && search.trim() && (
+          <button
+            className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 transition-colors text-xs text-[#3366FF]"
+            onClick={handleCreateOption}
+          >
+            Create &ldquo;{search.trim()}&rdquo;
+          </button>
+        )}
+        {filtered.length === 0 && !search.trim() && (
           <div className="px-3 py-2 text-xs text-[#9AA2AF]">No options found</div>
         )}
       </div>
@@ -389,8 +409,8 @@ export function SelectCellEditor({ value, field, onCommit, onCancel }: CellEdito
   );
 }
 
-export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
-  const choices = field.options?.choices || [];
+export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFieldUpdate }: CellEditorProps) {
+  const [localChoices, setLocalChoices] = useState<SelectChoice[]>(field.options?.choices || []);
   const [selected, setSelected] = useState<string[]>(
     Array.isArray(value) ? value : value ? [value] : [],
   );
@@ -419,26 +439,40 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: Cell
   };
 
   const filtered = search
-    ? choices.filter((c: SelectChoice) => c.title.toLowerCase().includes(search.toLowerCase()))
-    : choices;
+    ? localChoices.filter((c: SelectChoice) => c.title.toLowerCase().includes(search.toLowerCase()))
+    : localChoices;
+
+  const exactMatch = search
+    ? localChoices.some((c: SelectChoice) => c.title.toLowerCase() === search.trim().toLowerCase())
+    : true;
+
+  const handleCreateOption = () => {
+    const trimmed = search.trim();
+    if (!trimmed) return;
+    const randomColor = SELECT_COLOR_NAMES[Math.floor(Math.random() * SELECT_COLOR_NAMES.length)];
+    const newChoice: SelectChoice = { title: trimmed, color: randomColor };
+    const updatedChoices = [...localChoices, newChoice];
+    setLocalChoices(updatedChoices);
+    onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices } as any);
+    setSelected((prev) => [...prev, trimmed]);
+    setSearch('');
+  };
 
   return (
     <div
       ref={ref}
       className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg min-w-[200px] max-h-[280px] flex flex-col animate-[panelSlideDown_150ms_ease-out]"
     >
-      {choices.length > 5 && (
-        <div className="px-2 pt-2 pb-1 shrink-0">
-          <input
-            ref={searchRef}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Escape') { onCommit(selected); } }}
-            placeholder="Find an option"
-            className="w-full px-2 py-1 text-xs rounded border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:border-[#3366FF]"
-          />
-        </div>
-      )}
+      <div className="px-2 pt-2 pb-1 shrink-0">
+        <input
+          ref={searchRef}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Escape') { onCommit(selected); } }}
+          placeholder="Find or create an option"
+          className="w-full px-2 py-1 text-xs rounded border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:border-[#3366FF]"
+        />
+      </div>
       <div className="overflow-y-auto py-1">
         {filtered.map((choice: SelectChoice) => {
           const color = getPillColor(choice.color);
@@ -468,7 +502,15 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: Cell
             </button>
           );
         })}
-        {filtered.length === 0 && (
+        {!exactMatch && search.trim() && (
+          <button
+            className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 transition-colors text-xs text-[#3366FF]"
+            onClick={handleCreateOption}
+          >
+            Create &ldquo;{search.trim()}&rdquo;
+          </button>
+        )}
+        {filtered.length === 0 && !search.trim() && (
           <div className="px-3 py-2 text-xs text-[#9AA2AF]">No options found</div>
         )}
       </div>

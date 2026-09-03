@@ -1,10 +1,43 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Expand } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { getCellRenderer } from './cell-renderers';
 import { getCellEditor } from './cell-editors';
 import { useGridColors } from '../../hooks/useGridColors';
+import { useUpdateField } from '../../hooks/useFields';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^[\d\s+\-()]+$/;
+
+function validateCellValue(uiType: string, value: any): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  const s = String(value);
+  switch (uiType) {
+    case 'Number':
+    case 'Decimal':
+    case 'Currency':
+    case 'Percent':
+      if (isNaN(Number(s))) return 'Value must be a number';
+      return null;
+    case 'Email':
+      if (!EMAIL_RE.test(s)) return 'Invalid email address';
+      return null;
+    case 'URL':
+      try { new URL(s.includes('://') ? s : `https://${s}`); return null; }
+      catch { return 'Invalid URL'; }
+    case 'Date':
+    case 'Year':
+    case 'DateTime':
+      if (isNaN(Date.parse(s))) return 'Invalid date';
+      return null;
+    case 'PhoneNumber':
+      if (!PHONE_RE.test(s)) return 'Only digits, spaces, +, -, (, ) allowed';
+      return null;
+    default:
+      return null;
+  }
+}
 
 interface GridCellProps {
   field: FieldMeta;
@@ -79,17 +112,34 @@ export const GridCell = React.memo(function GridCell({
     [isEditing, isSystemField, field.ui_type, cellId, setEditingCell, setSelectedCell],
   );
 
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const updateFieldMutation = useUpdateField();
+
   const handleCommit = useCallback(
     (newValue: any) => {
+      const error = validateCellValue(field.ui_type, newValue);
+      if (error) {
+        setValidationError(error);
+        setTimeout(() => setValidationError(null), 2500);
+        return;
+      }
+      setValidationError(null);
       onCellUpdate(record.id, field.id, newValue);
       setEditingCell(null);
     },
-    [record.id, field.id, onCellUpdate, setEditingCell],
+    [record.id, field.id, field.ui_type, onCellUpdate, setEditingCell],
   );
 
   const handleCancel = useCallback(() => {
     setEditingCell(null);
   }, [setEditingCell]);
+
+  const handleFieldUpdate = useCallback(
+    (fieldId: string, tableId: string, updates: any) => {
+      updateFieldMutation.mutate({ id: fieldId, table_id: tableId, updates: { options: updates } });
+    },
+    [updateFieldMutation],
+  );
 
   const Renderer = getCellRenderer(field.ui_type);
   const Editor = getCellEditor(field.ui_type);
@@ -135,12 +185,18 @@ export const GridCell = React.memo(function GridCell({
           <Expand size={12} />
         </span>
       )}
+      {validationError && (
+        <div className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-red-300 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
+          {validationError}
+        </div>
+      )}
       {isEditing && Editor ? (
         <Editor
           value={value}
           field={field}
           onCommit={handleCommit}
           onCancel={handleCancel}
+          onFieldUpdate={handleFieldUpdate}
         />
       ) : (
         <Renderer

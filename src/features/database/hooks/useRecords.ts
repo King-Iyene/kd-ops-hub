@@ -374,7 +374,7 @@ export function useRecords(params: UseRecordsParams) {
   const { baseId, tableId, page = 0, pageSize = 50, filters, filterGroups, sorts, search } = params;
 
   return useQuery({
-    queryKey: ['nc', 'records', baseId, tableId, page, pageSize, filters, sorts, search],
+    queryKey: ['nc', 'records', baseId, tableId, page, pageSize, filters, filterGroups, sorts, search],
     enabled: !!baseId && !!tableId,
     queryFn: async (): Promise<RecordsResult> => {
       const ctx = await resolveTableContext(baseId, tableId);
@@ -394,12 +394,19 @@ export function useRecords(params: UseRecordsParams) {
         .from(ctx.tableName)
         .select('*', { count: 'exact' });
 
-      // Filters
+      // Flat filters (AND-chained, legacy path)
       if (filters && filters.length > 0) {
         for (const filter of filters) {
           const field = fieldMap.get(filter.field_id);
           if (!field) continue;
           query = applyFilter(query, field.pg_column_name, filter.operator, filter.value, field.pg_type);
+        }
+      }
+
+      // Nested filter groups
+      if (filterGroups && filterGroups.length > 0) {
+        for (const group of filterGroups) {
+          query = applyFilterGroup(query, group, fieldMap);
         }
       }
 
@@ -562,7 +569,7 @@ export function useDuplicateRecord() {
     }) => {
       const ctx = await resolveTableContext(input.baseId, input.tableId);
 
-      const { id, created_at, updated_at, nc_order, ...rest } = input.record;
+      const { id: _id, created_at: _ca, updated_at: _ua, nc_order: _nc, ...rest } = input.record;
 
       const { data, error } = await supabase
         .schema(ctx.schemaName)
