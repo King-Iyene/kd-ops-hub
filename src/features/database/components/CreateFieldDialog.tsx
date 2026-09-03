@@ -57,9 +57,14 @@ const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
   { value: 'Links', label: 'Links', group: 'Relations' },
   { value: 'Attachment', label: 'Attachment', group: 'Other' },
   { value: 'JSON', label: 'JSON', group: 'Other' },
+  { value: 'AutoNumber', label: 'Auto Number', group: 'System' },
+  { value: 'CreatedTime', label: 'Created Time', group: 'System' },
+  { value: 'LastModifiedTime', label: 'Last Modified Time', group: 'System' },
+  { value: 'CreatedBy', label: 'Created By', group: 'System' },
+  { value: 'LastModifiedBy', label: 'Last Modified By', group: 'System' },
 ];
 
-const GROUPS = ['Text', 'Numeric', 'Date & Time', 'Selection', 'Relations', 'Computed', 'Other'];
+const GROUPS = ['Text', 'Numeric', 'Date & Time', 'Selection', 'Relations', 'Computed', 'Other', 'System'];
 
 type RelationType = 'one_to_one' | 'one_to_many' | 'many_to_many';
 
