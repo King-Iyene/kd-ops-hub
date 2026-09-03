@@ -63,9 +63,9 @@ export function FieldVisibilityPanel({
             return (
               <div
                 key={field.id}
-                className="flex items-center justify-between py-1 px-1 rounded hover:bg-[#F1F5F9]"
+                className="flex items-center justify-between py-1 px-1 rounded hover:bg-[#F1F5F9] dark:hover:bg-[hsl(200,25%,14%)]"
               >
-                <span className="flex items-center gap-2 text-xs text-[#374151]">
+                <span className="flex items-center gap-2 text-xs text-[#374151] dark:text-[hsl(200,25%,88%)]">
                   <Icon size={14} className="text-[#9AA2AF]" />
                   {field.name}
                 </span>

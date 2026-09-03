@@ -183,7 +183,7 @@ export function DatabaseSidebar() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 text-[#6A7184] hover:text-[#374151] hover:bg-[#E7E7E9]"
+              className="h-6 w-6 p-0 text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)] hover:bg-[#E7E7E9] dark:hover:bg-[hsl(200,25%,18%)]"
               onClick={() => setCreateBaseOpen(true)}
               title="Create base"
             >
