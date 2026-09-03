@@ -173,19 +173,26 @@ export const CheckboxCellRenderer = React.memo(function CheckboxCellRenderer({
   const colors = useGridColors();
   const checked = Boolean(value);
   return (
-    <div className="flex items-center justify-center w-full h-full cursor-pointer">
-      {checked ? (
-        <div
-          className="w-[18px] h-[18px] rounded flex items-center justify-center"
-          style={{ backgroundColor: colors.checkboxChecked }}
-        >
+    <div className="flex items-center justify-center w-full h-full cursor-pointer group/checkbox">
+      <div
+        className="w-[18px] h-[18px] rounded flex items-center justify-center transition-all duration-150 ease-out"
+        style={{
+          backgroundColor: checked ? colors.checkboxChecked : 'transparent',
+          border: checked ? 'none' : '2px solid #D1D5DB',
+          transform: checked ? 'scale(1)' : 'scale(0.92)',
+        }}
+      >
+        {checked ? (
           <Check size={13} color="#fff" strokeWidth={3} />
-        </div>
-      ) : (
-        <div
-          className="w-[18px] h-[18px] rounded border-2 border-[#D1D5DB] dark:border-[hsl(215,12%,35%)] group-hover/row:border-[#9CA3AF] dark:group-hover/row:border-[hsl(215,12%,45%)] transition-colors"
-        />
-      )}
+        ) : (
+          <Check
+            size={13}
+            strokeWidth={3}
+            className="opacity-0 group-hover/checkbox:opacity-30 transition-opacity duration-150"
+            style={{ color: colors.muted }}
+          />
+        )}
+      </div>
     </div>
   );
 });
