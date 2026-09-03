@@ -1583,7 +1583,7 @@ export default function GridView({
             <ChevronLeft size={16} />
           </button>
           <span>
-            Page {page} of {totalPages}
+            Page {page + 1} of {Math.max(totalPages, 1)}
           </span>
           <button
             className="p-1 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)] disabled:opacity-40 disabled:cursor-not-allowed"
