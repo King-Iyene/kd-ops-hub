@@ -63,11 +63,11 @@ function mapAirtableType(atType: string): { uiType: string; pgType: string } {
     number: { uiType: 'Number', pgType: 'NUMERIC' },
     currency: { uiType: 'Currency', pgType: 'NUMERIC' },
     percent: { uiType: 'Percent', pgType: 'NUMERIC' },
-    duration: { uiType: 'Duration', pgType: 'NUMERIC' },
-    rating: { uiType: 'Rating', pgType: 'INTEGER' },
-    checkbox: { uiType: 'Checkbox', pgType: 'BOOLEAN' },
+    duration: { uiType: 'Duration', pgType: 'INTEGER' },
+    rating: { uiType: 'Rating', pgType: 'SMALLINT' },
+    checkbox: { uiType: 'Checkbox', pgType: "BOOLEAN DEFAULT false" },
     singleSelect: { uiType: 'SingleSelect', pgType: 'TEXT' },
-    multiSelect: { uiType: 'MultiSelect', pgType: 'JSONB' },
+    multiSelect: { uiType: 'MultiSelect', pgType: 'TEXT[]' },
     date: { uiType: 'Date', pgType: 'DATE' },
     dateTime: { uiType: 'DateTime', pgType: 'TIMESTAMPTZ' },
     createdTime: { uiType: 'CreatedTime', pgType: 'TIMESTAMPTZ' },
@@ -91,11 +91,14 @@ function mapAirtableType(atType: string): { uiType: string; pgType: string } {
 }
 
 function toSnakeCase(name: string): string {
-  return name
+  let result = name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_|_$/g, '')
-    .substring(0, 63);
+    .replace(/^_|_$/g, '');
+  if (/^[0-9]/.test(result)) {
+    result = 'f_' + result;
+  }
+  return result.substring(0, 63);
 }
 
 const SYSTEM_FIELDS = [
@@ -435,10 +438,11 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                 for (const [fieldName, value] of Object.entries(rec.fields || {})) {
                   const mapping = fieldMap[fieldName];
                   if (mapping) {
-                    // For JSONB columns, pass objects directly (PostgREST handles serialization).
-                    // For non-JSONB columns that received an object (e.g. createdBy as JSONB),
-                    // pass as-is too. Only stringify objects for TEXT/non-JSONB columns.
-                    if (typeof value === 'object' && value !== null && mapping.pgType !== 'JSONB') {
+                    if (mapping.pgType === 'JSONB' || mapping.pgType === "JSONB DEFAULT '[]'::jsonb") {
+                      row[mapping.col] = value;
+                    } else if (mapping.pgType === 'TEXT[]') {
+                      row[mapping.col] = Array.isArray(value) ? value : [String(value)];
+                    } else if (typeof value === 'object' && value !== null) {
                       row[mapping.col] = JSON.stringify(value);
                     } else {
                       row[mapping.col] = value;
