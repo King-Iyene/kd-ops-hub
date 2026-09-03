@@ -7,6 +7,41 @@ import { getCellEditor } from './cell-editors';
 import { useGridColors } from '../../hooks/useGridColors';
 import { useUpdateField } from '../../hooks/useFields';
 
+interface CellErrorBoundaryState {
+  hasError: boolean;
+}
+
+class CellErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  CellErrorBoundaryState
+> {
+  state: CellErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): CellErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <span
+          style={{
+            fontSize: 11,
+            color: '#EF4444',
+            padding: '0 4px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          ⚠ Error
+        </span>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[\d\s+\-()]+$/;
 const SINGLE_CLICK_EDIT_TYPES = new Set([
@@ -223,22 +258,24 @@ export const GridCell = React.memo(function GridCell({
           {validationError}
         </div>
       )}
-      {isEditing && Editor ? (
-        <Editor
-          value={value}
-          field={field}
-          onCommit={handleCommit}
-          onCancel={handleCancel}
-          onFieldUpdate={handleFieldUpdate}
-        />
-      ) : (
-        <Renderer
-          value={value}
-          field={field}
-          record={record}
-          rowHeight={rowHeight}
-        />
-      )}
+      <CellErrorBoundary>
+        {isEditing && Editor ? (
+          <Editor
+            value={value}
+            field={field}
+            onCommit={handleCommit}
+            onCancel={handleCancel}
+            onFieldUpdate={handleFieldUpdate}
+          />
+        ) : (
+          <Renderer
+            value={value}
+            field={field}
+            record={record}
+            rowHeight={rowHeight}
+          />
+        )}
+      </CellErrorBoundary>
     </div>
   );
 });
