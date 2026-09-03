@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Home, Menu, HelpCircle, Share2, Copy, Check, Lock, Zap, Link2, Key, Webhook, History, Keyboard, LogOut, Settings, User, Moon, Sun } from 'lucide-react';
+import { Home, Menu, HelpCircle, Share2, Copy, Check, Lock, Zap, Link2, Key, Webhook, History, Keyboard, LogOut, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -24,7 +24,6 @@ import { NotificationsPanel } from './NotificationsPanel';
 export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => void }) {
   const { toggleSidebar, activeBaseId, activeTableId, setActiveBase } = useDatabaseUI();
   const signOut = useAuthStore((s) => s.signOut);
-  const [profileOpen, setProfileOpen] = useState(false);
   const profile = useAuthStore((s) => s.profile);
   const { data: bases } = useBases();
   const [shareOpen, setShareOpen] = useState(false);

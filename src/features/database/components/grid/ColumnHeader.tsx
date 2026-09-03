@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ArrowUp, ArrowDown, EyeOff, Pencil, Trash2, Copy, ArrowLeftRight, Info, Lock, Unlock, Filter } from 'lucide-react';
+import { ArrowUp, ArrowDown, EyeOff, Pencil, Trash2, Copy, Info, Lock, Unlock, Filter } from 'lucide-react';
 import type { FieldMeta } from '@/features/database/types';
 import { getFieldTypeIcon } from './field-icons';
 import { useDatabaseUI } from '../../lib/store';
@@ -20,9 +20,6 @@ interface ColumnHeaderProps {
   onFreezeUpTo?: (columnIndex: number) => void;
   isFrozen?: boolean;
 }
-
-const menuItemClass =
-  'w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-[#F1F5F9] transition-colors';
 
 export const ColumnHeader = React.memo(function ColumnHeader({
   field,
