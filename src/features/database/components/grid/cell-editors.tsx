@@ -1,9 +1,12 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Paperclip, Star } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { Paperclip, Star, Check, X } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
-import { PILL_COLORS, SELECT_COLOR_NAMES } from '@/features/database/types';
+import { PILL_COLORS, SELECT_COLOR_NAMES, SELECT_COLORS } from '@/features/database/types';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
 import { validateField, type ValidationRule } from '../../lib/validation';
+import { useGridColors } from '../../hooks/useGridColors';
 
 function useEditorValidation(value: any, field: FieldMeta) {
   return useMemo(() => {
@@ -143,28 +146,61 @@ export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEdi
 }
 
 export function DateCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const initial = value ? new Date(value).toISOString().split('T')[0] : '';
-  const [date, setDate] = useState(initial);
-  const ref = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    ref.current?.focus();
-  }, []);
+  const initial = value ? new Date(value) : undefined;
+  const [selected, setSelected] = useState<Date | undefined>(initial);
+  const colors = useGridColors();
 
   return (
-    <input
-      ref={ref}
-      type="date"
-      value={date}
-      onChange={(e) => setDate(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(date || null);
-        if (e.key === 'Escape') onCancel();
-      }}
-      onBlur={() => onCommit(date || null)}
-      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
-      style={{ fontSize: 13, color: 'inherit' }}
-    />
+    <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <PopoverTrigger asChild>
+        <div className="w-full h-full" />
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={1}
+        className="p-0 w-auto"
+        style={{
+          backgroundColor: colors.cellEditorBg,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 8,
+        }}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <Calendar
+          mode="single"
+          selected={selected}
+          onSelect={(day) => {
+            setSelected(day);
+            if (day) {
+              onCommit(day.toISOString().split('T')[0]);
+            }
+          }}
+          defaultMonth={selected || new Date()}
+        />
+        <div style={{ height: 1, backgroundColor: colors.border }} />
+        <div className="flex items-center justify-between px-3 py-2">
+          <button
+            className="text-xs transition-colors"
+            style={{ color: colors.muted }}
+            onClick={() => onCommit(null)}
+          >
+            Clear
+          </button>
+          <button
+            className="text-xs px-3 py-1 rounded"
+            style={{ backgroundColor: colors.primary, color: '#fff' }}
+            onClick={() => {
+              const today = new Date();
+              setSelected(today);
+              onCommit(today.toISOString().split('T')[0]);
+            }}
+          >
+            Today
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -348,101 +384,156 @@ export function RatingCellEditor({ value, field, onCommit }: CellEditorProps) {
   );
 }
 
+function getSelectColorStyle(colorName: string) {
+  const sc = SELECT_COLORS[colorName] || SELECT_COLORS.grayLight2;
+  return sc;
+}
+
 export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpdate }: CellEditorProps) {
-  const choices = field.options?.choices || [];
-  const ref = useRef<HTMLDivElement>(null);
+  const choices: SelectChoice[] = field.options?.choices || [];
   const [search, setSearch] = useState('');
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const searchRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setTimeout(() => searchRef.current?.focus(), 0);
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onCancel();
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [onCancel]);
+  const colors = useGridColors();
 
   const filtered = search
-    ? choices.filter((c: SelectChoice) => c.title.toLowerCase().includes(search.toLowerCase()))
+    ? choices.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
     : choices;
 
   const exactMatch = search
-    ? choices.some((c: SelectChoice) => c.title.toLowerCase() === search.trim().toLowerCase())
+    ? choices.some((c) => c.title.toLowerCase() === search.trim().toLowerCase())
     : true;
 
-  const handleCreateOption = () => {
+  const handleCreateOption = useCallback(() => {
     const trimmed = search.trim();
     if (!trimmed) return;
     const randomColor = SELECT_COLOR_NAMES[Math.floor(Math.random() * SELECT_COLOR_NAMES.length)];
     const newChoice: SelectChoice = { title: trimmed, color: randomColor };
     const updatedChoices = [...choices, newChoice];
-    onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices } as any);
+    onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices } as Partial<FieldMeta['options']>);
     onCommit(trimmed);
-  };
+  }, [search, choices, field.id, field.table_id, onFieldUpdate, onCommit]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onCancel();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex((prev) => Math.min(prev + 1, filtered.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (focusedIndex >= 0 && focusedIndex < filtered.length) {
+        onCommit(filtered[focusedIndex].title);
+      } else if (!exactMatch && search.trim()) {
+        handleCreateOption();
+      }
+    }
+  }, [onCancel, filtered, focusedIndex, exactMatch, search, handleCreateOption, onCommit]);
 
   return (
-    <div
-      ref={ref}
-      className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg min-w-[200px] max-h-[280px] flex flex-col animate-[panelSlideDown_150ms_ease-out]"
-    >
-      <div className="px-2 pt-2 pb-1 shrink-0">
-        <input
-          ref={searchRef}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}
-          placeholder="Find or create an option"
-          className="w-full px-2 py-1 text-xs rounded border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:border-[#3366FF]"
-        />
-      </div>
-      <div className="overflow-y-auto py-1">
-        {filtered.map((choice: SelectChoice) => {
-          const color = getPillColor(choice.color);
-          return (
-            <button
-              key={choice.title}
-              className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 transition-colors"
-              onClick={() => onCommit(choice.title)}
-            >
-              <span
-                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-                style={{ backgroundColor: color.bg, color: color.text }}
+    <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <PopoverTrigger asChild>
+        <div className="w-full h-full" />
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={1}
+        className="p-0 w-auto"
+        style={{
+          minWidth: 220,
+          maxHeight: 300,
+          backgroundColor: colors.cellEditorBg,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 8,
+        }}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          setTimeout(() => searchRef.current?.focus(), 0);
+        }}
+      >
+        <div className="px-2 pt-2 pb-1 shrink-0">
+          <input
+            ref={searchRef}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Find or create an option"
+            className="w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
+            style={{
+              border: `1px solid ${colors.border}`,
+              color: colors.text,
+            }}
+          />
+        </div>
+        <div className="overflow-y-auto py-1" style={{ maxHeight: 200 }}>
+          {filtered.map((choice, idx) => {
+            const sc = getSelectColorStyle(choice.color);
+            const isFocused = idx === focusedIndex;
+            const isSelected = value === choice.title;
+            return (
+              <button
+                key={choice.title}
+                className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors"
+                style={{
+                  backgroundColor: isFocused ? colors.hoverRow : 'transparent',
+                }}
+                onMouseEnter={() => setFocusedIndex(idx)}
+                onClick={() => onCommit(choice.title)}
               >
-                {choice.title}
-              </span>
+                <span
+                  className="inline-flex items-center px-2.5 rounded-full text-xs font-medium select-pill"
+                  style={{
+                    '--pill-bg': sc.bg,
+                    '--pill-text': sc.text,
+                    '--pill-dark-bg': sc.darkBg,
+                    '--pill-dark-text': sc.darkText,
+                    backgroundColor: 'var(--pill-bg)',
+                    color: 'var(--pill-text)',
+                    height: 22,
+                    lineHeight: '22px',
+                  } as React.CSSProperties}
+                >
+                  {choice.title}
+                </span>
+                {isSelected && (
+                  <Check size={14} style={{ color: colors.primary, marginLeft: 'auto' }} />
+                )}
+              </button>
+            );
+          })}
+          {!exactMatch && search.trim() && (
+            <button
+              className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors text-xs"
+              style={{ color: colors.primary }}
+              onClick={handleCreateOption}
+            >
+              Create &ldquo;{search.trim()}&rdquo;
             </button>
-          );
-        })}
-        {!exactMatch && search.trim() && (
-          <button
-            className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 transition-colors text-xs text-[#3366FF]"
-            onClick={handleCreateOption}
-          >
-            Create &ldquo;{search.trim()}&rdquo;
-          </button>
+          )}
+          {filtered.length === 0 && !search.trim() && (
+            <div className="px-3 py-2 text-xs" style={{ color: colors.muted }}>No options yet</div>
+          )}
+        </div>
+        {value && (
+          <>
+            <div style={{ height: 1, backgroundColor: colors.border }} />
+            <button
+              className="w-full text-left px-3 py-1.5 text-xs transition-colors shrink-0"
+              style={{ color: colors.muted }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              onClick={() => onCommit(null)}
+            >
+              Clear
+            </button>
+          </>
         )}
-        {filtered.length === 0 && !search.trim() && (
-          <div className="px-3 py-2 text-xs text-[#9AA2AF]">No options found</div>
-        )}
-      </div>
-      {value && (
-        <>
-          <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)]" />
-          <button
-            className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] text-xs text-[#9AA2AF] transition-colors shrink-0"
-            onClick={() => onCommit(null)}
-          >
-            Clear
-          </button>
-        </>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -452,38 +543,25 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
     Array.isArray(value) ? value : value ? [value] : [],
   );
   const [search, setSearch] = useState('');
-  const ref = useRef<HTMLDivElement>(null);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const searchRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setTimeout(() => searchRef.current?.focus(), 0);
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onCommit(selected);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [onCommit, selected]);
-
-  const toggle = (title: string) => {
-    setSelected((prev) =>
-      prev.includes(title) ? prev.filter((t) => t !== title) : [...prev, title],
-    );
-  };
+  const colors = useGridColors();
 
   const filtered = search
-    ? localChoices.filter((c: SelectChoice) => c.title.toLowerCase().includes(search.toLowerCase()))
+    ? localChoices.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
     : localChoices;
 
   const exactMatch = search
-    ? localChoices.some((c: SelectChoice) => c.title.toLowerCase() === search.trim().toLowerCase())
+    ? localChoices.some((c) => c.title.toLowerCase() === search.trim().toLowerCase())
     : true;
 
-  const handleCreateOption = () => {
+  const toggle = useCallback((title: string) => {
+    setSelected((prev) =>
+      prev.includes(title) ? prev.filter((t) => t !== title) : [...prev, title],
+    );
+  }, []);
+
+  const handleCreateOption = useCallback(() => {
     const trimmed = search.trim();
     if (!trimmed) return;
     const randomColor = SELECT_COLOR_NAMES[Math.floor(Math.random() * SELECT_COLOR_NAMES.length)];
@@ -493,79 +571,172 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
     onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices } as any);
     setSelected((prev) => [...prev, trimmed]);
     setSearch('');
-  };
+  }, [search, localChoices, field.id, field.table_id, onFieldUpdate]);
+
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onCommit(selectedRef.current);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex((prev) => Math.min(prev + 1, filtered.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (focusedIndex >= 0 && focusedIndex < filtered.length) {
+        toggle(filtered[focusedIndex].title);
+      } else if (!exactMatch && search.trim()) {
+        handleCreateOption();
+      }
+    }
+  }, [onCommit, filtered, focusedIndex, exactMatch, search, handleCreateOption, toggle]);
 
   return (
-    <div
-      ref={ref}
-      className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg min-w-[200px] max-h-[280px] flex flex-col animate-[panelSlideDown_150ms_ease-out]"
-    >
-      <div className="px-2 pt-2 pb-1 shrink-0">
-        <input
-          ref={searchRef}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Escape') { onCommit(selected); } }}
-          placeholder="Find or create an option"
-          className="w-full px-2 py-1 text-xs rounded border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:border-[#3366FF]"
-        />
-      </div>
-      <div className="overflow-y-auto py-1">
-        {filtered.map((choice: SelectChoice) => {
-          const color = getPillColor(choice.color);
-          const isChecked = selected.includes(choice.title);
-          return (
-            <button
-              key={choice.title}
-              className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 transition-colors"
-              onClick={() => toggle(choice.title)}
-            >
-              <span
-                className="inline-flex items-center justify-center w-4 h-4 rounded border text-[10px]"
-                style={{
-                  borderColor: isChecked ? '#3366FF' : '#9AA2AF',
-                  backgroundColor: isChecked ? '#3366FF' : 'transparent',
-                  color: isChecked ? '#fff' : 'transparent',
-                }}
-              >
-                {isChecked ? '✓' : ''}
-              </span>
-              <span
-                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-                style={{ backgroundColor: color.bg, color: color.text }}
-              >
-                {choice.title}
-              </span>
-            </button>
-          );
-        })}
-        {!exactMatch && search.trim() && (
-          <button
-            className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 transition-colors text-xs text-[#3366FF]"
-            onClick={handleCreateOption}
-          >
-            Create &ldquo;{search.trim()}&rdquo;
-          </button>
+    <Popover open onOpenChange={(open) => { if (!open) onCommit(selected); }}>
+      <PopoverTrigger asChild>
+        <div className="w-full h-full" />
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={1}
+        className="p-0 w-auto"
+        style={{
+          minWidth: 220,
+          maxHeight: 300,
+          backgroundColor: colors.cellEditorBg,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 8,
+        }}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          setTimeout(() => searchRef.current?.focus(), 0);
+        }}
+      >
+        {selected.length > 0 && (
+          <div className="flex flex-wrap gap-1 px-2 pt-2">
+            {selected.map((title) => {
+              const choice = localChoices.find((c) => c.title === title);
+              const sc = getSelectColorStyle(choice?.color || 'grayLight2');
+              return (
+                <span
+                  key={title}
+                  className="inline-flex items-center gap-1 px-2 rounded-full text-xs font-medium select-pill"
+                  style={{
+                    '--pill-bg': sc.bg,
+                    '--pill-text': sc.text,
+                    '--pill-dark-bg': sc.darkBg,
+                    '--pill-dark-text': sc.darkText,
+                    backgroundColor: 'var(--pill-bg)',
+                    color: 'var(--pill-text)',
+                    height: 22,
+                    lineHeight: '22px',
+                  } as React.CSSProperties}
+                >
+                  {title}
+                  <X
+                    size={12}
+                    className="cursor-pointer opacity-60 hover:opacity-100"
+                    onClick={() => toggle(title)}
+                  />
+                </span>
+              );
+            })}
+          </div>
         )}
-        {filtered.length === 0 && !search.trim() && (
-          <div className="px-3 py-2 text-xs text-[#9AA2AF]">No options found</div>
-        )}
-      </div>
-      {selected.length > 0 && (
-        <>
-          <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)]" />
-          <button
-            className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] text-xs text-[#9AA2AF] transition-colors shrink-0"
-            onClick={() => {
-              setSelected([]);
-              onCommit([]);
+        <div className="px-2 pt-2 pb-1 shrink-0">
+          <input
+            ref={searchRef}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Find or create an option"
+            className="w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
+            style={{
+              border: `1px solid ${colors.border}`,
+              color: colors.text,
             }}
-          >
-            Clear all
-          </button>
-        </>
-      )}
-    </div>
+          />
+        </div>
+        <div className="overflow-y-auto py-1" style={{ maxHeight: 200 }}>
+          {filtered.map((choice, idx) => {
+            const sc = getSelectColorStyle(choice.color);
+            const isFocused = idx === focusedIndex;
+            const isChecked = selected.includes(choice.title);
+            return (
+              <button
+                key={choice.title}
+                className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors"
+                style={{
+                  backgroundColor: isFocused ? colors.hoverRow : 'transparent',
+                }}
+                onMouseEnter={() => setFocusedIndex(idx)}
+                onClick={() => toggle(choice.title)}
+              >
+                <span
+                  className="inline-flex items-center justify-center w-4 h-4 rounded border text-[10px]"
+                  style={{
+                    borderColor: isChecked ? colors.primary : colors.muted,
+                    backgroundColor: isChecked ? colors.primary : 'transparent',
+                    color: isChecked ? '#fff' : 'transparent',
+                  }}
+                >
+                  {isChecked ? '✓' : ''}
+                </span>
+                <span
+                  className="inline-flex items-center px-2.5 rounded-full text-xs font-medium select-pill"
+                  style={{
+                    '--pill-bg': sc.bg,
+                    '--pill-text': sc.text,
+                    '--pill-dark-bg': sc.darkBg,
+                    '--pill-dark-text': sc.darkText,
+                    backgroundColor: 'var(--pill-bg)',
+                    color: 'var(--pill-text)',
+                    height: 22,
+                    lineHeight: '22px',
+                  } as React.CSSProperties}
+                >
+                  {choice.title}
+                </span>
+              </button>
+            );
+          })}
+          {!exactMatch && search.trim() && (
+            <button
+              className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors text-xs"
+              style={{ color: colors.primary }}
+              onClick={handleCreateOption}
+            >
+              Create &ldquo;{search.trim()}&rdquo;
+            </button>
+          )}
+          {filtered.length === 0 && !search.trim() && (
+            <div className="px-3 py-2 text-xs" style={{ color: colors.muted }}>No options yet</div>
+          )}
+        </div>
+        {selected.length > 0 && (
+          <>
+            <div style={{ height: 1, backgroundColor: colors.border }} />
+            <button
+              className="w-full text-left px-3 py-1.5 text-xs transition-colors shrink-0"
+              style={{ color: colors.muted }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              onClick={() => {
+                setSelected([]);
+                onCommit([]);
+              }}
+            >
+              Clear all
+            </button>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -711,28 +882,86 @@ export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEdit
 }
 
 export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const initial = value ? new Date(value).toISOString().slice(0, 16) : '';
-  const [dt, setDt] = useState(initial);
-  const ref = useRef<HTMLInputElement>(null);
+  const initialDate = value ? new Date(value) : undefined;
+  const initialHour = initialDate ? String(initialDate.getHours()).padStart(2, '0') : '12';
+  const initialMin = initialDate ? String(initialDate.getMinutes()).padStart(2, '0') : '00';
+  const [selected, setSelected] = useState<Date | undefined>(initialDate);
+  const [hour, setHour] = useState(initialHour);
+  const [minute, setMinute] = useState(initialMin);
+  const colors = useGridColors();
 
-  useEffect(() => {
-    ref.current?.focus();
-  }, []);
+  const commitDateTime = useCallback((day: Date | undefined, h: string, m: string) => {
+    if (!day) { onCommit(null); return; }
+    const d = new Date(day);
+    d.setHours(parseInt(h, 10) || 0, parseInt(m, 10) || 0, 0, 0);
+    onCommit(d.toISOString());
+  }, [onCommit]);
 
   return (
-    <input
-      ref={ref}
-      type="datetime-local"
-      value={dt}
-      onChange={(e) => setDt(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(dt ? new Date(dt).toISOString() : null);
-        if (e.key === 'Escape') onCancel();
-      }}
-      onBlur={() => onCommit(dt ? new Date(dt).toISOString() : null)}
-      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
-      style={{ fontSize: 13, color: 'inherit' }}
-    />
+    <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <PopoverTrigger asChild>
+        <div className="w-full h-full" />
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={1}
+        className="p-0 w-auto"
+        style={{
+          backgroundColor: colors.cellEditorBg,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 8,
+        }}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <Calendar
+          mode="single"
+          selected={selected}
+          onSelect={(day) => setSelected(day)}
+          defaultMonth={selected || new Date()}
+        />
+        <div style={{ height: 1, backgroundColor: colors.border }} />
+        <div className="flex items-center gap-2 px-3 py-2">
+          <span className="text-xs" style={{ color: colors.muted }}>Time</span>
+          <input
+            type="number"
+            min={0}
+            max={23}
+            value={hour}
+            onChange={(e) => setHour(e.target.value)}
+            className="w-10 text-center text-xs rounded outline-none bg-transparent"
+            style={{ border: `1px solid ${colors.border}`, color: colors.text, padding: '2px 4px' }}
+          />
+          <span style={{ color: colors.muted }}>:</span>
+          <input
+            type="number"
+            min={0}
+            max={59}
+            value={minute}
+            onChange={(e) => setMinute(e.target.value)}
+            className="w-10 text-center text-xs rounded outline-none bg-transparent"
+            style={{ border: `1px solid ${colors.border}`, color: colors.text, padding: '2px 4px' }}
+          />
+        </div>
+        <div style={{ height: 1, backgroundColor: colors.border }} />
+        <div className="flex items-center justify-between px-3 py-2">
+          <button
+            className="text-xs transition-colors"
+            style={{ color: colors.muted }}
+            onClick={() => onCommit(null)}
+          >
+            Clear
+          </button>
+          <button
+            className="text-xs px-3 py-1 rounded"
+            style={{ backgroundColor: colors.primary, color: '#fff' }}
+            onClick={() => commitDateTime(selected, hour, minute)}
+          >
+            Done
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
