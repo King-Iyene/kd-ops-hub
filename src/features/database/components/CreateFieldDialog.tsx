@@ -9,7 +9,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Plus, X, Search } from 'lucide-react';
+import { Plus, X, Search, GripVertical } from 'lucide-react';
 import { useCreateField } from '../hooks';
 import { useCreateLink } from '../hooks/useLinks';
 import { useTables } from '../hooks/useTables';
@@ -313,7 +313,6 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
         ui_type: uiType,
         options: Object.keys(options).length > 0 ? options : undefined,
         description: description.trim() || undefined,
-        is_required: undefined,
       });
       setName('');
       setUiType('SingleLineText');
@@ -355,12 +354,16 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
 
           <div className="space-y-1.5">
             <Label htmlFor="field-desc" className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Description <span className="text-[#9AA2AF]">(optional)</span></Label>
-            <Input
+            <textarea
               id="field-desc"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value.length <= 500) setDescription(e.target.value);
+              }}
               placeholder="Describe this field..."
-              className="h-8 text-xs"
+              className="w-full rounded-md border border-[#E7E7E9] bg-white dark:bg-[hsl(200,30%,10%)] px-3 py-2 text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:outline-none focus:ring-2 focus:ring-[#3366FF] focus:border-transparent resize-none"
+              rows={2}
+              maxLength={500}
             />
           </div>
 
@@ -373,6 +376,14 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                   type="text"
                   value={typeSearch}
                   onChange={(e) => setTypeSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      if (typeSearch) {
+                        e.stopPropagation();
+                        setTypeSearch('');
+                      }
+                    }
+                  }}
                   placeholder="Search field types..."
                   className="w-full bg-transparent text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] outline-none"
                 />
@@ -430,6 +441,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                   const sc = SELECT_COLORS[choice.color] || SELECT_COLORS.grayLight2;
                   return (
                     <div key={choice.title} className="flex items-center gap-2 group">
+                      <GripVertical size={14} className="text-[#9AA2AF] cursor-grab shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                       <span
                         className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium flex-1 min-w-0 truncate select-pill"
                         style={{
@@ -483,7 +495,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 <Input
                   value={newChoiceText}
                   onChange={(e) => setNewChoiceText(e.target.value)}
-                  placeholder="Add an option"
+                  placeholder="Add an option..."
                   className="h-8 text-xs flex-1"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {

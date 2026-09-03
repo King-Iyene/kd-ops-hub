@@ -667,9 +667,6 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
               Create &ldquo;{search.trim()}&rdquo;
             </button>
           )}
-          {filtered.length === 0 && !search.trim() && (
-            <div className="px-3 py-2 text-xs" style={{ color: colors.muted }}>No options yet</div>
-          )}
         </div>
         {selected.length > 0 && (
           <>
@@ -757,7 +754,6 @@ export function LinksCellEditor({ onCancel }: CellEditorProps) {
 export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const ref = useRef<HTMLTextAreaElement>(null);
-  const { valid, errors } = useEditorValidation(text, field);
 
   useEffect(() => {
     ref.current?.focus();
@@ -781,15 +777,8 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
         onBlur={() => onCommit(text)}
         rows={4}
         className="w-full p-2 outline-none resize-y border-none bg-white dark:bg-[hsl(200,30%,10%)]"
-        style={{
-          fontSize: 14,
-          color: 'inherit',
-          border: valid ? 'none' : '2px solid #EF4444',
-        }}
+        style={{ fontSize: 14, color: 'inherit' }}
       />
-      {!valid && (
-        <div className="px-2 py-1 text-[11px] text-red-600">{errors[0]}</div>
-      )}
     </div>
   );
 }
@@ -797,8 +786,6 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
 export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const [num, setNum] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
-  const numVal = num === '' ? null : Number(num);
-  const { valid, errors } = useEditorValidation(numVal, field);
 
   useEffect(() => {
     ref.current?.focus();
@@ -806,31 +793,20 @@ export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEdit
   }, []);
 
   return (
-    <div className="relative w-full h-full">
-      <input
-        ref={ref}
-        type="number"
-        step="any"
-        value={num}
-        onChange={(e) => setNum(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
-          if (e.key === 'Escape') onCancel();
-        }}
-        onBlur={() => onCommit(num === '' ? null : Number(num))}
-        className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
-        style={{
-          fontSize: 14,
-          color: 'inherit',
-          border: valid ? 'none' : '2px solid #EF4444',
-        }}
-      />
-      {!valid && (
-        <div className="absolute right-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
-          {errors[0]}
-        </div>
-      )}
-    </div>
+    <input
+      ref={ref}
+      type="number"
+      step="any"
+      value={num}
+      onChange={(e) => setNum(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
+        if (e.key === 'Escape') onCancel();
+      }}
+      onBlur={() => onCommit(num === '' ? null : Number(num))}
+      className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
+      style={{ fontSize: 14, color: 'inherit' }}
+    />
   );
 }
 

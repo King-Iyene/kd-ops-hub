@@ -9,7 +9,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Plus, X, AlertTriangle } from 'lucide-react';
+import { Plus, X, AlertTriangle, GripVertical } from 'lucide-react';
 import { useUpdateField, useChangeFieldType } from '../hooks';
 import type { FieldMeta, SelectChoice, UIType } from '../types';
 import { PILL_COLORS, SELECT_COLORS, SELECT_COLOR_NAMES, VIRTUAL_TYPES, getConvertibleTypes } from '../types';
@@ -315,6 +315,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                   const sc = SELECT_COLORS[choice.color] || SELECT_COLORS.grayLight2;
                   return (
                     <div key={choice.title} className="flex items-center gap-2 group">
+                      <GripVertical size={14} className="text-[#9AA2AF] cursor-grab shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                       <span
                         className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium flex-1 min-w-0 truncate select-pill"
                         style={{
@@ -368,7 +369,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 <Input
                   value={newChoiceText}
                   onChange={(e) => setNewChoiceText(e.target.value)}
-                  placeholder="Add an option"
+                  placeholder="Add an option..."
                   className="h-8 text-xs flex-1"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
