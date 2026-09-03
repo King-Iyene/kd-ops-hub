@@ -1201,7 +1201,8 @@ export default function GridView({
                 const record = item.record;
                 const rowNum = item.rowNum;
                 const isRowSelected = selectedCellId?.startsWith(record.id + ':');
-                const rowBg = isRowSelected ? '#EBF0FF' : getRowColor(record);
+                const rowColor = getRowColor(record);
+                const rowBg = isRowSelected ? '#EBF0FF' : undefined;
                 return (
                   <div
                     key={record.id}
@@ -1218,9 +1219,15 @@ export default function GridView({
                       e.preventDefault();
                       setRowMenu({ x: e.clientX, y: e.clientY, record });
                     }}
-                    onMouseEnter={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = rowBg || GRID_COLORS.headerBg; }}
-                    onMouseLeave={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = rowBg || ''; }}
+                    onMouseEnter={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = GRID_COLORS.headerBg; }}
+                    onMouseLeave={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
                   >
+                    {rowColor && (
+                      <div
+                        className="absolute left-0 top-0 h-full z-20 pointer-events-none"
+                        style={{ width: 3, backgroundColor: rowColor }}
+                      />
+                    )}
                     <div
                       className="sticky left-0 z-10 flex items-center justify-center shrink-0 group/num"
                       style={{
@@ -1287,7 +1294,8 @@ export default function GridView({
               const record = records[virtualRow.index];
               const rowNum = page * pageSize + virtualRow.index + 1;
               const isRowSelected = selectedCellId?.startsWith(record.id + ':');
-              const rowBgUngrouped = isRowSelected ? '#EBF0FF' : getRowColor(record);
+              const rowColorUngrouped = getRowColor(record);
+              const rowBgUngrouped = isRowSelected ? '#EBF0FF' : undefined;
 
               return (
                 <div
@@ -1307,15 +1315,21 @@ export default function GridView({
                   }}
                   onMouseEnter={(e) => {
                     if (!isRowSelected) {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = rowBgUngrouped || GRID_COLORS.headerBg;
+                      (e.currentTarget as HTMLElement).style.backgroundColor = GRID_COLORS.headerBg;
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isRowSelected) {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = rowBgUngrouped || '';
+                      (e.currentTarget as HTMLElement).style.backgroundColor = '';
                     }
                   }}
                 >
+                  {rowColorUngrouped && (
+                    <div
+                      className="absolute left-0 top-0 h-full z-20 pointer-events-none"
+                      style={{ width: 3, backgroundColor: rowColorUngrouped }}
+                    />
+                  )}
                   {/* Row number with checkbox + expand icon + drag handle */}
                   <div
                     className="sticky left-0 z-10 flex items-center justify-center shrink-0 group/num"
