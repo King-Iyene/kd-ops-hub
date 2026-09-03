@@ -976,7 +976,7 @@ export default function GridView({
               style={{
                 height: 28,
                 backgroundColor: '#F4F4F5',
-                borderBottom: '1px solid #E7E7E9',
+                borderBottom: `1px solid ${GRID_COLORS.border}`,
                 fontSize: 11,
                 color: GRID_COLORS.muted,
               }}
@@ -1056,7 +1056,7 @@ export default function GridView({
                       position: 'sticky' as const,
                       left: stickyLeft,
                       zIndex: 25,
-                      borderRight: isLastFrozen ? '3px solid #D0D0D4' : undefined,
+                      borderRight: isLastFrozen ? `3px solid ${GRID_COLORS.border}` : undefined,
                     } : {}),
                   }}
                   onDragOver={(e) => handleColDragOver(e, colIdx)}
@@ -1137,7 +1137,7 @@ export default function GridView({
                         height: GROUP_HEADER_HEIGHT,
                         top: virtualRow.start,
                         backgroundColor: item.depth === 0 ? GRID_COLORS.groupHeaderBg : GRID_COLORS.headerBg,
-                        borderBottom: '1px solid #E7E7E9',
+                        borderBottom: `1px solid ${GRID_COLORS.border}`,
                         borderLeft: item.depth > 0 ? `3px solid ${GRID_COLORS.primary}40` : undefined,
                         paddingLeft: 12 + indent,
                       }}
@@ -1202,7 +1202,7 @@ export default function GridView({
                 const rowNum = item.rowNum;
                 const isRowSelected = selectedCellId?.startsWith(record.id + ':');
                 const rowColor = getRowColor(record);
-                const rowBg = isRowSelected ? '#EBF0FF' : undefined;
+                const rowBg = isRowSelected ? GRID_COLORS.selectedRowBg : undefined;
                 return (
                   <div
                     key={record.id}
@@ -1234,8 +1234,8 @@ export default function GridView({
                         width: ROW_NUMBER_WIDTH,
                         minWidth: ROW_NUMBER_WIDTH,
                         backgroundColor: selectedRowIds.has(record.id) ? GRID_COLORS.selectedRowBg : isRowSelected ? GRID_COLORS.selectedRowBg : GRID_COLORS.headerBg,
-                        borderRight: '1px solid #E7E7E9',
-                        borderBottom: '1px solid #E7E7E9',
+                        borderRight: `1px solid ${GRID_COLORS.border}`,
+                        borderBottom: `1px solid ${GRID_COLORS.border}`,
                         fontSize: 11,
                         color: GRID_COLORS.muted,
                       }}
@@ -1248,7 +1248,7 @@ export default function GridView({
                           <div className="hidden group-hover/row:flex items-center gap-1">
                             <input type="checkbox" className="w-3.5 h-3.5 accent-[#3366FF]" checked={false} onChange={() => toggleRowSelection(record.id)} aria-label={`Select row ${rowNum}`} />
                             {onExpandRow && (
-                              <button className="p-0.5 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); onExpandRow(record); }} aria-label={`Expand row ${rowNum}`}>
+                              <button className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)]" onClick={(e) => { e.stopPropagation(); onExpandRow(record); }} aria-label={`Expand row ${rowNum}`}>
                                 <Expand size={12} />
                               </button>
                             )}
@@ -1272,7 +1272,7 @@ export default function GridView({
                             position: 'sticky',
                             left: cellLeft,
                             zIndex: 5,
-                            borderRight: isLastFroz ? '3px solid #D0D0D4' : undefined,
+                            borderRight: isLastFroz ? `3px solid ${GRID_COLORS.border}` : undefined,
                           } : undefined}
                         >
                           <div
@@ -1295,7 +1295,7 @@ export default function GridView({
               const rowNum = page * pageSize + virtualRow.index + 1;
               const isRowSelected = selectedCellId?.startsWith(record.id + ':');
               const rowColorUngrouped = getRowColor(record);
-              const rowBgUngrouped = isRowSelected ? '#EBF0FF' : undefined;
+              const rowBgUngrouped = isRowSelected ? GRID_COLORS.selectedRowBg : undefined;
 
               return (
                 <div
@@ -1337,8 +1337,8 @@ export default function GridView({
                       width: ROW_NUMBER_WIDTH,
                       minWidth: ROW_NUMBER_WIDTH,
                       backgroundColor: selectedRowIds.has(record.id) ? GRID_COLORS.selectedRowBg : isRowSelected ? GRID_COLORS.selectedRowBg : GRID_COLORS.headerBg,
-                      borderRight: '1px solid #E7E7E9',
-                      borderBottom: '1px solid #E7E7E9',
+                      borderRight: `1px solid ${GRID_COLORS.border}`,
+                      borderBottom: `1px solid ${GRID_COLORS.border}`,
                       borderTop: dropTargetIdx === virtualRow.index ? '2px solid #3366FF' : undefined,
                       fontSize: 11,
                       color: GRID_COLORS.muted,
@@ -1378,7 +1378,7 @@ export default function GridView({
                           />
                           {onExpandRow && (
                             <button
-                              className="p-0.5 rounded hover:bg-gray-200"
+                              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)]"
                               onClick={(e) => { e.stopPropagation(); onExpandRow(record); }}
                               aria-label={`Expand row ${rowNum}`}
                             >
@@ -1386,7 +1386,7 @@ export default function GridView({
                             </button>
                           )}
                           <button
-                            className="p-0.5 rounded hover:bg-gray-200"
+                            className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)]"
                             onClick={(e) => {
                               e.stopPropagation();
                               setRowMenu({ x: e.clientX, y: e.clientY, record });
@@ -1416,7 +1416,7 @@ export default function GridView({
                           position: 'sticky',
                           left: cellLeft,
                           zIndex: 5,
-                          borderRight: isLastFroz ? '3px solid #D0D0D4' : undefined,
+                          borderRight: isLastFroz ? `3px solid ${GRID_COLORS.border}` : undefined,
                         } : undefined}
                       >
                         <div
@@ -1487,7 +1487,7 @@ export default function GridView({
             className="flex items-center w-full text-left cursor-pointer transition-colors"
             style={{
               height: rowHeightPx,
-              borderBottom: '1px solid #E7E7E9',
+              borderBottom: `1px solid ${GRID_COLORS.border}`,
             }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = GRID_COLORS.hoverRow)}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = GRID_COLORS.bg)}
