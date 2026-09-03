@@ -266,6 +266,34 @@ async function handleDropColumn(
   }
 }
 
+async function handleDropColumnAndMeta(
+  pool: Pool,
+  body: { schemaName: string; tableName: string; columnName: string; fieldId: string },
+): Promise<void> {
+  const schema = sanitizeIdentifier(body.schemaName);
+  const table = sanitizeIdentifier(body.tableName);
+  const column = sanitizeIdentifier(body.columnName);
+  validateSchemaAccess(body.schemaName);
+
+  if (!body.fieldId) throw new Error('fieldId is required');
+
+  const conn = await pool.connect();
+  try {
+    await conn.queryObject('BEGIN');
+    await conn.queryObject(`ALTER TABLE ${schema}.${table} DROP COLUMN ${column}`);
+    await conn.queryObject(
+      `DELETE FROM nc_meta.fields WHERE id = $1`,
+      [body.fieldId],
+    );
+    await conn.queryObject('COMMIT');
+  } catch (err) {
+    await conn.queryObject('ROLLBACK');
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
 async function handleRenameColumn(
   pool: Pool,
   body: { schemaName: string; tableName: string; oldName: string; newName: string },
@@ -492,6 +520,9 @@ async function handleAlterColumnType(
 // Main handler
 // ---------------------------------------------------------------------------
 
+const dbUrl = Deno.env.get('SUPABASE_DB_URL')!;
+const pool = new Pool(dbUrl, 1, true);
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -503,9 +534,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const dbUrl = Deno.env.get('SUPABASE_DB_URL')!;
-
-  const pool = new Pool(dbUrl, 1, true);
 
   try {
     // Authenticate
@@ -530,6 +558,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
         break;
       case 'dropColumn':
         await handleDropColumn(pool, body);
+        break;
+      case 'dropColumnAndMeta':
+        await handleDropColumnAndMeta(pool, body);
         break;
       case 'renameColumn':
         await handleRenameColumn(pool, body);
@@ -576,7 +607,5 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
     console.error('DDL Executor error:', err);
     return json({ success: false, error: (err as Error).message }, 500);
-  } finally {
-    await pool.end();
   }
 });

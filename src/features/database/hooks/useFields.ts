@@ -291,29 +291,29 @@ export function useDeleteField() {
 
       const isVirtual = VIRTUAL_TYPES.includes(field.ui_type as UIType);
 
-      // Drop the actual column if not virtual
       if (!isVirtual && field.pg_column_name) {
         const ctx = await getTableContext(input.table_id);
 
         const { error: ddlError } = await supabase.functions.invoke('ddl-executor', {
           body: {
-            action: 'dropColumn',
+            action: 'dropColumnAndMeta',
             schemaName: ctx.schemaName,
             tableName: ctx.pgTableName,
             columnName: field.pg_column_name,
+            fieldId: input.id,
           },
         });
 
         if (ddlError) throw ddlError;
+      } else {
+        const { error: deleteError } = await supabase
+          .schema('nc_meta')
+          .from('fields')
+          .delete()
+          .eq('id', input.id);
+
+        if (deleteError) throw deleteError;
       }
-
-      const { error: deleteError } = await supabase
-        .schema('nc_meta')
-        .from('fields')
-        .delete()
-        .eq('id', input.id);
-
-      if (deleteError) throw deleteError;
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });

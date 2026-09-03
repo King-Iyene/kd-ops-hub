@@ -622,13 +622,33 @@ export function useDeleteRecord() {
 
       if (error) throw error;
     },
+    onMutate: async (variables) => {
+      const queryKey = ['nc', 'records', variables.baseId, variables.tableId];
+      await qc.cancelQueries({ queryKey });
+      const previous = qc.getQueriesData<RecordsResult>({ queryKey });
+      qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          records: old.records.filter((r) => r.id !== variables.recordId),
+          totalCount: old.totalCount - 1,
+        };
+      });
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        for (const [key, data] of context.previous) {
+          qc.setQueryData(key, data);
+        }
+      }
+      toast.error('Failed to delete record');
+    },
     onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
-      toast.success('Record deleted');
       fireAutomations('record.deleted', variables.baseId, variables.tableId, { id: variables.recordId });
     },
-    onError: () => {
-      toast.error('Failed to delete record');
+    onSettled: (_data, _error, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
     },
   });
 }
@@ -703,7 +723,7 @@ export function useBulkUpdateRecords() {
     },
     onSuccess: (data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
-      toast.success(`${data.updated} record${data.updated !== 1 ? 's' : ''} updated`);
+      // silent — no toast for bulk updates
     },
     onError: () => {
       toast.error('Failed to update records');
@@ -730,12 +750,31 @@ export function useBulkDeleteRecords() {
 
       if (error) throw error;
     },
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
-      toast.success(`${variables.recordIds.length} record${variables.recordIds.length > 1 ? 's' : ''} deleted`);
+    onMutate: async (variables) => {
+      const queryKey = ['nc', 'records', variables.baseId, variables.tableId];
+      await qc.cancelQueries({ queryKey });
+      const idsSet = new Set(variables.recordIds);
+      const previous = qc.getQueriesData<RecordsResult>({ queryKey });
+      qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          records: old.records.filter((r) => !idsSet.has(r.id)),
+          totalCount: old.totalCount - variables.recordIds.length,
+        };
+      });
+      return { previous };
     },
-    onError: () => {
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        for (const [key, data] of context.previous) {
+          qc.setQueryData(key, data);
+        }
+      }
       toast.error('Failed to delete records');
+    },
+    onSettled: (_data, _error, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
     },
   });
 }

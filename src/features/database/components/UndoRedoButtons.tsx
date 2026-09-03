@@ -1,29 +1,13 @@
-import { useEffect } from 'react';
 import { Undo2, Redo2 } from 'lucide-react';
 import { useUndoStore } from '../lib/undo';
+import { useGridColors } from '../hooks/useGridColors';
 
 export function UndoRedoButtons() {
   const undo = useUndoStore((s) => s.undo);
   const redo = useUndoStore((s) => s.redo);
   const canUndo = useUndoStore((s) => s.stack.length > 0 && !s._busy);
   const canRedo = useUndoStore((s) => s.redoStack.length > 0 && !s._busy);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
-      if (!mod || e.key.toLowerCase() !== 'z') return;
-
-      e.preventDefault();
-      if (e.shiftKey) {
-        redo();
-      } else {
-        undo();
-      }
-    };
-
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [undo, redo]);
+  const colors = useGridColors();
 
   return (
     <div className="flex items-center gap-0.5">
@@ -31,7 +15,10 @@ export function UndoRedoButtons() {
         type="button"
         onClick={() => undo()}
         disabled={!canUndo}
-        className="inline-flex items-center justify-center h-7 w-7 rounded-md text-[#475569] hover:bg-gray-100 disabled:opacity-40 disabled:pointer-events-none"
+        className="inline-flex items-center justify-center h-7 w-7 rounded-md disabled:opacity-40 disabled:pointer-events-none"
+        style={{ color: colors.muted }}
+        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.headerBg)}
+        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
         title="Undo (Ctrl+Z)"
       >
         <Undo2 size={14} />
@@ -40,7 +27,10 @@ export function UndoRedoButtons() {
         type="button"
         onClick={() => redo()}
         disabled={!canRedo}
-        className="inline-flex items-center justify-center h-7 w-7 rounded-md text-[#475569] hover:bg-gray-100 disabled:opacity-40 disabled:pointer-events-none"
+        className="inline-flex items-center justify-center h-7 w-7 rounded-md disabled:opacity-40 disabled:pointer-events-none"
+        style={{ color: colors.muted }}
+        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.headerBg)}
+        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
         title="Redo (Ctrl+Shift+Z)"
       >
         <Redo2 size={14} />

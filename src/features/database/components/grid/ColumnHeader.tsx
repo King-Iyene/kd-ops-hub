@@ -4,6 +4,7 @@ import type { FieldMeta } from '@/features/database/types';
 import { getFieldTypeIcon } from './field-icons';
 import { useDatabaseUI } from '../../lib/store';
 import { useGridColors } from '../../hooks/useGridColors';
+import { confirm } from '@/hooks/use-confirm';
 
 interface ColumnHeaderProps {
   field: FieldMeta;
@@ -92,9 +93,9 @@ export const ColumnHeader = React.memo(function ColumnHeader({
     setContextMenu(null);
   }, [field.id, toggleHiddenField]);
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (!onDelete) return;
-    const confirmed = window.confirm(`Delete field "${field.name}"? This cannot be undone.`);
+    const confirmed = await confirm({ description: `Delete field "${field.name}"? This cannot be undone.`, variant: 'destructive' });
     if (confirmed) onDelete(field.id);
     setContextMenu(null);
   }, [field.id, field.name, onDelete]);
