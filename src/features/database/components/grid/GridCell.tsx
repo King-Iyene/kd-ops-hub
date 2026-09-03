@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
+import { Expand } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { getCellRenderer } from './cell-renderers';
@@ -124,6 +125,18 @@ export const GridCell = React.memo(function GridCell({
       onKeyDown={handleKeyDown}
       tabIndex={isSelected ? 0 : -1}
     >
+      {field.is_primary && !isEditing && (
+        <span
+          className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity mr-1 text-[#9AA2AF] hover:text-[#3366FF] cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            const expandEvent = new CustomEvent('grid:expand-row', { detail: record });
+            window.dispatchEvent(expandEvent);
+          }}
+        >
+          <Expand size={12} />
+        </span>
+      )}
       {isEditing && Editor ? (
         <Editor
           value={value}

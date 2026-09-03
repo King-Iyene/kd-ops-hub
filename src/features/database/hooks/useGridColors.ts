@@ -7,12 +7,13 @@ const LIGHT = {
   border: '#E7E7E9',
   text: '#374151',
   muted: '#6A7184',
-  hoverRow: '#F9F9FA',
+  hoverRow: '#F5F7FA',
   groupHeaderBg: '#F4F4F5',
   primary: '#3366FF',
   cellEditorBg: '#FFFFFF',
   cellEditorText: '#0F172A',
   selectedRowBg: '#EBF0FF',
+  altRowBg: '#FAFBFC',
 };
 
 const DARK = {
@@ -24,9 +25,10 @@ const DARK = {
   hoverRow: 'hsl(220, 40%, 15%)',
   groupHeaderBg: 'hsl(200, 25%, 13%)',
   primary: '#3366FF',
-  cellEditorBg: 'hsl(200, 30%, 10%)',
-  cellEditorText: 'hsl(200, 25%, 92%)',
-  selectedRowBg: 'hsl(220, 50%, 18%)',
+  cellEditorBg: 'hsl(220, 20%, 12%)',
+  cellEditorText: 'hsl(210, 20%, 92%)',
+  selectedRowBg: 'hsl(220, 40%, 18%)',
+  altRowBg: 'hsl(220, 20%, 11%)',
 };
 
 export type GridColorTokens = typeof LIGHT;

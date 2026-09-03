@@ -74,7 +74,7 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
   const text = String(value);
   const display = text.length > 80 ? text.slice(0, 80) + '...' : text;
   return (
-    <span className="truncate" style={{ color: '#64748B' }}>
+    <span className="truncate">
       {display}
     </span>
   );
@@ -526,7 +526,9 @@ export function getCellRenderer(uiType: string) {
       return CurrencyCellRenderer;
     case 'Date':
     case 'DateTime':
+      return DateCellRenderer;
     case 'Year':
+      return YearCellRenderer;
     case 'Time':
       return TimeCellRenderer;
     case 'Duration':
