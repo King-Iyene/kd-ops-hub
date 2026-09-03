@@ -121,7 +121,10 @@ export const GridCell = React.memo(function GridCell({
     >
       {field.is_primary && !isEditing && (
         <span
-          className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity mr-1 text-[#9AA2AF] hover:text-[#3366FF] cursor-pointer"
+          className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity mr-1 cursor-pointer"
+          style={{ color: GRID_COLORS.muted }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = GRID_COLORS.primary)}
+          onMouseLeave={(e) => (e.currentTarget.style.color = GRID_COLORS.muted)}
           onClick={(e) => {
             e.stopPropagation();
             const expandEvent = new CustomEvent('grid:expand-row', { detail: record });

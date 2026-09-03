@@ -79,12 +79,12 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
   const text = String(value);
   const lineCount = text.split('\n').length;
   const maxLen = rowHeight === 'compact' ? 50 : rowHeight === 'tall' ? 200 : rowHeight === 'extra-tall' ? 400 : 80;
-  const display = text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
+  const display = text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
   return (
-    <span className="truncate flex items-center gap-1.5 text-[#64748B] dark:text-[hsl(200,20%,55%)]">
-      <span className="truncate whitespace-pre-line">{display}</span>
+    <span className="truncate flex items-center gap-1.5" style={{ color: 'inherit' }}>
+      <span className="truncate whitespace-pre-line" style={{ fontSize: 13, lineHeight: '18px' }}>{display}</span>
       {lineCount > 1 && (
-        <span className="shrink-0 text-[10px] opacity-50">{lineCount}L</span>
+        <span className="shrink-0 text-[9px] px-1 py-px rounded-sm bg-black/5 dark:bg-white/5 text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]">{lineCount}L</span>
       )}
     </span>
   );

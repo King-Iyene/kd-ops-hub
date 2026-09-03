@@ -137,6 +137,13 @@ export function evaluateCondition(
   }
 }
 
+function getDefaultSummary(uiType: UIType): SummaryFunction {
+  if (NUMERIC_TYPES.includes(uiType)) return 'sum';
+  if (uiType === 'Checkbox') return 'percentFilled';
+  if (uiType === 'SingleSelect' || uiType === 'MultiSelect') return 'countFilled';
+  return 'none';
+}
+
 function SummaryRow({
   fields,
   records,
@@ -161,7 +168,8 @@ function SummaryRow({
   const summaryValues = useMemo(() => {
     const map: Record<string, string> = {};
     for (const field of fields) {
-      const fn = summaryFunctions[field.id] || 'none';
+      const explicit = summaryFunctions[field.id];
+      const fn = explicit ?? getDefaultSummary(field.ui_type);
       map[field.id] = computeSummary(fn, records, field.pg_column_name);
     }
     return map;
@@ -174,7 +182,7 @@ function SummaryRow({
         backgroundColor: colors.headerBg,
         borderTop: `2px solid ${colors.border}`,
         borderBottom: `1px solid ${colors.border}`,
-        minHeight: 40,
+        minHeight: 36,
       }}
     >
       {/* Sigma icon cell */}
@@ -192,7 +200,8 @@ function SummaryRow({
       </div>
 
       {fields.map((field, colIdx) => {
-        const fn = summaryFunctions[field.id] || 'none';
+        const explicit = summaryFunctions[field.id];
+        const fn = explicit ?? getDefaultSummary(field.ui_type);
         const isNumeric = NUMERIC_TYPES.includes(field.ui_type);
         const value = summaryValues[field.id] ?? '';
         const label = SUMMARY_LABELS[fn];
