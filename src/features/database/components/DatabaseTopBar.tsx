@@ -1,8 +1,15 @@
 import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Zap, Link2, Key, Webhook, History, Keyboard } from 'lucide-react';
+import { Home, Menu, HelpCircle, Share2, Copy, Check, Lock, Zap, Link2, Key, Webhook, History, Keyboard, LogOut, Settings, User, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useAuthStore } from '@/store/authStore';
 import { useDatabaseUI } from '../lib/store';
 import { useBases } from '../hooks';
@@ -15,7 +22,9 @@ import { PresenceIndicator } from './PresenceIndicator';
 import { NotificationsPanel } from './NotificationsPanel';
 
 export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => void }) {
-  const { toggleSidebar, activeBaseId, activeTableId } = useDatabaseUI();
+  const { toggleSidebar, activeBaseId, activeTableId, setActiveBase } = useDatabaseUI();
+  const signOut = useAuthStore((s) => s.signOut);
+  const [profileOpen, setProfileOpen] = useState(false);
   const profile = useAuthStore((s) => s.profile);
   const { data: bases } = useBases();
   const [shareOpen, setShareOpen] = useState(false);
@@ -49,12 +58,13 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
     <>
       <header className="flex items-center justify-between h-11 px-3 bg-white dark:bg-[hsl(200,30%,8%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shrink-0">
         <div className="flex items-center gap-1.5">
-          <Link
-            to="/"
+          <button
             className="p-1.5 rounded-md hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] text-[#6A7184] dark:text-[hsl(200,20%,55%)] transition-colors"
+            onClick={() => setActiveBase(null)}
+            title="Home"
           >
-            <ArrowLeft size={16} />
-          </Link>
+            <Home size={16} />
+          </button>
           <Button
             variant="ghost"
             size="icon"
@@ -154,12 +164,35 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
             <HelpCircle size={15} />
           </Button>
           <PresenceIndicator />
-          <div
-            className="h-7 w-7 rounded-full bg-[#3366FF] text-white flex items-center justify-center text-[10px] font-semibold select-none ml-1"
-            title={profile?.full_name ?? ''}
-          >
-            {initials}
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="h-7 w-7 rounded-full bg-[#3366FF] text-white flex items-center justify-center text-[10px] font-semibold select-none ml-1 hover:ring-2 hover:ring-[#3366FF]/30 transition-all"
+                title={profile?.full_name ?? ''}
+              >
+                {initials}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="px-3 py-2">
+                <p className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">{profile?.full_name ?? 'User'}</p>
+                <p className="text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] truncate">{profile?.email ?? ''}</p>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/settings" className="gap-2 cursor-pointer">
+                  <Settings size={14} /> Settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="gap-2 text-red-500 focus:text-red-500 cursor-pointer"
+                onClick={() => signOut()}
+              >
+                <LogOut size={14} /> Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 

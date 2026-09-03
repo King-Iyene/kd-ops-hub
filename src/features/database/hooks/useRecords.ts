@@ -24,24 +24,33 @@ interface RecordsResult {
   totalCount: number;
 }
 
+const tableContextCache = new Map<string, { schemaName: string; tableName: string; ts: number }>();
+
 async function resolveTableContext(baseId: string, tableId: string) {
-  const { data: base, error: baseError } = await supabase
-    .schema('nc_meta')
-    .from('bases')
-    .select('schema_name')
-    .eq('id', baseId)
-    .single();
-  if (baseError) throw baseError;
+  const key = `${baseId}:${tableId}`;
+  const cached = tableContextCache.get(key);
+  if (cached && Date.now() - cached.ts < 300_000) {
+    return { schemaName: cached.schemaName, tableName: cached.tableName };
+  }
 
-  const { data: table, error: tableError } = await supabase
-    .schema('nc_meta')
-    .from('tables')
-    .select('pg_table_name')
-    .eq('id', tableId)
-    .single();
-  if (tableError) throw tableError;
+  const [baseRes, tableRes] = await Promise.all([
+    supabase.schema('nc_meta').from('bases').select('schema_name').eq('id', baseId).single(),
+    supabase.schema('nc_meta').from('tables').select('pg_table_name').eq('id', tableId).single(),
+  ]);
+  if (baseRes.error) throw baseRes.error;
+  if (tableRes.error) throw tableRes.error;
 
-  return { schemaName: base.schema_name, tableName: table.pg_table_name };
+  const result = { schemaName: baseRes.data.schema_name, tableName: tableRes.data.pg_table_name };
+  tableContextCache.set(key, { ...result, ts: Date.now() });
+  return result;
+}
+
+export function invalidateTableContext(baseId?: string, tableId?: string) {
+  if (baseId && tableId) {
+    tableContextCache.delete(`${baseId}:${tableId}`);
+  } else {
+    tableContextCache.clear();
+  }
 }
 
 function applyFilter(
@@ -186,12 +195,55 @@ export function useCreateRecord() {
       if (error) throw error;
       return data as RecordRow;
     },
-    onSuccess: (data, variables) => {
+    onMutate: async (variables) => {
+      const queryKey = ['nc', 'records', variables.baseId, variables.tableId];
+      await qc.cancelQueries({ queryKey });
+
+      const tempId = `temp_${crypto.randomUUID()}`;
+      const optimisticRecord = {
+        id: tempId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        nc_order: Number.MAX_SAFE_INTEGER,
+        ...variables.record,
+      } as RecordRow;
+
+      qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          records: [...old.records, optimisticRecord],
+          totalCount: old.totalCount + 1,
+        };
+      });
+
+      return { queryKey, tempId };
+    },
+    onSuccess: (data, variables, context) => {
+      if (context) {
+        qc.setQueriesData<RecordsResult>({ queryKey: context.queryKey }, (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            records: old.records.map((r) => (r.id === context.tempId ? data : r)),
+          };
+        });
+      }
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       toast.success('Record created');
       fireAutomations('record.created', variables.baseId, variables.tableId, data);
     },
-    onError: () => {
+    onError: (_err, variables, context) => {
+      if (context) {
+        qc.setQueriesData<RecordsResult>({ queryKey: context.queryKey }, (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            records: old.records.filter((r) => r.id !== context.tempId),
+            totalCount: old.totalCount - 1,
+          };
+        });
+      }
       toast.error('Failed to create record');
     },
   });
