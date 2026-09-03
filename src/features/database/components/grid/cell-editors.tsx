@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Paperclip, Star, Check, X, Palette } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
 import { PILL_COLORS, SELECT_COLORS, SELECT_COLOR_NAMES } from '@/features/database/types';
 import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
@@ -145,28 +146,70 @@ export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEdi
 }
 
 export function DateCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const initial = value ? new Date(value).toISOString().split('T')[0] : '';
-  const [date, setDate] = useState(initial);
-  const ref = useRef<HTMLInputElement>(null);
+  const colors = useGridColors();
+  const initial = value ? new Date(value) : undefined;
+  const [selected, setSelected] = useState<Date | undefined>(initial);
 
-  useEffect(() => {
-    ref.current?.focus();
-  }, []);
+  const handleSelect = useCallback(
+    (day: Date | undefined) => {
+      if (!day) return;
+      setSelected(day);
+      const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+      onCommit(iso);
+    },
+    [onCommit],
+  );
 
   return (
-    <input
-      ref={ref}
-      type="date"
-      value={date}
-      onChange={(e) => setDate(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(date || null);
-        if (e.key === 'Escape') onCancel();
-      }}
-      onBlur={() => onCommit(date || null)}
-      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
-      style={{ fontSize: 13, color: 'inherit' }}
-    />
+    <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <PopoverTrigger asChild>
+        <span className="sr-only">Pick date</span>
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={0}
+        className="p-0 w-auto"
+        style={{
+          backgroundColor: colors.cellEditorBg,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 8,
+        }}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <Calendar
+          mode="single"
+          selected={selected}
+          onSelect={handleSelect}
+          defaultMonth={selected}
+          initialFocus
+        />
+        <div className="flex items-center justify-between px-3 pb-2">
+          <button
+            type="button"
+            className="text-xs px-2 py-1 rounded transition-colors"
+            style={{ color: colors.primary }}
+            onClick={() => handleSelect(new Date())}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          >
+            Today
+          </button>
+          {value && (
+            <button
+              type="button"
+              className="text-xs px-2 py-1 rounded transition-colors"
+              style={{ color: colors.muted }}
+              onClick={() => onCommit(null)}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -1030,28 +1073,143 @@ export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEdit
 }
 
 export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const initial = value ? new Date(value).toISOString().slice(0, 16) : '';
-  const [dt, setDt] = useState(initial);
-  const ref = useRef<HTMLInputElement>(null);
+  const colors = useGridColors();
+  const initial = value ? new Date(value) : undefined;
+  const [selected, setSelected] = useState<Date | undefined>(initial);
+  const [hours, setHours] = useState(initial ? String(initial.getHours()).padStart(2, '0') : '12');
+  const [minutes, setMinutes] = useState(initial ? String(initial.getMinutes()).padStart(2, '0') : '00');
 
-  useEffect(() => {
-    ref.current?.focus();
-  }, []);
+  const commitDateTime = useCallback(
+    (day: Date | undefined, h: string, m: string) => {
+      if (!day) return;
+      const d = new Date(day);
+      d.setHours(parseInt(h, 10) || 0, parseInt(m, 10) || 0, 0, 0);
+      onCommit(d.toISOString());
+    },
+    [onCommit],
+  );
+
+  const handleSelect = useCallback(
+    (day: Date | undefined) => {
+      if (!day) return;
+      setSelected(day);
+    },
+    [],
+  );
 
   return (
-    <input
-      ref={ref}
-      type="datetime-local"
-      value={dt}
-      onChange={(e) => setDt(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(dt ? new Date(dt).toISOString() : null);
-        if (e.key === 'Escape') onCancel();
-      }}
-      onBlur={() => onCommit(dt ? new Date(dt).toISOString() : null)}
-      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
-      style={{ fontSize: 13, color: 'inherit' }}
-    />
+    <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <PopoverTrigger asChild>
+        <span className="sr-only">Pick date and time</span>
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={0}
+        className="p-0 w-auto"
+        style={{
+          backgroundColor: colors.cellEditorBg,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 8,
+        }}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <Calendar
+          mode="single"
+          selected={selected}
+          onSelect={handleSelect}
+          defaultMonth={selected}
+          initialFocus
+        />
+        <div
+          className="flex items-center gap-2 px-3 pb-2"
+          style={{ borderTop: `1px solid ${colors.border}`, paddingTop: 8 }}
+        >
+          <span className="text-xs font-medium" style={{ color: colors.textSecondary }}>Time</span>
+          <input
+            type="text"
+            value={hours}
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, '').slice(0, 2);
+              setHours(v);
+            }}
+            onBlur={() => {
+              const h = Math.min(23, Math.max(0, parseInt(hours, 10) || 0));
+              setHours(String(h).padStart(2, '0'));
+            }}
+            className="w-8 text-center text-xs rounded outline-none"
+            style={{
+              border: `1px solid ${colors.border}`,
+              backgroundColor: 'transparent',
+              color: colors.text,
+              padding: '2px 0',
+            }}
+            maxLength={2}
+          />
+          <span style={{ color: colors.muted }}>:</span>
+          <input
+            type="text"
+            value={minutes}
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, '').slice(0, 2);
+              setMinutes(v);
+            }}
+            onBlur={() => {
+              const m = Math.min(59, Math.max(0, parseInt(minutes, 10) || 0));
+              setMinutes(String(m).padStart(2, '0'));
+            }}
+            className="w-8 text-center text-xs rounded outline-none"
+            style={{
+              border: `1px solid ${colors.border}`,
+              backgroundColor: 'transparent',
+              color: colors.text,
+              padding: '2px 0',
+            }}
+            maxLength={2}
+          />
+        </div>
+        <div className="flex items-center justify-between px-3 pb-2">
+          <button
+            type="button"
+            className="text-xs px-2 py-1 rounded transition-colors"
+            style={{ color: colors.primary }}
+            onClick={() => commitDateTime(selected ?? new Date(), hours, minutes)}
+          >
+            Apply
+          </button>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              className="text-xs px-2 py-1 rounded transition-colors"
+              style={{ color: colors.primary }}
+              onClick={() => {
+                const now = new Date();
+                setSelected(now);
+                setHours(String(now.getHours()).padStart(2, '0'));
+                setMinutes(String(now.getMinutes()).padStart(2, '0'));
+                commitDateTime(now, String(now.getHours()).padStart(2, '0'), String(now.getMinutes()).padStart(2, '0'));
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              Now
+            </button>
+            {value && (
+              <button
+                type="button"
+                className="text-xs px-2 py-1 rounded transition-colors"
+                style={{ color: colors.muted }}
+                onClick={() => onCommit(null)}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
