@@ -8,7 +8,7 @@ import { CreateFieldDialog } from './CreateFieldDialog';
 import { ImportCsvDialog } from './ImportCsvDialog';
 import { SearchReplaceDialog } from './SearchReplaceDialog';
 import { ConditionalFormatDialog } from './ConditionalFormatDialog';
-import { exportToCsv, exportToJson } from '../lib/csv';
+import { exportToCsv, exportToJson, exportToXlsx } from '../lib/csv';
 import { useTables } from '../hooks';
 import { PrintView } from './PrintView';
 import type { Filter as FilterType, FilterGroup, Sort, Group, FilterOperator, RowColorRule, FieldMeta } from '../types';
@@ -1200,6 +1200,17 @@ export function Toolbar() {
                     }}
                   >
                     <FileJson size={13} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Export JSON
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                    onClick={() => {
+                      if (fieldsData && recordsData?.records) {
+                        exportToXlsx(fieldsData, recordsData.records, tableName);
+                      }
+                      setMoreOpen(false);
+                    }}
+                  >
+                    <Download size={13} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Export XLSX
                   </button>
                   <button
                     className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"

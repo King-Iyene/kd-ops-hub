@@ -1,3 +1,4 @@
+import * as XLSX from 'xlsx';
 import type { FieldMeta, RecordRow } from '../types';
 
 export function exportToCsv(fields: FieldMeta[], records: RecordRow[], tableName: string) {
@@ -57,6 +58,27 @@ export function exportToJson(fields: FieldMeta[], records: RecordRow[], tableNam
   a.download = `${tableName || 'export'}.json`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export function exportToXlsx(fields: FieldMeta[], records: RecordRow[], tableName: string) {
+  const exportFields = fields
+    .filter((f) => !f.is_hidden && !f.is_system && f.ui_type !== 'ID')
+    .sort((a, b) => a.position - b.position);
+
+  const header = exportFields.map((f) => f.name);
+  const rows = records.map((r) =>
+    exportFields.map((f) => {
+      const val = r[f.pg_column_name];
+      if (val == null) return '';
+      if (Array.isArray(val)) return val.join(', ');
+      return val;
+    }),
+  );
+
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, tableName || 'Sheet1');
+  XLSX.writeFile(wb, `${tableName || 'export'}.xlsx`);
 }
 
 export function matchFieldsByHeader(
