@@ -3,7 +3,7 @@ import { Check, ExternalLink, Copy, Paperclip, Plus, Star, Clock, Link2 } from '
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { LinkCellRenderer } from './LinkCellRenderer';
 // LookupCellRenderer and RollupCellRenderer are defined locally below
-import { PILL_COLORS } from '@/features/database/types';
+import { PILL_COLORS, SELECT_COLORS } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 
 interface CellRendererProps {
@@ -40,6 +40,10 @@ function HighlightedText({ text, style, className }: { text: string; style?: Rea
 
 function getPillColor(colorName: string) {
   return PILL_COLORS.find((c) => c.name === colorName) || PILL_COLORS[7];
+}
+
+function getSelectColor(colorName: string) {
+  return SELECT_COLORS[colorName] || SELECT_COLORS.grayLight2;
 }
 
 export const TextCellRenderer = React.memo(function TextCellRenderer({
@@ -171,11 +175,18 @@ export const SelectCellRenderer = React.memo(function SelectCellRenderer({
 }: CellRendererProps) {
   if (value == null || value === '') return null;
   const choice = field.options?.choices?.find((c: SelectChoice) => c.title === value);
-  const color = getPillColor(choice?.color || 'Gray');
+  const sc = getSelectColor(choice?.color || 'grayLight2');
   return (
     <span
-      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium truncate"
-      style={{ backgroundColor: color.bg, color: color.text }}
+      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium truncate select-pill"
+      style={{
+        '--pill-bg': sc.bg,
+        '--pill-text': sc.text,
+        '--pill-dark-bg': sc.darkBg,
+        '--pill-dark-text': sc.darkText,
+        backgroundColor: 'var(--pill-bg)',
+        color: 'var(--pill-text)',
+      } as React.CSSProperties}
     >
       {String(value)}
     </span>
@@ -197,12 +208,19 @@ export const MultiSelectCellRenderer = React.memo(function MultiSelectCellRender
     <div className="flex flex-wrap gap-1 items-center overflow-hidden">
       {visible.map((v: string) => {
         const choice = field.options?.choices?.find((c: SelectChoice) => c.title === v);
-        const color = getPillColor(choice?.color || 'Gray');
+        const sc = getSelectColor(choice?.color || 'grayLight2');
         return (
           <span
             key={v}
-            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium truncate"
-            style={{ backgroundColor: color.bg, color: color.text }}
+            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium truncate select-pill"
+            style={{
+              '--pill-bg': sc.bg,
+              '--pill-text': sc.text,
+              '--pill-dark-bg': sc.darkBg,
+              '--pill-dark-text': sc.darkText,
+              backgroundColor: 'var(--pill-bg)',
+              color: 'var(--pill-text)',
+            } as React.CSSProperties}
           >
             {v}
           </span>
@@ -511,74 +529,6 @@ export const LinksCellRenderer = React.memo(function LinksCellRenderer({
   );
 });
 
-export const BarcodeCellRenderer = React.memo(function BarcodeCellRenderer({
-  value,
-}: CellRendererProps) {
-  if (value == null || value === '') return null;
-  const text = String(value);
-  return (
-    <span
-      className="truncate font-mono text-xs tracking-widest text-[#374151] dark:text-[hsl(200,25%,88%)]"
-      style={{
-        letterSpacing: '0.15em',
-        borderBottom: '2px solid currentColor',
-        paddingBottom: 1,
-      }}
-    >
-      {text}
-    </span>
-  );
-});
-
-export const UserCellRenderer = React.memo(function UserCellRenderer({
-  value,
-}: CellRendererProps) {
-  if (value == null || value === '') return null;
-  const name = typeof value === 'object' && value !== null
-    ? (value.name || value.email || 'U')
-    : String(value || 'U');
-  const initials = name
-    .split(/\s+/)
-    .map((w: string) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-  // Deterministic color from name
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  const hue = Math.abs(hash) % 360;
-  return (
-    <span className="flex items-center gap-1.5 truncate">
-      <span
-        className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold text-white shrink-0"
-        style={{ backgroundColor: `hsl(${hue}, 55%, 50%)` }}
-      >
-        {initials}
-      </span>
-      <span className="truncate text-[#374151] dark:text-[hsl(200,25%,88%)]">{name}</span>
-    </span>
-  );
-});
-
-export const ButtonCellRenderer = React.memo(function ButtonCellRenderer({
-  value,
-  field,
-}: CellRendererProps) {
-  const label = field.options?.expression || (typeof value === 'string' && value) || 'Click';
-  return (
-    <div className="flex items-center justify-center w-full">
-      <button
-        type="button"
-        className="px-3 py-0.5 rounded text-xs font-medium text-white transition-opacity hover:opacity-80"
-        style={{ backgroundColor: '#3366FF' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {label}
-      </button>
-    </div>
-  );
-});
-
 export function getCellRenderer(uiType: string) {
   switch (uiType) {
     case 'SingleLineText':
@@ -630,12 +580,6 @@ export function getCellRenderer(uiType: string) {
     case 'CreatedBy':
     case 'LastModifiedBy':
       return SystemCellRenderer;
-    case 'Barcode':
-      return BarcodeCellRenderer;
-    case 'User':
-      return UserCellRenderer;
-    case 'Button':
-      return ButtonCellRenderer;
     default:
       return TextCellRenderer;
   }

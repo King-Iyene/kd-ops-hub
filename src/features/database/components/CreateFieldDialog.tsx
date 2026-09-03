@@ -16,7 +16,7 @@ import { useTables } from '../hooks/useTables';
 import { useFields } from '../hooks/useFields';
 import { useDatabaseUI } from '../lib/store';
 import type { UIType, SelectChoice, FieldMeta, FieldOptions } from '../types';
-import { PILL_COLORS } from '../types';
+import { PILL_COLORS, SELECT_COLORS, SELECT_COLOR_NAMES } from '../types';
 import { getFieldTypeIcon } from './grid/field-icons';
 import { cn } from '@/lib/utils';
 import { validateFormula, FORMULA_FUNCTIONS } from '../lib/formula';
@@ -57,9 +57,6 @@ const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
   { value: 'Links', label: 'Links', group: 'Relations' },
   { value: 'Attachment', label: 'Attachment', group: 'Other' },
   { value: 'JSON', label: 'JSON', group: 'Other' },
-  { value: 'Barcode', label: 'Barcode', group: 'Other' },
-  { value: 'User', label: 'User / Collaborator', group: 'Other' },
-  { value: 'Button', label: 'Button', group: 'Other' },
   { value: 'AutoNumber', label: 'Auto Number', group: 'System' },
   { value: 'CreatedTime', label: 'Created Time', group: 'System' },
   { value: 'LastModifiedTime', label: 'Last Modified Time', group: 'System' },
@@ -71,17 +68,17 @@ const GROUPS = ['Text', 'Numeric', 'Date & Time', 'Selection', 'Relations', 'Com
 
 type RelationType = 'one_to_one' | 'one_to_many' | 'many_to_many';
 
-function ColorDot({ color, selected, onClick }: { color: typeof PILL_COLORS[0]; selected: boolean; onClick: () => void }) {
+function ColorDot({ colorName, bg, selected, onClick }: { colorName: string; bg: string; selected: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       className={cn(
-        'w-5 h-5 rounded-full border-2 transition-all',
-        selected ? 'border-[#374151] scale-110' : 'border-transparent hover:scale-105',
+        'w-4 h-4 rounded-full border-2 transition-all',
+        selected ? 'border-[#374151] dark:border-white scale-110' : 'border-transparent hover:scale-105',
       )}
-      style={{ backgroundColor: color.bg }}
+      style={{ backgroundColor: bg }}
       onClick={onClick}
-      title={color.name}
+      title={colorName}
     />
   );
 }
@@ -142,8 +139,8 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const addChoice = useCallback(() => {
     const title = newChoiceText.trim();
     if (!title || choices.some((c) => c.title === title)) return;
-    const colorIdx = choices.length % PILL_COLORS.length;
-    setChoices([...choices, { title, color: PILL_COLORS[colorIdx].name }]);
+    const colorIdx = choices.length % SELECT_COLOR_NAMES.length;
+    setChoices([...choices, { title, color: SELECT_COLOR_NAMES[colorIdx] }]);
     setNewChoiceText('');
   }, [newChoiceText, choices]);
 
@@ -414,22 +411,27 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
               <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Options</Label>
               <div className="space-y-1.5">
                 {choices.map((choice) => {
-                  const pillColor = PILL_COLORS.find((c) => c.name === choice.color) || PILL_COLORS[7];
+                  const sc = SELECT_COLORS[choice.color] || SELECT_COLORS.grayLight2;
                   return (
                     <div key={choice.title} className="flex items-center gap-2 group">
                       <span
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium flex-1 min-w-0 truncate"
-                        style={{ backgroundColor: pillColor.bg, color: pillColor.text }}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium flex-1 min-w-0 truncate select-pill"
+                        style={{
+                          '--pill-bg': sc.bg, '--pill-text': sc.text,
+                          '--pill-dark-bg': sc.darkBg, '--pill-dark-text': sc.darkText,
+                          backgroundColor: sc.bg, color: sc.text,
+                        } as React.CSSProperties}
                       >
                         {choice.title}
                       </span>
-                      <div className="flex items-center gap-0.5">
-                        {PILL_COLORS.map((pc) => (
+                      <div className="grid gap-0.5" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                        {SELECT_COLOR_NAMES.map((name) => (
                           <ColorDot
-                            key={pc.name}
-                            color={pc}
-                            selected={choice.color === pc.name}
-                            onClick={() => updateChoiceColor(choice.title, pc.name)}
+                            key={name}
+                            colorName={name}
+                            bg={SELECT_COLORS[name].bg}
+                            selected={choice.color === name}
+                            onClick={() => updateChoiceColor(choice.title, name)}
                           />
                         ))}
                       </div>

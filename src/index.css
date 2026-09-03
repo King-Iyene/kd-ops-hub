@@ -1349,4 +1349,10 @@
   .kd-card-danger {
     @apply rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-foreground;
   }
+
+  /* Select pill dark-mode color swap */
+  html.dark .select-pill {
+    background-color: var(--pill-dark-bg) !important;
+    color: var(--pill-dark-text) !important;
+  }
 }

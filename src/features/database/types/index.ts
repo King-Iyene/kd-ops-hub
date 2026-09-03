@@ -28,10 +28,7 @@ export type UIType =
   | 'AutoNumber'
   | 'CreatedBy'
   | 'LastModifiedBy'
-  | 'JSON'
-  | 'Barcode'
-  | 'User'
-  | 'Button';
+  | 'JSON';
 
 export interface Workspace {
   id: string;
@@ -226,9 +223,6 @@ export const UI_TYPE_TO_PG_TYPE: Record<string, string> = {
   Attachment: "JSONB DEFAULT '[]'::jsonb",
   AutoNumber: 'SERIAL',
   JSON: 'JSONB',
-  Barcode: 'TEXT',
-  User: 'JSONB',
-  Button: 'JSONB',
 };
 
 export const VIRTUAL_TYPES: UIType[] = [
@@ -236,18 +230,57 @@ export const VIRTUAL_TYPES: UIType[] = [
   'CreatedTime', 'LastModifiedTime', 'CreatedBy', 'LastModifiedBy', 'ID',
 ];
 
-export const PILL_COLORS = [
-  { name: 'Blue', bg: '#DBEAFE', text: '#1E40AF' },
-  { name: 'Green', bg: '#D1FAE5', text: '#065F46' },
-  { name: 'Yellow', bg: '#FEF3C7', text: '#92400E' },
-  { name: 'Red', bg: '#FEE2E2', text: '#991B1B' },
-  { name: 'Purple', bg: '#EDE9FE', text: '#5B21B6' },
-  { name: 'Pink', bg: '#FCE7F3', text: '#9D174D' },
-  { name: 'Orange', bg: '#FFEDD5', text: '#9A3412' },
-  { name: 'Gray', bg: '#F1F5F9', text: '#334155' },
-  { name: 'Teal', bg: '#CCFBF1', text: '#115E59' },
-  { name: 'Indigo', bg: '#E0E7FF', text: '#3730A3' },
-];
+export const SELECT_COLORS: Record<string, { bg: string; text: string; darkBg: string; darkText: string }> = {
+  blueLight2:   { bg: '#D0E0FC', text: '#2750AE', darkBg: '#1a2a42', darkText: '#9CC1FA' },
+  blueLight1:   { bg: '#9CC1FA', text: '#2750AE', darkBg: '#1e3a5f', darkText: '#D0E0FC' },
+  blueBright:   { bg: '#2D7FF9', text: '#FFFFFF', darkBg: '#2D7FF9', darkText: '#FFFFFF' },
+  blueDark1:    { bg: '#2750AE', text: '#FFFFFF', darkBg: '#2750AE', darkText: '#D0E0FC' },
+  cyanLight2:   { bg: '#C2F5E9', text: '#0B76B7', darkBg: '#0d2d3a', darkText: '#72DDC3' },
+  cyanLight1:   { bg: '#72DDC3', text: '#0B76B7', darkBg: '#0f3d4a', darkText: '#C2F5E9' },
+  cyanBright:   { bg: '#18BFFF', text: '#FFFFFF', darkBg: '#18BFFF', darkText: '#FFFFFF' },
+  cyanDark1:    { bg: '#0B76B7', text: '#FFFFFF', darkBg: '#0B76B7', darkText: '#C2F5E9' },
+  tealLight2:   { bg: '#C2F5E9', text: '#06A09B', darkBg: '#0d2d2d', darkText: '#72DDC3' },
+  tealLight1:   { bg: '#72DDC3', text: '#06A09B', darkBg: '#0f3d3d', darkText: '#C2F5E9' },
+  tealBright:   { bg: '#20D9D2', text: '#1a1a1a', darkBg: '#20D9D2', darkText: '#1a1a1a' },
+  tealDark1:    { bg: '#06A09B', text: '#FFFFFF', darkBg: '#06A09B', darkText: '#C2F5E9' },
+  greenLight2:  { bg: '#D1F7C4', text: '#338A17', darkBg: '#1a2d14', darkText: '#93E088' },
+  greenLight1:  { bg: '#93E088', text: '#338A17', darkBg: '#1f3d17', darkText: '#D1F7C4' },
+  greenBright:  { bg: '#20C933', text: '#FFFFFF', darkBg: '#20C933', darkText: '#FFFFFF' },
+  greenDark1:   { bg: '#338A17', text: '#FFFFFF', darkBg: '#338A17', darkText: '#D1F7C4' },
+  yellowLight2: { bg: '#FFEAB6', text: '#B87503', darkBg: '#3d2d0a', darkText: '#FFD66E' },
+  yellowLight1: { bg: '#FFD66E', text: '#B87503', darkBg: '#4d3d0f', darkText: '#FFEAB6' },
+  yellowBright: { bg: '#FCB400', text: '#1a1a1a', darkBg: '#FCB400', darkText: '#1a1a1a' },
+  yellowDark1:  { bg: '#B87503', text: '#FFFFFF', darkBg: '#B87503', darkText: '#FFEAB6' },
+  orangeLight2: { bg: '#FEE2D5', text: '#D74D26', darkBg: '#3d1a0f', darkText: '#FFA981' },
+  orangeLight1: { bg: '#FFA981', text: '#D74D26', darkBg: '#4d2517', darkText: '#FEE2D5' },
+  orangeBright: { bg: '#FF6F2C', text: '#FFFFFF', darkBg: '#FF6F2C', darkText: '#FFFFFF' },
+  orangeDark1:  { bg: '#D74D26', text: '#FFFFFF', darkBg: '#D74D26', darkText: '#FEE2D5' },
+  redLight2:    { bg: '#FFDCE5', text: '#BA1E45', darkBg: '#3d0f1a', darkText: '#FF9EB7' },
+  redLight1:    { bg: '#FF9EB7', text: '#BA1E45', darkBg: '#4d1725', darkText: '#FFDCE5' },
+  redBright:    { bg: '#F82B60', text: '#FFFFFF', darkBg: '#F82B60', darkText: '#FFFFFF' },
+  redDark1:     { bg: '#BA1E45', text: '#FFFFFF', darkBg: '#BA1E45', darkText: '#FFDCE5' },
+  pinkLight2:   { bg: '#F5D0FE', text: '#B2158B', darkBg: '#3d0f3a', darkText: '#E9A0F4' },
+  pinkLight1:   { bg: '#E9A0F4', text: '#B2158B', darkBg: '#4d174d', darkText: '#F5D0FE' },
+  pinkBright:   { bg: '#FF08C2', text: '#FFFFFF', darkBg: '#FF08C2', darkText: '#FFFFFF' },
+  pinkDark1:    { bg: '#B2158B', text: '#FFFFFF', darkBg: '#B2158B', darkText: '#F5D0FE' },
+  purpleLight2: { bg: '#EDE2FE', text: '#6B1CB0', darkBg: '#2d1a3d', darkText: '#CDB0FF' },
+  purpleLight1: { bg: '#CDB0FF', text: '#6B1CB0', darkBg: '#3d254d', darkText: '#EDE2FE' },
+  purpleBright: { bg: '#8B46FF', text: '#FFFFFF', darkBg: '#8B46FF', darkText: '#FFFFFF' },
+  purpleDark1:  { bg: '#6B1CB0', text: '#FFFFFF', darkBg: '#6B1CB0', darkText: '#EDE2FE' },
+  grayLight2:   { bg: '#EEEEEE', text: '#666666', darkBg: '#2a2a2a', darkText: '#CCCCCC' },
+  grayLight1:   { bg: '#CCCCCC', text: '#666666', darkBg: '#3a3a3a', darkText: '#EEEEEE' },
+  grayBright:   { bg: '#999999', text: '#FFFFFF', darkBg: '#999999', darkText: '#FFFFFF' },
+  grayDark1:    { bg: '#666666', text: '#FFFFFF', darkBg: '#666666', darkText: '#EEEEEE' },
+};
+
+export const SELECT_COLOR_NAMES = Object.keys(SELECT_COLORS);
+
+/** @deprecated Use SELECT_COLORS instead */
+export const PILL_COLORS = SELECT_COLOR_NAMES.map((name) => ({
+  name,
+  bg: SELECT_COLORS[name].bg,
+  text: SELECT_COLORS[name].text,
+}));
 
 export interface WebhookConfig {
   id: string;
