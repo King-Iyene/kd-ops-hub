@@ -44,7 +44,9 @@ export function RowContextMenu({
   }, [x, y]);
 
   const handleCopyRowLink = () => {
-    navigator.clipboard.writeText(record.id).catch(() => {});
+    const url = new URL(window.location.href);
+    url.searchParams.set('rowId', record.id);
+    navigator.clipboard.writeText(url.toString()).catch(() => {});
     onClose();
   };
 

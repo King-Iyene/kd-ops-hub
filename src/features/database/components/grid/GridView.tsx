@@ -975,7 +975,7 @@ export default function GridView({
               className="sticky top-0 z-30 flex items-center gap-2 px-3"
               style={{
                 height: 28,
-                backgroundColor: '#F4F4F5',
+                backgroundColor: GRID_COLORS.headerBg,
                 borderBottom: `1px solid ${GRID_COLORS.border}`,
                 fontSize: 11,
                 color: GRID_COLORS.muted,

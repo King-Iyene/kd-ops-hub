@@ -94,7 +94,7 @@ export function BulkActionsBar({
     }
 
     for (const id of selectedRowIds) {
-      onCellUpdate(id, field.pg_column_name, parsedValue);
+      onCellUpdate(id, field.id, parsedValue);
     }
     setShowUpdateField(false);
     setSelectedFieldId(null);

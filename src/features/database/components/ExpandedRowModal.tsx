@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, Star, MessageSquare, ChevronDown, Paperclip, Link2, Trash2, Clock, Activity } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, MessageSquare, ChevronDown, Paperclip, Link2, Trash2, Clock, Activity, Copy } from 'lucide-react';
 import { RecordComments } from './RecordComments';
 import type { FieldMeta, RecordRow, SelectChoice } from '../types';
 import { PILL_COLORS } from '../types';
@@ -18,6 +18,7 @@ interface ExpandedRowModalProps {
   records?: RecordRow[];
   onNavigate?: (record: RecordRow) => void;
   onDeleteRecord?: (recordId: string) => void;
+  onDuplicateRecord?: (record: RecordRow) => void;
 }
 
 function getPillColor(colorName: string) {
@@ -519,6 +520,7 @@ export function ExpandedRowModal({
   records,
   onNavigate,
   onDeleteRecord,
+  onDuplicateRecord,
 }: ExpandedRowModalProps) {
   const currentIndex = records && record ? records.findIndex((r) => r.id === record.id) : -1;
   const hasPrev = currentIndex > 0;
@@ -667,6 +669,15 @@ export function ExpandedRowModal({
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <CopyLinkButton recordId={record.id} />
+            {onDuplicateRecord && record && (
+              <button
+                onClick={() => onDuplicateRecord(record)}
+                className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+                title="Duplicate record"
+              >
+                <Copy size={15} className="text-[#6A7184] dark:text-[#9AA2AF]" />
+              </button>
+            )}
             {onDeleteRecord && (
               <DeleteRecordButton
                 onDelete={() => {

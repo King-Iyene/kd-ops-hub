@@ -69,13 +69,19 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
 
 export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
   value,
+  rowHeight,
 }: CellRendererProps) {
   if (value == null || value === '') return null;
   const text = String(value);
-  const display = text.length > 80 ? text.slice(0, 80) + '...' : text;
+  const lineCount = text.split('\n').length;
+  const maxLen = rowHeight === 'compact' ? 50 : rowHeight === 'tall' ? 200 : rowHeight === 'extra-tall' ? 400 : 80;
+  const display = text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
   return (
-    <span className="truncate" style={{ color: '#64748B' }}>
-      {display}
+    <span className="truncate flex items-center gap-1.5" style={{ color: '#64748B' }}>
+      <span className="truncate whitespace-pre-line">{display}</span>
+      {lineCount > 1 && (
+        <span className="shrink-0 text-[10px] opacity-50">{lineCount}L</span>
+      )}
     </span>
   );
 });

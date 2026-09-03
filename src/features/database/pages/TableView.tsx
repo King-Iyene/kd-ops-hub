@@ -344,6 +344,7 @@ export function TableView() {
         records={recordsData?.records ?? []}
         onNavigate={setExpandedRecord}
         onDeleteRecord={handleDeleteRow}
+        onDuplicateRecord={(record) => { handleDuplicateRow(record); setExpandedRecord(null); }}
       />
       <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />
     </div>
