@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { Expand } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
@@ -104,9 +104,22 @@ export const GridCell = React.memo(function GridCell({
       if (e.key === 'Enter' && !isSystemField && field.ui_type !== 'Checkbox') {
         e.preventDefault();
         setEditingCell(cellId);
+        return;
       }
       if (e.key === 'Escape') {
         setSelectedCell(null);
+        return;
+      }
+      if (
+        !isSystemField &&
+        field.ui_type !== 'Checkbox' &&
+        field.ui_type !== 'Attachment' &&
+        e.key.length === 1 &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey
+      ) {
+        setEditingCell(cellId);
       }
     },
     [isEditing, isSystemField, field.ui_type, cellId, setEditingCell, setSelectedCell],
@@ -141,12 +154,21 @@ export const GridCell = React.memo(function GridCell({
     [updateFieldMutation],
   );
 
+  const cellRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isSelected && !isEditing && cellRef.current) {
+      cellRef.current.focus();
+    }
+  }, [isSelected, isEditing]);
+
   const Renderer = getCellRenderer(field.ui_type);
   const Editor = getCellEditor(field.ui_type);
   const GRID_COLORS = useGridColors();
 
   return (
     <div
+      ref={cellRef}
       className={`relative flex items-center overflow-hidden ${frozen ? 'sticky z-10' : ''}`}
       style={{
         boxSizing: 'border-box',
@@ -160,8 +182,8 @@ export const GridCell = React.memo(function GridCell({
         outline: isSelected ? `2px solid ${GRID_COLORS.primary}` : 'none',
         outlineOffset: -2,
         cursor: isSystemField ? 'default' : 'cell',
-        fontSize: 13,
-        lineHeight: '18px',
+        fontSize: 14,
+        lineHeight: '20px',
         color: GRID_COLORS.text,
         ...(frozen ? { left: frozenLeft, boxShadow: '4px 0 8px rgba(0,0,0,0.08)' } : {}),
       }}

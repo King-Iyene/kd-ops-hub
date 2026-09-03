@@ -49,7 +49,7 @@ export function TextCellEditor({ value, field, onCommit, onCancel }: CellEditorP
         onBlur={() => onCommit(text)}
         className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)]"
         style={{
-          fontSize: 13,
+          fontSize: 14,
           color: 'inherit',
           border: valid ? 'none' : '2px solid #EF4444',
         }}
@@ -88,7 +88,7 @@ export function NumberCellEditor({ value, field, onCommit, onCancel }: CellEdito
         onBlur={() => onCommit(num === '' ? null : Number(num))}
         className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
         style={{
-          fontSize: 13,
+          fontSize: 14,
           color: 'inherit',
           border: valid ? 'none' : '2px solid #EF4444',
         }}
@@ -128,7 +128,7 @@ export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEdi
         onBlur={() => onCommit(num === '' ? null : Number(num))}
         className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
         style={{
-          fontSize: 13,
+          fontSize: 14,
           color: 'inherit',
           border: valid ? 'none' : '2px solid #EF4444',
         }}
@@ -621,7 +621,7 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
         rows={4}
         className="w-full p-2 outline-none resize-y border-none bg-white dark:bg-[hsl(200,30%,10%)]"
         style={{
-          fontSize: 13,
+          fontSize: 14,
           color: 'inherit',
           border: valid ? 'none' : '2px solid #EF4444',
         }}
@@ -659,7 +659,7 @@ export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEdit
         onBlur={() => onCommit(num === '' ? null : Number(num))}
         className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
         style={{
-          fontSize: 13,
+          fontSize: 14,
           color: 'inherit',
           border: valid ? 'none' : '2px solid #EF4444',
         }}

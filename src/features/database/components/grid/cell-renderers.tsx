@@ -86,7 +86,7 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
   const display = text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
   return (
     <span className="truncate flex items-center gap-1.5" style={{ color: 'inherit' }}>
-      <span className="truncate whitespace-pre-line" style={{ fontSize: 13, lineHeight: '18px' }}>{display}</span>
+      <span className="truncate whitespace-pre-line" style={{ fontSize: 14, lineHeight: '20px' }}>{display}</span>
       {lineCount > 1 && (
         <span className="shrink-0 text-[9px] px-1 py-px rounded-sm bg-black/5 dark:bg-white/5" style={{ color: colors.systemText }}>{lineCount}L</span>
       )}

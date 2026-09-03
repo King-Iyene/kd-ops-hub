@@ -142,7 +142,36 @@ export function useCreateField() {
 
       return field as FieldMeta;
     },
-    onSuccess: (_data, variables) => {
+    onMutate: async (variables) => {
+      await qc.cancelQueries({ queryKey: ['nc', 'fields', variables.table_id] });
+      const prev = qc.getQueryData(['nc', 'fields', variables.table_id]);
+      const optimistic: Partial<FieldMeta> = {
+        id: `temp-${Date.now()}`,
+        table_id: variables.table_id,
+        name: variables.name,
+        pg_column_name: toSnakeCase(variables.name),
+        ui_type: variables.ui_type,
+        pg_type: UI_TYPE_TO_PG_TYPE[variables.ui_type] ?? 'TEXT',
+        options: variables.options ?? {},
+        position: variables.position ?? 999,
+        width: variables.width ?? 180,
+        is_primary: false,
+        is_required: false,
+        is_unique: false,
+        is_system: false,
+        is_hidden: false,
+      };
+      qc.setQueryData(['nc', 'fields', variables.table_id], (old: FieldMeta[] | undefined) =>
+        [...(old ?? []), optimistic as FieldMeta],
+      );
+      return { prev };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.prev) {
+        qc.setQueryData(['nc', 'fields', variables.table_id], context.prev);
+      }
+    },
+    onSettled: (_data, _err, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
     },
   });

@@ -23,43 +23,45 @@ export interface UndoEntry {
 interface UndoState {
   stack: UndoEntry[];
   redoStack: UndoEntry[];
+  _busy: boolean;
   push: (entry: UndoEntry) => void;
   undo: () => void;
   redo: () => void;
   clear: () => void;
-  canUndo: () => boolean;
-  canRedo: () => boolean;
 }
 
 export const useUndoStore = create<UndoState>((set, get) => ({
   stack: [],
   redoStack: [],
-  push: (entry) =>
+  _busy: false,
+  push: (entry) => {
+    if (get()._busy) return;
     set((s) => ({
       stack: [...s.stack.slice(-(MAX_STACK_SIZE - 1)), entry],
       redoStack: [],
-    })),
+    }));
+  },
   undo: () => {
-    const { stack } = get();
-    if (stack.length === 0) return;
+    const { stack, _busy } = get();
+    if (_busy || stack.length === 0) return;
     const entry = stack[stack.length - 1];
-    entry.undo();
     set((s) => ({
+      _busy: true,
       stack: s.stack.slice(0, -1),
       redoStack: [...s.redoStack.slice(-(MAX_STACK_SIZE - 1)), entry],
     }));
+    Promise.resolve(entry.undo()).finally(() => set({ _busy: false }));
   },
   redo: () => {
-    const { redoStack } = get();
-    if (redoStack.length === 0) return;
+    const { redoStack, _busy } = get();
+    if (_busy || redoStack.length === 0) return;
     const entry = redoStack[redoStack.length - 1];
-    entry.redo();
     set((s) => ({
+      _busy: true,
       redoStack: s.redoStack.slice(0, -1),
       stack: [...s.stack.slice(-(MAX_STACK_SIZE - 1)), entry],
     }));
+    Promise.resolve(entry.redo()).finally(() => set({ _busy: false }));
   },
   clear: () => set({ stack: [], redoStack: [] }),
-  canUndo: () => get().stack.length > 0,
-  canRedo: () => get().redoStack.length > 0,
 }));

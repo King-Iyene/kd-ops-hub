@@ -87,7 +87,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [name, setName] = useState('');
   const [uiType, setUiType] = useState<UIType>('SingleLineText');
   const [description, setDescription] = useState('');
-  const [isRequired, setIsRequired] = useState(false);
+
   const [choices, setChoices] = useState<SelectChoice[]>([]);
   const [newChoiceText, setNewChoiceText] = useState('');
   const [formulaExpression, setFormulaExpression] = useState('');
@@ -264,7 +264,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
         setName('');
         setUiType('SingleLineText');
         setDescription('');
-        setIsRequired(false);
+  
         setChoices([]);
         setNewChoiceText('');
         setTargetTableId('');
@@ -309,12 +309,12 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
         ui_type: uiType,
         options: Object.keys(options).length > 0 ? options : undefined,
         description: description.trim() || undefined,
-        is_required: isRequired || undefined,
+        is_required: undefined,
       });
       setName('');
       setUiType('SingleLineText');
       setDescription('');
-      setIsRequired(false);
+
       setChoices([]);
       setNewChoiceText('');
       setFormulaExpression('');
@@ -359,16 +359,6 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
               className="h-8 text-xs"
             />
           </div>
-
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              className="w-3.5 h-3.5 accent-[#3366FF]"
-              checked={isRequired}
-              onChange={(e) => setIsRequired(e.target.checked)}
-            />
-            <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)]">Required field</span>
-          </label>
 
           <div className="space-y-1.5">
             <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Field Type</Label>

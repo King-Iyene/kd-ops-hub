@@ -3,7 +3,10 @@ import { Undo2, Redo2 } from 'lucide-react';
 import { useUndoStore } from '../lib/undo';
 
 export function UndoRedoButtons() {
-  const { undo, redo, canUndo, canRedo } = useUndoStore();
+  const undo = useUndoStore((s) => s.undo);
+  const redo = useUndoStore((s) => s.redo);
+  const canUndo = useUndoStore((s) => s.stack.length > 0 && !s._busy);
+  const canRedo = useUndoStore((s) => s.redoStack.length > 0 && !s._busy);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

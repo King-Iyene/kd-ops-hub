@@ -109,6 +109,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       searchQuery: '',
       rowColorRules: [],
       fieldWidths: {},
+      summaryFunctions: {},
     }),
   setActiveTable: (id) =>
     set({
@@ -124,6 +125,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       searchQuery: '',
       rowColorRules: [],
       fieldWidths: {},
+      summaryFunctions: {},
     }),
   setActiveView: (id, viewConfig) => set({
     activeViewId: id,

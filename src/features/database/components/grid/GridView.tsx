@@ -42,7 +42,7 @@ const GROUP_PILL_COLORS = [
 
 const ROW_HEIGHTS: Record<string, number> = {
   compact: 32,
-  default: 32,
+  default: 36,
   tall: 56,
   'extra-tall': 88,
 };
@@ -144,7 +144,7 @@ function getDefaultSummary(uiType: UIType): SummaryFunction {
   return 'none';
 }
 
-function SummaryRow({
+const SummaryRow = React.memo(function SummaryRow({
   fields,
   records,
   summaryFunctions,
@@ -226,6 +226,7 @@ function SummaryRow({
             }}
           >
             <button
+              data-summary-field={field.id}
               className="w-full h-full flex flex-col justify-center px-2 text-left"
               style={{ minHeight: 40 }}
               onClick={() => setSummaryDropdown(isOpen ? null : field.id)}
@@ -242,12 +243,21 @@ function SummaryRow({
               )}
             </button>
 
-            {isOpen && (
+            {isOpen && (() => {
+              const btnEl = document.querySelector(`[data-summary-field="${field.id}"]`);
+              const rect = btnEl?.getBoundingClientRect();
+              return (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setSummaryDropdown(null)} />
+                <div className="fixed inset-0 z-[9998]" onClick={() => setSummaryDropdown(null)} />
                 <div
-                  className="absolute left-0 bottom-full z-50 rounded-lg shadow-lg py-1 min-w-[150px]"
-                  style={{ marginBottom: 2, backgroundColor: colors.cellEditorBg, border: `1px solid ${colors.border}` }}
+                  className="fixed z-[9999] rounded-lg shadow-lg py-1 min-w-[150px]"
+                  style={{
+                    left: rect ? rect.left : 0,
+                    top: rect ? rect.top - 4 : 0,
+                    transform: 'translateY(-100%)',
+                    backgroundColor: colors.cellEditorBg,
+                    border: `1px solid ${colors.border}`,
+                  }}
                 >
                   {SUMMARY_OPTIONS.filter((opt) => !opt.numericOnly || isNumeric).map((opt) => (
                     <button
@@ -267,13 +277,14 @@ function SummaryRow({
                   ))}
                 </div>
               </>
-            )}
+              );
+            })()}
           </div>
         );
       })}
     </div>
   );
-}
+});
 
 export default function GridView({
   fields,
