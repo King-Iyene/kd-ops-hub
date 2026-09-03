@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { useCreateBase, useCreateTable } from '../hooks';
+import { useCreateBase, useCreateTable, useBases } from '../hooks';
 import { useDatabaseUI } from '../lib/store';
 import { Loader2 } from 'lucide-react';
 
@@ -50,15 +50,18 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
   const [statusMsg, setStatusMsg] = useState('');
   const createBase = useCreateBase();
   const createTable = useCreateTable();
+  const { data: existingBases } = useBases();
   const { setActiveBase, setActiveTable } = useDatabaseUI();
   const templateTriggered = useRef(false);
 
   const resetForm = useCallback(() => {
     setName('');
+    setIcon(EMOJI_OPTIONS[0]);
     setColor(COLOR_OPTIONS[0]);
     setError('');
     setCreating(false);
     setStatusMsg('');
+    templateTriggered.current = false;
   }, []);
 
   const doCreate = useCallback(async (baseName: string, baseIcon: string, baseColor: string, tables: Array<{ name: string; icon?: string }>) => {
@@ -108,12 +111,16 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
       setError('Base name is required');
       return;
     }
+    if (existingBases?.some((b) => b.name.trim().toLowerCase() === trimmedName.toLowerCase())) {
+      setError('A base with this name already exists');
+      return;
+    }
     await doCreate(trimmedName, icon, color, [{ name: 'Table 1' }]);
   };
 
   if (template && creating) {
     return (
-      <Dialog open={open} onOpenChange={() => {}}>
+      <Dialog open={open} onOpenChange={(v) => { if (!v) { resetForm(); onOpenChange(v); } }}>
         <DialogContent className="sm:max-w-[360px]">
           <div className="flex flex-col items-center gap-4 py-8">
             <Loader2 className="h-8 w-8 animate-spin text-[#3366FF]" />

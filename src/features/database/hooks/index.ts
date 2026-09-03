@@ -14,8 +14,8 @@ export {
   useBulkDeleteRecords,
   useDuplicateRecord,
 } from './useRecords';
-export { useLinks, useCreateLink, useLinkedRecords } from './useLinks';
-export type { LinkMeta } from './useLinks';
+export { useLinks, useCreateLink, useLinkedRecords, useLinkedRecordsPaginated } from './useLinks';
+export type { LinkMeta, PaginatedLinkedRecords } from './useLinks';
 export { useSharedView, useCreateSharedView, useUpdateSharedView, useDeleteSharedView } from './useSharedViews';
 export { useApiTokens, useCreateApiToken, useDeleteApiToken } from './useApiTokens';
 export { useComments, useCreateComment, useDeleteComment } from './useComments';
@@ -23,3 +23,5 @@ export { useAutomations, useCreateAutomation, useUpdateAutomation, useDeleteAuto
 export { useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook } from './useWebhooks';
 export { useDuplicateBase } from './useDuplicateBase';
 export { useAuditLog } from './useAuditLog';
+export { useLookupValue, useRollupValue } from './useLookupRollup';
+export type { LookupResult, RollupResult } from './useLookupRollup';

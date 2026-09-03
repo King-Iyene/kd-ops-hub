@@ -26,15 +26,17 @@ interface CreateLinkDialogProps {
 }
 
 const RELATIONSHIP_OPTIONS = [
-  { value: 'hm', label: 'Has Many' },
-  { value: 'mm', label: 'Many to Many' },
-  { value: 'bt', label: 'Belongs To' },
+  { value: 'one_to_many', label: 'Has Many' },
+  { value: 'many_to_many', label: 'Many to Many' },
+  { value: 'one_to_one', label: 'Belongs To' },
 ] as const;
+
+type RelationType = 'one_to_one' | 'one_to_many' | 'many_to_many';
 
 export function CreateLinkDialog({ open, onOpenChange }: CreateLinkDialogProps) {
   const [linkName, setLinkName] = useState('');
   const [relatedTableId, setRelatedTableId] = useState('');
-  const [relType, setRelType] = useState<'hm' | 'bt' | 'mm'>('hm');
+  const [relType, setRelType] = useState<RelationType>('one_to_many');
   const [error, setError] = useState('');
 
   const { activeTableId, activeBaseId } = useDatabaseUI();
@@ -62,15 +64,15 @@ export function CreateLinkDialog({ open, onOpenChange }: CreateLinkDialogProps) 
     setError('');
     try {
       await createLink.mutateAsync({
-        sourceTableId: activeTableId,
-        targetTableId: relatedTableId,
-        linkName: linkName.trim(),
-        type: relType,
-        baseId: activeBaseId,
+        base_id: activeBaseId,
+        table_id: activeTableId,
+        field_name: linkName.trim(),
+        target_table_id: relatedTableId,
+        relation_type: relType,
       });
       setLinkName('');
       setRelatedTableId('');
-      setRelType('hm');
+      setRelType('one_to_many');
       onOpenChange(false);
     } catch (e: any) {
       setError(e?.message ?? 'Failed to create link');
@@ -79,9 +81,9 @@ export function CreateLinkDialog({ open, onOpenChange }: CreateLinkDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[420px]">
+      <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle>Link to Another Table</DialogTitle>
+          <DialogTitle className="text-[15px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Link to Another Table</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
@@ -117,7 +119,7 @@ export function CreateLinkDialog({ open, onOpenChange }: CreateLinkDialogProps) 
             <Label className="text-xs">Relationship Type</Label>
             <Select
               value={relType}
-              onValueChange={(v) => setRelType(v as 'hm' | 'bt' | 'mm')}
+              onValueChange={(v) => setRelType(v as RelationType)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -131,9 +133,9 @@ export function CreateLinkDialog({ open, onOpenChange }: CreateLinkDialogProps) 
               </SelectContent>
             </Select>
             <p className="text-[10px] text-[#9AA2AF]">
-              {relType === 'hm' && 'One record here links to many records in the related table.'}
-              {relType === 'bt' && 'Each record here belongs to one record in the related table.'}
-              {relType === 'mm' && 'Records on both sides can link to many records. A junction table is created.'}
+              {relType === 'one_to_many' && 'One record here links to many records in the related table.'}
+              {relType === 'one_to_one' && 'Each record here belongs to one record in the related table.'}
+              {relType === 'many_to_many' && 'Records on both sides can link to many records. A junction table is created.'}
             </p>
           </div>
           {error && <p className="text-xs text-red-500">{error}</p>}
@@ -148,7 +150,8 @@ export function CreateLinkDialog({ open, onOpenChange }: CreateLinkDialogProps) 
           </Button>
           <Button
             size="sm"
-            className="bg-[#3366FF] hover:bg-[#2952CC]"
+            className="hover:opacity-90 text-white"
+            style={{ backgroundColor: '#3366FF' }}
             onClick={handleCreate}
             disabled={createLink.isPending}
           >

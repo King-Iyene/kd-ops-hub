@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { FORMULA_FUNCTIONS, validateFormula } from '../lib/formula';
+import { FORMULA_FUNCTIONS } from '../lib/formula';
 import type { FieldMeta } from '../types';
 
 interface FormulaEditorProps {
@@ -171,10 +171,7 @@ export function FormulaEditor({ value, onChange, fields, error }: FormulaEditorP
             <button
               key={`${sug.type}-${sug.label}`}
               type="button"
-              className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors"
-              style={{
-                backgroundColor: idx === selectedIdx ? '#F4F4F5' : 'transparent',
-              }}
+              className={`w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors ${idx === selectedIdx ? 'bg-[#F4F4F5] dark:bg-[hsl(220,40%,15%)]' : ''}`}
               onMouseEnter={() => setSelectedIdx(idx)}
               onMouseDown={(e) => {
                 e.preventDefault();

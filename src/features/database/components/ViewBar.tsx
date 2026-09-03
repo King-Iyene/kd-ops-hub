@@ -1,5 +1,20 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { Grid3X3, LayoutGrid, Columns3, FileText, Calendar, GanttChart, BarChart3, Plus, Pencil, Trash2, Copy, Lock, Unlock } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useDatabaseUI } from '../lib/store';
 import { useViews, useCreateView, useUpdateView, useDeleteView, useLoadViewConfig } from '../hooks';
 
@@ -23,8 +38,89 @@ const VIEW_TYPE_OPTIONS: Array<{ type: 'grid' | 'kanban' | 'gallery' | 'form' | 
   { type: 'gantt', label: 'Gantt' },
 ];
 
+function SortableViewTab({
+  view,
+  isActive,
+  isRenaming,
+  renameRef,
+  renameText,
+  setRenameText,
+  onRename,
+  setRenamingId,
+  onSelect,
+  onContextMenu,
+}: {
+  view: any;
+  isActive: boolean;
+  isRenaming: boolean;
+  renameRef: React.RefObject<HTMLInputElement | null>;
+  renameText: string;
+  setRenameText: (t: string) => void;
+  onRename: (id: string) => void;
+  setRenamingId: (id: string | null) => void;
+  onSelect: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: view.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  const Icon = VIEW_ICONS[view.type] ?? Grid3X3;
+
+  if (isRenaming) {
+    return (
+      <div ref={setNodeRef} style={style} className="flex items-center gap-1">
+        <input
+          ref={renameRef}
+          className="h-6 w-28 px-1.5 text-[12px] border border-[#3366FF] rounded outline-none"
+          value={renameText}
+          onChange={(e) => setRenameText(e.target.value)}
+          onBlur={() => onRename(view.id)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') onRename(view.id);
+            if (e.key === 'Escape') setRenamingId(null);
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={onSelect}
+      onContextMenu={onContextMenu}
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[12px] font-medium whitespace-nowrap transition-colors"
+      style={{
+        ...style,
+        color: isActive ? '#3366FF' : '#6A7184',
+        backgroundColor: isActive ? '#EBF0FF' : 'transparent',
+      }}
+    >
+      <Icon size={13} />
+      {view.name}
+      {view.is_locked && <Lock size={10} className="text-[#9AA2AF] ml-0.5" />}
+    </button>
+  );
+}
+
 export function ViewBar() {
-  const { activeTableId, activeViewId, setActiveView } = useDatabaseUI();
+  const { activeTableId, activeViewId } = useDatabaseUI();
   const { data: views } = useViews(activeTableId);
   const createView = useCreateView();
   const updateView = useUpdateView();
@@ -40,6 +136,27 @@ export function ViewBar() {
   const sorted = useMemo(
     () => (views ?? []).slice().sort((a, b) => a.position - b.position),
     [views],
+  );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id || !activeTableId) return;
+      const oldIndex = sorted.findIndex((v) => v.id === active.id);
+      const newIndex = sorted.findIndex((v) => v.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reordered = arrayMove(sorted, oldIndex, newIndex);
+      reordered.forEach((v, i) => {
+        if (v.position !== i + 1) {
+          updateView.mutate({ id: v.id, table_id: activeTableId, updates: { position: i + 1 } });
+        }
+      });
+    },
+    [sorted, activeTableId, updateView],
   );
 
   const handleAddView = useCallback(
@@ -74,55 +191,34 @@ export function ViewBar() {
   return (
     <>
       <div
-        className="flex items-center gap-0.5 px-2 shrink-0 overflow-x-auto dark:bg-[hsl(200,30%,8%)] dark:border-[hsl(200,25%,18%)]"
-        style={{
-          height: 34,
-          borderBottom: '1px solid #E7E7E9',
-          backgroundColor: '#FAFAFA',
-        }}
+        className="flex items-center gap-0.5 px-2 shrink-0 overflow-x-auto bg-[#FAFAFA] dark:bg-[hsl(200,30%,8%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]"
+        style={{ height: 34 }}
       >
-        {sorted.map((v) => {
-          const Icon = VIEW_ICONS[v.type] ?? Grid3X3;
-          const isActive = v.id === activeViewId;
-
-          if (renamingId === v.id) {
-            return (
-              <div key={v.id} className="flex items-center gap-1">
-                <input
-                  ref={renameRef}
-                  className="h-6 w-28 px-1.5 text-[12px] border border-[#3366FF] rounded outline-none"
-                  value={renameText}
-                  onChange={(e) => setRenameText(e.target.value)}
-                  onBlur={() => handleRename(v.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleRename(v.id);
-                    if (e.key === 'Escape') setRenamingId(null);
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={sorted.map((v) => v.id)} strategy={horizontalListSortingStrategy}>
+            {sorted.map((v) => {
+              const isActive = v.id === activeViewId;
+              return (
+                <SortableViewTab
+                  key={v.id}
+                  view={v}
+                  isActive={isActive}
+                  isRenaming={renamingId === v.id}
+                  renameRef={renameRef}
+                  renameText={renameText}
+                  setRenameText={setRenameText}
+                  onRename={handleRename}
+                  setRenamingId={setRenamingId}
+                  onSelect={() => loadViewConfig(v.id)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setContextMenu({ x: e.clientX, y: e.clientY, viewId: v.id });
                   }}
                 />
-              </div>
-            );
-          }
-
-          return (
-            <button
-              key={v.id}
-              onClick={() => loadViewConfig(v.id)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setContextMenu({ x: e.clientX, y: e.clientY, viewId: v.id });
-              }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[12px] font-medium whitespace-nowrap transition-colors"
-              style={{
-                color: isActive ? '#3366FF' : '#6A7184',
-                backgroundColor: isActive ? '#EBF0FF' : 'transparent',
-              }}
-            >
-              <Icon size={13} />
-              {v.name}
-              {v.is_locked && <Lock size={10} className="text-[#9AA2AF] ml-0.5" />}
-            </button>
-          );
-        })}
+              );
+            })}
+          </SortableContext>
+        </DndContext>
 
         <div className="relative">
           <button

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Table2,
   Plus,
@@ -9,6 +9,21 @@ import {
   ChevronDown,
   Smile,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { confirm as styledConfirm } from '@/hooks/use-confirm';
 import {
   DropdownMenu,
@@ -77,6 +92,26 @@ function TabRecordCount({ baseId, tableId }: { baseId: string; tableId: string }
   );
 }
 
+function SortableTableTabWrapper({ id, children }: { id: string; children: (props: { setNodeRef: (el: HTMLElement | null) => void; style: React.CSSProperties; attributes: Record<string, any>; listeners: Record<string, any> | undefined }) => React.ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return <>{children({ setNodeRef, style, attributes, listeners })}</>;
+}
+
 export function TableTabBar() {
   const { activeBaseId, activeTableId, setActiveTable } = useDatabaseUI();
   const { data: tables } = useTables(activeBaseId);
@@ -86,6 +121,32 @@ export function TableTabBar() {
   const duplicateTable = useDuplicateTable();
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [iconPickerId, setIconPickerId] = useState<string | null>(null);
+
+  const sortedTables = useMemo(
+    () => (tables ?? []).slice().sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)),
+    [tables],
+  );
+
+  const tableSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const handleTableDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id || !activeBaseId) return;
+      const oldIndex = sortedTables.findIndex((t: any) => t.id === active.id);
+      const newIndex = sortedTables.findIndex((t: any) => t.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reordered = arrayMove(sortedTables, oldIndex, newIndex);
+      reordered.forEach((t: any, i: number) => {
+        if ((t.position ?? 0) !== i) {
+          updateTable.mutate({ id: t.id, baseId: activeBaseId, position: i });
+        }
+      });
+    },
+    [sortedTables, activeBaseId, updateTable],
+  );
 
   const TABLE_ICONS = ['📊', '📋', '📁', '📅', '📦', '🚀', '⭐', '💡', '🎯', '🔧', '📝', '📚', '🧩', '🌐', '❤️', '🏠', '👥', '💰', '🎨', '📱'];
 
@@ -156,8 +217,12 @@ export function TableTabBar() {
 
   return (
     <div className="flex items-center h-[35px] bg-[#F0F3FF] dark:bg-[hsl(220,30%,12%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] px-1 gap-0 overflow-x-auto shrink-0 select-none">
-      {tables?.map((table: any) => (
-        <div key={table.id} className="group/tab flex items-center h-full">
+      <DndContext sensors={tableSensors} collisionDetection={closestCenter} onDragEnd={handleTableDragEnd}>
+        <SortableContext items={sortedTables.map((t: any) => t.id)} strategy={horizontalListSortingStrategy}>
+      {sortedTables.map((table: any) => (
+        <SortableTableTabWrapper key={table.id} id={table.id}>
+          {({ setNodeRef, style: dndStyle, attributes, listeners }) => (
+        <div ref={setNodeRef} style={dndStyle} {...attributes} {...listeners} className="group/tab flex items-center h-full">
           <div
             className={cn(
               'relative flex items-center gap-1.5 h-full px-3 text-[13px] cursor-pointer transition-colors',
@@ -257,7 +322,11 @@ export function TableTabBar() {
             </DropdownMenu>
           </div>
         </div>
+          )}
+        </SortableTableTabWrapper>
       ))}
+        </SortableContext>
+      </DndContext>
       <button
         className="flex items-center justify-center h-7 w-7 ml-0.5 rounded hover:bg-white/60 dark:hover:bg-[hsl(200,25%,16%)] text-[#6A7184] hover:text-[#374151] transition-colors shrink-0"
         onClick={handleAddTable}

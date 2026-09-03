@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, Star, MessageSquare, ChevronDown, Paperclip, Link2, Trash2, Clock, Activity, Copy } from 'lucide-react';
 import { RecordComments } from './RecordComments';
+import { LinkCellRenderer } from './grid/LinkCellRenderer';
+import { LookupCellRenderer, RollupCellRenderer } from './grid/LookupRollupCellRenderer';
 import type { FieldMeta, RecordRow, SelectChoice } from '../types';
 import { PILL_COLORS } from '../types';
 import { getCellRenderer } from './grid/cell-renderers';
@@ -211,9 +213,9 @@ function InlineMultiSelectEditor({
             key={c.title}
             type="button"
             onClick={() => toggle(c.title)}
-            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium transition-all ${!isSelected ? 'bg-[#F4F4F5] dark:bg-[hsl(200,25%,18%)]' : ''}`}
             style={{
-              backgroundColor: isSelected ? color.bg : '#F4F4F5',
+              backgroundColor: isSelected ? color.bg : undefined,
               color: isSelected ? color.text : '#9AA2AF',
               outline: isSelected ? `2px solid ${color.text}` : 'none',
               outlineOffset: 1,
@@ -541,6 +543,14 @@ export function ExpandedRowModal({
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // Don't close if the user is typing in an input/textarea/select
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        e.preventDefault();
+        onOpenChange(false);
+        return;
+      }
       if (!e.altKey) return;
       if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
         e.preventDefault();
@@ -552,7 +562,7 @@ export function ExpandedRowModal({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [open, goToPrev, goToNext]);
+  }, [open, onOpenChange, goToPrev, goToNext]);
 
   if (!open || !record) return null;
 
@@ -600,6 +610,12 @@ export function ExpandedRowModal({
         return <InlineAttachmentEditor value={val as AttachmentMeta[] ?? []} fieldId={field.id} onCommit={(v) => handleUpdate(field.id, v)} />;
       case 'LongText':
         return <InlineLongTextEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
+      case 'Links':
+        return <LinkCellRenderer value={val} field={field} record={record} rowHeight="default" />;
+      case 'Lookup':
+        return <LookupCellRenderer value={val} field={field} record={record} rowHeight="default" />;
+      case 'Rollup':
+        return <RollupCellRenderer value={val} field={field} record={record} rowHeight="default" />;
       default:
         return <InlineTextEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
     }

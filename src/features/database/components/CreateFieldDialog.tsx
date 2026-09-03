@@ -9,19 +9,22 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Plus, X, Search, GripVertical } from 'lucide-react';
+import { Plus, X, Search, GripVertical, Info } from 'lucide-react';
 import { useCreateField } from '../hooks';
 import { useCreateLink } from '../hooks/useLinks';
 import { useTables } from '../hooks/useTables';
 import { useFields } from '../hooks/useFields';
 import { useDatabaseUI } from '../lib/store';
 import type { UIType, SelectChoice, FieldMeta, FieldOptions } from '../types';
-import { PILL_COLORS, SELECT_COLORS, SELECT_COLOR_NAMES } from '../types';
+import { SELECT_COLORS, SELECT_COLOR_NAMES } from '../types';
 import { getFieldTypeIcon } from './grid/field-icons';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { validateFormula, FORMULA_FUNCTIONS } from '../lib/formula';
+import { validateFormula } from '../lib/formula';
 import { FormulaEditor } from './FormulaEditor';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface CreateFieldDialogProps {
   open: boolean;
@@ -70,6 +73,106 @@ const GROUPS = ['Text', 'Numeric', 'Date & Time', 'Selection', 'Relations', 'Com
 
 type RelationType = 'one_to_one' | 'one_to_many' | 'many_to_many';
 
+interface SortableOptionProps {
+  choice: SelectChoice;
+  onRemove: (title: string) => void;
+  onColorChange: (title: string, color: string) => void;
+  isEditing: boolean;
+  editValue: string;
+  onEditChange: (value: string) => void;
+  onEditStart: (title: string) => void;
+  onEditCommit: (oldTitle: string, newTitle: string) => void;
+  onEditCancel: () => void;
+}
+
+function SortableOption({ choice, onRemove, onColorChange, isEditing, editValue, onEditChange, onEditStart, onEditCommit, onEditCancel }: SortableOptionProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: choice.title });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  const sc = SELECT_COLORS[choice.color] || SELECT_COLORS.grayLight2;
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-2 group">
+      <button
+        type="button"
+        className="text-[#9AA2AF] cursor-grab shrink-0 opacity-0 group-hover:opacity-100 transition-opacity touch-none"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical size={14} />
+      </button>
+      {isEditing ? (
+        <input
+          autoFocus
+          className="flex-1 min-w-0 px-2.5 py-0.5 rounded-full text-[12px] font-medium border border-[#3366FF] outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
+          value={editValue}
+          onChange={(e) => onEditChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              onEditCommit(choice.title, editValue);
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              onEditCancel();
+            }
+          }}
+          onBlur={() => onEditCommit(choice.title, editValue)}
+        />
+      ) : (
+        <span
+          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-medium flex-1 min-w-0 truncate select-pill cursor-default"
+          style={{
+            '--pill-bg': sc.bg, '--pill-text': sc.text,
+            '--pill-dark-bg': sc.darkBg, '--pill-dark-text': sc.darkText,
+            backgroundColor: sc.bg, color: sc.text,
+          } as React.CSSProperties}
+          onDoubleClick={() => onEditStart(choice.title)}
+          title="Double-click to rename"
+        >
+          {choice.title}
+        </span>
+      )}
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="w-5 h-5 rounded-full border-2 border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform shrink-0"
+            style={{ backgroundColor: sc.bg }}
+            title="Change color"
+          />
+        </PopoverTrigger>
+        <PopoverContent
+          side="right"
+          align="start"
+          className="!w-auto !p-2"
+          style={{ zIndex: 100 }}
+        >
+          <div className="grid gap-1" style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}>
+            {SELECT_COLOR_NAMES.map((cName) => (
+              <ColorDot
+                key={cName}
+                colorName={cName}
+                bg={SELECT_COLORS[cName].bg}
+                selected={choice.color === cName}
+                onClick={() => onColorChange(choice.title, cName)}
+              />
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+      <button
+        type="button"
+        className="p-0.5 rounded hover:bg-red-50 text-[#9AA2AF] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+        onClick={() => onRemove(choice.title)}
+      >
+        <X size={14} />
+      </button>
+    </div>
+  );
+}
+
 function ColorDot({ colorName, bg, selected, onClick }: { colorName: string; bg: string; selected: boolean; onClick: () => void }) {
   return (
     <button
@@ -92,6 +195,8 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
 
   const [choices, setChoices] = useState<SelectChoice[]>([]);
   const [newChoiceText, setNewChoiceText] = useState('');
+  const [editingChoiceTitle, setEditingChoiceTitle] = useState<string | null>(null);
+  const [editingChoiceValue, setEditingChoiceValue] = useState('');
   const [formulaExpression, setFormulaExpression] = useState('');
   const [formulaError, setFormulaError] = useState('');
   const [targetTableId, setTargetTableId] = useState('');
@@ -125,6 +230,22 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
 
   const isSelectType = uiType === 'SingleSelect' || uiType === 'MultiSelect';
   const isLinksType = uiType === 'Links';
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setChoices((prev) => {
+        const oldIndex = prev.findIndex((c) => c.title === active.id);
+        const newIndex = prev.findIndex((c) => c.title === over.id);
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+    }
+  }, []);
   const isFormula = uiType === 'Formula';
   const isLookup = uiType === 'Lookup';
   const isRollup = uiType === 'Rollup';
@@ -153,6 +274,20 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
 
   const updateChoiceColor = useCallback((title: string, color: string) => {
     setChoices(choices.map((c) => c.title === title ? { ...c, color } : c));
+  }, [choices]);
+
+  const commitChoiceRename = useCallback((oldTitle: string, newTitle: string) => {
+    const trimmed = newTitle.trim();
+    if (!trimmed || trimmed === oldTitle) {
+      setEditingChoiceTitle(null);
+      return;
+    }
+    if (choices.some((c) => c.title !== oldTitle && c.title === trimmed)) {
+      setEditingChoiceTitle(null);
+      return;
+    }
+    setChoices(choices.map((c) => c.title === oldTitle ? { ...c, title: trimmed } : c));
+    setEditingChoiceTitle(null);
   }, [choices]);
 
   const relatedTableId = selectedLinkField?.options?.relatedTableId ?? null;
@@ -436,61 +571,33 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
           {isSelectType && (
             <div className="space-y-2">
               <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Options</Label>
-              <div className="space-y-1.5">
-                {choices.map((choice) => {
-                  const sc = SELECT_COLORS[choice.color] || SELECT_COLORS.grayLight2;
-                  return (
-                    <div key={choice.title} className="flex items-center gap-2 group">
-                      <GripVertical size={14} className="text-[#9AA2AF] cursor-grab shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <span
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium flex-1 min-w-0 truncate select-pill"
-                        style={{
-                          '--pill-bg': sc.bg, '--pill-text': sc.text,
-                          '--pill-dark-bg': sc.darkBg, '--pill-dark-text': sc.darkText,
-                          backgroundColor: sc.bg, color: sc.text,
-                        } as React.CSSProperties}
-                      >
-                        {choice.title}
-                      </span>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            className="w-5 h-5 rounded-full border-2 border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform shrink-0"
-                            style={{ backgroundColor: sc.bg }}
-                            title="Change color"
-                          />
-                        </PopoverTrigger>
-                        <PopoverContent
-                          side="right"
-                          align="start"
-                          className="!w-auto !p-2"
-                          style={{ zIndex: 100 }}
-                        >
-                          <div className="grid gap-1" style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}>
-                            {SELECT_COLOR_NAMES.map((cName) => (
-                              <ColorDot
-                                key={cName}
-                                colorName={cName}
-                                bg={SELECT_COLORS[cName].bg}
-                                selected={choice.color === cName}
-                                onClick={() => updateChoiceColor(choice.title, cName)}
-                              />
-                            ))}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                      <button
-                        type="button"
-                        className="p-0.5 rounded hover:bg-red-50 text-[#9AA2AF] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                        onClick={() => removeChoice(choice.title)}
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={choices.map((c) => c.title)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-1.5">
+                    {choices.map((choice) => (
+                      <SortableOption
+                        key={choice.title}
+                        choice={choice}
+                        onRemove={removeChoice}
+                        onColorChange={updateChoiceColor}
+                        isEditing={editingChoiceTitle === choice.title}
+                        editValue={editingChoiceValue}
+                        onEditChange={setEditingChoiceValue}
+                        onEditStart={(title) => {
+                          setEditingChoiceTitle(title);
+                          setEditingChoiceValue(title);
+                        }}
+                        onEditCommit={commitChoiceRename}
+                        onEditCancel={() => setEditingChoiceTitle(null)}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
               <div className="flex gap-2">
                 <Input
                   value={newChoiceText}
@@ -576,6 +683,23 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
 
           {(isLookup || isRollup) && (
             <div className="space-y-3">
+              {linkFields.length === 0 ? (
+                <div className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-[#3366FF] rounded-r-md p-3 flex items-start gap-2.5">
+                  <Info size={16} className="text-[#3366FF] shrink-0 mt-0.5" />
+                  <div className="space-y-2 min-w-0">
+                    <p className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] leading-relaxed">
+                      This table has no Link fields yet. Create a Link to Another Record field first, then set up your {isLookup ? 'Lookup' : 'Rollup'}.
+                    </p>
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-[#3366FF] hover:text-[#2952CC] transition-colors"
+                      onClick={() => handleTypeChange('Links')}
+                    >
+                      Switch to Link field
+                    </button>
+                  </div>
+                </div>
+              ) : (
               <div className="space-y-1.5">
                 <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Link Field</Label>
                 <select
@@ -589,6 +713,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                   ))}
                 </select>
               </div>
+              )}
               {isLookup && linkFieldId && (
                 <div className="space-y-1.5">
                   <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Lookup Field</Label>

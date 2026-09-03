@@ -977,17 +977,15 @@ export function Toolbar() {
   const [hideOpen, setHideOpen] = useState(false);
   const [groupOpen, setGroupOpen] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
-  const [rowHeightOpen, setRowHeightOpen] = useState(false);
   const [saveFilterViewOpen, setSaveFilterViewOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImport = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImportCsvOpen(true);
-    }
-    e.target.value = '';
+  const closeAllPanels = useCallback(() => {
+    setFilterOpen(false);
+    setSortOpen(false);
+    setHideOpen(false);
+    setGroupOpen(false);
+    setColorOpen(false);
   }, []);
 
   const totalFilterCount = filters.length + filterGroups.reduce(function countGroup(acc: number, g: FilterGroup): number {
@@ -1012,19 +1010,19 @@ export function Toolbar() {
 
   return (
     <>
-      <div className="flex items-center justify-between h-10 px-3 bg-[#F9F9FA] dark:bg-[hsl(200,35%,6%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shrink-0">
+      <div className="flex items-center justify-between h-10 px-3 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700/60 shrink-0">
+        {/* Left: view controls */}
         <div className="flex items-center gap-1">
           <div className="relative">
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs gap-1 relative"
-              style={{ color: totalFilterCount > 0 ? '#3366FF' : '#6A7184' }}
-              onClick={() => { setFilterOpen(!filterOpen); setSortOpen(false); setHideOpen(false); setGroupOpen(false); }}
+              className={`h-7 text-xs gap-1 ${totalFilterCount > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`}
+              onClick={() => { setFilterOpen(!filterOpen); setSortOpen(false); setHideOpen(false); setGroupOpen(false); setColorOpen(false); }}
             >
               <Filter size={14} /> Filter
               {totalFilterCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-[#3366FF] text-white text-[9px] font-bold leading-none">
+                <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-blue-600 text-white text-[9px] font-bold leading-none">
                   {totalFilterCount}
                 </span>
               )}
@@ -1035,9 +1033,8 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs gap-1"
-              style={{ color: sorts.length > 0 ? '#3366FF' : '#6A7184' }}
-              onClick={() => { setSortOpen(!sortOpen); setFilterOpen(false); setHideOpen(false); setGroupOpen(false); }}
+              className={`h-7 text-xs gap-1 ${sorts.length > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`}
+              onClick={() => { setSortOpen(!sortOpen); setFilterOpen(false); setHideOpen(false); setGroupOpen(false); setColorOpen(false); }}
             >
               <ArrowUpDown size={14} /> Sort{sorts.length > 0 ? ` (${sorts.length})` : ''}
             </Button>
@@ -1047,9 +1044,8 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs gap-1"
-              style={{ color: groupByLevels.length > 0 ? '#3366FF' : '#6A7184' }}
-              onClick={() => { setGroupOpen(!groupOpen); setFilterOpen(false); setSortOpen(false); setHideOpen(false); }}
+              className={`h-7 text-xs gap-1 ${groupByLevels.length > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`}
+              onClick={() => { setGroupOpen(!groupOpen); setFilterOpen(false); setSortOpen(false); setHideOpen(false); setColorOpen(false); }}
             >
               <Layers size={14} /> Group{groupByLevels.length > 0 ? ` (${groupByLevels.length})` : ''}
             </Button>
@@ -1059,8 +1055,8 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1"
-              onClick={() => { setHideOpen(!hideOpen); setFilterOpen(false); setSortOpen(false); setGroupOpen(false); }}
+              className="h-7 text-xs text-zinc-500 dark:text-zinc-400 gap-1"
+              onClick={() => { setHideOpen(!hideOpen); setFilterOpen(false); setSortOpen(false); setGroupOpen(false); setColorOpen(false); }}
             >
               <EyeOff size={14} /> Fields
             </Button>
@@ -1070,62 +1066,16 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs gap-1"
-              style={{ color: rowColorRules.length > 0 ? '#3366FF' : '#6A7184' }}
+              className={`h-7 text-xs gap-1 ${rowColorRules.length > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`}
               onClick={() => { setColorOpen(!colorOpen); setFilterOpen(false); setSortOpen(false); setHideOpen(false); setGroupOpen(false); }}
             >
               <Palette size={14} /> Color{rowColorRules.length > 0 ? ` (${rowColorRules.length})` : ''}
             </Button>
             {colorOpen && <ColorPanel onClose={() => setColorOpen(false)} />}
           </div>
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1"
-              onClick={() => { setRowHeightOpen(!rowHeightOpen); setFilterOpen(false); setSortOpen(false); setHideOpen(false); setGroupOpen(false); setColorOpen(false); }}
-            >
-              <Rows3 size={14} /> {ROW_HEIGHT_OPTIONS.find((o) => o.value === rowHeight)?.label ?? 'Medium'}
-            </Button>
-            {rowHeightOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setRowHeightOpen(false)} />
-                <div className="absolute left-0 top-full z-50 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[140px]">
-                  {ROW_HEIGHT_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-white/5 flex items-center justify-between text-[#374151] dark:text-[hsl(200,25%,88%)]"
-                      onClick={() => { setRowHeight(opt.value); setRowHeightOpen(false); }}
-                    >
-                      <span>{opt.label} <span className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] text-[10px]">({opt.px}px)</span></span>
-                      {rowHeight === opt.value && <span style={{ color: '#3366FF' }}>&#10003;</span>}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1 disabled:opacity-30"
-            disabled={stack.length === 0}
-            onClick={undo}
-            aria-label="Undo"
-          >
-            <Undo2 size={14} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1 disabled:opacity-30"
-            disabled={redoStack.length === 0}
-            onClick={redo}
-            aria-label="Redo"
-          >
-            <Redo2 size={14} />
-          </Button>
         </div>
+
+        {/* Right: search, overflow menu, + Field */}
         <div className="flex items-center gap-1">
           {searchOpen ? (
             <div className="relative">
@@ -1133,7 +1083,7 @@ export function Toolbar() {
                 ref={searchRef}
                 type="text"
                 placeholder="Search..."
-                className="h-7 w-48 text-xs pl-2 pr-6 border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded focus:outline-none focus:ring-1 focus:ring-[#3366FF] dark:bg-[hsl(200,30%,12%)] dark:text-[hsl(200,25%,88%)]"
+                className="h-7 w-48 text-xs pl-2 pr-6 border border-zinc-200 dark:border-zinc-700 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
                 value={searchQuery}
                 onChange={handleSearchChange}
               />
@@ -1142,14 +1092,14 @@ export function Toolbar() {
                 onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
                 aria-label="Close search"
               >
-                <X size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+                <X size={12} className="text-zinc-400 dark:text-zinc-500" />
               </button>
             </div>
           ) : (
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1"
+              className="h-7 text-xs text-zinc-500 dark:text-zinc-400 gap-1"
               onClick={() => setSearchOpen(true)}
               aria-label="Search"
             >
@@ -1160,8 +1110,8 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1"
-              onClick={() => setMoreOpen(!moreOpen)}
+              className="h-7 text-xs text-zinc-500 dark:text-zinc-400 gap-1"
+              onClick={() => { setMoreOpen(!moreOpen); closeAllPanels(); }}
               aria-label="More options"
             >
               <MoreHorizontal size={14} />
@@ -1169,9 +1119,42 @@ export function Toolbar() {
             {moreOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
-                <div className="absolute right-0 top-full z-50 mt-1 bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[160px]">
+                <div className="absolute right-0 top-full z-50 mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1 min-w-[180px]">
+                  {/* Row height */}
+                  <div className="px-3 py-1 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Row height</div>
+                  {ROW_HEIGHT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center justify-between text-zinc-700 dark:text-zinc-200"
+                      onClick={() => { setRowHeight(opt.value); setMoreOpen(false); }}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Rows3 size={14} className="text-zinc-400 dark:text-zinc-500" />
+                        {opt.label}
+                      </span>
+                      {rowHeight === opt.value && <Check size={14} className="text-blue-600 dark:text-blue-400" />}
+                    </button>
+                  ))}
+                  <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+                  {/* Undo / Redo */}
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200 disabled:opacity-30"
+                    disabled={stack.length === 0}
+                    onClick={() => { undo(); setMoreOpen(false); }}
+                  >
+                    <Undo2 size={14} className="text-zinc-400 dark:text-zinc-500" /> Undo
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200 disabled:opacity-30"
+                    disabled={redoStack.length === 0}
+                    onClick={() => { redo(); setMoreOpen(false); }}
+                  >
+                    <Redo2 size={14} className="text-zinc-400 dark:text-zinc-500" /> Redo
+                  </button>
+                  <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+                  {/* Import / Export */}
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
                     onClick={() => {
                       if (fieldsData && recordsData?.records) {
                         exportToCsv(fieldsData, recordsData.records, tableName);
@@ -1179,30 +1162,10 @@ export function Toolbar() {
                       setMoreOpen(false);
                     }}
                   >
-                    <Download size={13} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Export CSV
+                    <Download size={14} className="text-zinc-400 dark:text-zinc-500" /> Export CSV
                   </button>
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
-                    onClick={() => {
-                      setImportCsvOpen(true);
-                      setMoreOpen(false);
-                    }}
-                  >
-                    <Upload size={13} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Import CSV
-                  </button>
-                  <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
-                    onClick={() => {
-                      if (fieldsData && recordsData?.records) {
-                        exportToJson(fieldsData, recordsData.records, tableName);
-                      }
-                      setMoreOpen(false);
-                    }}
-                  >
-                    <FileJson size={13} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Export JSON
-                  </button>
-                  <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
                     onClick={() => {
                       if (fieldsData && recordsData?.records) {
                         exportToXlsx(fieldsData, recordsData.records, tableName);
@@ -1210,76 +1173,70 @@ export function Toolbar() {
                       setMoreOpen(false);
                     }}
                   >
-                    <Download size={13} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Export XLSX
+                    <Download size={14} className="text-zinc-400 dark:text-zinc-500" /> Export XLSX
                   </button>
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
                     onClick={() => {
-                      setPrintViewOpen(true);
+                      if (fieldsData && recordsData?.records) {
+                        exportToJson(fieldsData, recordsData.records, tableName);
+                      }
                       setMoreOpen(false);
                     }}
                   >
-                    <Printer size={13} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Print view
+                    <FileJson size={14} className="text-zinc-400 dark:text-zinc-500" /> Export JSON
                   </button>
-                  <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] my-0.5" />
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
+                    onClick={() => {
+                      setImportCsvOpen(true);
+                      setMoreOpen(false);
+                    }}
+                  >
+                    <Upload size={14} className="text-zinc-400 dark:text-zinc-500" /> Import CSV
+                  </button>
+                  <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+                  {/* Tools */}
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
                     onClick={() => {
                       setSearchReplaceOpen(true);
                       setMoreOpen(false);
                     }}
                   >
-                    <Replace size={13} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Search & Replace
+                    <Replace size={14} className="text-zinc-400 dark:text-zinc-500" /> Search & Replace
                   </button>
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
                     onClick={() => {
                       setConditionalFormatOpen(true);
                       setMoreOpen(false);
                     }}
                   >
-                    <Paintbrush size={13} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Conditional Format
+                    <Paintbrush size={14} className="text-zinc-400 dark:text-zinc-500" /> Conditional Format
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
+                    onClick={() => {
+                      setPrintViewOpen(true);
+                      setMoreOpen(false);
+                    }}
+                  >
+                    <Printer size={14} className="text-zinc-400 dark:text-zinc-500" /> Print view
                   </button>
                 </div>
               </>
             )}
           </div>
+          <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs gap-1 font-medium"
-            style={{ color: '#3366FF' }}
-            onClick={() => setFieldDialogOpen(true)}
-            aria-label="Add field"
-          >
-            <Download size={13} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1 px-2 hover:bg-[#E7E7E9] dark:hover:bg-[hsl(200,25%,14%)]"
-            onClick={() => fileInputRef.current?.click()}
-            title="Import CSV"
-            aria-label="Import CSV"
-          >
-            <Upload size={13} />
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={handleImport}
-          />
-          <div className="w-px h-4 bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] mx-1" />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-[11px] text-[#3366FF] gap-1 px-2 font-medium hover:bg-[#3366FF]/10"
+            className="h-7 text-[11px] text-blue-600 dark:text-blue-400 gap-1 px-2 font-medium hover:bg-blue-50 dark:hover:bg-blue-500/10"
             onClick={() => setFieldDialogOpen(true)}
             title="Add new field"
           >
-            <Plus size={13} /> Field
+            <Plus size={14} /> Field
           </Button>
         </div>
       </div>

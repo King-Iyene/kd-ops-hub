@@ -9,7 +9,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { useCreateTable } from '../hooks';
+import { useCreateTable, useTables } from '../hooks';
 import { useDatabaseUI } from '../lib/store';
 
 interface CreateTableDialogProps {
@@ -22,6 +22,7 @@ export function CreateTableDialog({ open, onOpenChange }: CreateTableDialogProps
   const [error, setError] = useState('');
   const { activeBaseId, setActiveTable } = useDatabaseUI();
   const createTable = useCreateTable();
+  const { data: existingTables } = useTables(activeBaseId);
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -30,6 +31,10 @@ export function CreateTableDialog({ open, onOpenChange }: CreateTableDialogProps
     }
     if (!activeBaseId) {
       setError('No base selected');
+      return;
+    }
+    if (existingTables?.some((t) => t.name.trim().toLowerCase() === name.trim().toLowerCase())) {
+      setError('A table with this name already exists');
       return;
     }
     setError('');
@@ -44,7 +49,7 @@ export function CreateTableDialog({ open, onOpenChange }: CreateTableDialogProps
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { setName(''); setError(''); } onOpenChange(v); }}>
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold">Create Table</DialogTitle>

@@ -8,8 +8,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, X, Link2 } from 'lucide-react';
-import { useLinkedRecords } from '../hooks/useLinks';
+import { Search, X, Link2, Loader2 } from 'lucide-react';
+import { useLinkedRecordsPaginated, getRecordDisplayValue } from '../hooks/useLinks';
 import { useFields } from '../hooks/useFields';
 import type { RecordRow } from '../types';
 
@@ -34,7 +34,6 @@ export function LinkedRecordPicker({
 }: LinkedRecordPickerProps) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string[]>(initialSelectedIds);
-  const { data: records = [] } = useLinkedRecords(baseId, targetTableId);
   const { data: fields = [] } = useFields(targetTableId);
 
   const primaryField = useMemo(
@@ -42,21 +41,18 @@ export function LinkedRecordPicker({
     [fields],
   );
 
-  const filteredRecords = useMemo(() => {
-    if (!search) return records;
-    const q = search.toLowerCase();
-    return records.filter((r) => {
-      if (!primaryField) return true;
-      const val = r[primaryField.pg_column_name];
-      return val != null && String(val).toLowerCase().includes(q);
-    });
-  }, [records, search, primaryField]);
-
-  const getPrimaryValue = (record: RecordRow) => {
-    if (!primaryField) return record.id.slice(0, 8);
-    const val = record[primaryField.pg_column_name];
-    return val != null ? String(val) : record.id.slice(0, 8);
-  };
+  const {
+    records,
+    totalCount,
+    hasMore,
+    isLoadingMore,
+    loadMore,
+    isLoading,
+  } = useLinkedRecordsPaginated(baseId, targetTableId, {
+    pageSize: 50,
+    search: search.trim(),
+    searchColumn: primaryField?.pg_column_name,
+  });
 
   const isSingleSelect = relationType === 'one_to_one';
 
@@ -93,10 +89,9 @@ export function LinkedRecordPicker({
             {selectedRecords.map((r) => (
               <span
                 key={r.id}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
-                style={{ backgroundColor: '#DBEAFE', color: '#1E40AF' }}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#DBEAFE] text-[#1E40AF] dark:bg-[hsl(220,40%,20%)] dark:text-[#93B4FF]"
               >
-                {getPrimaryValue(r)}
+                {getRecordDisplayValue(r, primaryField)}
                 <button
                   type="button"
                   className="hover:text-red-500"
@@ -120,54 +115,89 @@ export function LinkedRecordPicker({
           />
         </div>
 
+        {/* Record count */}
+        {totalCount > 0 && (
+          <div className="text-[11px] text-[#9AA2AF] px-0.5">
+            Showing {Math.min(records.length, totalCount)} of{' '}
+            {totalCount.toLocaleString()} records
+          </div>
+        )}
+
         {/* Record list */}
         <div className="flex-1 overflow-y-auto border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg max-h-[300px]">
-          {filteredRecords.length === 0 ? (
+          {isLoading ? (
+            <div className="p-4 flex items-center justify-center text-xs text-[#9AA2AF] gap-1.5">
+              <Loader2 size={14} className="animate-spin" />
+              Loading records...
+            </div>
+          ) : records.length === 0 ? (
             <div className="p-4 text-center text-xs text-[#9AA2AF]">
               No records found
             </div>
           ) : (
-            filteredRecords.map((record) => {
-              const isChecked = selected.includes(record.id);
-              return (
-                <button
-                  key={record.id}
-                  type="button"
-                  className="w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] last:border-b-0 transition-colors"
-                  onClick={() => toggle(record.id)}
-                >
-                  {isSingleSelect ? (
-                    <span
-                      className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
-                      style={{
-                        borderColor: isChecked ? '#3366FF' : '#9AA2AF',
-                      }}
-                    >
-                      {isChecked && (
-                        <span
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: '#3366FF' }}
-                        />
-                      )}
+            <>
+              {records.map((record) => {
+                const isChecked = selected.includes(record.id);
+                return (
+                  <button
+                    key={record.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] last:border-b-0 transition-colors"
+                    onClick={() => toggle(record.id)}
+                  >
+                    {isSingleSelect ? (
+                      <span
+                        className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
+                        style={{
+                          borderColor: isChecked ? '#3366FF' : '#9AA2AF',
+                        }}
+                      >
+                        {isChecked && (
+                          <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: '#3366FF' }}
+                          />
+                        )}
+                      </span>
+                    ) : (
+                      <span
+                        className="w-4 h-4 rounded border-2 flex items-center justify-center text-[10px] shrink-0"
+                        style={{
+                          borderColor: isChecked ? '#3366FF' : '#9AA2AF',
+                          backgroundColor: isChecked ? '#3366FF' : 'transparent',
+                          color: isChecked ? '#fff' : 'transparent',
+                        }}
+                      >
+                        {isChecked ? '✓' : ''}
+                      </span>
+                    )}
+                    <span className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
+                      {getRecordDisplayValue(record, primaryField)}
                     </span>
-                  ) : (
-                    <span
-                      className="w-4 h-4 rounded border-2 flex items-center justify-center text-[10px] shrink-0"
-                      style={{
-                        borderColor: isChecked ? '#3366FF' : '#9AA2AF',
-                        backgroundColor: isChecked ? '#3366FF' : 'transparent',
-                        color: isChecked ? '#fff' : 'transparent',
-                      }}
-                    >
-                      {isChecked ? '✓' : ''}
-                    </span>
-                  )}
-                  <span className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
-                    {getPrimaryValue(record)}
-                  </span>
-                </button>
-              );
-            })
+                  </button>
+                );
+              })}
+              {hasMore && (
+                <div className="p-2 flex justify-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-[#3366FF] hover:text-[#2855CC] h-7"
+                    disabled={isLoadingMore}
+                    onClick={loadMore}
+                  >
+                    {isLoadingMore ? (
+                      <>
+                        <Loader2 size={12} className="animate-spin mr-1" />
+                        Loading...
+                      </>
+                    ) : (
+                      'Load more'
+                    )}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
