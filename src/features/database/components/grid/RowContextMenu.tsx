@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Expand, Copy, Link, Trash2 } from 'lucide-react';
+import { Expand, Copy, Link, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { RecordRow } from '../../types';
 
 interface RowContextMenuProps {
@@ -10,10 +10,12 @@ interface RowContextMenuProps {
   onExpandRow: (record: RecordRow) => void;
   onDuplicateRow: (record: RecordRow) => void;
   onDeleteRow: (recordId: string) => void;
+  onInsertAbove?: (record: RecordRow) => void;
+  onInsertBelow?: (record: RecordRow) => void;
 }
 
 const menuItemClass =
-  'flex w-full items-center gap-2 px-3 py-1.5 text-left text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] transition-colors';
+  'flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] transition-colors';
 
 export function RowContextMenu({
   x,
@@ -23,6 +25,8 @@ export function RowContextMenu({
   onExpandRow,
   onDuplicateRow,
   onDeleteRow,
+  onInsertAbove,
+  onInsertBelow,
 }: RowContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -48,8 +52,8 @@ export function RowContextMenu({
     <div className="fixed inset-0 z-50" onClick={onClose}>
       <div
         ref={menuRef}
-        className="fixed rounded-lg shadow-lg bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] text-xs"
-        style={{ left: x, top: y, minWidth: 180, zIndex: 51 }}
+        className="fixed rounded-lg shadow-lg bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]"
+        style={{ left: x, top: y, minWidth: 200, zIndex: 51 }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="py-1">
@@ -61,8 +65,36 @@ export function RowContextMenu({
             }}
           >
             <Expand size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
-            Expand row
+            Expand record
           </button>
+
+          <div className="my-1 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]" />
+
+          {onInsertAbove && (
+            <button
+              className={menuItemClass}
+              onClick={() => {
+                onInsertAbove(record);
+                onClose();
+              }}
+            >
+              <ArrowUp size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+              Insert record above
+            </button>
+          )}
+
+          {onInsertBelow && (
+            <button
+              className={menuItemClass}
+              onClick={() => {
+                onInsertBelow(record);
+                onClose();
+              }}
+            >
+              <ArrowDown size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+              Insert record below
+            </button>
+          )}
 
           <button
             className={menuItemClass}
@@ -72,27 +104,27 @@ export function RowContextMenu({
             }}
           >
             <Copy size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
-            Duplicate row
+            Duplicate record
           </button>
 
           <div className="my-1 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]" />
 
           <button className={menuItemClass} onClick={handleCopyRowLink}>
             <Link size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
-            Copy row link
+            Copy record URL
           </button>
 
           <div className="my-1 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]" />
 
           <button
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-red-500 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] transition-colors"
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             onClick={() => {
               onDeleteRow(record.id);
               onClose();
             }}
           >
             <Trash2 size={14} className="text-red-500" />
-            Delete row
+            Delete record
           </button>
         </div>
       </div>

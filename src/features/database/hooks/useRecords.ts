@@ -24,7 +24,15 @@ interface RecordsResult {
   totalCount: number;
 }
 
+const contextCache = new Map<string, { schemaName: string; tableName: string; ts: number }>();
+
 async function resolveTableContext(baseId: string, tableId: string) {
+  const key = `${baseId}:${tableId}`;
+  const cached = contextCache.get(key);
+  if (cached && Date.now() - cached.ts < 60_000) {
+    return { schemaName: cached.schemaName, tableName: cached.tableName };
+  }
+
   const { data: base, error: baseError } = await supabase
     .schema('nc_meta')
     .from('bases')
@@ -41,7 +49,9 @@ async function resolveTableContext(baseId: string, tableId: string) {
     .single();
   if (tableError) throw tableError;
 
-  return { schemaName: base.schema_name, tableName: table.pg_table_name };
+  const result = { schemaName: base.schema_name, tableName: table.pg_table_name };
+  contextCache.set(key, { ...result, ts: Date.now() });
+  return result;
 }
 
 function applyFilter(
@@ -186,12 +196,37 @@ export function useCreateRecord() {
       if (error) throw error;
       return data as RecordRow;
     },
+    onMutate: async (variables) => {
+      const queryKey = ['nc', 'records', variables.baseId, variables.tableId];
+      await qc.cancelQueries({ queryKey });
+
+      const optimisticRecord: RecordRow = {
+        id: `temp-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        ...variables.record,
+      };
+
+      qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          records: [...old.records, optimisticRecord],
+          totalCount: old.totalCount + 1,
+        };
+      });
+
+      return { queryKey };
+    },
     onSuccess: (data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       toast.success('Record created');
       fireAutomations('record.created', variables.baseId, variables.tableId, data);
     },
-    onError: () => {
+    onError: (_err, variables, context) => {
+      if (context?.queryKey) {
+        qc.invalidateQueries({ queryKey: context.queryKey });
+      }
       toast.error('Failed to create record');
     },
   });

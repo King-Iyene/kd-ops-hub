@@ -154,12 +154,6 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
             <HelpCircle size={15} />
           </Button>
           <PresenceIndicator />
-          <div
-            className="h-7 w-7 rounded-full bg-[#3366FF] text-white flex items-center justify-center text-[10px] font-semibold select-none ml-1"
-            title={profile?.full_name ?? ''}
-          >
-            {initials}
-          </div>
         </div>
       </header>
 

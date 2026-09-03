@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ArrowUp, ArrowDown, EyeOff, Pencil, Trash2, Copy, ArrowLeftRight, Info, Lock, Unlock } from 'lucide-react';
+import { ArrowUp, ArrowDown, EyeOff, Pencil, Trash2, Copy, ArrowLeftRight, Info, Lock, Unlock, Filter, Group } from 'lucide-react';
 import type { FieldMeta } from '@/features/database/types';
 import { getFieldTypeIcon } from './field-icons';
 import { useDatabaseUI } from '../../lib/store';
@@ -43,7 +43,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
-  const { sorts, setSorts, toggleHiddenField } = useDatabaseUI();
+  const { sorts, setSorts, toggleHiddenField, filters, setFilters, groupByLevels, setGroupByLevels } = useDatabaseUI();
   const colors = useGridColors();
 
   const currentSort = sorts.find((s) => s.field_id === field.id);
@@ -174,13 +174,34 @@ export const ColumnHeader = React.memo(function ColumnHeader({
               className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={handleSortAsc}
             >
-              <ArrowUp size={14} className="text-[#9AA2AF]" /> Sort ascending
+              <ArrowUp size={14} className="text-[#9AA2AF]" /> Sort A → Z
             </button>
             <button
               className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={handleSortDesc}
             >
-              <ArrowDown size={14} className="text-[#9AA2AF]" /> Sort descending
+              <ArrowDown size={14} className="text-[#9AA2AF]" /> Sort Z → A
+            </button>
+            <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] my-1" />
+            <button
+              className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              onClick={() => {
+                setFilters([...filters, { field_id: field.id, operator: 'isNotEmpty', value: '', conjunction: 'and' }]);
+                setContextMenu(null);
+              }}
+            >
+              <Filter size={14} className="text-[#9AA2AF]" /> Filter by this field
+            </button>
+            <button
+              className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              onClick={() => {
+                if (!groupByLevels.some((g) => g.field_id === field.id)) {
+                  setGroupByLevels([...groupByLevels, { field_id: field.id, direction: 'asc' }]);
+                }
+                setContextMenu(null);
+              }}
+            >
+              <Group size={14} className="text-[#9AA2AF]" /> Group by this field
             </button>
             <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] my-1" />
             {!field.is_system && onEditField && (

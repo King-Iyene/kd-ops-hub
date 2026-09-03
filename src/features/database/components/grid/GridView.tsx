@@ -10,6 +10,7 @@ import { GridCell } from './GridCell';
 import { EditFieldDialog } from '../EditFieldDialog';
 import { BulkActionsBar } from './BulkActionsBar';
 import { GridSkeleton } from './GridSkeleton';
+import { RowContextMenu } from './RowContextMenu';
 import { useGridColors, type GridColorTokens } from '../../hooks/useGridColors';
 
 export interface GridViewProps {
@@ -1460,47 +1461,17 @@ export default function GridView({
 
       {/* Row context menu */}
       {rowMenu && (
-        <>
-          <div className="fixed inset-0 z-50" onClick={() => setRowMenu(null)} />
-          <div
-            className="fixed z-50 rounded-lg shadow-lg py-1 min-w-[160px]"
-            style={{ left: rowMenu.x, top: rowMenu.y, backgroundColor: GRID_COLORS.cellEditorBg, border: `1px solid ${GRID_COLORS.border}` }}
-          >
-            {onExpandRow && (
-              <button
-                className="w-full text-left px-3 py-1.5 text-[13px] flex items-center gap-2"
-                style={{ color: GRID_COLORS.text }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = GRID_COLORS.hoverRow)}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                onClick={() => { onExpandRow(rowMenu.record); setRowMenu(null); }}
-              >
-                <Expand size={14} style={{ color: GRID_COLORS.muted }} /> Expand row
-              </button>
-            )}
-            {onDuplicateRow && (
-              <button
-                className="w-full text-left px-3 py-1.5 text-[13px] flex items-center gap-2"
-                style={{ color: GRID_COLORS.text }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = GRID_COLORS.hoverRow)}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                onClick={() => { onDuplicateRow(rowMenu.record); setRowMenu(null); }}
-              >
-                <Copy size={14} style={{ color: GRID_COLORS.muted }} /> Duplicate row
-              </button>
-            )}
-            {onDeleteRow && (
-              <>
-                <div className="h-px my-1" style={{ backgroundColor: GRID_COLORS.border }} />
-                <button
-                  className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-red-50 flex items-center gap-2 text-red-500"
-                  onClick={() => { onDeleteRow(rowMenu.record.id); setRowMenu(null); }}
-                >
-                  <Trash2 size={14} /> Delete row
-                </button>
-              </>
-            )}
-          </div>
-        </>
+        <RowContextMenu
+          x={rowMenu.x}
+          y={rowMenu.y}
+          record={rowMenu.record}
+          onClose={() => setRowMenu(null)}
+          onExpandRow={(r) => onExpandRow?.(r)}
+          onDuplicateRow={(r) => onDuplicateRow?.(r)}
+          onDeleteRow={(id) => onDeleteRow?.(id)}
+          onInsertAbove={() => onAddRow()}
+          onInsertBelow={() => onAddRow()}
+        />
       )}
 
       {/* Bulk action bar */}
