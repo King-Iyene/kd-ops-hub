@@ -99,6 +99,7 @@ export const GridCell = React.memo(function GridCell({
     <div
       className={`relative flex items-center overflow-hidden ${frozen ? 'sticky z-10' : ''}`}
       style={{
+        boxSizing: 'border-box',
         width: field.width || 180,
         minWidth: field.width || 180,
         height: '100%',

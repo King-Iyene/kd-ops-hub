@@ -1082,15 +1082,18 @@ export default function GridView({
               return (
                 <div
                   key={field.id}
-                  className="relative"
+                  className="relative shrink-0"
                   role="columnheader"
                   aria-colindex={colIdx + 1}
                   style={{
+                    width: field.width || 180,
+                    minWidth: field.width || 180,
                     borderLeft: dropColTargetIdx === colIdx && dragColId !== null ? `2px solid ${GRID_COLORS.primary}` : undefined,
                     ...(isFrozen ? {
                       position: 'sticky' as const,
                       left: stickyLeft,
                       zIndex: 25,
+                      backgroundColor: GRID_COLORS.headerBg,
                       borderRight: isLastFrozen ? `3px solid ${GRID_COLORS.border}` : undefined,
                     } : {}),
                   }}
@@ -1323,10 +1326,13 @@ export default function GridView({
                       return (
                         <div
                           key={field.id}
+                          className="shrink-0"
                           role="gridcell"
                           aria-colindex={colIdx + 1}
                           style={{
                             height: '100%',
+                            width: field.width || 180,
+                            minWidth: field.width || 180,
                             ...(isFroz ? {
                               position: 'sticky' as const,
                               left: cellLeft,
@@ -1474,13 +1480,24 @@ export default function GridView({
                     if (isFroz) {
                       for (let i = 0; i < colIdx; i++) cellLeft += fieldsWithWidths[i].width;
                     }
+                    const isFlash = flashCells.has(`${record.id}:${field.id}`);
+                    const isInRange = selectionRange && (() => {
+                      const r1 = Math.min(selectionRange.startRow, selectionRange.endRow);
+                      const r2 = Math.max(selectionRange.startRow, selectionRange.endRow);
+                      const c1 = Math.min(selectionRange.startCol, selectionRange.endCol);
+                      const c2 = Math.max(selectionRange.startCol, selectionRange.endCol);
+                      return virtualRow.index >= r1 && virtualRow.index <= r2 && colIdx >= c1 && colIdx <= c2;
+                    })();
                     return (
                       <div
                         key={field.id}
+                        className="shrink-0"
                         role="gridcell"
                         aria-colindex={colIdx + 1}
                         style={{
                           height: '100%',
+                          width: field.width || 180,
+                          minWidth: field.width || 180,
                           ...(isFroz ? {
                             position: 'sticky' as const,
                             left: cellLeft,
@@ -1490,7 +1507,14 @@ export default function GridView({
                         }}
                       >
                         <div
-                          style={{ height: '100%' }}
+                          style={{
+                            height: '100%',
+                            ...(isFlash ? {
+                              boxShadow: `inset 0 0 0 2px ${GRID_COLORS.primary}`,
+                              transition: 'box-shadow 0.3s ease-out',
+                            } : {}),
+                            ...(isInRange ? { backgroundColor: `${GRID_COLORS.primary}14` } : {}),
+                          }}
                           onClick={(e) => {
                             if (e.shiftKey && selectedCellId) {
                               const [, anchorFid] = selectedCellId.split(':');
@@ -1509,20 +1533,6 @@ export default function GridView({
                               setSelectionRange(null);
                               setSelectionAnchor(null);
                             }
-                          }}
-                          style={{
-                            ...(flashCells.has(`${record.id}:${field.id}`) ? {
-                              boxShadow: `inset 0 0 0 2px ${GRID_COLORS.primary}`,
-                              transition: 'box-shadow 0.3s ease-out',
-                            } : {}),
-                            ...(selectionRange && (() => {
-                              const r1 = Math.min(selectionRange.startRow, selectionRange.endRow);
-                              const r2 = Math.max(selectionRange.startRow, selectionRange.endRow);
-                              const c1 = Math.min(selectionRange.startCol, selectionRange.endCol);
-                              const c2 = Math.max(selectionRange.startCol, selectionRange.endCol);
-                              return virtualRow.index >= r1 && virtualRow.index <= r2 && colIdx >= c1 && colIdx <= c2
-                                ? { backgroundColor: `${GRID_COLORS.primary}14` } : {};
-                            })()),
                           }}
                         >
                           <GridCell

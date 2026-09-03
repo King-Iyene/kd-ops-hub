@@ -98,7 +98,7 @@ export function useCreateField() {
       if (!isVirtual) {
         const ctx = await getTableContext(input.table_id);
 
-        const { error: ddlError } = await supabase.functions.invoke('ddl-executor', {
+        const { data: ddlData, error: ddlError } = await supabase.functions.invoke('ddl-executor', {
           body: {
             action: 'addColumn',
             schemaName: ctx.schemaName,
@@ -108,7 +108,31 @@ export function useCreateField() {
           },
         });
 
-        if (ddlError) throw ddlError;
+        if (ddlError) {
+          // Rollback: delete the metadata row since the DDL failed
+          await supabase.schema('nc_meta').from('fields').delete().eq('id', field.id);
+
+          // Extract the real error message from the edge function response
+          let message = ddlError.message || 'Failed to create column';
+          if (ddlError.context && typeof ddlError.context === 'object') {
+            try {
+              const body = typeof ddlError.context === 'string'
+                ? JSON.parse(ddlError.context)
+                : ddlError.context;
+              if (body?.error) message = body.error;
+            } catch { /* keep original message */ }
+          }
+          if (ddlData && typeof ddlData === 'object' && ddlData.error) {
+            message = ddlData.error;
+          }
+          throw new Error(message);
+        }
+
+        // Also check the response body for non-success
+        if (ddlData && typeof ddlData === 'object' && ddlData.success === false) {
+          await supabase.schema('nc_meta').from('fields').delete().eq('id', field.id);
+          throw new Error(ddlData.error || 'DDL execution failed');
+        }
       }
 
       return field as FieldMeta;
@@ -241,7 +265,7 @@ export function useDuplicateField() {
       if (!isVirtual && pgColumnName) {
         const ctx = await getTableContext(input.table_id);
 
-        const { error: ddlError } = await supabase.functions.invoke('ddl-executor', {
+        const { data: ddlData, error: ddlError } = await supabase.functions.invoke('ddl-executor', {
           body: {
             action: 'addColumn',
             schemaName: ctx.schemaName,
@@ -251,7 +275,18 @@ export function useDuplicateField() {
           },
         });
 
-        if (ddlError) throw ddlError;
+        if (ddlError) {
+          await supabase.schema('nc_meta').from('fields').delete().eq('id', field.id);
+          let message = ddlError.message || 'Failed to create column';
+          if (ddlData && typeof ddlData === 'object' && ddlData.error) {
+            message = ddlData.error;
+          }
+          throw new Error(message);
+        }
+        if (ddlData && typeof ddlData === 'object' && ddlData.success === false) {
+          await supabase.schema('nc_meta').from('fields').delete().eq('id', field.id);
+          throw new Error(ddlData.error || 'DDL execution failed');
+        }
       }
 
       return field as FieldMeta;

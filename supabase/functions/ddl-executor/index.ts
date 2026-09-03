@@ -235,6 +235,15 @@ async function handleAddColumn(
   const conn = await pool.connect();
   try {
     await conn.queryObject(ddl);
+  } catch (err) {
+    const msg = (err as Error).message || '';
+    if (msg.includes('already exists')) {
+      throw new Error(`Column "${body.columnName}" already exists in this table.`);
+    }
+    if (msg.includes('does not exist')) {
+      throw new Error(`Table "${body.tableName}" does not exist in schema "${body.schemaName}".`);
+    }
+    throw err;
   } finally {
     conn.release();
   }
