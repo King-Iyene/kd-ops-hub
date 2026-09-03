@@ -46,6 +46,7 @@ interface DatabaseUIState {
     groups?: Group[];
     hiddenFieldIds?: Set<string>;
     fieldOrder?: string[];
+    fieldWidths?: Record<string, number>;
   }) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
@@ -130,6 +131,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       groupByLevels: viewConfig.groups ?? [],
       hiddenFieldIds: viewConfig.hiddenFieldIds ?? new Set(),
       fieldOrder: viewConfig.fieldOrder ?? [],
+      fieldWidths: viewConfig.fieldWidths ?? {},
     } : {}),
   }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),

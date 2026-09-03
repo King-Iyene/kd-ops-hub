@@ -122,6 +122,7 @@ function viewConfigFromMeta(view: ViewMeta) {
     sorts: view.sorts ?? [],
     groups: view.groups ?? [],
     hiddenFieldIds,
+    fieldWidths: view.field_widths ?? {},
   };
 }
 
