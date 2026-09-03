@@ -281,6 +281,7 @@ export default function GridView({
   const rowHeight = useDatabaseUI((s) => s.rowHeight);
   const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
   const setSelectedCell = useDatabaseUI((s) => s.setSelectedCell);
+  const editingCellId = useDatabaseUI((s) => s.editingCellId);
   const setEditingCell = useDatabaseUI((s) => s.setEditingCell);
   const rowColorRules = useDatabaseUI((s) => s.rowColorRules);
   const conditionalFormats = useDatabaseUI((s) => s.conditionalFormats);
@@ -861,15 +862,44 @@ export default function GridView({
             nextRow = Math.min(records.length - 1, rowIdx + 1);
           }
         }
+      } else if (e.key === 'Home') {
+        if (e.ctrlKey || e.metaKey) { nextRow = 0; nextCol = 0; }
+        else { nextCol = 0; }
+      } else if (e.key === 'End') {
+        if (e.ctrlKey || e.metaKey) { nextRow = records.length - 1; nextCol = fieldsWithWidths.length - 1; }
+        else { nextCol = fieldsWithWidths.length - 1; }
+      } else if (e.key === 'PageUp') {
+        nextRow = Math.max(0, rowIdx - 20);
+      } else if (e.key === 'PageDown') {
+        nextRow = Math.min(records.length - 1, rowIdx + 20);
       } else if (e.key === 'Escape') {
         setSelectedCell(null);
         setEditingCell(null);
         setSelectionRange(null);
         setSelectionAnchor(null);
         return;
+      } else if (e.key === ' ' && !editingCellId) {
+        e.preventDefault();
+        onExpandRow?.(records[rowIdx]);
+        return;
+      } else if (e.key === 'Enter' && e.shiftKey) {
+        e.preventDefault();
+        onAddRow();
+        return;
       } else if (e.key === 'Enter') {
         e.preventDefault();
         setEditingCell(selectedCellId);
+        return;
+      } else if (e.key === 'd' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (rowIdx > 0) {
+          const aboveRecord = records[rowIdx - 1];
+          const field = fieldsWithWidths[colIdx];
+          const valueAbove = aboveRecord[field.pg_column_name];
+          if (valueAbove !== undefined) {
+            onCellUpdate(rowId, fieldId, valueAbove);
+          }
+        }
         return;
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
@@ -902,7 +932,7 @@ export default function GridView({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedCellId, records, fieldsWithWidths, setSelectedCell, setEditingCell, onCellUpdate, selectedRowIds, selectionRange, selectionAnchor, copySelectedRows, copyRange, cellToText, showToast, flashCellIds, onPasteRows]);
+  }, [selectedCellId, editingCellId, records, fieldsWithWidths, setSelectedCell, setEditingCell, onCellUpdate, selectedRowIds, selectionRange, selectionAnchor, copySelectedRows, copyRange, cellToText, showToast, flashCellIds, onPasteRows, onExpandRow, onAddRow]);
 
   if (isLoading && records.length === 0) {
     return <GridSkeleton rowHeight={rowHeightPx} />;
