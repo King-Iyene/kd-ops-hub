@@ -10,6 +10,7 @@ import { EditFieldDialog } from '../EditFieldDialog';
 import { BulkActionsBar } from './BulkActionsBar';
 import { GridSkeleton } from './GridSkeleton';
 import { RowContextMenu } from './RowContextMenu';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useGridColors, type GridColorTokens } from '../../hooks/useGridColors';
 import { useGridKeyboard } from '../../hooks/useGridKeyboard';
 import { confirm as styledConfirm } from '@/hooks/use-confirm';
@@ -178,7 +179,7 @@ const SummaryRow = React.memo(function SummaryRow({
 
   return (
     <div
-      className="flex"
+      className="flex shrink-0 overflow-x-hidden"
       style={{
         backgroundColor: colors.headerBg,
         borderTop: `1px solid ${colors.borderStrong}`,
@@ -186,7 +187,6 @@ const SummaryRow = React.memo(function SummaryRow({
         minHeight: 36,
       }}
     >
-      {/* Sigma icon cell */}
       <div
         className="sticky left-0 z-10 flex items-center justify-center shrink-0"
         style={{
@@ -215,51 +215,51 @@ const SummaryRow = React.memo(function SummaryRow({
         }
 
         return (
-          <div
+          <Popover
             key={field.id}
-            className="relative shrink-0"
-            style={{
-              width: field.width,
-              minWidth: field.width,
-              borderRight: isLastFroz ? `1px solid ${colors.border}` : `1px solid ${colors.border}`,
-              backgroundColor: colors.headerBg,
-              ...(isFroz ? { position: 'sticky' as const, left: cellLeft, zIndex: 10, boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined } : {}),
-            }}
+            open={isOpen}
+            onOpenChange={(open) => setSummaryDropdown(open ? field.id : null)}
           >
-            <button
-              data-summary-field={field.id}
-              className="w-full h-full flex flex-col justify-center px-2 text-left"
-              style={{ minHeight: 40 }}
-              onClick={() => setSummaryDropdown(isOpen ? null : field.id)}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            <div
+              className="relative shrink-0"
+              style={{
+                width: field.width,
+                minWidth: field.width,
+                borderRight: `1px solid ${colors.border}`,
+                backgroundColor: colors.headerBg,
+                ...(isFroz ? { position: 'sticky' as const, left: cellLeft, zIndex: 10, boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined } : {}),
+              }}
             >
-              {fn !== 'none' ? (
-                <>
-                  <span style={{ fontSize: 10, lineHeight: '14px', color: colors.muted }}>{label}</span>
-                  <span style={{ fontSize: 12, lineHeight: '16px', fontWeight: 500, color: colors.text }}>{value}</span>
-                </>
-              ) : (
-                <span style={{ fontSize: 11, color: colors.muted }}>&#8211;</span>
-              )}
-            </button>
-
-            {isOpen && (() => {
-              const btnEl = document.querySelector(`[data-summary-field="${field.id}"]`);
-              const rect = btnEl?.getBoundingClientRect();
-              return (
-              <>
-                <div className="fixed inset-0 z-[9998]" onClick={() => setSummaryDropdown(null)} />
-                <div
-                  className="fixed z-[9999] rounded-lg shadow-lg py-1 min-w-[150px]"
-                  style={{
-                    left: rect ? rect.left : 0,
-                    top: rect ? rect.top - 4 : 0,
-                    transform: 'translateY(-100%)',
-                    backgroundColor: colors.cellEditorBg,
-                    border: `1px solid ${colors.border}`,
-                  }}
+              <PopoverTrigger asChild>
+                <button
+                  className="w-full h-full flex flex-col justify-center px-2 text-left"
+                  style={{ minHeight: 40 }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                 >
+                  {fn !== 'none' ? (
+                    <>
+                      <span style={{ fontSize: 10, lineHeight: '14px', color: colors.muted }}>{label}</span>
+                      <span style={{ fontSize: 12, lineHeight: '16px', fontWeight: 500, color: colors.text }}>{value}</span>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: 11, color: colors.muted }}>&#8211;</span>
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="top"
+                align="start"
+                sideOffset={4}
+                className="p-0 w-auto"
+                style={{
+                  minWidth: 150,
+                  backgroundColor: colors.cellEditorBg,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 8,
+                }}
+              >
+                <div className="py-1">
                   {SUMMARY_OPTIONS.filter((opt) => !opt.numericOnly || isNumeric).map((opt) => (
                     <button
                       key={opt.value}
@@ -277,10 +277,9 @@ const SummaryRow = React.memo(function SummaryRow({
                     </button>
                   ))}
                 </div>
-              </>
-              );
-            })()}
-          </div>
+              </PopoverContent>
+            </div>
+          </Popover>
         );
       })}
     </div>
@@ -1349,19 +1348,6 @@ export default function GridView({
             })}
           </div>
 
-          {/* Summary row */}
-          <SummaryRow
-            fields={fieldsWithWidths}
-            records={records}
-            summaryFunctions={summaryFunctions}
-            setSummaryFunction={setSummaryFunction}
-            summaryDropdown={summaryDropdown}
-            setSummaryDropdown={setSummaryDropdown}
-            rowNumberWidth={ROW_NUMBER_WIDTH}
-            frozenCount={frozenCount}
-            colors={GRID_COLORS}
-          />
-
           {/* Add row button */}
           <button
             className="flex items-center w-full text-left cursor-pointer transition-colors"
@@ -1382,6 +1368,19 @@ export default function GridView({
           </button>
         </div>
       </div>
+
+      {/* Pinned summary row — outside scroll container */}
+      <SummaryRow
+        fields={fieldsWithWidths}
+        records={records}
+        summaryFunctions={summaryFunctions}
+        setSummaryFunction={setSummaryFunction}
+        summaryDropdown={summaryDropdown}
+        setSummaryDropdown={setSummaryDropdown}
+        rowNumberWidth={ROW_NUMBER_WIDTH}
+        frozenCount={frozenCount}
+        colors={GRID_COLORS}
+      />
 
       {/* Row context menu */}
       {rowMenu && (
