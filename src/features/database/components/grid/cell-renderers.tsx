@@ -141,6 +141,7 @@ export const DateCellRenderer = React.memo(function DateCellRenderer({
   value,
   field,
 }: CellRendererProps) {
+  const colors = useGridColors();
   if (value == null || value === '') return null;
   const date = new Date(value);
   if (isNaN(date.getTime())) return <span className="truncate">{String(value)}</span>;
@@ -148,7 +149,22 @@ export const DateCellRenderer = React.memo(function DateCellRenderer({
     field.ui_type === 'DateTime'
       ? { dateStyle: 'medium', timeStyle: 'short' }
       : { dateStyle: 'medium' };
-  return <span className="truncate">{date.toLocaleString(undefined, opts)}</span>;
+  const formatted = date.toLocaleString(undefined, opts);
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-md px-1.5 truncate"
+      style={{
+        fontSize: 12,
+        color: colors.textSecondary,
+        backgroundColor: `${colors.border}30`,
+        height: 22,
+        lineHeight: '22px',
+      }}
+    >
+      <Clock size={10} className="shrink-0" style={{ color: colors.muted, opacity: 0.8 }} />
+      <span className="truncate">{formatted}</span>
+    </span>
+  );
 });
 
 export const CheckboxCellRenderer = React.memo(function CheckboxCellRenderer({
@@ -310,6 +326,7 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
   value,
   field,
 }: CellRendererProps) {
+  const colors = useGridColors();
   if (value == null || value === '') return null;
 
   if (field.ui_type === 'ID') {
@@ -317,7 +334,8 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
     const truncated = text.length > 8 ? text.slice(0, 8) + '…' : text;
     return (
       <span
-        className="truncate cursor-pointer flex items-center gap-1 group text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]"
+        className="truncate cursor-pointer flex items-center gap-1 group"
+        style={{ color: colors.systemText }}
         onClick={(e) => {
           e.stopPropagation();
           navigator.clipboard.writeText(text).catch(() => {});
@@ -331,18 +349,28 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
 
   if (field.ui_type === 'CreatedTime' || field.ui_type === 'LastModifiedTime') {
     const date = new Date(value);
-    if (isNaN(date.getTime())) return <span className="text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]">{String(value)}</span>;
+    if (isNaN(date.getTime())) return <span style={{ color: colors.systemText }}>{String(value)}</span>;
+    const formatted = date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
     return (
-      <span className="truncate flex items-center gap-1.5 text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]" style={{ fontSize: 12 }}>
-        <Clock size={11} className="shrink-0 opacity-60" />
-        {date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+      <span
+        className="inline-flex items-center gap-1.5 rounded-md px-1.5 truncate"
+        style={{
+          fontSize: 11,
+          color: colors.systemText,
+          backgroundColor: `${colors.border}40`,
+          height: 22,
+          lineHeight: '22px',
+        }}
+      >
+        <Clock size={10} className="shrink-0" style={{ opacity: 0.7 }} />
+        <span className="truncate">{formatted}</span>
       </span>
     );
   }
 
   if (field.ui_type === 'AutoNumber') {
     return (
-      <span className="truncate block text-right w-full text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]" style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>
+      <span className="truncate block text-right w-full" style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, color: colors.systemText }}>
         {String(value)}
       </span>
     );
@@ -354,7 +382,7 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
       : String(value || 'Unknown');
     const initial = display.charAt(0).toUpperCase();
     return (
-      <span className="truncate flex items-center gap-1.5 text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]">
+      <span className="truncate flex items-center gap-1.5" style={{ color: colors.systemText }}>
         <span
           className="shrink-0 flex items-center justify-center rounded-full text-white"
           style={{
@@ -362,7 +390,7 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
             height: 18,
             fontSize: 10,
             fontWeight: 600,
-            backgroundColor: '#8B5CF6',
+            backgroundColor: colors.avatarBg,
           }}
         >
           {initial}
@@ -373,7 +401,7 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
   }
 
   return (
-    <span className="truncate text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]" style={{ fontSize: 12 }}>
+    <span className="truncate" style={{ fontSize: 12, color: colors.systemText }}>
       {String(value)}
     </span>
   );

@@ -1325,18 +1325,24 @@ export default function GridView({
                           key={field.id}
                           role="gridcell"
                           aria-colindex={colIdx + 1}
-                          style={isFroz ? {
-                            position: 'sticky',
-                            left: cellLeft,
-                            zIndex: 5,
-                            borderRight: isLastFroz ? `3px solid ${GRID_COLORS.border}` : undefined,
-                          } : undefined}
+                          style={{
+                            height: '100%',
+                            ...(isFroz ? {
+                              position: 'sticky' as const,
+                              left: cellLeft,
+                              zIndex: 5,
+                              borderRight: isLastFroz ? `3px solid ${GRID_COLORS.border}` : undefined,
+                            } : {}),
+                          }}
                         >
                           <div
-                            style={flashCells.has(`${record.id}:${field.id}`) ? {
-                              boxShadow: `inset 0 0 0 2px ${GRID_COLORS.primary}`,
-                              transition: 'box-shadow 0.3s ease-out',
-                            } : undefined}
+                            style={{
+                              height: '100%',
+                              ...(flashCells.has(`${record.id}:${field.id}`) ? {
+                                boxShadow: `inset 0 0 0 2px ${GRID_COLORS.primary}`,
+                                transition: 'box-shadow 0.3s ease-out',
+                              } : {}),
+                            }}
                           >
                             <GridCell field={field} record={record} onCellUpdate={onCellUpdate} backgroundColor={getCellColor(record, field.id)} />
                           </div>
@@ -1473,14 +1479,18 @@ export default function GridView({
                         key={field.id}
                         role="gridcell"
                         aria-colindex={colIdx + 1}
-                        style={isFroz ? {
-                          position: 'sticky',
-                          left: cellLeft,
-                          zIndex: 5,
-                          borderRight: isLastFroz ? `3px solid ${GRID_COLORS.border}` : undefined,
-                        } : undefined}
+                        style={{
+                          height: '100%',
+                          ...(isFroz ? {
+                            position: 'sticky' as const,
+                            left: cellLeft,
+                            zIndex: 5,
+                            borderRight: isLastFroz ? `3px solid ${GRID_COLORS.border}` : undefined,
+                          } : {}),
+                        }}
                       >
                         <div
+                          style={{ height: '100%' }}
                           onClick={(e) => {
                             if (e.shiftKey && selectedCellId) {
                               const [, anchorFid] = selectedCellId.split(':');
