@@ -45,7 +45,7 @@ export function TableView() {
   const { data: fields } = useFields(activeTableId);
   const { data: views } = useViews(activeTableId);
   const [page, setPage] = useState(0);
-  const pageSize = 50;
+  const pageSize = 100;
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
   const pushUndo = useUndoStore((s) => s.push);
 

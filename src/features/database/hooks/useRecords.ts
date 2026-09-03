@@ -79,9 +79,15 @@ function applyFilter(
     case 'endsWith':
       return query.ilike(col, `%${value}`);
     case 'isEmpty':
-      return query.is(col, null);
+      if (pgType === 'TEXT[]' || pgType === 'JSONB') {
+        return query.or(`${col}.is.null,${col}.eq.{},${col}.eq.[]`);
+      }
+      return query.or(`${col}.is.null,${col}.eq.`);
     case 'isNotEmpty':
-      return query.not(col, 'is', null);
+      if (pgType === 'TEXT[]' || pgType === 'JSONB') {
+        return query.not(col, 'is', null).not(col, 'eq', '{}').not(col, 'eq', '[]');
+      }
+      return query.not(col, 'is', null).neq(col, '');
     case 'gt':
     case 'isAfter':
       return query.gt(col, value);
