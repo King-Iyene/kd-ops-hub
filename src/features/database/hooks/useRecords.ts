@@ -145,7 +145,7 @@ export function useRecords(params: UseRecordsParams) {
       // Search across text columns
       if (search) {
         const textCols = (fieldsMeta ?? [])
-          .filter((f: any) => ['TEXT'].includes(f.pg_type) && !f.pg_column_name.startsWith('nc_'))
+          .filter((f: any) => ['TEXT', 'VARCHAR'].includes(f.pg_type) && !f.pg_column_name.startsWith('nc_'))
           .map((f: any) => f.pg_column_name);
         if (textCols.length > 0) {
           const orClause = textCols.map((c: string) => `${c}.ilike.%${search}%`).join(',');
