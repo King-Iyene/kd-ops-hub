@@ -167,7 +167,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
             onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
           />
           <div
-            className="fixed z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[180px]"
+            className="fixed z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[180px] animate-[panelSlideDown_150ms_ease-out]"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             <button

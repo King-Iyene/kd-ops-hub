@@ -379,7 +379,7 @@ function FilterPanel({ onClose, onSaveAsView }: { onClose: () => void; onSaveAsV
   };
 
   return (
-    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[480px] max-h-[420px] overflow-y-auto">
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[480px] max-h-[420px] overflow-y-auto animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Filters</span>
         <div className="flex items-center gap-2">
@@ -593,7 +593,7 @@ function SortPanel({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[320px]">
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[320px] animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Sort</span>
         <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /></button>
@@ -655,7 +655,7 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
   const availableFields = groupableFields.filter((f) => !usedFieldIds.has(f.id));
 
   return (
-    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[320px]">
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[320px] animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Group by</span>
         <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /></button>
@@ -787,7 +787,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
     : orderedFields;
 
   return (
-    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[280px] max-h-[360px] flex flex-col">
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[280px] max-h-[360px] flex flex-col animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Fields</span>
         <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /></button>
@@ -892,7 +892,7 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[440px]">
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[440px] animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Row coloring</span>
         <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /></button>

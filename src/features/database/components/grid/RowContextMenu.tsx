@@ -52,7 +52,7 @@ export function RowContextMenu({
     <div className="fixed inset-0 z-50" onClick={onClose}>
       <div
         ref={menuRef}
-        className="fixed rounded-lg shadow-lg bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]"
+        className="fixed rounded-lg shadow-lg bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] animate-[panelSlideDown_150ms_ease-out]"
         style={{ left: x, top: y, minWidth: 200, zIndex: 51 }}
         onClick={(e) => e.stopPropagation()}
       >
