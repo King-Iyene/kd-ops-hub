@@ -1087,7 +1087,7 @@ export default function GridView({
             })}
 
             <div
-              className="flex items-center justify-center shrink-0 cursor-pointer hover:bg-black/5"
+              className="flex items-center justify-center shrink-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5"
               style={{
                 width: 44,
                 minWidth: 44,
@@ -1367,7 +1367,7 @@ export default function GridView({
                         <div className="hidden group-hover/row:flex items-center gap-1">
                           <span
                             draggable
-                            className="cursor-grab active:cursor-grabbing px-0.5 text-[#9AA2AF] hover:text-[#374151]"
+                            className="cursor-grab active:cursor-grabbing px-0.5 text-[#9AA2AF] hover:text-[#374151] dark:text-[hsl(200,20%,55%)] dark:hover:text-[hsl(200,25%,88%)]"
                             onDragStart={(e) => handleRowDragStart(e, record.id)}
                             onDragEnd={handleRowDragEnd}
                             style={{ fontSize: 13 }}

@@ -5,7 +5,7 @@ const LIGHT = {
   bg: '#FFFFFF',
   headerBg: '#F9F9FA',
   border: '#E7E7E9',
-  text: '#374151',
+  text: '#111827',
   muted: '#6A7184',
   hoverRow: '#F9F9FA',
   groupHeaderBg: '#F4F4F5',

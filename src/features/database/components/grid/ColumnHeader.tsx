@@ -22,7 +22,7 @@ interface ColumnHeaderProps {
 }
 
 const menuItemClass =
-  'w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-[#F1F5F9] transition-colors';
+  'w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-[#F1F5F9] dark:hover:bg-[hsl(200,25%,14%)] transition-colors text-[#374151] dark:text-[hsl(200,25%,88%)]';
 
 export const ColumnHeader = React.memo(function ColumnHeader({
   field,
@@ -126,11 +126,11 @@ export const ColumnHeader = React.memo(function ColumnHeader({
       aria-sort={currentSort ? (currentSort.direction === 'asc' ? 'ascending' : 'descending') : undefined}
       {...(field.description ? { title: field.description } : {})}
     >
-      <Icon size={13} className="shrink-0" style={{ color: '#9AA2AF' }} />
+      <Icon size={13} className="shrink-0 text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
       <span className="truncate">{field.name}</span>
       {field.description && (
         <span className="relative shrink-0 group/info">
-          <Info size={12} className="text-[#9AA2AF] hover:text-[#6A7184] cursor-help" />
+          <Info size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] hover:text-[#6A7184] dark:hover:text-[hsl(200,20%,70%)] cursor-help" />
           <span className="hidden group-hover/info:block absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white dark:bg-[hsl(200,30%,12%)] shadow-lg rounded-md px-2.5 py-1.5 text-[11px] text-[#374151] dark:text-[hsl(200,25%,88%)] font-normal max-w-[200px] whitespace-normal leading-snug border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
             {field.description}
           </span>
@@ -174,13 +174,13 @@ export const ColumnHeader = React.memo(function ColumnHeader({
               className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={handleSortAsc}
             >
-              <ArrowUp size={14} className="text-[#9AA2AF]" /> Sort A → Z
+              <ArrowUp size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Sort A → Z
             </button>
             <button
               className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={handleSortDesc}
             >
-              <ArrowDown size={14} className="text-[#9AA2AF]" /> Sort Z → A
+              <ArrowDown size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Sort Z → A
             </button>
             <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] my-1" />
             <button
@@ -190,7 +190,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
                 setContextMenu(null);
               }}
             >
-              <Filter size={14} className="text-[#9AA2AF]" /> Filter by this field
+              <Filter size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Filter by this field
             </button>
             <button
               className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
@@ -201,7 +201,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
                 setContextMenu(null);
               }}
             >
-              <Group size={14} className="text-[#9AA2AF]" /> Group by this field
+              <Group size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Group by this field
             </button>
             <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] my-1" />
             {!field.is_system && onEditField && (
@@ -209,7 +209,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
                 className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
                 onClick={() => { onEditField(field); setContextMenu(null); }}
               >
-                <Pencil size={14} className="text-[#9AA2AF]" /> Edit field
+                <Pencil size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Edit field
               </button>
             )}
             {!field.is_primary && !field.is_system && onDuplicateField && (
@@ -217,7 +217,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
                 className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
                 onClick={() => { onDuplicateField(field.id); setContextMenu(null); }}
               >
-                <Copy size={14} className="text-[#9AA2AF]" /> Duplicate field
+                <Copy size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Duplicate field
               </button>
             )}
             {!field.is_system && (
@@ -225,7 +225,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
                 className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
                 onClick={handleHide}
               >
-                <EyeOff size={14} className="text-[#9AA2AF]" /> Hide field
+                <EyeOff size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Hide field
               </button>
             )}
             {columnIndex != null && onFreezeUpTo && (
@@ -236,7 +236,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
                   setContextMenu(null);
                 }}
               >
-                {isFrozen ? <Unlock size={14} className="text-[#9AA2AF]" /> : <Lock size={14} className="text-[#9AA2AF]" />}
+                {isFrozen ? <Unlock size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> : <Lock size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />}
                 {isFrozen ? 'Unfreeze columns' : `Freeze up to this column`}
               </button>
             )}

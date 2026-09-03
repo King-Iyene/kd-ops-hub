@@ -103,7 +103,7 @@ export const GridCell = React.memo(function GridCell({
         borderRight: `1px solid ${GRID_COLORS.border}`,
         borderBottom: `1px solid ${GRID_COLORS.border}`,
         backgroundColor: frozen ? (rowBg ?? GRID_COLORS.bg) : (backgroundColor || undefined),
-        outline: isSelected ? '2px solid #3366FF' : 'none',
+        outline: isSelected ? '2px solid #166EE1' : 'none',
         outlineOffset: -2,
         cursor: 'default',
         fontSize: 13,
