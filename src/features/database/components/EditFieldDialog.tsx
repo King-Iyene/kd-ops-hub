@@ -14,6 +14,7 @@ import { useUpdateField, useChangeFieldType } from '../hooks';
 import type { FieldMeta, SelectChoice, UIType } from '../types';
 import { PILL_COLORS, SELECT_COLORS, SELECT_COLOR_NAMES, VIRTUAL_TYPES, getConvertibleTypes } from '../types';
 import { getFieldTypeIcon } from './grid/field-icons';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import {
   DEFAULT_VALIDATIONS,
@@ -347,17 +348,34 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                       >
                         {choice.title}
                       </span>
-                      <div className="grid gap-0.5" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-                        {SELECT_COLOR_NAMES.map((name) => (
-                          <ColorDot
-                            key={name}
-                            colorName={name}
-                            bg={SELECT_COLORS[name].bg}
-                            selected={choice.color === name}
-                            onClick={() => updateChoiceColor(choice.title, name)}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="w-5 h-5 rounded-full border-2 border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform shrink-0"
+                            style={{ backgroundColor: sc.bg }}
+                            title="Change color"
                           />
-                        ))}
-                      </div>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          side="right"
+                          align="start"
+                          className="!w-auto !p-2"
+                          style={{ zIndex: 100 }}
+                        >
+                          <div className="grid gap-1" style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}>
+                            {SELECT_COLOR_NAMES.map((cName) => (
+                              <ColorDot
+                                key={cName}
+                                colorName={cName}
+                                bg={SELECT_COLORS[cName].bg}
+                                selected={choice.color === cName}
+                                onClick={() => updateChoiceColor(choice.title, cName)}
+                              />
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                       <button
                         type="button"
                         className="p-0.5 rounded hover:bg-red-50 text-[#9AA2AF] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"

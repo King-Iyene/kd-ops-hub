@@ -9,7 +9,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Search } from 'lucide-react';
 import { useCreateField } from '../hooks';
 import { useCreateLink } from '../hooks/useLinks';
 import { useTables } from '../hooks/useTables';
@@ -18,8 +18,10 @@ import { useDatabaseUI } from '../lib/store';
 import type { UIType, SelectChoice, FieldMeta, FieldOptions } from '../types';
 import { PILL_COLORS, SELECT_COLORS, SELECT_COLOR_NAMES } from '../types';
 import { getFieldTypeIcon } from './grid/field-icons';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { validateFormula, FORMULA_FUNCTIONS } from '../lib/formula';
+import { FormulaEditor } from './FormulaEditor';
 
 interface CreateFieldDialogProps {
   open: boolean;
@@ -105,6 +107,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [precision, setPrecision] = useState(2);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [typeSearch, setTypeSearch] = useState('');
   const [error, setError] = useState('');
   const { activeTableId, activeBaseId } = useDatabaseUI();
   const createField = useCreateField();
@@ -168,6 +171,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setSelectedLinkFieldId('');
     setSelectedTargetFieldId('');
     setSelectedRollupFn('COUNT');
+    setTypeSearch('');
   }, []);
 
   const handleTypeChange = (type: UIType) => {
@@ -362,37 +366,59 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
 
           <div className="space-y-1.5">
             <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Field Type</Label>
-            <div className="border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg max-h-[200px] overflow-y-auto">
-              {GROUPS.map((group) => {
-                const items = FIELD_TYPE_OPTIONS.filter((o) => o.group === group);
-                if (items.length === 0) return null;
-                return (
-                  <div key={group}>
-                    <div className="px-3 py-1 text-[10px] font-semibold text-[#9AA2AF] uppercase tracking-wider bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)] sticky top-0">
-                      {group}
+            <div className="border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)]">
+                <Search size={13} className="text-[#9AA2AF] shrink-0" />
+                <input
+                  type="text"
+                  value={typeSearch}
+                  onChange={(e) => setTypeSearch(e.target.value)}
+                  placeholder="Search field types..."
+                  className="w-full bg-transparent text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] outline-none"
+                />
+                {typeSearch && (
+                  <button type="button" onClick={() => setTypeSearch('')} className="text-[#9AA2AF] hover:text-[#374151]">
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+              <div className="max-h-[200px] overflow-y-auto">
+                {GROUPS.map((group) => {
+                  const items = FIELD_TYPE_OPTIONS.filter((o) =>
+                    o.group === group && (!typeSearch || o.label.toLowerCase().includes(typeSearch.toLowerCase())),
+                  );
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={group}>
+                      <div className="px-3 py-1 text-[10px] font-semibold text-[#9AA2AF] uppercase tracking-wider bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)] sticky top-0">
+                        {group}
+                      </div>
+                      {items.map((opt) => {
+                        const Icon = getFieldTypeIcon(opt.value);
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            className={cn(
+                              'w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left transition-colors',
+                              uiType === opt.value
+                                ? 'bg-[#3366FF]/10 text-[#3366FF] font-medium'
+                                : 'text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)]',
+                            )}
+                            onClick={() => handleTypeChange(opt.value)}
+                          >
+                            <Icon size={14} className={uiType === opt.value ? 'text-[#3366FF]' : 'text-[#9AA2AF]'} />
+                            {opt.label}
+                          </button>
+                        );
+                      })}
                     </div>
-                    {items.map((opt) => {
-                      const Icon = getFieldTypeIcon(opt.value);
-                      return (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          className={cn(
-                            'w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left transition-colors',
-                            uiType === opt.value
-                              ? 'bg-[#3366FF]/10 text-[#3366FF] font-medium'
-                              : 'text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)]',
-                          )}
-                          onClick={() => handleTypeChange(opt.value)}
-                        >
-                          <Icon size={14} className={uiType === opt.value ? 'text-[#3366FF]' : 'text-[#9AA2AF]'} />
-                          {opt.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })}
+                  );
+                })}
+                {FIELD_TYPE_OPTIONS.filter((o) => o.label.toLowerCase().includes(typeSearch.toLowerCase())).length === 0 && typeSearch && (
+                  <div className="px-3 py-3 text-xs text-[#9AA2AF] text-center">No matching field types</div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -414,17 +440,34 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                       >
                         {choice.title}
                       </span>
-                      <div className="grid gap-0.5" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-                        {SELECT_COLOR_NAMES.map((name) => (
-                          <ColorDot
-                            key={name}
-                            colorName={name}
-                            bg={SELECT_COLORS[name].bg}
-                            selected={choice.color === name}
-                            onClick={() => updateChoiceColor(choice.title, name)}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="w-5 h-5 rounded-full border-2 border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform shrink-0"
+                            style={{ backgroundColor: sc.bg }}
+                            title="Change color"
                           />
-                        ))}
-                      </div>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          side="right"
+                          align="start"
+                          className="!w-auto !p-2"
+                          style={{ zIndex: 100 }}
+                        >
+                          <div className="grid gap-1" style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}>
+                            {SELECT_COLOR_NAMES.map((cName) => (
+                              <ColorDot
+                                key={cName}
+                                colorName={cName}
+                                bg={SELECT_COLORS[cName].bg}
+                                selected={choice.color === cName}
+                                onClick={() => updateChoiceColor(choice.title, cName)}
+                              />
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                       <button
                         type="button"
                         className="p-0.5 rounded hover:bg-red-50 text-[#9AA2AF] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
@@ -510,24 +553,12 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
           {isFormula && (
             <div className="space-y-2">
               <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Formula</Label>
-              <textarea
+              <FormulaEditor
                 value={formulaExpression}
-                onChange={(e) => handleFormulaChange(e.target.value)}
-                placeholder='e.g. IF({Status} = "Done", 1, 0)'
-                className="w-full h-24 px-3 py-2 border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg text-[13px] font-mono resize-y focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
-                spellCheck={false}
+                onChange={handleFormulaChange}
+                fields={currentTableFields}
+                error={formulaError}
               />
-              {formulaError && (
-                <p className="text-xs text-red-500">{formulaError}</p>
-              )}
-              {!formulaError && formulaExpression.trim() && (
-                <p className="text-xs text-green-600">Formula is valid</p>
-              )}
-              <div className="text-[10px] text-[#9AA2AF] leading-relaxed">
-                <span className="font-medium">Reference fields:</span> {'{FieldName}'} &middot;{' '}
-                <span className="font-medium">Functions:</span>{' '}
-                {FORMULA_FUNCTIONS.slice(0, 12).join(', ')}...
-              </div>
             </div>
           )}
 
