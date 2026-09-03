@@ -168,6 +168,43 @@ export function DateCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   );
 }
 
+export function YearCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+  const initial = value ? String(value).slice(0, 4) : '';
+  const [year, setYear] = useState(initial);
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
+
+  const commit = () => {
+    if (!year) { onCommit(null); return; }
+    const n = parseInt(year, 10);
+    if (isNaN(n) || n < 1000 || n > 9999) { onCancel(); return; }
+    onCommit(n);
+  };
+
+  return (
+    <input
+      ref={ref}
+      type="number"
+      min={1000}
+      max={9999}
+      value={year}
+      onChange={(e) => setYear(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit();
+        if (e.key === 'Escape') onCancel();
+      }}
+      onBlur={commit}
+      placeholder="YYYY"
+      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
+      style={{ fontSize: 13, color: 'inherit' }}
+    />
+  );
+}
+
 export function DurationCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   const totalSeconds = Number(value) || 0;
   const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
@@ -740,8 +777,9 @@ export function getCellEditor(uiType: string) {
     case 'Currency':
       return CurrencyCellEditor;
     case 'Date':
-    case 'Year':
       return DateCellEditor;
+    case 'Year':
+      return YearCellEditor;
     case 'DateTime':
       return DateTimeCellEditor;
     case 'Time':

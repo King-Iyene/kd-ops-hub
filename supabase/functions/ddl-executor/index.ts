@@ -266,6 +266,34 @@ async function handleDropColumn(
   }
 }
 
+async function handleDropColumnAndMeta(
+  pool: Pool,
+  body: { schemaName: string; tableName: string; columnName: string; fieldId: string },
+): Promise<void> {
+  const schema = sanitizeIdentifier(body.schemaName);
+  const table = sanitizeIdentifier(body.tableName);
+  const column = sanitizeIdentifier(body.columnName);
+  validateSchemaAccess(body.schemaName);
+
+  if (!body.fieldId) throw new Error('fieldId is required');
+
+  const conn = await pool.connect();
+  try {
+    await conn.queryObject('BEGIN');
+    await conn.queryObject(`ALTER TABLE ${schema}.${table} DROP COLUMN ${column}`);
+    await conn.queryObject(
+      `DELETE FROM nc_meta.fields WHERE id = $1`,
+      [body.fieldId],
+    );
+    await conn.queryObject('COMMIT');
+  } catch (err) {
+    await conn.queryObject('ROLLBACK');
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
 async function handleRenameColumn(
   pool: Pool,
   body: { schemaName: string; tableName: string; oldName: string; newName: string },
@@ -530,6 +558,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
         break;
       case 'dropColumn':
         await handleDropColumn(pool, body);
+        break;
+      case 'dropColumnAndMeta':
+        await handleDropColumnAndMeta(pool, body);
         break;
       case 'renameColumn':
         await handleRenameColumn(pool, body);

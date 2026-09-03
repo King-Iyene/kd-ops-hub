@@ -9,6 +9,7 @@ import {
   ChevronDown,
   Smile,
 } from 'lucide-react';
+import { confirm as styledConfirm } from '@/hooks/use-confirm';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -98,9 +99,9 @@ export function TableTabBar() {
   );
 
   const handleDelete = useCallback(
-    (table: any) => {
+    async (table: any) => {
       if (!activeBaseId) return;
-      if (!confirm(`Delete table "${table.name}"? All records will be permanently deleted.`)) return;
+      if (!(await styledConfirm({ description: `Delete table "${table.name}"? All records will be permanently deleted.`, variant: 'destructive' }))) return;
       deleteTable.mutate(
         { tableId: table.id, baseId: activeBaseId },
         {
