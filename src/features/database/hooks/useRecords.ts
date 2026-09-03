@@ -181,6 +181,23 @@ export function useRecords(params: UseRecordsParams) {
   });
 }
 
+export function useRecordCount(baseId: string | null | undefined, tableId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['nc', 'recordCount', baseId, tableId],
+    enabled: !!baseId && !!tableId,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const ctx = await resolveTableContext(baseId!, tableId!);
+      const { count, error } = await supabase
+        .schema(ctx.schemaName)
+        .from(ctx.tableName)
+        .select('*', { count: 'exact', head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+}
+
 export function useCreateRecord() {
   const qc = useQueryClient();
 

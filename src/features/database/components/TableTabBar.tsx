@@ -24,6 +24,7 @@ import {
   useDeleteTable,
   useUpdateTable,
   useDuplicateTable,
+  useRecordCount,
 } from '../hooks';
 
 function InlineRenameInput({
@@ -62,6 +63,16 @@ function InlineRenameInput({
       }}
       onClick={(e) => e.stopPropagation()}
     />
+  );
+}
+
+function TabRecordCount({ baseId, tableId }: { baseId: string; tableId: string }) {
+  const { data: count } = useRecordCount(baseId, tableId);
+  if (count == null) return null;
+  return (
+    <span className="text-[10px] opacity-50 tabular-nums ml-0.5">
+      {count > 999 ? `${(count / 1000).toFixed(1)}k` : count}
+    </span>
   );
 }
 
@@ -170,6 +181,9 @@ export function TableTabBar() {
             ) : (
               <span className="truncate max-w-[120px]">{table.name}</span>
             )}
+            {renamingId !== table.id && activeBaseId && (
+              <TabRecordCount baseId={activeBaseId} tableId={table.id} />
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -209,7 +223,7 @@ export function TableTabBar() {
                       <button
                         key={emoji}
                         type="button"
-                        className="w-7 h-7 rounded hover:bg-[#F4F4F5] flex items-center justify-center text-sm"
+                        className="w-7 h-7 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,18%)] flex items-center justify-center text-sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (activeBaseId) updateTable.mutate({ id: table.id, baseId: activeBaseId, icon: emoji });
@@ -220,7 +234,7 @@ export function TableTabBar() {
                       </button>
                     ))}
                     <button
-                      className="w-7 h-7 rounded hover:bg-[#F4F4F5] flex items-center justify-center text-[10px] text-[#9AA2AF]"
+                      className="w-7 h-7 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,18%)] flex items-center justify-center text-[10px] text-[#9AA2AF]"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (activeBaseId) updateTable.mutate({ id: table.id, baseId: activeBaseId, icon: null });

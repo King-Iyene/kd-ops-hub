@@ -5,6 +5,7 @@ export { useFields, useCreateField, useUpdateField, useDeleteField, useReorderFi
 export { useViews, useCreateView, useUpdateView, useDeleteView, useActiveView, useLoadViewConfig, useSaveViewConfig } from './useViews';
 export {
   useRecords,
+  useRecordCount,
   useCreateRecord,
   useUpdateRecord,
   useDeleteRecord,

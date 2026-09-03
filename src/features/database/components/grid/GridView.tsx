@@ -993,16 +993,16 @@ export default function GridView({
               </span>
               <span style={{ color: GRID_COLORS.border }}>|</span>
               <button
-                className="flex items-center gap-1 hover:text-[#374151]"
+                className="flex items-center gap-1 hover:opacity-80"
                 onClick={expandAll}
-                style={{ color: '#3366FF', fontSize: 11 }}
+                style={{ color: GRID_COLORS.primary, fontSize: 11 }}
               >
                 <ChevronsUpDown size={12} /> Expand all
               </button>
               <button
-                className="flex items-center gap-1 hover:text-[#374151]"
+                className="flex items-center gap-1 hover:opacity-80"
                 onClick={collapseAll}
-                style={{ color: '#3366FF', fontSize: 11 }}
+                style={{ color: GRID_COLORS.primary, fontSize: 11 }}
               >
                 <ChevronsDownUp size={12} /> Collapse all
               </button>
@@ -1606,8 +1606,8 @@ export default function GridView({
             bottom: 24,
             left: '50%',
             transform: 'translateX(-50%)',
-            backgroundColor: '#374151',
-            color: '#FFFFFF',
+            backgroundColor: GRID_COLORS.text,
+            color: GRID_COLORS.bg,
             padding: '8px 16px',
             borderRadius: 8,
             fontSize: 13,
