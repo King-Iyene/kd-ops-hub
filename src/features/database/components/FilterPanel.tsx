@@ -271,7 +271,7 @@ export function FilterPanel({ fields, filters, onFiltersChange }: FilterPanelPro
           })}
         </div>
 
-        <div className="flex items-center justify-between mt-3 pt-2 border-t border-[#E7E7E9]">
+        <div className="flex items-center justify-between mt-3 pt-2 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
           <Button
             variant="ghost"
             size="sm"

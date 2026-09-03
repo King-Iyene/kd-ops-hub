@@ -123,6 +123,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
       onDragEnd={onDragEnd}
       onClick={() => onSort?.(field.id)}
       onContextMenu={handleRightClick}
+      aria-sort={currentSort ? (currentSort.direction === 'asc' ? 'ascending' : 'descending') : undefined}
       {...(field.description ? { title: field.description } : {})}
     >
       <Icon size={13} className="shrink-0" style={{ color: '#9AA2AF' }} />
@@ -148,6 +149,8 @@ export const ColumnHeader = React.memo(function ColumnHeader({
       <div
         className="absolute right-0 top-0 h-full hover:bg-[#3366FF]"
         style={{ width: 4, cursor: 'col-resize' }}
+        role="separator"
+        aria-label={`Resize column ${field.name}`}
         onMouseDown={handleMouseDown}
         onDoubleClick={(e) => {
           e.preventDefault();

@@ -155,7 +155,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                 <span className="text-[13px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Webhooks</span>
               </div>
               <button
-                className="p-1 rounded hover:bg-[#E7E7E9] dark:hover:bg-[hsl(200,25%,18%)] text-[#6A7184] transition-colors"
+                className="p-1 rounded hover:bg-[#E7E7E9] dark:hover:bg-[hsl(200,25%,18%)] text-[#6A7184] dark:text-[hsl(200,20%,55%)] transition-colors"
                 onClick={startNew}
                 title="Add webhook"
               >
@@ -167,8 +167,8 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
               {webhooks.length === 0 && !isNew && (
                 <div className="px-3 py-8 text-center">
                   <Webhook size={28} className="mx-auto mb-2 text-[#D1D5DB] dark:text-[hsl(200,25%,30%)]" />
-                  <p className="text-[12px] text-[#6A7184]">No webhooks yet</p>
-                  <p className="text-[11px] text-[#6A7184] mt-1">Click + to create one</p>
+                  <p className="text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">No webhooks yet</p>
+                  <p className="text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] mt-1">Click + to create one</p>
                 </div>
               )}
               {webhooks.map((wh) => (
@@ -189,7 +189,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                     >
                       {wh.name}
                     </p>
-                    <p className="text-[10px] text-[#6A7184] mt-0.5 truncate">
+                    <p className="text-[10px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] mt-0.5 truncate">
                       {EVENTS.find((e) => e.value === wh.event)?.label} &middot; {wh.method}
                     </p>
                   </div>
@@ -203,7 +203,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                     title={wh.enabled ? 'Disable' : 'Enable'}
                   >
                     <span
-                      className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform"
+                      className="absolute top-0.5 w-3 h-3 rounded-full bg-white dark:bg-[hsl(200,25%,88%)] shadow transition-transform"
                       style={{ left: wh.enabled ? '13px' : '2px' }}
                     />
                   </button>
@@ -218,7 +218,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
                   <Webhook size={36} className="mx-auto mb-3 text-[#D1D5DB] dark:text-[hsl(200,25%,30%)]" />
-                  <p className="text-[13px] text-[#6A7184]">Select a webhook or create a new one</p>
+                  <p className="text-[13px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Select a webhook or create a new one</p>
                 </div>
               </div>
             ) : (
@@ -229,7 +229,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                   </h3>
                   {!isNew && selectedId && (
                     <button
-                      className="p-1.5 rounded hover:bg-[#FEE2E2] text-[#6A7184] hover:text-[#991B1B] transition-colors"
+                      className="p-1.5 rounded hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#991B1B] dark:hover:text-[#FCA5A5] transition-colors"
                       onClick={() => handleDelete(selectedId)}
                       title="Delete webhook"
                     >
@@ -240,7 +240,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
 
                 {/* Name */}
                 <div>
-                  <Label className="text-[11px] font-medium text-[#6A7184]">Name</Label>
+                  <Label className="text-[11px] font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Name</Label>
                   <Input
                     className="mt-1 h-8 text-[13px]"
                     placeholder="e.g. Notify Slack on new record"
@@ -251,7 +251,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
 
                 {/* Event */}
                 <div>
-                  <Label className="text-[11px] font-medium text-[#6A7184]">Event</Label>
+                  <Label className="text-[11px] font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Event</Label>
                   <Select value={event} onValueChange={(v) => setEvent(v as WebhookMeta['event'])}>
                     <SelectTrigger className="mt-1 h-8 text-[13px]">
                       <SelectValue />
@@ -268,7 +268,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
 
                 {/* Method + URL */}
                 <div>
-                  <Label className="text-[11px] font-medium text-[#6A7184]">Request</Label>
+                  <Label className="text-[11px] font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Request</Label>
                   <div className="flex gap-2 mt-1">
                     <Select value={method} onValueChange={(v) => setMethod(v as WebhookMeta['method'])}>
                       <SelectTrigger className="w-[100px] h-8 text-[13px]">
@@ -293,7 +293,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
 
                 {/* Headers */}
                 <div>
-                  <Label className="text-[11px] font-medium text-[#6A7184]">Headers</Label>
+                  <Label className="text-[11px] font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Headers</Label>
                   <div className="mt-1 space-y-1.5">
                     {Object.entries(headers).map(([k, v]) => (
                       <div key={k} className="flex items-center gap-2">
@@ -301,7 +301,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                           {k}: {v}
                         </span>
                         <button
-                          className="shrink-0 text-[#6A7184] hover:text-[#991B1B] transition-colors"
+                          className="shrink-0 text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#991B1B] dark:hover:text-[#FCA5A5] transition-colors"
                           onClick={() => handleRemoveHeader(k)}
                         >
                           <Trash2 size={12} />

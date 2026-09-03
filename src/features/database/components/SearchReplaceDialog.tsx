@@ -125,9 +125,9 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
         <div className="space-y-3 pt-2">
           <div className="flex gap-2">
             <div className="flex-1 relative">
-              <Search size={14} className="absolute left-2.5 top-2.5 text-[#9AA2AF]" />
+              <Search size={14} className="absolute left-2.5 top-2.5 text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
               <input
-                className="w-full h-9 pl-8 pr-3 text-[13px] border border-[#E7E7E9] rounded-md bg-white text-[#374151] outline-none focus:border-[#3366FF]"
+                className="w-full h-9 pl-8 pr-3 text-[13px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-md bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#3366FF]"
                 placeholder="Search for..."
                 value={searchText}
                 onChange={(e) => { setSearchText(e.target.value); setReplacedCount(0); }}
@@ -135,7 +135,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
               />
             </div>
             <select
-              className="h-9 px-2 text-[12px] border border-[#E7E7E9] rounded-md bg-white text-[#374151]"
+              className="h-9 px-2 text-[12px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-md bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
               value={selectedFieldId}
               onChange={(e) => setSelectedFieldId(e.target.value)}
             >
@@ -147,9 +147,9 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
           </div>
 
           <div className="relative">
-            <Replace size={14} className="absolute left-2.5 top-2.5 text-[#9AA2AF]" />
+            <Replace size={14} className="absolute left-2.5 top-2.5 text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
             <input
-              className="w-full h-9 pl-8 pr-3 text-[13px] border border-[#E7E7E9] rounded-md bg-white text-[#374151] outline-none focus:border-[#3366FF]"
+              className="w-full h-9 pl-8 pr-3 text-[13px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-md bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#3366FF]"
               placeholder="Replace with..."
               value={replaceText}
               onChange={(e) => { setReplaceText(e.target.value); setReplacedCount(0); }}
@@ -157,22 +157,22 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
           </div>
 
           <div className="flex items-center gap-3">
-            <label className="flex items-center gap-1.5 text-[12px] text-[#6A7184] cursor-pointer">
+            <label className="flex items-center gap-1.5 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] cursor-pointer">
               <input
                 type="checkbox"
                 checked={caseSensitive}
                 onChange={(e) => setCaseSensitive(e.target.checked)}
-                className="rounded border-[#E7E7E9]"
+                className="rounded border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]"
               />
               Case sensitive
             </label>
-            <span className="text-[12px] text-[#9AA2AF]">
+            <span className="text-[12px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">
               {searchText ? `${matches.length} match${matches.length !== 1 ? 'es' : ''}` : ''}
             </span>
           </div>
 
           {matches.length > 0 && (
-            <div className="border border-[#E7E7E9] rounded-lg max-h-[200px] overflow-y-auto">
+            <div className="border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg max-h-[200px] overflow-y-auto">
               {matches.slice(0, 50).map((m, i) => {
                 const idx = caseSensitive
                   ? m.value.indexOf(searchText)
@@ -180,15 +180,15 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
                 return (
                   <div
                     key={`${m.recordId}-${m.fieldId}-${i}`}
-                    className="flex items-center justify-between px-3 py-1.5 border-b border-[#E7E7E9] last:border-0 hover:bg-[#F9F9FA]"
+                    className="flex items-center justify-between px-3 py-1.5 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] last:border-0 hover:bg-[#F9F9FA] dark:hover:bg-[hsl(200,25%,15%)]"
                   >
                     <div className="flex-1 min-w-0">
-                      <span className="text-[11px] text-[#9AA2AF] mr-2">{m.fieldName}</span>
-                      <span className="text-[12px] text-[#374151]">
+                      <span className="text-[11px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] mr-2">{m.fieldName}</span>
+                      <span className="text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)]">
                         {idx >= 0 ? (
                           <>
                             {m.value.slice(Math.max(0, idx - 20), idx)}
-                            <mark className="bg-yellow-200 px-0.5 rounded">{m.value.slice(idx, idx + searchText.length)}</mark>
+                            <mark className="bg-yellow-200 dark:bg-yellow-700/50 dark:text-[hsl(200,25%,88%)] px-0.5 rounded">{m.value.slice(idx, idx + searchText.length)}</mark>
                             {m.value.slice(idx + searchText.length, idx + searchText.length + 20)}
                           </>
                         ) : (
@@ -206,7 +206,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
                 );
               })}
               {matches.length > 50 && (
-                <div className="px-3 py-2 text-[11px] text-[#9AA2AF] text-center">
+                <div className="px-3 py-2 text-[11px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] text-center">
                   ...and {matches.length - 50} more matches
                 </div>
               )}

@@ -138,16 +138,16 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
         {step === 'upload' && (
           <div className="space-y-4 pt-2">
             <div
-              className="border-2 border-dashed border-[#E7E7E9] rounded-lg p-8 text-center cursor-pointer hover:border-[#3366FF] transition-colors"
+              className="border-2 border-dashed border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg p-8 text-center cursor-pointer hover:border-[#3366FF] transition-colors"
               onClick={() => fileRef.current?.click()}
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
             >
-              <FileSpreadsheet size={32} className="mx-auto mb-3 text-[#9AA2AF]" />
-              <p className="text-[13px] text-[#374151] font-medium mb-1">
+              <FileSpreadsheet size={32} className="mx-auto mb-3 text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+              <p className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium mb-1">
                 Drop a CSV file here or click to browse
               </p>
-              <p className="text-[11px] text-[#9AA2AF]">Supports .csv files</p>
+              <p className="text-[11px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">Supports .csv files</p>
             </div>
             <input
               ref={fileRef}
@@ -165,30 +165,30 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
         {step === 'mapping' && (
           <div className="space-y-4 pt-2">
             <div className="flex items-center justify-between">
-              <p className="text-[13px] text-[#374151]">
+              <p className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)]">
                 <span className="font-medium">{fileName}</span> — {rows.length} rows
               </p>
-              <Button variant="ghost" size="sm" className="text-[12px] text-[#6A7184]" onClick={reset}>
+              <Button variant="ghost" size="sm" className="text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]" onClick={reset}>
                 Change file
               </Button>
             </div>
 
-            <div className="border border-[#E7E7E9] rounded-lg max-h-[300px] overflow-y-auto">
+            <div className="border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg max-h-[300px] overflow-y-auto">
               <table className="w-full text-[12px]">
                 <thead>
-                  <tr className="bg-[#F9F9FA] border-b border-[#E7E7E9]">
-                    <th className="text-left px-3 py-2 font-medium text-[#6A7184]">CSV Column</th>
-                    <th className="text-left px-3 py-2 font-medium text-[#6A7184]">Maps to Field</th>
-                    <th className="text-left px-3 py-2 font-medium text-[#6A7184]">Preview</th>
+                  <tr className="bg-[#F9F9FA] dark:bg-[hsl(200,25%,12%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+                    <th className="text-left px-3 py-2 font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">CSV Column</th>
+                    <th className="text-left px-3 py-2 font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Maps to Field</th>
+                    <th className="text-left px-3 py-2 font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Preview</th>
                   </tr>
                 </thead>
                 <tbody>
                   {headers.map((h, i) => (
-                    <tr key={i} className="border-b border-[#E7E7E9] last:border-0">
-                      <td className="px-3 py-2 text-[#374151] font-medium">{h}</td>
+                    <tr key={i} className="border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] last:border-0">
+                      <td className="px-3 py-2 text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium">{h}</td>
                       <td className="px-3 py-2">
                         <select
-                          className="w-full border border-[#E7E7E9] rounded px-2 py-1 text-[12px] bg-white text-[#374151]"
+                          className="w-full border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-2 py-1 text-[12px] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
                           value={mapping.get(i)?.id ?? ''}
                           onChange={(e) => updateMapping(i, e.target.value)}
                         >
@@ -206,7 +206,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
                             ))}
                         </select>
                       </td>
-                      <td className="px-3 py-2 text-[#9AA2AF] truncate max-w-[120px]">
+                      <td className="px-3 py-2 text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] truncate max-w-[120px]">
                         {rows[0]?.[i] || '—'}
                       </td>
                     </tr>
@@ -234,13 +234,13 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
 
         {step === 'importing' && (
           <div className="space-y-4 pt-4 pb-2 text-center">
-            <div className="w-full bg-[#E7E7E9] rounded-full h-2">
+            <div className="w-full bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] rounded-full h-2">
               <div
                 className="h-2 rounded-full transition-all"
                 style={{ width: `${progress}%`, backgroundColor: '#3366FF' }}
               />
             </div>
-            <p className="text-[13px] text-[#374151]">
+            <p className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)]">
               Importing... {progress}% ({importedCount} of {rows.length})
             </p>
           </div>
@@ -248,11 +248,11 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
 
         {step === 'done' && (
           <div className="space-y-4 pt-4 pb-2 text-center">
-            <div className="mx-auto w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+            <div className="mx-auto w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
               <Check size={20} className="text-green-600" />
             </div>
-            <p className="text-[14px] font-medium text-[#374151]">Import complete</p>
-            <p className="text-[12px] text-[#6A7184]">
+            <p className="text-[14px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Import complete</p>
+            <p className="text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
               {importedCount} rows imported successfully
               {errorCount > 0 && (
                 <span className="text-red-500 ml-1">

@@ -927,7 +927,7 @@ export default function GridView({
   return (
     <div className="flex flex-col h-full">
       <div ref={parentRef} className="flex-1 overflow-auto">
-        <div style={{ minWidth: totalWidth }}>
+        <div style={{ minWidth: totalWidth }} role="grid" aria-colcount={fieldsWithWidths.length} aria-rowcount={records.length}>
           {/* Group collapse/expand bar */}
           {groupByLevels.length > 0 && (
             <div
@@ -963,6 +963,7 @@ export default function GridView({
           {/* Header */}
           <div
             className="sticky z-20 flex"
+            role="row"
             style={{
               top: groupByLevels.length > 0 ? 28 : 0,
               height: HEADER_HEIGHT,
@@ -988,6 +989,7 @@ export default function GridView({
                   className="w-3.5 h-3.5 accent-[#3366FF]"
                   checked={selectedRowIds.size === records.length && records.length > 0}
                   onChange={toggleSelectAll}
+                  aria-label="Select all rows"
                 />
               )}
               {!isLoading && records.length === 0 && '#'}
@@ -1005,6 +1007,8 @@ export default function GridView({
                 <div
                   key={field.id}
                   className="relative"
+                  role="columnheader"
+                  aria-colindex={colIdx + 1}
                   style={{
                     borderLeft: dropColTargetIdx === colIdx && dragColId !== null ? '2px solid #3366FF' : undefined,
                     ...(isFrozen ? {
@@ -1045,6 +1049,7 @@ export default function GridView({
               }}
               onClick={onAddField}
               title="Add field"
+              aria-label="Add field"
             >
               <Plus size={14} />
             </div>
@@ -1160,6 +1165,8 @@ export default function GridView({
                   <div
                     key={record.id}
                     className="absolute left-0 w-full flex group/row"
+                    role="row"
+                    aria-selected={selectedRowIds.has(record.id)}
                     style={{
                       height: rowHeightPx,
                       top: virtualRow.start,
@@ -1186,14 +1193,14 @@ export default function GridView({
                       }}
                     >
                       {selectedRowIds.has(record.id) ? (
-                        <input type="checkbox" className="w-3.5 h-3.5 accent-[#3366FF]" checked onChange={() => toggleRowSelection(record.id)} />
+                        <input type="checkbox" className="w-3.5 h-3.5 accent-[#3366FF]" checked onChange={() => toggleRowSelection(record.id)} aria-label={`Deselect row ${rowNum}`} />
                       ) : (
                         <>
                           <span className="group-hover/row:hidden">{rowNum}</span>
                           <div className="hidden group-hover/row:flex items-center gap-1">
-                            <input type="checkbox" className="w-3.5 h-3.5 accent-[#3366FF]" checked={false} onChange={() => toggleRowSelection(record.id)} />
+                            <input type="checkbox" className="w-3.5 h-3.5 accent-[#3366FF]" checked={false} onChange={() => toggleRowSelection(record.id)} aria-label={`Select row ${rowNum}`} />
                             {onExpandRow && (
-                              <button className="p-0.5 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); onExpandRow(record); }}>
+                              <button className="p-0.5 rounded hover:bg-gray-200" onClick={(e) => { e.stopPropagation(); onExpandRow(record); }} aria-label={`Expand row ${rowNum}`}>
                                 <Expand size={12} />
                               </button>
                             )}
@@ -1211,6 +1218,8 @@ export default function GridView({
                       return (
                         <div
                           key={field.id}
+                          role="gridcell"
+                          aria-colindex={colIdx + 1}
                           style={isFroz ? {
                             position: 'sticky',
                             left: cellLeft,
@@ -1243,6 +1252,8 @@ export default function GridView({
                 <div
                   key={record.id}
                   className="absolute left-0 w-full flex group/row"
+                  role="row"
+                  aria-selected={selectedRowIds.has(record.id)}
                   style={{
                     height: rowHeightPx,
                     top: virtualRow.start,
@@ -1286,6 +1297,7 @@ export default function GridView({
                         className="w-3.5 h-3.5 accent-[#3366FF]"
                         checked
                         onChange={() => toggleRowSelection(record.id)}
+                        aria-label={`Deselect row ${rowNum}`}
                       />
                     ) : (
                       <>
@@ -1297,6 +1309,8 @@ export default function GridView({
                             onDragStart={(e) => handleRowDragStart(e, record.id)}
                             onDragEnd={handleRowDragEnd}
                             style={{ fontSize: 13 }}
+                            role="button"
+                            aria-label={`Drag to reorder row ${rowNum}`}
                           >
                             &#8801;
                           </span>
@@ -1305,11 +1319,13 @@ export default function GridView({
                             className="w-3.5 h-3.5 accent-[#3366FF]"
                             checked={false}
                             onChange={() => toggleRowSelection(record.id)}
+                            aria-label={`Select row ${rowNum}`}
                           />
                           {onExpandRow && (
                             <button
                               className="p-0.5 rounded hover:bg-gray-200"
                               onClick={(e) => { e.stopPropagation(); onExpandRow(record); }}
+                              aria-label={`Expand row ${rowNum}`}
                             >
                               <Expand size={12} />
                             </button>
@@ -1320,6 +1336,7 @@ export default function GridView({
                               e.stopPropagation();
                               setRowMenu({ x: e.clientX, y: e.clientY, record });
                             }}
+                            aria-label={`Row ${rowNum} options`}
                           >
                             <MoreHorizontal size={12} />
                           </button>
@@ -1338,6 +1355,8 @@ export default function GridView({
                     return (
                       <div
                         key={field.id}
+                        role="gridcell"
+                        aria-colindex={colIdx + 1}
                         style={isFroz ? {
                           position: 'sticky',
                           left: cellLeft,
@@ -1523,6 +1542,7 @@ export default function GridView({
             className="p-1 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)] disabled:opacity-40 disabled:cursor-not-allowed"
             disabled={page === 0}
             onClick={() => onPageChange(page - 1)}
+            aria-label="Previous page"
           >
             <ChevronLeft size={16} />
           </button>
@@ -1533,6 +1553,7 @@ export default function GridView({
             className="p-1 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)] disabled:opacity-40 disabled:cursor-not-allowed"
             disabled={page >= totalPages - 1}
             onClick={() => onPageChange(page + 1)}
+            aria-label="Next page"
           >
             <ChevronRight size={16} />
           </button>

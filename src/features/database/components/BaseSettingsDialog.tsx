@@ -114,7 +114,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'general'
                 ? 'border-[#3366FF] text-[#3366FF]'
-                : 'border-transparent text-[#6A7184] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
+                : 'border-transparent text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
             )}
             onClick={() => setTab('general')}
           >
@@ -125,7 +125,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'backups'
                 ? 'border-[#3366FF] text-[#3366FF]'
-                : 'border-transparent text-[#6A7184] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
+                : 'border-transparent text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
             )}
             onClick={() => setTab('backups')}
           >
@@ -136,7 +136,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'danger'
                 ? 'border-red-500 text-red-500'
-                : 'border-transparent text-[#6A7184] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
+                : 'border-transparent text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
             )}
             onClick={() => setTab('danger')}
           >
@@ -171,7 +171,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
                     title={c.name}
                     className={cn(
                       'w-7 h-7 rounded-full transition-transform',
-                      color === c.value && 'ring-2 ring-offset-2 ring-[#3366FF] scale-110',
+                      color === c.value && 'ring-2 ring-offset-2 ring-[#3366FF] dark:ring-offset-[hsl(200,30%,10%)] scale-110',
                     )}
                     style={{ backgroundColor: c.value }}
                     onClick={() => setColor(c.value)}

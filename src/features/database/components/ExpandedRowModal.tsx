@@ -339,7 +339,7 @@ function CopyLinkButton({ recordId }: { recordId: string }) {
     navigator.clipboard.writeText(url.toString()).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    }).catch(() => {});
   }, [recordId]);
 
   return (

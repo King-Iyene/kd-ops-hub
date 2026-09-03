@@ -152,7 +152,7 @@ function FilterRuleRow({
           <option value="or">Or</option>
         </select>
       ) : (
-        <span className="text-[11px] text-[#9AA2AF] w-8">Where</span>
+        <span className="text-[11px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] w-8">Where</span>
       )}
       <select
         className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1 max-w-[120px]"
@@ -182,7 +182,7 @@ function FilterRuleRow({
         onChange={(value) => onUpdate(filter.id, { value })}
       />
       <button onClick={() => onRemove(filter.id)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5">
-        <X size={12} className="text-[#9AA2AF]" />
+        <X size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
       </button>
     </div>
   );
@@ -266,7 +266,7 @@ function FilterGroupBlock({
       {depth > 0 && (
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-1.5">
-            <ChevronRight size={10} className="text-[#9AA2AF]" />
+            <ChevronRight size={10} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
             <select
               className="text-[10px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:bg-[hsl(200,30%,12%)] font-medium"
               value={group.conjunction}
@@ -275,10 +275,10 @@ function FilterGroupBlock({
               <option value="and">AND</option>
               <option value="or">OR</option>
             </select>
-            <span className="text-[10px] text-[#9AA2AF]">group</span>
+            <span className="text-[10px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">group</span>
           </div>
           <button onClick={() => onRemoveGroup(group.id)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5">
-            <X size={11} className="text-[#9AA2AF]" />
+            <X size={11} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
           </button>
         </div>
       )}
@@ -388,7 +388,7 @@ function FilterPanel({ onClose, onSaveAsView }: { onClose: () => void; onSaveAsV
               Clear all
             </button>
           )}
-          <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF]" /></button>
+          <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /></button>
         </div>
       </div>
 
@@ -471,7 +471,7 @@ function QuickFilterBar() {
 
   return (
     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F4F4F5] dark:bg-[hsl(200,35%,8%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] overflow-x-auto shrink-0">
-      <span className="text-[10px] text-[#9AA2AF] shrink-0 mr-0.5">Filtered by:</span>
+      <span className="text-[10px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] shrink-0 mr-0.5">Filtered by:</span>
       {filters.map((filter) => (
         <button
           key={filter.id}
@@ -545,7 +545,7 @@ function SaveFilterAsViewDialog({
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
         />
-        <p className="text-[10px] text-[#9AA2AF] mb-3">
+        <p className="text-[10px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] mb-3">
           {filters.length} filter{filters.length !== 1 ? 's' : ''}{filterGroups.length > 0 ? ` + ${filterGroups.length} group${filterGroups.length > 1 ? 's' : ''}` : ''} will be saved to this view.
         </p>
         <div className="flex items-center justify-end gap-2">
@@ -596,7 +596,7 @@ function SortPanel({ onClose }: { onClose: () => void }) {
     <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[320px]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Sort</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]"><X size={14} className="text-[#9AA2AF]" /></button>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /></button>
       </div>
       {sorts.map((sort, i) => (
         <div key={i} className="flex items-center gap-2 mb-2">
@@ -618,7 +618,7 @@ function SortPanel({ onClose }: { onClose: () => void }) {
             <option value="desc">Z → A</option>
           </select>
           <button onClick={() => removeSort(i)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]">
-            <X size={12} className="text-[#9AA2AF]" />
+            <X size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
           </button>
         </div>
       ))}
@@ -658,15 +658,15 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
     <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[320px]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Group by</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF]" /></button>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /></button>
       </div>
       {groupableFields.length === 0 ? (
-        <p className="text-[11px] text-[#9AA2AF]">No fields available for grouping.</p>
+        <p className="text-[11px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">No fields available for grouping.</p>
       ) : (
         <>
           {groupByLevels.map((level, i) => (
             <div key={i} className="flex items-center gap-2 mb-2">
-              <span className="text-[10px] text-[#9AA2AF] w-10 shrink-0">{i === 0 ? 'Group' : 'Then'}</span>
+              <span className="text-[10px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] w-10 shrink-0">{i === 0 ? 'Group' : 'Then'}</span>
               <select
                 className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1"
                 value={level.field_id}
@@ -685,7 +685,7 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
                 <option value="desc">Z &rarr; A</option>
               </select>
               <button onClick={() => removeLevel(i)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5">
-                <X size={12} className="text-[#9AA2AF]" />
+                <X size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
               </button>
             </div>
           ))}
@@ -790,7 +790,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
     <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[280px] max-h-[360px] flex flex-col">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Fields</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF]" /></button>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /></button>
       </div>
       <input
         type="text"
@@ -833,7 +833,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
               onClick={() => moveField(f.id, 'up')}
               title="Move up"
             >
-              <ChevronUp size={12} className="text-[#6A7184]" />
+              <ChevronUp size={12} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]" />
             </button>
             <button
               className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-white/10 disabled:opacity-20"
@@ -841,7 +841,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
               onClick={() => moveField(f.id, 'down')}
               title="Move down"
             >
-              <ChevronDown size={12} className="text-[#6A7184]" />
+              <ChevronDown size={12} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]" />
             </button>
           </div>
         ))}
@@ -895,7 +895,7 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
     <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[440px]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Row coloring</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]"><X size={14} className="text-[#9AA2AF]" /></button>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /></button>
       </div>
       {rowColorRules.map((rule) => {
         const ops = COLOR_OPERATORS;
@@ -943,7 +943,7 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
               ))}
             </div>
             <button onClick={() => removeRule(rule.id)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]">
-              <X size={12} className="text-[#9AA2AF]" />
+              <X size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
             </button>
           </div>
         );
@@ -1097,7 +1097,7 @@ export function Toolbar() {
                       className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-white/5 flex items-center justify-between text-[#374151] dark:text-[hsl(200,25%,88%)]"
                       onClick={() => { setRowHeight(opt.value); setRowHeightOpen(false); }}
                     >
-                      <span>{opt.label} <span className="text-[#9AA2AF] text-[10px]">({opt.px}px)</span></span>
+                      <span>{opt.label} <span className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] text-[10px]">({opt.px}px)</span></span>
                       {rowHeight === opt.value && <span style={{ color: '#3366FF' }}>&#10003;</span>}
                     </button>
                   ))}
@@ -1111,6 +1111,7 @@ export function Toolbar() {
             className="h-7 text-xs text-[#6A7184] gap-1 disabled:opacity-30"
             disabled={stack.length === 0}
             onClick={undo}
+            aria-label="Undo"
           >
             <Undo2 size={14} />
           </Button>
@@ -1120,6 +1121,7 @@ export function Toolbar() {
             className="h-7 text-xs text-[#6A7184] gap-1 disabled:opacity-30"
             disabled={redoStack.length === 0}
             onClick={redo}
+            aria-label="Redo"
           >
             <Redo2 size={14} />
           </Button>
@@ -1139,7 +1141,7 @@ export function Toolbar() {
                 className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5"
                 onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
               >
-                <X size={12} className="text-[#9AA2AF]" />
+                <X size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
               </button>
             </div>
           ) : (
@@ -1148,6 +1150,7 @@ export function Toolbar() {
               size="sm"
               className="h-7 text-xs text-[#6A7184] gap-1"
               onClick={() => setSearchOpen(true)}
+              aria-label="Search"
             >
               <Search size={14} />
             </Button>
@@ -1174,7 +1177,7 @@ export function Toolbar() {
                       setMoreOpen(false);
                     }}
                   >
-                    <Download size={13} className="text-[#9AA2AF]" /> Export CSV
+                    <Download size={13} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Export CSV
                   </button>
                   <button
                     className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
@@ -1183,7 +1186,7 @@ export function Toolbar() {
                       setMoreOpen(false);
                     }}
                   >
-                    <Upload size={13} className="text-[#9AA2AF]" /> Import CSV
+                    <Upload size={13} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Import CSV
                   </button>
                   <button
                     className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
@@ -1194,7 +1197,7 @@ export function Toolbar() {
                       setMoreOpen(false);
                     }}
                   >
-                    <FileJson size={13} className="text-[#9AA2AF]" /> Export JSON
+                    <FileJson size={13} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Export JSON
                   </button>
                   <button
                     className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
@@ -1203,7 +1206,7 @@ export function Toolbar() {
                       setMoreOpen(false);
                     }}
                   >
-                    <Printer size={13} className="text-[#9AA2AF]" /> Print view
+                    <Printer size={13} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Print view
                   </button>
                   <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] my-0.5" />
                   <button
@@ -1213,7 +1216,7 @@ export function Toolbar() {
                       setMoreOpen(false);
                     }}
                   >
-                    <Replace size={13} className="text-[#9AA2AF]" /> Search & Replace
+                    <Replace size={13} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Search & Replace
                   </button>
                   <button
                     className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
@@ -1222,7 +1225,7 @@ export function Toolbar() {
                       setMoreOpen(false);
                     }}
                   >
-                    <Paintbrush size={13} className="text-[#9AA2AF]" /> Conditional Format
+                    <Paintbrush size={13} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Conditional Format
                   </button>
                 </div>
               </>

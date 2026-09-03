@@ -85,13 +85,13 @@ export function ConditionalFormatDialog({ open, onOpenChange }: ConditionalForma
             onClick={() => onOpenChange(false)}
             className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5"
           >
-            <X size={16} className="text-[#9AA2AF]" />
+            <X size={16} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
           {conditionalFormats.length === 0 && (
-            <p className="text-xs text-[#9AA2AF] mb-3">
+            <p className="text-xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] mb-3">
               No rules yet. Add a rule to highlight cells based on their values.
             </p>
           )}
@@ -104,7 +104,7 @@ export function ConditionalFormatDialog({ open, onOpenChange }: ConditionalForma
               <div className="flex flex-col gap-1.5 flex-1">
                 <div className="flex items-center gap-2">
                   <select
-                    className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,14%)] flex-1 max-w-[140px]"
+                    className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] bg-white dark:bg-[hsl(200,30%,14%)] flex-1 max-w-[140px]"
                     value={rule.field_id}
                     onChange={(e) => updateRule(rule.id, { field_id: e.target.value })}
                   >
@@ -113,7 +113,7 @@ export function ConditionalFormatDialog({ open, onOpenChange }: ConditionalForma
                     ))}
                   </select>
                   <select
-                    className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,14%)]"
+                    className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] bg-white dark:bg-[hsl(200,30%,14%)]"
                     value={rule.operator}
                     onChange={(e) => updateRule(rule.id, { operator: e.target.value as ConditionalFormatOperator })}
                   >
@@ -123,7 +123,7 @@ export function ConditionalFormatDialog({ open, onOpenChange }: ConditionalForma
                   </select>
                   {rule.operator !== 'isEmpty' && rule.operator !== 'isNotEmpty' && (
                     <input
-                      className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,14%)] flex-1 max-w-[100px]"
+                      className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] bg-white dark:bg-[hsl(200,30%,14%)] flex-1 max-w-[100px]"
                       value={rule.value ?? ''}
                       onChange={(e) => updateRule(rule.id, { value: e.target.value })}
                       placeholder="Value"
@@ -150,7 +150,7 @@ export function ConditionalFormatDialog({ open, onOpenChange }: ConditionalForma
                 onClick={() => removeRule(rule.id)}
                 className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5 self-start"
               >
-                <X size={14} className="text-[#9AA2AF]" />
+                <X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
               </button>
             </div>
           ))}

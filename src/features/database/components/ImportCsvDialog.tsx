@@ -132,17 +132,16 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[640px]">
         <DialogHeader>
-          <DialogTitle className="text-[#374151]">Import CSV</DialogTitle>
+          <DialogTitle className="text-[#374151] dark:text-[hsl(200,25%,88%)]">Import CSV</DialogTitle>
         </DialogHeader>
 
         {!parsed ? (
           <div className="space-y-3">
             <textarea
-              className="w-full h-40 text-xs font-mono border border-[#E7E7E9] rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-[#3366FF] resize-none"
+              className="w-full h-40 text-xs font-mono border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-[#3366FF] resize-none bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
               placeholder="Paste CSV text here..."
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
-              style={{ backgroundColor: '#F9F9FA', color: '#374151' }}
             />
             <div className="flex items-center gap-3">
               <Button
@@ -160,7 +159,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                 className="hidden"
                 onChange={handleFileUpload}
               />
-              <span className="text-xs" style={{ color: '#6A7184' }}>
+              <span className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
                 or paste above
               </span>
             </div>
@@ -170,22 +169,21 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs" style={{ color: '#6A7184' }}>
+            <div className="flex items-center gap-2 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
               <FileText size={14} />
               <span>
                 {parsed.headers.length} columns, {parsed.rows.length} rows
                 {previewRows.length < parsed.rows.length && ` (showing first ${previewRows.length})`}
               </span>
             </div>
-            <div className="overflow-x-auto border border-[#E7E7E9] rounded-lg">
+            <div className="overflow-x-auto border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg">
               <table className="w-full text-xs">
                 <thead>
-                  <tr style={{ backgroundColor: '#F9F9FA' }}>
+                  <tr className="bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)]">
                     {parsed.headers.map((h, i) => (
                       <th
                         key={i}
-                        className="text-left px-3 py-2 font-semibold border-b border-r border-[#E7E7E9] whitespace-nowrap"
-                        style={{ color: '#374151' }}
+                        className="text-left px-3 py-2 font-semibold border-b border-r border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] whitespace-nowrap text-[#374151] dark:text-[hsl(200,25%,88%)]"
                       >
                         {h}
                       </th>
@@ -194,12 +192,11 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                 </thead>
                 <tbody>
                   {previewRows.map((row, ri) => (
-                    <tr key={ri} className="hover:bg-[#F9F9FA]">
+                    <tr key={ri} className="hover:bg-[#F9F9FA] dark:hover:bg-[hsl(200,25%,15%)]">
                       {parsed.headers.map((_, ci) => (
                         <td
                           key={ci}
-                          className="px-3 py-1.5 border-b border-r border-[#E7E7E9] whitespace-nowrap max-w-[200px] truncate"
-                          style={{ color: '#374151' }}
+                          className="px-3 py-1.5 border-b border-r border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] whitespace-nowrap max-w-[200px] truncate text-[#374151] dark:text-[hsl(200,25%,88%)]"
                         >
                           {row[ci] ?? ''}
                         </td>
