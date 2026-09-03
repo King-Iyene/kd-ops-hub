@@ -313,6 +313,12 @@ export function RatingCellEditor({ value, field, onCommit }: CellEditorProps) {
 export function SelectCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const choices = field.options?.choices || [];
   const ref = useRef<HTMLDivElement>(null);
+  const [search, setSearch] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setTimeout(() => searchRef.current?.focus(), 0);
+  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -324,37 +330,59 @@ export function SelectCellEditor({ value, field, onCommit, onCancel }: CellEdito
     return () => document.removeEventListener('mousedown', handler);
   }, [onCancel]);
 
+  const filtered = search
+    ? choices.filter((c: SelectChoice) => c.title.toLowerCase().includes(search.toLowerCase()))
+    : choices;
+
   return (
     <div
       ref={ref}
-      className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border rounded-md shadow-lg py-1 min-w-[180px] max-h-[240px] overflow-y-auto"
-      style={{ borderColor: '#E7E7E9' }}
+      className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg min-w-[200px] max-h-[280px] flex flex-col animate-[panelSlideDown_150ms_ease-out]"
     >
-      {choices.map((choice: SelectChoice) => {
-        const color = getPillColor(choice.color);
-        return (
-          <button
-            key={choice.title}
-            className="w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center gap-2"
-            onClick={() => onCommit(choice.title)}
-          >
-            <span
-              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-              style={{ backgroundColor: color.bg, color: color.text }}
+      {choices.length > 5 && (
+        <div className="px-2 pt-2 pb-1 shrink-0">
+          <input
+            ref={searchRef}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}
+            placeholder="Find an option"
+            className="w-full px-2 py-1 text-xs rounded border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:border-[#3366FF]"
+          />
+        </div>
+      )}
+      <div className="overflow-y-auto py-1">
+        {filtered.map((choice: SelectChoice) => {
+          const color = getPillColor(choice.color);
+          return (
+            <button
+              key={choice.title}
+              className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 transition-colors"
+              onClick={() => onCommit(choice.title)}
             >
-              {choice.title}
-            </span>
-          </button>
-        );
-      })}
+              <span
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                style={{ backgroundColor: color.bg, color: color.text }}
+              >
+                {choice.title}
+              </span>
+            </button>
+          );
+        })}
+        {filtered.length === 0 && (
+          <div className="px-3 py-2 text-xs text-[#9AA2AF]">No options found</div>
+        )}
+      </div>
       {value && (
-        <button
-          className="w-full text-left px-3 py-1.5 hover:bg-gray-50 text-xs"
-          style={{ color: '#9AA2AF' }}
-          onClick={() => onCommit(null)}
-        >
-          Clear
-        </button>
+        <>
+          <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)]" />
+          <button
+            className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] text-xs text-[#9AA2AF] transition-colors shrink-0"
+            onClick={() => onCommit(null)}
+          >
+            Clear
+          </button>
+        </>
       )}
     </div>
   );
@@ -365,7 +393,13 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: Cell
   const [selected, setSelected] = useState<string[]>(
     Array.isArray(value) ? value : value ? [value] : [],
   );
+  const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setTimeout(() => searchRef.current?.focus(), 0);
+  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -383,51 +417,73 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel }: Cell
     );
   };
 
+  const filtered = search
+    ? choices.filter((c: SelectChoice) => c.title.toLowerCase().includes(search.toLowerCase()))
+    : choices;
+
   return (
     <div
       ref={ref}
-      className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] dark:bg-[hsl(200,30%,10%)] border rounded-md shadow-lg py-1 min-w-[180px] max-h-[240px] overflow-y-auto"
-      style={{ borderColor: '#E7E7E9' }}
+      className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg min-w-[200px] max-h-[280px] flex flex-col animate-[panelSlideDown_150ms_ease-out]"
     >
-      {choices.map((choice: SelectChoice) => {
-        const color = getPillColor(choice.color);
-        const isChecked = selected.includes(choice.title);
-        return (
-          <button
-            key={choice.title}
-            className="w-full text-left px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-white dark:bg-[hsl(200,30%,10%)]/5 flex items-center gap-2"
-            onClick={() => toggle(choice.title)}
-          >
-            <span
-              className="inline-flex items-center justify-center w-4 h-4 rounded border text-[10px]"
-              style={{
-                borderColor: isChecked ? '#3366FF' : '#9AA2AF',
-                backgroundColor: isChecked ? '#3366FF' : 'transparent',
-                color: isChecked ? '#fff' : 'transparent',
-              }}
+      {choices.length > 5 && (
+        <div className="px-2 pt-2 pb-1 shrink-0">
+          <input
+            ref={searchRef}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') { onCommit(selected); } }}
+            placeholder="Find an option"
+            className="w-full px-2 py-1 text-xs rounded border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:border-[#3366FF]"
+          />
+        </div>
+      )}
+      <div className="overflow-y-auto py-1">
+        {filtered.map((choice: SelectChoice) => {
+          const color = getPillColor(choice.color);
+          const isChecked = selected.includes(choice.title);
+          return (
+            <button
+              key={choice.title}
+              className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 transition-colors"
+              onClick={() => toggle(choice.title)}
             >
-              {isChecked ? '✓' : ''}
-            </span>
-            <span
-              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-              style={{ backgroundColor: color.bg, color: color.text }}
-            >
-              {choice.title}
-            </span>
-          </button>
-        );
-      })}
+              <span
+                className="inline-flex items-center justify-center w-4 h-4 rounded border text-[10px]"
+                style={{
+                  borderColor: isChecked ? '#3366FF' : '#9AA2AF',
+                  backgroundColor: isChecked ? '#3366FF' : 'transparent',
+                  color: isChecked ? '#fff' : 'transparent',
+                }}
+              >
+                {isChecked ? '✓' : ''}
+              </span>
+              <span
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                style={{ backgroundColor: color.bg, color: color.text }}
+              >
+                {choice.title}
+              </span>
+            </button>
+          );
+        })}
+        {filtered.length === 0 && (
+          <div className="px-3 py-2 text-xs text-[#9AA2AF]">No options found</div>
+        )}
+      </div>
       {selected.length > 0 && (
-        <button
-          className="w-full text-left px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-white dark:bg-[hsl(200,30%,10%)]/5 text-xs"
-          style={{ color: '#94A3B8' }}
-          onClick={() => {
-            setSelected([]);
-            onCommit([]);
-          }}
-        >
-          Clear all
-        </button>
+        <>
+          <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)]" />
+          <button
+            className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] text-xs text-[#9AA2AF] transition-colors shrink-0"
+            onClick={() => {
+              setSelected([]);
+              onCommit([]);
+            }}
+          >
+            Clear all
+          </button>
+        </>
       )}
     </div>
   );

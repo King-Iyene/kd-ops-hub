@@ -95,7 +95,8 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
       <div
         className="relative w-full max-w-lg rounded-xl shadow-2xl border overflow-hidden
           bg-white dark:bg-[hsl(200,30%,10%)]
-          border-gray-200 dark:border-[hsl(200,25%,18%)]"
+          border-gray-200 dark:border-[hsl(200,25%,18%)]
+          animate-[panelSlideDown_150ms_ease-out]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search input */}

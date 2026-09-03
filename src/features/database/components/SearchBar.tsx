@@ -45,7 +45,7 @@ export function SearchBar() {
   if (!open && !searchQuery) {
     return (
       <button
-        className="h-7 px-2 rounded text-xs flex items-center gap-1 hover:bg-gray-100"
+        className="h-7 px-2 rounded text-xs flex items-center gap-1 hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]"
         style={{ color: '#6A7184' }}
         onClick={handleOpen}
       >
