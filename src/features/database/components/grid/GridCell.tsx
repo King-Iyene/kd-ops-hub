@@ -161,9 +161,9 @@ export const GridCell = React.memo(function GridCell({
         outlineOffset: -2,
         cursor: isSystemField ? 'default' : 'cell',
         fontSize: 13,
-        lineHeight: '20px',
+        lineHeight: '18px',
         color: GRID_COLORS.text,
-        ...(frozen ? { left: frozenLeft, boxShadow: '2px 0 4px rgba(0,0,0,0.06)' } : {}),
+        ...(frozen ? { left: frozenLeft, boxShadow: '4px 0 8px rgba(0,0,0,0.08)' } : {}),
       }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}

@@ -42,13 +42,13 @@ const GROUP_PILL_COLORS = [
 
 const ROW_HEIGHTS: Record<string, number> = {
   compact: 32,
-  default: 36,
-  tall: 60,
-  'extra-tall': 90,
+  default: 32,
+  tall: 56,
+  'extra-tall': 88,
 };
 
-const ROW_NUMBER_WIDTH = 56;
-const HEADER_HEIGHT = 34;
+const ROW_NUMBER_WIDTH = 44;
+const HEADER_HEIGHT = 32;
 
 const NUMERIC_TYPES: UIType[] = ['Number', 'Decimal', 'Currency', 'Percent', 'Rating', 'Duration'];
 
@@ -180,7 +180,7 @@ function SummaryRow({
       className="flex"
       style={{
         backgroundColor: colors.headerBg,
-        borderTop: `2px solid ${colors.border}`,
+        borderTop: `1px solid ${colors.borderStrong}`,
         borderBottom: `1px solid ${colors.border}`,
         minHeight: 36,
       }}
@@ -220,9 +220,9 @@ function SummaryRow({
             style={{
               width: field.width,
               minWidth: field.width,
-              borderRight: isLastFroz ? `3px solid ${colors.border}` : `1px solid ${colors.border}`,
+              borderRight: isLastFroz ? `1px solid ${colors.border}` : `1px solid ${colors.border}`,
               backgroundColor: colors.headerBg,
-              ...(isFroz ? { position: 'sticky' as const, left: cellLeft, zIndex: 10, boxShadow: isLastFroz ? '2px 0 4px rgba(0,0,0,0.06)' : undefined } : {}),
+              ...(isFroz ? { position: 'sticky' as const, left: cellLeft, zIndex: 10, boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined } : {}),
             }}
           >
             <button
@@ -522,7 +522,7 @@ export default function GridView({
   );
 
   const getFieldWidth = useCallback(
-    (field: FieldMeta) => fieldWidths[field.id] ?? field.width ?? (field.is_primary ? 250 : 180),
+    (field: FieldMeta) => fieldWidths[field.id] ?? field.width ?? (field.is_primary ? 200 : 180),
     [fieldWidths],
   );
 
@@ -1045,7 +1045,7 @@ export default function GridView({
               top: groupByLevels.length > 0 ? 28 : 0,
               height: HEADER_HEIGHT,
               backgroundColor: GRID_COLORS.headerBg,
-              borderBottom: `2px solid ${GRID_COLORS.border}`,
+              borderBottom: `1px solid ${GRID_COLORS.borderStrong}`,
             }}
           >
             <div
@@ -1096,8 +1096,8 @@ export default function GridView({
                       left: stickyLeft,
                       zIndex: 25,
                       backgroundColor: GRID_COLORS.headerBg,
-                      borderRight: isLastFrozen ? `3px solid ${GRID_COLORS.border}` : undefined,
-                      boxShadow: isLastFrozen ? '2px 0 4px rgba(0,0,0,0.06)' : undefined,
+                      borderRight: isLastFrozen ? `1px solid ${GRID_COLORS.border}` : undefined,
+                      boxShadow: isLastFrozen ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
                     } : {}),
                   }}
                   onDragOver={(e) => handleColDragOver(e, colIdx)}
@@ -1340,8 +1340,8 @@ export default function GridView({
                               position: 'sticky' as const,
                               left: cellLeft,
                               zIndex: 5,
-                              borderRight: isLastFroz ? `3px solid ${GRID_COLORS.border}` : undefined,
-                              boxShadow: isLastFroz ? '2px 0 4px rgba(0,0,0,0.06)' : undefined,
+                              borderRight: isLastFroz ? `1px solid ${GRID_COLORS.border}` : undefined,
+                              boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
                             } : {}),
                           }}
                         >
@@ -1506,8 +1506,8 @@ export default function GridView({
                             position: 'sticky' as const,
                             left: cellLeft,
                             zIndex: 5,
-                            borderRight: isLastFroz ? `3px solid ${GRID_COLORS.border}` : undefined,
-                            boxShadow: isLastFroz ? '2px 0 4px rgba(0,0,0,0.06)' : undefined,
+                            borderRight: isLastFroz ? `1px solid ${GRID_COLORS.border}` : undefined,
+                            boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
                           } : {}),
                         }}
                       >
