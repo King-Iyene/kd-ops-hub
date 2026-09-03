@@ -1,9 +1,9 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback } from 'react';
 import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { getCellRenderer } from './cell-renderers';
 import { getCellEditor } from './cell-editors';
-import { GRID_COLORS } from './grid-tokens';
+import { useGridColors } from '../../hooks/useGridColors';
 
 interface GridCellProps {
   field: FieldMeta;
@@ -92,16 +92,7 @@ export const GridCell = React.memo(function GridCell({
 
   const Renderer = getCellRenderer(field.ui_type);
   const Editor = getCellEditor(field.ui_type);
-
-  const isDark = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    const dt = document.documentElement.getAttribute('data-theme');
-    if (dt === 'dark') return true;
-    if (dt === 'light') return false;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  }, []);
-
-  const borderColor = isDark ? 'hsl(200,25%,18%)' : '#E7E7E9';
+  const GRID_COLORS = useGridColors();
 
   return (
     <div
@@ -109,8 +100,8 @@ export const GridCell = React.memo(function GridCell({
       style={{
         width: field.width || 180,
         minWidth: field.width || 180,
-        borderRight: `1px solid ${borderColor}`,
-        borderBottom: `1px solid ${borderColor}`,
+        borderRight: `1px solid ${GRID_COLORS.border}`,
+        borderBottom: `1px solid ${GRID_COLORS.border}`,
         backgroundColor: frozen ? (rowBg ?? GRID_COLORS.bg) : (backgroundColor || undefined),
         outline: isSelected ? '2px solid #3366FF' : 'none',
         outlineOffset: -2,
