@@ -77,7 +77,7 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
   const maxLen = rowHeight === 'compact' ? 50 : rowHeight === 'tall' ? 200 : rowHeight === 'extra-tall' ? 400 : 80;
   const display = text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
   return (
-    <span className="truncate flex items-center gap-1.5" style={{ color: '#64748B' }}>
+    <span className="truncate flex items-center gap-1.5 text-[#64748B] dark:text-[hsl(200,20%,55%)]">
       <span className="truncate whitespace-pre-line">{display}</span>
       {lineCount > 1 && (
         <span className="shrink-0 text-[10px] opacity-50">{lineCount}L</span>
@@ -268,7 +268,7 @@ export const JSONCellRenderer = React.memo(function JSONCellRenderer({
   const text = typeof value === 'string' ? value : JSON.stringify(value);
   const display = text.length > 60 ? text.slice(0, 60) + '...' : text;
   return (
-    <span className="truncate" style={{ fontFamily: 'monospace', fontSize: 12, color: '#64748B' }}>
+    <span className="truncate font-mono text-xs text-[#64748B] dark:text-[hsl(200,20%,55%)]">
       {display}
     </span>
   );
