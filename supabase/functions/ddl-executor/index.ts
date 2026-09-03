@@ -520,6 +520,9 @@ async function handleAlterColumnType(
 // Main handler
 // ---------------------------------------------------------------------------
 
+const dbUrl = Deno.env.get('SUPABASE_DB_URL')!;
+const pool = new Pool(dbUrl, 1, true);
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -531,9 +534,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const dbUrl = Deno.env.get('SUPABASE_DB_URL')!;
-
-  const pool = new Pool(dbUrl, 1, true);
 
   try {
     // Authenticate
@@ -599,7 +599,5 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
     console.error('DDL Executor error:', err);
     return json({ success: false, error: (err as Error).message }, 500);
-  } finally {
-    await pool.end();
   }
 });
