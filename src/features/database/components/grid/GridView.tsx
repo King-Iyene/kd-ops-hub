@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, ChevronLeft, ChevronRight, ChevronDown, Loader2, Expand, Copy, Trash2, MoreHorizontal, Sigma, Lock, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, ChevronDown, Loader2, Expand, Copy, Trash2, MoreHorizontal, Sigma, Lock, ChevronsUpDown, ChevronsDownUp, Rows3 } from 'lucide-react';
 import type { FieldMeta, RecordRow, RowColorRule, UIType, ConditionalFormatRule, Group } from '@/features/database/types';
 import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
 import { useUndoStore } from '../../lib/undo';
@@ -909,14 +909,24 @@ export default function GridView({
 
   if (records.length === 0 && !isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3" style={{ backgroundColor: GRID_COLORS.bg }}>
-        <p style={{ color: GRID_COLORS.muted, fontSize: 14 }}>
-          No records. Click + to add a row.
-        </p>
+      <div className="flex flex-col items-center justify-center h-64 gap-4" style={{ backgroundColor: GRID_COLORS.bg }}>
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ backgroundColor: GRID_COLORS.groupHeaderBg }}>
+          <Rows3 size={28} style={{ color: GRID_COLORS.muted }} />
+        </div>
+        <div className="text-center">
+          <p style={{ color: GRID_COLORS.text, fontSize: 14, fontWeight: 600 }}>
+            No records yet
+          </p>
+          <p style={{ color: GRID_COLORS.muted, fontSize: 13 }} className="mt-1">
+            Add your first row to get started
+          </p>
+        </div>
         <button
           onClick={onAddRow}
-          className="flex items-center gap-1 px-3 py-1.5 rounded text-sm hover:bg-gray-100"
-          style={{ color: '#3366FF' }}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+          style={{ backgroundColor: '#3366FF' }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#2952CC')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#3366FF')}
         >
           <Plus size={14} /> Add row
         </button>

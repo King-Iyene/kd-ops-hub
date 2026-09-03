@@ -144,7 +144,7 @@ function FilterRuleRow({
     >
       {index > 0 ? (
         <select
-          className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:bg-[hsl(200,30%,12%)]"
+          className="text-[11px] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:text-[hsl(200,20%,55%)] dark:bg-[hsl(200,30%,12%)]"
           value={filter.conjunction}
           onChange={(e) => onUpdate(filter.id, { conjunction: e.target.value as 'and' | 'or' })}
         >
@@ -181,7 +181,7 @@ function FilterRuleRow({
         field={field}
         onChange={(value) => onUpdate(filter.id, { value })}
       />
-      <button onClick={() => onRemove(filter.id)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5">
+      <button onClick={() => onRemove(filter.id)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5" aria-label="Remove filter">
         <X size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
       </button>
     </div>
@@ -384,7 +384,7 @@ function FilterPanel({ onClose, onSaveAsView }: { onClose: () => void; onSaveAsV
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Filters</span>
         <div className="flex items-center gap-2">
           {totalFilterCount > 0 && (
-            <button onClick={clearAll} className="text-[10px] text-[#6A7184] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]">
+            <button onClick={clearAll} className="text-[10px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]">
               Clear all
             </button>
           )}
@@ -550,7 +550,7 @@ function SaveFilterAsViewDialog({
         </p>
         <div className="flex items-center justify-end gap-2">
           <button
-            className="px-3 py-1 text-[11px] rounded border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] text-[#6A7184] hover:bg-gray-50 dark:hover:bg-white/5"
+            className="px-3 py-1 text-[11px] rounded border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-gray-50 dark:hover:bg-white/5"
             onClick={onClose}
           >
             Cancel
@@ -807,7 +807,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
         >
           Show all
         </button>
-        <span className="text-[10px] text-[#E7E7E9]">|</span>
+        <span className="text-[10px] text-[#E7E7E9] dark:text-[hsl(200,25%,18%)]">|</span>
         <button
           className="text-[10px] text-[#3366FF] hover:underline disabled:opacity-40"
           onClick={hideAll}
@@ -819,7 +819,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
       <div className="flex-1 overflow-y-auto">
         {filtered.map((f, i) => (
           <div key={f.id} className="flex items-center gap-1 py-1 hover:bg-[#F4F4F5] dark:hover:bg-white/5 rounded px-1 -mx-1">
-            <GripVertical size={12} className="text-[#9AA2AF] shrink-0 cursor-grab" />
+            <GripVertical size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] shrink-0 cursor-grab" />
             <input
               type="checkbox"
               className="w-3.5 h-3.5 accent-[#3366FF] shrink-0"
@@ -1059,7 +1059,7 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs text-[#6A7184] gap-1"
+              className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1"
               onClick={() => { setHideOpen(!hideOpen); setFilterOpen(false); setSortOpen(false); setGroupOpen(false); }}
             >
               <EyeOff size={14} /> Fields
@@ -1082,7 +1082,7 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs text-[#6A7184] gap-1"
+              className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1"
               onClick={() => { setRowHeightOpen(!rowHeightOpen); setFilterOpen(false); setSortOpen(false); setHideOpen(false); setGroupOpen(false); setColorOpen(false); }}
             >
               <Rows3 size={14} /> {ROW_HEIGHT_OPTIONS.find((o) => o.value === rowHeight)?.label ?? 'Medium'}
@@ -1108,7 +1108,7 @@ export function Toolbar() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-[#6A7184] gap-1 disabled:opacity-30"
+            className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1 disabled:opacity-30"
             disabled={stack.length === 0}
             onClick={undo}
             aria-label="Undo"
@@ -1118,7 +1118,7 @@ export function Toolbar() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-[#6A7184] gap-1 disabled:opacity-30"
+            className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1 disabled:opacity-30"
             disabled={redoStack.length === 0}
             onClick={redo}
             aria-label="Redo"
@@ -1140,6 +1140,7 @@ export function Toolbar() {
               <button
                 className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5"
                 onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+                aria-label="Close search"
               >
                 <X size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
               </button>
@@ -1148,7 +1149,7 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs text-[#6A7184] gap-1"
+              className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1"
               onClick={() => setSearchOpen(true)}
               aria-label="Search"
             >
@@ -1159,8 +1160,9 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs text-[#6A7184] gap-1"
+              className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1"
               onClick={() => setMoreOpen(!moreOpen)}
+              aria-label="More options"
             >
               <MoreHorizontal size={14} />
             </Button>
@@ -1237,15 +1239,17 @@ export function Toolbar() {
             className="h-7 text-xs gap-1 font-medium"
             style={{ color: '#3366FF' }}
             onClick={() => setFieldDialogOpen(true)}
+            aria-label="Add field"
           >
             <Download size={13} />
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-[11px] text-[#6A7184] gap-1 px-2 hover:bg-[#E7E7E9]"
+            className="h-7 text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1 px-2 hover:bg-[#E7E7E9] dark:hover:bg-[hsl(200,25%,14%)]"
             onClick={() => fileInputRef.current?.click()}
             title="Import CSV"
+            aria-label="Import CSV"
           >
             <Upload size={13} />
           </Button>
@@ -1256,7 +1260,7 @@ export function Toolbar() {
             className="hidden"
             onChange={handleImport}
           />
-          <div className="w-px h-4 bg-[#E7E7E9] mx-1" />
+          <div className="w-px h-4 bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] mx-1" />
           <Button
             variant="ghost"
             size="sm"

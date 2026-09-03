@@ -328,11 +328,11 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-[15px] font-semibold text-[#374151]">Add Field</DialogTitle>
+          <DialogTitle className="text-[15px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Add Field</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-1">
           <div className="space-y-1.5">
-            <Label htmlFor="field-name" className="text-xs text-[#6A7184]">Field Name</Label>
+            <Label htmlFor="field-name" className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Field Name</Label>
             <Input
               id="field-name"
               value={name}
@@ -345,7 +345,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="field-desc" className="text-xs text-[#6A7184]">Description <span className="text-[#9AA2AF]">(optional)</span></Label>
+            <Label htmlFor="field-desc" className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Description <span className="text-[#9AA2AF]">(optional)</span></Label>
             <Input
               id="field-desc"
               value={description}
@@ -362,18 +362,18 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
               checked={isRequired}
               onChange={(e) => setIsRequired(e.target.checked)}
             />
-            <span className="text-xs text-[#374151]">Required field</span>
+            <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)]">Required field</span>
           </label>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-[#6A7184]">Field Type</Label>
-            <div className="border border-[#E7E7E9] rounded-lg max-h-[200px] overflow-y-auto">
+            <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Field Type</Label>
+            <div className="border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg max-h-[200px] overflow-y-auto">
               {GROUPS.map((group) => {
                 const items = FIELD_TYPE_OPTIONS.filter((o) => o.group === group);
                 if (items.length === 0) return null;
                 return (
                   <div key={group}>
-                    <div className="px-3 py-1 text-[10px] font-semibold text-[#9AA2AF] uppercase tracking-wider bg-[#F9F9FA] sticky top-0">
+                    <div className="px-3 py-1 text-[10px] font-semibold text-[#9AA2AF] uppercase tracking-wider bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)] sticky top-0">
                       {group}
                     </div>
                     {items.map((opt) => {
@@ -386,7 +386,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                             'w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left transition-colors',
                             uiType === opt.value
                               ? 'bg-[#3366FF]/10 text-[#3366FF] font-medium'
-                              : 'text-[#374151] hover:bg-[#F4F4F5]',
+                              : 'text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)]',
                           )}
                           onClick={() => handleTypeChange(opt.value)}
                         >
@@ -403,7 +403,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
 
           {isSelectType && (
             <div className="space-y-2">
-              <Label className="text-xs text-[#6A7184]">Options</Label>
+              <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Options</Label>
               <div className="space-y-1.5">
                 {choices.map((choice) => {
                   const pillColor = PILL_COLORS.find((c) => c.name === choice.color) || PILL_COLORS[7];
@@ -466,7 +466,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
           {isLinksType && (
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-[#6A7184]">Target Table</Label>
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Target Table</Label>
                 <select
                   value={targetTableId}
                   onChange={(e) => setTargetTableId(e.target.value)}
@@ -481,7 +481,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 </select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-[#6A7184]">Relation Type</Label>
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Relation Type</Label>
                 <div className="flex gap-1">
                   {([
                     { value: 'one_to_one' as const, label: 'One-to-One' },
@@ -495,7 +495,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                         'flex-1 px-2 py-1.5 rounded-md text-xs font-medium border transition-colors',
                         relationType === opt.value
                           ? 'bg-[#3366FF]/10 text-[#3366FF] border-[#3366FF]/30'
-                          : 'text-[#6A7184] border-[#E7E7E9] hover:bg-[#F4F4F5]',
+                          : 'text-[#6A7184] dark:text-[hsl(200,20%,55%)] border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)]',
                       )}
                       onClick={() => setRelationType(opt.value)}
                     >
@@ -509,12 +509,12 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
 
           {isFormula && (
             <div className="space-y-2">
-              <Label className="text-xs text-[#6A7184]">Formula</Label>
+              <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Formula</Label>
               <textarea
                 value={formulaExpression}
                 onChange={(e) => handleFormulaChange(e.target.value)}
                 placeholder='e.g. IF({Status} = "Done", 1, 0)'
-                className="w-full h-24 px-3 py-2 border border-[#E7E7E9] rounded-lg text-[13px] font-mono resize-y focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
+                className="w-full h-24 px-3 py-2 border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg text-[13px] font-mono resize-y focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
                 spellCheck={false}
               />
               {formulaError && (
@@ -534,7 +534,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
           {(isLookup || isRollup) && (
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-[#6A7184]">Link Field</Label>
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Link Field</Label>
                 <select
                   value={linkFieldId}
                   onChange={(e) => { setLinkFieldId(e.target.value); setLookupFieldId(''); setRollupFieldId(''); }}
@@ -548,7 +548,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
               </div>
               {isLookup && linkFieldId && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-[#6A7184]">Lookup Field</Label>
+                  <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Lookup Field</Label>
                   <select
                     value={lookupFieldId}
                     onChange={(e) => setLookupFieldId(e.target.value)}
@@ -564,7 +564,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
               {isRollup && linkFieldId && (
                 <>
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-[#6A7184]">Rollup Field</Label>
+                    <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Rollup Field</Label>
                     <select
                       value={rollupFieldId}
                       onChange={(e) => setRollupFieldId(e.target.value)}
@@ -577,7 +577,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-[#6A7184]">Function</Label>
+                    <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Function</Label>
                     <select
                       value={rollupFn}
                       onChange={(e) => setRollupFn(e.target.value)}
