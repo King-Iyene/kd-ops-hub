@@ -683,6 +683,15 @@ export default function GridView({
     overscan: 10,
   });
 
+  const columnVirtualizer = useVirtualizer({
+    horizontal: true,
+    count: scrollableFields.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: (index) => scrollableFields[index].width || 180,
+    overscan: 3,
+    paddingStart: ROW_NUMBER_WIDTH + frozenWidth,
+  });
+
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const handleResize = useCallback((fieldId: string, width: number) => {
@@ -794,7 +803,7 @@ export default function GridView({
   return (
     <div className="flex flex-col h-full">
       <div ref={parentRef} className="flex-1 overflow-auto">
-        <div style={{ minWidth: totalWidth }} role="grid" aria-colcount={fieldsWithWidths.length} aria-rowcount={records.length}>
+        <div style={{ minWidth: Math.max(totalWidth, columnVirtualizer.getTotalSize() + 44) }} role="grid" aria-colcount={fieldsWithWidths.length} aria-rowcount={records.length}>
           {/* Group collapse/expand bar */}
           {groupByLevels.length > 0 && (
             <div
@@ -834,8 +843,11 @@ export default function GridView({
             style={{
               top: groupByLevels.length > 0 ? 28 : 0,
               height: HEADER_HEIGHT,
+              width: columnVirtualizer.getTotalSize() + 44,
+              minWidth: totalWidth,
               backgroundColor: GRID_COLORS.headerBg,
               borderBottom: `1px solid ${GRID_COLORS.borderStrong}`,
+              position: 'relative',
             }}
           >
             <div
@@ -863,14 +875,10 @@ export default function GridView({
               {!isLoading && records.length === 0 && '#'}
             </div>
 
-            {fieldsWithWidths.map((field, colIdx) => {
-              const isFrozen = colIdx < frozenCount;
+            {frozenFields.map((field, colIdx) => {
               const isLastFrozen = colIdx === frozenCount - 1;
-              // Compute left offset for sticky frozen columns
               let stickyLeft = ROW_NUMBER_WIDTH;
-              if (isFrozen) {
-                for (let i = 0; i < colIdx; i++) stickyLeft += fieldsWithWidths[i].width;
-              }
+              for (let i = 0; i < colIdx; i++) stickyLeft += frozenFields[i].width;
               return (
                 <div
                   key={field.id}
@@ -881,14 +889,12 @@ export default function GridView({
                     width: field.width || 180,
                     minWidth: field.width || 180,
                     borderLeft: dropColTargetIdx === colIdx && dragColId !== null ? `2px solid ${GRID_COLORS.primary}` : undefined,
-                    ...(isFrozen ? {
-                      position: 'sticky' as const,
-                      left: stickyLeft,
-                      zIndex: 25,
-                      backgroundColor: GRID_COLORS.headerBg,
-                      borderRight: isLastFrozen ? `1px solid ${GRID_COLORS.border}` : undefined,
-                      boxShadow: isLastFrozen ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
-                    } : {}),
+                    position: 'sticky' as const,
+                    left: stickyLeft,
+                    zIndex: 25,
+                    backgroundColor: GRID_COLORS.headerBg,
+                    borderRight: isLastFrozen ? `1px solid ${GRID_COLORS.border}` : undefined,
+                    boxShadow: isLastFrozen ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
                   }}
                   onDragOver={(e) => handleColDragOver(e, colIdx)}
                   onDrop={(e) => handleColDrop(e, colIdx)}
@@ -904,7 +910,41 @@ export default function GridView({
                     onDragEnd={handleColDragEnd}
                     columnIndex={colIdx}
                     onFreezeUpTo={setFrozenColumns}
-                    isFrozen={isFrozen}
+                    isFrozen
+                  />
+                </div>
+              );
+            })}
+            {columnVirtualizer.getVirtualItems().map((virtualCol) => {
+              const field = scrollableFields[virtualCol.index];
+              const colIdx = frozenCount + virtualCol.index;
+              return (
+                <div
+                  key={field.id}
+                  className="absolute top-0"
+                  role="columnheader"
+                  aria-colindex={colIdx + 1}
+                  style={{
+                    width: virtualCol.size,
+                    height: HEADER_HEIGHT,
+                    left: virtualCol.start,
+                    borderLeft: dropColTargetIdx === colIdx && dragColId !== null ? `2px solid ${GRID_COLORS.primary}` : undefined,
+                  }}
+                  onDragOver={(e) => handleColDragOver(e, colIdx)}
+                  onDrop={(e) => handleColDrop(e, colIdx)}
+                >
+                  <ColumnHeader
+                    field={field}
+                    onResize={handleResize}
+                    onDelete={onDeleteField}
+                    onDuplicateField={onDuplicateField}
+                    onEditField={setEditingField}
+                    draggable
+                    onDragStart={(e) => handleColDragStart(e, field.id)}
+                    onDragEnd={handleColDragEnd}
+                    columnIndex={colIdx}
+                    onFreezeUpTo={setFrozenColumns}
+                    isFrozen={false}
                   />
                 </div>
               );
@@ -1109,13 +1149,10 @@ export default function GridView({
                         </>
                       )}
                     </div>
-                    {fieldsWithWidths.map((field, colIdx) => {
-                      const isFroz = colIdx < frozenCount;
+                    {frozenFields.map((field, colIdx) => {
                       const isLastFroz = colIdx === frozenCount - 1;
                       let cellLeft = ROW_NUMBER_WIDTH;
-                      if (isFroz) {
-                        for (let i = 0; i < colIdx; i++) cellLeft += fieldsWithWidths[i].width;
-                      }
+                      for (let i = 0; i < colIdx; i++) cellLeft += frozenFields[i].width;
                       return (
                         <div
                           key={field.id}
@@ -1126,13 +1163,40 @@ export default function GridView({
                             height: '100%',
                             width: field.width || 180,
                             minWidth: field.width || 180,
-                            ...(isFroz ? {
-                              position: 'sticky' as const,
-                              left: cellLeft,
-                              zIndex: 5,
-                              borderRight: isLastFroz ? `1px solid ${GRID_COLORS.border}` : undefined,
-                              boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
-                            } : {}),
+                            position: 'sticky' as const,
+                            left: cellLeft,
+                            zIndex: 5,
+                            borderRight: isLastFroz ? `1px solid ${GRID_COLORS.border}` : undefined,
+                            boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
+                          }}
+                        >
+                          <div
+                            style={{
+                              height: '100%',
+                              ...(flashCells.has(`${record.id}:${field.id}`) ? {
+                                boxShadow: `inset 0 0 0 2px ${GRID_COLORS.primary}`,
+                                transition: 'box-shadow 0.3s ease-out',
+                              } : {}),
+                            }}
+                          >
+                            <GridCell field={field} record={record} onCellUpdate={onCellUpdate} backgroundColor={getCellColor(record, field.id)} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {columnVirtualizer.getVirtualItems().map((virtualCol) => {
+                      const field = scrollableFields[virtualCol.index];
+                      const colIdx = frozenCount + virtualCol.index;
+                      return (
+                        <div
+                          key={field.id}
+                          className="absolute top-0"
+                          role="gridcell"
+                          aria-colindex={colIdx + 1}
+                          style={{
+                            height: '100%',
+                            width: virtualCol.size,
+                            left: virtualCol.start,
                           }}
                         >
                           <div
@@ -1267,13 +1331,10 @@ export default function GridView({
                     )}
                   </div>
 
-                  {fieldsWithWidths.map((field, colIdx) => {
-                    const isFroz = colIdx < frozenCount;
+                  {frozenFields.map((field, colIdx) => {
                     const isLastFroz = colIdx === frozenCount - 1;
                     let cellLeft = ROW_NUMBER_WIDTH;
-                    if (isFroz) {
-                      for (let i = 0; i < colIdx; i++) cellLeft += fieldsWithWidths[i].width;
-                    }
+                    for (let i = 0; i < colIdx; i++) cellLeft += frozenFields[i].width;
                     const isFlash = flashCells.has(`${record.id}:${field.id}`);
                     const isInRange = selectionRange && (() => {
                       const r1 = Math.min(selectionRange.startRow, selectionRange.endRow);
@@ -1292,13 +1353,11 @@ export default function GridView({
                           height: '100%',
                           width: field.width || 180,
                           minWidth: field.width || 180,
-                          ...(isFroz ? {
-                            position: 'sticky' as const,
-                            left: cellLeft,
-                            zIndex: 5,
-                            borderRight: isLastFroz ? `1px solid ${GRID_COLORS.border}` : undefined,
-                            boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
-                          } : {}),
+                          position: 'sticky' as const,
+                          left: cellLeft,
+                          zIndex: 5,
+                          borderRight: isLastFroz ? `1px solid ${GRID_COLORS.border}` : undefined,
+                          boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
                         }}
                       >
                         <div
@@ -1335,9 +1394,71 @@ export default function GridView({
                             record={record}
                             onCellUpdate={onCellUpdate}
                             backgroundColor={getCellColor(record, field.id)}
-                            frozen={isFroz}
+                            frozen
                             frozenLeft={cellLeft}
                             rowBg={rowBgUngrouped}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {columnVirtualizer.getVirtualItems().map((virtualCol) => {
+                    const field = scrollableFields[virtualCol.index];
+                    const colIdx = frozenCount + virtualCol.index;
+                    const isFlash = flashCells.has(`${record.id}:${field.id}`);
+                    const isInRange = selectionRange && (() => {
+                      const r1 = Math.min(selectionRange.startRow, selectionRange.endRow);
+                      const r2 = Math.max(selectionRange.startRow, selectionRange.endRow);
+                      const c1 = Math.min(selectionRange.startCol, selectionRange.endCol);
+                      const c2 = Math.max(selectionRange.startCol, selectionRange.endCol);
+                      return virtualRow.index >= r1 && virtualRow.index <= r2 && colIdx >= c1 && colIdx <= c2;
+                    })();
+                    return (
+                      <div
+                        key={field.id}
+                        className="absolute top-0"
+                        role="gridcell"
+                        aria-colindex={colIdx + 1}
+                        style={{
+                          height: '100%',
+                          width: virtualCol.size,
+                          left: virtualCol.start,
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: '100%',
+                            ...(isFlash ? {
+                              boxShadow: `inset 0 0 0 2px ${GRID_COLORS.primary}`,
+                              transition: 'box-shadow 0.3s ease-out',
+                            } : {}),
+                            ...(isInRange ? { backgroundColor: `${GRID_COLORS.primary}14` } : {}),
+                          }}
+                          onClick={(e) => {
+                            if (e.shiftKey && selectedCellId) {
+                              const [, anchorFid] = selectedCellId.split(':');
+                              const anchorRowIdx = records.findIndex((r) => r.id === selectedCellId.split(':')[0]);
+                              const anchorColIdx = fieldsWithWidths.findIndex((f) => f.id === anchorFid);
+                              if (anchorRowIdx !== -1 && anchorColIdx !== -1) {
+                                setSelectionAnchor({ row: anchorRowIdx, col: anchorColIdx });
+                                setSelectionRange({
+                                  startRow: anchorRowIdx,
+                                  startCol: anchorColIdx,
+                                  endRow: virtualRow.index,
+                                  endCol: colIdx,
+                                });
+                              }
+                            } else {
+                              setSelectionRange(null);
+                              setSelectionAnchor(null);
+                            }
+                          }}
+                        >
+                          <GridCell
+                            field={field}
+                            record={record}
+                            onCellUpdate={onCellUpdate}
+                            backgroundColor={getCellColor(record, field.id)}
                           />
                         </div>
                       </div>
