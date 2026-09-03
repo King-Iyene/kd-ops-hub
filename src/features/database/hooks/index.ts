@@ -9,6 +9,8 @@ export {
   useCreateRecord,
   useUpdateRecord,
   useDeleteRecord,
+  useBulkCreateRecords,
+  useBulkUpdateRecords,
   useBulkDeleteRecords,
   useDuplicateRecord,
 } from './useRecords';

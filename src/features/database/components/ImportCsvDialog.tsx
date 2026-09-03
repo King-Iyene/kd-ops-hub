@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Upload, FileText, Loader2 } from 'lucide-react';
 import { parseCsv } from '../lib/csv';
-import { useCreateField, useCreateRecord, useFields } from '../hooks';
+import { useCreateField, useBulkCreateRecords, useFields } from '../hooks';
 import { useDatabaseUI } from '../lib/store';
 import type { UIType } from '../types';
 
@@ -84,12 +84,13 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
   const { activeTableId, activeBaseId } = useDatabaseUI();
   const { data: existingFields } = useFields(activeTableId);
   const createField = useCreateField();
-  const createRecord = useCreateRecord();
+  const bulkCreate = useBulkCreateRecords();
 
   const [csvText, setCsvText] = useState('');
   const [parsed, setParsed] = useState<{ headers: string[]; rows: string[][] } | null>(null);
   const [columnTypes, setColumnTypes] = useState<UIType[]>([]);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -164,8 +165,8 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
         }
       }
 
-      // Create records
-      for (const row of parsed.rows) {
+      // Build all records for bulk insert
+      const allRecords = parsed.rows.map((row) => {
         const record: Record<string, any> = {};
         parsed.headers.forEach((header, i) => {
           const colName = fieldNameToColumn.get(header.toLowerCase());
@@ -173,12 +174,16 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
             record[colName] = row[i];
           }
         });
-        await createRecord.mutateAsync({
-          baseId: activeBaseId,
-          tableId: activeTableId,
-          record,
-        });
-      }
+        return record;
+      });
+
+      setImportProgress({ done: 0, total: allRecords.length });
+      await bulkCreate.mutateAsync({
+        baseId: activeBaseId,
+        tableId: activeTableId,
+        records: allRecords,
+        onProgress: (done, total) => setImportProgress({ done, total }),
+      });
 
       onOpenChange(false);
       setCsvText('');
@@ -189,7 +194,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
     } finally {
       setImporting(false);
     }
-  }, [parsed, activeTableId, activeBaseId, existingFields, createField, createRecord, onOpenChange]);
+  }, [parsed, activeTableId, activeBaseId, existingFields, createField, bulkCreate, onOpenChange]);
 
   const handleClose = useCallback(
     (val: boolean) => {
@@ -198,6 +203,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
         setParsed(null);
         setColumnTypes([]);
         setError('');
+        setImportProgress({ done: 0, total: 0 });
       }
       onOpenChange(val);
     },
@@ -332,7 +338,9 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               className="text-white gap-1"
             >
               {importing && <Loader2 size={13} className="animate-spin" />}
-              Import {parsed.rows.length} row{parsed.rows.length !== 1 ? 's' : ''}
+              {importing && importProgress.total > 0
+                ? `${importProgress.done} of ${importProgress.total} records`
+                : `Import ${parsed.rows.length} row${parsed.rows.length !== 1 ? 's' : ''}`}
             </Button>
           )}
         </DialogFooter>

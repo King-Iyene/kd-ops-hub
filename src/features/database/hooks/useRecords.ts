@@ -617,6 +617,84 @@ export function useDeleteRecord() {
   });
 }
 
+export function useBulkCreateRecords() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      baseId: string;
+      tableId: string;
+      records: Array<Record<string, any>>;
+      onProgress?: (completed: number, total: number) => void;
+    }) => {
+      const ctx = await resolveTableContext(input.baseId, input.tableId);
+      const batchSize = 50;
+      const total = input.records.length;
+      let created = 0;
+
+      for (let i = 0; i < total; i += batchSize) {
+        const batch = input.records.slice(i, i + batchSize);
+        const { error } = await supabase
+          .schema(ctx.schemaName)
+          .from(ctx.tableName)
+          .insert(batch);
+        if (error) throw error;
+        created += batch.length;
+        input.onProgress?.(created, total);
+      }
+
+      return { created };
+    },
+    onSuccess: (data, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
+      qc.invalidateQueries({ queryKey: ['nc', 'recordCount', variables.baseId, variables.tableId] });
+      toast.success(`${data.created} record${data.created !== 1 ? 's' : ''} created`);
+    },
+    onError: () => {
+      toast.error('Failed to create records');
+    },
+  });
+}
+
+export function useBulkUpdateRecords() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      baseId: string;
+      tableId: string;
+      updates: Array<{ id: string; fields: Record<string, any> }>;
+      onProgress?: (completed: number, total: number) => void;
+    }) => {
+      const ctx = await resolveTableContext(input.baseId, input.tableId);
+      const batchSize = 50;
+      const total = input.updates.length;
+      let updated = 0;
+
+      for (let i = 0; i < total; i += batchSize) {
+        const batch = input.updates.slice(i, i + batchSize);
+        const rows = batch.map((u) => ({ id: u.id, ...u.fields }));
+        const { error } = await supabase
+          .schema(ctx.schemaName)
+          .from(ctx.tableName)
+          .upsert(rows, { onConflict: 'id' });
+        if (error) throw error;
+        updated += batch.length;
+        input.onProgress?.(updated, total);
+      }
+
+      return { updated };
+    },
+    onSuccess: (data, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
+      toast.success(`${data.updated} record${data.updated !== 1 ? 's' : ''} updated`);
+    },
+    onError: () => {
+      toast.error('Failed to update records');
+    },
+  });
+}
+
 export function useBulkDeleteRecords() {
   const qc = useQueryClient();
 
