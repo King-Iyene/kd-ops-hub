@@ -222,7 +222,7 @@ function SummaryRow({
               minWidth: field.width,
               borderRight: isLastFroz ? `3px solid ${colors.border}` : `1px solid ${colors.border}`,
               backgroundColor: colors.headerBg,
-              ...(isFroz ? { position: 'sticky' as const, left: cellLeft, zIndex: 10 } : {}),
+              ...(isFroz ? { position: 'sticky' as const, left: cellLeft, zIndex: 10, boxShadow: isLastFroz ? '2px 0 4px rgba(0,0,0,0.06)' : undefined } : {}),
             }}
           >
             <button
@@ -849,6 +849,8 @@ export default function GridView({
       }
 
       if (!selectedCellId) return;
+      // Don't navigate when a cell is being edited — let the editor handle arrow keys
+      if (editingCellId && (e.key.startsWith('Arrow') || e.key === 'Tab' || e.key === 'Home' || e.key === 'End' || e.key === 'PageUp' || e.key === 'PageDown')) return;
       const [rowId, fieldId] = selectedCellId.split(':');
       const rowIdx = records.findIndex((r) => r.id === rowId);
       const colIdx = fieldsWithWidths.findIndex((f) => f.id === fieldId);
@@ -1095,6 +1097,7 @@ export default function GridView({
                       zIndex: 25,
                       backgroundColor: GRID_COLORS.headerBg,
                       borderRight: isLastFrozen ? `3px solid ${GRID_COLORS.border}` : undefined,
+                      boxShadow: isLastFrozen ? '2px 0 4px rgba(0,0,0,0.06)' : undefined,
                     } : {}),
                   }}
                   onDragOver={(e) => handleColDragOver(e, colIdx)}
@@ -1338,6 +1341,7 @@ export default function GridView({
                               left: cellLeft,
                               zIndex: 5,
                               borderRight: isLastFroz ? `3px solid ${GRID_COLORS.border}` : undefined,
+                              boxShadow: isLastFroz ? '2px 0 4px rgba(0,0,0,0.06)' : undefined,
                             } : {}),
                           }}
                         >
@@ -1503,6 +1507,7 @@ export default function GridView({
                             left: cellLeft,
                             zIndex: 5,
                             borderRight: isLastFroz ? `3px solid ${GRID_COLORS.border}` : undefined,
+                            boxShadow: isLastFroz ? '2px 0 4px rgba(0,0,0,0.06)' : undefined,
                           } : {}),
                         }}
                       >
