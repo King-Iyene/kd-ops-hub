@@ -548,7 +548,9 @@ export function getCellRenderer(uiType: string) {
       return CurrencyCellRenderer;
     case 'Date':
     case 'DateTime':
+      return DateCellRenderer;
     case 'Year':
+      return YearCellRenderer;
     case 'Time':
       return TimeCellRenderer;
     case 'Duration':

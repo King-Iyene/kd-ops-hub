@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Home,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -174,9 +175,14 @@ export function DatabaseSidebar() {
       {/* Header */}
       <div className="h-11 flex items-center justify-between px-3 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
         {!sidebarCollapsed && (
-          <span className="text-[13px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
+          <button
+            className="flex items-center gap-1.5 text-[13px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] hover:text-[#3366FF] transition-colors"
+            onClick={() => setActiveBase(null)}
+            title="Go to home"
+          >
+            <Home size={13} className="text-[#9AA2AF]" />
             Bases
-          </span>
+          </button>
         )}
         <div className={cn('flex items-center gap-0.5', sidebarCollapsed && 'mx-auto')}>
           {!sidebarCollapsed && (
