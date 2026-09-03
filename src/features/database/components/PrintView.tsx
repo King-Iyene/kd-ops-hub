@@ -122,7 +122,7 @@ export function PrintView({ fields, records, tableName, onClose }: PrintViewProp
       `}</style>
 
       <div className="print-view-toolbar">
-        <span className="text-sm font-medium text-[#374151]">Print Preview</span>
+        <span className="text-sm font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Print Preview</span>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"

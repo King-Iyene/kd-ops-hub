@@ -35,9 +35,36 @@ function getFirstImageUrl(value: unknown): string | null {
   return null;
 }
 
+function KanbanSkeleton() {
+  return (
+    <div className="flex gap-3 p-4 h-full overflow-x-auto">
+      {Array.from({ length: 4 }).map((_, colIdx) => (
+        <div
+          key={colIdx}
+          className="flex flex-col shrink-0 rounded-lg overflow-hidden bg-gray-100 dark:bg-[hsl(200,28%,13%)]"
+          style={{ width: 280 }}
+        >
+          <div className="h-9 px-3 flex items-center border-b border-gray-200 dark:border-[hsl(200,25%,18%)]">
+            <div className="h-3 w-20 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+          </div>
+          <div className="flex-1 p-2 space-y-2">
+            {Array.from({ length: 3 }).map((_, cardIdx) => (
+              <div
+                key={cardIdx}
+                className="h-16 rounded-md animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]"
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function KanbanView({
   fields,
   records,
+  isLoading,
   onCellUpdate,
   onAddRow,
   onExpandRow,
@@ -224,6 +251,10 @@ export default function KanbanView({
     },
     [dragRecordId, groupField, onCellUpdate],
   );
+
+  if (isLoading && records.length === 0) {
+    return <KanbanSkeleton />;
+  }
 
   if (!groupField) {
     return (

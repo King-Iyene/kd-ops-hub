@@ -84,7 +84,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                 </p>
               </div>
               <div className="flex gap-2">
-                <code className="flex-1 px-3 py-1.5 rounded-md bg-white border border-[#93C5FD] text-[11px] text-[#1E40AF] font-mono break-all">
+                <code className="flex-1 px-3 py-1.5 rounded-md bg-white dark:bg-[hsl(200,30%,10%)] border border-[#93C5FD] dark:border-[hsl(213,60%,35%)] text-[11px] text-[#1E40AF] dark:text-[#93C5FD] font-mono break-all">
                   {newlyCreatedToken}
                 </code>
                 <Button
@@ -103,7 +103,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
           {/* Token list */}
           <div className="space-y-1">
             {(tokens ?? []).length === 0 && !showCreate && (
-              <p className="text-[12px] text-[#6A7184] text-center py-4">
+              <p className="text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] text-center py-4">
                 No API tokens yet. Create one to get started.
               </p>
             )}
@@ -112,19 +112,19 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                 key={t.id}
                 className="flex items-center gap-3 p-2.5 rounded-lg border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-[#F9F9FA] dark:bg-[hsl(200,25%,12%)]"
               >
-                <Key size={14} className="text-[#6A7184] shrink-0" />
+                <Key size={14} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)] shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
                     {t.name}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <code className="text-[11px] text-[#6A7184] font-mono">
+                    <code className="text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] font-mono">
                       {truncateToken(t.token)}
                     </code>
-                    <span className="text-[10px] text-[#6A7184]">
+                    <span className="text-[10px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
                       {new Date(t.created_at).toLocaleDateString()}
                     </span>
-                    <span className="text-[10px] text-[#6A7184]">
+                    <span className="text-[10px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
                       {(t.permissions ?? []).join(', ')}
                     </span>
                   </div>
@@ -151,7 +151,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                 ) : (
                   <button
                     onClick={() => setConfirmDeleteId(t.id)}
-                    className="text-[#6A7184] hover:text-red-600 transition-colors p-1"
+                    className="text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-red-600 dark:hover:text-red-400 transition-colors p-1"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -172,7 +172,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. CI/CD pipeline"
-                  className="w-full px-3 py-1.5 rounded-md border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#6A7184]"
+                  className="w-full px-3 py-1.5 rounded-md border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#6A7184] dark:placeholder:text-[hsl(200,20%,40%)]"
                 />
               </div>
               <div>
@@ -186,7 +186,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                         type="checkbox"
                         checked={permissions.has(p)}
                         onChange={() => togglePermission(p)}
-                        className="rounded border-[#E7E7E9] text-[#3366FF]"
+                        className="rounded border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] text-[#3366FF]"
                       />
                       {p}
                     </label>

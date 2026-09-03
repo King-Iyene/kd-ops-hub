@@ -176,7 +176,7 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
         {/* Filters */}
         <div className="px-4 py-2.5 flex items-center gap-2 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shrink-0 flex-wrap">
           <div className="relative flex-1 min-w-[160px]">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6A7184]" />
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6A7184] dark:text-[hsl(200,25%,60%)]" />
             <Input
               placeholder="Search actions..."
               value={search}
@@ -189,7 +189,7 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
             onValueChange={(v) => { setActionFilter(v as ActionType | 'ALL'); setPage(0); }}
           >
             <SelectTrigger className="h-8 w-[160px] text-[12px] border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
-              <Filter size={12} className="mr-1 text-[#6A7184]" />
+              <Filter size={12} className="mr-1 text-[#6A7184] dark:text-[hsl(200,25%,60%)]" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -204,7 +204,7 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
         {/* Feed */}
         <div className="flex-1 overflow-y-auto min-h-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-16 text-[#6A7184]">
+            <div className="flex items-center justify-center py-16 text-[#6A7184] dark:text-[hsl(200,25%,60%)]">
               <Loader2 size={20} className="animate-spin mr-2" />
               Loading...
             </div>
@@ -233,17 +233,17 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-[12px] text-[#6A7184]"
+              className="h-7 text-[12px] text-[#6A7184] dark:text-[hsl(200,25%,60%)]"
               disabled={page === 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
             >
               Previous
             </Button>
-            <span className="text-[11px] text-[#6A7184]">Page {page + 1}</span>
+            <span className="text-[11px] text-[#6A7184] dark:text-[hsl(200,25%,60%)]">Page {page + 1}</span>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-[12px] text-[#6A7184]"
+              className="h-7 text-[12px] text-[#6A7184] dark:text-[hsl(200,25%,60%)]"
               disabled={!hasMore}
               onClick={() => setPage((p) => p + 1)}
             >

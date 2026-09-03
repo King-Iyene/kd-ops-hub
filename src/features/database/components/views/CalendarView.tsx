@@ -722,9 +722,31 @@ const calendarStyles = `
 }
 `;
 
+function CalendarSkeleton() {
+  return (
+    <div className="p-1.5 h-full">
+      <div className="grid grid-cols-7 gap-px rounded-lg overflow-hidden bg-gray-200 dark:bg-[hsl(200,25%,18%)]">
+        {DAYS.map((d) => (
+          <div key={d} className="bg-gray-100 dark:bg-[hsl(200,28%,12%)] px-2 py-1">
+            <div className="h-2.5 w-6 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+          </div>
+        ))}
+        {Array.from({ length: 35 }).map((_, i) => (
+          <div key={i} className="bg-white dark:bg-[hsl(200,30%,10%)]" style={{ minHeight: 90 }}>
+            <div className="p-1">
+              <div className="h-4 w-4 rounded-full animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CalendarView({
   fields,
   records,
+  isLoading,
   onExpandRow,
   onAddRow,
 }: CalendarViewProps) {
@@ -866,6 +888,10 @@ export default function CalendarView({
   }, [viewMode, currentMonth, weekDays, currentDate]);
 
   const totalEvents = dateField ? records.filter((r) => r[dateField.pg_column_name]).length : 0;
+
+  if (isLoading && records.length === 0) {
+    return <CalendarSkeleton />;
+  }
 
   if (!dateField) {
     return (

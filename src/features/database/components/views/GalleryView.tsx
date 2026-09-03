@@ -383,10 +383,30 @@ function GalleryCard({
 /*  Main component                                                    */
 /* ------------------------------------------------------------------ */
 
+function GallerySkeleton() {
+  return (
+    <div className="grid grid-cols-3 gap-4">
+      {Array.from({ length: 9 }).map((_, i) => (
+        <div
+          key={i}
+          className="rounded-lg overflow-hidden border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]"
+        >
+          <div className="h-28 w-full animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+          <div className="p-3 space-y-2">
+            <div className="h-3 w-3/4 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+            <div className="h-2.5 w-1/2 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function GalleryView({
   fields,
   records,
   totalCount,
+  isLoading,
   onAddRow,
   onExpandRow,
   onDeleteRow,
@@ -471,7 +491,9 @@ export default function GalleryView({
 
       {/* Cards grid */}
       <div className="flex-1 overflow-auto p-4">
-        {records.length === 0 ? (
+        {isLoading && records.length === 0 ? (
+          <GallerySkeleton />
+        ) : records.length === 0 ? (
           /* Empty state */
           <div className="flex flex-col items-center justify-center h-full text-center py-20">
             <div

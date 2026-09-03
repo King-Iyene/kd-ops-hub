@@ -362,13 +362,38 @@ export default function GridView({
       setDropTargetIdx(null);
       return;
     }
-    // Swap nc_order values
-    const sourceRecord = records[sourceIdx];
-    const targetRecord = records[targetIdx];
-    const sourceOrder = sourceRecord.nc_order ?? sourceIdx;
-    const targetOrder = targetRecord.nc_order ?? targetIdx;
-    onCellUpdate(sourceRecord.id, 'nc_order', targetOrder);
-    onCellUpdate(targetRecord.id, 'nc_order', sourceOrder);
+
+    // Build the reordered array: remove the dragged record from sourceIdx
+    // and reinsert it at targetIdx, shifting every record in between.
+    const reordered = records.slice();
+    const [moved] = reordered.splice(sourceIdx, 1);
+    reordered.splice(targetIdx, 0, moved);
+
+    // Only the records between the source and target positions actually
+    // change position, so only recompute (and persist) nc_order for that
+    // affected range rather than the whole table.
+    const rangeStart = Math.min(sourceIdx, targetIdx);
+    const rangeEnd = Math.max(sourceIdx, targetIdx);
+
+    // Anchor the new order values to the nc_order of the rows just outside
+    // the affected range (falling back to the row's index when nc_order is
+    // missing), then space the affected rows evenly between them. This
+    // avoids colliding with orders of untouched rows on either side.
+    const before = rangeStart > 0 ? records[rangeStart - 1] : undefined;
+    const after = rangeEnd < records.length - 1 ? records[rangeEnd + 1] : undefined;
+    const lowOrder = before?.nc_order ?? rangeStart - 1;
+    const highOrder = after?.nc_order ?? rangeEnd + 1;
+    const span = rangeEnd - rangeStart + 1;
+    const step = (highOrder - lowOrder) / (span + 1);
+
+    for (let i = rangeStart; i <= rangeEnd; i++) {
+      const record = reordered[i];
+      const newOrder = lowOrder + step * (i - rangeStart + 1);
+      if (record.nc_order !== newOrder) {
+        onCellUpdate(record.id, 'nc_order', newOrder);
+      }
+    }
+
     setDragRowId(null);
     setDropTargetIdx(null);
   }, [dragRowId, records, onCellUpdate]);

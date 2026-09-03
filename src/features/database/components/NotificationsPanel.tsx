@@ -121,7 +121,7 @@ export function NotificationsPanel() {
       <Button
         variant="ghost"
         size="icon"
-        className="h-7 w-7 text-[#6A7184] hover:bg-[#F4F4F5] relative"
+        className="h-7 w-7 text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] relative"
         onClick={() => setOpen((v) => !v)}
       >
         <Bell size={15} />
@@ -152,7 +152,7 @@ export function NotificationsPanel() {
           {/* List */}
           <div className="max-h-[320px] overflow-y-auto">
             {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-[#9AA2AF]">
+              <div className="flex flex-col items-center justify-center py-10 text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">
                 <Bell size={28} className="mb-2 opacity-40" />
                 <span className="text-[13px]">No notifications</span>
               </div>
@@ -176,7 +176,7 @@ export function NotificationsPanel() {
                       <p className="text-[12px] text-[#374151] dark:text-[hsl(200,25%,85%)] leading-snug">
                         {n.message}
                       </p>
-                      <span className="text-[10px] text-[#9AA2AF] mt-0.5 block">
+                      <span className="text-[10px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] mt-0.5 block">
                         {relativeTime(n.timestamp)}
                       </span>
                     </div>

@@ -260,9 +260,32 @@ const timelineStyles = `
 .tl-tooltip-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 `;
 
+function TimelineSkeleton() {
+  return (
+    <div className="tl-root">
+      <style>{timelineStyles}</style>
+      <div className="flex items-center gap-3 px-3 h-9 border-b border-[var(--tl-border,#E7E7E9)]">
+        <div className="h-3 w-32 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+      </div>
+      <div className="flex-1 p-4 space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <div className="h-3 w-28 shrink-0 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+            <div
+              className="h-5 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]"
+              style={{ width: `${20 + ((i * 37) % 50)}%`, marginLeft: `${(i * 13) % 30}%` }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function TimelineView({
   fields,
   records,
+  isLoading,
   onExpandRow,
 }: TimelineViewProps) {
   const [zoom, setZoom] = useState<Zoom>('week');
@@ -451,6 +474,10 @@ export default function TimelineView({
 
   const ROW_HEIGHT = 36;
   const SIDEBAR_WIDTH = 200;
+
+  if (isLoading && records.length === 0) {
+    return <TimelineSkeleton />;
+  }
 
   // Empty state
   if (dateFields.length === 0) {

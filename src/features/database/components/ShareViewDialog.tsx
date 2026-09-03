@@ -95,7 +95,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
               <p className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
                 Enable shared view
               </p>
-              <p className="text-[11px] text-[#6A7184]">
+              <p className="text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
                 Anyone with the link can view this data
               </p>
             </div>
@@ -104,7 +104,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
               disabled={isLoading || createShared.isPending || updateShared.isPending}
               className="text-[#3366FF]"
             >
-              {isEnabled ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-[#6A7184]" />}
+              {isEnabled ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]" />}
             </button>
           </div>
 
@@ -116,7 +116,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                   Shareable link
                 </label>
                 <div className="flex gap-2">
-                  <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[12px] text-[#6A7184] truncate">
+                  <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] truncate">
                     <Link2 size={12} className="shrink-0" />
                     <span className="truncate">{shareUrl}</span>
                   </div>
@@ -144,11 +144,11 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={sharedView.password ? '(password set)' : 'Set a password'}
-                      className="w-full px-3 py-1.5 rounded-md border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#6A7184] pr-8"
+                      className="w-full px-3 py-1.5 rounded-md border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#6A7184] dark:placeholder:text-[hsl(200,20%,40%)] pr-8"
                     />
                     <button
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[#6A7184]"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[#6A7184] dark:text-[hsl(200,20%,55%)]"
                     >
                       {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
                     </button>
@@ -168,12 +168,12 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
               {/* CSV download toggle */}
               <div className="flex items-center justify-between p-3 rounded-lg bg-[#F9F9FA] dark:bg-[hsl(200,25%,12%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
                 <div className="flex items-center gap-2">
-                  <Download size={14} className="text-[#6A7184]" />
+                  <Download size={14} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]" />
                   <div>
                     <p className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
                       Allow CSV download
                     </p>
-                    <p className="text-[11px] text-[#6A7184]">
+                    <p className="text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
                       Viewers can export data as CSV
                     </p>
                   </div>
@@ -185,7 +185,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                 >
                   {sharedView.allow_csv_download
                     ? <ToggleRight size={28} />
-                    : <ToggleLeft size={28} className="text-[#6A7184]" />}
+                    : <ToggleLeft size={28} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]" />}
                 </button>
               </div>
 
