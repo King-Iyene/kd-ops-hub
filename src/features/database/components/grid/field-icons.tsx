@@ -1,7 +1,7 @@
 import {
   Type, Hash, DollarSign, Calendar, CheckSquare, List, Link2,
   Paperclip, Mail, Phone, Globe, Clock, User, FileText, Star,
-  Percent, Braces, LucideIcon,
+  Percent, Braces, Barcode, Users, MousePointerClick, LucideIcon,
 } from 'lucide-react';
 import type { UIType } from '@/features/database/types';
 
@@ -36,6 +36,9 @@ const iconMap: Record<UIType, LucideIcon> = {
   CreatedBy: User,
   LastModifiedBy: User,
   JSON: Braces,
+  Barcode: Barcode,
+  User: Users,
+  Button: MousePointerClick,
 };
 
 export function getFieldTypeIcon(uiType: UIType): LucideIcon {

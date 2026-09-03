@@ -511,6 +511,74 @@ export const LinksCellRenderer = React.memo(function LinksCellRenderer({
   );
 });
 
+export const BarcodeCellRenderer = React.memo(function BarcodeCellRenderer({
+  value,
+}: CellRendererProps) {
+  if (value == null || value === '') return null;
+  const text = String(value);
+  return (
+    <span
+      className="truncate font-mono text-xs tracking-widest text-[#374151] dark:text-[hsl(200,25%,88%)]"
+      style={{
+        letterSpacing: '0.15em',
+        borderBottom: '2px solid currentColor',
+        paddingBottom: 1,
+      }}
+    >
+      {text}
+    </span>
+  );
+});
+
+export const UserCellRenderer = React.memo(function UserCellRenderer({
+  value,
+}: CellRendererProps) {
+  if (value == null || value === '') return null;
+  const name = typeof value === 'object' && value !== null
+    ? (value.name || value.email || 'U')
+    : String(value || 'U');
+  const initials = name
+    .split(/\s+/)
+    .map((w: string) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+  // Deterministic color from name
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  const hue = Math.abs(hash) % 360;
+  return (
+    <span className="flex items-center gap-1.5 truncate">
+      <span
+        className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold text-white shrink-0"
+        style={{ backgroundColor: `hsl(${hue}, 55%, 50%)` }}
+      >
+        {initials}
+      </span>
+      <span className="truncate text-[#374151] dark:text-[hsl(200,25%,88%)]">{name}</span>
+    </span>
+  );
+});
+
+export const ButtonCellRenderer = React.memo(function ButtonCellRenderer({
+  value,
+  field,
+}: CellRendererProps) {
+  const label = field.options?.expression || (typeof value === 'string' && value) || 'Click';
+  return (
+    <div className="flex items-center justify-center w-full">
+      <button
+        type="button"
+        className="px-3 py-0.5 rounded text-xs font-medium text-white transition-opacity hover:opacity-80"
+        style={{ backgroundColor: '#3366FF' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {label}
+      </button>
+    </div>
+  );
+});
+
 export function getCellRenderer(uiType: string) {
   switch (uiType) {
     case 'SingleLineText':
@@ -562,6 +630,12 @@ export function getCellRenderer(uiType: string) {
     case 'CreatedBy':
     case 'LastModifiedBy':
       return SystemCellRenderer;
+    case 'Barcode':
+      return BarcodeCellRenderer;
+    case 'User':
+      return UserCellRenderer;
+    case 'Button':
+      return ButtonCellRenderer;
     default:
       return TextCellRenderer;
   }

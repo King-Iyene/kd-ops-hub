@@ -721,6 +721,12 @@ export function getCellEditor(uiType: string) {
       return AttachmentCellEditor;
     case 'Links':
       return LinksCellEditor;
+    case 'Barcode':
+      return TextCellEditor;
+    case 'User':
+      return TextCellEditor;
+    case 'Button':
+      return null;
     case 'Checkbox':
       return null;
     default:

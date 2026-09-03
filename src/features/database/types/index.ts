@@ -28,7 +28,10 @@ export type UIType =
   | 'AutoNumber'
   | 'CreatedBy'
   | 'LastModifiedBy'
-  | 'JSON';
+  | 'JSON'
+  | 'Barcode'
+  | 'User'
+  | 'Button';
 
 export interface Workspace {
   id: string;
@@ -223,6 +226,9 @@ export const UI_TYPE_TO_PG_TYPE: Record<string, string> = {
   Attachment: "JSONB DEFAULT '[]'::jsonb",
   AutoNumber: 'SERIAL',
   JSON: 'JSONB',
+  Barcode: 'TEXT',
+  User: 'JSONB',
+  Button: 'JSONB',
 };
 
 export const VIRTUAL_TYPES: UIType[] = [

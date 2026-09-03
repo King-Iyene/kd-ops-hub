@@ -1206,8 +1206,28 @@ export default function GridView({
                         ({item.count})
                       </span>
                       {summaryParts.length > 0 && (
-                        <span style={{ color: GRID_COLORS.muted, fontSize: 10, marginLeft: 12, flexShrink: 0 }}>
-                          {summaryParts.join(' | ')}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 12, flexShrink: 0 }}>
+                          <span style={{ color: GRID_COLORS.muted, fontSize: 11 }}>&mdash;</span>
+                          {summaryParts.map((part, idx) => (
+                            <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: 500,
+                                  padding: '1px 6px',
+                                  borderRadius: 4,
+                                  backgroundColor: GRID_COLORS.primary + '12',
+                                  color: GRID_COLORS.muted,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {part}
+                              </span>
+                              {idx < summaryParts.length - 1 && (
+                                <span style={{ color: GRID_COLORS.muted, fontSize: 10 }}>&middot;</span>
+                              )}
+                            </span>
+                          ))}
                         </span>
                       )}
                     </div>
