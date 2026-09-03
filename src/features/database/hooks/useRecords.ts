@@ -219,37 +219,12 @@ export function useCreateRecord() {
       if (error) throw error;
       return data as RecordRow;
     },
-    onMutate: async (variables) => {
-      const queryKey = ['nc', 'records', variables.baseId, variables.tableId];
-      await qc.cancelQueries({ queryKey });
-
-      const optimisticRecord: RecordRow = {
-        id: `temp-${Date.now()}`,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        ...variables.record,
-      };
-
-      qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          records: [...old.records, optimisticRecord],
-          totalCount: old.totalCount + 1,
-        };
-      });
-
-      return { queryKey };
-    },
     onSuccess: (data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       toast.success('Record created');
       fireAutomations('record.created', variables.baseId, variables.tableId, data);
     },
-    onError: (_err, variables, context) => {
-      if (context?.queryKey) {
-        qc.invalidateQueries({ queryKey: context.queryKey });
-      }
+    onError: () => {
       toast.error('Failed to create record');
     },
   });

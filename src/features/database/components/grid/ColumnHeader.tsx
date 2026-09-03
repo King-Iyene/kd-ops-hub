@@ -115,7 +115,8 @@ export const ColumnHeader = React.memo(function ColumnHeader({
         backgroundColor: colors.headerBg,
         color: colors.muted,
         fontSize: 12,
-        fontWeight: 600,
+        fontWeight: 500,
+        letterSpacing: '0.01em',
         cursor: 'pointer',
       }}
       draggable={isDraggable}

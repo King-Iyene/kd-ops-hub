@@ -5,7 +5,7 @@ const LIGHT = {
   bg: '#FFFFFF',
   headerBg: '#F9F9FA',
   border: '#E7E7E9',
-  text: '#111827',
+  text: '#1F2937',
   muted: '#6A7184',
   hoverRow: '#F9F9FA',
   groupHeaderBg: '#F4F4F5',
@@ -13,20 +13,22 @@ const LIGHT = {
   cellEditorBg: '#FFFFFF',
   cellEditorText: '#0F172A',
   selectedRowBg: '#EBF0FF',
+  altRowBg: '#FFFFFF',
 };
 
 const DARK = {
-  bg: 'hsl(200, 30%, 8%)',
-  headerBg: 'hsl(200, 25%, 11%)',
-  border: 'hsl(200, 25%, 18%)',
-  text: 'hsl(200, 25%, 88%)',
-  muted: 'hsl(200, 20%, 60%)',
-  hoverRow: 'hsl(220, 40%, 15%)',
-  groupHeaderBg: 'hsl(200, 25%, 13%)',
+  bg: 'hsl(220, 20%, 10%)',
+  headerBg: 'hsl(220, 18%, 13%)',
+  border: 'hsl(220, 15%, 20%)',
+  text: 'hsl(210, 20%, 88%)',
+  muted: 'hsl(215, 15%, 55%)',
+  hoverRow: 'hsl(220, 20%, 14%)',
+  groupHeaderBg: 'hsl(220, 18%, 14%)',
   primary: '#3366FF',
-  cellEditorBg: 'hsl(200, 30%, 10%)',
-  cellEditorText: 'hsl(200, 25%, 92%)',
-  selectedRowBg: 'hsl(220, 50%, 18%)',
+  cellEditorBg: 'hsl(220, 20%, 12%)',
+  cellEditorText: 'hsl(210, 20%, 92%)',
+  selectedRowBg: 'hsl(220, 40%, 18%)',
+  altRowBg: 'hsl(220, 20%, 10%)',
 };
 
 export type GridColorTokens = typeof LIGHT;

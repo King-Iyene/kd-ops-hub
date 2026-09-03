@@ -42,13 +42,13 @@ const GROUP_PILL_COLORS = [
 
 const ROW_HEIGHTS: Record<string, number> = {
   compact: 32,
-  default: 44,
-  tall: 64,
-  'extra-tall': 88,
+  default: 32,
+  tall: 60,
+  'extra-tall': 90,
 };
 
-const ROW_NUMBER_WIDTH = 72;
-const HEADER_HEIGHT = 36;
+const ROW_NUMBER_WIDTH = 66;
+const HEADER_HEIGHT = 32;
 
 const NUMERIC_TYPES: UIType[] = ['Number', 'Decimal', 'Currency', 'Percent', 'Rating', 'Duration'];
 

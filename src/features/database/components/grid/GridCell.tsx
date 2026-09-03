@@ -96,19 +96,22 @@ export const GridCell = React.memo(function GridCell({
 
   return (
     <div
-      className={`relative flex items-center px-2 overflow-hidden ${frozen ? 'sticky z-10' : ''}`}
+      className={`relative flex items-center overflow-hidden ${frozen ? 'sticky z-10' : ''}`}
       style={{
         width: field.width || 180,
         minWidth: field.width || 180,
+        height: '100%',
+        padding: '0 10px',
         borderRight: `1px solid ${GRID_COLORS.border}`,
         borderBottom: `1px solid ${GRID_COLORS.border}`,
         backgroundColor: frozen ? (rowBg ?? GRID_COLORS.bg) : (backgroundColor || undefined),
-        outline: isSelected ? '2px solid #166EE1' : 'none',
+        outline: isSelected ? '2px solid #3366FF' : 'none',
         outlineOffset: -2,
         cursor: 'default',
         fontSize: 13,
+        lineHeight: '20px',
         color: GRID_COLORS.text,
-        ...(frozen ? { left: frozenLeft, boxShadow: '1px 0 0 0 rgba(0,0,0,0.04)' } : {}),
+        ...(frozen ? { left: frozenLeft, boxShadow: '2px 0 4px rgba(0,0,0,0.06)' } : {}),
       }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
