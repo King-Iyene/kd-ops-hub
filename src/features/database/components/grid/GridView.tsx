@@ -12,6 +12,7 @@ import { BulkActionsBar } from './BulkActionsBar';
 import { GridSkeleton } from './GridSkeleton';
 import { RowContextMenu } from './RowContextMenu';
 import { useGridColors, type GridColorTokens } from '../../hooks/useGridColors';
+import { confirm as styledConfirm } from '@/hooks/use-confirm';
 
 export interface GridViewProps {
   fields: FieldMeta[];
@@ -364,9 +365,10 @@ export default function GridView({
     });
   }, [records]);
 
-  const handleBulkDelete = useCallback(() => {
+  const handleBulkDelete = useCallback(async () => {
     if (selectedRowIds.size === 0 || !onBulkDeleteRows) return;
-    if (!confirm(`Delete ${selectedRowIds.size} selected record(s)?`)) return;
+    const ok = await styledConfirm({ description: `Delete ${selectedRowIds.size} selected record(s)?`, variant: 'destructive' });
+    if (!ok) return;
     onBulkDeleteRows(Array.from(selectedRowIds));
     setSelectedRowIds(new Set());
   }, [selectedRowIds, onBulkDeleteRows]);

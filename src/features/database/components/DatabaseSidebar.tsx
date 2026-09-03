@@ -13,6 +13,7 @@ import {
   Download,
   Home,
 } from 'lucide-react';
+import { confirm as styledConfirm } from '@/hooks/use-confirm';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -146,13 +147,12 @@ export function DatabaseSidebar() {
   );
 
   const handleDeleteBase = useCallback(
-    (base: any) => {
-      if (
-        !confirm(
-          `Delete base "${base.name}"? All tables and data will be permanently deleted.`,
-        )
-      )
-        return;
+    async (base: any) => {
+      const ok = await styledConfirm({
+        description: `Delete base "${base.name}"? All tables and data will be permanently deleted.`,
+        variant: 'destructive',
+      });
+      if (!ok) return;
       deleteBase.mutate(base.id);
       if (activeBaseId === base.id) setActiveBase(null);
     },

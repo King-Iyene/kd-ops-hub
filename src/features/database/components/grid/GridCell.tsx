@@ -9,6 +9,9 @@ import { useUpdateField } from '../../hooks/useFields';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[\d\s+\-()]+$/;
+const SINGLE_CLICK_EDIT_TYPES = new Set([
+  'Attachment', 'SingleSelect', 'MultiSelect', 'Rating',
+]);
 
 function validateCellValue(uiType: string, value: any): string | null {
   if (value === null || value === undefined || value === '') return null;
@@ -34,6 +37,14 @@ function validateCellValue(uiType: string, value: any): string | null {
     case 'PhoneNumber':
       if (!PHONE_RE.test(s)) return 'Only digits, spaces, +, -, (, ) allowed';
       return null;
+    case 'Duration': {
+      const parts = s.split(':').map(Number);
+      if (parts.some(isNaN) || parts.length < 1 || parts.length > 3) return 'Use h:mm or h:mm:ss format';
+      return null;
+    }
+    case 'JSON':
+      try { JSON.parse(s); return null; }
+      catch { return 'Invalid JSON'; }
     default:
       return null;
   }

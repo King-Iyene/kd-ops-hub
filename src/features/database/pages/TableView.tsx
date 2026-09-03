@@ -157,9 +157,20 @@ export function TableView() {
   const handleAddRow = useCallback(
     (record?: Record<string, any>) => {
       if (!activeBaseId || !activeTableId) return;
-      createRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record: record ?? {} });
+      createRecord.mutateAsync({ baseId: activeBaseId, tableId: activeTableId, record: record ?? {} }).then((created) => {
+        pushUndo({
+          type: 'row_create',
+          payload: { recordId: created.id },
+          undo: async () => {
+            deleteRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, recordId: created.id });
+          },
+          redo: async () => {
+            createRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record: record ?? {} });
+          },
+        });
+      });
     },
-    [activeBaseId, activeTableId, createRecord],
+    [activeBaseId, activeTableId, createRecord, deleteRecord, pushUndo],
   );
 
   const handlePasteRows = useCallback(
@@ -175,9 +186,23 @@ export function TableView() {
   const handleDeleteRow = useCallback(
     (recordId: string) => {
       if (!activeBaseId || !activeTableId) return;
+      const record = recordsData?.records.find((r) => r.id === recordId);
       deleteRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, recordId });
+      if (record) {
+        const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = record;
+        pushUndo({
+          type: 'row_delete',
+          payload: { recordId },
+          undo: async () => {
+            createRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record: rest });
+          },
+          redo: async () => {
+            deleteRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, recordId });
+          },
+        });
+      }
     },
-    [activeBaseId, activeTableId, deleteRecord],
+    [activeBaseId, activeTableId, deleteRecord, createRecord, recordsData, pushUndo],
   );
 
   const handleDuplicateRow = useCallback(
