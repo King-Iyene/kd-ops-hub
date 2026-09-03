@@ -1,20 +1,11 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Paperclip, Star, Check, X } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
 import { PILL_COLORS, SELECT_COLOR_NAMES, SELECT_COLORS } from '@/features/database/types';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
-import { validateField, type ValidationRule } from '../../lib/validation';
 import { useGridColors } from '../../hooks/useGridColors';
-
-function useEditorValidation(value: any, field: FieldMeta) {
-  return useMemo(() => {
-    const rules: ValidationRule[] = (field.options as any)?.validations ?? [];
-    if (rules.length === 0) return { valid: true, errors: [] as string[] };
-    return validateField(value, field, rules);
-  }, [value, field]);
-}
 
 interface CellEditorProps {
   value: any;
@@ -31,7 +22,6 @@ function getPillColor(colorName: string) {
 export function TextCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
-  const { valid, errors } = useEditorValidation(text, field);
 
   useEffect(() => {
     ref.current?.focus();
@@ -39,38 +29,25 @@ export function TextCellEditor({ value, field, onCommit, onCancel }: CellEditorP
   }, []);
 
   return (
-    <div className="relative w-full h-full">
-      <input
-        ref={ref}
-        type="text"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') onCommit(text);
-          if (e.key === 'Escape') onCancel();
-        }}
-        onBlur={() => onCommit(text)}
-        className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)]"
-        style={{
-          fontSize: 14,
-          color: 'inherit',
-          border: valid ? 'none' : '2px solid #EF4444',
-        }}
-      />
-      {!valid && (
-        <div className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
-          {errors[0]}
-        </div>
-      )}
-    </div>
+    <input
+      ref={ref}
+      type="text"
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onCommit(text);
+        if (e.key === 'Escape') onCancel();
+      }}
+      onBlur={() => onCommit(text)}
+      className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)]"
+      style={{ fontSize: 14, color: 'inherit' }}
+    />
   );
 }
 
 export function NumberCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const [num, setNum] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
-  const numVal = num === '' ? null : Number(num);
-  const { valid, errors } = useEditorValidation(numVal, field);
 
   useEffect(() => {
     ref.current?.focus();
@@ -78,38 +55,25 @@ export function NumberCellEditor({ value, field, onCommit, onCancel }: CellEdito
   }, []);
 
   return (
-    <div className="relative w-full h-full">
-      <input
-        ref={ref}
-        type="number"
-        value={num}
-        onChange={(e) => setNum(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
-          if (e.key === 'Escape') onCancel();
-        }}
-        onBlur={() => onCommit(num === '' ? null : Number(num))}
-        className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
-        style={{
-          fontSize: 14,
-          color: 'inherit',
-          border: valid ? 'none' : '2px solid #EF4444',
-        }}
-      />
-      {!valid && (
-        <div className="absolute right-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
-          {errors[0]}
-        </div>
-      )}
-    </div>
+    <input
+      ref={ref}
+      type="number"
+      value={num}
+      onChange={(e) => setNum(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
+        if (e.key === 'Escape') onCancel();
+      }}
+      onBlur={() => onCommit(num === '' ? null : Number(num))}
+      className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
+      style={{ fontSize: 14, color: 'inherit' }}
+    />
   );
 }
 
 export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const [num, setNum] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
-  const numVal = num === '' ? null : Number(num);
-  const { valid, errors } = useEditorValidation(numVal, field);
 
   useEffect(() => {
     ref.current?.focus();
@@ -117,31 +81,20 @@ export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEdi
   }, []);
 
   return (
-    <div className="relative w-full h-full">
-      <input
-        ref={ref}
-        type="number"
-        step="0.01"
-        value={num}
-        onChange={(e) => setNum(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
-          if (e.key === 'Escape') onCancel();
-        }}
-        onBlur={() => onCommit(num === '' ? null : Number(num))}
-        className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
-        style={{
-          fontSize: 14,
-          color: 'inherit',
-          border: valid ? 'none' : '2px solid #EF4444',
-        }}
-      />
-      {!valid && (
-        <div className="absolute right-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-red-200 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap">
-          {errors[0]}
-        </div>
-      )}
-    </div>
+    <input
+      ref={ref}
+      type="number"
+      step="0.01"
+      value={num}
+      onChange={(e) => setNum(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
+        if (e.key === 'Escape') onCancel();
+      }}
+      onBlur={() => onCommit(num === '' ? null : Number(num))}
+      className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
+      style={{ fontSize: 14, color: 'inherit' }}
+    />
   );
 }
 
@@ -463,7 +416,7 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Find or create an option"
+            placeholder="Find an option..."
             className="w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
             style={{
               border: `1px solid ${colors.border}`,
@@ -515,9 +468,6 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
             >
               Create &ldquo;{search.trim()}&rdquo;
             </button>
-          )}
-          {filtered.length === 0 && !search.trim() && (
-            <div className="px-3 py-2 text-xs" style={{ color: colors.muted }}>No options yet</div>
           )}
         </div>
         {value && (
