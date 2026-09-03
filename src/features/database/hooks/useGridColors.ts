@@ -4,8 +4,8 @@ import { useTheme } from 'next-themes';
 const LIGHT = {
   bg: '#FFFFFF',
   headerBg: '#F8F8F9',
-  border: '#DDDFE3',
-  borderStrong: '#C8CCD4',
+  border: '#D0D4DB',
+  borderStrong: '#B8BCC6',
   text: '#1F2937',
   textSecondary: '#374151',
   muted: '#6B7280',
@@ -20,13 +20,21 @@ const LIGHT = {
   linkText: '#2563EB',
   checkboxChecked: '#16A34A',
   danger: '#DC2626',
+  dropdownBg: '#FFFFFF',
+  dropdownBorder: '#E7E7E9',
+  dropdownHover: '#F4F4F5',
+  starFilled: '#F59E0B',
+  starEmpty: '#D1D5DB',
+  avatarBg: '#8B5CF6',
+  tealText: '#0D9488',
+  highlightBg: '#FEF08A',
 };
 
 const DARK = {
   bg: 'hsl(220, 20%, 10%)',
   headerBg: 'hsl(220, 18%, 13%)',
-  border: 'hsl(220, 15%, 22%)',
-  borderStrong: 'hsl(220, 15%, 28%)',
+  border: 'hsl(220, 15%, 25%)',
+  borderStrong: 'hsl(220, 15%, 32%)',
   text: 'hsl(210, 20%, 88%)',
   textSecondary: 'hsl(210, 18%, 78%)',
   muted: 'hsl(215, 12%, 50%)',
@@ -41,6 +49,14 @@ const DARK = {
   linkText: '#60A5FA',
   checkboxChecked: '#22C55E',
   danger: '#EF4444',
+  dropdownBg: 'hsl(220, 20%, 12%)',
+  dropdownBorder: 'hsl(220, 15%, 22%)',
+  dropdownHover: 'hsl(220, 20%, 15%)',
+  starFilled: '#F59E0B',
+  starEmpty: 'hsl(220, 15%, 28%)',
+  avatarBg: '#7C3AED',
+  tealText: '#2DD4BF',
+  highlightBg: 'hsl(45, 80%, 25%)',
 };
 
 export type GridColorTokens = typeof LIGHT;

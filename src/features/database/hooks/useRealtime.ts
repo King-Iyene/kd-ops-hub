@@ -80,6 +80,7 @@ export function useRealtimeMetadata() {
 
 export function usePresence(baseId: string | undefined) {
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const userRef = useRef<{ id: string; email?: string } | null>(null);
   const activeTableId = useDatabaseUI((s) => s.activeTableId);
 
   useEffect(() => {
@@ -88,6 +89,7 @@ export function usePresence(baseId: string | undefined) {
     const getUser = async () => {
       const { data } = await supabase.auth.getUser();
       if (!data.user) return;
+      userRef.current = { id: data.user.id, email: data.user.email ?? undefined };
 
       const channel = supabase.channel(`presence-${baseId}`, {
         config: { presence: { key: data.user.id } },
@@ -103,7 +105,7 @@ export function usePresence(baseId: string | undefined) {
             await channel.track({
               user_id: data.user!.id,
               email: data.user!.email,
-              table_id: activeTableId,
+              table_id: useDatabaseUI.getState().activeTableId,
               online_at: new Date().toISOString(),
             });
           }
@@ -120,5 +122,15 @@ export function usePresence(baseId: string | undefined) {
         channelRef.current = null;
       }
     };
-  }, [baseId, activeTableId]);
+  }, [baseId]);
+
+  useEffect(() => {
+    if (!channelRef.current || !userRef.current) return;
+    channelRef.current.track({
+      user_id: userRef.current.id,
+      email: userRef.current.email,
+      table_id: activeTableId,
+      online_at: new Date().toISOString(),
+    });
+  }, [activeTableId]);
 }
