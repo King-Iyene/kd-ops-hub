@@ -905,6 +905,13 @@ export default function GridView({
         e.preventDefault();
         onCellUpdate(rowId, fieldId, null);
         return;
+      } else if (
+        !editingCellId &&
+        e.key.length === 1 &&
+        !e.ctrlKey && !e.metaKey && !e.altKey
+      ) {
+        setEditingCell(selectedCellId);
+        return;
       } else {
         return;
       }
