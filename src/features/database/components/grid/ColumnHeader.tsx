@@ -129,6 +129,9 @@ export const ColumnHeader = React.memo(function ColumnHeader({
     >
       <Icon size={13} className="shrink-0" style={{ color: colors.muted }} />
       <span className="truncate">{field.name}</span>
+      {field.is_system && (
+        <Lock size={10} className="shrink-0 opacity-50" style={{ color: colors.muted }} />
+      )}
       {field.description && (
         <span className="relative shrink-0 group/info">
           <Info size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] hover:text-[#6A7184] dark:hover:text-[hsl(200,20%,70%)] cursor-help" />
