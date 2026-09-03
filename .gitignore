@@ -43,3 +43,4 @@ supabase/.temp/
 bun.lock
 bun.lockb
 
+.claude/
