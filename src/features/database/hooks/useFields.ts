@@ -4,11 +4,14 @@ import type { FieldMeta, UIType } from '../types';
 import { VIRTUAL_TYPES, UI_TYPE_TO_PG_TYPE } from '../types';
 
 function toSnakeCase(name: string): string {
-  return name
+  let result = name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_|_$/g, '')
-    .substring(0, 63);
+    .replace(/^_|_$/g, '');
+  if (/^[0-9]/.test(result)) {
+    result = 'f_' + result;
+  }
+  return result.substring(0, 63);
 }
 
 export function useFields(tableId: string | null | undefined) {
