@@ -1,9 +1,11 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Paperclip, Star } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { Paperclip, Star, Check, X, Palette } from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
-import { PILL_COLORS, SELECT_COLOR_NAMES } from '@/features/database/types';
+import { PILL_COLORS, SELECT_COLORS, SELECT_COLOR_NAMES } from '@/features/database/types';
 import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
 import { validateField, type ValidationRule } from '../../lib/validation';
+import { useGridColors } from '../../hooks/useGridColors';
 
 function useEditorValidation(value: any, field: FieldMeta) {
   return useMemo(() => {
@@ -348,224 +350,541 @@ export function RatingCellEditor({ value, field, onCommit }: CellEditorProps) {
   );
 }
 
-export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpdate }: CellEditorProps) {
-  const choices = field.options?.choices || [];
-  const ref = useRef<HTMLDivElement>(null);
-  const [search, setSearch] = useState('');
-  const searchRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setTimeout(() => searchRef.current?.focus(), 0);
+function ColorPickerGrid({
+  currentColor,
+  onSelect,
+}: {
+  currentColor: string;
+  onSelect: (colorName: string) => void;
+}) {
+  const colors = useGridColors();
+  const groups = useMemo(() => {
+    const families = ['blue', 'cyan', 'teal', 'green', 'yellow', 'orange', 'red', 'pink', 'purple', 'gray'] as const;
+    return families.map((family) => {
+      const shades = SELECT_COLOR_NAMES.filter((n) => n.toLowerCase().startsWith(family));
+      return { family, shades };
+    });
   }, []);
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onCancel();
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [onCancel]);
-
-  const filtered = search
-    ? choices.filter((c: SelectChoice) => c.title.toLowerCase().includes(search.toLowerCase()))
-    : choices;
-
-  const exactMatch = search
-    ? choices.some((c: SelectChoice) => c.title.toLowerCase() === search.trim().toLowerCase())
-    : true;
-
-  const handleCreateOption = () => {
-    const trimmed = search.trim();
-    if (!trimmed) return;
-    const randomColor = SELECT_COLOR_NAMES[Math.floor(Math.random() * SELECT_COLOR_NAMES.length)];
-    const newChoice: SelectChoice = { title: trimmed, color: randomColor };
-    const updatedChoices = [...choices, newChoice];
-    onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices } as any);
-    onCommit(trimmed);
-  };
-
   return (
-    <div
-      ref={ref}
-      className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg min-w-[200px] max-h-[280px] flex flex-col animate-[panelSlideDown_150ms_ease-out]"
-    >
-      <div className="px-2 pt-2 pb-1 shrink-0">
-        <input
-          ref={searchRef}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}
-          placeholder="Find or create an option"
-          className="w-full px-2 py-1 text-xs rounded border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:border-[#3366FF]"
-        />
-      </div>
-      <div className="overflow-y-auto py-1">
-        {filtered.map((choice: SelectChoice) => {
-          const color = getPillColor(choice.color);
+    <div className="grid grid-cols-4 gap-1 p-2" style={{ minWidth: 180 }}>
+      {groups.map((group) =>
+        group.shades.map((name) => {
+          const c = SELECT_COLORS[name];
+          const isActive = name === currentColor;
           return (
             <button
-              key={choice.title}
-              className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 transition-colors"
-              onClick={() => onCommit(choice.title)}
+              key={name}
+              type="button"
+              className="w-7 h-7 rounded-md flex items-center justify-center transition-transform hover:scale-110"
+              style={{
+                backgroundColor: c.bg,
+                outline: isActive ? `2px solid ${colors.primary}` : 'none',
+                outlineOffset: 1,
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(name);
+              }}
+              title={name}
             >
-              <span
-                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-                style={{ backgroundColor: color.bg, color: color.text }}
-              >
-                {choice.title}
-              </span>
+              {isActive && <Check size={12} style={{ color: c.text }} />}
             </button>
           );
-        })}
-        {!exactMatch && search.trim() && (
-          <button
-            className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 transition-colors text-xs text-[#3366FF]"
-            onClick={handleCreateOption}
-          >
-            Create &ldquo;{search.trim()}&rdquo;
-          </button>
-        )}
-        {filtered.length === 0 && !search.trim() && (
-          <div className="px-3 py-2 text-xs text-[#9AA2AF]">No options found</div>
-        )}
-      </div>
-      {value && (
-        <>
-          <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)]" />
-          <button
-            className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] text-xs text-[#9AA2AF] transition-colors shrink-0"
-            onClick={() => onCommit(null)}
-          >
-            Clear
-          </button>
-        </>
+        }),
       )}
     </div>
   );
 }
 
-export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFieldUpdate }: CellEditorProps) {
-  const [localChoices, setLocalChoices] = useState<SelectChoice[]>(field.options?.choices || []);
-  const [selected, setSelected] = useState<string[]>(
-    Array.isArray(value) ? value : value ? [value] : [],
-  );
+export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpdate }: CellEditorProps) {
+  const choices: SelectChoice[] = field.options?.choices ?? [];
+  const colors = useGridColors();
   const [search, setSearch] = useState('');
-  const ref = useRef<HTMLDivElement>(null);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [colorPickerChoice, setColorPickerChoice] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setTimeout(() => searchRef.current?.focus(), 0);
   }, []);
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onCommit(selected);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [onCommit, selected]);
+  const filtered = useMemo(
+    () =>
+      search
+        ? choices.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
+        : choices,
+    [choices, search],
+  );
 
-  const toggle = (title: string) => {
+  const exactMatch = useMemo(
+    () =>
+      search
+        ? choices.some((c) => c.title.toLowerCase() === search.trim().toLowerCase())
+        : true,
+    [choices, search],
+  );
+
+  const canCreate = !exactMatch && search.trim().length > 0;
+  const itemCount = filtered.length + (canCreate ? 1 : 0) + (value ? 1 : 0);
+
+  useEffect(() => {
+    setFocusedIndex(filtered.length > 0 ? 0 : -1);
+  }, [filtered.length]);
+
+  useEffect(() => {
+    if (focusedIndex < 0 || !listRef.current) return;
+    const el = listRef.current.children[focusedIndex] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [focusedIndex]);
+
+  const handleCreateOption = useCallback(() => {
+    const trimmed = search.trim();
+    if (!trimmed) return;
+    const randomColor = SELECT_COLOR_NAMES[Math.floor(Math.random() * SELECT_COLOR_NAMES.length)];
+    const newChoice: SelectChoice = { title: trimmed, color: randomColor };
+    const updatedChoices = [...choices, newChoice];
+    onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices });
+    onCommit(trimmed);
+  }, [search, choices, field.id, field.table_id, onFieldUpdate, onCommit]);
+
+  const handleColorChange = useCallback(
+    (choiceTitle: string, newColor: string) => {
+      const updatedChoices = choices.map((c) =>
+        c.title === choiceTitle ? { ...c, color: newColor } : c,
+      );
+      onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices });
+      setColorPickerChoice(null);
+    },
+    [choices, field.id, field.table_id, onFieldUpdate],
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.min(prev + 1, itemCount - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.max(prev - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (focusedIndex >= 0 && focusedIndex < filtered.length) {
+          onCommit(filtered[focusedIndex].title);
+        } else if (focusedIndex === filtered.length && canCreate) {
+          handleCreateOption();
+        } else if (focusedIndex === filtered.length + (canCreate ? 1 : 0) && value) {
+          onCommit(null);
+        }
+      } else if (e.key === 'Escape') {
+        onCancel();
+      }
+    },
+    [focusedIndex, filtered, itemCount, canCreate, value, onCommit, onCancel, handleCreateOption],
+  );
+
+  return (
+    <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <PopoverTrigger asChild>
+        <span className="sr-only">Select option</span>
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={0}
+        className="p-0 w-auto"
+        style={{
+          minWidth: 220,
+          maxHeight: 300,
+          backgroundColor: colors.cellEditorBg,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 8,
+        }}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="px-2 pt-2 pb-1 shrink-0">
+          <input
+            ref={searchRef}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Find or create an option"
+            className="w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent placeholder:text-[#9AA2AF]"
+            style={{
+              border: `1px solid ${colors.border}`,
+              color: colors.text,
+            }}
+          />
+        </div>
+        <div ref={listRef} className="overflow-y-auto py-1" style={{ maxHeight: 220 }}>
+          {filtered.map((choice, idx) => {
+            const color = getPillColor(choice.color);
+            const isFocused = idx === focusedIndex;
+            const isSelected = value === choice.title;
+            return (
+              <div
+                key={choice.title}
+                className="flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors group/option"
+                style={{
+                  backgroundColor: isFocused ? colors.hoverRow : 'transparent',
+                }}
+                onClick={() => onCommit(choice.title)}
+                onMouseEnter={() => setFocusedIndex(idx)}
+              >
+                <span
+                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-1"
+                  style={{ backgroundColor: color.bg, color: color.text }}
+                >
+                  {choice.title}
+                </span>
+                {isSelected && (
+                  <Check size={14} style={{ color: colors.primary }} className="shrink-0" />
+                )}
+                <button
+                  type="button"
+                  className="shrink-0 opacity-0 group-hover/option:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setColorPickerChoice(colorPickerChoice === choice.title ? null : choice.title);
+                  }}
+                  title="Change color"
+                >
+                  <Palette size={12} style={{ color: colors.muted }} />
+                </button>
+              </div>
+            );
+          })}
+          {canCreate && (
+            <div
+              className="flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors text-xs"
+              style={{
+                backgroundColor: focusedIndex === filtered.length ? colors.hoverRow : 'transparent',
+                color: colors.primary,
+              }}
+              onClick={handleCreateOption}
+              onMouseEnter={() => setFocusedIndex(filtered.length)}
+            >
+              Create &ldquo;{search.trim()}&rdquo;
+            </div>
+          )}
+          {filtered.length === 0 && !search.trim() && (
+            <div className="px-3 py-2 text-xs" style={{ color: colors.muted }}>No options</div>
+          )}
+        </div>
+        {colorPickerChoice && (
+          <>
+            <div className="h-px" style={{ backgroundColor: colors.border }} />
+            <div className="p-1">
+              <div className="flex items-center justify-between px-2 py-1">
+                <span className="text-[11px] font-medium" style={{ color: colors.textSecondary }}>
+                  Color for &ldquo;{colorPickerChoice}&rdquo;
+                </span>
+                <button
+                  type="button"
+                  className="p-0.5 rounded hover:bg-black/10"
+                  onClick={() => setColorPickerChoice(null)}
+                >
+                  <X size={12} style={{ color: colors.muted }} />
+                </button>
+              </div>
+              <ColorPickerGrid
+                currentColor={choices.find((c) => c.title === colorPickerChoice)?.color ?? ''}
+                onSelect={(newColor) => handleColorChange(colorPickerChoice, newColor)}
+              />
+            </div>
+          </>
+        )}
+        {value && (
+          <>
+            <div className="h-px" style={{ backgroundColor: colors.border }} />
+            <div
+              className="px-3 py-1.5 text-xs cursor-pointer transition-colors shrink-0"
+              style={{
+                backgroundColor: focusedIndex === filtered.length + (canCreate ? 1 : 0) ? colors.hoverRow : 'transparent',
+                color: colors.muted,
+              }}
+              onClick={() => onCommit(null)}
+              onMouseEnter={() => setFocusedIndex(filtered.length + (canCreate ? 1 : 0))}
+            >
+              Clear
+            </div>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFieldUpdate }: CellEditorProps) {
+  const [localChoices, setLocalChoices] = useState<SelectChoice[]>(field.options?.choices ?? []);
+  const [selected, setSelected] = useState<string[]>(
+    Array.isArray(value) ? value : value ? [value] : [],
+  );
+  const [search, setSearch] = useState('');
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const [colorPickerChoice, setColorPickerChoice] = useState<string | null>(null);
+  const colors = useGridColors();
+  const searchRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+
+  useEffect(() => {
+    setTimeout(() => searchRef.current?.focus(), 0);
+  }, []);
+
+  const filtered = useMemo(
+    () =>
+      search
+        ? localChoices.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
+        : localChoices,
+    [localChoices, search],
+  );
+
+  const exactMatch = useMemo(
+    () =>
+      search
+        ? localChoices.some((c) => c.title.toLowerCase() === search.trim().toLowerCase())
+        : true,
+    [localChoices, search],
+  );
+
+  const canCreate = !exactMatch && search.trim().length > 0;
+  const itemCount = filtered.length + (canCreate ? 1 : 0) + (selected.length > 0 ? 1 : 0);
+
+  useEffect(() => {
+    setFocusedIndex(filtered.length > 0 ? 0 : -1);
+  }, [filtered.length]);
+
+  useEffect(() => {
+    if (focusedIndex < 0 || !listRef.current) return;
+    const el = listRef.current.children[focusedIndex] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [focusedIndex]);
+
+  const toggle = useCallback((title: string) => {
     setSelected((prev) =>
       prev.includes(title) ? prev.filter((t) => t !== title) : [...prev, title],
     );
-  };
+  }, []);
 
-  const filtered = search
-    ? localChoices.filter((c: SelectChoice) => c.title.toLowerCase().includes(search.toLowerCase()))
-    : localChoices;
-
-  const exactMatch = search
-    ? localChoices.some((c: SelectChoice) => c.title.toLowerCase() === search.trim().toLowerCase())
-    : true;
-
-  const handleCreateOption = () => {
+  const handleCreateOption = useCallback(() => {
     const trimmed = search.trim();
     if (!trimmed) return;
     const randomColor = SELECT_COLOR_NAMES[Math.floor(Math.random() * SELECT_COLOR_NAMES.length)];
     const newChoice: SelectChoice = { title: trimmed, color: randomColor };
     const updatedChoices = [...localChoices, newChoice];
     setLocalChoices(updatedChoices);
-    onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices } as any);
+    onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices });
     setSelected((prev) => [...prev, trimmed]);
     setSearch('');
-  };
+  }, [search, localChoices, field.id, field.table_id, onFieldUpdate]);
+
+  const handleColorChange = useCallback(
+    (choiceTitle: string, newColor: string) => {
+      const updatedChoices = localChoices.map((c) =>
+        c.title === choiceTitle ? { ...c, color: newColor } : c,
+      );
+      setLocalChoices(updatedChoices);
+      onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices });
+      setColorPickerChoice(null);
+    },
+    [localChoices, field.id, field.table_id, onFieldUpdate],
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.min(prev + 1, itemCount - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.max(prev - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (focusedIndex >= 0 && focusedIndex < filtered.length) {
+          toggle(filtered[focusedIndex].title);
+        } else if (focusedIndex === filtered.length && canCreate) {
+          handleCreateOption();
+        } else if (focusedIndex === filtered.length + (canCreate ? 1 : 0) && selected.length > 0) {
+          setSelected([]);
+        }
+      } else if (e.key === 'Escape') {
+        onCommit(selectedRef.current);
+      }
+    },
+    [focusedIndex, filtered, itemCount, canCreate, selected.length, toggle, onCommit, handleCreateOption],
+  );
+
+  const commitSelected = useCallback(() => {
+    onCommit(selectedRef.current);
+  }, [onCommit]);
 
   return (
-    <div
-      ref={ref}
-      className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg min-w-[200px] max-h-[280px] flex flex-col animate-[panelSlideDown_150ms_ease-out]"
-    >
-      <div className="px-2 pt-2 pb-1 shrink-0">
-        <input
-          ref={searchRef}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Escape') { onCommit(selected); } }}
-          placeholder="Find or create an option"
-          className="w-full px-2 py-1 text-xs rounded border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:border-[#3366FF]"
-        />
-      </div>
-      <div className="overflow-y-auto py-1">
-        {filtered.map((choice: SelectChoice) => {
-          const color = getPillColor(choice.color);
-          const isChecked = selected.includes(choice.title);
-          return (
-            <button
-              key={choice.title}
-              className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 transition-colors"
-              onClick={() => toggle(choice.title)}
-            >
-              <span
-                className="inline-flex items-center justify-center w-4 h-4 rounded border text-[10px]"
-                style={{
-                  borderColor: isChecked ? '#3366FF' : '#9AA2AF',
-                  backgroundColor: isChecked ? '#3366FF' : 'transparent',
-                  color: isChecked ? '#fff' : 'transparent',
-                }}
-              >
-                {isChecked ? '✓' : ''}
-              </span>
-              <span
-                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-                style={{ backgroundColor: color.bg, color: color.text }}
-              >
-                {choice.title}
-              </span>
-            </button>
-          );
-        })}
-        {!exactMatch && search.trim() && (
-          <button
-            className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 transition-colors text-xs text-[#3366FF]"
-            onClick={handleCreateOption}
-          >
-            Create &ldquo;{search.trim()}&rdquo;
-          </button>
+    <Popover open onOpenChange={(open) => { if (!open) commitSelected(); }}>
+      <PopoverTrigger asChild>
+        <span className="sr-only">Select options</span>
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={0}
+        className="p-0 w-auto"
+        style={{
+          minWidth: 220,
+          maxHeight: 340,
+          backgroundColor: colors.cellEditorBg,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 8,
+        }}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        {selected.length > 0 && (
+          <div className="flex flex-wrap gap-1 px-2 pt-2 pb-1">
+            {selected.map((title) => {
+              const color = getPillColor(
+                localChoices.find((c) => c.title === title)?.color ?? '',
+              );
+              return (
+                <span
+                  key={title}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                  style={{ backgroundColor: color.bg, color: color.text }}
+                >
+                  {title}
+                  <button
+                    type="button"
+                    className="p-0 bg-transparent border-none cursor-pointer leading-none"
+                    style={{ color: color.text }}
+                    onClick={() => toggle(title)}
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              );
+            })}
+          </div>
         )}
-        {filtered.length === 0 && !search.trim() && (
-          <div className="px-3 py-2 text-xs text-[#9AA2AF]">No options found</div>
-        )}
-      </div>
-      {selected.length > 0 && (
-        <>
-          <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)]" />
-          <button
-            className="w-full text-left px-3 py-1.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] text-xs text-[#9AA2AF] transition-colors shrink-0"
-            onClick={() => {
-              setSelected([]);
-              onCommit([]);
+        <div className="px-2 pt-1 pb-1 shrink-0">
+          <input
+            ref={searchRef}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Find or create an option"
+            className="w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent placeholder:text-[#9AA2AF]"
+            style={{
+              border: `1px solid ${colors.border}`,
+              color: colors.text,
             }}
-          >
-            Clear all
-          </button>
-        </>
-      )}
-    </div>
+          />
+        </div>
+        <div ref={listRef} className="overflow-y-auto py-1" style={{ maxHeight: 200 }}>
+          {filtered.map((choice, idx) => {
+            const color = getPillColor(choice.color);
+            const isFocused = idx === focusedIndex;
+            const isChecked = selected.includes(choice.title);
+            return (
+              <div
+                key={choice.title}
+                className="flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors group/option"
+                style={{
+                  backgroundColor: isFocused ? colors.hoverRow : 'transparent',
+                }}
+                onClick={() => toggle(choice.title)}
+                onMouseEnter={() => setFocusedIndex(idx)}
+              >
+                <span
+                  className="inline-flex items-center justify-center w-4 h-4 rounded shrink-0 transition-colors"
+                  style={{
+                    border: `1.5px solid ${isChecked ? colors.primary : colors.muted}`,
+                    backgroundColor: isChecked ? colors.primary : 'transparent',
+                  }}
+                >
+                  {isChecked && <Check size={10} color="#fff" />}
+                </span>
+                <span
+                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-1"
+                  style={{ backgroundColor: color.bg, color: color.text }}
+                >
+                  {choice.title}
+                </span>
+                <button
+                  type="button"
+                  className="shrink-0 opacity-0 group-hover/option:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setColorPickerChoice(colorPickerChoice === choice.title ? null : choice.title);
+                  }}
+                  title="Change color"
+                >
+                  <Palette size={12} style={{ color: colors.muted }} />
+                </button>
+              </div>
+            );
+          })}
+          {canCreate && (
+            <div
+              className="flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors text-xs"
+              style={{
+                backgroundColor: focusedIndex === filtered.length ? colors.hoverRow : 'transparent',
+                color: colors.primary,
+              }}
+              onClick={handleCreateOption}
+              onMouseEnter={() => setFocusedIndex(filtered.length)}
+            >
+              Create &ldquo;{search.trim()}&rdquo;
+            </div>
+          )}
+          {filtered.length === 0 && !search.trim() && (
+            <div className="px-3 py-2 text-xs" style={{ color: colors.muted }}>No options</div>
+          )}
+        </div>
+        {colorPickerChoice && (
+          <>
+            <div className="h-px" style={{ backgroundColor: colors.border }} />
+            <div className="p-1">
+              <div className="flex items-center justify-between px-2 py-1">
+                <span className="text-[11px] font-medium" style={{ color: colors.textSecondary }}>
+                  Color for &ldquo;{colorPickerChoice}&rdquo;
+                </span>
+                <button
+                  type="button"
+                  className="p-0.5 rounded hover:bg-black/10"
+                  onClick={() => setColorPickerChoice(null)}
+                >
+                  <X size={12} style={{ color: colors.muted }} />
+                </button>
+              </div>
+              <ColorPickerGrid
+                currentColor={localChoices.find((c) => c.title === colorPickerChoice)?.color ?? ''}
+                onSelect={(newColor) => handleColorChange(colorPickerChoice, newColor)}
+              />
+            </div>
+          </>
+        )}
+        {selected.length > 0 && !colorPickerChoice && (
+          <>
+            <div className="h-px" style={{ backgroundColor: colors.border }} />
+            <div
+              className="px-3 py-1.5 text-xs cursor-pointer transition-colors shrink-0"
+              style={{
+                backgroundColor: focusedIndex === filtered.length + (canCreate ? 1 : 0) ? colors.hoverRow : 'transparent',
+                color: colors.muted,
+              }}
+              onClick={() => {
+                setSelected([]);
+                onCommit([]);
+              }}
+              onMouseEnter={() => setFocusedIndex(filtered.length + (canCreate ? 1 : 0))}
+            >
+              Clear all
+            </div>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
