@@ -561,6 +561,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Audit log (best-effort)
     await logAudit(pool, userId, action, body);
 
+    // Reload PostgREST schema cache after any DDL change
+    const reloadConn = await pool.connect();
+    try {
+      await reloadConn.queryObject(`NOTIFY pgrst, 'reload schema'`);
+    } catch { /* best-effort */ } finally {
+      reloadConn.release();
+    }
+
     return json({ success: true });
   } catch (err) {
     if (err instanceof ForbiddenError) {
