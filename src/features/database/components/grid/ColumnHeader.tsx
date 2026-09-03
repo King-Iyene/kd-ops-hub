@@ -141,11 +141,11 @@ export const ColumnHeader = React.memo(function ColumnHeader({
         </span>
       )}
       {currentSort && (
-        <span className="shrink-0">
+        <span className="shrink-0" style={{ color: colors.primary }}>
           {currentSort.direction === 'asc' ? (
-            <ArrowUp size={11} className="text-[#3366FF]" />
+            <ArrowUp size={11} />
           ) : (
-            <ArrowDown size={11} className="text-[#3366FF]" />
+            <ArrowDown size={11} />
           )}
         </span>
       )}

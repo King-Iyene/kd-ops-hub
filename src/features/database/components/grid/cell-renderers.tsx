@@ -413,7 +413,7 @@ export const PercentCellRenderer = React.memo(function PercentCellRenderer({
       <div className="flex-1 h-1.5 rounded-full bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] overflow-hidden">
         <div
           className="h-full rounded-full"
-          style={{ width: `${Math.min(100, Math.max(0, num))}%`, backgroundColor: '#3366FF' }}
+          style={{ width: `${Math.min(100, Math.max(0, num))}%`, backgroundColor: '#2563EB' }}
         />
       </div>
       <span className="text-xs shrink-0 text-[#6A7184] dark:text-[hsl(200,20%,55%)]">{num}%</span>

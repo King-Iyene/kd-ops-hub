@@ -1086,7 +1086,7 @@ export default function GridView({
                   role="columnheader"
                   aria-colindex={colIdx + 1}
                   style={{
-                    borderLeft: dropColTargetIdx === colIdx && dragColId !== null ? '2px solid #3366FF' : undefined,
+                    borderLeft: dropColTargetIdx === colIdx && dragColId !== null ? `2px solid ${GRID_COLORS.primary}` : undefined,
                     ...(isFrozen ? {
                       position: 'sticky' as const,
                       left: stickyLeft,
@@ -1334,7 +1334,7 @@ export default function GridView({
                         >
                           <div
                             style={flashCells.has(`${record.id}:${field.id}`) ? {
-                              boxShadow: 'inset 0 0 0 2px #3366FF',
+                              boxShadow: `inset 0 0 0 2px ${GRID_COLORS.primary}`,
                               transition: 'box-shadow 0.3s ease-out',
                             } : undefined}
                           >
@@ -1502,7 +1502,7 @@ export default function GridView({
                           }}
                           style={{
                             ...(flashCells.has(`${record.id}:${field.id}`) ? {
-                              boxShadow: 'inset 0 0 0 2px #3366FF',
+                              boxShadow: `inset 0 0 0 2px ${GRID_COLORS.primary}`,
                               transition: 'box-shadow 0.3s ease-out',
                             } : {}),
                             ...(selectionRange && (() => {
@@ -1511,7 +1511,7 @@ export default function GridView({
                               const c1 = Math.min(selectionRange.startCol, selectionRange.endCol);
                               const c2 = Math.max(selectionRange.startCol, selectionRange.endCol);
                               return virtualRow.index >= r1 && virtualRow.index <= r2 && colIdx >= c1 && colIdx <= c2
-                                ? { backgroundColor: '#3366FF14' } : {};
+                                ? { backgroundColor: `${GRID_COLORS.primary}14` } : {};
                             })()),
                           }}
                         >
