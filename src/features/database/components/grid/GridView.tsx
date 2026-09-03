@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, ChevronLeft, ChevronRight, ChevronDown, Loader2, Expand, Copy, Trash2, MoreHorizontal, Sigma, Lock, ChevronsUpDown, ChevronsDownUp, Rows3 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, ChevronDown, Loader2, Expand, Copy, Trash2, MoreHorizontal, Sigma, Lock, ChevronsUpDown, ChevronsDownUp, Rows3, ClipboardCopy, PlusCircle } from 'lucide-react';
 import type { FieldMeta, RecordRow, RowColorRule, UIType, ConditionalFormatRule, Group } from '@/features/database/types';
 import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
 import { useUndoStore } from '../../lib/undo';
@@ -1477,6 +1477,15 @@ export default function GridView({
                 <Expand size={14} style={{ color: GRID_COLORS.muted }} /> Expand row
               </button>
             )}
+            <button
+              className="w-full text-left px-3 py-1.5 text-[13px] flex items-center gap-2"
+              style={{ color: GRID_COLORS.text }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = GRID_COLORS.hoverRow)}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              onClick={() => { onAddRow(); setRowMenu(null); }}
+            >
+              <PlusCircle size={14} style={{ color: GRID_COLORS.muted }} /> Insert row below
+            </button>
             {onDuplicateRow && (
               <button
                 className="w-full text-left px-3 py-1.5 text-[13px] flex items-center gap-2"
@@ -1488,11 +1497,28 @@ export default function GridView({
                 <Copy size={14} style={{ color: GRID_COLORS.muted }} /> Duplicate row
               </button>
             )}
+            <button
+              className="w-full text-left px-3 py-1.5 text-[13px] flex items-center gap-2"
+              style={{ color: GRID_COLORS.text }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = GRID_COLORS.hoverRow)}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              onClick={() => {
+                const rowData = fields.reduce((acc, f) => {
+                  const val = rowMenu.record[f.pg_column_name];
+                  if (val != null) acc[f.name] = val;
+                  return acc;
+                }, {} as Record<string, any>);
+                navigator.clipboard.writeText(JSON.stringify(rowData, null, 2)).catch(() => {});
+                setRowMenu(null);
+              }}
+            >
+              <ClipboardCopy size={14} style={{ color: GRID_COLORS.muted }} /> Copy row data
+            </button>
             {onDeleteRow && (
               <>
                 <div className="h-px my-1" style={{ backgroundColor: GRID_COLORS.border }} />
                 <button
-                  className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-red-50 flex items-center gap-2 text-red-500"
+                  className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-red-500"
                   onClick={() => { onDeleteRow(rowMenu.record.id); setRowMenu(null); }}
                 >
                   <Trash2 size={14} /> Delete row
