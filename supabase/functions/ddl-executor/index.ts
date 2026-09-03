@@ -321,6 +321,42 @@ async function handleDropTable(
   }
 }
 
+async function handleAlterColumnConstraints(
+  pool: Pool,
+  body: {
+    schemaName: string;
+    tableName: string;
+    columnName: string;
+    setNotNull?: boolean;
+    setUnique?: boolean;
+  },
+): Promise<void> {
+  const schema = sanitizeIdentifier(body.schemaName);
+  const table = sanitizeIdentifier(body.tableName);
+  const column = sanitizeIdentifier(body.columnName);
+  validateSchemaAccess(body.schemaName);
+
+  const qualified = `${schema}.${table}`;
+  const conn = await pool.connect();
+  try {
+    if (body.setNotNull === true) {
+      await conn.queryObject(`ALTER TABLE ${qualified} ALTER COLUMN ${column} SET NOT NULL`);
+    } else if (body.setNotNull === false) {
+      await conn.queryObject(`ALTER TABLE ${qualified} ALTER COLUMN ${column} DROP NOT NULL`);
+    }
+
+    if (body.setUnique === true) {
+      const indexName = sanitizeIdentifier(`${body.tableName}_${body.columnName}_unique`);
+      await conn.queryObject(`CREATE UNIQUE INDEX ${indexName} ON ${qualified} (${column})`);
+    } else if (body.setUnique === false) {
+      const indexName = sanitizeIdentifier(`${body.tableName}_${body.columnName}_unique`);
+      await conn.queryObject(`DROP INDEX IF EXISTS ${schema}.${indexName}`);
+    }
+  } finally {
+    conn.release();
+  }
+}
+
 async function handleDropSchema(
   pool: Pool,
   body: { schemaName: string },
@@ -374,6 +410,79 @@ async function handleExposeSchema(
     );
     await conn.queryObject(`NOTIFY pgrst, 'reload config'`);
     await conn.queryObject(`NOTIFY pgrst, 'reload schema'`);
+  } finally {
+    conn.release();
+  }
+}
+
+async function handleAlterColumnType(
+  pool: Pool,
+  body: {
+    schemaName: string;
+    tableName: string;
+    columnName: string;
+    newType: string;
+    usingExpression?: string;
+  },
+): Promise<{ rowsAffected?: number; nulledRows?: number }> {
+  const schema = sanitizeIdentifier(body.schemaName);
+  const table = sanitizeIdentifier(body.tableName);
+  const column = sanitizeIdentifier(body.columnName);
+  validateSchemaAccess(body.schemaName);
+
+  // Build the USING clause. If the caller provides a custom expression use it;
+  // otherwise fall back to a USING that casts via text (handles most pg casts)
+  // and traps individual-value errors by coalescing to NULL.
+  const usingExpr = body.usingExpression
+    ? body.usingExpression
+    : `${column}::${body.newType}`;
+
+  // Count rows that will become NULL due to failed cast (best-effort estimate)
+  const qualified = `${schema}.${table}`;
+  const conn = await pool.connect();
+  try {
+    // Attempt the ALTER in a savepoint so we can give a clear error on failure
+    await conn.queryObject('BEGIN');
+
+    // Count non-null values before
+    const beforeRes = await conn.queryObject<{ cnt: number }>(
+      `SELECT count(*)::int AS cnt FROM ${qualified} WHERE ${column} IS NOT NULL`,
+    );
+    const nonNullBefore = beforeRes.rows[0]?.cnt ?? 0;
+
+    try {
+      await conn.queryObject(
+        `ALTER TABLE ${qualified} ALTER COLUMN ${column} TYPE ${body.newType} USING ${usingExpr}`,
+      );
+    } catch (castErr) {
+      await conn.queryObject('ROLLBACK');
+      const msg = (castErr as Error).message || '';
+      // Provide a friendlier error for common cast failures
+      if (msg.includes('cannot cast') || msg.includes('invalid input syntax')) {
+        throw new Error(
+          `Cannot convert column "${body.columnName}" to ${body.newType}: some existing values are incompatible. ` +
+          `Detail: ${msg}`,
+        );
+      }
+      throw castErr;
+    }
+
+    // Count non-null values after
+    const afterRes = await conn.queryObject<{ cnt: number }>(
+      `SELECT count(*)::int AS cnt FROM ${qualified} WHERE ${column} IS NOT NULL`,
+    );
+    const nonNullAfter = afterRes.rows[0]?.cnt ?? 0;
+
+    await conn.queryObject('COMMIT');
+
+    return {
+      rowsAffected: nonNullBefore,
+      nulledRows: Math.max(0, nonNullBefore - nonNullAfter),
+    };
+  } catch (err) {
+    // Make sure we are not left in a dangling transaction
+    try { await conn.queryObject('ROLLBACK'); } catch { /* ignore */ }
+    throw err;
   } finally {
     conn.release();
   }
@@ -436,6 +545,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
         break;
       case 'exposeSchema':
         await handleExposeSchema(pool, body);
+        break;
+      case 'alterColumnType': {
+        const result = await handleAlterColumnType(pool, body);
+        await logAudit(pool, userId, action, body);
+        return json({ success: true, ...result });
+      }
+      case 'alterColumnConstraints':
+        await handleAlterColumnConstraints(pool, body);
         break;
       default:
         return json({ success: false, error: `Unknown action: ${action}` }, 400);

@@ -373,6 +373,105 @@ export function useDuplicateField() {
   });
 }
 
+export function useChangeFieldType() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      table_id: string;
+      newUiType: UIType;
+    }) => {
+      const isNewVirtual = VIRTUAL_TYPES.includes(input.newUiType);
+      const newPgType = UI_TYPE_TO_PG_TYPE[input.newUiType] ?? 'TEXT';
+
+      // Strip any DEFAULT clause from the pg type for ALTER purposes
+      // (e.g. "BOOLEAN DEFAULT false" -> "BOOLEAN")
+      const rawPgType = newPgType.split(/\s+DEFAULT\s+/i)[0].trim();
+
+      // Fetch the current field
+      const { data: field, error: fieldError } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .select('*')
+        .eq('id', input.id)
+        .single();
+      if (fieldError) throw fieldError;
+
+      const oldUiType = field.ui_type as UIType;
+      const isOldVirtual = VIRTUAL_TYPES.includes(oldUiType);
+
+      // Cannot convert virtual <-> non-virtual
+      if (isOldVirtual || isNewVirtual) {
+        throw new Error('Cannot convert virtual field types.');
+      }
+
+      // Save the old metadata for rollback
+      const oldMeta = {
+        ui_type: field.ui_type,
+        pg_type: field.pg_type,
+        pg_column_name: field.pg_column_name,
+        options: field.options,
+      };
+
+      // Update field metadata first
+      const { error: updateError } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .update({
+          ui_type: input.newUiType,
+          pg_type: newPgType,
+        })
+        .eq('id', input.id);
+
+      if (updateError) throw updateError;
+
+      // Execute the DDL to change the column type
+      const ctx = await getTableContext(input.table_id);
+
+      const { data: ddlData, error: ddlError } = await supabase.functions.invoke('ddl-executor', {
+        body: {
+          action: 'alterColumnType',
+          schemaName: ctx.schemaName,
+          tableName: ctx.pgTableName,
+          columnName: field.pg_column_name,
+          newType: rawPgType,
+        },
+      });
+
+      // Check for DDL failure and rollback metadata
+      const ddlFailed =
+        ddlError || (ddlData && typeof ddlData === 'object' && ddlData.success === false);
+
+      if (ddlFailed) {
+        // Rollback metadata
+        await supabase
+          .schema('nc_meta')
+          .from('fields')
+          .update(oldMeta)
+          .eq('id', input.id);
+
+        let message = 'Failed to change column type';
+        if (ddlError?.message) message = ddlError.message;
+        if (ddlData && typeof ddlData === 'object' && ddlData.error) {
+          message = ddlData.error;
+        }
+        throw new Error(message);
+      }
+
+      return {
+        field: { ...field, ui_type: input.newUiType, pg_type: newPgType } as FieldMeta,
+        nulledRows: ddlData?.nulledRows ?? 0,
+      };
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
+      // Also invalidate row data since types changed
+      qc.invalidateQueries({ queryKey: ['nc', 'rows'] });
+    },
+  });
+}
+
 export function useReorderFields() {
   const qc = useQueryClient();
 

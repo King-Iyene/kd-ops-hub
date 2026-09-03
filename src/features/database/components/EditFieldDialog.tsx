@@ -9,10 +9,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Plus, X } from 'lucide-react';
-import { useUpdateField } from '../hooks';
-import type { FieldMeta, SelectChoice } from '../types';
-import { PILL_COLORS, SELECT_COLORS, SELECT_COLOR_NAMES } from '../types';
+import { Plus, X, AlertTriangle, ArrowRight } from 'lucide-react';
+import { useUpdateField, useChangeFieldType } from '../hooks';
+import type { FieldMeta, SelectChoice, UIType } from '../types';
+import { PILL_COLORS, SELECT_COLORS, SELECT_COLOR_NAMES, VIRTUAL_TYPES, getConvertibleTypes } from '../types';
 import { getFieldTypeIcon } from './grid/field-icons';
 import { cn } from '@/lib/utils';
 import {
@@ -74,7 +74,11 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const [newChoiceText, setNewChoiceText] = useState('');
   const [error, setError] = useState('');
   const [validationRules, setValidationRules] = useState<ValidationRule[]>([]);
+  const [selectedNewType, setSelectedNewType] = useState<UIType | null>(null);
+  const [showTypeSelector, setShowTypeSelector] = useState(false);
+  const [typeChangeConfirmed, setTypeChangeConfirmed] = useState(false);
   const updateField = useUpdateField();
+  const changeFieldType = useChangeFieldType();
 
   // Populate form when field changes
   useEffect(() => {
@@ -86,6 +90,9 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       setChoices(Array.isArray(fieldChoices) ? [...fieldChoices] : []);
       setNewChoiceText('');
       setError('');
+      setSelectedNewType(null);
+      setShowTypeSelector(false);
+      setTypeChangeConfirmed(false);
       const existingRules = (field.options as any)?.validations;
       setValidationRules(Array.isArray(existingRules) ? [...existingRules] : []);
     }
@@ -117,6 +124,15 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
     }
     setError('');
     try {
+      // Handle type change first if selected
+      if (selectedNewType && selectedNewType !== field.ui_type) {
+        await changeFieldType.mutateAsync({
+          id: field.id,
+          table_id: field.table_id,
+          newUiType: selectedNewType,
+        });
+      }
+
       const updates: Record<string, any> = {};
       if (name.trim() !== field.name) updates.name = name.trim();
       const newDesc = description.trim() || null;
@@ -127,15 +143,13 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       } else if (validationRules.length > 0 || (field.options as any)?.validations?.length) {
         updates.options = { ...(field.options as any), validations: validationRules.length > 0 ? validationRules : undefined };
       }
-      if (Object.keys(updates).length === 0) {
-        onOpenChange(false);
-        return;
+      if (Object.keys(updates).length > 0) {
+        await updateField.mutateAsync({
+          id: field.id,
+          table_id: field.table_id,
+          updates,
+        });
       }
-      await updateField.mutateAsync({
-        id: field.id,
-        table_id: field.table_id,
-        updates,
-      });
       onOpenChange(false);
     } catch (e: any) {
       setError(e?.message ?? 'Failed to update field');
@@ -194,13 +208,125 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
 
           <div className="space-y-1.5">
             <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Field Type</Label>
-            <div className="flex items-center gap-2 px-3 py-2 border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)]">
-              <Icon size={14} className="text-[#9AA2AF]" />
-              <span className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)]">
-                {FIELD_TYPE_LABELS[field.ui_type] ?? field.ui_type}
-              </span>
-              <span className="text-[11px] text-[#9AA2AF] ml-auto">Cannot be changed</span>
-            </div>
+            {(() => {
+              const isVirtual = VIRTUAL_TYPES.includes(field.ui_type);
+              const convertibleTypes = isVirtual ? [] : getConvertibleTypes(field.ui_type);
+              const canConvert = convertibleTypes.length > 0 && !field.is_primary;
+              const activeType = selectedNewType ?? field.ui_type;
+              const ActiveIcon = getFieldTypeIcon(activeType);
+              const selectedRule = selectedNewType
+                ? convertibleTypes.find((c) => c.type === selectedNewType)?.rule
+                : null;
+
+              return (
+                <>
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2 border rounded-lg w-full text-left transition-colors',
+                      canConvert
+                        ? 'border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] hover:border-[#3366FF] cursor-pointer'
+                        : 'border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)] cursor-default',
+                    )}
+                    onClick={() => canConvert && setShowTypeSelector(!showTypeSelector)}
+                    disabled={!canConvert}
+                  >
+                    <ActiveIcon size={14} className="text-[#9AA2AF]" />
+                    <span className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                      {FIELD_TYPE_LABELS[activeType] ?? activeType}
+                    </span>
+                    {selectedNewType && selectedNewType !== field.ui_type && (
+                      <span className="text-[11px] text-[#3366FF] ml-1">(changing)</span>
+                    )}
+                    {!canConvert && (
+                      <span className="text-[11px] text-[#9AA2AF] ml-auto">
+                        {isVirtual ? 'Virtual type' : field.is_primary ? 'Primary field' : 'No conversions available'}
+                      </span>
+                    )}
+                    {canConvert && (
+                      <span className="text-[11px] text-[#9AA2AF] ml-auto">Click to change</span>
+                    )}
+                  </button>
+
+                  {showTypeSelector && canConvert && (
+                    <div className="border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg bg-white dark:bg-[hsl(200,30%,10%)] p-2 space-y-0.5 max-h-48 overflow-y-auto">
+                      {/* Option to revert to original */}
+                      {selectedNewType && (
+                        <button
+                          type="button"
+                          className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-left hover:bg-[#F3F4F6] dark:hover:bg-[hsl(200,25%,15%)] transition-colors"
+                          onClick={() => {
+                            setSelectedNewType(null);
+                            setTypeChangeConfirmed(false);
+                            setShowTypeSelector(false);
+                          }}
+                        >
+                          <Icon size={13} className="text-[#9AA2AF]" />
+                          <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                            {FIELD_TYPE_LABELS[field.ui_type] ?? field.ui_type}
+                          </span>
+                          <span className="text-[10px] text-[#9AA2AF] ml-auto">current</span>
+                        </button>
+                      )}
+                      {convertibleTypes.map(({ type, rule }) => {
+                        const TypeIcon = getFieldTypeIcon(type);
+                        const isSelected = type === selectedNewType;
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            className={cn(
+                              'flex items-center gap-2 w-full px-2 py-1.5 rounded text-left transition-colors',
+                              isSelected
+                                ? 'bg-[#EBF0FF] dark:bg-[hsl(220,40%,18%)]'
+                                : 'hover:bg-[#F3F4F6] dark:hover:bg-[hsl(200,25%,15%)]',
+                            )}
+                            onClick={() => {
+                              setSelectedNewType(type);
+                              setTypeChangeConfirmed(rule.safety === 'safe');
+                              setShowTypeSelector(false);
+                            }}
+                          >
+                            <TypeIcon size={13} className="text-[#9AA2AF]" />
+                            <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                              {FIELD_TYPE_LABELS[type] ?? type}
+                            </span>
+                            <span className={cn(
+                              'text-[10px] ml-auto',
+                              rule.safety === 'safe' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400',
+                            )}>
+                              {rule.safety === 'safe' ? 'safe' : 'lossy'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {selectedRule && selectedRule.warning && (
+                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                      <AlertTriangle size={14} className="text-amber-500 mt-0.5 shrink-0" />
+                      <div className="space-y-1.5">
+                        <p className="text-xs text-amber-800 dark:text-amber-300">{selectedRule.warning}</p>
+                        {selectedRule.safety === 'lossy' && (
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="w-3.5 h-3.5 accent-[#3366FF]"
+                              checked={typeChangeConfirmed}
+                              onChange={(e) => setTypeChangeConfirmed(e.target.checked)}
+                            />
+                            <span className="text-xs text-amber-800 dark:text-amber-300 font-medium">
+                              I understand some data may be lost
+                            </span>
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {isSelectType && (
@@ -349,9 +475,9 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
             style={{ backgroundColor: '#3366FF' }}
             className="hover:opacity-90 text-white"
             onClick={handleSave}
-            disabled={updateField.isPending}
+            disabled={updateField.isPending || changeFieldType.isPending || (!!selectedNewType && selectedNewType !== field?.ui_type && !typeChangeConfirmed)}
           >
-            {updateField.isPending ? 'Saving...' : 'Save Changes'}
+            {updateField.isPending || changeFieldType.isPending ? 'Saving...' : 'Save Changes'}
           </Button>
         </DialogFooter>
       </DialogContent>

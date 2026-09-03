@@ -13,6 +13,68 @@ import { useCreateField, useCreateRecord, useFields } from '../hooks';
 import { useDatabaseUI } from '../lib/store';
 import type { UIType } from '../types';
 
+// ---------------------------------------------------------------------------
+// CSV type inference
+// ---------------------------------------------------------------------------
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const URL_RE = /^https?:\/\/[^\s]+$/;
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?)?/;
+const US_DATE_RE = /^\d{1,2}\/\d{1,2}\/\d{2,4}$/;
+const BOOL_VALUES = new Set(['true', 'false', 'yes', 'no', '1', '0']);
+
+function inferColumnType(values: string[]): UIType {
+  const nonEmpty = values.filter((v) => v.trim() !== '');
+  if (nonEmpty.length === 0) return 'SingleLineText';
+
+  // Check boolean
+  if (nonEmpty.every((v) => BOOL_VALUES.has(v.trim().toLowerCase()))) {
+    return 'Checkbox';
+  }
+
+  // Check number
+  if (nonEmpty.every((v) => !isNaN(Number(v.trim())) && v.trim() !== '')) {
+    return 'Number';
+  }
+
+  // Check date
+  if (nonEmpty.every((v) => {
+    const t = v.trim();
+    if (ISO_DATE_RE.test(t) || US_DATE_RE.test(t)) {
+      const d = new Date(t);
+      return !isNaN(d.getTime());
+    }
+    return false;
+  })) {
+    return 'Date';
+  }
+
+  // Check email
+  if (nonEmpty.every((v) => EMAIL_RE.test(v.trim()))) {
+    return 'Email';
+  }
+
+  // Check URL
+  if (nonEmpty.every((v) => URL_RE.test(v.trim()))) {
+    return 'URL';
+  }
+
+  // Check single-select: small cardinality
+  const unique = new Set(nonEmpty.map((v) => v.trim()));
+  if (unique.size < 20 && unique.size < nonEmpty.length * 0.5) {
+    return 'SingleSelect';
+  }
+
+  return 'SingleLineText';
+}
+
+function inferColumnTypes(headers: string[], rows: string[][]): UIType[] {
+  return headers.map((_, colIdx) => {
+    const sample = rows.slice(0, 100).map((r) => r[colIdx] ?? '');
+    return inferColumnType(sample);
+  });
+}
+
 interface ImportCsvDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -26,6 +88,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
 
   const [csvText, setCsvText] = useState('');
   const [parsed, setParsed] = useState<{ headers: string[]; rows: string[][] } | null>(null);
+  const [columnTypes, setColumnTypes] = useState<UIType[]>([]);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,6 +105,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
       return;
     }
     setParsed(result);
+    setColumnTypes(inferColumnTypes(result.headers, result.rows));
   }, [csvText]);
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,6 +122,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
         return;
       }
       setParsed(result);
+      setColumnTypes(inferColumnTypes(result.headers, result.rows));
     };
     reader.readAsText(file);
   }, []);
@@ -76,12 +141,23 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
       );
 
       // Create fields for columns that don't exist
-      for (const header of parsed.headers) {
+      for (let hi = 0; hi < parsed.headers.length; hi++) {
+        const header = parsed.headers[hi];
         if (!existingFieldNames.has(header.toLowerCase())) {
+          const inferredType = columnTypes[hi] ?? ('SingleLineText' as UIType);
           const newField = await createField.mutateAsync({
             table_id: activeTableId,
             name: header,
-            ui_type: 'SingleLineText' as UIType,
+            ui_type: inferredType,
+            ...(inferredType === 'SingleSelect'
+              ? {
+                  options: {
+                    choices: [...new Set(parsed.rows.map((r) => r[hi]?.trim()).filter(Boolean))].map(
+                      (v) => ({ title: v, color: null }),
+                    ),
+                  },
+                }
+              : {}),
           });
           fieldNameToColumn.set(header.toLowerCase(), newField.pg_column_name);
           existingFieldNames.add(header.toLowerCase());
@@ -107,6 +183,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
       onOpenChange(false);
       setCsvText('');
       setParsed(null);
+      setColumnTypes([]);
     } catch (err: any) {
       setError(err.message || 'Import failed.');
     } finally {
@@ -119,6 +196,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
       if (!val) {
         setCsvText('');
         setParsed(null);
+        setColumnTypes([]);
         setError('');
       }
       onOpenChange(val);
@@ -185,7 +263,20 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                         key={i}
                         className="text-left px-3 py-2 font-semibold border-b border-r border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] whitespace-nowrap text-[#374151] dark:text-[hsl(200,25%,88%)]"
                       >
-                        {h}
+                        <div>{h}</div>
+                        <select
+                          className="mt-1 text-[10px] font-normal bg-transparent border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:text-[hsl(200,20%,55%)]"
+                          value={columnTypes[i] ?? 'SingleLineText'}
+                          onChange={(e) => {
+                            const next = [...columnTypes];
+                            next[i] = e.target.value as UIType;
+                            setColumnTypes(next);
+                          }}
+                        >
+                          {(['SingleLineText', 'LongText', 'Number', 'Decimal', 'Date', 'DateTime', 'Checkbox', 'Email', 'URL', 'PhoneNumber', 'SingleSelect', 'JSON'] as UIType[]).map((t) => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
                       </th>
                     ))}
                   </tr>
