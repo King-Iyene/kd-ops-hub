@@ -105,7 +105,7 @@ export function TableView() {
   const visibleFields = useMemo(
     () =>
       (fields ?? [])
-        .filter((f) => !f.is_hidden && !hiddenFieldIds.has(f.id))
+        .filter((f) => !f.is_hidden && !hiddenFieldIds.has(f.id) && !f.is_system)
         .sort((a, b) => a.position - b.position),
     [fields, hiddenFieldIds],
   );

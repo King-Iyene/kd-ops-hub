@@ -13,6 +13,8 @@ import { WebhooksDialog } from './WebhooksDialog';
 import { AuditLogDialog } from './AuditLogDialog';
 import { PresenceIndicator } from './PresenceIndicator';
 import { NotificationsPanel } from './NotificationsPanel';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { ProfileDropdown } from '@/components/ProfileDropdown';
 
 export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => void }) {
   const { toggleSidebar, activeBaseId, activeTableId } = useDatabaseUI();
@@ -154,6 +156,9 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
             <HelpCircle size={15} />
           </Button>
           <PresenceIndicator />
+          <div className="w-px h-4 bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] mx-0.5" />
+          <ThemeToggle />
+          <ProfileDropdown />
         </div>
       </header>
 

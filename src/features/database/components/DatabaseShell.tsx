@@ -26,7 +26,7 @@ export function DatabaseShell() {
   usePresence(activeBaseId ?? undefined);
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden bg-white dark:bg-[hsl(200,30%,8%)]">
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-white dark:bg-[hsl(220,20%,10%)]">
       <DatabaseTopBar onOpenShortcuts={handleOpenShortcuts} />
       <div className="flex flex-1 min-h-0">
         <DatabaseSidebar />

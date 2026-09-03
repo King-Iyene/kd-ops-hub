@@ -513,7 +513,7 @@ export default function GridView({
   );
 
   const getFieldWidth = useCallback(
-    (field: FieldMeta) => fieldWidths[field.id] ?? field.width ?? 180,
+    (field: FieldMeta) => fieldWidths[field.id] ?? field.width ?? (field.is_primary ? 250 : 180),
     [fieldWidths],
   );
 
