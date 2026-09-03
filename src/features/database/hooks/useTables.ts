@@ -35,7 +35,7 @@ const SYSTEM_FIELDS: Array<{
   is_primary: boolean;
   position: number;
 }> = [
-  { name: 'ID', pg_column_name: 'id', ui_type: 'ID', pg_type: 'UUID', is_primary: true, position: 0 },
+  { name: 'ID', pg_column_name: 'id', ui_type: 'ID', pg_type: 'UUID', is_primary: false, position: 0 },
   { name: 'Created At', pg_column_name: 'created_at', ui_type: 'CreatedTime', pg_type: 'TIMESTAMPTZ', is_primary: false, position: 1 },
   { name: 'Updated At', pg_column_name: 'updated_at', ui_type: 'LastModifiedTime', pg_type: 'TIMESTAMPTZ', is_primary: false, position: 2 },
   { name: 'Created By', pg_column_name: 'created_by', ui_type: 'CreatedBy', pg_type: 'UUID', is_primary: false, position: 3 },
@@ -105,7 +105,7 @@ export function useCreateTable() {
         is_required: f.pg_column_name === 'id',
         is_unique: f.pg_column_name === 'id',
         is_system: true,
-        is_hidden: f.pg_column_name === 'nc_order',
+        is_hidden: true,
       }));
 
       const { data: fields, error: fieldsError } = await supabase
@@ -116,26 +116,16 @@ export function useCreateTable() {
 
       if (fieldsError) throw fieldsError;
 
-      // Update primary_field_id
-      const primaryField = (fields as FieldMeta[]).find((f) => f.is_primary);
-      if (primaryField) {
-        await supabase
-          .schema('nc_meta')
-          .from('tables')
-          .update({ primary_field_id: primaryField.id })
-          .eq('id', table.id);
-      }
-
       // 4b. Create default user fields (like Airtable: Name, Notes, Status, Attachments)
       const defaultUserFields = [
-        { name: 'Name', pg_column_name: 'name', ui_type: 'SingleLineText', pg_type: 'TEXT', position: SYSTEM_FIELDS.length, width: 250, options: {} },
-        { name: 'Notes', pg_column_name: 'notes', ui_type: 'LongText', pg_type: 'TEXT', position: SYSTEM_FIELDS.length + 1, width: 200, options: {} },
+        { name: 'Name', pg_column_name: 'name', ui_type: 'SingleLineText', pg_type: 'TEXT', position: SYSTEM_FIELDS.length, width: 250, options: {}, is_primary: true },
+        { name: 'Notes', pg_column_name: 'notes', ui_type: 'LongText', pg_type: 'TEXT', position: SYSTEM_FIELDS.length + 1, width: 200, options: {}, is_primary: false },
         { name: 'Status', pg_column_name: 'status', ui_type: 'SingleSelect', pg_type: 'TEXT', position: SYSTEM_FIELDS.length + 2, width: 150, options: { choices: [
           { title: 'Todo', color: 'gray' },
           { title: 'In Progress', color: 'blue' },
           { title: 'Done', color: 'green' },
-        ] } },
-        { name: 'Attachments', pg_column_name: 'attachments', ui_type: 'Attachment', pg_type: 'JSONB', position: SYSTEM_FIELDS.length + 3, width: 180, options: {} },
+        ] }, is_primary: false },
+        { name: 'Attachments', pg_column_name: 'attachments', ui_type: 'Attachment', pg_type: 'JSONB', position: SYSTEM_FIELDS.length + 3, width: 180, options: {}, is_primary: false },
       ];
 
       for (const uf of defaultUserFields) {
@@ -159,7 +149,7 @@ export function useCreateTable() {
         options: uf.options,
         position: uf.position,
         width: uf.width,
-        is_primary: false,
+        is_primary: uf.is_primary,
         is_required: false,
         is_unique: false,
         is_system: false,
@@ -173,6 +163,16 @@ export function useCreateTable() {
         .select();
 
       const allFields = [...(fields as FieldMeta[]), ...((userFields as FieldMeta[]) ?? [])];
+
+      // Set primary_field_id to the Name field
+      const primaryField = (userFields as FieldMeta[])?.find((f) => f.is_primary);
+      if (primaryField) {
+        await supabase
+          .schema('nc_meta')
+          .from('tables')
+          .update({ primary_field_id: primaryField.id })
+          .eq('id', table.id);
+      }
 
       // 4c. Create 3 empty default rows
       for (let i = 0; i < 3; i++) {
@@ -208,6 +208,7 @@ export function useCreateTable() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'tables', variables.base_id] });
       qc.invalidateQueries({ queryKey: ['nc', 'fields'] });
+      qc.invalidateQueries({ queryKey: ['nc', 'recordCount'] });
     },
   });
 }
@@ -394,11 +395,11 @@ export function useDuplicateTable() {
         options: {},
         position: f.position,
         width: 150,
-        is_primary: f.is_primary,
+        is_primary: false,
         is_required: f.pg_column_name === 'id',
         is_unique: f.pg_column_name === 'id',
         is_system: true,
-        is_hidden: f.pg_column_name === 'nc_order',
+        is_hidden: true,
       }));
 
       const { data: sysFields, error: sysFieldsError } = await supabase
@@ -408,16 +409,6 @@ export function useDuplicateTable() {
         .select();
 
       if (sysFieldsError) throw sysFieldsError;
-
-      // Update primary_field_id
-      const primaryField = (sysFields as FieldMeta[]).find((f) => f.is_primary);
-      if (primaryField) {
-        await supabase
-          .schema('nc_meta')
-          .from('tables')
-          .update({ primary_field_id: primaryField.id })
-          .eq('id', table.id);
-      }
 
       // 6. Copy non-system fields from source
       const userFields = (sourceFields as FieldMeta[]).filter(
@@ -436,7 +427,7 @@ export function useDuplicateTable() {
           options: f.options ?? {},
           position: SYSTEM_FIELDS.length + idx,
           width: f.width,
-          is_primary: false,
+          is_primary: f.is_primary,
           is_required: f.is_required,
           is_unique: f.is_unique,
           is_system: false,
@@ -467,6 +458,15 @@ export function useDuplicateTable() {
 
         if (copyError) throw copyError;
         allFields = [...allFields, ...(copiedFields as FieldMeta[])];
+
+        const primaryField = (copiedFields as FieldMeta[]).find((f) => f.is_primary);
+        if (primaryField) {
+          await supabase
+            .schema('nc_meta')
+            .from('tables')
+            .update({ primary_field_id: primaryField.id })
+            .eq('id', table.id);
+        }
       }
 
       // 7. Create default grid view
