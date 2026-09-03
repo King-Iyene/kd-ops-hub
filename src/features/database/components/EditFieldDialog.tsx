@@ -154,7 +154,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
         </DialogHeader>
         <div className="space-y-4 py-1">
           <div className="space-y-1.5">
-            <Label htmlFor="edit-field-name" className="text-xs text-[#6A7184]">Field Name</Label>
+            <Label htmlFor="edit-field-name" className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Field Name</Label>
             <Input
               id="edit-field-name"
               value={name}
@@ -167,7 +167,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="edit-field-desc" className="text-xs text-[#6A7184]">Description <span className="text-[#9AA2AF]">(optional)</span></Label>
+            <Label htmlFor="edit-field-desc" className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Description <span className="text-[#9AA2AF]">(optional)</span></Label>
             <textarea
               id="edit-field-desc"
               value={description}
@@ -189,14 +189,14 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
               checked={isRequired}
               onChange={(e) => setIsRequired(e.target.checked)}
             />
-            <span className="text-xs text-[#374151]">Required field</span>
+            <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)]">Required field</span>
           </label>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-[#6A7184]">Field Type</Label>
-            <div className="flex items-center gap-2 px-3 py-2 border border-[#E7E7E9] rounded-lg bg-[#F9F9FA]">
+            <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Field Type</Label>
+            <div className="flex items-center gap-2 px-3 py-2 border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)]">
               <Icon size={14} className="text-[#9AA2AF]" />
-              <span className="text-[13px] text-[#374151]">
+              <span className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)]">
                 {FIELD_TYPE_LABELS[field.ui_type] ?? field.ui_type}
               </span>
               <span className="text-[11px] text-[#9AA2AF] ml-auto">Cannot be changed</span>
@@ -205,7 +205,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
 
           {isSelectType && (
             <div className="space-y-2">
-              <Label className="text-xs text-[#6A7184]">Options</Label>
+              <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Options</Label>
               <div className="space-y-1.5">
                 {choices.map((choice) => {
                   const pillColor = PILL_COLORS.find((c) => c.name === choice.color) || PILL_COLORS[7];
@@ -271,7 +271,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
             if (available.length === 0) return null;
             return (
               <div className="space-y-2">
-                <Label className="text-xs text-[#6A7184]">Validation</Label>
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Validation</Label>
                 <div className="space-y-2">
                   {available.map((ruleType) => {
                     const existing = validationRules.find((r) => r.type === ruleType);
