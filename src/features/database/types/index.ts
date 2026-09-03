@@ -338,6 +338,146 @@ export interface AuditLogEntry {
   created_at: string;
 }
 
+/**
+ * Type conversion safety classification.
+ * - 'safe': no data loss expected
+ * - 'lossy': some values may become null or change
+ * - 'impossible': conversion is not supported
+ */
+export type ConversionSafety = 'safe' | 'lossy' | 'impossible';
+
+export interface ConversionRule {
+  safety: ConversionSafety;
+  warning?: string;
+}
+
+/**
+ * Map of source UIType -> target UIType -> ConversionRule.
+ * Missing entries are treated as 'impossible'.
+ */
+export const TYPE_CONVERSION_RULES: Partial<Record<UIType, Partial<Record<UIType, ConversionRule>>>> = {
+  SingleLineText: {
+    LongText: { safety: 'safe' },
+    Email: { safety: 'safe', warning: 'Existing values that are not valid emails will fail validation.' },
+    PhoneNumber: { safety: 'safe' },
+    URL: { safety: 'safe', warning: 'Existing values that are not valid URLs will fail validation.' },
+    Number: { safety: 'lossy', warning: 'Non-numeric text values will become null.' },
+    Decimal: { safety: 'lossy', warning: 'Non-numeric text values will become null.' },
+    Currency: { safety: 'lossy', warning: 'Non-numeric text values will become null.' },
+    Percent: { safety: 'lossy', warning: 'Non-numeric text values will become null.' },
+    JSON: { safety: 'lossy', warning: 'Non-JSON text will become null.' },
+    SingleSelect: { safety: 'safe', warning: 'Existing values will become select options.' },
+  },
+  LongText: {
+    SingleLineText: { safety: 'lossy', warning: 'Text will not be truncated but multi-line content loses formatting.' },
+    Email: { safety: 'lossy', warning: 'Non-email values will fail validation.' },
+    URL: { safety: 'lossy', warning: 'Non-URL values will fail validation.' },
+    JSON: { safety: 'lossy', warning: 'Non-JSON text will become null.' },
+  },
+  Email: {
+    SingleLineText: { safety: 'safe' },
+    LongText: { safety: 'safe' },
+    URL: { safety: 'safe' },
+    PhoneNumber: { safety: 'safe' },
+  },
+  PhoneNumber: {
+    SingleLineText: { safety: 'safe' },
+    LongText: { safety: 'safe' },
+    Email: { safety: 'safe' },
+    URL: { safety: 'safe' },
+  },
+  URL: {
+    SingleLineText: { safety: 'safe' },
+    LongText: { safety: 'safe' },
+    Email: { safety: 'safe' },
+    PhoneNumber: { safety: 'safe' },
+  },
+  Number: {
+    SingleLineText: { safety: 'safe' },
+    LongText: { safety: 'safe' },
+    Decimal: { safety: 'safe' },
+    Currency: { safety: 'safe' },
+    Percent: { safety: 'safe' },
+    Rating: { safety: 'lossy', warning: 'Values outside the rating range will be clamped.' },
+    Checkbox: { safety: 'lossy', warning: 'Non-zero becomes true, zero becomes false.' },
+    Duration: { safety: 'lossy', warning: 'Decimals will be truncated to whole seconds.' },
+    Year: { safety: 'lossy', warning: 'Values outside valid year range may be lost.' },
+  },
+  Decimal: {
+    SingleLineText: { safety: 'safe' },
+    LongText: { safety: 'safe' },
+    Number: { safety: 'lossy', warning: 'Decimal places will be truncated.' },
+    Currency: { safety: 'safe' },
+    Percent: { safety: 'safe' },
+  },
+  Currency: {
+    SingleLineText: { safety: 'safe' },
+    LongText: { safety: 'safe' },
+    Number: { safety: 'lossy', warning: 'Decimal places may be truncated.' },
+    Decimal: { safety: 'safe' },
+    Percent: { safety: 'safe' },
+  },
+  Percent: {
+    SingleLineText: { safety: 'safe' },
+    LongText: { safety: 'safe' },
+    Number: { safety: 'safe' },
+    Decimal: { safety: 'safe' },
+    Currency: { safety: 'safe' },
+  },
+  Duration: {
+    Number: { safety: 'safe' },
+    Decimal: { safety: 'safe' },
+    SingleLineText: { safety: 'safe' },
+  },
+  Rating: {
+    Number: { safety: 'safe' },
+    Decimal: { safety: 'safe' },
+    SingleLineText: { safety: 'safe' },
+  },
+  Year: {
+    Number: { safety: 'safe' },
+    SingleLineText: { safety: 'safe' },
+  },
+  Date: {
+    DateTime: { safety: 'safe', warning: 'Time will default to midnight.' },
+    SingleLineText: { safety: 'safe' },
+    Year: { safety: 'lossy', warning: 'Only the year portion will be kept.' },
+  },
+  DateTime: {
+    Date: { safety: 'lossy', warning: 'Time information will be lost.' },
+    Time: { safety: 'lossy', warning: 'Date information will be lost.' },
+    SingleLineText: { safety: 'safe' },
+  },
+  Time: {
+    SingleLineText: { safety: 'safe' },
+    DateTime: { safety: 'lossy', warning: 'Date will default to today.' },
+  },
+  Checkbox: {
+    Number: { safety: 'safe', warning: 'true becomes 1, false becomes 0.' },
+    SingleLineText: { safety: 'safe', warning: 'Values become "true" or "false".' },
+  },
+  SingleSelect: {
+    SingleLineText: { safety: 'safe' },
+    LongText: { safety: 'safe' },
+  },
+  JSON: {
+    SingleLineText: { safety: 'lossy', warning: 'JSON will be serialized as text.' },
+    LongText: { safety: 'safe', warning: 'JSON will be serialized as text.' },
+  },
+};
+
+/**
+ * Get the list of UITypes a given source type can convert to, with safety info.
+ */
+export function getConvertibleTypes(sourceType: UIType): Array<{ type: UIType; rule: ConversionRule }> {
+  const rules = TYPE_CONVERSION_RULES[sourceType];
+  if (!rules) return [];
+  return Object.entries(rules).map(([type, rule]) => ({
+    type: type as UIType,
+    rule: rule!,
+  }));
+}
+
 export const OPERATORS_BY_TYPE: Partial<Record<UIType, FilterOperator[]>> = {
   SingleLineText: ['is', 'isNot', 'contains', 'doesNotContain', 'startsWith', 'endsWith', 'isEmpty', 'isNotEmpty'],
   LongText: ['is', 'isNot', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],

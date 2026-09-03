@@ -108,6 +108,8 @@ export function useCreateField() {
             tableName: ctx.pgTableName,
             columnName: pgColumnName,
             columnType: pgType,
+            isRequired: input.is_required ?? false,
+            isUnique: input.is_unique ?? false,
           },
         });
 
@@ -155,6 +157,23 @@ export function useUpdateField() {
       table_id: string;
       updates: Partial<Pick<FieldMeta, 'name' | 'options' | 'width' | 'is_hidden' | 'is_required' | 'is_unique' | 'description' | 'default_value' | 'position'>>;
     }) => {
+      // Check if constraint flags are changing -- if so, we need DDL
+      const constraintChanging =
+        input.updates.is_required !== undefined || input.updates.is_unique !== undefined;
+
+      let currentField: FieldMeta | null = null;
+      if (constraintChanging) {
+        const { data: f, error: fErr } = await supabase
+          .schema('nc_meta')
+          .from('fields')
+          .select('*')
+          .eq('id', input.id)
+          .single();
+        if (fErr) throw fErr;
+        currentField = f as FieldMeta;
+      }
+
+      // Update metadata first
       const { data, error } = await supabase
         .schema('nc_meta')
         .from('fields')
@@ -164,6 +183,60 @@ export function useUpdateField() {
         .single();
 
       if (error) throw error;
+
+      // Apply DDL constraint changes for non-virtual fields
+      if (constraintChanging && currentField && !VIRTUAL_TYPES.includes(currentField.ui_type) && currentField.pg_column_name) {
+        const ctx = await getTableContext(input.table_id);
+
+        const isRequiredChanged =
+          input.updates.is_required !== undefined &&
+          input.updates.is_required !== currentField.is_required;
+        const isUniqueChanged =
+          input.updates.is_unique !== undefined &&
+          input.updates.is_unique !== currentField.is_unique;
+
+        if (isRequiredChanged || isUniqueChanged) {
+          const { data: ddlData, error: ddlError } = await supabase.functions.invoke('ddl-executor', {
+            body: {
+              action: 'alterColumnConstraints',
+              schemaName: ctx.schemaName,
+              tableName: ctx.pgTableName,
+              columnName: currentField.pg_column_name,
+              ...(isRequiredChanged ? { setNotNull: input.updates.is_required } : {}),
+              ...(isUniqueChanged ? { setUnique: input.updates.is_unique } : {}),
+            },
+          });
+
+          if (ddlError) {
+            // Rollback metadata
+            await supabase
+              .schema('nc_meta')
+              .from('fields')
+              .update({
+                is_required: currentField.is_required,
+                is_unique: currentField.is_unique,
+              })
+              .eq('id', input.id);
+            let message = ddlError.message || 'Failed to alter constraints';
+            if (ddlData && typeof ddlData === 'object' && ddlData.error) {
+              message = ddlData.error;
+            }
+            throw new Error(message);
+          }
+          if (ddlData && typeof ddlData === 'object' && ddlData.success === false) {
+            await supabase
+              .schema('nc_meta')
+              .from('fields')
+              .update({
+                is_required: currentField.is_required,
+                is_unique: currentField.is_unique,
+              })
+              .eq('id', input.id);
+            throw new Error(ddlData.error || 'DDL execution failed');
+          }
+        }
+      }
+
       return data as FieldMeta;
     },
     onSuccess: (_data, variables) => {

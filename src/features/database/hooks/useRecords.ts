@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import type { RecordRow, Filter, Sort } from '../types';
+import type { RecordRow, Filter, FilterGroup, Sort } from '../types';
 import { toast } from '../components/Toast';
 
 function fireAutomations(event: string, baseId: string, tableId: string, record?: any, oldRecord?: any) {
@@ -15,6 +15,7 @@ interface UseRecordsParams {
   page?: number;
   pageSize?: number;
   filters?: Filter[];
+  filterGroups?: FilterGroup[];
   sorts?: Sort[];
   search?: string;
 }
@@ -54,6 +55,12 @@ async function resolveTableContext(baseId: string, tableId: string) {
   return result;
 }
 
+function daysAgo(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString();
+}
+
 function applyFilter(
   query: any,
   col: string,
@@ -68,23 +75,53 @@ function applyFilter(
     case 'isNot':
     case 'neq':
       return query.neq(col, value);
+    case 'isExactly':
+      // For multi-select (TEXT[]) exact array match; otherwise plain eq
+      if (pgType === 'TEXT[]') {
+        const arr = Array.isArray(value) ? value : String(value).split(',').map((s: string) => s.trim());
+        return query.eq(col, arr);
+      }
+      return query.eq(col, value);
     case 'contains':
       if (pgType === 'TEXT[]') return query.contains(col, [value]);
       return query.ilike(col, `%${value}%`);
     case 'doesNotContain':
       if (pgType === 'TEXT[]') return query.not(col, 'cs', `{${value}}`);
       return query.not(col, 'ilike', `%${value}%`);
+    case 'containsAnyOf': {
+      const items = Array.isArray(value) ? value : String(value).split(',').map((s: string) => s.trim());
+      if (pgType === 'TEXT[]') {
+        // overlaps — array shares any element
+        return query.overlaps(col, items);
+      }
+      // Text: ilike OR for each token
+      const orClause = items.map((v: string) => `${col}.ilike.%${v}%`).join(',');
+      return query.or(orClause);
+    }
+    case 'doesNotContainAnyOf': {
+      const items = Array.isArray(value) ? value : String(value).split(',').map((s: string) => s.trim());
+      if (pgType === 'TEXT[]') {
+        // NOT overlaps
+        return query.not(col, 'ov', `{${items.join(',')}}`);
+      }
+      // Text: NOT ilike for each token (AND — must not contain any)
+      let q = query;
+      for (const v of items) {
+        q = q.not(col, 'ilike', `%${v}%`);
+      }
+      return q;
+    }
     case 'startsWith':
       return query.ilike(col, `${value}%`);
     case 'endsWith':
       return query.ilike(col, `%${value}`);
     case 'isEmpty':
-      if (pgType === 'TEXT[]' || pgType === 'JSONB') {
+      if (pgType === 'TEXT[]' || pgType === 'JSONB' || pgType.startsWith('JSONB')) {
         return query.or(`${col}.is.null,${col}.eq.{},${col}.eq.[]`);
       }
       return query.or(`${col}.is.null,${col}.eq.`);
     case 'isNotEmpty':
-      if (pgType === 'TEXT[]' || pgType === 'JSONB') {
+      if (pgType === 'TEXT[]' || pgType === 'JSONB' || pgType.startsWith('JSONB')) {
         return query.not(col, 'is', null).not(col, 'eq', '{}').not(col, 'eq', '[]');
       }
       return query.not(col, 'is', null).neq(col, '');
@@ -100,17 +137,241 @@ function applyFilter(
     case 'lte':
     case 'isOnOrBefore':
       return query.lte(col, value);
+    case 'isBetween': {
+      // value is [start, end] or "start,end"
+      const range = Array.isArray(value) ? value : String(value).split(',').map((s: string) => s.trim());
+      return query.gte(col, range[0]).lte(col, range[1]);
+    }
+    case 'isWithin':
+      // value is a named range like "pastWeek", "pastMonth", "pastYear", "nextWeek", etc.
+      // or a [start, end] pair — fall through to isBetween-style logic
+      if (Array.isArray(value) || (typeof value === 'string' && value.includes(','))) {
+        const range = Array.isArray(value) ? value : value.split(',').map((s: string) => s.trim());
+        return query.gte(col, range[0]).lte(col, range[1]);
+      }
+      // Named ranges
+      switch (value) {
+        case 'pastWeek':
+          return query.gte(col, daysAgo(7)).lte(col, new Date().toISOString());
+        case 'pastMonth':
+          return query.gte(col, daysAgo(30)).lte(col, new Date().toISOString());
+        case 'pastYear':
+          return query.gte(col, daysAgo(365)).lte(col, new Date().toISOString());
+        case 'nextWeek': {
+          const now = new Date();
+          const end = new Date();
+          end.setDate(now.getDate() + 7);
+          return query.gte(col, now.toISOString()).lte(col, end.toISOString());
+        }
+        case 'nextMonth': {
+          const now = new Date();
+          const end = new Date();
+          end.setDate(now.getDate() + 30);
+          return query.gte(col, now.toISOString()).lte(col, end.toISOString());
+        }
+        case 'nextYear': {
+          const now = new Date();
+          const end = new Date();
+          end.setDate(now.getDate() + 365);
+          return query.gte(col, now.toISOString()).lte(col, end.toISOString());
+        }
+        default:
+          return query;
+      }
+    case 'isWithinPastWeek':
+      return query.gte(col, daysAgo(7)).lte(col, new Date().toISOString());
+    case 'isWithinPastMonth':
+      return query.gte(col, daysAgo(30)).lte(col, new Date().toISOString());
+    case 'isWithinPastYear':
+      return query.gte(col, daysAgo(365)).lte(col, new Date().toISOString());
     case 'isAnyOf':
       return query.in(col, Array.isArray(value) ? value : [value]);
     case 'isNoneOf':
       return query.not(col, 'in', `(${(Array.isArray(value) ? value : [value]).map((v: string) => `"${v}"`).join(',')})`);
+    case 'isChecked':
+      return query.eq(col, true);
+    case 'isNotChecked':
+      return query.or(`${col}.is.null,${col}.eq.false`);
+    case 'linkCountIs': {
+      // Links are stored as JSONB arrays; use json_array_length via PostgREST raw filter
+      const n = Number(value);
+      return query.filter(col, 'eq', n);
+    }
+    case 'linkCountGt': {
+      const n = Number(value);
+      return query.filter(col, 'gt', n);
+    }
+    case 'linkCountLt': {
+      const n = Number(value);
+      return query.filter(col, 'lt', n);
+    }
     default:
       return query;
   }
 }
 
+/**
+ * Build a PostgREST OR clause string for a flat list of filters.
+ * Each filter becomes a PostgREST filter expression fragment.
+ * Returns null when the list is empty or all filters are unresolvable.
+ */
+function buildOrClauseFromFilters(
+  filters: Filter[],
+  fieldMap: Map<string, any>,
+): string | null {
+  const parts: string[] = [];
+  for (const filter of filters) {
+    const field = fieldMap.get(filter.field_id);
+    if (!field) continue;
+    const col = field.pg_column_name;
+    const val = filter.value;
+    const pgType: string = field.pg_type;
+
+    switch (filter.operator) {
+      case 'is':
+      case 'eq':
+        parts.push(`${col}.eq.${val}`);
+        break;
+      case 'isNot':
+      case 'neq':
+        parts.push(`${col}.neq.${val}`);
+        break;
+      case 'isExactly':
+        parts.push(`${col}.eq.${val}`);
+        break;
+      case 'contains':
+        if (pgType === 'TEXT[]') parts.push(`${col}.cs.{${val}}`);
+        else parts.push(`${col}.ilike.%${val}%`);
+        break;
+      case 'doesNotContain':
+        if (pgType === 'TEXT[]') parts.push(`${col}.not.cs.{${val}}`);
+        else parts.push(`${col}.not.ilike.%${val}%`);
+        break;
+      case 'startsWith':
+        parts.push(`${col}.ilike.${val}%`);
+        break;
+      case 'endsWith':
+        parts.push(`${col}.ilike.%${val}`);
+        break;
+      case 'isEmpty':
+        parts.push(`${col}.is.null`);
+        break;
+      case 'isNotEmpty':
+        parts.push(`${col}.not.is.null`);
+        break;
+      case 'gt':
+      case 'isAfter':
+        parts.push(`${col}.gt.${val}`);
+        break;
+      case 'gte':
+      case 'isOnOrAfter':
+        parts.push(`${col}.gte.${val}`);
+        break;
+      case 'lt':
+      case 'isBefore':
+        parts.push(`${col}.lt.${val}`);
+        break;
+      case 'lte':
+      case 'isOnOrBefore':
+        parts.push(`${col}.lte.${val}`);
+        break;
+      case 'isAnyOf': {
+        const arr = Array.isArray(val) ? val : [val];
+        parts.push(`${col}.in.(${arr.map((v: string) => `"${v}"`).join(',')})`);
+        break;
+      }
+      case 'isChecked':
+        parts.push(`${col}.eq.true`);
+        break;
+      case 'isNotChecked':
+        parts.push(`${col}.is.null,${col}.eq.false`);
+        break;
+      case 'isWithinPastWeek':
+        parts.push(`${col}.gte.${daysAgo(7)}`);
+        break;
+      case 'isWithinPastMonth':
+        parts.push(`${col}.gte.${daysAgo(30)}`);
+        break;
+      case 'isWithinPastYear':
+        parts.push(`${col}.gte.${daysAgo(365)}`);
+        break;
+      default:
+        // Complex operators (isBetween, containsAnyOf, link counts, etc.)
+        // cannot be expressed in a single PostgREST OR fragment.
+        // Fall back to AND-chaining for those in the group applier.
+        break;
+    }
+  }
+  return parts.length > 0 ? parts.join(',') : null;
+}
+
+/**
+ * Apply a nested FilterGroup to the query. Groups can contain filters and
+ * sub-groups with their own conjunction (AND/OR).
+ */
+function applyFilterGroup(
+  query: any,
+  group: FilterGroup,
+  fieldMap: Map<string, any>,
+): any {
+  if (group.filters.length === 0 && group.groups.length === 0) return query;
+
+  if (group.conjunction === 'or') {
+    // For OR groups we build a PostgREST .or() clause from the flat filters.
+    // Sub-groups with AND inside an OR parent are applied as nested .and() inside the .or().
+    const orParts: string[] = [];
+
+    // Flat filters — build OR clause parts
+    const flatOr = buildOrClauseFromFilters(group.filters, fieldMap);
+    if (flatOr) orParts.push(flatOr);
+
+    // Sub-groups: recursively build nested clauses
+    for (const sub of group.groups) {
+      if (sub.conjunction === 'and') {
+        // Nested AND inside OR — PostgREST supports and() inside or()
+        const andParts = buildOrClauseFromFilters(sub.filters, fieldMap);
+        if (andParts) orParts.push(`and(${andParts})`);
+      } else {
+        const subOr = buildOrClauseFromFilters(sub.filters, fieldMap);
+        if (subOr) orParts.push(subOr);
+      }
+    }
+
+    if (orParts.length > 0) {
+      query = query.or(orParts.join(','));
+    }
+
+    // Handle complex operator filters that couldn't be expressed as OR fragments
+    // by falling back to AND-chaining (best effort — true OR for these would
+    // require a server-side function).
+    for (const filter of group.filters) {
+      const field = fieldMap.get(filter.field_id);
+      if (!field) continue;
+      const op = filter.operator;
+      if (['isBetween', 'isWithin', 'containsAnyOf', 'doesNotContainAnyOf',
+           'linkCountIs', 'linkCountGt', 'linkCountLt'].includes(op)) {
+        query = applyFilter(query, field.pg_column_name, op, filter.value, field.pg_type);
+      }
+    }
+  } else {
+    // AND conjunction — chain each filter sequentially
+    for (const filter of group.filters) {
+      const field = fieldMap.get(filter.field_id);
+      if (!field) continue;
+      query = applyFilter(query, field.pg_column_name, filter.operator, filter.value, field.pg_type);
+    }
+
+    // Recurse into sub-groups
+    for (const sub of group.groups) {
+      query = applyFilterGroup(query, sub, fieldMap);
+    }
+  }
+
+  return query;
+}
+
 export function useRecords(params: UseRecordsParams) {
-  const { baseId, tableId, page = 0, pageSize = 50, filters, sorts, search } = params;
+  const { baseId, tableId, page = 0, pageSize = 50, filters, filterGroups, sorts, search } = params;
 
   return useQuery({
     queryKey: ['nc', 'records', baseId, tableId, page, pageSize, filters, sorts, search],

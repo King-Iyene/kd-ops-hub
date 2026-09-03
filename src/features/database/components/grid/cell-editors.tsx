@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Paperclip, Star } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
-import { PILL_COLORS } from '@/features/database/types';
+import { PILL_COLORS, SELECT_COLOR_NAMES } from '@/features/database/types';
 import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
 import { validateField, type ValidationRule } from '../../lib/validation';
 
@@ -18,6 +18,7 @@ interface CellEditorProps {
   field: FieldMeta;
   onCommit: (value: any) => void;
   onCancel: () => void;
+  onFieldUpdate?: (fieldId: string, tableId: string, updates: Partial<FieldMeta['options']>) => void;
 }
 
 function getPillColor(colorName: string) {
@@ -728,6 +729,16 @@ export function getCellEditor(uiType: string) {
     case 'Button':
       return null;
     case 'Checkbox':
+      return null;
+    case 'Formula':
+    case 'Lookup':
+    case 'Rollup':
+    case 'AutoNumber':
+    case 'ID':
+    case 'CreatedTime':
+    case 'LastModifiedTime':
+    case 'CreatedBy':
+    case 'LastModifiedBy':
       return null;
     default:
       return TextCellEditor;
