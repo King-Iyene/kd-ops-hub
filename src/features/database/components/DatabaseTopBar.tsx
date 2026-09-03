@@ -40,7 +40,7 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
     : '?';
 
   const handleCopyLink = useCallback(() => {
-    navigator.clipboard.writeText(window.location.href);
+    navigator.clipboard.writeText(window.location.href).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, []);

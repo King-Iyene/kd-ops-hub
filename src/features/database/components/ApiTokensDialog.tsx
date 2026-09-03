@@ -25,7 +25,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleCopy = useCallback((token: string) => {
-    navigator.clipboard.writeText(token);
+    navigator.clipboard.writeText(token).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, []);

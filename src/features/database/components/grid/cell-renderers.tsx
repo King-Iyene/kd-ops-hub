@@ -283,7 +283,7 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
         style={{ color: '#9AA2AF' }}
         onClick={(e) => {
           e.stopPropagation();
-          navigator.clipboard.writeText(text);
+          navigator.clipboard.writeText(text).catch(() => {});
         }}
       >
         {truncated}

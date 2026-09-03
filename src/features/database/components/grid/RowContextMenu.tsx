@@ -40,7 +40,7 @@ export function RowContextMenu({
   }, [x, y]);
 
   const handleCopyRowLink = () => {
-    navigator.clipboard.writeText(record.id);
+    navigator.clipboard.writeText(record.id).catch(() => {});
     onClose();
   };
 

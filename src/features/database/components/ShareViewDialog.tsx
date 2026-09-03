@@ -26,7 +26,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
     : '';
 
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(shareUrl);
+    navigator.clipboard.writeText(shareUrl).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [shareUrl]);

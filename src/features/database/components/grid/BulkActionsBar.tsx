@@ -67,7 +67,7 @@ export function BulkActionsBar({
         })
         .join('\t'),
     );
-    navigator.clipboard.writeText([header, ...rows].join('\n'));
+    navigator.clipboard.writeText([header, ...rows].join('\n')).catch(() => {});
     setCopyFeedback(true);
     setTimeout(() => setCopyFeedback(false), 1500);
   }, [selectedRecords, fields]);
