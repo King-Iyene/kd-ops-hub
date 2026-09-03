@@ -3,8 +3,9 @@ import { Check, ExternalLink, Copy, Paperclip, Plus, Star, Clock, Link2 } from '
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { LinkCellRenderer } from './LinkCellRenderer';
 // LookupCellRenderer and RollupCellRenderer are defined locally below
-import { PILL_COLORS } from '@/features/database/types';
+import { PILL_COLORS, SELECT_COLORS } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
+import { useGridColors } from '../../hooks/useGridColors';
 
 interface CellRendererProps {
   value: any;
@@ -15,6 +16,7 @@ interface CellRendererProps {
 
 function HighlightedText({ text, style, className }: { text: string; style?: React.CSSProperties; className?: string }) {
   const searchQuery = useDatabaseUI((s) => s.searchQuery);
+  const colors = useGridColors();
   if (!searchQuery) {
     return <span className={className} style={style}>{text}</span>;
   }
@@ -27,7 +29,7 @@ function HighlightedText({ text, style, className }: { text: string; style?: Rea
     <span className={className} style={style}>
       {parts.map((part, i) =>
         regex.test(part) ? (
-          <mark key={i} style={{ backgroundColor: '#FEF08A', color: 'inherit', borderRadius: 2, padding: '0 1px' }}>
+          <mark key={i} style={{ backgroundColor: colors.highlightBg, color: 'inherit', borderRadius: 2, padding: '0 1px' }}>
             {part}
           </mark>
         ) : (
@@ -42,22 +44,27 @@ function getPillColor(colorName: string) {
   return PILL_COLORS.find((c) => c.name === colorName) || PILL_COLORS[7];
 }
 
+function getSelectColor(colorName: string) {
+  return SELECT_COLORS[colorName] || SELECT_COLORS.grayLight2;
+}
+
 export const TextCellRenderer = React.memo(function TextCellRenderer({
   value,
   field,
 }: CellRendererProps) {
+  const colors = useGridColors();
   if (value == null || value === '') return null;
   const text = String(value);
 
   if (field.ui_type === 'Email') {
     return (
-      <HighlightedText text={text} className="truncate" style={{ color: '#0D9488' }} />
+      <HighlightedText text={text} className="truncate" style={{ color: colors.tealText }} />
     );
   }
 
   if (field.ui_type === 'URL') {
     return (
-      <span className="truncate flex items-center gap-1" style={{ color: '#0D9488' }}>
+      <span className="truncate flex items-center gap-1" style={{ color: colors.tealText }}>
         <HighlightedText text={text} className="truncate" />
         <ExternalLink size={12} className="shrink-0" />
       </span>
@@ -69,13 +76,20 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
 
 export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
   value,
+  rowHeight,
 }: CellRendererProps) {
+  const colors = useGridColors();
   if (value == null || value === '') return null;
   const text = String(value);
-  const display = text.length > 80 ? text.slice(0, 80) + '...' : text;
+  const lineCount = text.split('\n').length;
+  const maxLen = rowHeight === 'compact' ? 50 : rowHeight === 'tall' ? 200 : rowHeight === 'extra-tall' ? 400 : 80;
+  const display = text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
   return (
-    <span className="truncate">
-      {display}
+    <span className="truncate flex items-center gap-1.5" style={{ color: 'inherit' }}>
+      <span className="truncate whitespace-pre-line" style={{ fontSize: 13, lineHeight: '18px' }}>{display}</span>
+      {lineCount > 1 && (
+        <span className="shrink-0 text-[9px] px-1 py-px rounded-sm bg-black/5 dark:bg-white/5" style={{ color: colors.systemText }}>{lineCount}L</span>
+      )}
     </span>
   );
 });
@@ -140,20 +154,20 @@ export const DateCellRenderer = React.memo(function DateCellRenderer({
 export const CheckboxCellRenderer = React.memo(function CheckboxCellRenderer({
   value,
 }: CellRendererProps) {
+  const colors = useGridColors();
   const checked = Boolean(value);
   return (
-    <div className="flex items-center justify-center w-full">
+    <div className="flex items-center justify-center w-full h-full cursor-pointer">
       {checked ? (
         <div
-          className="w-4 h-4 rounded flex items-center justify-center"
-          style={{ backgroundColor: '#0D9488' }}
+          className="w-[18px] h-[18px] rounded flex items-center justify-center"
+          style={{ backgroundColor: colors.checkboxChecked }}
         >
-          <Check size={12} color="#fff" strokeWidth={3} />
+          <Check size={13} color="#fff" strokeWidth={3} />
         </div>
       ) : (
         <div
-          className="w-4 h-4 rounded border-2"
-          style={{ borderColor: '#9AA2AF' }}
+          className="w-[18px] h-[18px] rounded border-2 border-[#D1D5DB] dark:border-[hsl(215,12%,35%)] group-hover/row:border-[#9CA3AF] dark:group-hover/row:border-[hsl(215,12%,45%)] transition-colors"
         />
       )}
     </div>
@@ -166,11 +180,21 @@ export const SelectCellRenderer = React.memo(function SelectCellRenderer({
 }: CellRendererProps) {
   if (value == null || value === '') return null;
   const choice = field.options?.choices?.find((c: SelectChoice) => c.title === value);
-  const color = getPillColor(choice?.color || 'Gray');
+  const sc = getSelectColor(choice?.color || 'grayLight2');
   return (
     <span
-      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium truncate"
-      style={{ backgroundColor: color.bg, color: color.text }}
+      className="inline-flex items-center px-2.5 rounded-full text-xs font-medium truncate select-pill"
+      style={{
+        '--pill-bg': sc.bg,
+        '--pill-text': sc.text,
+        '--pill-dark-bg': sc.darkBg,
+        '--pill-dark-text': sc.darkText,
+        backgroundColor: 'var(--pill-bg)',
+        color: 'var(--pill-text)',
+        height: 22,
+        lineHeight: '22px',
+        maxWidth: '100%',
+      } as React.CSSProperties}
     >
       {String(value)}
     </span>
@@ -182,6 +206,7 @@ export const MultiSelectCellRenderer = React.memo(function MultiSelectCellRender
   field,
   rowHeight,
 }: CellRendererProps) {
+  const colors = useGridColors();
   if (!Array.isArray(value) || value.length === 0) return null;
   const isCompact = rowHeight === 'compact';
   const maxVisible = isCompact ? 2 : value.length;
@@ -192,19 +217,28 @@ export const MultiSelectCellRenderer = React.memo(function MultiSelectCellRender
     <div className="flex flex-wrap gap-1 items-center overflow-hidden">
       {visible.map((v: string) => {
         const choice = field.options?.choices?.find((c: SelectChoice) => c.title === v);
-        const color = getPillColor(choice?.color || 'Gray');
+        const sc = getSelectColor(choice?.color || 'grayLight2');
         return (
           <span
             key={v}
-            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium truncate"
-            style={{ backgroundColor: color.bg, color: color.text }}
+            className="inline-flex items-center px-2 rounded-full text-xs font-medium truncate select-pill"
+            style={{
+              '--pill-bg': sc.bg,
+              '--pill-text': sc.text,
+              '--pill-dark-bg': sc.darkBg,
+              '--pill-dark-text': sc.darkText,
+              backgroundColor: 'var(--pill-bg)',
+              color: 'var(--pill-text)',
+              height: 20,
+              lineHeight: '20px',
+            } as React.CSSProperties}
           >
             {v}
           </span>
         );
       })}
       {remaining > 0 && (
-        <span className="text-xs" style={{ color: '#9AA2AF' }}>
+        <span className="text-xs" style={{ color: colors.systemText }}>
           +{remaining}
         </span>
       )}
@@ -215,11 +249,12 @@ export const MultiSelectCellRenderer = React.memo(function MultiSelectCellRender
 export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer({
   value,
 }: CellRendererProps) {
+  const colors = useGridColors();
   if (value == null) return null;
   const files: { name: string; url: string; type: string; size: number }[] = Array.isArray(value) ? value : [];
   if (files.length === 0) {
     return (
-      <span className="flex items-center gap-1 text-xs cursor-pointer" style={{ color: '#C4C9D4' }}>
+      <span className="flex items-center gap-1 text-xs cursor-pointer" style={{ color: colors.starEmpty }}>
         <Plus size={13} className="shrink-0" />
       </span>
     );
@@ -233,21 +268,23 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
             key={i}
             src={f.url}
             alt={f.name}
-            className="h-6 w-6 rounded object-cover border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shrink-0"
+            className="h-6 w-6 rounded object-cover shrink-0"
+            style={{ border: `1px solid ${colors.dropdownBorder}` }}
             title={f.name}
           />
         ) : (
           <span
             key={i}
-            className="h-6 px-1.5 rounded bg-[#F4F4F5] dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] flex items-center shrink-0"
+            className="h-6 px-1.5 rounded flex items-center shrink-0"
+            style={{ backgroundColor: colors.dropdownHover, border: `1px solid ${colors.dropdownBorder}` }}
             title={f.name}
           >
-            <Paperclip size={11} className="text-[#9AA2AF]" />
+            <Paperclip size={11} style={{ color: colors.systemText }} />
           </span>
         ),
       )}
       {files.length > 3 && (
-        <span className="text-[10px] shrink-0" style={{ color: '#9AA2AF' }}>
+        <span className="text-[10px] shrink-0" style={{ color: colors.systemText }}>
           +{files.length - 3}
         </span>
       )}
@@ -258,11 +295,12 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
 export const JSONCellRenderer = React.memo(function JSONCellRenderer({
   value,
 }: CellRendererProps) {
+  const colors = useGridColors();
   if (value == null || value === '') return null;
   const text = typeof value === 'string' ? value : JSON.stringify(value);
   const display = text.length > 60 ? text.slice(0, 60) + '...' : text;
   return (
-    <span className="truncate" style={{ fontFamily: 'monospace', fontSize: 12, color: '#64748B' }}>
+    <span className="truncate font-mono text-xs" style={{ color: colors.muted }}>
       {display}
     </span>
   );
@@ -276,27 +314,27 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
 
   if (field.ui_type === 'ID') {
     const text = String(value);
-    const truncated = text.length > 8 ? text.slice(0, 8) + '...' : text;
+    const truncated = text.length > 8 ? text.slice(0, 8) + '…' : text;
     return (
       <span
-        className="truncate cursor-pointer flex items-center gap-1 group"
-        style={{ color: '#9AA2AF' }}
+        className="truncate cursor-pointer flex items-center gap-1 group text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]"
         onClick={(e) => {
           e.stopPropagation();
           navigator.clipboard.writeText(text).catch(() => {});
         }}
       >
-        {truncated}
-        <Copy size={12} className="opacity-0 group-hover:opacity-100 shrink-0" />
+        <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>{truncated}</span>
+        <Copy size={11} className="opacity-0 group-hover:opacity-100 shrink-0" />
       </span>
     );
   }
 
   if (field.ui_type === 'CreatedTime' || field.ui_type === 'LastModifiedTime') {
     const date = new Date(value);
-    if (isNaN(date.getTime())) return <span style={{ color: '#9AA2AF' }}>{String(value)}</span>;
+    if (isNaN(date.getTime())) return <span className="text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]">{String(value)}</span>;
     return (
-      <span className="truncate" style={{ color: '#9AA2AF' }}>
+      <span className="truncate flex items-center gap-1.5 text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]" style={{ fontSize: 12 }}>
+        <Clock size={11} className="shrink-0 opacity-60" />
         {date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
       </span>
     );
@@ -304,7 +342,7 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
 
   if (field.ui_type === 'AutoNumber') {
     return (
-      <span className="truncate block text-right w-full" style={{ color: '#9AA2AF', fontFamily: 'monospace', fontSize: 12 }}>
+      <span className="truncate block text-right w-full text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]" style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>
         {String(value)}
       </span>
     );
@@ -314,15 +352,28 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
     const display = typeof value === 'object' && value !== null
       ? value.email || value.name || 'Unknown'
       : String(value || 'Unknown');
+    const initial = display.charAt(0).toUpperCase();
     return (
-      <span className="truncate" style={{ color: '#9AA2AF' }}>
-        {display}
+      <span className="truncate flex items-center gap-1.5 text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]">
+        <span
+          className="shrink-0 flex items-center justify-center rounded-full text-white"
+          style={{
+            width: 18,
+            height: 18,
+            fontSize: 10,
+            fontWeight: 600,
+            backgroundColor: '#8B5CF6',
+          }}
+        >
+          {initial}
+        </span>
+        <span className="truncate" style={{ fontSize: 12 }}>{display}</span>
       </span>
     );
   }
 
   return (
-    <span className="truncate" style={{ color: '#9AA2AF' }}>
+    <span className="truncate text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]" style={{ fontSize: 12 }}>
       {String(value)}
     </span>
   );
@@ -333,7 +384,7 @@ export const ComputedCellRenderer = React.memo(function ComputedCellRenderer({
 }: CellRendererProps) {
   if (value == null || value === '') return null;
   return (
-    <span className="truncate" style={{ color: '#9AA2AF' }}>
+    <span className="truncate text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">
       {String(value)}
     </span>
   );
@@ -352,7 +403,8 @@ export const RatingCellRenderer = React.memo(function RatingCellRenderer({
           key={i}
           size={14}
           fill={i < rating ? '#F59E0B' : 'none'}
-          stroke={i < rating ? '#F59E0B' : '#D1D5DB'}
+          stroke={i < rating ? '#F59E0B' : undefined}
+          className={i < rating ? '' : 'stroke-[#D1D5DB] dark:stroke-[hsl(200,20%,35%)]'}
           strokeWidth={1.5}
         />
       ))}
@@ -371,10 +423,10 @@ export const PercentCellRenderer = React.memo(function PercentCellRenderer({
       <div className="flex-1 h-1.5 rounded-full bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] overflow-hidden">
         <div
           className="h-full rounded-full"
-          style={{ width: `${Math.min(100, Math.max(0, num))}%`, backgroundColor: '#3366FF' }}
+          style={{ width: `${Math.min(100, Math.max(0, num))}%`, backgroundColor: '#2563EB' }}
         />
       </div>
-      <span className="text-xs shrink-0" style={{ color: '#6A7184' }}>{num}%</span>
+      <span className="text-xs shrink-0 text-[#6A7184] dark:text-[hsl(200,20%,55%)]">{num}%</span>
     </div>
   );
 });
@@ -382,6 +434,7 @@ export const PercentCellRenderer = React.memo(function PercentCellRenderer({
 export const DurationCellRenderer = React.memo(function DurationCellRenderer({
   value,
 }: CellRendererProps) {
+  const colors = useGridColors();
   if (value == null || value === '') return null;
   const seconds = Number(value);
   if (isNaN(seconds)) return <span className="truncate">{String(value)}</span>;
@@ -393,8 +446,8 @@ export const DurationCellRenderer = React.memo(function DurationCellRenderer({
   if (m > 0 || h > 0) parts.push(`${m}m`);
   parts.push(`${s}s`);
   return (
-    <span className="flex items-center gap-1 truncate" style={{ color: '#6A7184' }}>
-      <Clock size={12} className="shrink-0 text-[#9AA2AF]" />
+    <span className="flex items-center gap-1 truncate" style={{ color: colors.muted }}>
+      <Clock size={12} className="shrink-0" style={{ color: colors.systemText }} />
       {parts.join(' ')}
     </span>
   );
@@ -418,16 +471,17 @@ export const YearCellRenderer = React.memo(function YearCellRenderer({
 export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({
   value,
 }: CellRendererProps) {
+  const colors = useGridColors();
   if (value == null || value === '') return null;
   if (typeof value === 'boolean') {
     return (
       <div className="flex items-center justify-center w-full">
         {value ? (
-          <div className="w-4 h-4 rounded flex items-center justify-center" style={{ backgroundColor: '#0D9488' }}>
+          <div className="w-4 h-4 rounded flex items-center justify-center" style={{ backgroundColor: colors.tealText }}>
             <Check size={12} color="#fff" strokeWidth={3} />
           </div>
         ) : (
-          <div className="w-4 h-4 rounded border-2" style={{ borderColor: '#94A3B8' }} />
+          <div className="w-4 h-4 rounded" style={{ border: `2px solid ${colors.starEmpty}` }} />
         )}
       </div>
     );
@@ -456,10 +510,11 @@ export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({
 export const JsonCellRenderer = React.memo(function JsonCellRenderer({
   value,
 }: CellRendererProps) {
+  const colors = useGridColors();
   if (value == null || value === '') return null;
   const text = typeof value === 'string' ? value : JSON.stringify(value);
   return (
-    <span className="truncate font-mono text-[11px]" style={{ color: '#6A7184' }}>
+    <span className="truncate font-mono text-[11px]" style={{ color: colors.muted }}>
       {text}
     </span>
   );
@@ -479,8 +534,9 @@ export const LookupCellRenderer = React.memo(function LookupCellRenderer({
 export const RollupCellRenderer = React.memo(function RollupCellRenderer({
   value,
 }: CellRendererProps) {
+  const colors = useGridColors();
   if (value == null || value === '') {
-    return <span className="truncate block text-right w-full" style={{ color: '#94A3B8' }}>{'—'}</span>;
+    return <span className="truncate block text-right w-full" style={{ color: colors.systemText }}>{'—'}</span>;
   }
   const num = Number(value);
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
@@ -494,12 +550,13 @@ export const RollupCellRenderer = React.memo(function RollupCellRenderer({
 export const LinksCellRenderer = React.memo(function LinksCellRenderer({
   value,
 }: CellRendererProps) {
+  const colors = useGridColors();
   const count = Array.isArray(value) ? value.length : 0;
   if (count === 0) return null;
   return (
     <span
       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80"
-      style={{ backgroundColor: '#DBEAFE', color: '#1E40AF' }}
+      style={{ backgroundColor: `${colors.primary}20`, color: colors.linkText }}
     >
       <Link2 size={12} />
       {count} linked {count === 1 ? 'record' : 'records'}
