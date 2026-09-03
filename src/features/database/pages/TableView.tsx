@@ -40,6 +40,7 @@ export function TableView() {
     hiddenFieldIds,
     searchQuery,
     fieldWidths,
+    fieldOrder,
   } = useDatabaseUI();
   useActiveView(activeTableId);
   useRealtimeRecords(activeBaseId ?? undefined, activeTableId ?? undefined);
@@ -74,11 +75,12 @@ export function TableView() {
           groups: groupByLevels,
           field_visibility: fieldVisibility,
           field_widths: fieldWidths,
+          field_order: fieldOrder,
         },
       });
     }, 1000);
     return () => clearTimeout(saveTimerRef.current);
-  }, [filters, sorts, groupByLevels, hiddenFieldIds, fieldWidths, activeViewId, activeTableId]);
+  }, [filters, sorts, groupByLevels, hiddenFieldIds, fieldWidths, fieldOrder, activeViewId, activeTableId]);
 
   const { data: recordsData, isLoading, isError, refetch } = useRecords({
     baseId: activeBaseId!,
