@@ -88,10 +88,6 @@ export const GridCell = React.memo(function GridCell({
     field.ui_type === 'LastModifiedBy' ||
     field.is_system;
 
-  const SINGLE_CLICK_EDIT_TYPES = new Set([
-    'Attachment', 'SingleSelect', 'MultiSelect', 'Rating',
-  ]);
-
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();

@@ -11,6 +11,7 @@ import {
   useDeleteRecord,
   useBulkDeleteRecords,
   useDuplicateRecord,
+  useCreateField,
   useDeleteField,
   useDuplicateField,
   useReorderFields,
@@ -99,6 +100,7 @@ export function TableView() {
   const deleteRecord = useDeleteRecord();
   const duplicateRecord = useDuplicateRecord();
   const bulkDeleteRecords = useBulkDeleteRecords();
+  const createField = useCreateField();
   const deleteField = useDeleteField();
   const duplicateField = useDuplicateField();
   const reorderFields = useReorderFields();
@@ -208,25 +210,76 @@ export function TableView() {
   const handleDuplicateRow = useCallback(
     (record: RecordRow) => {
       if (!activeBaseId || !activeTableId) return;
-      duplicateRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record });
+      duplicateRecord.mutateAsync({ baseId: activeBaseId, tableId: activeTableId, record }).then((created) => {
+        pushUndo({
+          type: 'row_create',
+          payload: { recordId: created.id },
+          undo: async () => {
+            deleteRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, recordId: created.id });
+          },
+          redo: async () => {
+            duplicateRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record });
+          },
+        });
+      });
     },
-    [activeBaseId, activeTableId, duplicateRecord],
+    [activeBaseId, activeTableId, duplicateRecord, deleteRecord, pushUndo],
   );
 
   const handleBulkDeleteRows = useCallback(
     (recordIds: string[]) => {
       if (!activeBaseId || !activeTableId) return;
+      const deletedRecords = recordsData?.records?.filter((r: RecordRow) => recordIds.includes(r.id)) ?? [];
       bulkDeleteRecords.mutate({ baseId: activeBaseId, tableId: activeTableId, recordIds });
+      if (deletedRecords.length > 0) {
+        pushUndo({
+          type: 'row_delete',
+          payload: { recordIds },
+          undo: async () => {
+            for (const rec of deletedRecords) {
+              const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = rec;
+              createRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record: rest });
+            }
+          },
+          redo: async () => {
+            bulkDeleteRecords.mutate({ baseId: activeBaseId, tableId: activeTableId, recordIds });
+          },
+        });
+      }
     },
-    [activeBaseId, activeTableId, bulkDeleteRecords],
+    [activeBaseId, activeTableId, bulkDeleteRecords, createRecord, recordsData, pushUndo],
   );
 
   const handleDeleteField = useCallback(
     (fieldId: string) => {
       if (!activeTableId) return;
+      const field = fields?.find((f) => f.id === fieldId);
       deleteField.mutate({ id: fieldId, table_id: activeTableId });
+      if (field) {
+        pushUndo({
+          type: 'field_delete',
+          payload: { fieldId },
+          undo: async () => {
+            createField.mutate({
+              table_id: activeTableId,
+              name: field.name,
+              ui_type: field.ui_type,
+              options: field.options as Record<string, any>,
+              position: field.position,
+              width: field.width,
+              is_required: field.is_required,
+              is_unique: field.is_unique,
+              default_value: field.default_value,
+              description: field.description,
+            });
+          },
+          redo: async () => {
+            deleteField.mutate({ id: fieldId, table_id: activeTableId });
+          },
+        });
+      }
     },
-    [activeTableId, deleteField],
+    [activeTableId, deleteField, createField, fields, pushUndo],
   );
 
   const handleDuplicateField = useCallback(
