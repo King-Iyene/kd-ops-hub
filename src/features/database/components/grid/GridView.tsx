@@ -42,13 +42,13 @@ const GROUP_PILL_COLORS = [
 
 const ROW_HEIGHTS: Record<string, number> = {
   compact: 32,
-  default: 32,
+  default: 36,
   tall: 60,
   'extra-tall': 90,
 };
 
-const ROW_NUMBER_WIDTH = 66;
-const HEADER_HEIGHT = 32;
+const ROW_NUMBER_WIDTH = 56;
+const HEADER_HEIGHT = 34;
 
 const NUMERIC_TYPES: UIType[] = ['Number', 'Decimal', 'Currency', 'Percent', 'Rating', 'Duration'];
 
@@ -980,9 +980,9 @@ export default function GridView({
         <button
           onClick={onAddRow}
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-          style={{ backgroundColor: '#3366FF' }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#2952CC')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#3366FF')}
+          style={{ backgroundColor: GRID_COLORS.primary }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
         >
           <Plus size={14} /> Add row
         </button>
@@ -1034,7 +1034,7 @@ export default function GridView({
               top: groupByLevels.length > 0 ? 28 : 0,
               height: HEADER_HEIGHT,
               backgroundColor: GRID_COLORS.headerBg,
-              borderBottom: `1px solid ${GRID_COLORS.border}`,
+              borderBottom: `2px solid ${GRID_COLORS.border}`,
             }}
           >
             <div
@@ -1052,7 +1052,8 @@ export default function GridView({
               {!isLoading && records.length > 0 && (
                 <input
                   type="checkbox"
-                  className="w-3.5 h-3.5 accent-[#3366FF]"
+                  className="w-3.5 h-3.5 rounded"
+                  style={{ accentColor: GRID_COLORS.primary }}
                   checked={selectedRowIds.size === records.length && records.length > 0}
                   onChange={toggleSelectAll}
                   aria-label="Select all rows"
@@ -1105,7 +1106,7 @@ export default function GridView({
             })}
 
             <div
-              className="flex items-center justify-center shrink-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5"
+              className="flex items-center justify-center shrink-0 cursor-pointer transition-colors"
               style={{
                 width: 44,
                 minWidth: 44,
@@ -1113,11 +1114,13 @@ export default function GridView({
                 borderRight: `1px solid ${GRID_COLORS.border}`,
                 color: GRID_COLORS.muted,
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = GRID_COLORS.hoverRow; e.currentTarget.style.color = GRID_COLORS.text; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = GRID_COLORS.headerBg; e.currentTarget.style.color = GRID_COLORS.muted; }}
               onClick={onAddField}
               title="Add field"
               aria-label="Add field"
             >
-              <Plus size={14} />
+              <Plus size={15} />
             </div>
           </div>
 
@@ -1286,12 +1289,12 @@ export default function GridView({
                       }}
                     >
                       {selectedRowIds.has(record.id) ? (
-                        <input type="checkbox" className="w-3.5 h-3.5 accent-[#3366FF]" checked onChange={() => toggleRowSelection(record.id)} aria-label={`Deselect row ${rowNum}`} />
+                        <input type="checkbox" className="w-3.5 h-3.5 rounded" checked onChange={() => toggleRowSelection(record.id)} aria-label={`Deselect row ${rowNum}`} />
                       ) : (
                         <>
                           <span className="group-hover/row:hidden">{rowNum}</span>
                           <div className="hidden group-hover/row:flex items-center gap-1">
-                            <input type="checkbox" className="w-3.5 h-3.5 accent-[#3366FF]" checked={false} onChange={() => toggleRowSelection(record.id)} aria-label={`Select row ${rowNum}`} />
+                            <input type="checkbox" className="w-3.5 h-3.5 rounded" checked={false} onChange={() => toggleRowSelection(record.id)} aria-label={`Select row ${rowNum}`} />
                             {onExpandRow && (
                               <button className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)]" onClick={(e) => { e.stopPropagation(); onExpandRow(record); }} aria-label={`Expand row ${rowNum}`}>
                                 <Expand size={12} />
@@ -1376,26 +1379,29 @@ export default function GridView({
                       style={{ width: 3, backgroundColor: rowColorUngrouped }}
                     />
                   )}
-                  {/* Row number with checkbox + expand icon + drag handle */}
+                  {/* Row number gutter */}
                   <div
                     className="sticky left-0 z-10 flex items-center justify-center shrink-0 group/num"
                     style={{
                       width: ROW_NUMBER_WIDTH,
                       minWidth: ROW_NUMBER_WIDTH,
-                      backgroundColor: selectedRowIds.has(record.id) ? GRID_COLORS.selectedRowBg : isRowSelected ? GRID_COLORS.selectedRowBg : (virtualRow.index % 2 === 1 ? GRID_COLORS.altRowBg : GRID_COLORS.bg),
+                      backgroundColor: selectedRowIds.has(record.id) ? GRID_COLORS.selectedRowBg : isRowSelected ? GRID_COLORS.selectedRowBg : (virtualRow.index % 2 === 1 ? GRID_COLORS.altRowBg : GRID_COLORS.headerBg),
                       borderRight: `1px solid ${GRID_COLORS.border}`,
                       borderBottom: `1px solid ${GRID_COLORS.border}`,
-                      borderTop: dropTargetIdx === virtualRow.index ? '2px solid #3366FF' : undefined,
+                      borderTop: dropTargetIdx === virtualRow.index ? `2px solid ${GRID_COLORS.primary}` : undefined,
                       fontSize: 11,
                       color: GRID_COLORS.muted,
+                      cursor: 'pointer',
                     }}
+                    onClick={() => toggleRowSelection(record.id)}
                     onDragOver={(e) => handleRowDragOver(e, virtualRow.index)}
                     onDrop={(e) => handleRowDrop(e, virtualRow.index)}
                   >
                     {selectedRowIds.has(record.id) ? (
                       <input
                         type="checkbox"
-                        className="w-3.5 h-3.5 accent-[#3366FF]"
+                        className="w-3.5 h-3.5 rounded"
+                        style={{ accentColor: GRID_COLORS.primary }}
                         checked
                         onChange={() => toggleRowSelection(record.id)}
                         aria-label={`Deselect row ${rowNum}`}
@@ -1417,7 +1423,7 @@ export default function GridView({
                           </span>
                           <input
                             type="checkbox"
-                            className="w-3.5 h-3.5 accent-[#3366FF]"
+                            className="w-3.5 h-3.5 rounded"
                             checked={false}
                             onChange={() => toggleRowSelection(record.id)}
                             aria-label={`Select row ${rowNum}`}
@@ -1538,16 +1544,16 @@ export default function GridView({
               height: rowHeightPx,
               borderBottom: `1px solid ${GRID_COLORS.border}`,
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = GRID_COLORS.hoverRow)}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = GRID_COLORS.bg)}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = GRID_COLORS.hoverRow; const span = e.currentTarget.querySelector('span'); if (span) span.style.color = GRID_COLORS.primary; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ''; const span = e.currentTarget.querySelector('span'); if (span) span.style.color = GRID_COLORS.muted; }}
             onClick={onAddRow}
           >
-            <div
-              className="flex items-center gap-1 px-4"
+            <span
+              className="flex items-center gap-1.5 px-3"
               style={{ color: GRID_COLORS.muted, fontSize: 13 }}
             >
-              <Plus size={14} /> Add row
-            </div>
+              <Plus size={14} /> New row
+            </span>
           </button>
         </div>
       </div>
@@ -1598,7 +1604,8 @@ export default function GridView({
           </span>
           {frozenCount > 0 && (
             <button
-              className="flex items-center gap-1 text-[#3366FF] font-medium hover:underline"
+              className="flex items-center gap-1 font-medium hover:underline"
+              style={{ color: GRID_COLORS.primary }}
               onClick={() => setFrozenColumns(0)}
               title="Click to unfreeze"
             >
@@ -1606,7 +1613,7 @@ export default function GridView({
             </button>
           )}
           {selectedRowIds.size > 0 && (
-            <span className="text-[#3366FF] font-medium">
+            <span className="font-medium" style={{ color: GRID_COLORS.primary }}>
               ({selectedRowIds.size} selected)
             </span>
           )}

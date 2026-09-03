@@ -127,7 +127,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
       aria-sort={currentSort ? (currentSort.direction === 'asc' ? 'ascending' : 'descending') : undefined}
       {...(field.description ? { title: field.description } : {})}
     >
-      <Icon size={13} className="shrink-0 text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+      <Icon size={13} className="shrink-0" style={{ color: colors.muted }} />
       <span className="truncate">{field.name}</span>
       {field.description && (
         <span className="relative shrink-0 group/info">
@@ -148,8 +148,10 @@ export const ColumnHeader = React.memo(function ColumnHeader({
       )}
 
       <div
-        className="absolute right-0 top-0 h-full hover:bg-[#3366FF]"
+        className="absolute right-0 top-0 h-full"
         style={{ width: 4, cursor: 'col-resize' }}
+        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.primary)}
+        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
         role="separator"
         aria-label={`Resize column ${field.name}`}
         onMouseDown={handleMouseDown}

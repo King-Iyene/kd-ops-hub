@@ -152,17 +152,17 @@ export const CheckboxCellRenderer = React.memo(function CheckboxCellRenderer({
 }: CellRendererProps) {
   const checked = Boolean(value);
   return (
-    <div className="flex items-center justify-center w-full">
+    <div className="flex items-center justify-center w-full h-full cursor-pointer">
       {checked ? (
         <div
-          className="w-4 h-4 rounded flex items-center justify-center"
-          style={{ backgroundColor: '#0D9488' }}
+          className="w-[18px] h-[18px] rounded flex items-center justify-center"
+          style={{ backgroundColor: '#16A34A' }}
         >
-          <Check size={12} color="#fff" strokeWidth={3} />
+          <Check size={13} color="#fff" strokeWidth={3} />
         </div>
       ) : (
         <div
-          className="w-4 h-4 rounded border-2 border-[#9AA2AF] dark:border-[hsl(200,20%,55%)]"
+          className="w-[18px] h-[18px] rounded border-2 border-[#D1D5DB] dark:border-[hsl(215,12%,35%)] group-hover/row:border-[#9CA3AF] dark:group-hover/row:border-[hsl(215,12%,45%)] transition-colors"
         />
       )}
     </div>
@@ -178,7 +178,7 @@ export const SelectCellRenderer = React.memo(function SelectCellRenderer({
   const sc = getSelectColor(choice?.color || 'grayLight2');
   return (
     <span
-      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium truncate select-pill"
+      className="inline-flex items-center px-2.5 rounded-full text-xs font-medium truncate select-pill"
       style={{
         '--pill-bg': sc.bg,
         '--pill-text': sc.text,
@@ -186,6 +186,9 @@ export const SelectCellRenderer = React.memo(function SelectCellRenderer({
         '--pill-dark-text': sc.darkText,
         backgroundColor: 'var(--pill-bg)',
         color: 'var(--pill-text)',
+        height: 22,
+        lineHeight: '22px',
+        maxWidth: '100%',
       } as React.CSSProperties}
     >
       {String(value)}
@@ -212,7 +215,7 @@ export const MultiSelectCellRenderer = React.memo(function MultiSelectCellRender
         return (
           <span
             key={v}
-            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium truncate select-pill"
+            className="inline-flex items-center px-2 rounded-full text-xs font-medium truncate select-pill"
             style={{
               '--pill-bg': sc.bg,
               '--pill-text': sc.text,
@@ -220,6 +223,8 @@ export const MultiSelectCellRenderer = React.memo(function MultiSelectCellRender
               '--pill-dark-text': sc.darkText,
               backgroundColor: 'var(--pill-bg)',
               color: 'var(--pill-text)',
+              height: 20,
+              lineHeight: '20px',
             } as React.CSSProperties}
           >
             {v}
@@ -299,26 +304,27 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
 
   if (field.ui_type === 'ID') {
     const text = String(value);
-    const truncated = text.length > 8 ? text.slice(0, 8) + '...' : text;
+    const truncated = text.length > 8 ? text.slice(0, 8) + '…' : text;
     return (
       <span
-        className="truncate cursor-pointer flex items-center gap-1 group text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]"
+        className="truncate cursor-pointer flex items-center gap-1 group text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]"
         onClick={(e) => {
           e.stopPropagation();
           navigator.clipboard.writeText(text).catch(() => {});
         }}
       >
-        {truncated}
-        <Copy size={12} className="opacity-0 group-hover:opacity-100 shrink-0" />
+        <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>{truncated}</span>
+        <Copy size={11} className="opacity-0 group-hover:opacity-100 shrink-0" />
       </span>
     );
   }
 
   if (field.ui_type === 'CreatedTime' || field.ui_type === 'LastModifiedTime') {
     const date = new Date(value);
-    if (isNaN(date.getTime())) return <span className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">{String(value)}</span>;
+    if (isNaN(date.getTime())) return <span className="text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]">{String(value)}</span>;
     return (
-      <span className="truncate text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">
+      <span className="truncate flex items-center gap-1.5 text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]" style={{ fontSize: 12 }}>
+        <Clock size={11} className="shrink-0 opacity-60" />
         {date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
       </span>
     );
@@ -326,7 +332,7 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
 
   if (field.ui_type === 'AutoNumber') {
     return (
-      <span className="truncate block text-right w-full text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" style={{ fontFamily: 'monospace', fontSize: 12 }}>
+      <span className="truncate block text-right w-full text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]" style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>
         {String(value)}
       </span>
     );
@@ -336,15 +342,28 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
     const display = typeof value === 'object' && value !== null
       ? value.email || value.name || 'Unknown'
       : String(value || 'Unknown');
+    const initial = display.charAt(0).toUpperCase();
     return (
-      <span className="truncate text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">
-        {display}
+      <span className="truncate flex items-center gap-1.5 text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]">
+        <span
+          className="shrink-0 flex items-center justify-center rounded-full text-white"
+          style={{
+            width: 18,
+            height: 18,
+            fontSize: 10,
+            fontWeight: 600,
+            backgroundColor: '#8B5CF6',
+          }}
+        >
+          {initial}
+        </span>
+        <span className="truncate" style={{ fontSize: 12 }}>{display}</span>
       </span>
     );
   }
 
   return (
-    <span className="truncate text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">
+    <span className="truncate text-[#9CA3AF] dark:text-[hsl(215,12%,48%)]" style={{ fontSize: 12 }}>
       {String(value)}
     </span>
   );
