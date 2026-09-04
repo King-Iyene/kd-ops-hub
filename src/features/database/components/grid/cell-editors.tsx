@@ -1035,6 +1035,162 @@ export function TimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   );
 }
 
+export function UserCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+  const { data: users = [], isLoading } = useWorkspaceUsers();
+  const [search, setSearch] = useState('');
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const colors = useGridColors();
+
+  const currentValue = typeof value === 'object' && value !== null
+    ? (value as { email?: string }).email || ''
+    : String(value ?? '');
+
+  const filtered = search
+    ? users.filter(
+        (u) =>
+          u.full_name.toLowerCase().includes(search.toLowerCase()) ||
+          u.email.toLowerCase().includes(search.toLowerCase()),
+      )
+    : users;
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCancel();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.min(prev + 1, filtered.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.max(prev - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (focusedIndex >= 0 && focusedIndex < filtered.length) {
+          const u = filtered[focusedIndex];
+          onCommit({ email: u.email, name: u.full_name });
+        }
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        if (focusedIndex >= 0 && focusedIndex < filtered.length) {
+          const u = filtered[focusedIndex];
+          onCommit({ email: u.email, name: u.full_name });
+        } else {
+          onCancel();
+        }
+      }
+    },
+    [onCancel, onCommit, filtered, focusedIndex],
+  );
+
+  return (
+    <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <PopoverTrigger asChild>
+        <div className="w-full h-full" />
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={1}
+        className="!w-auto !border-none !p-0 !shadow-none"
+        style={{
+          minWidth: 240,
+          maxHeight: 300,
+          backgroundColor: colors.cellEditorBg,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 8,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+        }}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          setTimeout(() => searchRef.current?.focus(), 0);
+        }}
+      >
+        <div className="px-2 pt-2 pb-1 shrink-0">
+          <input
+            ref={searchRef}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Search users..."
+            className="w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
+            style={{
+              border: `1px solid ${colors.border}`,
+              color: colors.text,
+            }}
+          />
+        </div>
+        <div className="overflow-y-auto py-1" style={{ maxHeight: 200 }}>
+          {isLoading && (
+            <div className="px-3 py-2 text-xs" style={{ color: colors.muted }}>
+              Loading users...
+            </div>
+          )}
+          {!isLoading && filtered.length === 0 && (
+            <div className="px-3 py-2 text-xs" style={{ color: colors.muted }}>
+              No users found
+            </div>
+          )}
+          {filtered.map((user, idx) => {
+            const isFocused = idx === focusedIndex;
+            const isSelected = currentValue === user.email;
+            const initial = (user.full_name || user.email).charAt(0).toUpperCase();
+            return (
+              <button
+                key={user.id}
+                className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors"
+                style={{
+                  backgroundColor: isFocused ? colors.hoverRow : 'transparent',
+                }}
+                onMouseEnter={() => setFocusedIndex(idx)}
+                onClick={() => onCommit({ email: user.email, name: user.full_name })}
+              >
+                <span
+                  className="shrink-0 flex items-center justify-center rounded-full text-white"
+                  style={{
+                    width: 22,
+                    height: 22,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    backgroundColor: colors.avatarBg || '#6366F1',
+                  }}
+                >
+                  {initial}
+                </span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-medium truncate" style={{ color: colors.text }}>
+                    {user.full_name}
+                  </span>
+                  <span className="text-[11px] truncate" style={{ color: colors.muted }}>
+                    {user.email}
+                  </span>
+                </div>
+                {isSelected && (
+                  <Check size={14} style={{ color: colors.primary, marginLeft: 'auto' }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        {currentValue && (
+          <>
+            <div style={{ height: 1, backgroundColor: colors.border }} />
+            <button
+              className="w-full text-left px-3 py-1.5 text-xs transition-colors shrink-0"
+              style={{ color: colors.muted }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              onClick={() => onCommit(null)}
+            >
+              Clear
+            </button>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function getCellEditor(uiType: string) {
   switch (uiType) {
     case 'SingleLineText':
@@ -1078,8 +1234,7 @@ export function getCellEditor(uiType: string) {
     case 'Barcode':
       return TextCellEditor;
     case 'User':
-      // TODO: Replace with a dedicated UserPickerCellEditor when user selection UI is built
-      return TextCellEditor;
+      return UserCellEditor;
     case 'Button':
       return null;
     case 'Checkbox':
