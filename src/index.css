@@ -3,6 +3,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide number input spinners globally */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
 @layer base {
   :root {
     /* Brand: Primary #006994 (deep teal-blue), Cyan #00ECFF, Gold #D6AC50 */

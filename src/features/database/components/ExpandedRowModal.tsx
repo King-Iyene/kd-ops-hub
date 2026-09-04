@@ -94,9 +94,10 @@ function InlineNumberEditor({
   const [num, setNum] = useState(value != null ? String(value) : '');
   return (
     <input
-      type="number"
+      type="text"
+      inputMode="decimal"
       value={num}
-      onChange={(e) => setNum(e.target.value)}
+      onChange={(e) => setNum(e.target.value.replace(/[^0-9.\-]/g, ''))}
       onBlur={() => onCommit(num === '' ? null : Number(num))}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
@@ -504,7 +505,7 @@ function SystemFieldsAccordion({
               <div key={field.id}>
                 <label className="block text-[10px] font-medium text-[#9AA2AF] mb-0.5">{field.name}</label>
                 <div className="text-xs text-[#6A7184] dark:text-[hsl(200,25%,70%)]">
-                  <Renderer value={val} field={field} record={record} rowHeight="default" />
+                  <Renderer value={val} field={field} record={record} rowHeight="medium" />
                 </div>
               </div>
             );
@@ -589,7 +590,7 @@ export function ExpandedRowModal({
 
     if (!onCellUpdate) {
       const Renderer = getCellRenderer(field.ui_type);
-      return <Renderer value={val} field={field} record={record} rowHeight="default" />;
+      return <Renderer value={val} field={field} record={record} rowHeight="medium" />;
     }
 
     switch (field.ui_type) {
@@ -618,15 +619,15 @@ export function ExpandedRowModal({
         return <InlineTextEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
       case 'User': {
         const Renderer = getCellRenderer('User');
-        return <Renderer value={val} field={field} record={record} rowHeight="default" />;
+        return <Renderer value={val} field={field} record={record} rowHeight="medium" />;
       }
       case 'Links':
-        return <LinkCellRenderer value={val} field={field} record={record} rowHeight="default" />;
+        return <LinkCellRenderer value={val} field={field} record={record} rowHeight="medium" />;
       case 'Lookup':
-        return <LookupCellRenderer value={val} field={field} record={record} rowHeight="default" />;
+        return <LookupCellRenderer value={val} field={field} record={record} rowHeight="medium" />;
       case 'Rollup':
       case 'Count':
-        return <RollupCellRenderer value={val} field={field} record={record} rowHeight="default" />;
+        return <RollupCellRenderer value={val} field={field} record={record} rowHeight="medium" />;
       case 'Button': {
         const btnLabel = field.options?.label || 'Click';
         const urlTemplate = field.options?.url || '';

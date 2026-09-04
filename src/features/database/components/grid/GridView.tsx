@@ -982,11 +982,16 @@ export default function GridView({
 
       const nextCellId = `${records[nextRow].id}:${fieldsWithWidths[nextCol].id}`;
       setSelectedCell(nextCellId);
+
+      // Scroll the newly focused row into view
+      if (nextRow !== rowIdx) {
+        virtualizer.scrollToIndex(nextRow, { align: 'auto' });
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedCellId, editingCellId, records, fieldsWithWidths, setSelectedCell, setEditingCell, onCellUpdate, selectedRowIds, selectionRange, selectionAnchor, copySelectedRows, copyRange, cellToText, showToast, flashCellIds, onPasteRows, onExpandRow, onAddRow]);
+  }, [selectedCellId, editingCellId, records, fieldsWithWidths, setSelectedCell, setEditingCell, onCellUpdate, selectedRowIds, selectionRange, selectionAnchor, copySelectedRows, copyRange, cellToText, showToast, flashCellIds, onPasteRows, onExpandRow, onAddRow, virtualizer]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -1040,7 +1045,7 @@ export default function GridView({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0">
       <div ref={parentRef} className="flex-1 overflow-auto">
         <div style={{ minWidth: totalWidth }} role="grid" aria-colcount={fieldsWithWidths.length} aria-rowcount={records.length}>
           {/* Group collapse/expand bar */}
@@ -1322,7 +1327,7 @@ export default function GridView({
                       setRowMenu({ x: e.clientX, y: e.clientY, record });
                     }}
                     onMouseEnter={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = GRID_COLORS.hoverRow; }}
-                    onMouseLeave={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = altBgGrouped; }}
+                    onMouseLeave={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = rowColor ?? altBgGrouped; }}
                   >
                     {rowColor && (
                       <div
@@ -1459,7 +1464,7 @@ export default function GridView({
                   }}
                   onMouseLeave={(e) => {
                     if (!isRowSelected) {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = altBg;
+                      (e.currentTarget as HTMLElement).style.backgroundColor = rowColorUngrouped ?? altBg;
                     }
                   }}
                 >

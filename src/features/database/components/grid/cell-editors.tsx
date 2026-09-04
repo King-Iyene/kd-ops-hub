@@ -61,9 +61,10 @@ export function NumberCellEditor({ value, field, onCommit, onCancel }: CellEdito
   return (
     <input
       ref={ref}
-      type="number"
+      type="text"
+      inputMode="decimal"
       value={num}
-      onChange={(e) => setNum(e.target.value)}
+      onChange={(e) => setNum(e.target.value.replace(/[^0-9.\-]/g, ''))}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
         if (e.key === 'Escape') onCancel();
@@ -97,10 +98,10 @@ export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEdi
       <span className="pl-2 text-xs text-[#9AA2AF] shrink-0">{symbol}</span>
       <input
         ref={ref}
-        type="number"
-        step="0.01"
+        type="text"
+        inputMode="decimal"
         value={num}
-        onChange={(e) => setNum(e.target.value)}
+        onChange={(e) => setNum(e.target.value.replace(/[^0-9.\-]/g, ''))}
         onKeyDown={(e) => {
           if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
           if (e.key === 'Escape') onCancel();
@@ -194,11 +195,10 @@ export function YearCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   return (
     <input
       ref={ref}
-      type="number"
-      min={1000}
-      max={9999}
+      type="text"
+      inputMode="numeric"
       value={year}
-      onChange={(e) => setYear(e.target.value)}
+      onChange={(e) => setYear(e.target.value.replace(/[^0-9]/g, ''))}
       onKeyDown={(e) => {
         if (e.key === 'Enter') commit();
         if (e.key === 'Escape') onCancel();
@@ -485,8 +485,15 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
       } else if (!exactMatch && search.trim()) {
         handleCreateOption();
       }
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      if (focusedIndex >= 0 && focusedIndex < filtered.length) {
+        onCommit(filtered[focusedIndex].title);
+      } else {
+        onCommit(value);
+      }
     }
-  }, [onCancel, filtered, focusedIndex, exactMatch, search, handleCreateOption, onCommit]);
+  }, [onCancel, filtered, focusedIndex, exactMatch, search, handleCreateOption, onCommit, value]);
 
   return (
     <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
@@ -824,7 +831,7 @@ export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps
   useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
   return (
     <div className="flex items-center w-full h-full">
-      <input ref={ref} type="number" value={num} onChange={(e) => setNum(e.target.value)}
+      <input ref={ref} type="text" inputMode="decimal" value={num} onChange={(e) => setNum(e.target.value.replace(/[^0-9.\-]/g, ''))}
         onKeyDown={(e) => { if (e.key === 'Enter') onCommit(num === '' ? null : Number(num)); if (e.key === 'Escape') onCancel(); if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); } }}
         onBlur={() => onCommit(num === '' ? null : Number(num))}
         className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)] text-right" style={{ fontSize: 13 }}
@@ -932,10 +939,10 @@ export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEdit
   return (
     <input
       ref={ref}
-      type="number"
-      step="any"
+      type="text"
+      inputMode="decimal"
       value={num}
-      onChange={(e) => setNum(e.target.value)}
+      onChange={(e) => setNum(e.target.value.replace(/[^0-9.\-]/g, ''))}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
         if (e.key === 'Escape') onCancel();
@@ -992,21 +999,19 @@ export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProp
         <div className="flex items-center gap-2 px-3 py-2">
           <span className="text-xs" style={{ color: colors.muted }}>Time</span>
           <input
-            type="number"
-            min={0}
-            max={23}
+            type="text"
+            inputMode="numeric"
             value={hour}
-            onChange={(e) => setHour(e.target.value)}
+            onChange={(e) => setHour(e.target.value.replace(/[^0-9]/g, ''))}
             className="w-10 text-center text-xs rounded outline-none bg-transparent"
             style={{ border: `1px solid ${colors.border}`, color: colors.text, padding: '2px 4px' }}
           />
           <span style={{ color: colors.muted }}>:</span>
           <input
-            type="number"
-            min={0}
-            max={59}
+            type="text"
+            inputMode="numeric"
             value={minute}
-            onChange={(e) => setMinute(e.target.value)}
+            onChange={(e) => setMinute(e.target.value.replace(/[^0-9]/g, ''))}
             className="w-10 text-center text-xs rounded outline-none bg-transparent"
             style={{ border: `1px solid ${colors.border}`, color: colors.text, padding: '2px 4px' }}
           />
