@@ -738,6 +738,16 @@ export default function GridView({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept keys when focus is in an input, textarea, or dialog
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        target.closest('[role="dialog"]')
+      ) {
+        return;
+      }
       const { undo, redo } = useUndoStore.getState();
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -986,6 +996,17 @@ export default function GridView({
     window.addEventListener('grid:expand-row', handler);
     return () => window.removeEventListener('grid:expand-row', handler);
   }, [onExpandRow]);
+
+  // Dismiss cell editors when ANY dialog/modal opens (covers all current & future dialogs)
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('[role="dialog"], [data-state="open"][role="alertdialog"]')) {
+        setEditingCell(null);
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [setEditingCell]);
 
   if (isLoading && records.length === 0) {
     return <GridSkeleton rowHeight={rowHeightPx} />;

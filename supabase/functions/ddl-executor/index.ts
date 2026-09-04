@@ -294,6 +294,35 @@ async function handleDropColumnAndMeta(
   }
 }
 
+async function handleDeleteVirtualFieldMeta(
+  pool: Pool,
+  body: { fieldId: string },
+): Promise<void> {
+  if (!body.fieldId) throw new Error('fieldId is required');
+
+  const conn = await pool.connect();
+  try {
+    await conn.queryObject('BEGIN');
+    // Clean up child rows (best-effort, FK CASCADE handles orphans)
+    for (const tbl of ['formulas', 'lookups', 'rollups']) {
+      await conn.queryObject(
+        `DELETE FROM nc_meta.${tbl} WHERE field_id = $1`,
+        [body.fieldId],
+      );
+    }
+    await conn.queryObject(
+      `DELETE FROM nc_meta.fields WHERE id = $1`,
+      [body.fieldId],
+    );
+    await conn.queryObject('COMMIT');
+  } catch (err) {
+    await conn.queryObject('ROLLBACK');
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
 async function handleRenameColumn(
   pool: Pool,
   body: { schemaName: string; tableName: string; oldName: string; newName: string },
@@ -584,6 +613,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
       case 'alterColumnConstraints':
         await handleAlterColumnConstraints(pool, body);
+        break;
+      case 'deleteVirtualFieldMeta':
+        await handleDeleteVirtualFieldMeta(pool, body);
         break;
       default:
         return json({ success: false, error: `Unknown action: ${action}` }, 400);

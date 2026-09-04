@@ -305,29 +305,16 @@ export function useDeleteField() {
 
         if (ddlError) throw ddlError;
       } else {
-        // Virtual field (Formula, Lookup, Rollup, Links, etc.) — delete
-        // child rows first, then the field row. Ignore cleanup errors
-        // since FK CASCADE will handle orphaned rows anyway.
-        const cleanupTables = ['formulas', 'lookups', 'rollups'] as const;
-        for (const tbl of cleanupTables) {
-          try {
-            await supabase
-              .schema('nc_meta')
-              .from(tbl)
-              .delete()
-              .eq('field_id', input.id);
-          } catch {
-            // Ignore — FK CASCADE on fields(id) will clean up
-          }
-        }
+        // Virtual field (Formula, Lookup, Rollup, Links, etc.) — route
+        // through ddl-executor to bypass RLS (uses service role key).
+        const { error: ddlError } = await supabase.functions.invoke('ddl-executor', {
+          body: {
+            action: 'deleteVirtualFieldMeta',
+            fieldId: input.id,
+          },
+        });
 
-        const { error: deleteError } = await supabase
-          .schema('nc_meta')
-          .from('fields')
-          .delete()
-          .eq('id', input.id);
-
-        if (deleteError) throw deleteError;
+        if (ddlError) throw ddlError;
       }
     },
     onSuccess: (_data, variables) => {
