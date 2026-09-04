@@ -22,6 +22,7 @@ export type UIType =
   | 'Links'
   | 'Lookup'
   | 'Rollup'
+  | 'Count'
   | 'Formula'
   | 'Attachment'
   | 'ID'
@@ -226,7 +227,7 @@ export const UI_TYPE_TO_PG_TYPE: Record<string, string> = {
 };
 
 export const VIRTUAL_TYPES: UIType[] = [
-  'Links', 'Lookup', 'Rollup', 'Formula',
+  'Links', 'Lookup', 'Rollup', 'Count', 'Formula',
   'CreatedTime', 'LastModifiedTime', 'CreatedBy', 'LastModifiedBy', 'ID',
 ];
 
@@ -515,5 +516,6 @@ export const OPERATORS_BY_TYPE: Partial<Record<UIType, FilterOperator[]>> = {
   Links: ['linkCountIs', 'linkCountGt', 'linkCountLt', 'isEmpty', 'isNotEmpty'],
   Lookup: ['is', 'isNot', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
   Rollup: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isEmpty', 'isNotEmpty'],
+  Count: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isEmpty', 'isNotEmpty'],
   Formula: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
 };

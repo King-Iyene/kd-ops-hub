@@ -30,6 +30,7 @@ const iconMap: Record<UIType, LucideIcon> = {
   Links: Link2,
   Lookup: Search,
   Rollup: Hash,
+  Count: Hash,
   Formula: Braces,
   Attachment: Paperclip,
   ID: Hash,

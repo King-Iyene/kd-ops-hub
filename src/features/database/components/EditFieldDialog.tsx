@@ -228,6 +228,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const isFormula = field?.ui_type === 'Formula';
   const isLookup = field?.ui_type === 'Lookup';
   const isRollup = field?.ui_type === 'Rollup';
+  const isCount = field?.ui_type === 'Count';
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -336,6 +337,9 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       }
       if (isRollup) {
         updates.options = { ...(field.options as any), linkFieldId, rollupFieldId, fn: rollupFunction };
+      }
+      if (isCount) {
+        updates.options = { ...(field.options as any), linkFieldId, fn: 'COUNTALL' };
       }
       if (field.ui_type === 'Duration') {
         updates.options = { ...(field.options as any), format: durationFormat };
