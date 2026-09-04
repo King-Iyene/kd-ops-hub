@@ -562,7 +562,7 @@ export default function GridView({
     [fieldsWithWidths],
   );
 
-  const rowHeightPx = ROW_HEIGHTS[rowHeight] || ROW_HEIGHTS.default;
+  const rowHeightPx = ROW_HEIGHTS[rowHeight] || ROW_HEIGHTS.medium;
 
   // --- Multi-level group-by logic ---
   const groupByLevels = useDatabaseUI((s) => s.groupByLevels);

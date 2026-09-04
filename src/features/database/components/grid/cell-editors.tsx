@@ -9,6 +9,26 @@ import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
 import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
 
+/** Strip non-numeric chars, keeping at most one minus (leading) and one dot. */
+function sanitizeNumeric(raw: string): string {
+  const stripped = raw.replace(/[^0-9.\-]/g, '');
+  let result = '';
+  let hasDot = false;
+  let hasMinus = false;
+  for (let i = 0; i < stripped.length; i++) {
+    const ch = stripped[i];
+    if (ch === '-') {
+      if (hasMinus || result.length > 0) continue;
+      hasMinus = true;
+    } else if (ch === '.') {
+      if (hasDot) continue;
+      hasDot = true;
+    }
+    result += ch;
+  }
+  return result;
+}
+
 interface CellEditorProps {
   value: any;
   field: FieldMeta;
@@ -64,7 +84,7 @@ export function NumberCellEditor({ value, field, onCommit, onCancel }: CellEdito
       type="text"
       inputMode="decimal"
       value={num}
-      onChange={(e) => setNum(e.target.value.replace(/[^0-9.\-]/g, ''))}
+      onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
         if (e.key === 'Escape') onCancel();
@@ -101,7 +121,7 @@ export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEdi
         type="text"
         inputMode="decimal"
         value={num}
-        onChange={(e) => setNum(e.target.value.replace(/[^0-9.\-]/g, ''))}
+        onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
         onKeyDown={(e) => {
           if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
           if (e.key === 'Escape') onCancel();
@@ -831,7 +851,7 @@ export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps
   useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
   return (
     <div className="flex items-center w-full h-full">
-      <input ref={ref} type="text" inputMode="decimal" value={num} onChange={(e) => setNum(e.target.value.replace(/[^0-9.\-]/g, ''))}
+      <input ref={ref} type="text" inputMode="decimal" value={num} onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
         onKeyDown={(e) => { if (e.key === 'Enter') onCommit(num === '' ? null : Number(num)); if (e.key === 'Escape') onCancel(); if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); } }}
         onBlur={() => onCommit(num === '' ? null : Number(num))}
         className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)] text-right" style={{ fontSize: 13 }}
@@ -942,7 +962,7 @@ export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEdit
       type="text"
       inputMode="decimal"
       value={num}
-      onChange={(e) => setNum(e.target.value.replace(/[^0-9.\-]/g, ''))}
+      onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
         if (e.key === 'Escape') onCancel();

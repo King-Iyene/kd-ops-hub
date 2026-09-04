@@ -575,7 +575,7 @@ export default function KanbanView({
                                       value={r[f.pg_column_name]}
                                       field={f}
                                       record={r}
-                                      rowHeight="compact"
+                                      rowHeight="short"
                                     />
                                   </div>
                                 </div>

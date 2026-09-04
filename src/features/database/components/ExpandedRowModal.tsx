@@ -9,6 +9,26 @@ import { getCellRenderer } from './grid/cell-renderers';
 import { getFieldTypeIcon } from './grid/field-icons';
 import { AttachmentManager, type AttachmentMeta } from './AttachmentManager';
 
+/** Strip non-numeric chars, keeping at most one minus (leading) and one dot. */
+function sanitizeNumeric(raw: string): string {
+  const stripped = raw.replace(/[^0-9.\-]/g, '');
+  let result = '';
+  let hasDot = false;
+  let hasMinus = false;
+  for (let i = 0; i < stripped.length; i++) {
+    const ch = stripped[i];
+    if (ch === '-') {
+      if (hasMinus || result.length > 0) continue;
+      hasMinus = true;
+    } else if (ch === '.') {
+      if (hasDot) continue;
+      hasDot = true;
+    }
+    result += ch;
+  }
+  return result;
+}
+
 interface ExpandedRowModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -97,7 +117,7 @@ function InlineNumberEditor({
       type="text"
       inputMode="decimal"
       value={num}
-      onChange={(e) => setNum(e.target.value.replace(/[^0-9.\-]/g, ''))}
+      onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
       onBlur={() => onCommit(num === '' ? null : Number(num))}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
