@@ -142,7 +142,7 @@ export function computeRollupValue(
   allFields: FieldMeta[],
   linkedRecords: RecordRow[] | null | undefined,
 ): number | string | any[] | null {
-  if (field.ui_type !== 'Rollup') return null;
+  if (field.ui_type !== 'Rollup' && field.ui_type !== 'Count') return null;
 
   const records = linkedRecords ?? [];
   const fn = (field.options?.fn || 'COUNT').toUpperCase() as RollupFunction;
