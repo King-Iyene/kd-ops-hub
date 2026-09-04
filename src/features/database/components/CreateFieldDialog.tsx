@@ -208,6 +208,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [ratingMax, setRatingMax] = useState(5);
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [precision, setPrecision] = useState(2);
+  const [richText, setRichText] = useState(false);
   const [typeSearch, setTypeSearch] = useState('');
   const [error, setError] = useState('');
   const { activeTableId, activeBaseId } = useDatabaseUI();
@@ -299,6 +300,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setRatingMax(5);
     setCurrencyCode('USD');
     setPrecision(2);
+    setRichText(false);
     setLinkFieldId('');
     setLookupFieldId('');
     setRollupFieldId('');
@@ -338,6 +340,9 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     if (uiType === 'Currency') {
       opts.currencyCode = currencyCode;
       opts.precision = precision;
+    }
+    if (uiType === 'LongText') {
+      opts.richText = richText;
     }
     if (uiType === 'Decimal') {
       opts.precision = precision;
@@ -559,6 +564,18 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
               </div>
             </div>
           </div>
+
+          {uiType === 'LongText' && (
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-3.5 h-3.5 accent-[#166EE1]"
+                checked={richText}
+                onChange={(e) => setRichText(e.target.checked)}
+              />
+              <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)]">Rich text formatting</span>
+            </label>
+          )}
 
           {isSelectType && (
             <div className="space-y-2">
