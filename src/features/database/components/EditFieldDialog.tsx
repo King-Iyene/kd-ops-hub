@@ -22,6 +22,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { FormulaEditor } from './FormulaEditor';
+import { ROLLUP_FUNCTIONS, type RollupFunction } from '../lib/computations';
 
 
 interface EditFieldDialogProps {
@@ -183,6 +184,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const [formulaError, setFormulaError] = useState('');
   const [linkFieldId, setLinkFieldId] = useState('');
   const [lookupFieldId, setLookupFieldId] = useState('');
+  const [rollupFieldId, setRollupFieldId] = useState('');
+  const [rollupFunction, setRollupFunction] = useState<RollupFunction>('COUNT');
   const updateField = useUpdateField();
   const changeFieldType = useChangeFieldType();
   const deleteField = useDeleteField();
@@ -211,12 +214,15 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       setFormulaError('');
       setLinkFieldId((field.options as any)?.linkFieldId ?? '');
       setLookupFieldId((field.options as any)?.lookupFieldId ?? '');
+      setRollupFieldId((field.options as any)?.rollupFieldId ?? '');
+      setRollupFunction((field.options as any)?.fn ?? 'COUNT');
     }
   }, [field]);
 
   const isSelectType = field?.ui_type === 'SingleSelect' || field?.ui_type === 'MultiSelect';
   const isFormula = field?.ui_type === 'Formula';
   const isLookup = field?.ui_type === 'Lookup';
+  const isRollup = field?.ui_type === 'Rollup';
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
