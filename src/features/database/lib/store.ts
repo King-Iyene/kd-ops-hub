@@ -22,7 +22,7 @@ interface DatabaseUIState {
   sidebarWidth: number;
   selectedCellId: string | null;
   editingCellId: string | null;
-  rowHeight: 'compact' | 'default' | 'tall' | 'extra-tall';
+  rowHeight: 'short' | 'medium' | 'tall' | 'extra-tall';
   filters: Filter[];
   filterGroups: FilterGroup[];
   sorts: Sort[];
@@ -55,7 +55,7 @@ interface DatabaseUIState {
   setSidebarWidth: (width: number) => void;
   setSelectedCell: (id: string | null) => void;
   setEditingCell: (id: string | null) => void;
-  setRowHeight: (h: 'compact' | 'default' | 'tall' | 'extra-tall') => void;
+  setRowHeight: (h: 'short' | 'medium' | 'tall' | 'extra-tall') => void;
   setFilters: (filters: Filter[]) => void;
   setFilterGroups: (groups: FilterGroup[]) => void;
   setFocusedFilterId: (id: string | null) => void;

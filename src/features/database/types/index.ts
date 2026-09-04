@@ -29,7 +29,9 @@ export type UIType =
   | 'AutoNumber'
   | 'CreatedBy'
   | 'LastModifiedBy'
-  | 'JSON';
+  | 'JSON'
+  | 'Barcode'
+  | 'Button';
 
 export interface Workspace {
   id: string;
@@ -96,6 +98,8 @@ export interface FieldOptions {
   maxSizeMB?: number;
   allowedTypes?: string[];
   prefix?: string;
+  label?: string;
+  url?: string;
   validations?: ValidationRule[];
 }
 
@@ -224,11 +228,13 @@ export const UI_TYPE_TO_PG_TYPE: Record<string, string> = {
   Attachment: "JSONB DEFAULT '[]'::jsonb",
   AutoNumber: 'SERIAL',
   JSON: 'JSONB',
+  Barcode: 'TEXT',
 };
 
 export const VIRTUAL_TYPES: UIType[] = [
   'Links', 'Lookup', 'Rollup', 'Count', 'Formula',
   'CreatedTime', 'LastModifiedTime', 'CreatedBy', 'LastModifiedBy', 'ID',
+  'Button',
 ];
 
 export const SELECT_COLORS: Record<string, { bg: string; text: string; darkBg: string; darkText: string }> = {
@@ -513,6 +519,7 @@ export const OPERATORS_BY_TYPE: Partial<Record<UIType, FilterOperator[]>> = {
   LastModifiedBy: ['is', 'isNot', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
   Attachment: ['isEmpty', 'isNotEmpty'],
   JSON: ['isEmpty', 'isNotEmpty'],
+  Barcode: ['is', 'isNot', 'contains', 'doesNotContain', 'startsWith', 'endsWith', 'isEmpty', 'isNotEmpty'],
   Links: ['linkCountIs', 'linkCountGt', 'linkCountLt', 'isEmpty', 'isNotEmpty'],
   Lookup: ['is', 'isNot', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
   Rollup: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isEmpty', 'isNotEmpty'],

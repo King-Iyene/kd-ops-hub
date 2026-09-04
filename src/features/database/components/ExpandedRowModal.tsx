@@ -614,6 +614,8 @@ export function ExpandedRowModal({
         return <InlineAttachmentEditor value={val as AttachmentMeta[] ?? []} fieldId={field.id} onCommit={(v) => handleUpdate(field.id, v)} />;
       case 'LongText':
         return <InlineLongTextEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
+      case 'Barcode':
+        return <InlineTextEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
       case 'Links':
         return <LinkCellRenderer value={val} field={field} record={record} rowHeight="default" />;
       case 'Lookup':

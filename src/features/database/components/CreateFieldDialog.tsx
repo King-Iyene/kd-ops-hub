@@ -63,6 +63,8 @@ const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
   { value: 'Links', label: 'Links', group: 'Relations' },
   { value: 'Attachment', label: 'Attachment', group: 'Other' },
   { value: 'JSON', label: 'JSON', group: 'Other' },
+  { value: 'Button', label: 'Button', group: 'Other' },
+  { value: 'Barcode', label: 'Barcode', group: 'Other' },
   { value: 'AutoNumber', label: 'Auto Number', group: 'System' },
   { value: 'CreatedTime', label: 'Created Time', group: 'System' },
   { value: 'LastModifiedTime', label: 'Last Modified Time', group: 'System' },
@@ -211,6 +213,8 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [precision, setPrecision] = useState(2);
   const [durationFormat, setDurationFormat] = useState('h:mm');
   const [richText, setRichText] = useState(false);
+  const [buttonLabel, setButtonLabel] = useState('Click');
+  const [buttonUrl, setButtonUrl] = useState('');
   const [typeSearch, setTypeSearch] = useState('');
   const [error, setError] = useState('');
   const { activeTableId, activeBaseId } = useDatabaseUI();

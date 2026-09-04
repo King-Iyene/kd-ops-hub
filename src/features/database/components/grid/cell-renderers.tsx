@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, ExternalLink, Copy, Paperclip, Plus, Star, Clock, Link2, AlertTriangle } from 'lucide-react';
+import { Check, ExternalLink, Copy, Paperclip, Plus, Star, Clock, Link2, AlertTriangle, Barcode } from 'lucide-react';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { LinkCellRenderer } from './LinkCellRenderer';
 // LookupCellRenderer and RollupCellRenderer are defined locally below
@@ -683,6 +683,19 @@ export const LinksCellRenderer = React.memo(function LinksCellRenderer({
   );
 });
 
+export const BarcodeCellRenderer = React.memo(function BarcodeCellRenderer({
+  value,
+}: CellRendererProps) {
+  if (value == null || value === '') return null;
+  const text = String(value);
+  return (
+    <span className="truncate flex items-center gap-1.5">
+      <Barcode size={14} className="shrink-0 text-[#9AA2AF]" />
+      <HighlightedText text={text} className="truncate" />
+    </span>
+  );
+});
+
 export function getCellRenderer(uiType: string) {
   switch (uiType) {
     case 'SingleLineText':
@@ -721,6 +734,8 @@ export function getCellRenderer(uiType: string) {
       return AttachmentCellRenderer;
     case 'JSON':
       return JsonCellRenderer;
+    case 'Barcode':
+      return BarcodeCellRenderer;
     case 'Formula':
       return FormulaCellRenderer;
     case 'Links':
