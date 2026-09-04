@@ -306,16 +306,19 @@ export function useDeleteField() {
         if (ddlError) throw ddlError;
       } else {
         // Virtual field (Formula, Lookup, Rollup, Links, etc.) — delete
-        // child rows first (formulas, lookups, rollups) then the field row.
-        // FK CASCADE should handle this, but explicit cleanup avoids 500s
-        // when RLS or triggers interfere with cascaded deletes.
+        // child rows first, then the field row. Ignore cleanup errors
+        // since FK CASCADE will handle orphaned rows anyway.
         const cleanupTables = ['formulas', 'lookups', 'rollups'] as const;
         for (const tbl of cleanupTables) {
-          await supabase
-            .schema('nc_meta')
-            .from(tbl)
-            .delete()
-            .eq('field_id', input.id);
+          try {
+            await supabase
+              .schema('nc_meta')
+              .from(tbl)
+              .delete()
+              .eq('field_id', input.id);
+          } catch {
+            // Ignore — FK CASCADE on fields(id) will clean up
+          }
         }
 
         const { error: deleteError } = await supabase

@@ -8,7 +8,6 @@ import { useGridColors } from '../../hooks/useGridColors';
 import { useUpdateField } from '../../hooks/useFields';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_RE = /^[\d\s+\-()]+$/;
 const SINGLE_CLICK_EDIT_TYPES = new Set([
   'Attachment', 'SingleSelect', 'MultiSelect', 'Rating',
 ]);
@@ -35,7 +34,6 @@ function validateCellValue(uiType: string, value: any): string | null {
       if (isNaN(Date.parse(s))) return 'Invalid date';
       return null;
     case 'PhoneNumber':
-      if (!PHONE_RE.test(s)) return 'Only digits, spaces, +, -, (, ) allowed';
       return null;
     case 'Duration': {
       const parts = s.split(':').map(Number);

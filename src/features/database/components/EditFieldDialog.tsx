@@ -698,8 +698,13 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
               className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 gap-1.5 w-full justify-start text-xs"
               onClick={() => {
                 if (window.confirm(`Delete field "${field.name}"? This cannot be undone.`)) {
-                  deleteField.mutate({ id: field.id, table_id: field.table_id });
-                  onOpenChange(false);
+                  deleteField.mutate(
+                    { id: field.id, table_id: field.table_id },
+                    {
+                      onSuccess: () => onOpenChange(false),
+                      onError: (err) => setError(`Failed to delete field: ${err instanceof Error ? err.message : 'Unknown error'}`),
+                    },
+                  );
                 }
               }}
               disabled={deleteField.isPending}

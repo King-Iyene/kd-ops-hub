@@ -35,6 +35,7 @@ export function TextCellEditor({ value, field, onCommit, onCancel }: CellEditorP
       ref={ref}
       type="text"
       value={text}
+      maxLength={100000}
       onChange={(e) => setText(e.target.value)}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(text);
@@ -75,9 +76,16 @@ export function NumberCellEditor({ value, field, onCommit, onCancel }: CellEdito
   );
 }
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', KRW: '₩',
+  INR: '₹', BRL: 'R$', CAD: 'CA$', AUD: 'A$', CHF: 'CHF', NGN: '₦',
+};
+
 export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const [num, setNum] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
+  const code = field.options?.currencyCode || 'USD';
+  const symbol = CURRENCY_SYMBOLS[code] || code;
 
   useEffect(() => {
     ref.current?.focus();
@@ -85,21 +93,24 @@ export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEdi
   }, []);
 
   return (
-    <input
-      ref={ref}
-      type="number"
-      step="0.01"
-      value={num}
-      onChange={(e) => setNum(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
-        if (e.key === 'Escape') onCancel();
-        if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); }
-      }}
-      onBlur={() => onCommit(num === '' ? null : Number(num))}
-      className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
-      style={{ fontSize: 14, color: 'inherit' }}
-    />
+    <div className="flex items-center w-full h-full bg-white dark:bg-[hsl(200,30%,10%)]">
+      <span className="pl-2 text-xs text-[#9AA2AF] shrink-0">{symbol}</span>
+      <input
+        ref={ref}
+        type="number"
+        step="0.01"
+        value={num}
+        onChange={(e) => setNum(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
+          if (e.key === 'Escape') onCancel();
+          if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); }
+        }}
+        onBlur={() => onCommit(num === '' ? null : Number(num))}
+        className="w-full h-full px-2 outline-none bg-transparent text-right"
+        style={{ fontSize: 14, color: 'inherit' }}
+      />
+    </div>
   );
 }
 
@@ -346,9 +357,12 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   );
 }
 
+const PHONE_WARN_RE = /[a-wyzA-WYZ]/;
+
 export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
+  const hasLetters = PHONE_WARN_RE.test(String(text));
 
   useEffect(() => {
     ref.current?.focus();
@@ -356,20 +370,31 @@ export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorP
   }, []);
 
   return (
-    <input
-      ref={ref}
-      type="tel"
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(text);
-        if (e.key === 'Escape') onCancel();
-        if (e.key === 'Tab') { e.preventDefault(); onCommit(text); }
-      }}
-      onBlur={() => onCommit(text)}
-      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
-      style={{ fontSize: 13, color: 'inherit' }}
-    />
+    <div className="relative w-full h-full">
+      <input
+        ref={ref}
+        type="tel"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onCommit(text);
+          if (e.key === 'Escape') onCancel();
+          if (e.key === 'Tab') { e.preventDefault(); onCommit(text); }
+        }}
+        onBlur={() => onCommit(text)}
+        className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
+        style={{
+          fontSize: 13,
+          color: 'inherit',
+          boxShadow: hasLetters ? 'inset 0 0 0 2px #F59E0B' : undefined,
+        }}
+      />
+      {hasLetters && (
+        <div className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-amber-300 rounded px-2 py-1 shadow text-[11px] text-amber-600 whitespace-nowrap mt-0.5">
+          Phone number contains letters
+        </div>
+      )}
+    </div>
   );
 }
 

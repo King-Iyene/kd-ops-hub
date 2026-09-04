@@ -84,9 +84,11 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
   if (field.ui_type === 'URL') {
     let href = text;
     let valid = true;
+    let domain = text;
     try {
-      new URL(href.includes('://') ? href : `https://${href}`);
+      const parsed = new URL(href.includes('://') ? href : `https://${href}`);
       if (!href.includes('://')) href = `https://${href}`;
+      domain = parsed.hostname.replace(/^www\./, '');
     } catch {
       valid = false;
     }
@@ -99,8 +101,9 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
           className="truncate flex items-center gap-1 hover:underline"
           style={{ color: colors.tealText }}
           onClick={(e) => e.stopPropagation()}
+          title={text}
         >
-          <HighlightedText text={text} className="truncate" style={{ color: colors.tealText }} />
+          <HighlightedText text={domain} className="truncate" style={{ color: colors.tealText }} />
           <ExternalLink size={12} className="shrink-0" />
         </a>
       );
@@ -114,20 +117,29 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
   }
 
   if (field.ui_type === 'PhoneNumber') {
+    const hasLetters = /[a-wyzA-WYZ]/.test(text);
     const digits = text.replace(/\D/g, '');
     if (digits.length >= 7) {
       return (
-        <a
-          href={`tel:${text}`}
-          className="truncate hover:underline"
-          style={{ color: colors.tealText }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <HighlightedText text={text} className="truncate" style={{ color: colors.tealText }} />
-        </a>
+        <span className="truncate flex items-center gap-1">
+          {hasLetters && <AlertTriangle size={12} className="shrink-0 text-amber-500" />}
+          <a
+            href={`tel:${text}`}
+            className="truncate hover:underline"
+            style={{ color: colors.tealText }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <HighlightedText text={text} className="truncate" style={{ color: colors.tealText }} />
+          </a>
+        </span>
       );
     }
-    return <HighlightedText text={text} className="truncate" />;
+    return (
+      <span className="truncate flex items-center gap-1">
+        {hasLetters && <AlertTriangle size={12} className="shrink-0 text-amber-500" />}
+        <HighlightedText text={text} className="truncate" />
+      </span>
+    );
   }
 
   return <HighlightedText text={text} className="truncate" />;
