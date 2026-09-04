@@ -1313,22 +1313,48 @@ export default function GridView({
                         backgroundColor: selectedRowIds.has(record.id) ? GRID_COLORS.selectedRowBg : isRowSelected ? GRID_COLORS.selectedRowBg : GRID_COLORS.headerBg,
                         borderRight: `1px solid ${GRID_COLORS.border}`,
                         borderBottom: `1px solid ${GRID_COLORS.border}`,
+                        borderTop: dropTargetIdx === virtualRow.index ? `2px solid ${GRID_COLORS.primary}` : undefined,
                         fontSize: 11,
                         color: GRID_COLORS.muted,
+                        cursor: 'pointer',
                       }}
+                      onClick={() => toggleRowSelection(record.id)}
+                      onDragOver={(e) => handleRowDragOver(e, virtualRow.index)}
+                      onDrop={(e) => handleRowDrop(e, virtualRow.index)}
                     >
                       {selectedRowIds.has(record.id) ? (
-                        <input type="checkbox" className="w-3.5 h-3.5 rounded" checked onChange={() => toggleRowSelection(record.id)} aria-label={`Deselect row ${rowNum}`} />
+                        <input type="checkbox" className="w-3.5 h-3.5 rounded" style={{ accentColor: GRID_COLORS.primary }} checked onChange={() => toggleRowSelection(record.id)} aria-label={`Deselect row ${rowNum}`} />
                       ) : (
                         <>
                           <span className="group-hover/row:hidden">{rowNum}</span>
                           <div className="hidden group-hover/row:flex items-center gap-1">
+                            <span
+                              draggable
+                              className="cursor-grab active:cursor-grabbing px-0.5 text-[#9AA2AF] hover:text-[#374151] dark:text-[hsl(200,20%,55%)] dark:hover:text-[hsl(200,25%,88%)]"
+                              onDragStart={(e) => handleRowDragStart(e, record.id)}
+                              onDragEnd={handleRowDragEnd}
+                              style={{ fontSize: 13 }}
+                              role="button"
+                              aria-label={`Drag to reorder row ${rowNum}`}
+                            >
+                              &#8801;
+                            </span>
                             <input type="checkbox" className="w-3.5 h-3.5 rounded" checked={false} onChange={() => toggleRowSelection(record.id)} aria-label={`Select row ${rowNum}`} />
                             {onExpandRow && (
                               <button className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)]" onClick={(e) => { e.stopPropagation(); onExpandRow(record); }} aria-label={`Expand row ${rowNum}`}>
                                 <Expand size={12} />
                               </button>
                             )}
+                            <button
+                              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)]"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRowMenu({ x: e.clientX, y: e.clientY, record });
+                              }}
+                              aria-label={`Row ${rowNum} options`}
+                            >
+                              <MoreHorizontal size={12} />
+                            </button>
                           </div>
                         </>
                       )}
