@@ -460,7 +460,7 @@ export default function GalleryView({
   }, []);
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-[hsl(200,30%,10%)]">
+    <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-[hsl(200,30%,10%)]">
       {/* Toolbar */}
       <div
         className="flex items-center gap-3 px-4 shrink-0 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]"

@@ -447,7 +447,7 @@ export function TableView() {
     <div className="flex flex-col flex-1 min-h-0">
       <ViewBar />
       <Toolbar />
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {isError ? (
           <div className="flex flex-col items-center justify-center h-full gap-3">
             <p className="text-sm text-gray-500 dark:text-[hsl(200,20%,55%)]">Failed to load records</p>

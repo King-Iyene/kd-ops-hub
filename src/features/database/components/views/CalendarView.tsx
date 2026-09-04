@@ -237,7 +237,8 @@ const calendarStyles = `
   --cal-tooltip-text: #F9FAFB;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   color: var(--cal-text);
   font-size: 13px;
 }

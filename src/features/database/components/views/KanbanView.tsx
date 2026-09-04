@@ -313,7 +313,7 @@ export default function KanbanView({
         }
         .kanban-muted-text { color: var(--kanban-muted); }
       `}</style>
-      <div className="kanban-root flex gap-3 p-4 h-full overflow-x-auto">
+      <div className="kanban-root flex gap-3 p-4 flex-1 min-h-0 overflow-x-auto overflow-y-auto">
         {choices.map((col) => {
           const items = grouped.get(col.title) ?? [];
           const color = getPillColor(col.color);
