@@ -509,7 +509,7 @@ export default function GalleryView({
             </p>
             <button
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#166EE1] hover:bg-[#2952CC] text-white text-xs font-medium transition-colors"
-              onClick={onAddRow}
+              onClick={() => onAddRow()}
             >
               <Plus size={14} /> Add record
             </button>
@@ -538,7 +538,7 @@ export default function GalleryView({
                 text-[#9AA2AF] dark:text-[hsl(200,25%,45%)]
                 hover:border-[#166EE1] hover:text-[#166EE1] dark:hover:border-[#166EE1] dark:hover:text-[#166EE1]
                 transition-colors text-sm"
-              onClick={onAddRow}
+              onClick={() => onAddRow()}
             >
               <Plus size={14} /> Add record
             </button>

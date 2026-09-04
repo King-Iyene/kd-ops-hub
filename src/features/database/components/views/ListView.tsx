@@ -165,7 +165,7 @@ export default function ListView({
           <li>
             <button
               type="button"
-              onClick={onAddRow}
+              onClick={() => onAddRow()}
               className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]
                 hover:bg-gray-50 dark:hover:bg-[hsl(200,25%,13%)] hover:text-[#6A7184] dark:hover:text-[hsl(200,20%,70%)]
                 transition-colors"
