@@ -11,12 +11,28 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
   throw new Error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY environment variable');
 }
 
+const retryFetch: typeof fetch = async (input, init) => {
+  const maxRetries = 3;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch(input, init);
+    if (res.status === 503 && attempt < maxRetries) {
+      await new Promise(r => setTimeout(r, 1000 * 2 ** attempt));
+      continue;
+    }
+    return res;
+  }
+  return fetch(input, init);
+};
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-  }
+  },
+  global: {
+    fetch: retryFetch,
+  },
 });
 
 // ── Test-only hook (Playwright ops diagnostics) ────────────────────────────

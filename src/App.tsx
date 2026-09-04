@@ -109,7 +109,14 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 15_000,
       gcTime: 5 * 60_000,
-      retry: 1,
+      retry: (failureCount, error) => {
+        const msg = (error as Error)?.message ?? '';
+        if (msg.includes('503') || msg.includes('PGRST') || msg.includes('schema cache')) {
+          return failureCount < 4;
+        }
+        return failureCount < 1;
+      },
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
       refetchOnWindowFocus: true,
     },
   },
