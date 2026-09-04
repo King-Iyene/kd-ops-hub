@@ -5,6 +5,8 @@ import type { Base } from '../types';
 export function useBases(workspaceId?: string) {
   return useQuery({
     queryKey: ['nc', 'bases', workspaceId],
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       let query = supabase
         .schema('nc_meta')

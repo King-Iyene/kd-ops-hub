@@ -67,15 +67,12 @@ export const GridCell = React.memo(function GridCell({
   frozenLeft = 0,
   rowBg,
 }: GridCellProps) {
-  const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
-  const editingCellId = useDatabaseUI((s) => s.editingCellId);
+  const cellId = `${record.id}:${field.id}`;
+  const isSelected = useDatabaseUI((s) => s.selectedCellId === cellId);
+  const isEditing = useDatabaseUI((s) => s.editingCellId === cellId);
   const setSelectedCell = useDatabaseUI((s) => s.setSelectedCell);
   const setEditingCell = useDatabaseUI((s) => s.setEditingCell);
   const rowHeight = useDatabaseUI((s) => s.rowHeight);
-
-  const cellId = `${record.id}:${field.id}`;
-  const isSelected = selectedCellId === cellId;
-  const isEditing = editingCellId === cellId;
   const value = record[field.pg_column_name];
 
   const isSystemField =

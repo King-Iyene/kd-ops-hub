@@ -8,6 +8,8 @@ export function useViews(tableId: string | null | undefined) {
   return useQuery({
     queryKey: ['nc', 'views', tableId],
     enabled: !!tableId,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .schema('nc_meta')

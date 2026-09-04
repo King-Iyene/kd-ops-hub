@@ -14,6 +14,8 @@ export function useTables(baseId: string | null | undefined) {
   return useQuery({
     queryKey: ['nc', 'tables', baseId],
     enabled: !!baseId,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .schema('nc_meta')

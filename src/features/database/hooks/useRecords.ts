@@ -376,6 +376,8 @@ export function useRecords(params: UseRecordsParams) {
   return useQuery({
     queryKey: ['nc', 'records', baseId, tableId, page, pageSize, filters, filterGroups, sorts, search],
     enabled: !!baseId && !!tableId,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<RecordsResult> => {
       const ctx = await resolveTableContext(baseId, tableId);
 
@@ -453,7 +455,8 @@ export function useRecordCount(baseId: string | null | undefined, tableId: strin
   return useQuery({
     queryKey: ['nc', 'recordCount', baseId, tableId],
     enabled: !!baseId && !!tableId,
-    staleTime: 30_000,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const ctx = await resolveTableContext(baseId!, tableId!);
       const { count, error } = await supabase
@@ -568,9 +571,6 @@ export function useUpdateRecord() {
     },
     onSuccess: (data, variables) => {
       fireAutomations('record.updated', variables.baseId, variables.tableId, data);
-    },
-    onSettled: (_data, _error, variables) => {
-      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
     },
   });
 }

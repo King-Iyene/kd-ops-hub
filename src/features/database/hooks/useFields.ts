@@ -18,6 +18,8 @@ export function useFields(tableId: string | null | undefined) {
   return useQuery({
     queryKey: ['nc', 'fields', tableId],
     enabled: !!tableId,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .schema('nc_meta')

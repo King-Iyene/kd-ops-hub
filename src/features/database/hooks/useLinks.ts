@@ -53,6 +53,8 @@ export function useRecordLinks(opts: {
   return useQuery({
     queryKey: ['nc', 'linked-records', baseId, sourceTableId, fieldId, recordId],
     enabled: !!baseId && !!targetTableId && !!recordId,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<RecordRow[]> => {
       const { data: base } = await supabase
         .schema('nc_meta')
@@ -301,6 +303,8 @@ export function useLinks(tableId: string | null | undefined) {
   return useQuery({
     queryKey: ['nc', 'links', tableId],
     enabled: !!tableId,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data: outbound, error: e1 } = await supabase
         .schema('nc_meta')
@@ -546,6 +550,8 @@ export function useLinkedRecords(
   return useQuery({
     queryKey: ['nc', 'linked-records', baseId, targetTableId, recordIds],
     enabled: !!baseId && !!targetTableId,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<RecordRow[]> => {
       const { data: base, error: baseError } = await supabase
         .schema('nc_meta')
