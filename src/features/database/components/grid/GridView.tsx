@@ -37,13 +37,13 @@ export interface GridViewProps {
 
 
 const GROUP_PILL_COLORS = [
-  '#3366FF', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899',
+  '#166EE1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899',
   '#06B6D4', '#84CC16', '#F97316', '#6366F1',
 ];
 
 const ROW_HEIGHTS: Record<string, number> = {
   compact: 32,
-  default: 36,
+  default: 32,
   tall: 56,
   'extra-tall': 88,
 };

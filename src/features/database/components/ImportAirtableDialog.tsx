@@ -247,7 +247,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           name: baseName,
           schema_name: schemaName,
           icon: '📦',
-          color: '#3366FF',
+          color: '#166EE1',
         })
         .select()
         .single();
@@ -482,7 +482,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
-            <Download size={18} className="text-[#3366FF]" />
+            <Download size={18} className="text-[#166EE1]" />
             Import from Airtable
           </DialogTitle>
         </DialogHeader>
@@ -495,7 +495,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                 href="https://airtable.com/create/tokens"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#3366FF] hover:underline inline-flex items-center gap-0.5"
+                className="text-[#166EE1] hover:underline inline-flex items-center gap-0.5"
               >
                 airtable.com/create/tokens <ExternalLink size={11} />
               </a>
@@ -533,20 +533,20 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               {bases.map((base) => (
                 <button
                   key={base.id}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] hover:border-[#3366FF] hover:bg-[#F0F3FF] dark:hover:bg-[hsl(220,30%,14%)] transition-all text-left group"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] hover:border-[#166EE1] hover:bg-[#F0F3FF] dark:hover:bg-[hsl(220,30%,14%)] transition-all text-left group"
                   onClick={() => fetchTables(base.id)}
                   disabled={loading}
                 >
-                  <div className="w-8 h-8 rounded-lg bg-[#3366FF]/10 flex items-center justify-center shrink-0">
-                    <Database size={16} className="text-[#3366FF]" />
+                  <div className="w-8 h-8 rounded-lg bg-[#166EE1]/10 flex items-center justify-center shrink-0">
+                    <Database size={16} className="text-[#166EE1]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate group-hover:text-[#3366FF]">
+                    <p className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate group-hover:text-[#166EE1]">
                       {base.name}
                     </p>
                     <p className="text-[11px] text-[#9AA2AF]">{base.permissionLevel}</p>
                   </div>
-                  <ChevronRight size={16} className="text-[#9AA2AF] group-hover:text-[#3366FF]" />
+                  <ChevronRight size={16} className="text-[#9AA2AF] group-hover:text-[#166EE1]" />
                 </button>
               ))}
             </div>
@@ -562,7 +562,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           <div className="space-y-3 py-2">
             <div className="flex items-center gap-2">
               <button
-                className="text-xs text-[#3366FF] hover:underline"
+                className="text-xs text-[#166EE1] hover:underline"
                 onClick={() => { setSelectedBaseId(null); setTables([]); }}
               >
                 &larr; Back to bases
@@ -581,15 +581,15 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2 rounded-lg border transition-all text-left',
                     table.selected
-                      ? 'border-[#3366FF] bg-[#F0F3FF] dark:bg-[hsl(220,30%,14%)]'
-                      : 'border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] hover:border-[#3366FF]/50'
+                      ? 'border-[#166EE1] bg-[#F0F3FF] dark:bg-[hsl(220,30%,14%)]'
+                      : 'border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] hover:border-[#166EE1]/50'
                   )}
                   onClick={() => toggleTable(table.id)}
                 >
                   <div className={cn(
                     'w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors',
                     table.selected
-                      ? 'border-[#3366FF] bg-[#3366FF]'
+                      ? 'border-[#166EE1] bg-[#166EE1]'
                       : 'border-[#D1D5DB] dark:border-[hsl(200,25%,25%)]'
                   )}>
                     {table.selected && <CheckCircle2 size={14} className="text-white" />}
@@ -616,7 +616,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
         {step === 'importing' && (
           <div className="py-8 text-center space-y-4">
-            <Loader2 size={32} className="mx-auto animate-spin text-[#3366FF]" />
+            <Loader2 size={32} className="mx-auto animate-spin text-[#166EE1]" />
             <div>
               <p className="text-[14px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
                 Importing from Airtable...
@@ -625,9 +625,9 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                 Table {progress.current} of {progress.total}: {progress.tableName}
               </p>
             </div>
-            <div className="w-full bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] rounded-full h-2 max-w-xs mx-auto">
+            <div className="w-full bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] rounded-full h-2 max-w-xs mx-auto">
               <div
-                className="bg-[#3366FF] h-2 rounded-full transition-all duration-300"
+                className="bg-[#166EE1] h-2 rounded-full transition-all duration-300"
                 style={{ width: `${progress.total ? (progress.current / progress.total) * 100 : 0}%` }}
               />
             </div>
@@ -656,7 +656,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               </Button>
               <Button
                 size="sm"
-                className="bg-[#3366FF] hover:bg-[#2952CC]"
+                className="bg-[#166EE1] hover:bg-[#2952CC]"
                 onClick={fetchBases}
                 disabled={loading || !token.trim()}
               >
@@ -672,7 +672,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               </Button>
               <Button
                 size="sm"
-                className="bg-[#3366FF] hover:bg-[#2952CC]"
+                className="bg-[#166EE1] hover:bg-[#2952CC]"
                 onClick={startImport}
                 disabled={loading || tables.filter((t) => t.selected).length === 0}
               >
@@ -684,7 +684,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           {step === 'done' && (
             <Button
               size="sm"
-              className="bg-[#3366FF] hover:bg-[#2952CC]"
+              className="bg-[#166EE1] hover:bg-[#2952CC]"
               onClick={() => { reset(); onOpenChange(false); }}
             >
               Done

@@ -84,7 +84,7 @@ function SortableViewTab({
       <div ref={setNodeRef} style={style} className="flex items-center gap-1">
         <input
           ref={renameRef}
-          className="h-6 w-28 px-1.5 text-[12px] border border-[#3366FF] rounded outline-none"
+          className="h-6 w-28 px-1.5 text-[12px] border border-[#166EE1] rounded outline-none"
           value={renameText}
           onChange={(e) => setRenameText(e.target.value)}
           onBlur={() => onRename(view.id)}
@@ -108,7 +108,7 @@ function SortableViewTab({
       className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[12px] font-medium whitespace-nowrap transition-colors"
       style={{
         ...style,
-        color: isActive ? '#3366FF' : '#6A7184',
+        color: isActive ? '#166EE1' : '#6A7184',
         backgroundColor: isActive ? '#EBF0FF' : 'transparent',
       }}
     >
@@ -191,8 +191,8 @@ export function ViewBar() {
   return (
     <>
       <div
-        className="flex items-center gap-0.5 px-2 shrink-0 overflow-x-auto bg-[#FAFAFA] dark:bg-[hsl(200,30%,8%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]"
-        style={{ height: 34 }}
+        className="flex items-center gap-0.5 px-2 shrink-0 overflow-x-auto bg-white dark:bg-[hsl(200,30%,8%)] border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]"
+        style={{ height: 32 }}
       >
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={sorted.map((v) => v.id)} strategy={horizontalListSortingStrategy}>
@@ -231,7 +231,7 @@ export function ViewBar() {
           {addMenuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setAddMenuOpen(false)} />
-              <div className="absolute left-0 top-full z-50 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[160px]">
+              <div className="absolute left-0 top-full z-50 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[160px]">
                 {VIEW_TYPE_OPTIONS.map((opt) => {
                   const Icon = VIEW_ICONS[opt.type];
                   return (
@@ -256,7 +256,7 @@ export function ViewBar() {
         <>
           <div className="fixed inset-0 z-50" onClick={() => setContextMenu(null)} />
           <div
-            className="fixed z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[140px]"
+            className="fixed z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[140px]"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             <button
@@ -316,7 +316,7 @@ export function ViewBar() {
                 : <><Lock size={12} className="text-[#9AA2AF]" /> Lock view</>
               }
             </button>
-            <div className="h-px bg-[#E7E7E9] my-0.5" />
+            <div className="h-px bg-[#E5E5E5] my-0.5" />
             <button
               className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-red-50 flex items-center gap-2 text-red-500"
               onClick={() => {

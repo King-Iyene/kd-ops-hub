@@ -148,14 +148,14 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
       <DialogContent className="sm:max-w-[780px] p-0 gap-0 overflow-hidden">
         <div className="flex h-[520px]">
           {/* Left sidebar */}
-          <div className="w-[240px] shrink-0 border-r border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] flex flex-col bg-[#FAFAFA] dark:bg-[hsl(200,30%,8%)]">
-            <div className="flex items-center justify-between px-3 py-3 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+          <div className="w-[240px] shrink-0 border-r border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] flex flex-col bg-[#FAFAFA] dark:bg-[hsl(200,30%,8%)]">
+            <div className="flex items-center justify-between px-3 py-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
               <div className="flex items-center gap-1.5">
-                <Webhook size={14} className="text-[#3366FF]" />
+                <Webhook size={14} className="text-[#166EE1]" />
                 <span className="text-[13px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Webhooks</span>
               </div>
               <button
-                className="p-1 rounded hover:bg-[#E7E7E9] dark:hover:bg-[hsl(200,25%,18%)] text-[#6A7184] dark:text-[hsl(200,20%,55%)] transition-colors"
+                className="p-1 rounded hover:bg-[#E5E5E5] dark:hover:bg-[hsl(200,25%,18%)] text-[#6A7184] dark:text-[hsl(200,20%,55%)] transition-colors"
                 onClick={startNew}
                 title="Add webhook"
               >
@@ -174,7 +174,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
               {webhooks.map((wh) => (
                 <div
                   key={wh.id}
-                  className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] transition-colors ${
+                  className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] transition-colors ${
                     selectedId === wh.id
                       ? 'bg-[#EBF0FF] dark:bg-[hsl(220,40%,18%)]'
                       : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)]'
@@ -195,7 +195,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                   </div>
                   <button
                     className="shrink-0 w-7 h-4 rounded-full relative transition-colors"
-                    style={{ backgroundColor: wh.enabled ? '#3366FF' : '#D1D5DB' }}
+                    style={{ backgroundColor: wh.enabled ? '#166EE1' : '#D1D5DB' }}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleToggle(wh);
@@ -297,7 +297,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                   <div className="mt-1 space-y-1.5">
                     {Object.entries(headers).map(([k, v]) => (
                       <div key={k} className="flex items-center gap-2">
-                        <span className="flex-1 text-[12px] font-mono px-2 py-1 rounded bg-[#F4F4F5] dark:bg-[hsl(200,25%,14%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
+                        <span className="flex-1 text-[12px] font-mono px-2 py-1 rounded bg-[#F4F4F5] dark:bg-[hsl(200,25%,14%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
                           {k}: {v}
                         </span>
                         <button
@@ -348,7 +348,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                   <Button
                     size="sm"
                     className="h-8 px-4 text-[12px] gap-1.5"
-                    style={{ backgroundColor: '#3366FF' }}
+                    style={{ backgroundColor: '#166EE1' }}
                     onClick={handleSave}
                     disabled={!name.trim() || !url.trim() || createWebhook.isPending || updateWebhook.isPending}
                   >

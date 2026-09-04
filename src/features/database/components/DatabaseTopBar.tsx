@@ -49,7 +49,7 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
 
   return (
     <>
-      <header className="flex items-center justify-between h-11 px-3 bg-white dark:bg-[hsl(200,30%,8%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shrink-0">
+      <header className="flex items-center justify-between h-11 px-3 bg-white dark:bg-[hsl(200,30%,8%)] border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] shrink-0">
         <div className="flex items-center gap-1.5">
           <Link
             to="/"
@@ -70,7 +70,7 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
               <>
                 <span
                   className="w-5 h-5 rounded flex items-center justify-center text-[10px] shrink-0"
-                  style={{ backgroundColor: activeBase.color || '#3366FF' }}
+                  style={{ backgroundColor: activeBase.color || '#166EE1' }}
                 >
                   <span className="text-white font-bold">
                     {activeBase.name?.charAt(0)?.toUpperCase() || 'B'}
@@ -156,7 +156,7 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
             <HelpCircle size={15} />
           </Button>
           <PresenceIndicator />
-          <div className="w-px h-4 bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] mx-0.5" />
+          <div className="w-px h-4 bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] mx-0.5" />
           <ThemeToggle />
           <ProfileDropdown />
         </div>
@@ -166,12 +166,12 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
             <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
-              <Share2 size={16} className="text-[#3366FF]" />
+              <Share2 size={16} className="text-[#166EE1]" />
               Share {activeBase?.name ? `"${activeBase.name}"` : 'base'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
               <Lock size={14} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)] shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Private to workspace</p>
@@ -181,13 +181,13 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
             <div>
               <label className="text-[12px] font-medium text-[#4A5268] dark:text-[hsl(200,20%,55%)] mb-1.5 block">Copy link</label>
               <div className="flex gap-2">
-                <div className="flex-1 px-3 py-1.5 rounded-md border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] truncate">
+                <div className="flex-1 px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] truncate">
                   {typeof window !== 'undefined' ? window.location.href : ''}
                 </div>
                 <Button
                   size="sm"
                   className="h-8 px-3 text-[12px] gap-1.5"
-                  style={{ backgroundColor: '#3366FF' }}
+                  style={{ backgroundColor: '#166EE1' }}
                   onClick={handleCopyLink}
                 >
                   {copied ? <Check size={13} /> : <Copy size={13} />}
@@ -195,10 +195,10 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
                 </Button>
               </div>
             </div>
-            <div className="border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] pt-3">
+            <div className="border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] pt-3">
               <p className="text-[12px] font-medium text-[#4A5268] dark:text-[hsl(200,20%,55%)] mb-2">People with access</p>
               <div className="flex items-center gap-2 py-1.5">
-                <div className="h-7 w-7 rounded-full bg-[#3366FF] text-white flex items-center justify-center text-[10px] font-semibold">
+                <div className="h-7 w-7 rounded-full bg-[#166EE1] text-white flex items-center justify-center text-[10px] font-semibold">
                   {initials}
                 </div>
                 <div className="flex-1">
@@ -221,7 +221,7 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
-              <HelpCircle size={16} className="text-[#3366FF]" />
+              <HelpCircle size={16} className="text-[#166EE1]" />
               Keyboard Shortcuts
             </DialogTitle>
           </DialogHeader>
@@ -250,7 +250,7 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
             ].map(([shortcut, desc]) => (
               <div key={shortcut} className="flex items-center justify-between py-1.5 px-1">
                 <span className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)]">{desc}</span>
-                <kbd className="px-2 py-0.5 rounded bg-[#F4F4F5] dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] font-mono">
+                <kbd className="px-2 py-0.5 rounded bg-[#F4F4F5] dark:bg-[hsl(200,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] font-mono">
                   {shortcut}
                 </kbd>
               </div>

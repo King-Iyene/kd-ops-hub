@@ -136,7 +136,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
       {field.description && (
         <span className="relative shrink-0 group/info">
           <Info size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] hover:text-[#6A7184] dark:hover:text-[hsl(200,20%,70%)] cursor-help" />
-          <span className="hidden group-hover/info:block absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white dark:bg-[hsl(200,30%,12%)] shadow-lg rounded-md px-2.5 py-1.5 text-[11px] text-[#374151] dark:text-[hsl(200,25%,88%)] font-normal max-w-[200px] whitespace-normal leading-snug border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+          <span className="hidden group-hover/info:block absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white dark:bg-[hsl(200,30%,12%)] shadow-lg rounded-md px-2.5 py-1.5 text-[11px] text-[#374151] dark:text-[hsl(200,25%,88%)] font-normal max-w-[200px] whitespace-normal leading-snug border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
             {field.description}
           </span>
         </span>
@@ -174,7 +174,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
             onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
           />
           <div
-            className="fixed z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[180px] animate-[panelSlideDown_150ms_ease-out]"
+            className="fixed z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[180px] animate-[panelSlideDown_150ms_ease-out]"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             <button
@@ -189,7 +189,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
             >
               <ArrowDown size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Sort Z → A
             </button>
-            <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] my-1" />
+            <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] my-1" />
             <button
               className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={() => {
@@ -210,7 +210,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
             >
               <Group size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Group by this field
             </button>
-            <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] my-1" />
+            <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] my-1" />
             {!field.is_system && onEditField && (
               <button
                 className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
@@ -249,7 +249,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
             )}
             {!field.is_primary && !field.is_system && (
               <>
-                <div className="h-px bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] my-1" />
+                <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] my-1" />
                 <button
                   className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-red-500"
                   onClick={handleDelete}

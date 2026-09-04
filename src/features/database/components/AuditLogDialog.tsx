@@ -20,7 +20,7 @@ type ActionType = AuditLogEntry['action'];
 
 const ACTION_META: Record<ActionType, { label: string; color: string; darkColor: string; Icon: typeof Plus }> = {
   INSERT:       { label: 'Insert',       color: '#059669', darkColor: '#34D399', Icon: Plus },
-  UPDATE:       { label: 'Update',       color: '#3366FF', darkColor: '#6B8AFF', Icon: Pencil },
+  UPDATE:       { label: 'Update',       color: '#166EE1', darkColor: '#6B8AFF', Icon: Pencil },
   DELETE:       { label: 'Delete',       color: '#DC2626', darkColor: '#F87171', Icon: Trash2 },
   BULK_DELETE:  { label: 'Bulk Delete',  color: '#DC2626', darkColor: '#F87171', Icon: Trash2 },
   CREATE_TABLE: { label: 'Create Table', color: '#7C3AED', darkColor: '#A78BFA', Icon: Table },
@@ -60,11 +60,11 @@ function ChangeDiff({ changes }: { changes: Record<string, { old: any; new: any 
   if (entries.length === 0) return null;
 
   return (
-    <div className="mt-2 rounded-md border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] overflow-hidden text-[12px]">
+    <div className="mt-2 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] overflow-hidden text-[12px]">
       {entries.map(([field, { old: oldVal, new: newVal }]) => (
         <div
           key={field}
-          className="flex gap-2 px-2.5 py-1.5 border-b last:border-b-0 border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-[#FAFAFA] dark:bg-[hsl(200,30%,12%)]"
+          className="flex gap-2 px-2.5 py-1.5 border-b last:border-b-0 border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#FAFAFA] dark:bg-[hsl(200,30%,12%)]"
         >
           <span className="font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] shrink-0 w-[120px] truncate" title={field}>
             {field}
@@ -87,7 +87,7 @@ function EntryRow({ entry }: { entry: AuditLogEntry }) {
   const IconComp = meta.Icon;
 
   return (
-    <div className="flex gap-3 px-4 py-3 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] last:border-b-0 hover:bg-[#F9F9FA] dark:hover:bg-[hsl(200,30%,12%)] transition-colors">
+    <div className="flex gap-3 px-4 py-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] last:border-b-0 hover:bg-[#F9F9FA] dark:hover:bg-[hsl(200,30%,12%)] transition-colors">
       {/* Icon */}
       <div
         className="mt-0.5 h-7 w-7 rounded-full flex items-center justify-center shrink-0"
@@ -166,29 +166,29 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[640px] max-h-[85vh] flex flex-col p-0 gap-0">
         {/* Header */}
-        <DialogHeader className="px-4 pt-4 pb-3 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shrink-0">
+        <DialogHeader className="px-4 pt-4 pb-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] shrink-0">
           <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
-            <History size={16} className="text-[#3366FF]" />
+            <History size={16} className="text-[#166EE1]" />
             Audit Log
           </DialogTitle>
         </DialogHeader>
 
         {/* Filters */}
-        <div className="px-4 py-2.5 flex items-center gap-2 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shrink-0 flex-wrap">
+        <div className="px-4 py-2.5 flex items-center gap-2 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] shrink-0 flex-wrap">
           <div className="relative flex-1 min-w-[160px]">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6A7184] dark:text-[hsl(200,25%,60%)]" />
             <Input
               placeholder="Search actions..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-              className="h-8 pl-8 text-[12px] border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]"
+              className="h-8 pl-8 text-[12px] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]"
             />
           </div>
           <Select
             value={actionFilter}
             onValueChange={(v) => { setActionFilter(v as ActionType | 'ALL'); setPage(0); }}
           >
-            <SelectTrigger className="h-8 w-[160px] text-[12px] border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+            <SelectTrigger className="h-8 w-[160px] text-[12px] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
               <Filter size={12} className="mr-1 text-[#6A7184] dark:text-[hsl(200,25%,60%)]" />
               <SelectValue />
             </SelectTrigger>
@@ -229,7 +229,7 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
 
         {/* Pagination */}
         {(page > 0 || hasMore) && (
-          <div className="px-4 py-2.5 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] flex items-center justify-between shrink-0">
+          <div className="px-4 py-2.5 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] flex items-center justify-between shrink-0">
             <Button
               variant="ghost"
               size="sm"

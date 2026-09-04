@@ -9,7 +9,7 @@ import { useTables } from '../hooks/useTables';
 import type { Base } from '../types';
 
 const DEFAULT_COLORS = [
-  '#3366FF', '#0D9488', '#8B5CF6', '#F59E0B', '#EF4444', '#10B981',
+  '#166EE1', '#0D9488', '#8B5CF6', '#F59E0B', '#EF4444', '#10B981',
   '#EC4899', '#6366F1', '#14B8A6', '#F97316',
 ];
 
@@ -48,7 +48,7 @@ function BaseCard({ base, onSelect }: { base: Base; onSelect: () => void }) {
   return (
     <button
       onClick={onSelect}
-      className="flex flex-col p-4 rounded-xl border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] hover:border-[#3366FF] dark:hover:border-[#3366FF] hover:shadow-md transition-all text-left group"
+      className="flex flex-col p-4 rounded-xl border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] hover:border-[#166EE1] dark:hover:border-[#166EE1] hover:shadow-md transition-all text-left group"
     >
       <div className="flex items-start gap-3 mb-3">
         <div
@@ -62,7 +62,7 @@ function BaseCard({ base, onSelect }: { base: Base; onSelect: () => void }) {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] group-hover:text-[#3366FF] truncate">
+          <p className="text-[14px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] group-hover:text-[#166EE1] truncate">
             {base.name}
           </p>
         </div>
@@ -105,7 +105,7 @@ export function EmptyState() {
       <div className="flex-1 flex items-center justify-center bg-white dark:bg-[hsl(200,30%,8%)]">
         <div className="text-center space-y-4 max-w-sm">
           <div className="mx-auto w-14 h-14 rounded-xl bg-[#F0F3FF] dark:bg-[hsl(220,30%,14%)] flex items-center justify-center">
-            <Table2 size={28} className="text-[#3366FF]" />
+            <Table2 size={28} className="text-[#166EE1]" />
           </div>
           <div>
             <p className="text-[15px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
@@ -136,7 +136,7 @@ export function EmptyState() {
                 placeholder="Filter bases..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-[13px] rounded-lg border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:outline-none focus:border-[#3366FF] w-48"
+                className="pl-8 pr-3 py-1.5 text-[13px] rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:outline-none focus:border-[#166EE1] w-48"
               />
             </div>
             <Button
@@ -155,12 +155,12 @@ export function EmptyState() {
           {/* Create Base card */}
           <button
             onClick={() => setCreateOpen(true)}
-            className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-[#D1D5DB] dark:border-[hsl(200,25%,22%)] hover:border-[#3366FF] dark:hover:border-[#3366FF] bg-white/50 dark:bg-[hsl(200,30%,12%)] transition-all min-h-[120px] group"
+            className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-[#D1D5DB] dark:border-[hsl(200,25%,22%)] hover:border-[#166EE1] dark:hover:border-[#166EE1] bg-white/50 dark:bg-[hsl(200,30%,12%)] transition-all min-h-[120px] group"
           >
-            <div className="w-10 h-10 rounded-full bg-[#3366FF]/10 flex items-center justify-center mb-2 group-hover:bg-[#3366FF]/20 transition-colors">
-              <Plus size={20} className="text-[#3366FF]" />
+            <div className="w-10 h-10 rounded-full bg-[#166EE1]/10 flex items-center justify-center mb-2 group-hover:bg-[#166EE1]/20 transition-colors">
+              <Plus size={20} className="text-[#166EE1]" />
             </div>
-            <span className="text-[13px] font-medium text-[#6A7184] group-hover:text-[#3366FF]">
+            <span className="text-[13px] font-medium text-[#6A7184] group-hover:text-[#166EE1]">
               Create Base
             </span>
           </button>

@@ -142,7 +142,7 @@ export function BulkActionsBar({
       style={{
         animation: 'bulkBarSlideUp 200ms ease-out',
         backgroundColor: 'var(--bulk-bar-bg, #fff)',
-        borderColor: 'var(--bulk-bar-border, #E7E7E9)',
+        borderColor: 'var(--bulk-bar-border, #E5E5E5)',
       }}
     >
       <style>{`
@@ -152,11 +152,11 @@ export function BulkActionsBar({
         }
         :root {
           --bulk-bar-bg: #fff;
-          --bulk-bar-border: #E7E7E9;
+          --bulk-bar-border: #E5E5E5;
           --bulk-bar-text: #374151;
           --bulk-bar-muted: #6A7184;
           --bulk-bar-hover: #F4F4F5;
-          --bulk-bar-accent: #3366FF;
+          --bulk-bar-accent: #166EE1;
           --bulk-bar-accent-hover: #2952CC;
           --bulk-bar-danger: #EF4444;
           --bulk-bar-danger-hover: #DC2626;

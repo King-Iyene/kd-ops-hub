@@ -37,14 +37,14 @@ const EMOJI_OPTIONS = [
 ];
 
 const COLOR_OPTIONS = [
-  '#3366FF', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444',
+  '#166EE1', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444',
   '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F97316',
 ];
 
 export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDialogProps) {
   const [name, setName] = useState('');
   const [icon, setIcon] = useState(EMOJI_OPTIONS[0]);
-  const [color, setColor] = useState('#3366FF');
+  const [color, setColor] = useState('#166EE1');
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
@@ -123,7 +123,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
       <Dialog open={open} onOpenChange={(v) => { if (!v) { resetForm(); onOpenChange(v); } }}>
         <DialogContent className="sm:max-w-[360px]">
           <div className="flex flex-col items-center gap-4 py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-[#3366FF]" />
+            <Loader2 className="h-8 w-8 animate-spin text-[#166EE1]" />
             <div className="text-center">
               <p className="text-sm font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
                 Setting up {template.baseName}
@@ -174,7 +174,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
                   type="button"
                   className={cn(
                     'w-8 h-8 rounded flex items-center justify-center text-base hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)] transition-colors',
-                    icon === emoji && 'ring-2 ring-[#3366FF] bg-[#3366FF]/5'
+                    icon === emoji && 'ring-2 ring-[#166EE1] bg-[#166EE1]/5'
                   )}
                   onClick={() => setIcon(emoji)}
                 >
@@ -193,7 +193,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
                   type="button"
                   className={cn(
                     'w-7 h-7 rounded-full transition-transform',
-                    color === c && 'ring-2 ring-offset-2 ring-[#3366FF] scale-110'
+                    color === c && 'ring-2 ring-offset-2 ring-[#166EE1] scale-110'
                   )}
                   style={{ backgroundColor: c }}
                   onClick={() => setColor(c)}
@@ -217,7 +217,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
           </Button>
           <Button
             size="sm"
-            className="bg-[#3366FF] hover:bg-[#2952CC]"
+            className="bg-[#166EE1] hover:bg-[#2952CC]"
             onClick={handleCreate}
             disabled={creating || !name.trim()}
           >

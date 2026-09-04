@@ -114,7 +114,7 @@ function Dropdown({
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border
-          border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,12%)]
+          border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,12%)]
           text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-gray-50 dark:hover:bg-[hsl(200,30%,15%)]
           transition-colors"
       >
@@ -125,14 +125,14 @@ function Dropdown({
       {open && (
         <div
           className="absolute top-full left-0 mt-1 z-50 min-w-[160px] rounded-lg border
-            border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,12%)]
+            border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,12%)]
             shadow-lg py-1"
         >
           {options.map((opt) => (
             <button
               key={opt.value}
               className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F3F4F6] dark:hover:bg-[hsl(200,30%,16%)]
-                transition-colors ${opt.value === value ? 'text-[#3366FF] font-medium' : 'text-[#374151] dark:text-[hsl(200,25%,88%)]'}`}
+                transition-colors ${opt.value === value ? 'text-[#166EE1] font-medium' : 'text-[#374151] dark:text-[hsl(200,25%,88%)]'}`}
               onClick={() => { onChange(opt.value); setOpen(false); }}
             >
               {opt.label}
@@ -158,7 +158,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
   // Checkbox
   if (ui_type === 'Checkbox') {
     return value ? (
-      <Check size={14} className="text-[#3366FF]" />
+      <Check size={14} className="text-[#166EE1]" />
     ) : (
       <div className="w-3.5 h-3.5 rounded border border-[#D1D5DB] dark:border-[hsl(200,25%,30%)]" />
     );
@@ -226,7 +226,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
   if (ui_type === 'URL') {
     const str = String(value);
     return (
-      <span className="flex items-center gap-1 text-xs text-[#3366FF] truncate">
+      <span className="flex items-center gap-1 text-xs text-[#166EE1] truncate">
         <Link2 size={11} className="shrink-0" />
         <span className="truncate">{str.replace(/^https?:\/\//, '').slice(0, 30)}</span>
       </span>
@@ -236,7 +236,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
   // Email
   if (ui_type === 'Email') {
     return (
-      <span className="flex items-center gap-1 text-xs text-[#3366FF] truncate">
+      <span className="flex items-center gap-1 text-xs text-[#166EE1] truncate">
         <Mail size={11} className="shrink-0" />
         <span className="truncate">{String(value)}</span>
       </span>
@@ -249,7 +249,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
     if (url) {
       return (
         <div className="flex items-center gap-1.5">
-          <img src={url} alt="" className="w-8 h-8 rounded object-cover border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]" />
+          <img src={url} alt="" className="w-8 h-8 rounded object-cover border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]" />
           <span className="text-[11px] text-[#6A7184] dark:text-[hsl(200,25%,55%)]">
             {Array.isArray(value) ? `${(value as unknown[]).length} file(s)` : '1 file'}
           </span>
@@ -301,7 +301,7 @@ function GalleryCard({
 
   return (
     <div
-      className="relative bg-white dark:bg-[hsl(200,30%,12%)] rounded-lg border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]
+      className="relative bg-white dark:bg-[hsl(200,30%,12%)] rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]
         overflow-hidden cursor-pointer hover:shadow-md dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)]
         transition-all duration-200 group"
       onClick={() => onExpand?.(record)}
@@ -312,7 +312,7 @@ function GalleryCard({
           <img src={coverUrl} alt="" className="w-full h-full object-cover" />
         </div>
       ) : (
-        <div className="h-1.5 bg-[#3366FF]/60" />
+        <div className="h-1.5 bg-[#166EE1]/60" />
       )}
 
       {/* Hover action bar */}
@@ -323,16 +323,16 @@ function GalleryCard({
       >
         <button
           title="Expand"
-          className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(200,30%,15%)]/90 border border-[#E7E7E9] dark:border-[hsl(200,25%,22%)]
-            text-[#6A7184] dark:text-[hsl(200,25%,70%)] hover:text-[#3366FF] hover:border-[#3366FF]/30 transition-colors shadow-sm"
+          className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(200,30%,15%)]/90 border border-[#E5E5E5] dark:border-[hsl(200,25%,22%)]
+            text-[#6A7184] dark:text-[hsl(200,25%,70%)] hover:text-[#166EE1] hover:border-[#166EE1]/30 transition-colors shadow-sm"
           onClick={() => onExpand?.(record)}
         >
           <Expand size={13} />
         </button>
         <button
           title="Duplicate"
-          className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(200,30%,15%)]/90 border border-[#E7E7E9] dark:border-[hsl(200,25%,22%)]
-            text-[#6A7184] dark:text-[hsl(200,25%,70%)] hover:text-[#3366FF] hover:border-[#3366FF]/30 transition-colors shadow-sm"
+          className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(200,30%,15%)]/90 border border-[#E5E5E5] dark:border-[hsl(200,25%,22%)]
+            text-[#6A7184] dark:text-[hsl(200,25%,70%)] hover:text-[#166EE1] hover:border-[#166EE1]/30 transition-colors shadow-sm"
           onClick={() => onDuplicate?.(record)}
         >
           <Copy size={13} />
@@ -350,7 +350,7 @@ function GalleryCard({
         ) : (
           <button
             title="Delete"
-            className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(200,30%,15%)]/90 border border-[#E7E7E9] dark:border-[hsl(200,25%,22%)]
+            className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(200,30%,15%)]/90 border border-[#E5E5E5] dark:border-[hsl(200,25%,22%)]
               text-[#6A7184] dark:text-[hsl(200,25%,70%)] hover:text-red-500 hover:border-red-200 dark:hover:border-red-800 transition-colors shadow-sm"
             onClick={() => setConfirmDelete(true)}
           >
@@ -389,7 +389,7 @@ function GallerySkeleton() {
       {Array.from({ length: 9 }).map((_, i) => (
         <div
           key={i}
-          className="rounded-lg overflow-hidden border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]"
+          className="rounded-lg overflow-hidden border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]"
         >
           <div className="h-28 w-full animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
           <div className="p-3 space-y-2">
@@ -463,7 +463,7 @@ export default function GalleryView({
     <div className="flex flex-col h-full bg-white dark:bg-[hsl(200,30%,10%)]">
       {/* Toolbar */}
       <div
-        className="flex items-center gap-3 px-4 shrink-0 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]"
+        className="flex items-center gap-3 px-4 shrink-0 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]"
         style={{ height: 44 }}
       >
         <LayoutGrid size={14} className="text-[#6A7184] dark:text-[hsl(200,25%,55%)]" />
@@ -508,7 +508,7 @@ export default function GalleryView({
               Add your first record to see it appear as a card in the gallery.
             </p>
             <button
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#3366FF] hover:bg-[#2952CC] text-white text-xs font-medium transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#166EE1] hover:bg-[#2952CC] text-white text-xs font-medium transition-colors"
               onClick={onAddRow}
             >
               <Plus size={14} /> Add record
@@ -534,9 +534,9 @@ export default function GalleryView({
             ))}
             <button
               className="flex items-center justify-center gap-1 rounded-lg border-2 border-dashed
-                border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] min-h-[140px]
+                border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] min-h-[140px]
                 text-[#9AA2AF] dark:text-[hsl(200,25%,45%)]
-                hover:border-[#3366FF] hover:text-[#3366FF] dark:hover:border-[#3366FF] dark:hover:text-[#3366FF]
+                hover:border-[#166EE1] hover:text-[#166EE1] dark:hover:border-[#166EE1] dark:hover:text-[#166EE1]
                 transition-colors text-sm"
               onClick={onAddRow}
             >
@@ -549,7 +549,7 @@ export default function GalleryView({
       {/* Footer / pagination */}
       <div
         className="flex items-center justify-between px-4 shrink-0 border-t
-          border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]
+          border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]
           bg-[#F9F9FA] dark:bg-[hsl(200,30%,8%)]"
         style={{ height: 40, fontSize: 13 }}
       >

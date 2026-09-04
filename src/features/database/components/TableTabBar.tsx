@@ -69,7 +69,7 @@ function InlineRenameInput({
   return (
     <input
       ref={ref}
-      className="bg-white dark:bg-[hsl(200,30%,12%)] border border-[#3366FF] rounded px-1.5 py-0.5 text-[13px] w-24 outline-none text-[#374151] dark:text-[hsl(200,25%,88%)]"
+      className="bg-white dark:bg-[hsl(200,30%,12%)] border border-[#166EE1] rounded px-1.5 py-0.5 text-[13px] w-24 outline-none text-[#374151] dark:text-[hsl(200,25%,88%)]"
       value={text}
       onChange={(e) => setText(e.target.value)}
       onBlur={commit}
@@ -216,7 +216,7 @@ export function TableTabBar() {
   if (!activeBaseId) return null;
 
   return (
-    <div className="flex items-center h-[35px] bg-[#F0F3FF] dark:bg-[hsl(220,30%,12%)] border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] px-1 gap-0 overflow-x-auto shrink-0 select-none">
+    <div className="flex items-center h-[32px] bg-[#F5F5F5] dark:bg-[hsl(220,30%,12%)] border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] px-1 gap-0 overflow-x-auto shrink-0 select-none">
       <DndContext sensors={tableSensors} collisionDetection={closestCenter} onDragEnd={handleTableDragEnd}>
         <SortableContext items={sortedTables.map((t: any) => t.id)} strategy={horizontalListSortingStrategy}>
       {sortedTables.map((table: any) => (
@@ -227,7 +227,7 @@ export function TableTabBar() {
             className={cn(
               'relative flex items-center gap-1.5 h-full px-3 text-[13px] cursor-pointer transition-colors',
               table.id === activeTableId
-                ? 'bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium rounded-t-md border-t border-l border-r border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] -mb-px'
+                ? 'bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium rounded-t-md border-t border-l border-r border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] -mb-px'
                 : 'text-[#6A7184] hover:text-[#374151] dark:hover:text-[hsl(200,25%,78%)]',
             )}
             onClick={() => setActiveTable(table.id)}
@@ -254,7 +254,7 @@ export function TableTabBar() {
               <DropdownMenuTrigger asChild>
                 <button
                   className={cn(
-                    'p-0.5 rounded hover:bg-[#E7E7E9] dark:hover:bg-[hsl(200,25%,18%)] transition-opacity shrink-0',
+                    'p-0.5 rounded hover:bg-[#E5E5E5] dark:hover:bg-[hsl(200,25%,18%)] transition-opacity shrink-0',
                     table.id === activeTableId
                       ? 'opacity-60 hover:opacity-100'
                       : 'opacity-0 group-hover/tab:opacity-60 hover:!opacity-100',

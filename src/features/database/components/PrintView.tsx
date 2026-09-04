@@ -51,7 +51,7 @@ export function PrintView({ fields, records, tableName, onClose }: PrintViewProp
           align-items: center;
           justify-content: space-between;
           padding: 12px 24px;
-          border-bottom: 1px solid #E7E7E9;
+          border-bottom: 1px solid #E5E5E5;
           background: #F9F9FA;
         }
         .print-view-content {

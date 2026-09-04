@@ -153,7 +153,7 @@ export function FormulaEditor({ value, onChange, fields, error }: FormulaEditorP
         onKeyDown={handleKeyDown}
         onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
         placeholder='e.g. IF({Status} = "Done", 1, 0)'
-        className="w-full h-24 px-3 py-2 border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg text-[13px] font-mono resize-y focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
+        className="w-full h-24 px-3 py-2 border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg text-[13px] font-mono resize-y focus:outline-none focus:ring-2 focus:ring-[#166EE1]/30 focus:border-[#166EE1] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
         spellCheck={false}
       />
       {isValid && (
@@ -165,7 +165,7 @@ export function FormulaEditor({ value, onChange, fields, error }: FormulaEditorP
       {showSuggestions && suggestions.length > 0 && (
         <div
           ref={suggestionsRef}
-          className="absolute left-0 right-0 z-50 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg overflow-hidden"
+          className="absolute left-0 right-0 z-50 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg overflow-hidden"
         >
           {suggestions.map((sug, idx) => (
             <button

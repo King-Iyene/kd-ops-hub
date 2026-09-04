@@ -61,11 +61,11 @@ const timelineStyles = `
 .tl-root {
   --tl-bg: #ffffff;
   --tl-bg-alt: #F9F9FA;
-  --tl-border: #E7E7E9;
+  --tl-border: #E5E5E5;
   --tl-text: #374151;
   --tl-text-muted: #6A7184;
   --tl-text-faint: #9AA2AF;
-  --tl-primary: #3366FF;
+  --tl-primary: #166EE1;
   --tl-primary-hover: #2952CC;
   --tl-cell-hover: #F3F4F6;
   --tl-tooltip-bg: #1F2937;
@@ -264,7 +264,7 @@ function TimelineSkeleton() {
   return (
     <div className="tl-root">
       <style>{timelineStyles}</style>
-      <div className="flex items-center gap-3 px-3 h-9 border-b border-[var(--tl-border,#E7E7E9)]">
+      <div className="flex items-center gap-3 px-3 h-9 border-b border-[var(--tl-border,#E5E5E5)]">
         <div className="h-3 w-32 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
       </div>
       <div className="flex-1 p-4 space-y-3">

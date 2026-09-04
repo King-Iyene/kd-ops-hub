@@ -177,7 +177,7 @@ export function RowColorPanel({ fields, rules, onRulesChange }: RowColorPanelPro
           <Palette size={14} />
           Color
           {activeCount > 0 && (
-            <span className="ml-0.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-[#3366FF] text-white text-[10px] font-medium">
+            <span className="ml-0.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-[#166EE1] text-white text-[10px] font-medium">
               {activeCount}
             </span>
           )}
@@ -277,11 +277,11 @@ export function RowColorPanel({ fields, rules, onRulesChange }: RowColorPanelPro
           })}
         </div>
 
-        <div className="flex items-center justify-between mt-3 pt-2 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+        <div className="flex items-center justify-between mt-3 pt-2 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-[#3366FF] gap-1 font-medium"
+            className="h-7 text-xs text-[#166EE1] gap-1 font-medium"
             onClick={addRule}
           >
             <Plus size={14} /> Add rule

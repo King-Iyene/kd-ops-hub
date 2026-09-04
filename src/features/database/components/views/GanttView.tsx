@@ -64,11 +64,11 @@ const ganttStyles = `
 .gantt-root {
   --g-bg: #ffffff;
   --g-bg-alt: #F9F9FA;
-  --g-border: #E7E7E9;
+  --g-border: #E5E5E5;
   --g-text: #374151;
   --g-text-muted: #6A7184;
   --g-text-faint: #9AA2AF;
-  --g-primary: #3366FF;
+  --g-primary: #166EE1;
   --g-primary-hover: #2952CC;
   --g-cell-hover: #F3F4F6;
   --g-tooltip-bg: #1F2937;
@@ -286,11 +286,11 @@ function GanttSkeleton() {
   return (
     <div className="gantt-root">
       <style>{ganttStyles}</style>
-      <div className="flex items-center gap-3 px-3 h-9 border-b border-[var(--g-border,#E7E7E9)]">
+      <div className="flex items-center gap-3 px-3 h-9 border-b border-[var(--g-border,#E5E5E5)]">
         <div className="h-3 w-32 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
       </div>
       <div className="flex flex-1 min-h-0">
-        <div className="shrink-0 border-r border-[var(--g-border,#E7E7E9)] p-2 space-y-3" style={{ width: 200 }}>
+        <div className="shrink-0 border-r border-[var(--g-border,#E5E5E5)] p-2 space-y-3" style={{ width: 200 }}>
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-3 w-28 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
           ))}

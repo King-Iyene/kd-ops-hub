@@ -222,7 +222,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
         {!parsed ? (
           <div className="space-y-3">
             <textarea
-              className="w-full h-40 text-xs font-mono border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-[#3366FF] resize-none bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full h-40 text-xs font-mono border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-[#166EE1] resize-none bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
               placeholder="Paste CSV text here..."
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
@@ -260,18 +260,18 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                 {previewRows.length < parsed.rows.length && ` (showing first ${previewRows.length})`}
               </span>
             </div>
-            <div className="overflow-x-auto border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg">
+            <div className="overflow-x-auto border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)]">
                     {parsed.headers.map((h, i) => (
                       <th
                         key={i}
-                        className="text-left px-3 py-2 font-semibold border-b border-r border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] whitespace-nowrap text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                        className="text-left px-3 py-2 font-semibold border-b border-r border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] whitespace-nowrap text-[#374151] dark:text-[hsl(200,25%,88%)]"
                       >
                         <div>{h}</div>
                         <select
-                          className="mt-1 text-[10px] font-normal bg-transparent border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:text-[hsl(200,20%,55%)]"
+                          className="mt-1 text-[10px] font-normal bg-transparent border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:text-[hsl(200,20%,55%)]"
                           value={columnTypes[i] ?? 'SingleLineText'}
                           onChange={(e) => {
                             const next = [...columnTypes];
@@ -293,7 +293,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                       {parsed.headers.map((_, ci) => (
                         <td
                           key={ci}
-                          className="px-3 py-1.5 border-b border-r border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] whitespace-nowrap max-w-[200px] truncate text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                          className="px-3 py-1.5 border-b border-r border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] whitespace-nowrap max-w-[200px] truncate text-[#374151] dark:text-[hsl(200,25%,88%)]"
                         >
                           {row[ci] ?? ''}
                         </td>
@@ -305,7 +305,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
             </div>
             <button
               className="text-xs hover:underline"
-              style={{ color: '#3366FF' }}
+              style={{ color: '#166EE1' }}
               onClick={() => setParsed(null)}
             >
               Back to input
@@ -324,7 +324,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
             <Button
               size="sm"
               onClick={handleParse}
-              style={{ backgroundColor: '#3366FF' }}
+              style={{ backgroundColor: '#166EE1' }}
               className="text-white"
             >
               Preview
@@ -334,7 +334,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               size="sm"
               onClick={handleImport}
               disabled={importing}
-              style={{ backgroundColor: '#3366FF' }}
+              style={{ backgroundColor: '#166EE1' }}
               className="text-white gap-1"
             >
               {importing && <Loader2 size={13} className="animate-spin" />}

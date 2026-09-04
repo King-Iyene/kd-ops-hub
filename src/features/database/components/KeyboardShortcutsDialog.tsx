@@ -79,7 +79,7 @@ function Kbd({ children }: { children: string }) {
     <kbd
       className="inline-flex items-center justify-center min-w-[24px] h-[22px] px-1.5 rounded
         bg-[#F4F4F5] dark:bg-[hsl(200,25%,18%)]
-        border border-[#E7E7E9] dark:border-[hsl(200,25%,25%)]
+        border border-[#E5E5E5] dark:border-[hsl(200,25%,25%)]
         text-[11px] font-mono font-medium
         text-[#6A7184] dark:text-[hsl(200,25%,70%)]
         shadow-[0_1px_0_0_rgba(0,0,0,0.05)]"
@@ -95,7 +95,7 @@ export function KeyboardShortcutsDialog({ open, onOpenChange }: KeyboardShortcut
       <DialogContent className="sm:max-w-[560px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
-            <Keyboard size={16} className="text-[#3366FF]" />
+            <Keyboard size={16} className="text-[#166EE1]" />
             Keyboard Shortcuts
           </DialogTitle>
         </DialogHeader>
@@ -131,7 +131,7 @@ export function KeyboardShortcutsDialog({ open, onOpenChange }: KeyboardShortcut
             </div>
           ))}
         </div>
-        <div className="pt-3 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+        <div className="pt-3 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
           <p className="text-[11px] text-[#9AA2AF] dark:text-[hsl(200,25%,50%)] text-center">
             Press <Kbd>?</Kbd> anytime to open this dialog
           </p>

@@ -22,7 +22,7 @@ interface BaseSettingsDialogProps {
 }
 
 const COLOR_OPTIONS = [
-  { name: 'Blue', value: '#3366FF' },
+  { name: 'Blue', value: '#166EE1' },
   { name: 'Green', value: '#10B981' },
   { name: 'Teal', value: '#14B8A6' },
   { name: 'Purple', value: '#8B5CF6' },
@@ -48,7 +48,7 @@ type Tab = 'general' | 'backups' | 'danger';
 export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDialogProps) {
   const [tab, setTab] = useState<Tab>('general');
   const [name, setName] = useState(base.name);
-  const [color, setColor] = useState(base.color ?? '#3366FF');
+  const [color, setColor] = useState(base.color ?? '#166EE1');
   const [icon, setIcon] = useState(base.icon ?? '📊');
   const [error, setError] = useState('');
   const [confirmName, setConfirmName] = useState('');
@@ -62,7 +62,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
   useEffect(() => {
     if (open) {
       setName(base.name);
-      setColor(base.color ?? '#3366FF');
+      setColor(base.color ?? '#166EE1');
       setIcon(base.icon ?? '📊');
       setError('');
       setConfirmName('');
@@ -108,12 +108,12 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
         </DialogHeader>
 
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] mb-4">
+        <div className="flex gap-1 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] mb-4">
           <button
             className={cn(
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'general'
-                ? 'border-[#3366FF] text-[#3366FF]'
+                ? 'border-[#166EE1] text-[#166EE1]'
                 : 'border-transparent text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
             )}
             onClick={() => setTab('general')}
@@ -124,7 +124,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
             className={cn(
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'backups'
-                ? 'border-[#3366FF] text-[#3366FF]'
+                ? 'border-[#166EE1] text-[#166EE1]'
                 : 'border-transparent text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
             )}
             onClick={() => setTab('backups')}
@@ -171,7 +171,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
                     title={c.name}
                     className={cn(
                       'w-7 h-7 rounded-full transition-transform',
-                      color === c.value && 'ring-2 ring-offset-2 ring-[#3366FF] dark:ring-offset-[hsl(200,30%,10%)] scale-110',
+                      color === c.value && 'ring-2 ring-offset-2 ring-[#166EE1] dark:ring-offset-[hsl(200,30%,10%)] scale-110',
                     )}
                     style={{ backgroundColor: c.value }}
                     onClick={() => setColor(c.value)}
@@ -190,7 +190,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
                     type="button"
                     className={cn(
                       'w-8 h-8 rounded flex items-center justify-center text-base hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)] transition-colors',
-                      icon === emoji && 'ring-2 ring-[#3366FF] bg-[#3366FF]/5',
+                      icon === emoji && 'ring-2 ring-[#166EE1] bg-[#166EE1]/5',
                     )}
                     onClick={() => setIcon(emoji)}
                   >
@@ -273,7 +273,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
             </Button>
             <Button
               size="sm"
-              className="bg-[#3366FF] hover:bg-[#2952CC]"
+              className="bg-[#166EE1] hover:bg-[#2952CC]"
               onClick={handleSave}
               disabled={updateBase.isPending}
             >
@@ -315,7 +315,7 @@ function BackupsTab({ baseId }: { baseId: string }) {
           />
           <Button
             size="sm"
-            className="bg-[#3366FF] hover:bg-[#2952CC] shrink-0"
+            className="bg-[#166EE1] hover:bg-[#2952CC] shrink-0"
             onClick={handleCreate}
             disabled={createSnapshot.isPending}
           >

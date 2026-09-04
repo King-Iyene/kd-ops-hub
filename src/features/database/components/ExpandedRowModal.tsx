@@ -60,7 +60,7 @@ function InlineTextEditor({
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(text);
       }}
-      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] focus:border-[#3366FF]"
+      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#166EE1]"
     />
   );
 }
@@ -79,7 +79,7 @@ function InlineLongTextEditor({
       onChange={(e) => setText(e.target.value)}
       onBlur={() => onCommit(text)}
       rows={4}
-      className="w-full px-2 py-1.5 text-sm rounded border outline-none resize-y bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] focus:border-[#3366FF]"
+      className="w-full px-2 py-1.5 text-sm rounded border outline-none resize-y bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#166EE1]"
     />
   );
 }
@@ -101,7 +101,7 @@ function InlineNumberEditor({
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
       }}
-      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] focus:border-[#3366FF]"
+      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#166EE1]"
     />
   );
 }
@@ -130,7 +130,7 @@ function InlineDateEditor({
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(date || null);
       }}
-      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] focus:border-[#3366FF]"
+      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#166EE1]"
     />
   );
 }
@@ -147,7 +147,7 @@ function InlineCheckboxEditor({
       type="checkbox"
       checked={!!value}
       onChange={(e) => onCommit(e.target.checked)}
-      className="w-4 h-4 accent-[#3366FF] cursor-pointer"
+      className="w-4 h-4 accent-[#166EE1] cursor-pointer"
     />
   );
 }
@@ -281,7 +281,7 @@ function InlineAttachmentEditor({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors border-[#E7E7E9] text-[#6A7184] hover:border-[#3366FF] hover:text-[#3366FF] dark:border-[hsl(200,25%,18%)] dark:text-[#9AA2AF] dark:hover:border-[#3366FF] dark:hover:text-[#3366FF]"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors border-[#E5E5E5] text-[#6A7184] hover:border-[#166EE1] hover:text-[#166EE1] dark:border-[hsl(200,25%,18%)] dark:text-[#9AA2AF] dark:hover:border-[#166EE1] dark:hover:text-[#166EE1]"
       >
         <Paperclip size={14} />
         {attachments.length > 0
@@ -293,7 +293,7 @@ function InlineAttachmentEditor({
           {attachments.map((att, i) => {
             const isImage = att.type?.startsWith('image/');
             return (
-              <div key={i} className="w-12 h-12 rounded border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] overflow-hidden bg-[#FAFAFA] dark:bg-[hsl(200,30%,12%)]">
+              <div key={i} className="w-12 h-12 rounded border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] overflow-hidden bg-[#FAFAFA] dark:bg-[hsl(200,30%,12%)]">
                 {isImage ? (
                   <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
                 ) : (
@@ -485,7 +485,7 @@ function SystemFieldsAccordion({
   if (fields.length === 0) return null;
 
   return (
-    <div className="border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] pt-4">
+    <div className="border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] pt-4">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -657,10 +657,10 @@ export function ExpandedRowModal({
         onClick={() => onOpenChange(false)}
       />
       <div
-        className="relative bg-white dark:bg-[hsl(200,30%,10%)] rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] animate-[panelSlideDown_150ms_ease-out]"
+        className="relative bg-white dark:bg-[hsl(200,30%,10%)] rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] animate-[panelSlideDown_150ms_ease-out]"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <h2 className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
               {title || 'Untitled'}
@@ -718,7 +718,7 @@ export function ExpandedRowModal({
         {/* Body — two-column on lg */}
         <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row">
           {/* Left: Fields */}
-          <div className="flex-1 lg:overflow-y-auto p-5 lg:border-r border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+          <div className="flex-1 lg:overflow-y-auto p-5 lg:border-r border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
             {/* Primary fields */}
             {primaryFields.length > 0 && (
               <div className="space-y-4 mb-6">
@@ -742,9 +742,9 @@ export function ExpandedRowModal({
           </div>
 
           {/* Right: Comments + Activity */}
-          <div className="lg:w-[320px] shrink-0 lg:overflow-y-auto p-5 border-t lg:border-t-0 border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+          <div className="lg:w-[320px] shrink-0 lg:overflow-y-auto p-5 border-t lg:border-t-0 border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
             <CommentsSection baseId={baseId} tableId={tableId} recordId={record.id} />
-            <div className="mt-6 pt-4 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+            <div className="mt-6 pt-4 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
               <ActivitySection record={record} fields={fields} />
             </div>
           </div>

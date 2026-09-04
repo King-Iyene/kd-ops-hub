@@ -54,7 +54,7 @@ export function RowContextMenu({
     <div className="fixed inset-0 z-50" onClick={onClose}>
       <div
         ref={menuRef}
-        className="fixed rounded-lg shadow-lg bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] animate-[panelSlideDown_150ms_ease-out]"
+        className="fixed rounded-lg shadow-lg bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] animate-[panelSlideDown_150ms_ease-out]"
         style={{ left: x, top: y, minWidth: 200, zIndex: 51 }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -70,7 +70,7 @@ export function RowContextMenu({
             Expand record
           </button>
 
-          <div className="my-1 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]" />
+          <div className="my-1 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]" />
 
           {onInsertAbove && (
             <button
@@ -109,14 +109,14 @@ export function RowContextMenu({
             Duplicate record
           </button>
 
-          <div className="my-1 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]" />
+          <div className="my-1 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]" />
 
           <button className={menuItemClass} onClick={handleCopyRowLink}>
             <Link size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
             Copy record URL
           </button>
 
-          <div className="my-1 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]" />
+          <div className="my-1 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]" />
 
           <button
             className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"

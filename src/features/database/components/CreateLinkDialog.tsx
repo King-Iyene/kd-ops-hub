@@ -151,7 +151,7 @@ export function CreateLinkDialog({ open, onOpenChange }: CreateLinkDialogProps) 
           <Button
             size="sm"
             className="hover:opacity-90 text-white"
-            style={{ backgroundColor: '#3366FF' }}
+            style={{ backgroundColor: '#166EE1' }}
             onClick={handleCreate}
             disabled={createLink.isPending}
           >

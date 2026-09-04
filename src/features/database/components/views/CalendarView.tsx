@@ -40,7 +40,7 @@ function getEventColor(
   record: RecordRow,
   colorField: FieldMeta | undefined,
 ): { bg: string; text: string; darkBg: string; darkText: string } {
-  const defaultColor = { bg: '#EBF0FF', text: '#3366FF', darkBg: 'hsl(220,50%,20%)', darkText: 'hsl(220,80%,75%)' };
+  const defaultColor = { bg: '#EBF0FF', text: '#166EE1', darkBg: 'hsl(220,50%,20%)', darkText: 'hsl(220,80%,75%)' };
   if (!colorField) return defaultColor;
   const val = record[colorField.pg_column_name];
   if (!val) return defaultColor;
@@ -223,11 +223,11 @@ const calendarStyles = `
 .calendar-root {
   --cal-bg: #ffffff;
   --cal-bg-alt: #F9F9FA;
-  --cal-border: #E7E7E9;
+  --cal-border: #E5E5E5;
   --cal-text: #374151;
   --cal-text-muted: #6A7184;
   --cal-text-faint: #9AA2AF;
-  --cal-primary: #3366FF;
+  --cal-primary: #166EE1;
   --cal-primary-hover: #2952CC;
   --cal-primary-light: #EBF0FF;
   --cal-primary-light-hover: #D6E0FF;

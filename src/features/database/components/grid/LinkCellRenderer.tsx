@@ -73,7 +73,7 @@ function LinkedRecordsPopover({
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <button
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-[#E0F2FE] text-[#3366FF] dark:bg-[hsl(220,40%,20%)] dark:text-[#6699FF]"
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-[#E0F2FE] text-[#166EE1] dark:bg-[hsl(220,40%,20%)] dark:text-[#6699FF]"
           onClick={(e) => e.stopPropagation()}
         >
           <Link2 size={12} />
@@ -85,7 +85,7 @@ function LinkedRecordsPopover({
         align="start"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-3 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+        <div className="p-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
           <div className="flex items-center gap-2">
             <Search size={14} className="text-[#9AA2AF]" />
             <Input
@@ -115,7 +115,7 @@ function LinkedRecordsPopover({
                     {getRecordDisplayValue(rec, primaryField)}
                   </span>
                   <button
-                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#E7E7E9] dark:hover:bg-[hsl(200,25%,18%)] transition-opacity"
+                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#E5E5E5] dark:hover:bg-[hsl(200,25%,18%)] transition-opacity"
                     onClick={() => unlinkRecord(rec.id)}
                   >
                     <X size={12} className="text-[#9AA2AF]" />
@@ -129,7 +129,7 @@ function LinkedRecordsPopover({
 
           {/* Search results to link */}
           {searchTerm && filteredSearchResults.length > 0 && (
-            <div className="p-1 border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+            <div className="p-1 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
               <p className="px-2 py-1 text-[10px] font-medium text-[#9AA2AF] uppercase tracking-wider">
                 Link new
               </p>
@@ -145,7 +145,7 @@ function LinkedRecordsPopover({
                     className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#DBEAFE] dark:hover:bg-[hsl(220,40%,20%)] transition-opacity"
                     onClick={() => linkRecord(rec.id)}
                   >
-                    <Plus size={12} className="text-[#3366FF]" />
+                    <Plus size={12} className="text-[#166EE1]" />
                   </button>
                 </div>
               ))}
@@ -153,7 +153,7 @@ function LinkedRecordsPopover({
           )}
 
           {searchTerm && filteredSearchResults.length === 0 && (
-            <div className="p-3 text-xs text-[#9AA2AF] border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+            <div className="p-3 text-xs text-[#9AA2AF] border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
               No matching records found
             </div>
           )}

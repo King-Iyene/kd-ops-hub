@@ -83,14 +83,14 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
-            <Share2 size={16} className="text-[#3366FF]" />
+            <Share2 size={16} className="text-[#166EE1]" />
             Share View
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
           {/* Enable / disable toggle */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-[#F9F9FA] dark:bg-[hsl(200,25%,12%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-[#F9F9FA] dark:bg-[hsl(200,25%,12%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
             <div>
               <p className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
                 Enable shared view
@@ -102,7 +102,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
             <button
               onClick={isEnabled ? handleDisableSharing : handleEnableSharing}
               disabled={isLoading || createShared.isPending || updateShared.isPending}
-              className="text-[#3366FF]"
+              className="text-[#166EE1]"
             >
               {isEnabled ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]" />}
             </button>
@@ -116,14 +116,14 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                   Shareable link
                 </label>
                 <div className="flex gap-2">
-                  <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] truncate">
+                  <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] truncate">
                     <Link2 size={12} className="shrink-0" />
                     <span className="truncate">{shareUrl}</span>
                   </div>
                   <Button
                     size="sm"
                     className="h-8 px-3 text-[12px] gap-1.5"
-                    style={{ backgroundColor: '#3366FF' }}
+                    style={{ backgroundColor: '#166EE1' }}
                     onClick={handleCopy}
                   >
                     {copied ? <Check size={13} /> : <Copy size={13} />}
@@ -144,7 +144,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={sharedView.password ? '(password set)' : 'Set a password'}
-                      className="w-full px-3 py-1.5 rounded-md border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#6A7184] dark:placeholder:text-[hsl(200,20%,40%)] pr-8"
+                      className="w-full px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#6A7184] dark:placeholder:text-[hsl(200,20%,40%)] pr-8"
                     />
                     <button
                       onClick={() => setShowPassword(!showPassword)}
@@ -166,7 +166,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
               </div>
 
               {/* CSV download toggle */}
-              <div className="flex items-center justify-between p-3 rounded-lg bg-[#F9F9FA] dark:bg-[hsl(200,25%,12%)] border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-[#F9F9FA] dark:bg-[hsl(200,25%,12%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
                 <div className="flex items-center gap-2">
                   <Download size={14} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]" />
                   <div>
@@ -181,7 +181,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                 <button
                   onClick={handleToggleCsv}
                   disabled={updateShared.isPending}
-                  className="text-[#3366FF]"
+                  className="text-[#166EE1]"
                 >
                   {sharedView.allow_csv_download
                     ? <ToggleRight size={28} />
@@ -190,7 +190,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
               </div>
 
               {/* Delete sharing */}
-              <div className="border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] pt-3">
+              <div className="border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] pt-3">
                 <Button
                   variant="ghost"
                   size="sm"

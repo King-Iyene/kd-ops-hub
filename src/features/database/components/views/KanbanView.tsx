@@ -270,11 +270,11 @@ export default function KanbanView({
         .kanban-root {
           --kanban-bg: #F9F9FA;
           --kanban-card-bg: #ffffff;
-          --kanban-border: #E7E7E9;
+          --kanban-border: #E5E5E5;
           --kanban-text: #374151;
           --kanban-muted: #6A7184;
           --kanban-subtle: #9AA2AF;
-          --kanban-primary: #3366FF;
+          --kanban-primary: #166EE1;
           --kanban-primary-hover: #2952CC;
           --kanban-empty-border: #D1D5DB;
           --kanban-card-shadow: 0 1px 2px rgba(0,0,0,0.06);
@@ -290,7 +290,7 @@ export default function KanbanView({
             --kanban-muted: hsl(200,20%,60%);
             --kanban-subtle: hsl(200,15%,50%);
             --kanban-primary: #5588FF;
-            --kanban-primary-hover: #3366FF;
+            --kanban-primary-hover: #166EE1;
             --kanban-empty-border: hsl(200,20%,25%);
             --kanban-card-shadow: 0 1px 2px rgba(0,0,0,0.3);
             --kanban-card-shadow-hover: 0 4px 12px rgba(0,0,0,0.4);
@@ -305,7 +305,7 @@ export default function KanbanView({
           --kanban-muted: hsl(200,20%,60%);
           --kanban-subtle: hsl(200,15%,50%);
           --kanban-primary: #5588FF;
-          --kanban-primary-hover: #3366FF;
+          --kanban-primary-hover: #166EE1;
           --kanban-empty-border: hsl(200,20%,25%);
           --kanban-card-shadow: 0 1px 2px rgba(0,0,0,0.3);
           --kanban-card-shadow-hover: 0 4px 12px rgba(0,0,0,0.4);

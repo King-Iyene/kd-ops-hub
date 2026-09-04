@@ -134,7 +134,7 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
   };
 
   const inputClass =
-    'w-full border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-lg px-3 py-2.5 text-sm text-[#374151] dark:text-[hsl(200,25%,88%)] bg-white dark:bg-[hsl(200,30%,8%)] focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(200,25%,40%)] transition-colors';
+    'w-full border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg px-3 py-2.5 text-sm text-[#374151] dark:text-[hsl(200,25%,88%)] bg-white dark:bg-[hsl(200,30%,8%)] focus:outline-none focus:ring-2 focus:ring-[#166EE1]/30 focus:border-[#166EE1] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(200,25%,40%)] transition-colors';
 
   const renderInput = (f: FieldMeta) => {
     const req = isFieldRequired(f);
@@ -160,7 +160,7 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
               checked={!!values[f.id]}
               onChange={(e) => setValues((v) => ({ ...v, [f.id]: e.target.checked }))}
             />
-            <div className="w-9 h-5 bg-[#E7E7E9] dark:bg-[hsl(200,25%,20%)] peer-focus:ring-2 peer-focus:ring-[#3366FF]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#3366FF]" />
+            <div className="w-9 h-5 bg-[#E5E5E5] dark:bg-[hsl(200,25%,20%)] peer-focus:ring-2 peer-focus:ring-[#166EE1]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#166EE1]" />
           </label>
         );
       case 'Number':
@@ -270,7 +270,7 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
     return (
       <div className="flex-1 overflow-auto flex justify-center items-start py-10 px-4 bg-[#F9F9FA] dark:bg-[hsl(200,30%,10%)]">
         <div className="w-full max-w-2xl mx-auto">
-          <div className="bg-white dark:bg-[hsl(200,30%,12%)] rounded-xl border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-[hsl(200,30%,12%)] rounded-xl border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] shadow-sm overflow-hidden">
             <div className="h-1.5" style={{ background: 'linear-gradient(90deg, #22C55E, #4ADE80)' }} />
             <div className="p-10 flex flex-col items-center text-center">
               <div className="w-16 h-16 rounded-full bg-green-50 dark:bg-green-900/20 flex items-center justify-center mb-5">
@@ -286,9 +286,9 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
                 type="button"
                 onClick={handleSubmitAnother}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
-                style={{ backgroundColor: '#3366FF' }}
+                style={{ backgroundColor: '#166EE1' }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#2952CC')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#3366FF')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#166EE1')}
               >
                 <RotateCcw size={14} />
                 Submit another response
@@ -305,7 +305,7 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
       <div className="w-full max-w-2xl mx-auto">
         <form onSubmit={handleSubmit}>
           {/* Cover image placeholder */}
-          <div className="rounded-t-xl border border-b-0 border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] bg-gradient-to-br from-[#EEF2FF] to-[#E0E7FF] dark:from-[hsl(220,30%,14%)] dark:to-[hsl(230,25%,16%)] h-36 flex items-center justify-center">
+          <div className="rounded-t-xl border border-b-0 border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-gradient-to-br from-[#EEF2FF] to-[#E0E7FF] dark:from-[hsl(220,30%,14%)] dark:to-[hsl(230,25%,16%)] h-36 flex items-center justify-center">
             <div className="flex flex-col items-center gap-1.5 text-[#9AA2AF] dark:text-[hsl(200,25%,40%)]">
               <ImageIcon size={28} />
               <span className="text-xs font-medium">Add cover image</span>
@@ -313,7 +313,7 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
           </div>
 
           {/* Form header */}
-          <div className="bg-white dark:bg-[hsl(200,30%,12%)] border-x border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] px-8 pt-6 pb-4">
+          <div className="bg-white dark:bg-[hsl(200,30%,12%)] border-x border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] px-8 pt-6 pb-4">
             <input
               type="text"
               value={formTitle}
@@ -338,7 +338,7 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
               return (
                 <div
                   key={f.id}
-                  className="bg-white dark:bg-[hsl(200,30%,12%)] border-x border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] px-8 py-5 group"
+                  className="bg-white dark:bg-[hsl(200,30%,12%)] border-x border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] px-8 py-5 group"
                 >
                   <div className="flex items-start gap-3">
                     {/* Drag handle */}
@@ -384,17 +384,17 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
           </div>
 
           {/* Submit button */}
-          <div className="bg-white dark:bg-[hsl(200,30%,12%)] border-x border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] rounded-b-xl px-8 py-6">
+          <div className="bg-white dark:bg-[hsl(200,30%,12%)] border-x border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-b-xl px-8 py-6">
             <button
               type="submit"
               disabled={isLoading}
               className="px-8 py-2.5 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50"
-              style={{ backgroundColor: '#3366FF' }}
+              style={{ backgroundColor: '#166EE1' }}
               onMouseEnter={(e) => {
                 if (!isLoading) e.currentTarget.style.backgroundColor = '#2952CC';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#3366FF';
+                e.currentTarget.style.backgroundColor = '#166EE1';
               }}
             >
               {isLoading ? 'Submitting...' : 'Submit'}

@@ -35,7 +35,7 @@ export const toast = {
 const BORDER_COLORS: Record<ToastItem['type'], string> = {
   success: '#22C55E',
   error: '#EF4444',
-  info: '#3366FF',
+  info: '#166EE1',
 };
 
 function ToastEntry({ item }: { item: ToastItem }) {
@@ -48,7 +48,7 @@ function ToastEntry({ item }: { item: ToastItem }) {
 
   return (
     <div
-      className="flex items-start gap-2 px-4 py-3 bg-white dark:bg-[hsl(200,30%,12%)] rounded-lg shadow-lg border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] min-w-[280px] max-w-[380px] animate-[slideIn_0.2s_ease-out]"
+      className="flex items-start gap-2 px-4 py-3 bg-white dark:bg-[hsl(200,30%,12%)] rounded-lg shadow-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] min-w-[280px] max-w-[380px] animate-[slideIn_0.2s_ease-out]"
       style={{ borderLeft: `4px solid ${BORDER_COLORS[item.type]}` }}
     >
       <span className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)] flex-1">{item.message}</span>

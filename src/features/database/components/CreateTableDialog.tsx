@@ -76,7 +76,7 @@ export function CreateTableDialog({ open, onOpenChange }: CreateTableDialogProps
           </Button>
           <Button
             size="sm"
-            className="bg-[#3366FF] hover:bg-[#2952CC]"
+            className="bg-[#166EE1] hover:bg-[#2952CC]"
             onClick={handleCreate}
             disabled={createTable.isPending || !name.trim()}
           >

@@ -519,7 +519,7 @@ export const PercentCellRenderer = React.memo(function PercentCellRenderer({
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
   return (
     <div className="flex items-center gap-2 w-full">
-      <div className="flex-1 h-1.5 rounded-full bg-[#E7E7E9] dark:bg-[hsl(200,25%,18%)] overflow-hidden">
+      <div className="flex-1 h-1.5 rounded-full bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] overflow-hidden">
         <div
           className="h-full rounded-full"
           style={{ width: `${Math.min(100, Math.max(0, num))}%`, backgroundColor: '#2563EB' }}

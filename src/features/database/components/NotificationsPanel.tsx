@@ -76,7 +76,7 @@ const ICONS: Record<NotificationType, typeof Edit3> = {
 
 const ICON_COLORS: Record<NotificationType, string> = {
   record_created: '#22C55E',
-  record_updated: '#3366FF',
+  record_updated: '#166EE1',
   record_deleted: '#EF4444',
   comment: '#F59E0B',
   automation: '#8B5CF6',
@@ -133,15 +133,15 @@ export function NotificationsPanel() {
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-[340px] bg-white dark:bg-[hsl(200,30%,10%)] rounded-lg shadow-xl border border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 w-[340px] bg-white dark:bg-[hsl(200,30%,10%)] rounded-lg shadow-xl border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] z-50 overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-[#E7E7E9] dark:border-[hsl(200,25%,18%)]">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
             <span className="text-[13px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
               Notifications
             </span>
             {notifications.length > 0 && (
               <button
-                className="text-[11px] text-[#3366FF] hover:underline"
+                className="text-[11px] text-[#166EE1] hover:underline"
                 onClick={markAllRead}
               >
                 Mark all read
@@ -181,7 +181,7 @@ export function NotificationsPanel() {
                       </span>
                     </div>
                     {!n.read && (
-                      <span className="mt-1.5 h-2 w-2 rounded-full bg-[#3366FF] shrink-0" />
+                      <span className="mt-1.5 h-2 w-2 rounded-full bg-[#166EE1] shrink-0" />
                     )}
                   </div>
                 );
