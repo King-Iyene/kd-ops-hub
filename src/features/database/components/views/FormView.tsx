@@ -117,10 +117,22 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const record: Record<string, any> = {};
+    const missing: string[] = [];
     for (const f of editableFields) {
-      if (values[f.id] !== undefined && values[f.id] !== '') {
-        record[f.pg_column_name] = values[f.id];
+      if (isFieldRequired(f)) {
+        const v = values[f.id];
+        if (v === undefined || v === '' || v === null || (Array.isArray(v) && v.length === 0)) {
+          missing.push(f.name);
+        }
+      }
+    }
+    if (missing.length > 0) return;
+    const record: Record<string, any> = {};
+    const numericTypes = new Set(['Number', 'Decimal', 'Currency', 'Percent', 'Duration']);
+    for (const f of editableFields) {
+      const v = values[f.id];
+      if (v !== undefined && v !== '') {
+        record[f.pg_column_name] = numericTypes.has(f.ui_type) ? Number(v) : v;
       }
     }
     onAddRow(record);

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook } from '../hooks';
+import { supabase } from '@/lib/supabase';
 import type { WebhookMeta } from '../types';
 
 const EVENTS: { value: WebhookMeta['event']; label: string }[] = [
@@ -128,12 +129,19 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await fetch(url.trim(), {
-        method,
-        headers: { 'Content-Type': 'application/json', ...headers },
-        body: method !== 'GET' ? JSON.stringify({ test: true, event, timestamp: new Date().toISOString() }) : undefined,
+      const { data, error } = await supabase.functions.invoke('webhook-proxy', {
+        body: {
+          url: url.trim(),
+          method,
+          headers: { 'Content-Type': 'application/json', ...headers },
+          payload: { test: true, event, timestamp: new Date().toISOString() },
+        },
       });
-      setTestResult({ ok: res.ok, status: res.status });
+      if (error) {
+        setTestResult({ ok: false });
+      } else {
+        setTestResult({ ok: data?.ok ?? false, status: data?.status });
+      }
     } catch {
       setTestResult({ ok: false });
     } finally {
