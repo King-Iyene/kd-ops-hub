@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,10 @@ import {
   Download,
   Key,
   ExternalLink,
+  Square,
+  CheckSquare,
+  RotateCcw,
+  AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
@@ -48,9 +52,21 @@ interface AirtableTable {
   name: string;
   fields: AirtableField[];
   selected: boolean;
+  recordCount?: number;
 }
 
 type Step = 'token' | 'select' | 'importing' | 'done';
+
+interface ImportProgress {
+  tableIndex: number;
+  tableCount: number;
+  tableName: string;
+  recordsFetched: number;
+  recordsInserted: number;
+  totalRecords: number;
+  phase: 'schema' | 'fetching' | 'inserting';
+  errors: string[];
+}
 
 function mapAirtableType(atType: string): { uiType: string; pgType: string } {
   const map: Record<string, { uiType: string; pgType: string }> = {
@@ -101,6 +117,10 @@ function toSnakeCase(name: string): string {
   return result.substring(0, 63);
 }
 
+function formatNumber(n: number): string {
+  return n.toLocaleString();
+}
+
 const SYSTEM_FIELDS = [
   { name: 'ID', pg_column_name: 'id', ui_type: 'ID', pg_type: 'UUID', is_primary: false, position: 0 },
   { name: 'Created At', pg_column_name: 'created_at', ui_type: 'CreatedTime', pg_type: 'TIMESTAMPTZ', is_primary: false, position: 1 },
@@ -111,6 +131,20 @@ const SYSTEM_FIELDS = [
 
 const SYSTEM_UI_TYPES = new Set(['ID', 'CreatedTime', 'LastModifiedTime', 'CreatedBy']);
 
+const BATCH_SIZE = 500;
+const RATE_LIMIT_DELAY = 220;
+const MAX_RETRIES = 3;
+
+async function rateLimitedFetch(url: string, options: RequestInit, retries = MAX_RETRIES): Promise<Response> {
+  const res = await fetch(url, options);
+  if (res.status === 429 && retries > 0) {
+    const retryAfter = parseInt(res.headers.get('Retry-After') ?? '30', 10);
+    await new Promise((r) => setTimeout(r, retryAfter * 1000));
+    return rateLimitedFetch(url, options, retries - 1);
+  }
+  return res;
+}
+
 export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialogProps) {
   const [step, setStep] = useState<Step>('token');
   const [token, setToken] = useState('');
@@ -119,8 +153,19 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
   const [tables, setTables] = useState<AirtableTable[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [progress, setProgress] = useState({ current: 0, total: 0, tableName: '' });
+  const [progress, setProgress] = useState<ImportProgress>({
+    tableIndex: 0,
+    tableCount: 0,
+    tableName: '',
+    recordsFetched: 0,
+    recordsInserted: 0,
+    totalRecords: 0,
+    phase: 'schema',
+    errors: [],
+  });
   const [importedCount, setImportedCount] = useState(0);
+  const [importedRecordCount, setImportedRecordCount] = useState(0);
+  const abortRef = useRef(false);
   const qc = useQueryClient();
   const { navigateToBase } = useDatabaseNavigate();
 
@@ -132,8 +177,14 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
     setTables([]);
     setLoading(false);
     setError('');
-    setProgress({ current: 0, total: 0, tableName: '' });
+    setProgress({
+      tableIndex: 0, tableCount: 0, tableName: '',
+      recordsFetched: 0, recordsInserted: 0, totalRecords: 0,
+      phase: 'schema', errors: [],
+    });
     setImportedCount(0);
+    setImportedRecordCount(0);
+    abortRef.current = false;
   };
 
   const fetchBases = useCallback(async () => {
@@ -188,20 +239,34 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
     );
   };
 
-  const fetchAllRecords = async (baseId: string, tableId: string): Promise<any[]> => {
+  const selectAll = () => setTables((prev) => prev.map((t) => ({ ...t, selected: true })));
+  const deselectAll = () => setTables((prev) => prev.map((t) => ({ ...t, selected: false })));
+
+  const allSelected = tables.length > 0 && tables.every((t) => t.selected);
+  const noneSelected = tables.every((t) => !t.selected);
+  const selectedCount = tables.filter((t) => t.selected).length;
+
+  const fetchAllRecords = async (
+    baseId: string,
+    tableId: string,
+    onBatch: (count: number) => void,
+  ): Promise<any[]> => {
     const records: any[] = [];
     let offset: string | undefined;
+    const headers = { Authorization: `Bearer ${token}` };
     do {
+      if (abortRef.current) break;
       const url = new URL(`https://api.airtable.com/v0/${baseId}/${tableId}`);
       url.searchParams.set('pageSize', '100');
       if (offset) url.searchParams.set('offset', offset);
-      const res = await fetch(url.toString(), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await rateLimitedFetch(url.toString(), { headers });
       if (!res.ok) throw new Error(`Failed to fetch records: ${res.status}`);
       const data = await res.json();
-      records.push(...(data.records || []));
+      const batch = data.records || [];
+      records.push(...batch);
+      onBatch(records.length);
       offset = data.offset;
+      if (offset) await new Promise((r) => setTimeout(r, RATE_LIMIT_DELAY));
     } while (offset);
     return records;
   };
@@ -215,13 +280,20 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
     setStep('importing');
     setError('');
-    setProgress({ current: 0, total: selectedTables.length, tableName: '' });
+    abortRef.current = false;
+    const errors: string[] = [];
+    let totalRecordsImported = 0;
+
+    setProgress({
+      tableIndex: 0, tableCount: selectedTables.length, tableName: '',
+      recordsFetched: 0, recordsInserted: 0, totalRecords: 0,
+      phase: 'schema', errors: [],
+    });
 
     try {
       const baseName = bases.find((b) => b.id === selectedBaseId)?.name ?? 'Imported Base';
       const schemaName = `nc_${toSnakeCase(baseName)}_${Date.now()}`;
 
-      // Ensure workspace exists
       const { data: workspaces } = await supabase
         .schema('nc_meta')
         .from('workspaces')
@@ -238,7 +310,6 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         workspaceId = ws?.id;
       }
 
-      // Create base
       const { data: base, error: baseError } = await supabase
         .schema('nc_meta')
         .from('bases')
@@ -253,7 +324,6 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         .single();
       if (baseError) throw baseError;
 
-      // Create schema and expose it
       await supabase.functions.invoke('ddl-executor', {
         body: { action: 'createSchema', schemaName },
       });
@@ -261,14 +331,23 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         body: { action: 'exposeSchema', schemaName },
       });
 
-      // Import each table
       for (let i = 0; i < selectedTables.length; i++) {
+        if (abortRef.current) break;
         const atTable = selectedTables[i];
-        setProgress({ current: i + 1, total: selectedTables.length, tableName: atTable.name });
+
+        setProgress((p) => ({
+          ...p,
+          tableIndex: i + 1,
+          tableCount: selectedTables.length,
+          tableName: atTable.name,
+          recordsFetched: 0,
+          recordsInserted: 0,
+          totalRecords: 0,
+          phase: 'schema',
+        }));
 
         const pgTableName = toSnakeCase(atTable.name);
 
-        // Create table metadata
         const { data: table, error: tableError } = await supabase
           .schema('nc_meta')
           .from('tables')
@@ -283,12 +362,10 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           .single();
         if (tableError) throw tableError;
 
-        // Create PG table
         await supabase.functions.invoke('ddl-executor', {
           body: { action: 'createTable', schemaName, tableName: pgTableName },
         });
 
-        // Insert system fields
         const sysRows = SYSTEM_FIELDS.map((f) => ({
           table_id: table.id,
           name: f.name,
@@ -312,12 +389,10 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           .select();
         if (sysError) throw sysError;
 
-        // Map and create user fields from Airtable schema
         const userFields = atTable.fields.filter(
           (f) => !SYSTEM_UI_TYPES.has(mapAirtableType(f.type).uiType)
         );
 
-        // Track used column names to avoid duplicates
         const usedColNames = new Set(SYSTEM_FIELDS.map((f) => f.pg_column_name));
 
         const fieldRows = userFields.map((f, idx) => {
@@ -350,7 +425,6 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           }
 
           let pgColName = toSnakeCase(f.name) || `field_${idx}`;
-          // Deduplicate column names
           if (usedColNames.has(pgColName)) {
             let suffix = 2;
             while (usedColNames.has(`${pgColName}_${suffix}`)) suffix++;
@@ -375,7 +449,6 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           };
         });
 
-        // Add PG columns
         for (const fr of fieldRows) {
           await supabase.functions.invoke('ddl-executor', {
             body: {
@@ -388,7 +461,6 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           });
         }
 
-        // Insert field metadata
         const { data: createdFields } = await supabase
           .schema('nc_meta')
           .from('fields')
@@ -397,7 +469,6 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
         const allFields = [...(sysFields ?? []), ...(createdFields ?? [])];
 
-        // Set primary_field_id to the first user field (Airtable's primary)
         const primaryField = (createdFields as any[])?.find((f: any) => f.is_primary);
         if (primaryField) {
           await supabase
@@ -407,7 +478,6 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             .eq('id', table.id);
         }
 
-        // Create default grid view
         await supabase.schema('nc_meta').from('views').insert({
           table_id: table.id,
           name: 'Grid view',
@@ -423,20 +493,26 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           position: 0,
         });
 
-        // Fetch and import records from Airtable
+        // Fetch records with progress tracking
         try {
-          const records = await fetchAllRecords(selectedBaseId!, atTable.id);
-          if (records.length > 0) {
-            // Build a field name → { pg_column_name, pg_type } map
+          setProgress((p) => ({ ...p, phase: 'fetching' }));
+
+          const records = await fetchAllRecords(selectedBaseId!, atTable.id, (count) => {
+            setProgress((p) => ({ ...p, recordsFetched: count }));
+          });
+
+          if (records.length > 0 && !abortRef.current) {
+            setProgress((p) => ({ ...p, phase: 'inserting', totalRecords: records.length }));
+
             const fieldMap: Record<string, { col: string; pgType: string }> = {};
             for (const fr of fieldRows) {
               fieldMap[fr.name] = { col: fr.pg_column_name, pgType: fr.pg_type };
             }
 
-            // Insert in batches of 50
-            const batchSize = 50;
-            for (let b = 0; b < records.length; b += batchSize) {
-              const batch = records.slice(b, b + batchSize);
+            let inserted = 0;
+            for (let b = 0; b < records.length; b += BATCH_SIZE) {
+              if (abortRef.current) break;
+              const batch = records.slice(b, b + BATCH_SIZE);
               const rows = batch.map((rec: any, idx: number) => {
                 const row: Record<string, any> = { nc_order: b + idx + 1 };
                 for (const [fieldName, value] of Object.entries(rec.fields || {})) {
@@ -446,6 +522,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                       row[mapping.col] = value;
                     } else if (mapping.pgType === 'TEXT[]') {
                       row[mapping.col] = Array.isArray(value) ? value : [String(value)];
+                    } else if (mapping.pgType.startsWith('BOOLEAN')) {
+                      row[mapping.col] = Boolean(value);
                     } else if (typeof value === 'object' && value !== null) {
                       row[mapping.col] = JSON.stringify(value);
                     } else {
@@ -456,15 +534,40 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                 return row;
               });
 
-              await supabase.schema(schemaName).from(pgTableName).insert(rows);
+              const { error: insertErr } = await supabase.schema(schemaName).from(pgTableName).insert(rows);
+              if (insertErr) {
+                // Retry each row individually on batch failure
+                let recoveredCount = 0;
+                for (const row of rows) {
+                  const { error: singleErr } = await supabase.schema(schemaName).from(pgTableName).insert(row);
+                  if (!singleErr) recoveredCount++;
+                }
+                inserted += recoveredCount;
+                if (recoveredCount < rows.length) {
+                  const failedCount = rows.length - recoveredCount;
+                  errors.push(`${atTable.name}: ${failedCount} record${failedCount > 1 ? 's' : ''} failed to insert`);
+                }
+              } else {
+                inserted += batch.length;
+              }
+
+              setProgress((p) => ({
+                ...p,
+                recordsInserted: inserted,
+                errors: [...errors],
+              }));
             }
+
+            totalRecordsImported += inserted;
           }
-        } catch {
-          // Records import failure is non-fatal — schema still imported
+        } catch (e: any) {
+          errors.push(`${atTable.name}: ${e?.message ?? 'Failed to import records'}`);
+          setProgress((p) => ({ ...p, errors: [...errors] }));
         }
       }
 
       setImportedCount(selectedTables.length);
+      setImportedRecordCount(totalRecordsImported);
       navigateToBase(base.id);
       qc.invalidateQueries({ queryKey: ['nc'] });
       setStep('done');
@@ -474,15 +577,22 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
     }
   }, [tables, bases, selectedBaseId, token, qc, navigateToBase]);
 
+  const selectedTotalFields = tables.filter((t) => t.selected).reduce((sum, t) => sum + t.fields.length, 0);
+
   return (
     <Dialog
       open={open}
       onOpenChange={(v) => {
-        if (!v) reset();
+        if (!v) {
+          if (step === 'importing') {
+            abortRef.current = true;
+          }
+          reset();
+        }
         onOpenChange(v);
       }}
     >
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <Download size={18} className="text-[#166EE1]" />
@@ -493,7 +603,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         {step === 'token' && (
           <div className="space-y-4 py-2">
             <p className="text-[13px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] leading-relaxed">
-              Enter your Airtable Personal Access Token to import your bases. You can create one at{' '}
+              Enter your Airtable Personal Access Token to import bases, tables, and all records.
+              Create one at{' '}
               <a
                 href="https://airtable.com/create/tokens"
                 target="_blank"
@@ -503,6 +614,11 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                 airtable.com/create/tokens <ExternalLink size={11} />
               </a>
             </p>
+            <div className="rounded-lg border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/10 px-3 py-2.5">
+              <p className="text-[12px] text-amber-700 dark:text-amber-400 leading-relaxed">
+                <strong>Required scopes:</strong> <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded text-[11px]">data.records:read</code> and <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded text-[11px]">schema.bases:read</code> for the bases you want to import.
+              </p>
+            </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-[#4A5268] dark:text-[hsl(200,20%,55%)]">
                 Personal Access Token
@@ -530,9 +646,9 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         {step === 'select' && !selectedBaseId && (
           <div className="space-y-3 py-2">
             <p className="text-[13px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
-              Select a base to import:
+              Select a base to import ({bases.length} base{bases.length !== 1 ? 's' : ''} found):
             </p>
-            <div className="max-h-[320px] overflow-y-auto space-y-1">
+            <div className="max-h-[360px] overflow-y-auto space-y-1">
               {bases.map((base) => (
                 <button
                   key={base.id}
@@ -553,6 +669,11 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                 </button>
               ))}
             </div>
+            {loading && (
+              <div className="flex items-center gap-2 text-xs text-[#9AA2AF]">
+                <Loader2 size={12} className="animate-spin" /> Loading...
+              </div>
+            )}
             {error && (
               <div className="flex items-start gap-2 text-xs text-red-500">
                 <AlertCircle size={14} className="shrink-0 mt-0.5" /> {error}
@@ -563,21 +684,32 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
         {step === 'select' && selectedBaseId && (
           <div className="space-y-3 py-2">
-            <div className="flex items-center gap-2">
-              <button
-                className="text-xs text-[#166EE1] hover:underline"
-                onClick={() => { setSelectedBaseId(null); setTables([]); }}
-              >
-                &larr; Back to bases
-              </button>
-              <span className="text-xs text-[#9AA2AF]">
-                {bases.find((b) => b.id === selectedBaseId)?.name}
-              </span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <button
+                  className="text-xs text-[#166EE1] hover:underline"
+                  onClick={() => { setSelectedBaseId(null); setTables([]); }}
+                >
+                  &larr; Back to bases
+                </button>
+                <span className="text-xs text-[#9AA2AF]">
+                  {bases.find((b) => b.id === selectedBaseId)?.name}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  className="text-[11px] px-2 py-0.5 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] text-[#166EE1] font-medium"
+                  onClick={allSelected ? deselectAll : selectAll}
+                >
+                  {allSelected ? 'Deselect all' : 'Select all'}
+                </button>
+              </div>
             </div>
             <p className="text-[13px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
-              Select tables to import ({tables.filter((t) => t.selected).length} of {tables.length} selected):
+              {selectedCount} of {tables.length} table{tables.length !== 1 ? 's' : ''} selected
+              <span className="text-[#9AA2AF]"> · {selectedTotalFields} fields total</span>
             </p>
-            <div className="max-h-[280px] overflow-y-auto space-y-1">
+            <div className="max-h-[320px] overflow-y-auto space-y-1">
               {tables.map((table) => (
                 <button
                   key={table.id}
@@ -589,20 +721,18 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                   )}
                   onClick={() => toggleTable(table.id)}
                 >
-                  <div className={cn(
-                    'w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors',
-                    table.selected
-                      ? 'border-[#166EE1] bg-[#166EE1]'
-                      : 'border-[#D1D5DB] dark:border-[hsl(200,25%,25%)]'
-                  )}>
-                    {table.selected && <CheckCircle2 size={14} className="text-white" />}
+                  <div className="shrink-0 text-[#166EE1]">
+                    {table.selected
+                      ? <CheckSquare size={18} />
+                      : <Square size={18} className="text-[#D1D5DB] dark:text-[hsl(200,25%,25%)]" />
+                    }
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
                       {table.name}
                     </p>
                     <p className="text-[11px] text-[#9AA2AF]">
-                      {table.fields.length} fields
+                      {table.fields.length} field{table.fields.length !== 1 ? 's' : ''}
                     </p>
                   </div>
                   <Table2 size={14} className="text-[#9AA2AF] shrink-0" />
@@ -618,22 +748,71 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         )}
 
         {step === 'importing' && (
-          <div className="py-8 text-center space-y-4">
-            <Loader2 size={32} className="mx-auto animate-spin text-[#166EE1]" />
-            <div>
-              <p className="text-[14px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
-                Importing from Airtable...
-              </p>
-              <p className="text-[12px] text-[#9AA2AF] mt-1">
-                Table {progress.current} of {progress.total}: {progress.tableName}
-              </p>
+          <div className="py-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <Loader2 size={24} className="animate-spin text-[#166EE1] shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
+                  {progress.tableName}
+                </p>
+                <p className="text-[12px] text-[#9AA2AF]">
+                  Table {progress.tableIndex} of {progress.tableCount}
+                  {progress.phase === 'schema' && ' · Creating schema...'}
+                  {progress.phase === 'fetching' && ` · Fetching records... ${formatNumber(progress.recordsFetched)}`}
+                  {progress.phase === 'inserting' && ` · Inserting ${formatNumber(progress.recordsInserted)} of ${formatNumber(progress.totalRecords)}`}
+                </p>
+              </div>
             </div>
-            <div className="w-full bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] rounded-full h-2 max-w-xs mx-auto">
-              <div
-                className="bg-[#166EE1] h-2 rounded-full transition-all duration-300"
-                style={{ width: `${progress.total ? (progress.current / progress.total) * 100 : 0}%` }}
-              />
+
+            {/* Table progress bar */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-[11px] text-[#9AA2AF]">
+                <span>Tables</span>
+                <span>{progress.tableIndex} / {progress.tableCount}</span>
+              </div>
+              <div className="w-full bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] rounded-full h-2">
+                <div
+                  className="bg-[#166EE1] h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progress.tableCount ? (progress.tableIndex / progress.tableCount) * 100 : 0}%` }}
+                />
+              </div>
             </div>
+
+            {/* Record progress bar (when inserting) */}
+            {progress.phase === 'inserting' && progress.totalRecords > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[11px] text-[#9AA2AF]">
+                  <span>Records</span>
+                  <span>{formatNumber(progress.recordsInserted)} / {formatNumber(progress.totalRecords)}</span>
+                </div>
+                <div className="w-full bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] rounded-full h-1.5">
+                  <div
+                    className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
+                    style={{ width: `${(progress.recordsInserted / progress.totalRecords) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {progress.errors.length > 0 && (
+              <div className="rounded-lg border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/10 px-3 py-2 space-y-1">
+                <div className="flex items-center gap-1.5 text-[12px] font-medium text-amber-700 dark:text-amber-400">
+                  <AlertTriangle size={12} /> {progress.errors.length} warning{progress.errors.length !== 1 ? 's' : ''}
+                </div>
+                {progress.errors.slice(-3).map((err, i) => (
+                  <p key={i} className="text-[11px] text-amber-600 dark:text-amber-500 truncate">{err}</p>
+                ))}
+              </div>
+            )}
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => { abortRef.current = true; }}
+            >
+              Cancel import
+            </Button>
           </div>
         )}
 
@@ -646,8 +825,31 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               Import complete!
             </p>
             <p className="text-[12px] text-[#9AA2AF]">
-              Successfully imported {importedCount} table{importedCount !== 1 ? 's' : ''} from Airtable.
+              Imported {importedCount} table{importedCount !== 1 ? 's' : ''}
+              {importedRecordCount > 0 && ` with ${formatNumber(importedRecordCount)} records`} from Airtable.
             </p>
+            {progress.errors.length > 0 && (
+              <div className="text-left rounded-lg border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/10 px-3 py-2 space-y-1 max-h-32 overflow-y-auto">
+                <div className="flex items-center gap-1.5 text-[12px] font-medium text-amber-700 dark:text-amber-400">
+                  <AlertTriangle size={12} /> Some records had issues
+                </div>
+                {progress.errors.map((err, i) => (
+                  <p key={i} className="text-[11px] text-amber-600 dark:text-amber-500">{err}</p>
+                ))}
+              </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={() => {
+                reset();
+                setStep('token');
+              }}
+            >
+              <RotateCcw size={12} className="mr-1.5" />
+              Import another base
+            </Button>
           </div>
         )}
 
@@ -677,10 +879,10 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                 size="sm"
                 className="bg-[#166EE1] hover:bg-[#2952CC]"
                 onClick={startImport}
-                disabled={loading || tables.filter((t) => t.selected).length === 0}
+                disabled={loading || noneSelected}
               >
                 {loading ? <Loader2 size={14} className="animate-spin mr-1" /> : <Download size={14} className="mr-1" />}
-                Import {tables.filter((t) => t.selected).length} table{tables.filter((t) => t.selected).length !== 1 ? 's' : ''}
+                Import {selectedCount} table{selectedCount !== 1 ? 's' : ''}
               </Button>
             </>
           )}
