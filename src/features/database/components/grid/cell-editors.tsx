@@ -63,6 +63,7 @@ export function TextCellEditor({ value, field, onCommit, onCancel }: CellEditorP
         if (e.key === 'Tab') { e.preventDefault(); onCommit(text); }
       }}
       onBlur={() => onCommit(text)}
+      placeholder="Enter text"
       className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)]"
       style={{ fontSize: 14, color: 'inherit' }}
     />
@@ -91,6 +92,7 @@ export function NumberCellEditor({ value, field, onCommit, onCancel }: CellEdito
         if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); }
       }}
       onBlur={() => onCommit(num === '' ? null : Number(num))}
+      placeholder="0"
       className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
       style={{ fontSize: 14, color: 'inherit' }}
     />
@@ -128,6 +130,7 @@ export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEdi
           if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); }
         }}
         onBlur={() => onCommit(num === '' ? null : Number(num))}
+        placeholder="0.00"
         className="w-full h-full px-2 outline-none bg-transparent text-right"
         style={{ fontSize: 14, color: 'inherit' }}
       />
@@ -307,6 +310,7 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
           if (e.key === 'Tab') { e.preventDefault(); commit(); }
         }}
         onBlur={commit}
+        placeholder="name@example.com"
         className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
         style={{
           fontSize: 13,
@@ -361,6 +365,7 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
           if (e.key === 'Tab') { e.preventDefault(); commit(); }
         }}
         onBlur={commit}
+        placeholder="https://example.com"
         className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
         style={{
           fontSize: 13,
@@ -402,6 +407,7 @@ export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorP
           if (e.key === 'Tab') { e.preventDefault(); onCommit(text); }
         }}
         onBlur={() => onCommit(text)}
+        placeholder="(555) 555-5555"
         className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
         style={{
           fontSize: 13,
@@ -854,6 +860,7 @@ export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps
       <input ref={ref} type="text" inputMode="decimal" value={num} onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
         onKeyDown={(e) => { if (e.key === 'Enter') onCommit(num === '' ? null : Number(num)); if (e.key === 'Escape') onCancel(); if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); } }}
         onBlur={() => onCommit(num === '' ? null : Number(num))}
+        placeholder="0"
         className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)] text-right" style={{ fontSize: 13 }}
       />
       <span className="pr-2 text-xs text-[#9AA2AF]">%</span>
@@ -939,6 +946,7 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
           if (e.key === 'Tab') { e.preventDefault(); onCommit(text); }
         }}
         onBlur={() => onCommit(text)}
+        placeholder="Enter text..."
         rows={4}
         className="w-full p-2 outline-none resize-y border-none bg-white dark:bg-[hsl(200,30%,10%)]"
         style={{ fontSize: 14, color: 'inherit' }}
@@ -969,6 +977,7 @@ export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEdit
         if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); }
       }}
       onBlur={() => onCommit(num === '' ? null : Number(num))}
+      placeholder="0.00"
       className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
       style={{ fontSize: 14, color: 'inherit' }}
     />
