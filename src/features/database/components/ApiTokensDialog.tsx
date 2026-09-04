@@ -119,7 +119,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <code className="text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] font-mono">
-                      {truncateToken(t.token)}
+                      {t.token}
                     </code>
                     <span className="text-[10px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
                       {new Date(t.created_at).toLocaleDateString()}

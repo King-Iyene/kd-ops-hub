@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   Plus, Pencil, Trash2, Table, Columns, History, Search,
   Filter, ChevronDown, Loader2,
@@ -142,25 +142,9 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
   const [actionFilter, setActionFilter] = useState<ActionType | 'ALL'>('ALL');
   const [search, setSearch] = useState('');
 
-  const { data, isLoading } = useAuditLog(baseId, page);
-  const entries = data?.entries ?? [];
+  const { data, isLoading } = useAuditLog(baseId, page, actionFilter, search);
+  const filtered = data?.entries ?? [];
   const hasMore = data?.hasMore ?? false;
-
-  const filtered = useMemo(() => {
-    let result = entries;
-    if (actionFilter !== 'ALL') {
-      result = result.filter((e) => e.action === actionFilter);
-    }
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.description.toLowerCase().includes(q) ||
-          e.user_email.toLowerCase().includes(q),
-      );
-    }
-    return result;
-  }, [entries, actionFilter, search]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

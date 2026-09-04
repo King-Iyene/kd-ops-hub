@@ -23,7 +23,10 @@ export function useApiTokens(baseId: string | null | undefined) {
         .eq('base_id', baseId)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data as ApiToken[];
+      return (data ?? []).map((t: any) => ({
+        ...t,
+        token: t.token ? `${t.token.slice(0, 8)}...${t.token.slice(-4)}` : '',
+      })) as ApiToken[];
     },
   });
 }
