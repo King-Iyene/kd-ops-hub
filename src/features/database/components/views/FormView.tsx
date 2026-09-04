@@ -301,7 +301,7 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
   }
 
   return (
-    <div className="flex-1 overflow-auto flex justify-center py-10 px-4 bg-[#F9F9FA] dark:bg-[hsl(200,30%,10%)]">
+    <div className="flex-1 min-h-0 overflow-auto flex justify-center py-10 px-4 bg-[#F9F9FA] dark:bg-[hsl(200,30%,10%)]">
       <div className="w-full max-w-2xl mx-auto">
         <form onSubmit={handleSubmit}>
           {/* Cover image placeholder */}

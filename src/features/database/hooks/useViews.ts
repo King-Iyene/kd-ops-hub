@@ -130,6 +130,7 @@ function viewConfigFromMeta(view: ViewMeta) {
     }
   }
   return {
+    type: view.type,
     filters: view.filters ?? [],
     sorts: view.sorts ?? [],
     groups: view.groups ?? [],

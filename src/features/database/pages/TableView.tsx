@@ -343,7 +343,8 @@ export function TableView() {
     [activeTableId, reorderFields],
   );
 
-  const viewType = activeView?.type ?? 'grid';
+  const activeViewType = useDatabaseUI((s) => s.activeViewType);
+  const viewType = activeView?.type ?? activeViewType ?? 'grid';
 
   const renderView = () => {
     switch (viewType) {

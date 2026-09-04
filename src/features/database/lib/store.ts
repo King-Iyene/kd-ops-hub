@@ -17,6 +17,7 @@ interface DatabaseUIState {
   activeBaseId: string | null;
   activeTableId: string | null;
   activeViewId: string | null;
+  activeViewType: string | null;
   sidebarOpen: boolean;
   sidebarCollapsed: boolean;
   sidebarWidth: number;
@@ -41,6 +42,7 @@ interface DatabaseUIState {
   setActiveBase: (id: string | null) => void;
   setActiveTable: (id: string | null) => void;
   setActiveView: (id: string | null, viewConfig?: {
+    type?: string;
     filters?: Filter[];
     sorts?: Sort[];
     groups?: Group[];
@@ -74,6 +76,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   activeBaseId: null,
   activeTableId: null,
   activeViewId: null,
+  activeViewType: null,
   sidebarOpen: true,
   sidebarCollapsed: false,
   sidebarWidth: 260,
@@ -99,6 +102,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       activeBaseId: id,
       activeTableId: null,
       activeViewId: null,
+  activeViewType: null,
       filters: [],
       filterGroups: [],
       focusedFilterId: null,
@@ -115,6 +119,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
     set({
       activeTableId: id,
       activeViewId: null,
+  activeViewType: null,
       filters: [],
       filterGroups: [],
       focusedFilterId: null,
@@ -129,6 +134,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
     }),
   setActiveView: (id, viewConfig) => set({
     activeViewId: id,
+    activeViewType: viewConfig?.type ?? null,
     ...(viewConfig ? {
       filters: viewConfig.filters ?? [],
       sorts: viewConfig.sorts ?? [],

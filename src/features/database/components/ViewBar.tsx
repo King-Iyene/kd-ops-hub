@@ -28,7 +28,7 @@ const VIEW_ICONS: Record<string, typeof Grid3X3> = {
   gantt: BarChart3,
 };
 
-const VIEW_TYPE_OPTIONS: Array<{ type: 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar' | 'timeline' | 'gantt' | 'gantt'; label: string }> = [
+const VIEW_TYPE_OPTIONS: Array<{ type: 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar' | 'timeline' | 'gantt'; label: string }> = [
   { type: 'grid', label: 'Grid' },
   { type: 'kanban', label: 'Kanban' },
   { type: 'gallery', label: 'Gallery' },
@@ -178,6 +178,7 @@ export function ViewBar() {
               }
             }
             setActiveView(newView.id, {
+              type: newView.type,
               filters: newView.filters ?? [],
               sorts: newView.sorts ?? [],
               groups: newView.groups ?? [],
