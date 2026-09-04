@@ -771,6 +771,32 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
             </div>
           )}
 
+          {isButton && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Button Label</Label>
+                <Input
+                  value={buttonLabel}
+                  onChange={(e) => setButtonLabel(e.target.value)}
+                  placeholder="Click"
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">URL Template</Label>
+                <Input
+                  value={buttonUrl}
+                  onChange={(e) => setButtonUrl(e.target.value)}
+                  placeholder="https://example.com/{Name}"
+                  className="h-9"
+                />
+                <p className="text-[11px] text-[#9AA2AF]">
+                  Use {'{fieldName}'} to insert field values from the record.
+                </p>
+              </div>
+            </div>
+          )}
+
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
         {/* Delete field button — hidden for primary fields */}

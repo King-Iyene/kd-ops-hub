@@ -60,6 +60,7 @@ const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
   { value: 'Lookup', label: 'Lookup', group: 'Computed' },
   { value: 'Rollup', label: 'Rollup', group: 'Computed' },
   { value: 'Count', label: 'Count', group: 'Computed' },
+  { value: 'User', label: 'User', group: 'Relations' },
   { value: 'Links', label: 'Links', group: 'Relations' },
   { value: 'Attachment', label: 'Attachment', group: 'Other' },
   { value: 'JSON', label: 'JSON', group: 'Other' },
@@ -215,6 +216,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [richText, setRichText] = useState(false);
   const [buttonLabel, setButtonLabel] = useState('Click');
   const [buttonUrl, setButtonUrl] = useState('');
+  const [allowMultiple, setAllowMultiple] = useState(false);
   const [typeSearch, setTypeSearch] = useState('');
   const [error, setError] = useState('');
   const { activeTableId, activeBaseId } = useDatabaseUI();

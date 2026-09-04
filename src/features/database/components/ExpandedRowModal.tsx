@@ -623,6 +623,28 @@ export function ExpandedRowModal({
       case 'Rollup':
       case 'Count':
         return <RollupCellRenderer value={val} field={field} record={record} rowHeight="default" />;
+      case 'Button': {
+        const btnLabel = field.options?.label || 'Click';
+        const urlTemplate = field.options?.url || '';
+        const handleBtnClick = () => {
+          if (!urlTemplate) return;
+          const url = urlTemplate.replace(/\{(\w+)\}/g, (_: string, fieldName: string) => {
+            const v = record[fieldName];
+            return v != null ? encodeURIComponent(String(v)) : '';
+          });
+          window.open(url, '_blank', 'noopener,noreferrer');
+        };
+        return (
+          <button
+            type="button"
+            onClick={handleBtnClick}
+            className="inline-flex items-center px-4 py-1.5 rounded text-xs font-medium transition-colors hover:opacity-90"
+            style={{ backgroundColor: '#166EE1', color: '#FFFFFF', cursor: urlTemplate ? 'pointer' : 'default' }}
+          >
+            {btnLabel}
+          </button>
+        );
+      }
       default:
         return <InlineTextEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
     }

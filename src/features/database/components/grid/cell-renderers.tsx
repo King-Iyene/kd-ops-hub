@@ -696,6 +696,40 @@ export const BarcodeCellRenderer = React.memo(function BarcodeCellRenderer({
   );
 });
 
+export const ButtonCellRenderer = React.memo(function ButtonCellRenderer({
+  field,
+  record,
+}: CellRendererProps) {
+  const label = field.options?.label || 'Click';
+  const urlTemplate = field.options?.url || '';
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!urlTemplate) return;
+    const url = urlTemplate.replace(/\{(\w+)\}/g, (_: string, fieldName: string) => {
+      const val = record[fieldName];
+      return val != null ? encodeURIComponent(String(val)) : '';
+    });
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className="inline-flex items-center px-3 rounded text-xs font-medium transition-colors"
+      style={{
+        height: 24,
+        backgroundColor: '#166EE1',
+        color: '#FFFFFF',
+        cursor: urlTemplate ? 'pointer' : 'default',
+      }}
+    >
+      {label}
+    </button>
+  );
+});
+
 export function getCellRenderer(uiType: string) {
   switch (uiType) {
     case 'SingleLineText':
@@ -746,6 +780,8 @@ export function getCellRenderer(uiType: string) {
       return RollupCellRenderer;
     case 'Count':
       return RollupCellRenderer;
+    case 'Button':
+      return ButtonCellRenderer;
     case 'ID':
     case 'CreatedTime':
     case 'LastModifiedTime':
