@@ -348,7 +348,7 @@ export function TableTabBar() {
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48">
-          <DropdownMenuItem className="text-xs gap-2" onClick={handleAddTable}>
+          <DropdownMenuItem className="text-xs gap-2" onClick={() => setCreateTableOpen(true)}>
             <Plus size={12} /> Create new table
           </DropdownMenuItem>
           <DropdownMenuSeparator />

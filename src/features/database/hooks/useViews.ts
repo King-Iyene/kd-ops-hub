@@ -186,6 +186,8 @@ export function useSaveViewConfig() {
         sorts: state.sorts,
         groups: state.groupByLevels,
         field_visibility: fieldVisibility,
+        field_order: state.fieldOrder ?? [],
+        field_widths: state.fieldWidths ?? {},
       },
     });
   };

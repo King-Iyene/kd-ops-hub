@@ -120,6 +120,7 @@ function SortableViewTab({
 
 export function ViewBar() {
   const { activeTableId, activeViewId } = useDatabaseUI();
+  const setActiveView = useDatabaseUI((s) => s.setActiveView);
   const { data: views } = useViews(activeTableId);
   const createView = useCreateView();
   const updateView = useUpdateView();
@@ -170,7 +171,20 @@ export function ViewBar() {
         },
         {
           onSuccess: (newView) => {
-            loadViewConfig(newView.id);
+            const hiddenFieldIds = new Set<string>();
+            if (newView.field_visibility) {
+              for (const [fid, visible] of Object.entries(newView.field_visibility)) {
+                if (!visible) hiddenFieldIds.add(fid);
+              }
+            }
+            setActiveView(newView.id, {
+              filters: newView.filters ?? [],
+              sorts: newView.sorts ?? [],
+              groups: newView.groups ?? [],
+              hiddenFieldIds,
+              fieldOrder: newView.field_order ?? [],
+              fieldWidths: newView.field_widths ?? {},
+            });
           },
           onError: (err) => {
             console.error('Failed to create view:', err);
