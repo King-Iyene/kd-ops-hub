@@ -295,6 +295,7 @@ export default function TimelineView({
   const [colorFieldId, setColorFieldId] = useState<string>('');
   const [tooltip, setTooltip] = useState<{ record: RecordRow; x: number; y: number } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   const dateFields = useMemo(
     () => fields.filter((f) => DATE_TYPES.has(f.ui_type)),
@@ -556,7 +557,16 @@ export default function TimelineView({
       {/* Main area */}
       <div className="tl-body">
         {/* Sidebar */}
-        <div className="tl-sidebar" style={{ width: SIDEBAR_WIDTH }}>
+        <div
+          className="tl-sidebar"
+          ref={sidebarRef}
+          style={{ width: SIDEBAR_WIDTH }}
+          onScroll={() => {
+            if (sidebarRef.current && scrollRef.current) {
+              scrollRef.current.scrollTop = sidebarRef.current.scrollTop;
+            }
+          }}
+        >
           <div className="tl-sidebar-header" style={{ height: zoom === 'month' ? 32 : 50 }}>Name</div>
           {bars.map((b) => (
             <div
@@ -576,7 +586,15 @@ export default function TimelineView({
         </div>
 
         {/* Timeline scroll area */}
-        <div className="tl-scroll" ref={scrollRef}>
+        <div
+          className="tl-scroll"
+          ref={scrollRef}
+          onScroll={() => {
+            if (scrollRef.current && sidebarRef.current) {
+              sidebarRef.current.scrollTop = scrollRef.current.scrollTop;
+            }
+          }}
+        >
           <div className="tl-canvas" style={{ width: totalWidth, minHeight: bars.length * ROW_HEIGHT + (zoom === 'month' ? 32 : 50) }}>
             {/* Month header (for day/week zoom) */}
             {monthHeaders.length > 0 && (
