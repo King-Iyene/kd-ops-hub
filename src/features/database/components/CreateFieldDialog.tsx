@@ -322,6 +322,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setFormulaError('');
     setButtonLabel('Click');
     setButtonUrl('');
+    setAllowMultiple(false);
   }, []);
 
   const handleTypeChange = (type: UIType) => {
@@ -374,6 +375,9 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     if (uiType === 'Button') {
       opts.label = buttonLabel || 'Click';
       opts.url = buttonUrl;
+    }
+    if (uiType === 'User') {
+      opts.allowMultiple = allowMultiple;
     }
     return opts;
   };
