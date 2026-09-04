@@ -11,7 +11,7 @@ import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
 
 /** Strip non-numeric chars, keeping at most one minus (leading) and one dot. */
 function sanitizeNumeric(raw: string): string {
-  const stripped = raw.replace(/[^0-9.\-]/g, '');
+  const stripped = raw.replace(/[^0-9.-]/g, '');
   let result = '';
   let hasDot = false;
   let hasMinus = false;
@@ -264,11 +264,11 @@ export function DurationCellEditor({ value, onCommit, onCancel }: CellEditorProp
       value={text}
       onChange={(e) => setText(e.target.value)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') { const d = parseDuration(text); d === null ? onCancel() : onCommit(d); }
+        if (e.key === 'Enter') { const d = parseDuration(text); if (d === null) { onCancel(); } else { onCommit(d); } }
         if (e.key === 'Escape') onCancel();
-        if (e.key === 'Tab') { e.preventDefault(); const d = parseDuration(text); d === null ? onCancel() : onCommit(d); }
+        if (e.key === 'Tab') { e.preventDefault(); const d = parseDuration(text); if (d === null) { onCancel(); } else { onCommit(d); } }
       }}
-      onBlur={() => { const d = parseDuration(text); d === null ? onCancel() : onCommit(d); }}
+      onBlur={() => { const d = parseDuration(text); if (d === null) { onCancel(); } else { onCommit(d); } }}
       className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
       style={{ fontSize: 13, color: 'inherit', fontVariantNumeric: 'tabular-nums' }}
     />

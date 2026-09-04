@@ -11,7 +11,7 @@ import { AttachmentManager, type AttachmentMeta } from './AttachmentManager';
 
 /** Strip non-numeric chars, keeping at most one minus (leading) and one dot. */
 function sanitizeNumeric(raw: string): string {
-  const stripped = raw.replace(/[^0-9.\-]/g, '');
+  const stripped = raw.replace(/[^0-9.-]/g, '');
   let result = '';
   let hasDot = false;
   let hasMinus = false;
