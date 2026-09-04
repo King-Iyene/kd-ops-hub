@@ -187,6 +187,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const [rollupFieldId, setRollupFieldId] = useState('');
   const [rollupFunction, setRollupFunction] = useState<RollupFunction>('COUNT');
   const [richText, setRichText] = useState(false);
+  const [durationFormat, setDurationFormat] = useState('h:mm');
   const updateField = useUpdateField();
   const changeFieldType = useChangeFieldType();
   const deleteField = useDeleteField();
@@ -218,6 +219,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       setRollupFieldId((field.options as any)?.rollupFieldId ?? '');
       setRollupFunction((field.options as any)?.fn ?? 'COUNT');
       setRichText((field.options as any)?.richText ?? false);
+      setDurationFormat((field.options as any)?.format ?? 'h:mm');
     }
   }, [field]);
 
@@ -334,6 +336,9 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       }
       if (isRollup) {
         updates.options = { ...(field.options as any), linkFieldId, rollupFieldId, fn: rollupFunction };
+      }
+      if (field.ui_type === 'Duration') {
+        updates.options = { ...(field.options as any), format: durationFormat };
       }
       if (Object.keys(updates).length > 0) {
         try {
