@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { toast } from '@/hooks/use-toast';
 import type { ViewMeta } from '../types';
 import { useDatabaseUI } from '../lib/store';
 
@@ -65,6 +66,9 @@ export function useCreateView() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'views', variables.table_id] });
     },
+    onError: (err: any) => {
+      toast({ title: 'Failed to create view', description: err?.message ?? 'Unknown error', variant: 'destructive' });
+    },
   });
 }
 
@@ -91,6 +95,9 @@ export function useUpdateView() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'views', variables.table_id] });
     },
+    onError: (err: any) => {
+      toast({ title: 'Failed to update view', description: err?.message ?? 'Unknown error', variant: 'destructive' });
+    },
   });
 }
 
@@ -108,6 +115,9 @@ export function useDeleteView() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'views', variables.table_id] });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to delete view', description: err?.message ?? 'Unknown error', variant: 'destructive' });
     },
   });
 }

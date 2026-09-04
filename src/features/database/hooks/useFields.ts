@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { toast } from '@/hooks/use-toast';
 import type { FieldMeta, UIType } from '../types';
 import { VIRTUAL_TYPES, UI_TYPE_TO_PG_TYPE } from '../types';
 
@@ -273,6 +274,9 @@ export function useUpdateField() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
     },
+    onError: (err: any) => {
+      toast({ title: 'Failed to create field', description: err?.message ?? 'Unknown error', variant: 'destructive' });
+    },
   });
 }
 
@@ -321,6 +325,9 @@ export function useDeleteField() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to delete field', description: err?.message ?? 'Unknown error', variant: 'destructive' });
     },
   });
 }
@@ -402,6 +409,9 @@ export function useDuplicateField() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to duplicate field', description: err?.message ?? 'Unknown error', variant: 'destructive' });
     },
   });
 }
@@ -499,8 +509,10 @@ export function useChangeFieldType() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
-      // Also invalidate row data since types changed
       qc.invalidateQueries({ queryKey: ['nc', 'rows'] });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to change field type', description: err?.message ?? 'Unknown error', variant: 'destructive' });
     },
   });
 }
@@ -527,6 +539,9 @@ export function useReorderFields() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to reorder fields', description: err?.message ?? 'Unknown error', variant: 'destructive' });
     },
   });
 }

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { toast } from '@/hooks/use-toast';
 import type { TableMeta, FieldMeta, ViewMeta } from '../types';
 
 function toSnakeCase(name: string): string {
@@ -212,6 +213,9 @@ export function useCreateTable() {
       qc.invalidateQueries({ queryKey: ['nc', 'fields'] });
       qc.invalidateQueries({ queryKey: ['nc', 'recordCount'] });
     },
+    onError: (err: any) => {
+      toast({ title: 'Failed to create table', description: err?.message ?? 'Unknown error', variant: 'destructive' });
+    },
   });
 }
 
@@ -269,6 +273,9 @@ export function useUpdateTable() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'tables', variables.baseId] });
     },
+    onError: (err: any) => {
+      toast({ title: 'Failed to update table', description: err?.message ?? 'Unknown error', variant: 'destructive' });
+    },
   });
 }
 
@@ -323,6 +330,9 @@ export function useDeleteTable() {
       qc.invalidateQueries({ queryKey: ['nc', 'tables', variables.baseId] });
       qc.invalidateQueries({ queryKey: ['nc', 'fields'] });
       qc.invalidateQueries({ queryKey: ['nc', 'views'] });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to delete table', description: err?.message ?? 'Unknown error', variant: 'destructive' });
     },
   });
 }
@@ -497,6 +507,9 @@ export function useDuplicateTable() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'tables', variables.base_id] });
       qc.invalidateQueries({ queryKey: ['nc', 'fields'] });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to duplicate table', description: err?.message ?? 'Unknown error', variant: 'destructive' });
     },
   });
 }
