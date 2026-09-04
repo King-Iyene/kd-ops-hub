@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Database, Table2, FileText, X, Loader2 } from 'lucide-react';
 import { useGlobalSearch } from '../hooks/useGlobalSearch';
 import { useDatabaseUI } from '../lib/store';
+import { useDatabaseNavigate } from '../hooks/useNavigate';
 
 interface GlobalSearchDialogProps {
   open: boolean;
@@ -13,7 +14,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const { data: results, isLoading } = useGlobalSearch(query);
-  const setActiveBase = useDatabaseUI((s) => s.setActiveBase);
+  const { navigateToBase } = useDatabaseNavigate();
   const setActiveTable = useDatabaseUI((s) => s.setActiveTable);
 
   useEffect(() => {
@@ -43,11 +44,11 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
     (idx: number) => {
       const r = results?.[idx];
       if (!r) return;
-      setActiveBase(r.baseId);
+      navigateToBase(r.baseId);
       setActiveTable(r.tableId);
       onOpenChange(false);
     },
-    [results, setActiveBase, setActiveTable, onOpenChange],
+    [results, navigateToBase, setActiveTable, onOpenChange],
   );
 
   const handleKeyDown = useCallback(

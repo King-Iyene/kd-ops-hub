@@ -408,10 +408,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
         onOpenChange(false);
         return;
       }
-      const options: Record<string, any> = {};
-      if (isSelectType && choices.length > 0) {
-        options.choices = choices;
-      }
+      const options: Record<string, any> = buildOptions();
       if (isFormula) {
         if (!formulaExpression.trim()) {
           setError('Formula expression is required');

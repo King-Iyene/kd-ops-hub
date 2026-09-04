@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useDatabaseNavigate } from '../hooks/useNavigate';
 import { Label } from '@/components/ui/label';
 import { useCreateTable, useTables } from '../hooks';
 import { useDatabaseUI } from '../lib/store';
@@ -20,7 +21,8 @@ interface CreateTableDialogProps {
 export function CreateTableDialog({ open, onOpenChange }: CreateTableDialogProps) {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
-  const { activeBaseId, setActiveTable } = useDatabaseUI();
+  const { activeBaseId } = useDatabaseUI();
+  const { navigateToTable } = useDatabaseNavigate();
   const createTable = useCreateTable();
   const { data: existingTables } = useTables(activeBaseId);
 
@@ -40,7 +42,7 @@ export function CreateTableDialog({ open, onOpenChange }: CreateTableDialogProps
     setError('');
     try {
       const result = await createTable.mutateAsync({ base_id: activeBaseId, name: name.trim() });
-      setActiveTable(result.id);
+      navigateToTable(result.id);
       setName('');
       onOpenChange(false);
     } catch (e: any) {

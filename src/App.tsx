@@ -195,7 +195,27 @@ function AppRoutes() {
 
       {/* Database Platform — full-screen app shell, no KDOps sidebar. */}
       <Route
-        path="/data/*"
+        path="/data"
+        element={
+          <AuthGuard>
+            <ErrorBoundary>
+              <DatabasePage />
+            </ErrorBoundary>
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/data/:baseId"
+        element={
+          <AuthGuard>
+            <ErrorBoundary>
+              <DatabasePage />
+            </ErrorBoundary>
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/data/:baseId/:tableId"
         element={
           <AuthGuard>
             <ErrorBoundary>

@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useUpdateBase, useDeleteBase } from '../hooks';
 import { useDatabaseUI } from '../lib/store';
+import { useDatabaseNavigate } from '../hooks/useNavigate';
 import { useSnapshots, useCreateSnapshot, useRestoreSnapshot, useDeleteSnapshot, useExportBase } from '../hooks/useBackups';
 import type { Base } from '../types';
 
@@ -56,7 +57,8 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
 
   const updateBase = useUpdateBase();
   const deleteBase = useDeleteBase();
-  const { activeBaseId, setActiveBase } = useDatabaseUI();
+  const { activeBaseId } = useDatabaseUI();
+  const { navigateToBase } = useDatabaseNavigate();
 
   // Reset state when base changes or dialog opens
   useEffect(() => {
@@ -93,7 +95,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
   const handleDelete = async () => {
     try {
       await deleteBase.mutateAsync(base.id);
-      if (activeBaseId === base.id) setActiveBase(null);
+      if (activeBaseId === base.id) navigateToBase(null);
       onOpenChange(false);
     } catch (e: any) {
       setError(e?.message ?? 'Failed to delete base');

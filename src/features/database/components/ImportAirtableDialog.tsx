@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
-import { useDatabaseUI } from '../lib/store';
+import { useDatabaseNavigate } from '../hooks/useNavigate';
 
 interface ImportAirtableDialogProps {
   open: boolean;
@@ -122,7 +122,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
   const [progress, setProgress] = useState({ current: 0, total: 0, tableName: '' });
   const [importedCount, setImportedCount] = useState(0);
   const qc = useQueryClient();
-  const { setActiveBase } = useDatabaseUI();
+  const { navigateToBase } = useDatabaseNavigate();
 
   const reset = () => {
     setStep('token');
@@ -462,14 +462,14 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
       }
 
       setImportedCount(selectedTables.length);
-      setActiveBase(base.id);
+      navigateToBase(base.id);
       qc.invalidateQueries({ queryKey: ['nc'] });
       setStep('done');
     } catch (e: any) {
       setError(e?.message ?? 'Import failed');
       setStep('select');
     }
-  }, [tables, bases, selectedBaseId, token, qc, setActiveBase]);
+  }, [tables, bases, selectedBaseId, token, qc, navigateToBase]);
 
   return (
     <Dialog

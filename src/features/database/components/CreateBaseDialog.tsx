@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useCreateBase, useCreateTable, useBases } from '../hooks';
 import { useDatabaseUI } from '../lib/store';
+import { useDatabaseNavigate } from '../hooks/useNavigate';
 import { Loader2 } from 'lucide-react';
 
 export interface TemplateConfig {
@@ -51,7 +52,8 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
   const createBase = useCreateBase();
   const createTable = useCreateTable();
   const { data: existingBases } = useBases();
-  const { setActiveBase, setActiveTable } = useDatabaseUI();
+  const { setActiveTable } = useDatabaseUI();
+  const { navigateToBase } = useDatabaseNavigate();
   const templateTriggered = useRef(false);
 
   const resetForm = useCallback(() => {
@@ -73,7 +75,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
         color: baseColor,
         icon: baseIcon,
       });
-      setActiveBase(result.id);
+      navigateToBase(result.id);
 
       let firstTableId: string | null = null;
       for (let i = 0; i < tables.length; i++) {
@@ -95,7 +97,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
       setCreating(false);
       setStatusMsg('');
     }
-  }, [createBase, createTable, setActiveBase, setActiveTable, resetForm, onOpenChange]);
+  }, [createBase, createTable, navigateToBase, setActiveTable, resetForm, onOpenChange]);
 
   useEffect(() => {
     if (open && template && !templateTriggered.current && !creating) {

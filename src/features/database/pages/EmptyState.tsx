@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { CreateBaseDialog } from '../components/CreateBaseDialog';
 import { ImportAirtableDialog } from '../components/ImportAirtableDialog';
 import { useDatabaseUI } from '../lib/store';
+import { useDatabaseNavigate } from '../hooks/useNavigate';
 import { useBases } from '../hooks/useBases';
 import { useTables } from '../hooks/useTables';
 import type { Base } from '../types';
@@ -83,7 +84,7 @@ export function EmptyState() {
   const [importOpen, setImportOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const activeBaseId = useDatabaseUI((s) => s.activeBaseId);
-  const setActiveBase = useDatabaseUI((s) => s.setActiveBase);
+  const { navigateToBase } = useDatabaseNavigate();
   const { data: bases } = useBases();
 
   const filteredBases = useMemo(
@@ -95,8 +96,8 @@ export function EmptyState() {
   );
 
   const handleSelect = useCallback(
-    (id: string) => () => setActiveBase(id),
-    [setActiveBase]
+    (id: string) => () => navigateToBase(id),
+    [navigateToBase]
   );
 
   // If a base is selected but has no tables, show the "no tables" state

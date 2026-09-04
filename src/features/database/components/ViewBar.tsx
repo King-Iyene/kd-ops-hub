@@ -100,7 +100,6 @@ function SortableViewTab({
   return (
     <button
       ref={setNodeRef}
-      style={style}
       {...attributes}
       {...listeners}
       onClick={onSelect}

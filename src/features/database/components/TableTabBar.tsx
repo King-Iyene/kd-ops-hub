@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useDatabaseUI } from '../lib/store';
+import { useDatabaseNavigate } from '../hooks/useNavigate';
 import {
   useTables,
   useCreateTable,
@@ -113,7 +114,8 @@ function SortableTableTabWrapper({ id, children }: { id: string; children: (prop
 }
 
 export function TableTabBar() {
-  const { activeBaseId, activeTableId, setActiveTable } = useDatabaseUI();
+  const { activeBaseId, activeTableId } = useDatabaseUI();
+  const { navigateToTable } = useDatabaseNavigate();
   const { data: tables } = useTables(activeBaseId);
   const createTable = useCreateTable();
   const deleteTable = useDeleteTable();
@@ -169,14 +171,14 @@ export function TableTabBar() {
           onSuccess: () => {
             if (activeTableId === table.id) {
               const remaining = tables?.filter((t: any) => t.id !== table.id);
-              if (remaining && remaining.length > 0) setActiveTable(remaining[0].id);
-              else setActiveTable(null);
+              if (remaining && remaining.length > 0) navigateToTable(remaining[0].id);
+              else navigateToTable(null);
             }
           },
         },
       );
     },
-    [deleteTable, activeBaseId, activeTableId, tables, setActiveTable],
+    [deleteTable, activeBaseId, activeTableId, tables, navigateToTable],
   );
 
   const handleDuplicate = useCallback(
@@ -188,10 +190,10 @@ export function TableTabBar() {
           table_id: table.id,
           name: `${table.name} (copy)`,
         },
-        { onSuccess: (newTable) => setActiveTable(newTable.id) },
+        { onSuccess: (newTable) => navigateToTable(newTable.id) },
       );
     },
-    [duplicateTable, activeBaseId, setActiveTable],
+    [duplicateTable, activeBaseId, navigateToTable],
   );
 
   const handleAddTable = useCallback(() => {
@@ -202,16 +204,16 @@ export function TableTabBar() {
         name: `Table ${(tables?.length ?? 0) + 1}`,
         position: tables?.length ?? 0,
       },
-      { onSuccess: (newTable) => setActiveTable(newTable.id) },
+      { onSuccess: (newTable) => navigateToTable(newTable.id) },
     );
-  }, [activeBaseId, createTable, tables, setActiveTable]);
+  }, [activeBaseId, createTable, tables, navigateToTable]);
 
   // Auto-select first table when base changes
   useEffect(() => {
     if (!tables || tables.length === 0 || !activeBaseId) return;
     if (activeTableId && tables.some((t: any) => t.id === activeTableId)) return;
-    setActiveTable(tables[0].id);
-  }, [tables, activeBaseId, activeTableId, setActiveTable]);
+    navigateToTable(tables[0].id);
+  }, [tables, activeBaseId, activeTableId, navigateToTable]);
 
   if (!activeBaseId) return null;
 
@@ -230,7 +232,7 @@ export function TableTabBar() {
                 ? 'bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium rounded-t-md border-t border-l border-r border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] -mb-px'
                 : 'text-[#6A7184] hover:text-[#374151] dark:hover:text-[hsl(200,25%,78%)]',
             )}
-            onClick={() => setActiveTable(table.id)}
+            onClick={() => navigateToTable(table.id)}
             onDoubleClick={() => setRenamingId(table.id)}
           >
             {table.icon ? (

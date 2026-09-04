@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { useDatabaseUI } from '../lib/store';
 import { useBases, useCreateBase, useDeleteBase, useUpdateBase, useDuplicateBase } from '../hooks';
 import { useWorkspaces } from '../hooks';
+import { useDatabaseNavigate } from '../hooks/useNavigate';
 import { CreateBaseDialog } from './CreateBaseDialog';
 import { ImportAirtableDialog } from './ImportAirtableDialog';
 import { BaseSettingsDialog } from './BaseSettingsDialog';
@@ -78,7 +79,8 @@ function InlineRenameInput({
 }
 
 export function DatabaseSidebar() {
-  const { activeBaseId, sidebarOpen, sidebarCollapsed, sidebarWidth, setActiveBase, toggleSidebarCollapsed, setSidebarWidth } = useDatabaseUI();
+  const { activeBaseId, sidebarOpen, sidebarCollapsed, sidebarWidth, toggleSidebarCollapsed, setSidebarWidth } = useDatabaseUI();
+  const { navigateToBase } = useDatabaseNavigate();
   const { data: bases } = useBases();
   const deleteBase = useDeleteBase();
   const updateBase = useUpdateBase();
@@ -154,9 +156,9 @@ export function DatabaseSidebar() {
       });
       if (!ok) return;
       deleteBase.mutate(base.id);
-      if (activeBaseId === base.id) setActiveBase(null);
+      if (activeBaseId === base.id) navigateToBase(null);
     },
-    [deleteBase, activeBaseId, setActiveBase],
+    [deleteBase, activeBaseId, navigateToBase],
   );
 
   if (!sidebarOpen) return null;
@@ -177,7 +179,7 @@ export function DatabaseSidebar() {
         {!sidebarCollapsed && (
           <button
             className="flex items-center gap-1.5 text-[13px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] hover:text-[#166EE1] transition-colors"
-            onClick={() => setActiveBase(null)}
+            onClick={() => navigateToBase(null)}
             title="Go to home"
           >
             <Home size={13} className="text-[#9AA2AF]" />
@@ -231,7 +233,7 @@ export function DatabaseSidebar() {
                 ? 'bg-[#166EE1]/10 dark:bg-[hsl(220,50%,14%)]'
                 : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,12%)]',
             )}
-            onClick={() => setActiveBase(base.id)}
+            onClick={() => navigateToBase(base.id)}
             title={sidebarCollapsed ? base.name : undefined}
           >
             <span
