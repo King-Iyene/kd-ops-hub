@@ -112,7 +112,7 @@ export function DateCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         side="bottom"
         align="start"
         sideOffset={1}
-        className="!w-auto !border-none !bg-transparent !p-0 !shadow-none"
+        className="!w-auto !border-none !p-0 !shadow-none"
         style={{
           backgroundColor: colors.cellEditorBg,
           border: `1px solid ${colors.border}`,
@@ -396,7 +396,7 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
         side="bottom"
         align="start"
         sideOffset={1}
-        className="!w-auto !border-none !bg-transparent !p-0 !shadow-none"
+        className="!w-auto !border-none !p-0 !shadow-none"
         style={{
           minWidth: 220,
           maxHeight: 300,
@@ -556,7 +556,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
         side="bottom"
         align="start"
         sideOffset={1}
-        className="!w-auto !border-none !bg-transparent !p-0 !shadow-none"
+        className="!w-auto !border-none !p-0 !shadow-none"
         style={{
           minWidth: 220,
           maxHeight: 300,
@@ -835,7 +835,7 @@ export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProp
         side="bottom"
         align="start"
         sideOffset={1}
-        className="!w-auto !border-none !bg-transparent !p-0 !shadow-none"
+        className="!w-auto !border-none !p-0 !shadow-none"
         style={{
           backgroundColor: colors.cellEditorBg,
           border: `1px solid ${colors.border}`,
