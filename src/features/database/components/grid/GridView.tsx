@@ -20,7 +20,7 @@ export interface GridViewProps {
   totalCount: number;
   isLoading: boolean;
   onCellUpdate: (recordId: string, fieldId: string, value: any) => void;
-  onAddRow: () => void;
+  onAddRow: (record?: Record<string, any>) => void;
   onAddField: () => void;
   page: number;
   pageSize: number;
@@ -1616,8 +1616,20 @@ export default function GridView({
           onExpandRow={(r) => onExpandRow?.(r)}
           onDuplicateRow={(r) => onDuplicateRow?.(r)}
           onDeleteRow={(id) => onDeleteRow?.(id)}
-          onInsertAbove={() => onAddRow()}
-          onInsertBelow={() => onAddRow()}
+          onInsertAbove={(record) => {
+            const idx = records.findIndex((r) => r.id === record.id);
+            const prev = idx > 0 ? records[idx - 1] : null;
+            const curOrder = record.nc_order ?? idx;
+            const prevOrder = prev ? (prev.nc_order ?? idx - 1) : curOrder - 1;
+            onAddRow({ nc_order: (prevOrder + curOrder) / 2 });
+          }}
+          onInsertBelow={(record) => {
+            const idx = records.findIndex((r) => r.id === record.id);
+            const next = idx < records.length - 1 ? records[idx + 1] : null;
+            const curOrder = record.nc_order ?? idx;
+            const nextOrder = next ? (next.nc_order ?? idx + 1) : curOrder + 1;
+            onAddRow({ nc_order: (curOrder + nextOrder) / 2 });
+          }}
         />
       )}
 

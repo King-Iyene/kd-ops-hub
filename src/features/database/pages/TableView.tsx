@@ -420,7 +420,7 @@ export function TableView() {
             totalCount={recordsData?.totalCount ?? 0}
             isLoading={isLoading}
             onCellUpdate={handleCellUpdate}
-            onAddRow={() => handleAddRow()}
+            onAddRow={handleAddRow}
             onAddField={() => setFieldDialogOpen(true)}
             page={page}
             pageSize={pageSize}
