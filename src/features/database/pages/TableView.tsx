@@ -51,7 +51,12 @@ export function TableView() {
   const { data: views } = useViews(activeTableId);
   const [page, setPage] = useState(0);
   const pageSize = 100;
-  const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
+  const [fieldDialogOpen, setFieldDialogOpenRaw] = useState(false);
+  const setEditingCell = useDatabaseUI((s) => s.setEditingCell);
+  const setFieldDialogOpen = useCallback((open: boolean) => {
+    if (open) setEditingCell(null);
+    setFieldDialogOpenRaw(open);
+  }, [setEditingCell]);
   const pushUndo = useUndoStore((s) => s.push);
 
   const activeView = useMemo(

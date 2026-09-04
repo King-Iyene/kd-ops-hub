@@ -331,7 +331,11 @@ export default function GridView({
   const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
   const [dragColId, setDragColId] = useState<string | null>(null);
   const [dropColTargetIdx, setDropColTargetIdx] = useState<number | null>(null);
-  const [editingField, setEditingField] = useState<FieldMeta | null>(null);
+  const [editingField, setEditingFieldRaw] = useState<FieldMeta | null>(null);
+  const setEditingField = useCallback((f: FieldMeta | null) => {
+    if (f) setEditingCell(null);
+    setEditingFieldRaw(f);
+  }, [setEditingCell]);
   const [selectionAnchor, setSelectionAnchor] = useState<{ row: number; col: number } | null>(null);
   const [selectionRange, setSelectionRange] = useState<{ startRow: number; startCol: number; endRow: number; endCol: number } | null>(null);
   const [flashCells, setFlashCells] = useState<Set<string>>(new Set());
