@@ -372,7 +372,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
         setError('Please select a target field');
         return;
       }
-      if (uiType === 'Rollup' && !rollupFieldId) {
+      if (uiType === 'Rollup' && !rollupFieldId && rollupFn !== 'COUNT' && rollupFn !== 'COUNTALL') {
         setError('Please select a target field');
         return;
       }
@@ -429,7 +429,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
       }
       if (isRollup) {
         if (!linkFieldId) { setError('Please select a link field'); return; }
-        if (!rollupFieldId) { setError('Please select a rollup field'); return; }
+        if (!rollupFieldId && rollupFn !== 'COUNT' && rollupFn !== 'COUNTALL') { setError('Please select a rollup field'); return; }
         options.linkFieldId = linkFieldId;
         options.rollupFieldId = rollupFieldId;
         options.fn = rollupFn;
@@ -724,30 +724,32 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
               {isRollup && linkFieldId && (
                 <>
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Rollup Field</Label>
-                    <select
-                      value={rollupFieldId}
-                      onChange={(e) => setRollupFieldId(e.target.value)}
-                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#166EE1]/30 focus:border-[#166EE1]"
-                    >
-                      <option value="">Select a numeric field...</option>
-                      {numericTargetFields.map((f: FieldMeta) => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
                     <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Function</Label>
                     <select
                       value={rollupFn}
-                      onChange={(e) => setRollupFn(e.target.value)}
+                      onChange={(e) => { setRollupFn(e.target.value); if (e.target.value === 'COUNT' || e.target.value === 'COUNTALL') setRollupFieldId(''); }}
                       className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#166EE1]/30 focus:border-[#166EE1]"
                     >
-                      {['COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'COUNTA', 'COUNTALL'].map((fn) => (
+                      {['COUNT', 'COUNTALL', 'SUM', 'AVG', 'MIN', 'MAX', 'COUNTA', 'CONCATENATE', 'ARRAY_UNIQUE'].map((fn) => (
                         <option key={fn} value={fn}>{fn}</option>
                       ))}
                     </select>
                   </div>
+                  {rollupFn !== 'COUNT' && rollupFn !== 'COUNTALL' && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Rollup Field</Label>
+                      <select
+                        value={rollupFieldId}
+                        onChange={(e) => setRollupFieldId(e.target.value)}
+                        className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#166EE1]/30 focus:border-[#166EE1]"
+                      >
+                        <option value="">Select a field...</option>
+                        {(['SUM', 'AVG', 'MIN', 'MAX'].includes(rollupFn) ? numericTargetFields : targetFields).map((f: FieldMeta) => (
+                          <option key={f.id} value={f.id}>{f.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -769,13 +771,13 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
               !name.trim() ||
               (isFormula && (!!formulaError || !formulaExpression.trim())) ||
               (isLookup && (!linkFieldId || !lookupFieldId)) ||
-              (isRollup && (!linkFieldId || !rollupFieldId))
+              (isRollup && (!linkFieldId || (!rollupFieldId && rollupFn !== 'COUNT' && rollupFn !== 'COUNTALL')))
             }
             title={
               isFormula && formulaError ? 'Fix formula errors before saving' :
               isFormula && !formulaExpression.trim() ? 'Enter a formula expression' :
               (isLookup && (!linkFieldId || !lookupFieldId)) ? 'Select link and target fields' :
-              (isRollup && (!linkFieldId || !rollupFieldId)) ? 'Select link and target fields' :
+              (isRollup && (!linkFieldId || (!rollupFieldId && rollupFn !== 'COUNT' && rollupFn !== 'COUNTALL'))) ? 'Select link and target fields' :
               undefined
             }
           >

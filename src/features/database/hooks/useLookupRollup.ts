@@ -12,7 +12,7 @@
 
 import { useMemo } from 'react';
 import { useFields } from './useFields';
-import { useLinkedRecords } from './useLinks';
+import { useRecordLinks } from './useLinks';
 import { useDatabaseUI } from '../lib/store';
 import { computeLookupValues, computeRollupValue, resolveLinkField } from '../lib/computations';
 import type { FieldMeta, RecordRow } from '../types';
@@ -24,22 +24,21 @@ import type { FieldMeta, RecordRow } from '../types';
 function useLookupRollupData(field: FieldMeta, record: RecordRow) {
   const activeBaseId = useDatabaseUI((s) => s.activeBaseId);
 
-  // Fields of the source table (contains the Links field definition).
   const { data: sourceFields, isLoading: sourceLoading } = useFields(field.table_id);
 
-  // Resolve the Links field this Lookup/Rollup traverses.
   const linkField = sourceFields ? resolveLinkField(field, sourceFields) : null;
   const relatedTableId = linkField?.options?.relatedTableId;
+  const linkType = linkField?.options?.linkType;
 
-  // Fetch all records from the related table.
-  // React Query caches by [baseId, targetTableId] so this is shared across
-  // every Lookup/Rollup that points at the same related table.
-  const { data: linkedRecords, isLoading: linkedLoading } = useLinkedRecords(
-    activeBaseId,
-    relatedTableId,
-  );
+  const { data: linkedRecords, isLoading: linkedLoading } = useRecordLinks({
+    baseId: activeBaseId,
+    sourceTableId: field.table_id,
+    targetTableId: relatedTableId,
+    fieldId: linkField?.id ?? '',
+    recordId: record?.id ?? null,
+    linkType,
+  });
 
-  // Fields of the related table (to resolve the looked-up / rolled-up column).
   const { data: relatedFields, isLoading: relatedLoading } = useFields(relatedTableId);
 
   const allFields = useMemo(

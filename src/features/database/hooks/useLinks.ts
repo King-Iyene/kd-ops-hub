@@ -296,20 +296,48 @@ export interface LinkMeta {
   created_at: string;
 }
 
+/** Fetch links where this table is EITHER source or target (fixes Bug #16). */
 export function useLinks(tableId: string | null | undefined) {
   return useQuery({
     queryKey: ['nc', 'links', tableId],
     enabled: !!tableId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: outbound, error: e1 } = await supabase
         .schema('nc_meta')
         .from('links')
         .select('*')
         .eq('source_table_id', tableId);
-      if (error) throw error;
-      return data as LinkMeta[];
+      if (e1) throw e1;
+
+      const { data: inbound, error: e2 } = await supabase
+        .schema('nc_meta')
+        .from('links')
+        .select('*')
+        .eq('target_table_id', tableId);
+      if (e2) throw e2;
+
+      const seen = new Set<string>();
+      const all: LinkMeta[] = [];
+      for (const link of [...(outbound ?? []), ...(inbound ?? [])]) {
+        if (!seen.has(link.id)) {
+          seen.add(link.id);
+          all.push(link as LinkMeta);
+        }
+      }
+      return all;
     },
   });
+}
+
+function toSnakeCase(name: string): string {
+  let result = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '');
+  if (/^[0-9]/.test(result)) {
+    result = 'f_' + result;
+  }
+  return result.substring(0, 63);
 }
 
 export function useCreateLink() {
@@ -323,7 +351,104 @@ export function useCreateLink() {
       target_table_id: string;
       relation_type: 'one_to_one' | 'one_to_many' | 'many_to_many';
     }) => {
-      // 1. Create the field metadata with type Links
+      const shortType = input.relation_type === 'one_to_one'
+        ? 'oo'
+        : input.relation_type === 'one_to_many'
+          ? 'hm'
+          : 'mm';
+
+      // Resolve schema and table names for DDL operations
+      const { data: base } = await supabase
+        .schema('nc_meta')
+        .from('bases')
+        .select('schema_name')
+        .eq('id', input.base_id)
+        .single();
+      if (!base) throw new Error('Base not found');
+
+      const { data: srcTable } = await supabase
+        .schema('nc_meta')
+        .from('tables')
+        .select('pg_table_name, name')
+        .eq('id', input.table_id)
+        .single();
+      const { data: tgtTable } = await supabase
+        .schema('nc_meta')
+        .from('tables')
+        .select('pg_table_name, name')
+        .eq('id', input.target_table_id)
+        .single();
+      if (!srcTable || !tgtTable) throw new Error('Table not found');
+
+      const schema = base.schema_name;
+      let junctionTableId: string | null = null;
+
+      // Create FK columns or junction table via ddl-executor
+      if (shortType === 'hm' || shortType === 'oo') {
+        // hm: FK column on target table pointing to source
+        const fkCol = `${srcTable.pg_table_name}_id`;
+        await supabase.functions.invoke('ddl-executor', {
+          body: {
+            action: 'addColumn',
+            schemaName: schema,
+            tableName: tgtTable.pg_table_name,
+            columnName: fkCol,
+            columnType: 'UUID REFERENCES ' + `"${schema}"."${srcTable.pg_table_name}"(id)`,
+          },
+        });
+      } else if (shortType === 'mm') {
+        // mm: Create a junction table
+        const junctionName = `${srcTable.pg_table_name}_${tgtTable.pg_table_name}_jn`;
+
+        // Create junction table via ddl-executor
+        await supabase.functions.invoke('ddl-executor', {
+          body: {
+            action: 'createTable',
+            schemaName: schema,
+            tableName: junctionName,
+          },
+        });
+
+        // Add FK columns to junction table
+        await supabase.functions.invoke('ddl-executor', {
+          body: {
+            action: 'addColumn',
+            schemaName: schema,
+            tableName: junctionName,
+            columnName: `${srcTable.pg_table_name}_id`,
+            columnType: 'UUID REFERENCES ' + `"${schema}"."${srcTable.pg_table_name}"(id) ON DELETE CASCADE`,
+            isRequired: true,
+          },
+        });
+        await supabase.functions.invoke('ddl-executor', {
+          body: {
+            action: 'addColumn',
+            schemaName: schema,
+            tableName: junctionName,
+            columnName: `${tgtTable.pg_table_name}_id`,
+            columnType: 'UUID REFERENCES ' + `"${schema}"."${tgtTable.pg_table_name}"(id) ON DELETE CASCADE`,
+            isRequired: true,
+          },
+        });
+
+        // Register junction table in nc_meta.tables
+        const { data: junctionTableMeta, error: jtError } = await supabase
+          .schema('nc_meta')
+          .from('tables')
+          .insert({
+            base_id: input.base_id,
+            name: `${srcTable.name}_${tgtTable.name}_junction`,
+            pg_table_name: junctionName,
+            is_system: true,
+            position: 9999,
+          })
+          .select()
+          .single();
+        if (jtError) throw jtError;
+        junctionTableId = junctionTableMeta.id;
+      }
+
+      // 1. Create the source field metadata (Links type)
       const { data: field, error: fieldError } = await supabase
         .schema('nc_meta')
         .from('fields')
@@ -335,11 +460,7 @@ export function useCreateLink() {
           pg_type: '',
           options: {
             relatedTableId: input.target_table_id,
-            type: input.relation_type === 'one_to_one'
-              ? 'oo'
-              : input.relation_type === 'one_to_many'
-                ? 'hm'
-                : 'mm',
+            type: shortType,
           },
           position: 999,
           width: 180,
@@ -356,7 +477,39 @@ export function useCreateLink() {
 
       if (fieldError) throw fieldError;
 
-      // 2. Create the link metadata record
+      // 2. Create reciprocal field on target table
+      const reciprocalType = shortType === 'hm' ? 'bt' : shortType === 'bt' ? 'hm' : 'mm';
+      const reciprocalName = srcTable.name;
+
+      const { data: reciprocalField, error: recipError } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .insert({
+          table_id: input.target_table_id,
+          name: reciprocalName,
+          pg_column_name: '',
+          ui_type: 'Links',
+          pg_type: '',
+          options: {
+            relatedTableId: input.table_id,
+            type: reciprocalType,
+          },
+          position: 999,
+          width: 180,
+          is_primary: false,
+          is_required: false,
+          is_unique: false,
+          is_system: false,
+          is_hidden: false,
+          description: null,
+          default_value: null,
+        })
+        .select()
+        .single();
+
+      if (recipError) throw recipError;
+
+      // 3. Create the link metadata record
       const { data: link, error: linkError } = await supabase
         .schema('nc_meta')
         .from('links')
@@ -365,7 +518,9 @@ export function useCreateLink() {
           source_table_id: input.table_id,
           source_field_id: (field as FieldMeta).id,
           target_table_id: input.target_table_id,
+          target_field_id: (reciprocalField as FieldMeta).id,
           relation_type: input.relation_type,
+          junction_table_id: junctionTableId,
         })
         .select()
         .single();
@@ -376,7 +531,9 @@ export function useCreateLink() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
+      qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.target_table_id] });
       qc.invalidateQueries({ queryKey: ['nc', 'links', variables.table_id] });
+      qc.invalidateQueries({ queryKey: ['nc', 'links', variables.target_table_id] });
     },
   });
 }
@@ -390,7 +547,6 @@ export function useLinkedRecords(
     queryKey: ['nc', 'linked-records', baseId, targetTableId, recordIds],
     enabled: !!baseId && !!targetTableId,
     queryFn: async (): Promise<RecordRow[]> => {
-      // Resolve schema and table name
       const { data: base, error: baseError } = await supabase
         .schema('nc_meta')
         .from('bases')
@@ -466,8 +622,6 @@ export interface PaginatedLinkedRecords {
 
 /**
  * Paginated hook for the linked-record picker.
- * Loads `pageSize` records at a time and supports server-side search via `ilike` on
- * a given column (typically the primary field).
  */
 export function useLinkedRecordsPaginated(
   baseId: string | null | undefined,
@@ -484,7 +638,6 @@ export function useLinkedRecordsPaginated(
 
   const { data: meta } = useLinkedTableMeta(baseId, targetTableId);
 
-  // Total count (with search filter applied)
   const { data: totalCount = 0 } = useQuery({
     queryKey: ['nc', 'linked-records-count', baseId, targetTableId, search, searchColumn],
     enabled: !!meta,
@@ -504,10 +657,8 @@ export function useLinkedRecordsPaginated(
     },
   });
 
-  // Track how many pages have been loaded
   const [pages, setPages] = useState(1);
 
-  // Reset pages when search changes
   const prevSearchRef = useRef(search);
   if (prevSearchRef.current !== search) {
     prevSearchRef.current = search;
