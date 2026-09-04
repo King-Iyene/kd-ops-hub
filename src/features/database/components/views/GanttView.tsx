@@ -323,6 +323,7 @@ export default function GanttView({
   const [tooltip, setTooltip] = useState<{ record: RecordRow; x: number; y: number } | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [dragDelta, setDragDelta] = useState(0);
+  const dragDeltaRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
 
@@ -524,6 +525,7 @@ export default function GanttView({
       e.stopPropagation();
       e.preventDefault();
       setDragState({ recordId, mode, startX: e.clientX, origStart: barStart, origEnd: barEnd });
+      dragDeltaRef.current = 0;
       setDragDelta(0);
       setTooltip(null);
     },
@@ -535,11 +537,12 @@ export default function GanttView({
 
     const handleMouseMove = (e: MouseEvent) => {
       const dx = e.clientX - dragState.startX;
+      dragDeltaRef.current = dx;
       setDragDelta(dx);
     };
 
     const handleMouseUp = () => {
-      const daysDelta = Math.round(dragDelta / colWidth);
+      const daysDelta = Math.round(dragDeltaRef.current / colWidth);
       if (daysDelta !== 0 && resolvedStartField) {
         const bar = bars.find((b) => b.record.id === dragState.recordId);
         if (bar) {
@@ -573,7 +576,7 @@ export default function GanttView({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [dragState, dragDelta, colWidth, bars, resolvedStartField, resolvedEndField, onCellUpdate]);
+  }, [dragState, colWidth, bars, resolvedStartField, resolvedEndField, onCellUpdate]);
 
   const handleBarHover = useCallback((e: React.MouseEvent, record: RecordRow) => {
     if (dragState) return;

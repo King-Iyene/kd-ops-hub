@@ -599,7 +599,7 @@ function SortPanel({ onClose }: { onClose: () => void }) {
         <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /></button>
       </div>
       {sorts.map((sort, i) => (
-        <div key={i} className="flex items-center gap-2 mb-2">
+        <div key={`${sort.field_id}-${i}`} className="flex items-center gap-2 mb-2">
           <select
             className="text-[11px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1"
             value={sort.field_id}
@@ -665,7 +665,7 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
       ) : (
         <>
           {groupByLevels.map((level, i) => (
-            <div key={i} className="flex items-center gap-2 mb-2">
+            <div key={`${level.field_id}-${i}`} className="flex items-center gap-2 mb-2">
               <span className="text-[10px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] w-10 shrink-0">{i === 0 ? 'Group' : 'Then'}</span>
               <select
                 className="text-[11px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1"

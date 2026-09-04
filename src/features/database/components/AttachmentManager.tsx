@@ -185,7 +185,7 @@ export function AttachmentManager({
                   const Icon = fileIcon(att.type);
                   return (
                     <div
-                      key={i}
+                      key={att.url || i}
                       className="relative group rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] overflow-hidden bg-[#FAFAFA] dark:bg-[hsl(200,30%,12%)]"
                     >
                       {/* Preview area */}

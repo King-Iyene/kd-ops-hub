@@ -293,7 +293,7 @@ function InlineAttachmentEditor({
           {attachments.map((att, i) => {
             const isImage = att.type?.startsWith('image/');
             return (
-              <div key={i} className="w-12 h-12 rounded border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] overflow-hidden bg-[#FAFAFA] dark:bg-[hsl(200,30%,12%)]">
+              <div key={att.url || i} className="w-12 h-12 rounded border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] overflow-hidden bg-[#FAFAFA] dark:bg-[hsl(200,30%,12%)]">
                 {isImage ? (
                   <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
                 ) : (
