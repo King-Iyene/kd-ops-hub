@@ -190,6 +190,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const [durationFormat, setDurationFormat] = useState('h:mm');
   const [buttonLabel, setButtonLabel] = useState('Click');
   const [buttonUrl, setButtonUrl] = useState('');
+  const [allowMultiple, setAllowMultiple] = useState(false);
   const updateField = useUpdateField();
   const changeFieldType = useChangeFieldType();
   const deleteField = useDeleteField();
@@ -224,6 +225,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       setDurationFormat((field.options as any)?.format ?? 'h:mm');
       setButtonLabel((field.options as any)?.label ?? 'Click');
       setButtonUrl((field.options as any)?.url ?? '');
+      setAllowMultiple((field.options as any)?.allowMultiple ?? false);
     }
   }, [field]);
 
@@ -234,6 +236,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const isRollup = field?.ui_type === 'Rollup';
   const isCount = field?.ui_type === 'Count';
   const isButton = field?.ui_type === 'Button';
+  const isUser = field?.ui_type === 'User';
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -351,6 +354,9 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       }
       if (isButton) {
         updates.options = { ...(field.options as any), label: buttonLabel || 'Click', url: buttonUrl };
+      }
+      if (isUser) {
+        updates.options = { ...(field.options as any), allowMultiple };
       }
       if (Object.keys(updates).length > 0) {
         try {
@@ -768,6 +774,20 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 <option value="h:mm:ss.ss">h:mm:ss.ss (e.g., 1:30:00.00)</option>
                 <option value="h:mm:ss.sss">h:mm:ss.sss (e.g., 1:30:00.000)</option>
               </select>
+            </div>
+          )}
+
+          {isUser && (
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allowMultiple}
+                  onChange={(e) => setAllowMultiple(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                <span className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Allow multiple users</span>
+              </label>
             </div>
           )}
 

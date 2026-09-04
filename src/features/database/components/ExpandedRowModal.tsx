@@ -616,6 +616,10 @@ export function ExpandedRowModal({
         return <InlineLongTextEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
       case 'Barcode':
         return <InlineTextEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
+      case 'User': {
+        const Renderer = getCellRenderer('User');
+        return <Renderer value={val} field={field} record={record} rowHeight="default" />;
+      }
       case 'Links':
         return <LinkCellRenderer value={val} field={field} record={record} rowHeight="default" />;
       case 'Lookup':

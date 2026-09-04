@@ -730,6 +730,54 @@ export const ButtonCellRenderer = React.memo(function ButtonCellRenderer({
   );
 });
 
+export const UserCellRenderer = React.memo(function UserCellRenderer({
+  value,
+}: CellRendererProps) {
+  const colors = useGridColors();
+  if (value == null || value === '') return null;
+
+  const users: Array<{ id?: string; email?: string; name?: string }> = Array.isArray(value)
+    ? value
+    : typeof value === 'object' && value !== null
+      ? [value]
+      : [];
+
+  if (users.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1 overflow-hidden">
+      {users.slice(0, 3).map((user, i) => {
+        const displayName = user.name || user.email || 'Unknown';
+        const initial = displayName.charAt(0).toUpperCase();
+        return (
+          <span key={user.id || user.email || i} className="inline-flex items-center gap-1 shrink-0">
+            <span
+              className="flex items-center justify-center rounded-full text-white shrink-0"
+              style={{
+                width: 20,
+                height: 20,
+                fontSize: 10,
+                fontWeight: 600,
+                backgroundColor: colors.avatarBg || '#6366F1',
+              }}
+            >
+              {initial}
+            </span>
+            <span className="text-xs truncate" style={{ color: colors.text, maxWidth: 80 }}>
+              {displayName}
+            </span>
+          </span>
+        );
+      })}
+      {users.length > 3 && (
+        <span className="text-[10px] shrink-0" style={{ color: colors.systemText }}>
+          +{users.length - 3}
+        </span>
+      )}
+    </div>
+  );
+});
+
 export function getCellRenderer(uiType: string) {
   switch (uiType) {
     case 'SingleLineText':
@@ -782,6 +830,8 @@ export function getCellRenderer(uiType: string) {
       return RollupCellRenderer;
     case 'Button':
       return ButtonCellRenderer;
+    case 'User':
+      return UserCellRenderer;
     case 'ID':
     case 'CreatedTime':
     case 'LastModifiedTime':

@@ -817,6 +817,20 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
             </div>
           )}
 
+          {uiType === 'User' && (
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allowMultiple}
+                  onChange={(e) => setAllowMultiple(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                <span className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Allow multiple users</span>
+              </label>
+            </div>
+          )}
+
           {uiType === 'Button' && (
             <div className="space-y-3">
               <div className="space-y-1.5">
