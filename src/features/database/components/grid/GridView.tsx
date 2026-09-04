@@ -1002,10 +1002,11 @@ export default function GridView({
     return () => window.removeEventListener('grid:expand-row', handler);
   }, [onExpandRow]);
 
-  // Dismiss cell editors when ANY dialog/modal opens (covers all current & future dialogs)
+  // Dismiss cell editors when a modal dialog opens (but not cell-editor popovers)
   useEffect(() => {
     const observer = new MutationObserver(() => {
-      if (document.querySelector('[role="dialog"], [data-state="open"][role="alertdialog"]')) {
+      const dialog = document.querySelector('[role="dialog"], [data-state="open"][role="alertdialog"]');
+      if (dialog && !dialog.closest('[data-radix-popper-content-wrapper]')) {
         setEditingCell(null);
       }
     });
