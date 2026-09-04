@@ -715,6 +715,23 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
             </div>
           )}
 
+          {field?.ui_type === 'Duration' && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Duration Format</Label>
+              <select
+                value={durationFormat}
+                onChange={(e) => setDurationFormat(e.target.value)}
+                className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#166EE1]/30 focus:border-[#166EE1]"
+              >
+                <option value="h:mm">h:mm (e.g., 1:30)</option>
+                <option value="h:mm:ss">h:mm:ss (e.g., 1:30:00)</option>
+                <option value="h:mm:ss.s">h:mm:ss.s (e.g., 1:30:00.0)</option>
+                <option value="h:mm:ss.ss">h:mm:ss.ss (e.g., 1:30:00.00)</option>
+                <option value="h:mm:ss.sss">h:mm:ss.sss (e.g., 1:30:00.000)</option>
+              </select>
+            </div>
+          )}
+
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
         {/* Delete field button — hidden for primary fields */}

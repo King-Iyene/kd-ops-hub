@@ -532,22 +532,35 @@ export const PercentCellRenderer = React.memo(function PercentCellRenderer({
 
 export const DurationCellRenderer = React.memo(function DurationCellRenderer({
   value,
+  field,
 }: CellRendererProps) {
   const colors = useGridColors();
   if (value == null || value === '') return null;
   const seconds = Number(value);
   if (isNaN(seconds)) return <span className="truncate">{String(value)}</span>;
+  const format = field.options?.format || 'h:mm';
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  const parts = [];
-  if (h > 0) parts.push(`${h}h`);
-  if (m > 0 || h > 0) parts.push(`${m}m`);
-  parts.push(`${s}s`);
+  const rawS = seconds % 3600 % 60;
+  const pad2 = (n: number) => String(n).padStart(2, '0');
+  let display: string;
+  if (format === 'h:mm') {
+    display = `${h}:${pad2(m)}`;
+  } else if (format === 'h:mm:ss') {
+    display = `${h}:${pad2(m)}:${pad2(Math.floor(rawS))}`;
+  } else if (format === 'h:mm:ss.s') {
+    display = `${h}:${pad2(m)}:${pad2(Math.floor(rawS))}.${Math.floor((rawS % 1) * 10)}`;
+  } else if (format === 'h:mm:ss.ss') {
+    display = `${h}:${pad2(m)}:${pad2(Math.floor(rawS))}.${String(Math.floor((rawS % 1) * 100)).padStart(2, '0')}`;
+  } else if (format === 'h:mm:ss.sss') {
+    display = `${h}:${pad2(m)}:${pad2(Math.floor(rawS))}.${String(Math.floor((rawS % 1) * 1000)).padStart(3, '0')}`;
+  } else {
+    display = `${h}:${pad2(m)}`;
+  }
   return (
     <span className="flex items-center gap-1 truncate" style={{ color: colors.muted }}>
       <Clock size={12} className="shrink-0" style={{ color: colors.systemText }} />
-      {parts.join(' ')}
+      {display}
     </span>
   );
 });

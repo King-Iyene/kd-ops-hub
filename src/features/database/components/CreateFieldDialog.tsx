@@ -59,6 +59,7 @@ const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
   { value: 'Formula', label: 'Formula', group: 'Computed' },
   { value: 'Lookup', label: 'Lookup', group: 'Computed' },
   { value: 'Rollup', label: 'Rollup', group: 'Computed' },
+  { value: 'Count', label: 'Count', group: 'Computed' },
   { value: 'Links', label: 'Links', group: 'Relations' },
   { value: 'Attachment', label: 'Attachment', group: 'Other' },
   { value: 'JSON', label: 'JSON', group: 'Other' },
@@ -247,6 +248,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const isFormula = uiType === 'Formula';
   const isLookup = uiType === 'Lookup';
   const isRollup = uiType === 'Rollup';
+  const isCount = uiType === 'Count';
 
   const handleFormulaChange = useCallback((expr: string) => {
     setFormulaExpression(expr);
@@ -323,7 +325,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
       setFormulaExpression('');
       setFormulaError('');
     }
-    if (type !== 'Lookup' && type !== 'Rollup') {
+    if (type !== 'Lookup' && type !== 'Rollup' && type !== 'Count') {
       setLinkFieldId('');
       setLookupFieldId('');
       setRollupFieldId('');
@@ -443,6 +445,11 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
         options.linkFieldId = linkFieldId;
         options.rollupFieldId = rollupFieldId;
         options.fn = rollupFn;
+      }
+      if (isCount) {
+        if (!linkFieldId) { setError('Please select a link field'); return; }
+        options.linkFieldId = linkFieldId;
+        options.fn = 'COUNTALL';
       }
       await createField.mutateAsync({
         table_id: activeTableId,
@@ -695,14 +702,14 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
             </div>
           )}
 
-          {(isLookup || isRollup) && (
+          {(isLookup || isRollup || isCount) && (
             <div className="space-y-3">
               {linkFields.length === 0 ? (
                 <div className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-[#166EE1] rounded-r-md p-3 flex items-start gap-2.5">
                   <Info size={16} className="text-[#166EE1] shrink-0 mt-0.5" />
                   <div className="space-y-2 min-w-0">
                     <p className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] leading-relaxed">
-                      This table has no Link fields yet. Create a Link to Another Record field first, then set up your {isLookup ? 'Lookup' : 'Rollup'}.
+                      This table has no Link fields yet. Create a Link to Another Record field first, then set up your {isLookup ? 'Lookup' : isCount ? 'Count' : 'Rollup'}.
                     </p>
                     <button
                       type="button"
@@ -810,13 +817,15 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
               !name.trim() ||
               (isFormula && (!!formulaError || !formulaExpression.trim())) ||
               (isLookup && (!linkFieldId || !lookupFieldId)) ||
-              (isRollup && (!linkFieldId || (!rollupFieldId && rollupFn !== 'COUNT' && rollupFn !== 'COUNTALL')))
+              (isRollup && (!linkFieldId || (!rollupFieldId && rollupFn !== 'COUNT' && rollupFn !== 'COUNTALL'))) ||
+              (isCount && !linkFieldId)
             }
             title={
               isFormula && formulaError ? 'Fix formula errors before saving' :
               isFormula && !formulaExpression.trim() ? 'Enter a formula expression' :
               (isLookup && (!linkFieldId || !lookupFieldId)) ? 'Select link and target fields' :
               (isRollup && (!linkFieldId || (!rollupFieldId && rollupFn !== 'COUNT' && rollupFn !== 'COUNTALL'))) ? 'Select link and target fields' :
+              (isCount && !linkFieldId) ? 'Select a link field' :
               undefined
             }
           >
