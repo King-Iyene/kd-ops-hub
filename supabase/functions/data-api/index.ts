@@ -321,17 +321,24 @@ Deno.serve(async (req) => {
             return jsonResponse({ error: `Max ${maxBatch} records per batch` }, 400);
           }
           const created: unknown[] = [];
-          for (const rec of records) {
-            const r = { ...rec, created_by: user.id };
-            const keys = Object.keys(r);
-            const cols = keys.map(k => validateId(k)).join(', ');
-            const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
-            const vals = keys.map(k => r[k]);
-            const result = await conn.queryObject(
-              `INSERT INTO ${fqn} (${cols}) VALUES (${placeholders}) RETURNING *`,
-              vals,
-            );
-            created.push(result.rows[0]);
+          await conn.queryObject('BEGIN');
+          try {
+            for (const rec of records) {
+              const r = { ...rec, created_by: user.id };
+              const keys = Object.keys(r);
+              const cols = keys.map(k => validateId(k)).join(', ');
+              const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
+              const vals = keys.map(k => r[k]);
+              const result = await conn.queryObject(
+                `INSERT INTO ${fqn} (${cols}) VALUES (${placeholders}) RETURNING *`,
+                vals,
+              );
+              created.push(result.rows[0]);
+            }
+            await conn.queryObject('COMMIT');
+          } catch (e) {
+            await conn.queryObject('ROLLBACK');
+            throw e;
           }
           return jsonResponse({ records: created, count: created.length }, 201);
         }
@@ -346,17 +353,24 @@ Deno.serve(async (req) => {
             return jsonResponse({ error: `Max ${maxBatch} updates per batch` }, 400);
           }
           const updated: unknown[] = [];
-          for (const upd of updates) {
-            if (!upd.id || !upd.fields || !Object.keys(upd.fields).length) continue;
-            const keys = Object.keys(upd.fields);
-            const setClauses = keys.map((k, i) => `${validateId(k)} = $${i + 1}`).join(', ');
-            const vals = keys.map(k => upd.fields[k]);
-            vals.push(upd.id);
-            const result = await conn.queryObject(
-              `UPDATE ${fqn} SET ${setClauses} WHERE "id" = $${vals.length} RETURNING *`,
-              vals,
-            );
-            if (result.rows.length) updated.push(result.rows[0]);
+          await conn.queryObject('BEGIN');
+          try {
+            for (const upd of updates) {
+              if (!upd.id || !upd.fields || !Object.keys(upd.fields).length) continue;
+              const keys = Object.keys(upd.fields);
+              const setClauses = keys.map((k, i) => `${validateId(k)} = $${i + 1}`).join(', ');
+              const vals = keys.map(k => upd.fields[k]);
+              vals.push(upd.id);
+              const result = await conn.queryObject(
+                `UPDATE ${fqn} SET ${setClauses} WHERE "id" = $${vals.length} RETURNING *`,
+                vals,
+              );
+              if (result.rows.length) updated.push(result.rows[0]);
+            }
+            await conn.queryObject('COMMIT');
+          } catch (e) {
+            await conn.queryObject('ROLLBACK');
+            throw e;
           }
           return jsonResponse({ records: updated, count: updated.length });
         }

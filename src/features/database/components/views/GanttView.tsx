@@ -803,7 +803,7 @@ export default function GanttView({
                   onMouseLeave={handleBarLeave}
                 >
                   {/* Left resize handle */}
-                  {canDrag && (
+                  {canDrag && !!resolvedEndField && (
                     <div
                       className="gantt-handle gantt-handle-left"
                       onMouseDown={(e) => handleDragStart(e, b.record.id, 'resize-start', b.start, b.end)}

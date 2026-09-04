@@ -214,6 +214,14 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
 
   const selected = useMemo(() => automations.find((a) => a.id === selectedId) ?? null, [automations, selectedId]);
 
+  // Sync draft when server data changes for the selected automation
+  const selectedVersion = selected?.updated_at ?? selected?.id;
+  useEffect(() => {
+    if (selected && draft && selected.id === draft.id && selectedVersion !== (draft as any)._syncKey) {
+      setDraft({ ...selected, actions: [...selected.actions], _syncKey: selectedVersion } as any);
+    }
+  }, [selectedVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // When selection changes, reset draft
   const selectAutomation = useCallback((a: Automation | null) => {
     setSelectedId(a?.id ?? null);

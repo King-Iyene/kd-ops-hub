@@ -15,7 +15,7 @@ interface CalendarViewProps {
 }
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const HOURS = Array.from({ length: 13 }, (_, i) => i + 8); // 8am-8pm
+const HOURS = Array.from({ length: 24 }, (_, i) => i); // 0-23 full day
 
 function formatHour(h: number): string {
   if (h === 0) return '12 AM';
@@ -1053,13 +1053,13 @@ export default function CalendarView({
                       const d = new Date(val);
                       const hour = d.getHours();
                       const minute = d.getMinutes();
-                      const topPct = ((hour - 8 + minute / 60) / 13) * 100;
-                      if (hour < 8 || hour >= 21) return null;
+                      const topPct = ((hour + minute / 60) / 24) * 100;
+                      // show all hours
                       return (
                         <div
                           key={r.id}
                           className="calendar-time-event-wrap"
-                          style={{ top: `${Math.max(0, topPct)}%`, height: `${(1 / 13) * 100}%` }}
+                          style={{ top: `${Math.max(0, topPct)}%`, height: `${(1 / 24) * 100}%` }}
                         >
                           <CalendarEvent
                             record={r}
@@ -1112,13 +1112,13 @@ export default function CalendarView({
                   const d = new Date(val);
                   const hour = d.getHours();
                   const minute = d.getMinutes();
-                  const topPct = ((hour - 8 + minute / 60) / 13) * 100;
-                  if (hour < 8 || hour >= 21) return null;
+                  const topPct = ((hour + minute / 60) / 24) * 100;
+                  // show all hours
                   return (
                     <div
                       key={r.id}
                       className="calendar-time-event-wrap"
-                      style={{ top: `${Math.max(0, topPct)}%`, height: `${(1 / 13) * 100}%` }}
+                      style={{ top: `${Math.max(0, topPct)}%`, height: `${(1 / 24) * 100}%` }}
                     >
                       <CalendarEvent
                         record={r}

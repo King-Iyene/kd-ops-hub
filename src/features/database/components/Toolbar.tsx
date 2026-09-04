@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, Replace, Printer, FileJson, GripVertical, ChevronUp, ChevronDown, Paintbrush, FolderPlus, ChevronRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
 import { useUndoStore } from '../lib/undo';
 import { useFields, useRecords, useCreateView } from '../hooks';
 import { CreateFieldDialog } from './CreateFieldDialog';
-import { ImportCsvDialog } from './ImportCsvDialog';
+const ImportCsvDialog = lazy(() => import('./ImportCsvDialog').then(m => ({ default: m.ImportCsvDialog })));
 import { SearchReplaceDialog } from './SearchReplaceDialog';
 import { ConditionalFormatDialog } from './ConditionalFormatDialog';
 import { exportToCsv, exportToJson, exportToXlsx } from '../lib/csv';
@@ -1256,7 +1256,7 @@ export function Toolbar() {
       <QuickFilterBar />
       <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />
       <SaveFilterAsViewDialog open={saveFilterViewOpen} onClose={() => setSaveFilterViewOpen(false)} />
-      <ImportCsvDialog open={importCsvOpen} onOpenChange={setImportCsvOpen} />
+      {importCsvOpen && <Suspense fallback={null}><ImportCsvDialog open={importCsvOpen} onOpenChange={setImportCsvOpen} /></Suspense>}
       <SearchReplaceDialog open={searchReplaceOpen} onOpenChange={setSearchReplaceOpen} />
       <ConditionalFormatDialog open={conditionalFormatOpen} onOpenChange={setConditionalFormatOpen} />
       {printViewOpen && fieldsData && recordsData?.records && (

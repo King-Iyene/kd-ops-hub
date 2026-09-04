@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Zap, Link2, Key, Webhook, History, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,14 +6,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useAuthStore } from '@/store/authStore';
 import { useDatabaseUI } from '../lib/store';
 import { useBases } from '../hooks';
-import { AutomationsDialog } from './AutomationsDialog';
-import { ShareViewDialog } from './ShareViewDialog';
-import { ApiTokensDialog } from './ApiTokensDialog';
-import { WebhooksDialog } from './WebhooksDialog';
-import { AuditLogDialog } from './AuditLogDialog';
 import { NotificationsPanel } from './NotificationsPanel';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
+
+const AutomationsDialog = lazy(() => import('./AutomationsDialog').then(m => ({ default: m.AutomationsDialog })));
+const ShareViewDialog = lazy(() => import('./ShareViewDialog').then(m => ({ default: m.ShareViewDialog })));
+const ApiTokensDialog = lazy(() => import('./ApiTokensDialog').then(m => ({ default: m.ApiTokensDialog })));
+const WebhooksDialog = lazy(() => import('./WebhooksDialog').then(m => ({ default: m.WebhooksDialog })));
+const AuditLogDialog = lazy(() => import('./AuditLogDialog').then(m => ({ default: m.AuditLogDialog })));
 
 export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => void }) {
   const { toggleSidebar, activeBaseId, activeTableId } = useDatabaseUI();
@@ -213,11 +214,13 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
         </DialogContent>
       </Dialog>
 
-      <ShareViewDialog open={shareViewOpen} onOpenChange={setShareViewOpen} viewId={activeViewId} tableId={activeTableId} />
-      <ApiTokensDialog open={apiTokensOpen} onOpenChange={setApiTokensOpen} baseId={activeBaseId} />
-      <AutomationsDialog open={automationsOpen} onOpenChange={setAutomationsOpen} tableId={activeTableId} baseId={activeBaseId} />
-      <WebhooksDialog open={webhooksOpen} onOpenChange={setWebhooksOpen} tableId={activeTableId} baseId={activeBaseId} />
-      <AuditLogDialog open={auditLogOpen} onOpenChange={setAuditLogOpen} baseId={activeBaseId} />
+      <Suspense fallback={null}>
+        {shareViewOpen && <ShareViewDialog open={shareViewOpen} onOpenChange={setShareViewOpen} viewId={activeViewId} tableId={activeTableId} />}
+        {apiTokensOpen && <ApiTokensDialog open={apiTokensOpen} onOpenChange={setApiTokensOpen} baseId={activeBaseId} />}
+        {automationsOpen && <AutomationsDialog open={automationsOpen} onOpenChange={setAutomationsOpen} tableId={activeTableId} baseId={activeBaseId} />}
+        {webhooksOpen && <WebhooksDialog open={webhooksOpen} onOpenChange={setWebhooksOpen} tableId={activeTableId} baseId={activeBaseId} />}
+        {auditLogOpen && <AuditLogDialog open={auditLogOpen} onOpenChange={setAuditLogOpen} baseId={activeBaseId} />}
+      </Suspense>
 
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
         <DialogContent className="sm:max-w-[480px]">

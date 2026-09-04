@@ -73,7 +73,9 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
 
   const handleDelete = () => {
     if (!sharedView) return;
-    deleteShared.mutate({ id: sharedView.id, view_id: sharedView.view_id });
+    deleteShared.mutate({ id: sharedView.id, view_id: sharedView.view_id }, {
+      onSuccess: () => onOpenChange(false),
+    });
   };
 
   const isEnabled = sharedView?.is_enabled ?? false;
