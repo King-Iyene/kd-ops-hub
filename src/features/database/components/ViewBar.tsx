@@ -128,6 +128,7 @@ export function ViewBar() {
   const loadViewConfig = useLoadViewConfig();
 
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const addBtnRef = useRef<HTMLDivElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; viewId: string } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameText, setRenameText] = useState('');
@@ -244,7 +245,7 @@ export function ViewBar() {
           </SortableContext>
         </DndContext>
 
-        <div className="relative">
+        <div className="relative" ref={addBtnRef}>
           <button
             onClick={() => setAddMenuOpen(!addMenuOpen)}
             className="flex items-center gap-1 px-2 py-1 rounded text-[12px] hover:bg-gray-100 whitespace-nowrap"
@@ -252,28 +253,36 @@ export function ViewBar() {
           >
             <Plus size={12} />
           </button>
-          {addMenuOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setAddMenuOpen(false)} />
-              <div className="absolute left-0 top-full z-50 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[160px]">
-                {VIEW_TYPE_OPTIONS.map((opt) => {
-                  const Icon = VIEW_ICONS[opt.type];
-                  return (
-                    <button
-                      key={opt.type}
-                      className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
-                      onClick={() => handleAddView(opt.type)}
-                    >
-                      <Icon size={13} className="text-[#9AA2AF]" />
-                      {opt.label} view
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
         </div>
       </div>
+
+      {/* Add view dropdown — rendered outside overflow container */}
+      {addMenuOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setAddMenuOpen(false)} />
+          <div
+            className="fixed z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[160px]"
+            style={{
+              left: addBtnRef.current?.getBoundingClientRect().left ?? 0,
+              top: (addBtnRef.current?.getBoundingClientRect().bottom ?? 0) + 4,
+            }}
+          >
+            {VIEW_TYPE_OPTIONS.map((opt) => {
+              const Icon = VIEW_ICONS[opt.type];
+              return (
+                <button
+                  key={opt.type}
+                  className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                  onClick={() => handleAddView(opt.type)}
+                >
+                  <Icon size={13} className="text-[#9AA2AF]" />
+                  {opt.label} view
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* View context menu */}
       {contextMenu && (
