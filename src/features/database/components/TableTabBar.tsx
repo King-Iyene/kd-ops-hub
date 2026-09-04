@@ -8,6 +8,8 @@ import {
   Trash2,
   ChevronDown,
   Smile,
+  Upload,
+  Download,
 } from 'lucide-react';
 import {
   DndContext,
@@ -43,6 +45,9 @@ import {
   useDuplicateTable,
   useRecordCount,
 } from '../hooks';
+import { CreateTableDialog } from './CreateTableDialog';
+import { ImportCsvDialog } from './ImportCsvDialog';
+import { ImportAirtableDialog } from './ImportAirtableDialog';
 
 function InlineRenameInput({
   value,
@@ -123,6 +128,10 @@ export function TableTabBar() {
   const duplicateTable = useDuplicateTable();
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [iconPickerId, setIconPickerId] = useState<string | null>(null);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [createTableOpen, setCreateTableOpen] = useState(false);
+  const [importCsvOpen, setImportCsvOpen] = useState(false);
+  const [importAirtableOpen, setImportAirtableOpen] = useState(false);
 
   const sortedTables = useMemo(
     () => (tables ?? []).slice().sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)),
@@ -329,13 +338,41 @@ export function TableTabBar() {
       ))}
         </SortableContext>
       </DndContext>
-      <button
-        className="flex items-center justify-center h-7 w-7 ml-0.5 rounded hover:bg-white/60 dark:hover:bg-[hsl(200,25%,16%)] text-[#6A7184] hover:text-[#374151] transition-colors shrink-0"
-        onClick={handleAddTable}
-        title="Add table"
-      >
-        <Plus size={15} />
-      </button>
+      <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="flex items-center justify-center h-7 w-7 ml-0.5 rounded hover:bg-white/60 dark:hover:bg-[hsl(200,25%,16%)] text-[#6A7184] hover:text-[#374151] transition-colors shrink-0"
+            title="Add table"
+          >
+            <Plus size={15} />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-48">
+          <DropdownMenuItem className="text-xs gap-2" onClick={handleAddTable}>
+            <Plus size={12} /> Create new table
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="text-xs gap-2" onClick={() => setImportCsvOpen(true)}>
+            <Upload size={12} /> Import CSV
+          </DropdownMenuItem>
+          <DropdownMenuItem className="text-xs gap-2" onClick={() => setImportAirtableOpen(true)}>
+            <Download size={12} /> Import from Airtable
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <CreateTableDialog
+        open={createTableOpen}
+        onOpenChange={setCreateTableOpen}
+      />
+      <ImportCsvDialog
+        open={importCsvOpen}
+        onOpenChange={setImportCsvOpen}
+      />
+      <ImportAirtableDialog
+        open={importAirtableOpen}
+        onOpenChange={setImportAirtableOpen}
+      />
     </div>
   );
 }

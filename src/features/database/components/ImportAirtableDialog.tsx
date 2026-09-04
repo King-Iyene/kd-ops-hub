@@ -253,9 +253,12 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         .single();
       if (baseError) throw baseError;
 
-      // Create schema
+      // Create schema and expose it
       await supabase.functions.invoke('ddl-executor', {
         body: { action: 'createSchema', schemaName },
+      });
+      await supabase.functions.invoke('ddl-executor', {
+        body: { action: 'exposeSchema', schemaName },
       });
 
       // Import each table

@@ -531,7 +531,9 @@ function evaluate(node: ASTNode, record: Record<string, any>, fieldMap: FieldMap
 // ─── Public API ────────────────────────────────────────────────────────────
 
 export function parseFormula(expression: string): ASTNode {
-  const tokens = tokenize(expression);
+  let expr = expression.trim();
+  if (expr.startsWith('=')) expr = expr.slice(1).trim();
+  const tokens = tokenize(expr);
   const parser = new Parser(tokens);
   return parser.parse();
 }

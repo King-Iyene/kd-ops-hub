@@ -161,12 +161,22 @@ export function ViewBar() {
   const handleAddView = useCallback(
     (type: 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar' | 'timeline' | 'gantt') => {
       if (!activeTableId) return;
-      createView.mutate({
-        table_id: activeTableId,
-        name: `${type.charAt(0).toUpperCase() + type.slice(1)} view`,
-        type,
-        position: (views?.length ?? 0) + 1,
-      });
+      createView.mutate(
+        {
+          table_id: activeTableId,
+          name: `${type.charAt(0).toUpperCase() + type.slice(1)} view`,
+          type,
+          position: (views?.length ?? 0) + 1,
+        },
+        {
+          onSuccess: (newView) => {
+            loadViewConfig(newView.id);
+          },
+          onError: (err) => {
+            console.error('Failed to create view:', err);
+          },
+        },
+      );
       setAddMenuOpen(false);
     },
     [activeTableId, createView, views],
