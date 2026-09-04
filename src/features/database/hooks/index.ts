@@ -23,5 +23,7 @@ export { useAutomations, useCreateAutomation, useUpdateAutomation, useDeleteAuto
 export { useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook } from './useWebhooks';
 export { useDuplicateBase } from './useDuplicateBase';
 export { useAuditLog } from './useAuditLog';
+export { useWorkspaceUsers } from './useWorkspaceUsers';
+export type { WorkspaceUser } from './useWorkspaceUsers';
 export { useLookupValue, useRollupValue } from './useLookupRollup';
 export type { LookupResult, RollupResult } from './useLookupRollup';

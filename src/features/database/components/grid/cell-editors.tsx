@@ -7,6 +7,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
 import { useGridColors } from '../../hooks/useGridColors';
+import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
 
 interface CellEditorProps {
   value: any;
