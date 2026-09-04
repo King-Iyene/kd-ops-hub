@@ -648,6 +648,20 @@ export function ExpandedRowModal({
       case 'Rollup':
       case 'Count':
         return <RollupCellRenderer value={val} field={field} record={record} rowHeight="medium" />;
+      case 'Formula':
+      case 'AutoNumber': {
+        const Renderer = getCellRenderer(field.ui_type);
+        return <Renderer value={val} field={field} record={record} rowHeight="medium" />;
+      }
+      case 'JSON':
+        return (
+          <InlineLongTextEditor
+            value={val != null ? (typeof val === 'string' ? val : JSON.stringify(val, null, 2)) : ''}
+            onCommit={(v) => {
+              try { handleUpdate(field.id, JSON.parse(v)); } catch { handleUpdate(field.id, v); }
+            }}
+          />
+        );
       case 'Button': {
         const btnLabel = field.options?.label || 'Click';
         const urlTemplate = field.options?.url || '';

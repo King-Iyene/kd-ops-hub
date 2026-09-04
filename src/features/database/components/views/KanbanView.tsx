@@ -13,6 +13,7 @@ interface KanbanViewProps {
   onAddRow: (record?: Record<string, any>) => void;
   onExpandRow?: (record: RecordRow) => void;
   onDeleteRow?: (recordId: string) => void;
+  onUpdateFieldOptions?: (fieldId: string, options: any) => void;
 }
 
 const CARDS_PER_PAGE = 20;
@@ -68,6 +69,7 @@ export default function KanbanView({
   onCellUpdate,
   onAddRow,
   onExpandRow,
+  onUpdateFieldOptions,
 }: KanbanViewProps) {
   const groupField = useMemo(
     () => fields.find((f) => f.ui_type === 'SingleSelect'),
@@ -203,28 +205,36 @@ export default function KanbanView({
         setRenameText('');
         return;
       }
-      // Update all records in this column to the new value
       const colRecords = grouped.get(oldTitle) ?? [];
       for (const r of colRecords) {
         onCellUpdate(r.id, groupField.id, newTitle);
       }
+      if (onUpdateFieldOptions && groupField.options?.choices) {
+        const updatedChoices = groupField.options.choices.map((c: any) =>
+          c.title === oldTitle ? { ...c, title: newTitle } : c,
+        );
+        onUpdateFieldOptions(groupField.id, { ...groupField.options, choices: updatedChoices });
+      }
       setRenamingCol(null);
       setRenameText('');
     },
-    [renameText, groupField, grouped, onCellUpdate],
+    [renameText, groupField, grouped, onCellUpdate, onUpdateFieldOptions],
   );
 
   const handleDeleteColumn = useCallback(
     (colTitle: string) => {
       if (!groupField || colTitle === 'Uncategorized') return;
-      // Move all records to Uncategorized
       const colRecords = grouped.get(colTitle) ?? [];
       for (const r of colRecords) {
         onCellUpdate(r.id, groupField.id, null);
       }
+      if (onUpdateFieldOptions && groupField.options?.choices) {
+        const updatedChoices = groupField.options.choices.filter((c: any) => c.title !== colTitle);
+        onUpdateFieldOptions(groupField.id, { ...groupField.options, choices: updatedChoices });
+      }
       setMenuOpenCol(null);
     },
-    [groupField, grouped, onCellUpdate],
+    [groupField, grouped, onCellUpdate, onUpdateFieldOptions],
   );
 
   const handleDragStart = useCallback((recordId: string) => {

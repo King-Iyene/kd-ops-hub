@@ -18,6 +18,7 @@ import {
   useActiveView,
   useViews,
   useUpdateView,
+  useUpdateField,
 } from '../hooks';
 import GridView from '../components/grid/GridView';
 import KanbanView from '../components/views/KanbanView';
@@ -109,6 +110,7 @@ export function TableView() {
   const createField = useCreateField();
   const deleteField = useDeleteField();
   const duplicateField = useDuplicateField();
+  const updateField = useUpdateField();
   const reorderFields = useReorderFields();
   const [expandedRecord, setExpandedRecord] = useState<RecordRow | null>(null);
 
@@ -252,6 +254,13 @@ export function TableView() {
     [activeBaseId, activeTableId, deleteRecord, createRecord, records, pushUndo],
   );
 
+  const handleUpdateFieldOptions = useCallback(
+    (fieldId: string, options: any) => {
+      updateField.mutate({ id: fieldId, options });
+    },
+    [updateField],
+  );
+
   const handleDuplicateRow = useCallback(
     (record: RecordRow) => {
       if (!activeBaseId || !activeTableId) return;
@@ -359,6 +368,7 @@ export function TableView() {
             onAddRow={(record) => handleAddRow(record)}
             onExpandRow={setExpandedRecord}
             onDeleteRow={handleDeleteRow}
+            onUpdateFieldOptions={handleUpdateFieldOptions}
           />
         );
       case 'gallery':

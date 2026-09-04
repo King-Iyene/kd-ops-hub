@@ -294,7 +294,7 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
       return;
     }
     setInvalid(false);
-    onCommit(text);
+    onCommit(trimmed);
   }, [text, onCommit]);
 
   return (
@@ -349,7 +349,7 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
       return;
     }
     setInvalid(false);
-    onCommit(text);
+    onCommit(trimmed);
   }, [text, onCommit]);
 
   return (
@@ -1292,6 +1292,8 @@ export function getCellEditor(uiType: string) {
       return LinksCellEditor;
     case 'Barcode':
       return TextCellEditor;
+    case 'JSON':
+      return LongTextCellEditor;
     case 'User':
       return UserCellEditor;
     case 'Button':
