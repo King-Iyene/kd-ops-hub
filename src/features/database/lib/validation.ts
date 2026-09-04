@@ -8,7 +8,7 @@ export interface ValidationResult {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const URL_RE = /^https?:\/\/.+/;
+const URL_RE = /^(https?:\/\/.+|[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+(\/.*)?)$/;
 
 export function validateField(
   value: any,
@@ -31,14 +31,22 @@ export function validateField(
         break;
       }
       case 'min': {
-        if (value != null && value !== '' && Number(value) < Number(rule.value)) {
-          errors.push(rule.message ?? `${field.name} must be at least ${rule.value}`);
+        if (value != null && value !== '') {
+          if (isNaN(Number(value))) {
+            errors.push(rule.message ?? `${field.name} must be a number`);
+          } else if (Number(value) < Number(rule.value)) {
+            errors.push(rule.message ?? `${field.name} must be at least ${rule.value}`);
+          }
         }
         break;
       }
       case 'max': {
-        if (value != null && value !== '' && Number(value) > Number(rule.value)) {
-          errors.push(rule.message ?? `${field.name} must be at most ${rule.value}`);
+        if (value != null && value !== '') {
+          if (isNaN(Number(value))) {
+            errors.push(rule.message ?? `${field.name} must be a number`);
+          } else if (Number(value) > Number(rule.value)) {
+            errors.push(rule.message ?? `${field.name} must be at most ${rule.value}`);
+          }
         }
         break;
       }

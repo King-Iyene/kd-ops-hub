@@ -424,7 +424,7 @@ const BUILTIN_FUNCTIONS: Record<string, (args: any[]) => any> = {
     if (args.length < 2) return '';
     const expr = args[0];
     for (let i = 1; i + 1 < args.length; i += 2) {
-      if (expr === args[i] || (toNumber(expr) === toNumber(args[i]) && typeof expr === typeof args[i])) {
+      if (expr == args[i] || (toNumber(expr) === toNumber(args[i]))) {
         return args[i + 1];
       }
     }

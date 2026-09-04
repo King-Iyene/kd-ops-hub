@@ -25,10 +25,11 @@ function HighlightedText({ text, style, className }: { text: string; style?: Rea
   if (parts.length === 1) {
     return <span className={className} style={style}>{text}</span>;
   }
+  const testRegex = new RegExp(regex.source, 'i');
   return (
     <span className={className} style={style}>
       {parts.map((part, i) =>
-        regex.test(part) ? (
+        testRegex.test(part) ? (
           <mark key={i} style={{ backgroundColor: colors.highlightBg, color: 'inherit', borderRadius: 2, padding: '0 1px' }}>
             {part}
           </mark>

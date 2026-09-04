@@ -229,11 +229,11 @@ export function DurationCellEditor({ value, onCommit, onCancel }: CellEditorProp
       value={text}
       onChange={(e) => setText(e.target.value)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(parseDuration(text));
+        if (e.key === 'Enter') { const d = parseDuration(text); d === null ? onCancel() : onCommit(d); }
         if (e.key === 'Escape') onCancel();
-        if (e.key === 'Tab') { e.preventDefault(); onCommit(parseDuration(text)); }
+        if (e.key === 'Tab') { e.preventDefault(); const d = parseDuration(text); d === null ? onCancel() : onCommit(d); }
       }}
-      onBlur={() => onCommit(parseDuration(text))}
+      onBlur={() => { const d = parseDuration(text); d === null ? onCancel() : onCommit(d); }}
       className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
       style={{ fontSize: 13, color: 'inherit', fontVariantNumeric: 'tabular-nums' }}
     />

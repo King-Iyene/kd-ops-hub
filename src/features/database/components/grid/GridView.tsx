@@ -1278,6 +1278,7 @@ export default function GridView({
                 const rowNum = item.rowNum;
                 const isRowSelected = selectedCellId?.startsWith(record.id + ':');
                 const rowColor = getRowColor(record);
+                const altBgGrouped = virtualRow.index % 2 === 1 ? GRID_COLORS.altRowBg : GRID_COLORS.bg;
                 const rowBg = isRowSelected ? GRID_COLORS.selectedRowBg : undefined;
                 return (
                   <div
@@ -1296,7 +1297,7 @@ export default function GridView({
                       setRowMenu({ x: e.clientX, y: e.clientY, record });
                     }}
                     onMouseEnter={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = GRID_COLORS.hoverRow; }}
-                    onMouseLeave={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
+                    onMouseLeave={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = altBgGrouped; }}
                   >
                     {rowColor && (
                       <div

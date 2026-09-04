@@ -459,6 +459,12 @@ export const TYPE_CONVERSION_RULES: Partial<Record<UIType, Partial<Record<UIType
   SingleSelect: {
     SingleLineText: { safety: 'safe' },
     LongText: { safety: 'safe' },
+    MultiSelect: { safety: 'safe', warning: 'Value will become a single-item list.' },
+  },
+  MultiSelect: {
+    SingleLineText: { safety: 'lossy', warning: 'Values will be joined with commas.' },
+    LongText: { safety: 'lossy', warning: 'Values will be joined with commas.' },
+    SingleSelect: { safety: 'lossy', warning: 'Only the first selected value will be kept.' },
   },
   JSON: {
     SingleLineText: { safety: 'lossy', warning: 'JSON will be serialized as text.' },
@@ -499,6 +505,10 @@ export const OPERATORS_BY_TYPE: Partial<Record<UIType, FilterOperator[]>> = {
   Time: ['is', 'isBefore', 'isAfter', 'isOnOrBefore', 'isOnOrAfter', 'isEmpty', 'isNotEmpty'],
   CreatedTime: ['is', 'isBefore', 'isAfter', 'isOnOrBefore', 'isOnOrAfter', 'isBetween', 'isWithin', 'isWithinPastWeek', 'isWithinPastMonth', 'isWithinPastYear', 'isEmpty', 'isNotEmpty'],
   LastModifiedTime: ['is', 'isBefore', 'isAfter', 'isOnOrBefore', 'isOnOrAfter', 'isBetween', 'isWithin', 'isWithinPastWeek', 'isWithinPastMonth', 'isWithinPastYear', 'isEmpty', 'isNotEmpty'],
+  AutoNumber: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isEmpty', 'isNotEmpty'],
+  ID: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isEmpty', 'isNotEmpty'],
+  CreatedBy: ['is', 'isNot', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
+  LastModifiedBy: ['is', 'isNot', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
   Attachment: ['isEmpty', 'isNotEmpty'],
   JSON: ['isEmpty', 'isNotEmpty'],
   Links: ['linkCountIs', 'linkCountGt', 'linkCountLt', 'isEmpty', 'isNotEmpty'],
