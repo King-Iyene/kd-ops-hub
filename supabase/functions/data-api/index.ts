@@ -181,6 +181,18 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Cannot operate on protected schema' }, 403);
     }
 
+    const { data: baseAccess, error: accessError } = await supabase
+      .schema('nc_meta')
+      .from('bases')
+      .select('id')
+      .eq('schema_name', schemaName)
+      .eq('owner_id', user.id)
+      .maybeSingle();
+
+    if (accessError || !baseAccess) {
+      return jsonResponse({ error: 'Access denied to this schema' }, 403);
+    }
+
     const schema = validateId(schemaName);
     const table = validateId(tableName);
     const fqn = `${schema}.${table}`;

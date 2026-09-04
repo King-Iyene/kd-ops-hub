@@ -323,6 +323,7 @@ export default function GanttView({
   const [colorFieldId, setColorFieldId] = useState<string>('');
   const [tooltip, setTooltip] = useState<{ record: RecordRow; x: number; y: number } | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const didDragRef = useRef(false);
   const [dragDelta, setDragDelta] = useState(0);
   const dragDeltaRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -526,6 +527,7 @@ export default function GanttView({
       e.stopPropagation();
       e.preventDefault();
       setDragState({ recordId, mode, startX: e.clientX, origStart: barStart, origEnd: barEnd });
+      didDragRef.current = true;
       dragDeltaRef.current = 0;
       setDragDelta(0);
       setTooltip(null);
@@ -793,8 +795,9 @@ export default function GanttView({
                     borderColor: b.color.text,
                   }}
                   onMouseDown={canDrag ? (e) => handleDragStart(e, b.record.id, 'move', b.start, b.end) : undefined}
-                  onClick={(e) => {
-                    if (!dragState) onExpandRow?.(b.record);
+                  onClick={() => {
+                    if (didDragRef.current) { didDragRef.current = false; return; }
+                    onExpandRow?.(b.record);
                   }}
                   onMouseMove={(e) => handleBarHover(e, b.record)}
                   onMouseLeave={handleBarLeave}

@@ -97,6 +97,7 @@ const TimesheetsPage    = lazy(() => import('./pages/Timesheets'));
 const MyDashboard       = lazy(() => import('./pages/MyDashboard'));
 const ApprovalWorkflows = lazy(() => import('./pages/ApprovalWorkflows'));
 const DatabasePage      = lazy(() => import('./features/database/pages/DatabasePage'));
+const SharedViewPage    = lazy(() => import('./features/database/pages/SharedViewPage'));
 
 // Kept deliberately conservative on staleTime — this app moves money, and a
 // stale balance shown to an approver is worse than an extra network round
@@ -190,6 +191,16 @@ function AppRoutes() {
           <AuthGuard>
             <Unauthorized />
           </AuthGuard>
+        }
+      />
+
+      {/* Shared view — public, no auth required. */}
+      <Route
+        path="/shared/:token"
+        element={
+          <ErrorBoundary>
+            <SharedViewPage />
+          </ErrorBoundary>
         }
       />
 
