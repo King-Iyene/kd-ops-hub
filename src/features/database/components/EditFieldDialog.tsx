@@ -9,8 +9,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Plus, X, AlertTriangle, GripVertical, Info } from 'lucide-react';
-import { useUpdateField, useChangeFieldType } from '../hooks';
+import { Plus, X, AlertTriangle, GripVertical, Info, Trash2 } from 'lucide-react';
+import { useUpdateField, useChangeFieldType, useDeleteField } from '../hooks';
 import { useFields } from '../hooks/useFields';
 import type { FieldMeta, SelectChoice, UIType } from '../types';
 import { SELECT_COLORS, SELECT_COLOR_NAMES, VIRTUAL_TYPES, getConvertibleTypes } from '../types';
@@ -185,6 +185,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const [lookupFieldId, setLookupFieldId] = useState('');
   const updateField = useUpdateField();
   const changeFieldType = useChangeFieldType();
+  const deleteField = useDeleteField();
 
   // Fetch fields for lookup configuration
   const { data: currentTableFields = [] } = useFields(field?.table_id ?? null);
@@ -295,6 +296,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       if (!lookupFieldId) { setError('Please select a lookup field'); return; }
     }
     setError('');
+    const previousType = field.ui_type;
     try {
       // Handle type change first if selected
       if (selectedNewType && selectedNewType !== field.ui_type) {
@@ -322,11 +324,29 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
         updates.options = { ...(field.options as any), linkFieldId, rollupFieldId, fn: rollupFunction };
       }
       if (Object.keys(updates).length > 0) {
-        await updateField.mutateAsync({
-          id: field.id,
-          table_id: field.table_id,
-          updates,
-        });
+        try {
+          await updateField.mutateAsync({
+            id: field.id,
+            table_id: field.table_id,
+            updates,
+          });
+        } catch (updateErr: any) {
+          // If we already changed the type, attempt to revert it
+          if (selectedNewType && selectedNewType !== previousType) {
+            try {
+              await changeFieldType.mutateAsync({
+                id: field.id,
+                table_id: field.table_id,
+                newUiType: previousType,
+              });
+            } catch {
+              // Revert failed — surface the original error with context
+              setError(`Field update failed and type revert also failed. The field type was changed to ${selectedNewType} but other updates were not applied: ${updateErr?.message ?? 'Unknown error'}`);
+              return;
+            }
+          }
+          throw updateErr;
+        }
       }
       onOpenChange(false);
     } catch (e: any) {
@@ -668,6 +688,28 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
 
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
+        {/* Delete field button — hidden for primary fields */}
+        {field && !field.is_primary && !field.is_system && (
+          <div className="border-t border-[#E7E7E9] dark:border-[hsl(200,25%,18%)] pt-3 mt-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 gap-1.5 w-full justify-start text-xs"
+              onClick={() => {
+                if (window.confirm(`Delete field "${field.name}"? This cannot be undone.`)) {
+                  deleteField.mutate({ id: field.id, table_id: field.table_id });
+                  onOpenChange(false);
+                }
+              }}
+              disabled={deleteField.isPending}
+            >
+              <Trash2 size={13} />
+              {deleteField.isPending ? 'Deleting...' : 'Delete field'}
+            </Button>
+          </div>
+        )}
+
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Cancel

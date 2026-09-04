@@ -258,13 +258,13 @@ class Parser {
     return left;
   }
 
-  // power → unary ( '^' unary )*
+  // power → unary ( '^' power )? — right-associative
   private parsePower(): ASTNode {
-    let left = this.parseUnary();
-    while (this.peek().type === 'OP' && this.peek().value === '^') {
+    const left = this.parseUnary();
+    if (this.peek().type === 'OP' && this.peek().value === '^') {
       this.advance();
-      const right = this.parseUnary();
-      left = { type: 'BinaryOp', op: '^', left, right };
+      const right = this.parsePower(); // recurse at same level for right-associativity
+      return { type: 'BinaryOp', op: '^', left, right };
     }
     return left;
   }
@@ -375,7 +375,7 @@ const BUILTIN_FUNCTIONS: Record<string, (args: any[]) => any> = {
   MAX: (args) => Math.max(...args.map(toNumber)),
   LOG: ([a, b]) => {
     const val = toNumber(a);
-    if (b != null) return Math.log(toNumber(val)) / Math.log(toNumber(b));
+    if (b != null) return Math.log(val) / Math.log(toNumber(b));
     return Math.log(val);
   },
   EXP: ([a]) => Math.exp(toNumber(a)),
@@ -510,7 +510,7 @@ function evaluate(node: ASTNode, record: Record<string, any>, fieldMap: FieldMap
         case '%': return toNumber(left) % toNumber(right);
         case '^': return Math.pow(toNumber(left), toNumber(right));
         case '&': return toString(left) + toString(right);
-        case '=': return left === right;
+        case '=': return left == right;
         case '!=': return left !== right;
         case '<': return toNumber(left) < toNumber(right);
         case '>': return toNumber(left) > toNumber(right);

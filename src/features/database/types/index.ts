@@ -455,6 +455,7 @@ export const TYPE_CONVERSION_RULES: Partial<Record<UIType, Partial<Record<UIType
   Checkbox: {
     Number: { safety: 'safe', warning: 'true becomes 1, false becomes 0.' },
     SingleLineText: { safety: 'safe', warning: 'Values become "true" or "false".' },
+    LongText: { safety: 'safe', warning: 'Values become "true" or "false".' },
   },
   SingleSelect: {
     SingleLineText: { safety: 'safe' },

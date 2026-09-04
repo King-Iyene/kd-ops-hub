@@ -769,6 +769,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
             onClick={handleCreate}
             disabled={
               createField.isPending || createLink.isPending ||
+              !name.trim() ||
               (isFormula && (!!formulaError || !formulaExpression.trim())) ||
               (isLookup && (!linkFieldId || !lookupFieldId)) ||
               (isRollup && (!linkFieldId || !rollupFieldId))

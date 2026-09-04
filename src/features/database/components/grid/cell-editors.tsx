@@ -1077,6 +1077,7 @@ export function getCellEditor(uiType: string) {
     case 'Barcode':
       return TextCellEditor;
     case 'User':
+      // TODO: Replace with a dedicated UserPickerCellEditor when user selection UI is built
       return TextCellEditor;
     case 'Button':
       return null;
