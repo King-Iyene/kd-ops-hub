@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Paperclip, Star, Check, X } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
 import { PILL_COLORS, SELECT_COLOR_NAMES, SELECT_COLORS } from '@/features/database/types';
@@ -497,7 +498,10 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
   const [search, setSearch] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const searchRef = useRef<HTMLInputElement>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const colors = useGridColors();
+  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   const filtered = search
     ? localChoices.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
@@ -528,6 +532,31 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
 
+  useLayoutEffect(() => {
+    if (anchorRef.current) {
+      const rect = anchorRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 1, left: rect.left });
+    }
+  }, []);
+
+  useEffect(() => {
+    setTimeout(() => searchRef.current?.focus(), 0);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(target) &&
+        anchorRef.current && !anchorRef.current.contains(target)
+      ) {
+        onCommit(selectedRef.current);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onCommit]);
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       onCommit(selectedRef.current);
@@ -548,145 +577,143 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
   }, [onCommit, filtered, focusedIndex, exactMatch, search, handleCreateOption, toggle]);
 
   return (
-    <Popover open onOpenChange={(open) => { if (!open) onCommit(selected); }}>
-      <PopoverTrigger asChild>
-        <div className="w-full h-full" />
-      </PopoverTrigger>
-      <PopoverContent
-        side="bottom"
-        align="start"
-        sideOffset={1}
-        className="!w-auto !border-none !p-0 !shadow-none"
-        style={{
-          minWidth: 220,
-          maxHeight: 300,
-          backgroundColor: colors.cellEditorBg,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-        }}
-        onOpenAutoFocus={(e) => {
-          e.preventDefault();
-          setTimeout(() => searchRef.current?.focus(), 0);
-        }}
-      >
-        {selected.length > 0 && (
-          <div className="flex flex-wrap gap-1 px-2 pt-2">
-            {selected.map((title) => {
-              const choice = localChoices.find((c) => c.title === title);
-              const sc = getSelectColorStyle(choice?.color || 'grayLight2');
+    <>
+      <div ref={anchorRef} className="w-full h-full" />
+      {createPortal(
+        <div
+          ref={dropdownRef}
+          style={{
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            zIndex: 9999,
+            minWidth: 220,
+            maxHeight: 300,
+            backgroundColor: colors.cellEditorBg,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 8,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+          }}
+        >
+          {selected.length > 0 && (
+            <div className="flex flex-wrap gap-1 px-2 pt-2">
+              {selected.map((title) => {
+                const choice = localChoices.find((c) => c.title === title);
+                const sc = getSelectColorStyle(choice?.color || 'grayLight2');
+                return (
+                  <span
+                    key={title}
+                    className="inline-flex items-center gap-1 px-2 rounded-full text-xs font-medium select-pill"
+                    style={{
+                      '--pill-bg': sc.bg,
+                      '--pill-text': sc.text,
+                      '--pill-dark-bg': sc.darkBg,
+                      '--pill-dark-text': sc.darkText,
+                      backgroundColor: 'var(--pill-bg)',
+                      color: 'var(--pill-text)',
+                      height: 22,
+                      lineHeight: '22px',
+                    } as React.CSSProperties}
+                  >
+                    {title}
+                    <X
+                      size={12}
+                      className="cursor-pointer opacity-60 hover:opacity-100"
+                      onClick={() => toggle(title)}
+                    />
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          <div className="px-2 pt-2 pb-1 shrink-0">
+            <input
+              ref={searchRef}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Find or create an option"
+              className="w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
+              style={{
+                border: `1px solid ${colors.border}`,
+                color: colors.text,
+              }}
+            />
+          </div>
+          <div className="overflow-y-auto py-1" style={{ maxHeight: 200 }}>
+            {filtered.map((choice, idx) => {
+              const sc = getSelectColorStyle(choice.color);
+              const isFocused = idx === focusedIndex;
+              const isChecked = selected.includes(choice.title);
               return (
-                <span
-                  key={title}
-                  className="inline-flex items-center gap-1 px-2 rounded-full text-xs font-medium select-pill"
+                <button
+                  key={choice.title}
+                  className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors"
                   style={{
-                    '--pill-bg': sc.bg,
-                    '--pill-text': sc.text,
-                    '--pill-dark-bg': sc.darkBg,
-                    '--pill-dark-text': sc.darkText,
-                    backgroundColor: 'var(--pill-bg)',
-                    color: 'var(--pill-text)',
-                    height: 22,
-                    lineHeight: '22px',
-                  } as React.CSSProperties}
+                    backgroundColor: isFocused ? colors.hoverRow : 'transparent',
+                  }}
+                  onMouseEnter={() => setFocusedIndex(idx)}
+                  onClick={() => toggle(choice.title)}
                 >
-                  {title}
-                  <X
-                    size={12}
-                    className="cursor-pointer opacity-60 hover:opacity-100"
-                    onClick={() => toggle(title)}
-                  />
-                </span>
+                  <span
+                    className="inline-flex items-center justify-center w-4 h-4 rounded border text-[10px]"
+                    style={{
+                      borderColor: isChecked ? colors.primary : colors.muted,
+                      backgroundColor: isChecked ? colors.primary : 'transparent',
+                      color: isChecked ? '#fff' : 'transparent',
+                    }}
+                  >
+                    {isChecked ? '✓' : ''}
+                  </span>
+                  <span
+                    className="inline-flex items-center px-2.5 rounded-full text-xs font-medium select-pill"
+                    style={{
+                      '--pill-bg': sc.bg,
+                      '--pill-text': sc.text,
+                      '--pill-dark-bg': sc.darkBg,
+                      '--pill-dark-text': sc.darkText,
+                      backgroundColor: 'var(--pill-bg)',
+                      color: 'var(--pill-text)',
+                      height: 22,
+                      lineHeight: '22px',
+                    } as React.CSSProperties}
+                  >
+                    {choice.title}
+                  </span>
+                </button>
               );
             })}
-          </div>
-        )}
-        <div className="px-2 pt-2 pb-1 shrink-0">
-          <input
-            ref={searchRef}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Find or create an option"
-            className="w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
-            style={{
-              border: `1px solid ${colors.border}`,
-              color: colors.text,
-            }}
-          />
-        </div>
-        <div className="overflow-y-auto py-1" style={{ maxHeight: 200 }}>
-          {filtered.map((choice, idx) => {
-            const sc = getSelectColorStyle(choice.color);
-            const isFocused = idx === focusedIndex;
-            const isChecked = selected.includes(choice.title);
-            return (
+            {!exactMatch && search.trim() && (
               <button
-                key={choice.title}
-                className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors"
-                style={{
-                  backgroundColor: isFocused ? colors.hoverRow : 'transparent',
-                }}
-                onMouseEnter={() => setFocusedIndex(idx)}
-                onClick={() => toggle(choice.title)}
+                className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors text-xs"
+                style={{ color: colors.primary }}
+                onClick={handleCreateOption}
               >
-                <span
-                  className="inline-flex items-center justify-center w-4 h-4 rounded border text-[10px]"
-                  style={{
-                    borderColor: isChecked ? colors.primary : colors.muted,
-                    backgroundColor: isChecked ? colors.primary : 'transparent',
-                    color: isChecked ? '#fff' : 'transparent',
-                  }}
-                >
-                  {isChecked ? '✓' : ''}
-                </span>
-                <span
-                  className="inline-flex items-center px-2.5 rounded-full text-xs font-medium select-pill"
-                  style={{
-                    '--pill-bg': sc.bg,
-                    '--pill-text': sc.text,
-                    '--pill-dark-bg': sc.darkBg,
-                    '--pill-dark-text': sc.darkText,
-                    backgroundColor: 'var(--pill-bg)',
-                    color: 'var(--pill-text)',
-                    height: 22,
-                    lineHeight: '22px',
-                  } as React.CSSProperties}
-                >
-                  {choice.title}
-                </span>
+                Create &ldquo;{search.trim()}&rdquo;
               </button>
-            );
-          })}
-          {!exactMatch && search.trim() && (
-            <button
-              className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors text-xs"
-              style={{ color: colors.primary }}
-              onClick={handleCreateOption}
-            >
-              Create &ldquo;{search.trim()}&rdquo;
-            </button>
+            )}
+          </div>
+          {selected.length > 0 && (
+            <>
+              <div style={{ height: 1, backgroundColor: colors.border }} />
+              <button
+                className="w-full text-left px-3 py-1.5 text-xs transition-colors shrink-0"
+                style={{ color: colors.muted }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                onClick={() => {
+                  setSelected([]);
+                  onCommit([]);
+                }}
+              >
+                Clear all
+              </button>
+            </>
           )}
-        </div>
-        {selected.length > 0 && (
-          <>
-            <div style={{ height: 1, backgroundColor: colors.border }} />
-            <button
-              className="w-full text-left px-3 py-1.5 text-xs transition-colors shrink-0"
-              style={{ color: colors.muted }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-              onClick={() => {
-                setSelected([]);
-                onCommit([]);
-              }}
-            >
-              Clear all
-            </button>
-          </>
-        )}
-      </PopoverContent>
-    </Popover>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 
