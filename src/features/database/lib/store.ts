@@ -132,9 +132,9 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       fieldWidths: {},
       summaryFunctions: {},
     }),
-  setActiveView: (id, viewConfig) => set({
+  setActiveView: (id, viewConfig) => set((state) => ({
     activeViewId: id,
-    activeViewType: viewConfig?.type ?? null,
+    activeViewType: viewConfig?.type ?? (viewConfig === undefined ? state.activeViewType : null),
     ...(viewConfig ? {
       filters: viewConfig.filters ?? [],
       sorts: viewConfig.sorts ?? [],
@@ -143,7 +143,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       fieldOrder: viewConfig.fieldOrder ?? [],
       fieldWidths: viewConfig.fieldWidths ?? {},
     } : {}),
-  }),
+  })),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),

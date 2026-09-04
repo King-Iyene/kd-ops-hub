@@ -1033,7 +1033,7 @@ export default function GridView({
           </p>
         </div>
         <button
-          onClick={onAddRow}
+          onClick={() => onAddRow()}
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
           style={{ backgroundColor: GRID_COLORS.primary }}
           onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
@@ -1651,7 +1651,7 @@ export default function GridView({
             }}
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = GRID_COLORS.hoverRow; const span = e.currentTarget.querySelector('span'); if (span) span.style.color = GRID_COLORS.primary; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ''; const span = e.currentTarget.querySelector('span'); if (span) span.style.color = GRID_COLORS.muted; }}
-            onClick={onAddRow}
+            onClick={() => onAddRow()}
           >
             <span
               className="flex items-center gap-1.5 px-3"
