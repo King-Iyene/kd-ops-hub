@@ -318,6 +318,9 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       if (isLookup) {
         updates.options = { ...(field.options as any), linkFieldId, lookupFieldId };
       }
+      if (isRollup) {
+        updates.options = { ...(field.options as any), linkFieldId, rollupFieldId, fn: rollupFunction };
+      }
       if (Object.keys(updates).length > 0) {
         await updateField.mutateAsync({
           id: field.id,
@@ -602,6 +605,62 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                       </select>
                     </div>
                   )}
+                </>
+              )}
+            </div>
+          )}
+
+          {isRollup && (
+            <div className="space-y-3">
+              {linkFields.length === 0 ? (
+                <div className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-[#3366FF] rounded-r-md p-3 flex items-start gap-2.5">
+                  <Info size={16} className="text-[#3366FF] shrink-0 mt-0.5" />
+                  <p className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] leading-relaxed">
+                    This table has no Link fields yet. Create a Link to Another Record field first, then set up your Rollup.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Link Field</Label>
+                    <select
+                      value={linkFieldId}
+                      onChange={(e) => { setLinkFieldId(e.target.value); setRollupFieldId(''); }}
+                      className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
+                    >
+                      <option value="">Select a link field...</option>
+                      {linkFields.map((f: FieldMeta) => (
+                        <option key={f.id} value={f.id}>{f.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {linkFieldId && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Rollup Field</Label>
+                      <select
+                        value={rollupFieldId}
+                        onChange={(e) => setRollupFieldId(e.target.value)}
+                        className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
+                      >
+                        <option value="">Select a field...</option>
+                        {targetFields.map((f: FieldMeta) => (
+                          <option key={f.id} value={f.id}>{f.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Rollup Function</Label>
+                    <select
+                      value={rollupFunction}
+                      onChange={(e) => setRollupFunction(e.target.value as RollupFunction)}
+                      className="w-full h-9 px-2 border border-[#E7E7E9] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#3366FF]/30 focus:border-[#3366FF]"
+                    >
+                      {ROLLUP_FUNCTIONS.map((fn) => (
+                        <option key={fn} value={fn}>{fn}</option>
+                      ))}
+                    </select>
+                  </div>
                 </>
               )}
             </div>
