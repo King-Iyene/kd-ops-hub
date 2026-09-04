@@ -31,7 +31,8 @@ export type UIType =
   | 'LastModifiedBy'
   | 'JSON'
   | 'Barcode'
-  | 'Button';
+  | 'Button'
+  | 'User';
 
 export interface Workspace {
   id: string;
@@ -101,6 +102,7 @@ export interface FieldOptions {
   label?: string;
   url?: string;
   validations?: ValidationRule[];
+  allowMultiple?: boolean;
 }
 
 export interface FieldMeta {

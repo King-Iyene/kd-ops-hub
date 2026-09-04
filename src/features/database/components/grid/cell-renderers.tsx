@@ -11,7 +11,7 @@ interface CellRendererProps {
   value: any;
   field: FieldMeta;
   record: RecordRow;
-  rowHeight: 'compact' | 'default' | 'tall' | 'extra-tall';
+  rowHeight: 'short' | 'medium' | 'tall' | 'extra-tall';
 }
 
 function HighlightedText({ text, style, className }: { text: string; style?: React.CSSProperties; className?: string }) {

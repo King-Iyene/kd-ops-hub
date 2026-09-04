@@ -318,6 +318,8 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setRelationType('many_to_many');
     setFormulaExpression('');
     setFormulaError('');
+    setButtonLabel('Click');
+    setButtonUrl('');
   }, []);
 
   const handleTypeChange = (type: UIType) => {
@@ -366,6 +368,10 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
       opts.linkFieldId = linkFieldId;
       opts.rollupFieldId = rollupFieldId;
       opts.fn = rollupFn;
+    }
+    if (uiType === 'Button') {
+      opts.label = buttonLabel || 'Click';
+      opts.url = buttonUrl;
     }
     return opts;
   };
@@ -802,6 +808,32 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 <option value="h:mm:ss.ss">h:mm:ss.ss (e.g., 1:30:00.00)</option>
                 <option value="h:mm:ss.sss">h:mm:ss.sss (e.g., 1:30:00.000)</option>
               </select>
+            </div>
+          )}
+
+          {uiType === 'Button' && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Button Label</Label>
+                <Input
+                  value={buttonLabel}
+                  onChange={(e) => setButtonLabel(e.target.value)}
+                  placeholder="Click"
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">URL Template</Label>
+                <Input
+                  value={buttonUrl}
+                  onChange={(e) => setButtonUrl(e.target.value)}
+                  placeholder="https://example.com/{Name}"
+                  className="h-9"
+                />
+                <p className="text-[11px] text-[#9AA2AF]">
+                  Use {'{fieldName}'} to insert field values from the record.
+                </p>
+              </div>
             </div>
           )}
 

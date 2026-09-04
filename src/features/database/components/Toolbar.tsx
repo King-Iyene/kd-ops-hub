@@ -1228,6 +1228,19 @@ export function Toolbar() {
               </>
             )}
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-zinc-500 dark:text-zinc-400 gap-1"
+            onClick={() => {
+              if (fieldsData && recordsData?.records) {
+                exportToCsv(fieldsData, recordsData.records, tableName);
+              }
+            }}
+            title="Download CSV"
+          >
+            <Download size={14} /> Export
+          </Button>
           <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
           <Button
             variant="ghost"

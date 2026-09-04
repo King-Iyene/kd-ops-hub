@@ -42,10 +42,10 @@ const GROUP_PILL_COLORS = [
 ];
 
 const ROW_HEIGHTS: Record<string, number> = {
-  compact: 32,
-  default: 32,
-  tall: 56,
-  'extra-tall': 88,
+  short: 32,
+  medium: 44,
+  tall: 64,
+  'extra-tall': 100,
 };
 
 const ROW_NUMBER_WIDTH = 44;

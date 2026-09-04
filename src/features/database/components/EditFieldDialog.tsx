@@ -188,6 +188,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const [rollupFunction, setRollupFunction] = useState<RollupFunction>('COUNT');
   const [richText, setRichText] = useState(false);
   const [durationFormat, setDurationFormat] = useState('h:mm');
+  const [buttonLabel, setButtonLabel] = useState('Click');
+  const [buttonUrl, setButtonUrl] = useState('');
   const updateField = useUpdateField();
   const changeFieldType = useChangeFieldType();
   const deleteField = useDeleteField();
