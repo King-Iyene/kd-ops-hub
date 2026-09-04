@@ -1267,6 +1267,7 @@ export function getCellEditor(uiType: string) {
     case 'Formula':
     case 'Lookup':
     case 'Rollup':
+    case 'Count':
     case 'AutoNumber':
     case 'ID':
     case 'CreatedTime':

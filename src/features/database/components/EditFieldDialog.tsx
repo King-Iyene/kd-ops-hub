@@ -719,6 +719,33 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
             </div>
           )}
 
+          {isCount && (
+            <div className="space-y-3">
+              {linkFields.length === 0 ? (
+                <div className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-[#166EE1] rounded-r-md p-3 flex items-start gap-2.5">
+                  <Info size={16} className="text-[#166EE1] shrink-0 mt-0.5" />
+                  <p className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] leading-relaxed">
+                    This table has no Link fields yet. Create a Link to Another Record field first, then set up your Count.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Link Field</Label>
+                  <select
+                    value={linkFieldId}
+                    onChange={(e) => setLinkFieldId(e.target.value)}
+                    className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#166EE1]/30 focus:border-[#166EE1]"
+                  >
+                    <option value="">Select a link field...</option>
+                    {linkFields.map((f: FieldMeta) => (
+                      <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+
           {field?.ui_type === 'Duration' && (
             <div className="space-y-1.5">
               <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Duration Format</Label>

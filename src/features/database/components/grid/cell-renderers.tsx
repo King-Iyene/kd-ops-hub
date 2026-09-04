@@ -729,6 +729,8 @@ export function getCellRenderer(uiType: string) {
       return LookupCellRenderer;
     case 'Rollup':
       return RollupCellRenderer;
+    case 'Count':
+      return RollupCellRenderer;
     case 'ID':
     case 'CreatedTime':
     case 'LastModifiedTime':

@@ -619,6 +619,7 @@ export function ExpandedRowModal({
       case 'Lookup':
         return <LookupCellRenderer value={val} field={field} record={record} rowHeight="default" />;
       case 'Rollup':
+      case 'Count':
         return <RollupCellRenderer value={val} field={field} record={record} rowHeight="default" />;
       default:
         return <InlineTextEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
