@@ -56,10 +56,14 @@ interface AuthState {
    * sign-out. The MfaChallengeDialog watches this to render itself.
    */
   mfaPending: { factorId: string } | null;
+  /** True when the profile fetch failed due to a transient error (503 etc.)
+   *  — distinguishes "no profile row" from "couldn't reach the server". */
+  profileFetchFailed: boolean;
   setUser: (user: User | null) => void;
   setProfile: (profile: Profile | null) => void;
   setLoading: (loading: boolean) => void;
   setViewAsRole: (role: UserRole | null) => void;
+  setProfileFetchFailed: (v: boolean) => void;
   setMfaPending: (v: { factorId: string } | null) => void;
   signOut: () => Promise<void>;
   /**
@@ -81,9 +85,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   profileLoading: false,
   viewAsRole: loadViewAs(),
   mfaPending: null,
+  profileFetchFailed: false,
   setUser: (user) => set({ user }),
   setProfile: (profile) => set({ profile }),
   setLoading: (loading) => set({ loading }),
+  setProfileFetchFailed: (v) => set({ profileFetchFailed: v }),
   setMfaPending: (v) => set({ mfaPending: v }),
   setViewAsRole: (role) => {
     // Only Super Admin can simulate — ignore calls from anyone else.
@@ -149,7 +155,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return 'error';
     }
     if (data) {
-      set({ profile: data as Profile, profileLoading: false });
+      set({ profile: data as Profile, profileLoading: false, profileFetchFailed: false });
       return 'ok';
     }
     set({ profileLoading: false });

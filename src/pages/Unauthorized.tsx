@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldAlert, Clock, ArrowLeft, LogOut } from 'lucide-react';
+import { ShieldAlert, Clock, ArrowLeft, LogOut, WifiOff, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuthStore } from '@/store/authStore';
@@ -9,9 +10,24 @@ import { roleLabel } from '@/lib/roles';
 const Unauthorized = () => {
   usePageTitle('Unauthorized');
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuthStore();
+  const { user, profile, signOut, profileFetchFailed } = useAuthStore();
+  const [retrying, setRetrying] = useState(false);
 
-  const isPending = !profile || profile.status !== 'active';
+  const isConnectionIssue = profileFetchFailed && !profile;
+  const isPending = !isConnectionIssue && (!profile || profile.status !== 'active');
+
+  const handleRetry = async () => {
+    if (!user?.id) return;
+    setRetrying(true);
+    const result = await useAuthStore.getState().fetchProfile(user.id);
+    setRetrying(false);
+    if (result === 'ok') {
+      const p = useAuthStore.getState().profile;
+      if (p?.status === 'active') {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -24,17 +40,32 @@ const Unauthorized = () => {
         <CardContent className="pt-8 pb-6 text-center space-y-5">
           <div
             className={`mx-auto h-14 w-14 rounded-full flex items-center justify-center ${
-              isPending ? 'bg-warning/10' : 'bg-destructive/10'
+              isConnectionIssue ? 'bg-orange-500/10' : isPending ? 'bg-warning/10' : 'bg-destructive/10'
             }`}
           >
-            {isPending ? (
+            {isConnectionIssue ? (
+              <WifiOff className="h-7 w-7 text-orange-500" />
+            ) : isPending ? (
               <Clock className="h-7 w-7 text-warning" />
             ) : (
               <ShieldAlert className="h-7 w-7 text-destructive" />
             )}
           </div>
 
-          {isPending ? (
+          {isConnectionIssue ? (
+            <div>
+              <h1 className="text-xl font-semibold">Connection Issue</h1>
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                We couldn't load your profile due to a temporary server issue.
+                Your account is fine — please try again.
+              </p>
+              {user?.email && (
+                <p className="text-xs text-muted-foreground mt-3">
+                  Signed in as <span className="font-medium">{user.email}</span>
+                </p>
+              )}
+            </div>
+          ) : isPending ? (
             <div>
               <h1 className="text-xl font-semibold">Account Pending Approval</h1>
               <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
@@ -63,7 +94,16 @@ const Unauthorized = () => {
           )}
 
           <div className="flex justify-center gap-3 pt-2">
-            {isPending ? (
+            {isConnectionIssue ? (
+              <>
+                <Button onClick={handleRetry} disabled={retrying}>
+                  <RefreshCw className={`mr-2 h-4 w-4 ${retrying ? 'animate-spin' : ''}`} /> Try Again
+                </Button>
+                <Button variant="outline" onClick={handleSignOut}>
+                  <LogOut className="mr-2 h-4 w-4" /> Sign Out
+                </Button>
+              </>
+            ) : isPending ? (
               <Button variant="outline" onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" /> Sign Out
               </Button>

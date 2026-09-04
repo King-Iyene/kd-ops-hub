@@ -113,6 +113,7 @@ export const useAuth = () => {
         console.warn(
           '[KDOps] profile fetch failed repeatedly; keeping session to avoid a false logout',
         );
+        useAuthStore.getState().setProfileFetchFailed(true);
         setLoading(false);
         return;
       }
