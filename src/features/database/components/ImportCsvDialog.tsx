@@ -13,6 +13,15 @@ import { useCreateField, useBulkCreateRecords, useFields } from '../hooks';
 import { useDatabaseUI } from '../lib/store';
 import type { UIType } from '../types';
 
+function toSnakeCase(name: string): string {
+  let result = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '');
+  if (/^[0-9]/.test(result)) result = 'f_' + result;
+  return result.substring(0, 63);
+}
+
 // ---------------------------------------------------------------------------
 // CSV type inference
 // ---------------------------------------------------------------------------
@@ -134,18 +143,27 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
     setError('');
 
     try {
-      const existingFieldNames = new Set(
-        (existingFields ?? []).map((f) => f.name.toLowerCase()),
+      const existingPgColumns = new Set(
+        (existingFields ?? []).map((f) => f.pg_column_name),
       );
       const fieldNameToColumn = new Map(
         (existingFields ?? []).map((f) => [f.name.toLowerCase(), f.pg_column_name]),
       );
 
-      // Create fields for columns that don't exist
+      // Create fields for columns that don't exist, deduplicating by pg_column_name
       for (let hi = 0; hi < parsed.headers.length; hi++) {
         const header = parsed.headers[hi];
-        if (!existingFieldNames.has(header.toLowerCase())) {
-          const inferredType = columnTypes[hi] ?? ('SingleLineText' as UIType);
+        if (fieldNameToColumn.has(header.toLowerCase())) continue;
+
+        let pgCol = toSnakeCase(header);
+        if (existingPgColumns.has(pgCol)) {
+          let suffix = 2;
+          while (existingPgColumns.has(`${pgCol}_${suffix}`)) suffix++;
+          pgCol = `${pgCol}_${suffix}`;
+        }
+
+        const inferredType = columnTypes[hi] ?? ('SingleLineText' as UIType);
+        try {
           const newField = await createField.mutateAsync({
             table_id: activeTableId,
             name: header,
@@ -161,7 +179,13 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               : {}),
           });
           fieldNameToColumn.set(header.toLowerCase(), newField.pg_column_name);
-          existingFieldNames.add(header.toLowerCase());
+          existingPgColumns.add(newField.pg_column_name);
+        } catch (err: any) {
+          if (err?.message?.includes('duplicate') || err?.code === '23505') {
+            fieldNameToColumn.set(header.toLowerCase(), pgCol);
+          } else {
+            throw err;
+          }
         }
       }
 

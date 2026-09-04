@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useNavigate as useRouterNavigate } from 'react-router-dom';
 import { useDatabaseUI } from '../lib/store';
+import { uuidToShort } from '../lib/shortId';
 
 export function useDatabaseNavigate() {
   const navigate = useRouterNavigate();
@@ -9,7 +10,7 @@ export function useDatabaseNavigate() {
   const navigateToBase = useCallback(
     (baseId: string | null) => {
       if (baseId) {
-        navigate(`/data/${baseId}`);
+        navigate(`/data/${uuidToShort(baseId)}`);
       } else {
         navigate('/data');
       }
@@ -20,9 +21,9 @@ export function useDatabaseNavigate() {
   const navigateToTable = useCallback(
     (tableId: string | null) => {
       if (tableId && activeBaseId) {
-        navigate(`/data/${activeBaseId}/${tableId}`);
+        navigate(`/data/${uuidToShort(activeBaseId)}/${uuidToShort(tableId)}`);
       } else if (activeBaseId) {
-        navigate(`/data/${activeBaseId}`);
+        navigate(`/data/${uuidToShort(activeBaseId)}`);
       }
     },
     [navigate, activeBaseId],

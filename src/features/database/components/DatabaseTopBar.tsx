@@ -11,7 +11,6 @@ import { ShareViewDialog } from './ShareViewDialog';
 import { ApiTokensDialog } from './ApiTokensDialog';
 import { WebhooksDialog } from './WebhooksDialog';
 import { AuditLogDialog } from './AuditLogDialog';
-import { PresenceIndicator } from './PresenceIndicator';
 import { NotificationsPanel } from './NotificationsPanel';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
@@ -89,54 +88,58 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
         </div>
 
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
-            onClick={() => setApiTokensOpen(true)}
-          >
-            <Key size={13} /> API
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
-            onClick={() => setShareViewOpen(true)}
-          >
-            <Link2 size={13} /> Share
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
-            onClick={() => setAutomationsOpen(true)}
-          >
-            <Zap size={13} /> Automations
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
-            onClick={() => setWebhooksOpen(true)}
-          >
-            <Webhook size={13} /> Webhooks
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
-            onClick={() => setAuditLogOpen(true)}
-          >
-            <History size={13} /> Audit Log
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
-            onClick={() => setShareOpen(true)}
-          >
-            <Share2 size={13} /> Share Base
-          </Button>
+          {activeBaseId && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
+                onClick={() => setApiTokensOpen(true)}
+              >
+                <Key size={13} /> API
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
+                onClick={() => setShareViewOpen(true)}
+              >
+                <Link2 size={13} /> Share
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
+                onClick={() => setAutomationsOpen(true)}
+              >
+                <Zap size={13} /> Automations
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
+                onClick={() => setWebhooksOpen(true)}
+              >
+                <Webhook size={13} /> Webhooks
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
+                onClick={() => setAuditLogOpen(true)}
+              >
+                <History size={13} /> Audit Log
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
+                onClick={() => setShareOpen(true)}
+              >
+                <Share2 size={13} /> Share Base
+              </Button>
+            </>
+          )}
           <NotificationsPanel />
           <Button
             variant="ghost"
@@ -155,7 +158,6 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
           >
             <HelpCircle size={15} />
           </Button>
-          <PresenceIndicator />
           <div className="w-px h-4 bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] mx-0.5" />
           <ThemeToggle />
           <ProfileDropdown />
