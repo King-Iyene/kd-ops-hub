@@ -205,9 +205,6 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [lookupFieldId, setLookupFieldId] = useState('');
   const [rollupFieldId, setRollupFieldId] = useState('');
   const [rollupFn, setRollupFn] = useState('COUNT');
-  const [selectedLinkFieldId, setSelectedLinkFieldId] = useState('');
-  const [selectedTargetFieldId, setSelectedTargetFieldId] = useState('');
-  const [selectedRollupFn, setSelectedRollupFn] = useState('COUNT');
   const [ratingMax, setRatingMax] = useState(5);
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [precision, setPrecision] = useState(2);
@@ -303,9 +300,10 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setRatingMax(5);
     setCurrencyCode('USD');
     setPrecision(2);
-    setSelectedLinkFieldId('');
-    setSelectedTargetFieldId('');
-    setSelectedRollupFn('COUNT');
+    setLinkFieldId('');
+    setLookupFieldId('');
+    setRollupFieldId('');
+    setRollupFn('COUNT');
     setTypeSearch('');
   }, []);
 
@@ -326,11 +324,6 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     }
   };
 
-  const handleLinkFieldChange = (v: string) => {
-    setSelectedLinkFieldId(v);
-    setSelectedTargetFieldId('');
-  };
-
   const buildOptions = (): FieldOptions => {
     const opts: FieldOptions = {};
     if (uiType === 'SingleSelect' || uiType === 'MultiSelect') {
@@ -347,13 +340,13 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
       opts.precision = precision;
     }
     if (uiType === 'Lookup') {
-      opts.linkFieldId = selectedLinkFieldId;
-      opts.lookupFieldId = selectedTargetFieldId;
+      opts.linkFieldId = linkFieldId;
+      opts.lookupFieldId = lookupFieldId;
     }
     if (uiType === 'Rollup') {
-      opts.linkFieldId = selectedLinkFieldId;
-      opts.rollupFieldId = selectedTargetFieldId;
-      opts.fn = selectedRollupFn;
+      opts.linkFieldId = linkFieldId;
+      opts.rollupFieldId = rollupFieldId;
+      opts.fn = rollupFn;
     }
     return opts;
   };

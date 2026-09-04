@@ -121,7 +121,9 @@ export function RowContextMenu({
           <button
             className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             onClick={() => {
-              onDeleteRow(record.id);
+              if (window.confirm('Are you sure you want to delete this record? This action cannot be undone.')) {
+                onDeleteRow(record.id);
+              }
               onClose();
             }}
           >

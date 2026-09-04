@@ -115,7 +115,11 @@ function InlineDateEditor({
   onCommit: (v: string | null) => void;
   showTime?: boolean;
 }) {
-  const initial = value ? new Date(value).toISOString().split('T')[0] : '';
+  const initial = value
+    ? showTime
+      ? new Date(value).toISOString().slice(0, 16)
+      : new Date(value).toISOString().split('T')[0]
+    : '';
   const [date, setDate] = useState(initial);
   return (
     <input

@@ -145,9 +145,9 @@ export const GridCell = React.memo(function GridCell({
       if (error) {
         setValidationError(error);
         setTimeout(() => setValidationError(null), 2500);
-      } else {
-        setValidationError(null);
+        return;
       }
+      setValidationError(null);
       onCellUpdate(record.id, field.id, newValue);
       setEditingCell(null);
     },

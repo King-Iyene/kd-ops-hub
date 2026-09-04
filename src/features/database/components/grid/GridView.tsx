@@ -589,7 +589,7 @@ export default function GridView({
     const choices = field.options?.choices;
     let sorted: string[];
     if ((uiType === 'SingleSelect' || uiType === 'MultiSelect') && choices && choices.length > 0) {
-      const order = new Map(choices.map((c: { label: string }, i: number) => [c.label, i]));
+      const order = new Map(choices.map((c: { title: string }, i: number) => [c.title, i]));
       sorted = [...keys].sort((a, b) => {
         const oa = a === '(Empty)' ? Infinity : (order.get(a) ?? 999999);
         const ob = b === '(Empty)' ? Infinity : (order.get(b) ?? 999999);
@@ -863,7 +863,7 @@ export default function GridView({
 
       if (!selectedCellId) return;
       // Don't navigate when a cell is being edited — let the editor handle arrow keys
-      if (editingCellId && (e.key.startsWith('Arrow') || e.key === 'Tab' || e.key === 'Home' || e.key === 'End' || e.key === 'PageUp' || e.key === 'PageDown')) return;
+      if (editingCellId && (e.key.startsWith('Arrow') || e.key === 'Home' || e.key === 'End' || e.key === 'PageUp' || e.key === 'PageDown')) return;
       const [rowId, fieldId] = selectedCellId.split(':');
       const rowIdx = records.findIndex((r) => r.id === rowId);
       const colIdx = fieldsWithWidths.findIndex((f) => f.id === fieldId);
@@ -1170,7 +1170,7 @@ export default function GridView({
                   const isEmpty = item.groupValue === '(Empty)';
                   const choices = item.field.options?.choices;
                   const choiceColor = isSelectType && choices
-                    ? choices.find((c: { label: string; color?: string }) => c.label === item.groupValue)?.color
+                    ? choices.find((c: { title: string; color?: string }) => c.title === item.groupValue)?.color
                     : undefined;
                   const pillBg = choiceColor || (isSelectType ? GROUP_PILL_COLORS[Math.abs(item.groupValue.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % GROUP_PILL_COLORS.length] + '20' : undefined);
                   const pillText = choiceColor ? '#FFFFFF' : (isSelectType ? GROUP_PILL_COLORS[Math.abs(item.groupValue.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % GROUP_PILL_COLORS.length] : undefined);

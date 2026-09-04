@@ -38,6 +38,7 @@ export function TextCellEditor({ value, field, onCommit, onCancel }: CellEditorP
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(text);
         if (e.key === 'Escape') onCancel();
+        if (e.key === 'Tab') { e.preventDefault(); onCommit(text); }
       }}
       onBlur={() => onCommit(text)}
       className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)]"
@@ -64,6 +65,7 @@ export function NumberCellEditor({ value, field, onCommit, onCancel }: CellEdito
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
         if (e.key === 'Escape') onCancel();
+        if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); }
       }}
       onBlur={() => onCommit(num === '' ? null : Number(num))}
       className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
@@ -91,6 +93,7 @@ export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEdi
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
         if (e.key === 'Escape') onCancel();
+        if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); }
       }}
       onBlur={() => onCommit(num === '' ? null : Number(num))}
       className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
@@ -187,6 +190,7 @@ export function YearCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
       onKeyDown={(e) => {
         if (e.key === 'Enter') commit();
         if (e.key === 'Escape') onCancel();
+        if (e.key === 'Tab') { e.preventDefault(); commit(); }
       }}
       onBlur={commit}
       placeholder="YYYY"
@@ -227,6 +231,7 @@ export function DurationCellEditor({ value, onCommit, onCancel }: CellEditorProp
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(parseDuration(text));
         if (e.key === 'Escape') onCancel();
+        if (e.key === 'Tab') { e.preventDefault(); onCommit(parseDuration(text)); }
       }}
       onBlur={() => onCommit(parseDuration(text))}
       className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
@@ -249,7 +254,11 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
 
   const commit = useCallback(() => {
     const trimmed = String(text).trim();
-    setInvalid(!!trimmed && !EMAIL_RE.test(trimmed));
+    if (trimmed && !EMAIL_RE.test(trimmed)) {
+      setInvalid(true);
+      return;
+    }
+    setInvalid(false);
     onCommit(text);
   }, [text, onCommit]);
 
@@ -263,6 +272,7 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
         onKeyDown={(e) => {
           if (e.key === 'Enter') commit();
           if (e.key === 'Escape') onCancel();
+          if (e.key === 'Tab') { e.preventDefault(); commit(); }
         }}
         onBlur={commit}
         className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
@@ -298,7 +308,11 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
       try { new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`); }
       catch { isValid = false; }
     }
-    setInvalid(!!trimmed && !isValid);
+    if (trimmed && !isValid) {
+      setInvalid(true);
+      return;
+    }
+    setInvalid(false);
     onCommit(text);
   }, [text, onCommit]);
 
@@ -312,6 +326,7 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         onKeyDown={(e) => {
           if (e.key === 'Enter') commit();
           if (e.key === 'Escape') onCancel();
+          if (e.key === 'Tab') { e.preventDefault(); commit(); }
         }}
         onBlur={commit}
         className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
@@ -348,6 +363,7 @@ export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorP
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(text);
         if (e.key === 'Escape') onCancel();
+        if (e.key === 'Tab') { e.preventDefault(); onCommit(text); }
       }}
       onBlur={() => onCommit(text)}
       className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
@@ -356,17 +372,32 @@ export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorP
   );
 }
 
-export function RatingCellEditor({ value, field, onCommit }: CellEditorProps) {
+export function RatingCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const max = field.options?.max || 5;
   const rating = Number(value) || 0;
   const ref = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    ref.current?.focus();
+  }, []);
+
   return (
-    <div ref={ref} className="flex items-center gap-0.5 px-2 h-full bg-white dark:bg-[hsl(200,30%,10%)]">
+    <div
+      ref={ref}
+      tabIndex={0}
+      className="flex items-center gap-0.5 px-2 h-full bg-white dark:bg-[hsl(200,30%,10%)] outline-none"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onCancel();
+        if (e.key === 'Tab') onCommit(rating);
+        if (e.key === 'Enter') onCommit(rating);
+      }}
+      onBlur={() => onCommit(rating)}
+    >
       {Array.from({ length: max }, (_, i) => (
         <button
           key={i}
           type="button"
+          tabIndex={-1}
           className="p-0 border-none bg-transparent cursor-pointer"
           onClick={() => onCommit(i + 1 === rating ? 0 : i + 1)}
         >
@@ -602,7 +633,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
-      onCommit(selectedRef.current);
+      onCancel();
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       setFocusedIndex((prev) => Math.min(prev + 1, filtered.length - 1));
@@ -768,7 +799,7 @@ export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps
   return (
     <div className="flex items-center w-full h-full">
       <input ref={ref} type="number" value={num} onChange={(e) => setNum(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') onCommit(num === '' ? null : Number(num)); if (e.key === 'Escape') onCancel(); }}
+        onKeyDown={(e) => { if (e.key === 'Enter') onCommit(num === '' ? null : Number(num)); if (e.key === 'Escape') onCancel(); if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); } }}
         onBlur={() => onCommit(num === '' ? null : Number(num))}
         className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)] text-right" style={{ fontSize: 13 }}
       />
@@ -780,14 +811,20 @@ export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps
 export function AttachmentCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const [open, setOpen] = useState(true);
   const attachments: AttachmentMeta[] = Array.isArray(value) ? value : [];
+  const ref = useRef<HTMLDivElement>(null);
 
   return (
     <>
-      {/* Inline trigger showing count */}
       <div
-        className="flex items-center gap-1 px-2 h-full cursor-pointer text-xs"
+        ref={ref}
+        tabIndex={0}
+        className="flex items-center gap-1 px-2 h-full cursor-pointer text-xs outline-none"
         style={{ color: '#6A7184' }}
         onClick={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onCancel();
+          if (e.key === 'Tab') onCancel();
+        }}
       >
         <Paperclip size={12} />
         <span>{attachments.length} file{attachments.length !== 1 ? 's' : ''}</span>
@@ -816,8 +853,11 @@ export function AttachmentCellEditor({ value, field, onCommit, onCancel }: CellE
  */
 export function LinksCellEditor({ onCancel }: CellEditorProps) {
   // The grid component intercepts Links editing and opens LinkedRecordPicker.
-  // This component renders nothing; onCancel is called immediately.
-  onCancel();
+  // This component renders nothing; onCancel is called via effect to avoid
+  // side effects during render.
+  useEffect(() => {
+    onCancel();
+  }, [onCancel]);
   return null;
 }
 
@@ -843,6 +883,7 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
         onKeyDown={(e) => {
           if (e.key === 'Escape') onCancel();
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) onCommit(text);
+          if (e.key === 'Tab') { e.preventDefault(); onCommit(text); }
         }}
         onBlur={() => onCommit(text)}
         rows={4}
@@ -872,6 +913,7 @@ export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEdit
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
         if (e.key === 'Escape') onCancel();
+        if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); }
       }}
       onBlur={() => onCommit(num === '' ? null : Number(num))}
       className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
@@ -983,6 +1025,7 @@ export function TimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(time || null);
         if (e.key === 'Escape') onCancel();
+        if (e.key === 'Tab') { e.preventDefault(); onCommit(time || null); }
       }}
       onBlur={() => onCommit(time || null)}
       className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"

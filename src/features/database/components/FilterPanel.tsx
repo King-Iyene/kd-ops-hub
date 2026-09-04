@@ -48,9 +48,19 @@ const OPERATOR_LABELS: Record<string, string> = {
   isAnyOf: 'is any of',
   isNoneOf: 'is none of',
   isExactly: 'is exactly',
+  isChecked: 'is checked',
+  isNotChecked: 'is not checked',
+  containsAnyOf: 'contains any of',
+  doesNotContainAnyOf: 'does not contain any of',
+  isWithinPastWeek: 'is within past week',
+  isWithinPastMonth: 'is within past month',
+  isWithinPastYear: 'is within past year',
+  linkCountIs: 'link count is',
+  linkCountGt: 'link count >',
+  linkCountLt: 'link count <',
 };
 
-const NO_VALUE_OPS: FilterOperator[] = ['isEmpty', 'isNotEmpty'];
+const NO_VALUE_OPS: FilterOperator[] = ['isEmpty', 'isNotEmpty', 'isChecked', 'isNotChecked'];
 
 export function FilterPanel({ fields, filters, onFiltersChange }: FilterPanelProps) {
   const availableFields = useMemo(
@@ -119,7 +129,7 @@ export function FilterPanel({ fields, filters, onFiltersChange }: FilterPanelPro
       );
     }
 
-    if (uiType === 'SingleSelect' && field.options?.choices) {
+    if ((uiType === 'SingleSelect' || uiType === 'MultiSelect') && field.options?.choices) {
       return (
         <Select
           value={String(filter.value ?? '')}
