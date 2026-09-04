@@ -208,7 +208,6 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [ratingMax, setRatingMax] = useState(5);
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [precision, setPrecision] = useState(2);
-  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [typeSearch, setTypeSearch] = useState('');
   const [error, setError] = useState('');
   const { activeTableId, activeBaseId } = useDatabaseUI();
@@ -305,6 +304,10 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setRollupFieldId('');
     setRollupFn('COUNT');
     setTypeSearch('');
+    setTargetTableId('');
+    setRelationType('many_to_many');
+    setFormulaExpression('');
+    setFormulaError('');
   }, []);
 
   const handleTypeChange = (type: UIType) => {
@@ -360,17 +363,16 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
       setError('No table selected');
       return;
     }
-    if (uiType === '_link') {
-      onOpenChange(false);
-      setLinkDialogOpen(true);
-      return;
-    }
     if (uiType === 'Lookup' || uiType === 'Rollup') {
-      if (!selectedLinkFieldId) {
+      if (!linkFieldId) {
         setError('Please select a link field');
         return;
       }
-      if (!selectedTargetFieldId) {
+      if (uiType === 'Lookup' && !lookupFieldId) {
+        setError('Please select a target field');
+        return;
+      }
+      if (uiType === 'Rollup' && !rollupFieldId) {
         setError('Please select a target field');
         return;
       }
@@ -461,7 +463,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) resetForm(); onOpenChange(isOpen); }}>
       <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Add Field</DialogTitle>
