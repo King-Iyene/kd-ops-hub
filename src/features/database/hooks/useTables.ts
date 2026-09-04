@@ -132,7 +132,7 @@ export function useCreateTable() {
       ];
 
       for (const uf of defaultUserFields) {
-        await supabase.functions.invoke('ddl-executor', {
+        const { error: colError } = await supabase.functions.invoke('ddl-executor', {
           body: {
             action: 'addColumn',
             schemaName: base.schema_name,
@@ -141,6 +141,7 @@ export function useCreateTable() {
             columnType: uf.pg_type,
           },
         });
+        if (colError) throw colError;
       }
 
       const userFieldRows = defaultUserFields.map((uf) => ({
@@ -159,11 +160,13 @@ export function useCreateTable() {
         is_hidden: false,
       }));
 
-      const { data: userFields } = await supabase
+      const { data: userFields, error: userFieldsError } = await supabase
         .schema('nc_meta')
         .from('fields')
         .insert(userFieldRows)
         .select();
+
+      if (userFieldsError) throw userFieldsError;
 
       const allFields = [...(fields as FieldMeta[]), ...((userFields as FieldMeta[]) ?? [])];
 
@@ -314,9 +317,10 @@ export function useDeleteTable() {
 
       if (ddlError) throw ddlError;
 
-      // Delete views, fields, then table metadata
-      await supabase.schema('nc_meta').from('views').delete().eq('table_id', input.tableId);
-      await supabase.schema('nc_meta').from('fields').delete().eq('table_id', input.tableId);
+      const { error: viewsDelError } = await supabase.schema('nc_meta').from('views').delete().eq('table_id', input.tableId);
+      if (viewsDelError) throw viewsDelError;
+      const { error: fieldsDelError } = await supabase.schema('nc_meta').from('fields').delete().eq('table_id', input.tableId);
+      if (fieldsDelError) throw fieldsDelError;
 
       const { error: deleteError } = await supabase
         .schema('nc_meta')

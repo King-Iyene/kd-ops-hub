@@ -122,6 +122,19 @@ export function useDeleteBase() {
 
       if (ddlError) throw ddlError;
 
+      const { data: tables } = await supabase
+        .schema('nc_meta')
+        .from('tables')
+        .select('id')
+        .eq('base_id', baseId);
+
+      const tableIds = (tables ?? []).map((t: any) => t.id);
+      if (tableIds.length > 0) {
+        await supabase.schema('nc_meta').from('views').delete().in('table_id', tableIds);
+        await supabase.schema('nc_meta').from('fields').delete().in('table_id', tableIds);
+        await supabase.schema('nc_meta').from('tables').delete().eq('base_id', baseId);
+      }
+
       const { error: deleteError } = await supabase
         .schema('nc_meta')
         .from('bases')
@@ -132,6 +145,9 @@ export function useDeleteBase() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['nc', 'bases'] });
+      qc.invalidateQueries({ queryKey: ['nc', 'tables'] });
+      qc.invalidateQueries({ queryKey: ['nc', 'fields'] });
+      qc.invalidateQueries({ queryKey: ['nc', 'views'] });
     },
   });
 }
