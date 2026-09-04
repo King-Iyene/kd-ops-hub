@@ -279,7 +279,6 @@ export function useDeleteField() {
 
   return useMutation({
     mutationFn: async (input: { id: string; table_id: string }) => {
-      // Get the field to check if it's virtual
       const { data: field, error: fieldError } = await supabase
         .schema('nc_meta')
         .from('fields')
@@ -306,6 +305,19 @@ export function useDeleteField() {
 
         if (ddlError) throw ddlError;
       } else {
+        // Virtual field (Formula, Lookup, Rollup, Links, etc.) — delete
+        // child rows first (formulas, lookups, rollups) then the field row.
+        // FK CASCADE should handle this, but explicit cleanup avoids 500s
+        // when RLS or triggers interfere with cascaded deletes.
+        const cleanupTables = ['formulas', 'lookups', 'rollups'] as const;
+        for (const tbl of cleanupTables) {
+          await supabase
+            .schema('nc_meta')
+            .from(tbl)
+            .delete()
+            .eq('field_id', input.id);
+        }
+
         const { error: deleteError } = await supabase
           .schema('nc_meta')
           .from('fields')

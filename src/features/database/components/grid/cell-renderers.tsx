@@ -559,6 +559,13 @@ export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({
 }: CellRendererProps) {
   const colors = useGridColors();
   if (value == null || value === '') return null;
+  if (typeof value === 'string' && (value.startsWith('#ERROR') || value.startsWith('ERROR') || value.startsWith('!ERROR'))) {
+    return (
+      <span className="truncate font-medium text-[12px]" style={{ color: '#EF4444' }}>
+        #ERROR
+      </span>
+    );
+  }
   if (typeof value === 'boolean') {
     return (
       <div className="flex items-center justify-center w-full">

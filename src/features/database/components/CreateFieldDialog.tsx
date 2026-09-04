@@ -772,7 +772,19 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
             style={{ backgroundColor: '#3366FF' }}
             className="hover:opacity-90 text-white"
             onClick={handleCreate}
-            disabled={createField.isPending || createLink.isPending}
+            disabled={
+              createField.isPending || createLink.isPending ||
+              (isFormula && (!!formulaError || !formulaExpression.trim())) ||
+              (isLookup && (!linkFieldId || !lookupFieldId)) ||
+              (isRollup && (!linkFieldId || !rollupFieldId))
+            }
+            title={
+              isFormula && formulaError ? 'Fix formula errors before saving' :
+              isFormula && !formulaExpression.trim() ? 'Enter a formula expression' :
+              (isLookup && (!linkFieldId || !lookupFieldId)) ? 'Select link and target fields' :
+              (isRollup && (!linkFieldId || !rollupFieldId)) ? 'Select link and target fields' :
+              undefined
+            }
           >
             {createField.isPending ? 'Adding...' : 'Add Field'}
           </Button>
