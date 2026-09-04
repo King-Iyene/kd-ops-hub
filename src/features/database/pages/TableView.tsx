@@ -30,6 +30,7 @@ import { ExpandedRowModal } from '../components/ExpandedRowModal';
 import { CreateFieldDialog } from '../components/CreateFieldDialog';
 import type { RecordRow } from '../types';
 import { useRealtimeRecords } from '../hooks/useRealtime';
+import { parseFormula, evaluateFormula } from '../lib/formula';
 
 export function TableView() {
   const {
@@ -114,12 +115,51 @@ export function TableView() {
     [fields, hiddenFieldIds],
   );
 
+  const records = useMemo(() => {
+    const raw = recordsData?.records ?? [];
+    if (!fields || fields.length === 0) return raw;
+
+    const formulaFields = fields.filter(
+      (f) => f.ui_type === 'Formula' && f.options?.expression,
+    );
+    if (formulaFields.length === 0) return raw;
+
+    const fieldMap: Record<string, string> = {};
+    for (const f of fields) {
+      fieldMap[f.name] = f.pg_column_name;
+    }
+
+    const parsed = formulaFields.map((f) => {
+      try {
+        return { col: f.pg_column_name, ast: parseFormula(f.options.expression!) };
+      } catch {
+        return { col: f.pg_column_name, ast: null };
+      }
+    });
+
+    return raw.map((record) => {
+      const patched = { ...record };
+      for (const { col, ast } of parsed) {
+        if (!ast) {
+          patched[col] = '#ERROR';
+          continue;
+        }
+        try {
+          patched[col] = evaluateFormula(ast, record, fieldMap);
+        } catch {
+          patched[col] = '#ERROR';
+        }
+      }
+      return patched as RecordRow;
+    });
+  }, [recordsData?.records, fields]);
+
   const handleCellUpdate = useCallback(
     (recordId: string, fieldId: string, value: any) => {
       const field = fields?.find((f) => f.id === fieldId);
       if (!field || !activeBaseId || !activeTableId) return;
 
-      const record = recordsData?.records?.find((r: RecordRow) => r.id === recordId);
+      const record = records.find((r: RecordRow) => r.id === recordId);
       const oldValue = record?.[field.pg_column_name];
 
       updateRecord.mutate({
@@ -153,7 +193,7 @@ export function TableView() {
         },
       });
     },
-    [fields, activeBaseId, activeTableId, updateRecord, recordsData, pushUndo],
+    [fields, activeBaseId, activeTableId, updateRecord, records, pushUndo],
   );
 
   const handleAddRow = useCallback(
@@ -188,7 +228,7 @@ export function TableView() {
   const handleDeleteRow = useCallback(
     (recordId: string) => {
       if (!activeBaseId || !activeTableId) return;
-      const record = recordsData?.records.find((r) => r.id === recordId);
+      const record = records.find((r) => r.id === recordId);
       deleteRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, recordId });
       if (record) {
         const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = record;
@@ -204,7 +244,7 @@ export function TableView() {
         });
       }
     },
-    [activeBaseId, activeTableId, deleteRecord, createRecord, recordsData, pushUndo],
+    [activeBaseId, activeTableId, deleteRecord, createRecord, records, pushUndo],
   );
 
   const handleDuplicateRow = useCallback(
@@ -229,7 +269,7 @@ export function TableView() {
   const handleBulkDeleteRows = useCallback(
     (recordIds: string[]) => {
       if (!activeBaseId || !activeTableId) return;
-      const deletedRecords = recordsData?.records?.filter((r: RecordRow) => recordIds.includes(r.id)) ?? [];
+      const deletedRecords = records.filter((r: RecordRow) => recordIds.includes(r.id));
       bulkDeleteRecords.mutate({ baseId: activeBaseId, tableId: activeTableId, recordIds });
       if (deletedRecords.length > 0) {
         pushUndo({
@@ -247,7 +287,7 @@ export function TableView() {
         });
       }
     },
-    [activeBaseId, activeTableId, bulkDeleteRecords, createRecord, recordsData, pushUndo],
+    [activeBaseId, activeTableId, bulkDeleteRecords, createRecord, records, pushUndo],
   );
 
   const handleDeleteField = useCallback(
@@ -306,7 +346,7 @@ export function TableView() {
         return (
           <KanbanView
             fields={visibleFields}
-            records={recordsData?.records ?? []}
+            records={records}
             totalCount={recordsData?.totalCount ?? 0}
             isLoading={isLoading}
             onCellUpdate={handleCellUpdate}
@@ -319,7 +359,7 @@ export function TableView() {
         return (
           <GalleryView
             fields={visibleFields}
-            records={recordsData?.records ?? []}
+            records={records}
             totalCount={recordsData?.totalCount ?? 0}
             isLoading={isLoading}
             onCellUpdate={handleCellUpdate}
@@ -344,7 +384,7 @@ export function TableView() {
         return (
           <CalendarView
             fields={fields ?? []}
-            records={recordsData?.records ?? []}
+            records={records}
             totalCount={recordsData?.totalCount ?? 0}
             isLoading={isLoading}
             onExpandRow={setExpandedRecord}
@@ -355,7 +395,7 @@ export function TableView() {
         return (
           <TimelineView
             fields={fields ?? []}
-            records={recordsData?.records ?? []}
+            records={records}
             totalCount={recordsData?.totalCount ?? 0}
             isLoading={isLoading}
             onExpandRow={setExpandedRecord}
@@ -365,7 +405,7 @@ export function TableView() {
         return (
           <GanttView
             fields={fields ?? []}
-            records={recordsData?.records ?? []}
+            records={records}
             totalCount={recordsData?.totalCount ?? 0}
             isLoading={isLoading}
             onCellUpdate={handleCellUpdate}
@@ -376,7 +416,7 @@ export function TableView() {
         return (
           <GridView
             fields={visibleFields}
-            records={recordsData?.records ?? []}
+            records={records}
             totalCount={recordsData?.totalCount ?? 0}
             isLoading={isLoading}
             onCellUpdate={handleCellUpdate}
@@ -425,7 +465,7 @@ export function TableView() {
         baseId={activeBaseId!}
         tableId={activeTableId!}
         onCellUpdate={handleCellUpdate}
-        records={recordsData?.records ?? []}
+        records={records}
         onNavigate={setExpandedRecord}
         onDeleteRecord={handleDeleteRow}
         onDuplicateRecord={(record) => { handleDuplicateRow(record); setExpandedRecord(null); }}
