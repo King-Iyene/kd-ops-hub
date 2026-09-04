@@ -543,9 +543,8 @@ export function useUpdateRecord() {
 
       await qc.cancelQueries({ queryKey });
 
-      const previous = qc.getQueryData<RecordsResult>(queryKey);
+      const previous = qc.getQueriesData<RecordsResult>({ queryKey });
 
-      // Optimistic update: find matching page cache and patch it
       qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
         if (!old) return old;
         return {
@@ -558,11 +557,13 @@ export function useUpdateRecord() {
         };
       });
 
-      return { previous, queryKey };
+      return { previous };
     },
     onError: (_err, _variables, context) => {
       if (context?.previous) {
-        qc.setQueryData(context.queryKey, context.previous);
+        for (const [key, data] of context.previous) {
+          qc.setQueryData(key, data);
+        }
       }
     },
     onSuccess: (data, variables) => {
@@ -684,6 +685,7 @@ export function useBulkCreateRecords() {
     onSuccess: (data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       qc.invalidateQueries({ queryKey: ['nc', 'recordCount', variables.baseId, variables.tableId] });
+      fireAutomations('record.created', variables.baseId, variables.tableId, { count: data.created });
       toast.success(`${data.created} record${data.created !== 1 ? 's' : ''} created`);
     },
     onError: () => {
@@ -723,7 +725,7 @@ export function useBulkUpdateRecords() {
     },
     onSuccess: (data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
-      // silent — no toast for bulk updates
+      fireAutomations('record.updated', variables.baseId, variables.tableId, { count: data.updated });
     },
     onError: () => {
       toast.error('Failed to update records');
@@ -739,16 +741,26 @@ export function useBulkDeleteRecords() {
       baseId: string;
       tableId: string;
       recordIds: string[];
+      onProgress?: (completed: number, total: number) => void;
     }) => {
       const ctx = await resolveTableContext(input.baseId, input.tableId);
+      const batchSize = 50;
+      const total = input.recordIds.length;
+      let deleted = 0;
 
-      const { error } = await supabase
-        .schema(ctx.schemaName)
-        .from(ctx.tableName)
-        .delete()
-        .in('id', input.recordIds);
+      for (let i = 0; i < total; i += batchSize) {
+        const batch = input.recordIds.slice(i, i + batchSize);
+        const { error } = await supabase
+          .schema(ctx.schemaName)
+          .from(ctx.tableName)
+          .delete()
+          .in('id', batch);
+        if (error) throw error;
+        deleted += batch.length;
+        input.onProgress?.(deleted, total);
+      }
 
-      if (error) throw error;
+      return { deleted };
     },
     onMutate: async (variables) => {
       const queryKey = ['nc', 'records', variables.baseId, variables.tableId];
@@ -773,8 +785,12 @@ export function useBulkDeleteRecords() {
       }
       toast.error('Failed to delete records');
     },
+    onSuccess: (data, variables) => {
+      fireAutomations('record.deleted', variables.baseId, variables.tableId, { count: data.deleted });
+    },
     onSettled: (_data, _error, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
+      qc.invalidateQueries({ queryKey: ['nc', 'recordCount', variables.baseId, variables.tableId] });
     },
   });
 }
