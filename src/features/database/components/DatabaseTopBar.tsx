@@ -9,6 +9,7 @@ import { useBases } from '../hooks';
 import { NotificationsPanel } from './NotificationsPanel';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
+import { AvatarBubble } from '@/components/AvatarBubble';
 
 const AutomationsDialog = lazy(() => import('./AutomationsDialog').then(m => ({ default: m.AutomationsDialog })));
 const ShareViewDialog = lazy(() => import('./ShareViewDialog').then(m => ({ default: m.ShareViewDialog })));
@@ -201,9 +202,11 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
             <div className="border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] pt-3">
               <p className="text-[12px] font-medium text-[#4A5268] dark:text-[hsl(200,20%,55%)] mb-2">People with access</p>
               <div className="flex items-center gap-2 py-1.5">
-                <div className="h-7 w-7 rounded-full bg-[#166EE1] text-white flex items-center justify-center text-[10px] font-semibold">
-                  {initials}
-                </div>
+                <AvatarBubble
+                  photoUrl={profile?.photo_url ?? null}
+                  initials={initials}
+                  size={28}
+                />
                 <div className="flex-1">
                   <p className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium">{profile?.full_name ?? 'You'}</p>
                   <p className="text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Owner</p>
