@@ -222,6 +222,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       setRollupFunction((field.options as any)?.fn ?? 'COUNT');
       setRichText((field.options as any)?.richText ?? false);
       setDurationFormat((field.options as any)?.format ?? 'h:mm');
+      setButtonLabel((field.options as any)?.label ?? 'Click');
+      setButtonUrl((field.options as any)?.url ?? '');
     }
   }, [field]);
 
@@ -231,6 +233,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const isLookup = field?.ui_type === 'Lookup';
   const isRollup = field?.ui_type === 'Rollup';
   const isCount = field?.ui_type === 'Count';
+  const isButton = field?.ui_type === 'Button';
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -345,6 +348,9 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       }
       if (field.ui_type === 'Duration') {
         updates.options = { ...(field.options as any), format: durationFormat };
+      }
+      if (isButton) {
+        updates.options = { ...(field.options as any), label: buttonLabel || 'Click', url: buttonUrl };
       }
       if (Object.keys(updates).length > 0) {
         try {

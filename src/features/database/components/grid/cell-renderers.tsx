@@ -153,7 +153,7 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
   if (value == null || value === '') return null;
   const text = String(value);
   const lineCount = text.split('\n').length;
-  const maxLen = rowHeight === 'compact' ? 50 : rowHeight === 'tall' ? 200 : rowHeight === 'extra-tall' ? 400 : 80;
+  const maxLen = rowHeight === 'short' ? 50 : rowHeight === 'tall' ? 200 : rowHeight === 'extra-tall' ? 400 : 80;
   const display = text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
   return (
     <span className="truncate flex items-center gap-1.5" style={{ color: 'inherit' }}>
@@ -295,7 +295,7 @@ export const MultiSelectCellRenderer = React.memo(function MultiSelectCellRender
 }: CellRendererProps) {
   const colors = useGridColors();
   if (!Array.isArray(value) || value.length === 0) return null;
-  const isCompact = rowHeight === 'compact';
+  const isCompact = rowHeight === 'short';
   const maxVisible = isCompact ? 2 : value.length;
   const visible = value.slice(0, maxVisible);
   const remaining = value.length - maxVisible;

@@ -20,7 +20,7 @@ interface LinkCellRendererProps {
   value: any;
   field: FieldMeta;
   record: RecordRow;
-  rowHeight: 'compact' | 'default' | 'tall' | 'extra-tall';
+  rowHeight: 'short' | 'medium' | 'tall' | 'extra-tall';
 }
 
 function LinkedRecordsPopover({

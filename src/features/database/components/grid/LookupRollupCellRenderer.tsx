@@ -7,7 +7,7 @@ interface LookupRollupCellRendererProps {
   value: any;
   field: FieldMeta;
   record: RecordRow;
-  rowHeight: 'compact' | 'default' | 'tall' | 'extra-tall';
+  rowHeight: 'short' | 'medium' | 'tall' | 'extra-tall';
 }
 
 function NotConfigured() {
