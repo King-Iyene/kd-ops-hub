@@ -992,11 +992,11 @@ export function Toolbar() {
     return acc + g.filters.length + g.groups.reduce(countGroup, 0);
   }, 0);
 
-  const ROW_HEIGHT_OPTIONS: { value: 'compact' | 'default' | 'tall' | 'extra-tall'; label: string; px: number }[] = [
-    { value: 'compact', label: 'Short', px: 32 },
-    { value: 'default', label: 'Medium', px: 32 },
-    { value: 'tall', label: 'Tall', px: 56 },
-    { value: 'extra-tall', label: 'Extra Tall', px: 88 },
+  const ROW_HEIGHT_OPTIONS: { value: 'short' | 'medium' | 'tall' | 'extra-tall'; label: string; px: number }[] = [
+    { value: 'short', label: 'Short', px: 32 },
+    { value: 'medium', label: 'Medium', px: 44 },
+    { value: 'tall', label: 'Tall', px: 64 },
+    { value: 'extra-tall', label: 'Extra Tall', px: 100 },
   ];
 
   const handleSearchChange = useCallback(

@@ -79,7 +79,7 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
   sidebarWidth: 260,
   selectedCellId: null,
   editingCellId: null,
-  rowHeight: 'default',
+  rowHeight: 'medium',
   filters: [],
   filterGroups: [],
   focusedFilterId: null,
