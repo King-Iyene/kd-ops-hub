@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, ExternalLink, Copy, Paperclip, Plus, Star, Clock, Link2 } from 'lucide-react';
+import { Check, ExternalLink, Copy, Paperclip, Plus, Star, Clock, Link2, AlertTriangle } from 'lucide-react';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { LinkCellRenderer } from './LinkCellRenderer';
 // LookupCellRenderer and RollupCellRenderer are defined locally below
@@ -48,6 +48,8 @@ function getSelectColor(colorName: string) {
   return SELECT_COLORS[colorName] || SELECT_COLORS.grayLight2;
 }
 
+const EMAIL_VALID_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export const TextCellRenderer = React.memo(function TextCellRenderer({
   value,
   field,
@@ -57,18 +59,74 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
   const text = String(value);
 
   if (field.ui_type === 'Email') {
+    const valid = EMAIL_VALID_RE.test(text);
+    if (valid) {
+      return (
+        <a
+          href={`mailto:${text}`}
+          className="truncate hover:underline"
+          style={{ color: colors.tealText }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <HighlightedText text={text} className="truncate" style={{ color: colors.tealText }} />
+        </a>
+      );
+    }
     return (
-      <HighlightedText text={text} className="truncate" style={{ color: colors.tealText }} />
+      <span className="truncate flex items-center gap-1">
+        <AlertTriangle size={12} className="shrink-0 text-amber-500" />
+        <HighlightedText text={text} className="truncate" style={{ color: colors.text }} />
+      </span>
     );
   }
 
   if (field.ui_type === 'URL') {
+    let href = text;
+    let valid = true;
+    try {
+      new URL(href.includes('://') ? href : `https://${href}`);
+      if (!href.includes('://')) href = `https://${href}`;
+    } catch {
+      valid = false;
+    }
+    if (valid) {
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="truncate flex items-center gap-1 hover:underline"
+          style={{ color: colors.tealText }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <HighlightedText text={text} className="truncate" style={{ color: colors.tealText }} />
+          <ExternalLink size={12} className="shrink-0" />
+        </a>
+      );
+    }
     return (
-      <span className="truncate flex items-center gap-1" style={{ color: colors.tealText }}>
-        <HighlightedText text={text} className="truncate" />
-        <ExternalLink size={12} className="shrink-0" />
+      <span className="truncate flex items-center gap-1">
+        <AlertTriangle size={12} className="shrink-0 text-amber-500" />
+        <HighlightedText text={text} className="truncate" style={{ color: colors.text }} />
       </span>
     );
+  }
+
+  if (field.ui_type === 'PhoneNumber') {
+    const digits = text.replace(/\D/g, '');
+    if (digits.length >= 7) {
+      return (
+        <a
+          href={`tel:${text}`}
+          className="truncate hover:underline"
+          style={{ color: colors.tealText }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <HighlightedText text={text} className="truncate" style={{ color: colors.tealText }} />
+        </a>
+      );
+    }
+    return <HighlightedText text={text} className="truncate" />;
   }
 
   return <HighlightedText text={text} className="truncate" />;

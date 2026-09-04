@@ -235,8 +235,11 @@ export function DurationCellEditor({ value, onCommit, onCancel }: CellEditorProp
   );
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
+  const [invalid, setInvalid] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -244,25 +247,43 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
     ref.current?.select();
   }, []);
 
+  const commit = useCallback(() => {
+    const trimmed = String(text).trim();
+    setInvalid(!!trimmed && !EMAIL_RE.test(trimmed));
+    onCommit(text);
+  }, [text, onCommit]);
+
   return (
-    <input
-      ref={ref}
-      type="email"
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(text);
-        if (e.key === 'Escape') onCancel();
-      }}
-      onBlur={() => onCommit(text)}
-      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
-      style={{ fontSize: 13, color: 'inherit' }}
-    />
+    <div className="relative w-full h-full">
+      <input
+        ref={ref}
+        type="email"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') onCancel();
+        }}
+        onBlur={commit}
+        className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
+        style={{
+          fontSize: 13,
+          color: 'inherit',
+          boxShadow: invalid ? 'inset 0 0 0 2px #EF4444' : undefined,
+        }}
+      />
+      {invalid && (
+        <div className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-red-300 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap mt-0.5">
+          Enter a valid email address
+        </div>
+      )}
+    </div>
   );
 }
 
 export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
+  const [invalid, setInvalid] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -270,20 +291,42 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
     ref.current?.select();
   }, []);
 
+  const commit = useCallback(() => {
+    const trimmed = String(text).trim();
+    let isValid = true;
+    if (trimmed) {
+      try { new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`); }
+      catch { isValid = false; }
+    }
+    setInvalid(!!trimmed && !isValid);
+    onCommit(text);
+  }, [text, onCommit]);
+
   return (
-    <input
-      ref={ref}
-      type="url"
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(text);
-        if (e.key === 'Escape') onCancel();
-      }}
-      onBlur={() => onCommit(text)}
-      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
-      style={{ fontSize: 13, color: 'inherit' }}
-    />
+    <div className="relative w-full h-full">
+      <input
+        ref={ref}
+        type="url"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') onCancel();
+        }}
+        onBlur={commit}
+        className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
+        style={{
+          fontSize: 13,
+          color: 'inherit',
+          boxShadow: invalid ? 'inset 0 0 0 2px #EF4444' : undefined,
+        }}
+      />
+      {invalid && (
+        <div className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-red-300 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap mt-0.5">
+          Enter a valid URL
+        </div>
+      )}
+    </div>
   );
 }
 
