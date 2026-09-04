@@ -186,6 +186,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const [lookupFieldId, setLookupFieldId] = useState('');
   const [rollupFieldId, setRollupFieldId] = useState('');
   const [rollupFunction, setRollupFunction] = useState<RollupFunction>('COUNT');
+  const [richText, setRichText] = useState(false);
   const updateField = useUpdateField();
   const changeFieldType = useChangeFieldType();
   const deleteField = useDeleteField();
@@ -216,10 +217,12 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       setLookupFieldId((field.options as any)?.lookupFieldId ?? '');
       setRollupFieldId((field.options as any)?.rollupFieldId ?? '');
       setRollupFunction((field.options as any)?.fn ?? 'COUNT');
+      setRichText((field.options as any)?.richText ?? false);
     }
   }, [field]);
 
   const isSelectType = field?.ui_type === 'SingleSelect' || field?.ui_type === 'MultiSelect';
+  const isLongText = field?.ui_type === 'LongText';
   const isFormula = field?.ui_type === 'Formula';
   const isLookup = field?.ui_type === 'Lookup';
   const isRollup = field?.ui_type === 'Rollup';
@@ -325,6 +328,9 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       }
       if (isLookup) {
         updates.options = { ...(field.options as any), linkFieldId, lookupFieldId };
+      }
+      if (isLongText) {
+        updates.options = { ...(field.options as any), richText };
       }
       if (isRollup) {
         updates.options = { ...(field.options as any), linkFieldId, rollupFieldId, fn: rollupFunction };
@@ -522,6 +528,18 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
               );
             })()}
           </div>
+
+          {isLongText && (
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-3.5 h-3.5 accent-[#166EE1]"
+                checked={richText}
+                onChange={(e) => setRichText(e.target.checked)}
+              />
+              <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)]">Rich text formatting</span>
+            </label>
+          )}
 
           {isSelectType && (
             <div className="space-y-2">
