@@ -9,7 +9,6 @@ import {
   ChevronDown,
   Smile,
   Upload,
-  Download,
 } from 'lucide-react';
 import {
   DndContext,
@@ -48,7 +47,6 @@ import {
 } from '../hooks';
 import { CreateTableDialog } from './CreateTableDialog';
 import { ImportCsvDialog } from './ImportCsvDialog';
-import { ImportAirtableDialog } from './ImportAirtableDialog';
 
 function InlineRenameInput({
   value,
@@ -142,7 +140,6 @@ export function TableTabBar() {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [createTableOpen, setCreateTableOpen] = useState(false);
   const [importCsvOpen, setImportCsvOpen] = useState(false);
-  const [importAirtableOpen, setImportAirtableOpen] = useState(false);
 
   const sortedTables = useMemo(
     () => (tables ?? []).slice().sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)),
@@ -366,9 +363,6 @@ export function TableTabBar() {
           <DropdownMenuItem className="text-xs gap-2" onClick={() => setImportCsvOpen(true)}>
             <Upload size={12} /> Import CSV
           </DropdownMenuItem>
-          <DropdownMenuItem className="text-xs gap-2" onClick={() => setImportAirtableOpen(true)}>
-            <Download size={12} /> Import from Airtable
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -379,10 +373,6 @@ export function TableTabBar() {
       <ImportCsvDialog
         open={importCsvOpen}
         onOpenChange={setImportCsvOpen}
-      />
-      <ImportAirtableDialog
-        open={importAirtableOpen}
-        onOpenChange={setImportAirtableOpen}
       />
     </div>
   );

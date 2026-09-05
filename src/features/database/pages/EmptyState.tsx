@@ -1,8 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Database, Plus, Table2, Search, Download, Clock } from 'lucide-react';
+import { Database, Plus, Table2, Search, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreateBaseDialog } from '../components/CreateBaseDialog';
-import { ImportAirtableDialog } from '../components/ImportAirtableDialog';
 import { useDatabaseUI } from '../lib/store';
 import { useDatabaseNavigate } from '../hooks/useNavigate';
 import { useBases } from '../hooks/useBases';
@@ -81,7 +80,6 @@ function BaseCard({ base, onSelect }: { base: Base; onSelect: () => void }) {
 
 export function EmptyState() {
   const [createOpen, setCreateOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const activeBaseId = useDatabaseUI((s) => s.activeBaseId);
   const { navigateToBase } = useDatabaseNavigate();
@@ -140,14 +138,6 @@ export function EmptyState() {
                 className="pl-8 pr-3 py-1.5 text-[13px] rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:outline-none focus:border-[#2D7FF9] w-48"
               />
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-[13px]"
-              onClick={() => setImportOpen(true)}
-            >
-              <Download size={14} /> Import from Airtable
-            </Button>
           </div>
         </div>
 
@@ -195,7 +185,6 @@ export function EmptyState() {
         onOpenChange={setCreateOpen}
         template={null}
       />
-      <ImportAirtableDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }
