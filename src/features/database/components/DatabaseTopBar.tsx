@@ -1,6 +1,6 @@
-import { useState, useCallback, lazy, Suspense } from 'react';
+import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Link2 } from 'lucide-react';
+import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuthStore } from '@/store/authStore';
@@ -9,17 +9,13 @@ import { useBases } from '../hooks';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { AvatarBubble } from '@/components/AvatarBubble';
 
-const ShareViewDialog = lazy(() => import('./ShareViewDialog').then(m => ({ default: m.ShareViewDialog })));
-
 export function DatabaseTopBar() {
-  const { toggleSidebar, activeBaseId, activeTableId } = useDatabaseUI();
+  const { toggleSidebar, activeBaseId } = useDatabaseUI();
   const profile = useAuthStore((s) => s.profile);
   const { data: bases } = useBases();
   const [shareOpen, setShareOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [shareViewOpen, setShareViewOpen] = useState(false);
-  const activeViewId = useDatabaseUI((s) => s.activeViewId);
 
   const activeBase = bases?.find((b: any) => b.id === activeBaseId);
 
@@ -79,26 +75,15 @@ export function DatabaseTopBar() {
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           {activeBaseId && (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
-                onClick={() => setShareViewOpen(true)}
-              >
-                <Link2 size={13} /> Share
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
-                onClick={() => setShareOpen(true)}
-              >
-                <Share2 size={13} /> Share
-              </Button>
-            </>
+            <Button
+              size="sm"
+              className="h-7 px-3 text-[12px] font-medium gap-1.5 rounded-full bg-white dark:bg-[hsl(200,25%,18%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border border-[#D1D5DB] dark:border-[hsl(200,25%,25%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,22%)] shadow-sm"
+              onClick={() => setShareOpen(true)}
+            >
+              <Share2 size={13} /> Share
+            </Button>
           )}
           <Button
             variant="ghost"
@@ -108,7 +93,6 @@ export function DatabaseTopBar() {
           >
             <HelpCircle size={15} />
           </Button>
-          <div className="w-px h-4 bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] mx-0.5" />
           <ProfileDropdown />
         </div>
       </header>
@@ -163,10 +147,6 @@ export function DatabaseTopBar() {
           </div>
         </DialogContent>
       </Dialog>
-
-      <Suspense fallback={null}>
-        {shareViewOpen && <ShareViewDialog open={shareViewOpen} onOpenChange={setShareViewOpen} viewId={activeViewId} tableId={activeTableId} />}
-      </Suspense>
 
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
         <DialogContent className="sm:max-w-[480px]">
