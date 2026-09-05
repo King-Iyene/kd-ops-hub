@@ -524,7 +524,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             action: 'bulkAddColumns',
             schemaName,
             tableName: pgTableName,
-            columns: fieldRows.map((fr) => ({ name: fr.pg_column_name, type: fr.pg_type })),
+            columns: fieldRows.map((fr) => ({ columnName: fr.pg_column_name, columnType: fr.pg_type })),
           },
         });
 

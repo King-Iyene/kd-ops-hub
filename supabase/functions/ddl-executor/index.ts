@@ -272,15 +272,18 @@ async function handleBulkAddColumns(
   try {
     await conn.queryObject('BEGIN');
     for (const col of body.columns) {
-      const column = sanitizeIdentifier(col.columnName);
-      let ddl = `ALTER TABLE ${schema}.${table} ADD COLUMN IF NOT EXISTS ${column} ${col.columnType}`;
+      const colName = (col as any).columnName ?? (col as any).name;
+      const colType = (col as any).columnType ?? (col as any).type;
+      if (!colName || !colType) continue;
+      const column = sanitizeIdentifier(colName);
+      let ddl = `ALTER TABLE ${schema}.${table} ADD COLUMN IF NOT EXISTS ${column} ${colType}`;
       if (col.defaultValue !== undefined) {
         ddl += ` DEFAULT ${col.defaultValue}`;
       }
       if (col.isRequired) ddl += ' NOT NULL';
       if (col.isUnique) ddl += ' UNIQUE';
       await conn.queryObject(ddl);
-      added.push(col.columnName);
+      added.push(colName);
     }
     await conn.queryObject('COMMIT');
   } catch (err) {
