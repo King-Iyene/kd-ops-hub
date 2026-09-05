@@ -5,6 +5,7 @@ import { test, expect, type Page } from '@playwright/test';
  */
 
 const TEST_BASE_NAME = `E2E Test Base ${Date.now()}`;
+let testBaseUrl: string | null = null;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -45,15 +46,13 @@ async function clickSidebarBase(page: Page, baseName: string) {
 }
 
 async function clickFirstSidebarBase(page: Page) {
-  const bases = await getSidebarBases(page);
-  const count = await bases.count();
-  if (count === 0) return false;
-  // Click the parent div (the actual clickable element)
-  const firstBase = bases.first();
   const parentDiv = page.locator('aside div.cursor-pointer').first();
-  await parentDiv.click();
-  await page.waitForTimeout(2000);
-  return true;
+  if (await parentDiv.isVisible({ timeout: 10_000 }).catch(() => false)) {
+    await parentDiv.click();
+    await page.waitForTimeout(2000);
+    return true;
+  }
+  return false;
 }
 
 async function clickAddRow(page: Page) {
@@ -75,8 +74,14 @@ async function clickAddRow(page: Page) {
 }
 
 async function navigateToTestBase(page: Page) {
-  await navigateToData(page);
-  await clickSidebarBase(page, TEST_BASE_NAME);
+  if (testBaseUrl) {
+    await page.goto(testBaseUrl);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000);
+  } else {
+    await navigateToData(page);
+    await clickSidebarBase(page, TEST_BASE_NAME);
+  }
   await waitForGridLoad(page);
 }
 
@@ -180,6 +185,7 @@ test.describe('Create a new test base', () => {
 
     const url = page.url();
     expect(url).toContain('/data/');
+    testBaseUrl = url;
     console.log('PASS: Base created, navigated to:', url);
   });
 });
