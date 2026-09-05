@@ -53,14 +53,10 @@ async function navigateToData(page: Page) {
 }
 
 async function waitForGridLoad(page: Page) {
-  const gridcell = page.locator('[role="gridcell"]').first();
+  const grid = page.locator('[role="grid"]');
   const empty = page.locator('text=/No records|0 records|Add row|Empty/i');
-  // Wait for either a rendered gridcell (records loaded + virtualizer done)
-  // or an explicit empty-state element. This avoids a race where the grid
-  // container appears before data loads (no cells yet) or the empty state
-  // flashes before records arrive.
-  await gridcell.or(empty).first().waitFor({ timeout: 20_000 });
-  await page.waitForTimeout(500);
+  await grid.or(empty).first().waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(1500);
 }
 
 async function getSidebarBases(page: Page) {
@@ -379,25 +375,17 @@ test.describe('Record CRUD operations', () => {
   });
 
   test('UPDATE — edit an existing cell value', async ({ page }) => {
-    // Explicitly wait for at least one gridcell (records must exist from CREATE tests)
-    await page.locator('[role="gridcell"]').first().waitFor({ timeout: 15_000 });
-    const cells = page.locator('[role="gridcell"]');
-    const cellCount = await cells.count();
-    if (cellCount > 0) {
-      const targetCell = cells.first();
-      await targetCell.dblclick();
-      await page.waitForTimeout(300);
+    const targetCell = page.locator('[role="gridcell"]').first();
+    await expect(targetCell).toBeVisible({ timeout: 15_000 });
+    await targetCell.dblclick();
+    await page.waitForTimeout(300);
 
-      await page.keyboard.press('Control+a');
-      await page.keyboard.type('Updated Record');
-      await page.keyboard.press('Tab');
-      await page.waitForTimeout(500);
-      await screenshotStep(page, '35_cell_updated');
-      console.log('PASS: Cell updated');
-    } else {
-      console.log('FAIL: No cells found to edit');
-      expect(cellCount).toBeGreaterThan(0);
-    }
+    await page.keyboard.press('Control+a');
+    await page.keyboard.type('Updated Record');
+    await page.keyboard.press('Tab');
+    await page.waitForTimeout(500);
+    await screenshotStep(page, '35_cell_updated');
+    console.log('PASS: Cell updated');
   });
 
   test('DELETE — delete a row via context menu', async ({ page }) => {
