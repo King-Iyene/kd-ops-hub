@@ -24,6 +24,7 @@ import {
   CheckSquare,
   RotateCcw,
   AlertTriangle,
+  Search,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
@@ -148,6 +149,27 @@ async function rateLimitedFetch(url: string, options: RequestInit, retries = MAX
   return res;
 }
 
+async function waitForSchemaReady(schemaName: string, tableName?: string, maxWaitMs = 8000): Promise<void> {
+  const start = Date.now();
+  const target = tableName ?? '__schema_check__';
+  while (Date.now() - start < maxWaitMs) {
+    try {
+      const { error } = tableName
+        ? await supabase.schema(schemaName).from(tableName).select('id').limit(0)
+        : await supabase.schema(schemaName).from('__ping__').select('id').limit(0);
+      if (!error || error.code === 'PGRST116' || error.message?.includes('does not exist')) {
+        return;
+      }
+      if (error.code !== 'PGRST106' && !error.message?.includes('schema')) {
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
+
 export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialogProps) {
   const [step, setStep] = useState<Step>('token');
   const [token, setToken] = useState('');
@@ -168,6 +190,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
   });
   const [importedCount, setImportedCount] = useState(0);
   const [importedRecordCount, setImportedRecordCount] = useState(0);
+  const [baseSearch, setBaseSearch] = useState('');
+  const [tableSearch, setTableSearch] = useState('');
   const abortRef = useRef(false);
   const qc = useQueryClient();
   const { navigateToBase } = useDatabaseNavigate();
@@ -187,6 +211,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
     });
     setImportedCount(0);
     setImportedRecordCount(0);
+    setBaseSearch('');
+    setTableSearch('');
     abortRef.current = false;
   };
 
@@ -336,6 +362,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
       await supabase.functions.invoke('ddl-executor', {
         body: { action: 'exposeSchema', schemaName },
       });
+
+      await waitForSchemaReady(schemaName);
 
       for (let i = 0; i < selectedTables.length; i++) {
         if (abortRef.current) break;
@@ -499,6 +527,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           },
         });
 
+        await waitForSchemaReady(schemaName, pgTableName);
+
         const { data: createdFields } = await supabase
           .schema('nc_meta')
           .from('fields')
@@ -559,30 +589,55 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             const mapRecord = (rec: any, order: number) => {
               const row: Record<string, any> = { nc_order: order, airtable_id: rec.id };
               for (const [fieldName, value] of Object.entries(rec.fields || {})) {
+                if (value === null || value === undefined) continue;
                 const mapping = fieldMap[fieldName];
-                if (mapping) {
-                  if (mapping.pgType === 'JSONB' || mapping.pgType === "JSONB DEFAULT '[]'::jsonb") {
+                if (!mapping) continue;
+                const pt = mapping.pgType;
+                try {
+                  if (pt === 'JSONB' || pt === "JSONB DEFAULT '[]'::jsonb") {
                     row[mapping.col] = value;
-                  } else if (mapping.pgType === 'TEXT[]') {
-                    row[mapping.col] = Array.isArray(value) ? value : [String(value)];
-                  } else if (mapping.pgType.startsWith('BOOLEAN')) {
+                  } else if (pt === 'TEXT[]') {
+                    if (Array.isArray(value)) {
+                      row[mapping.col] = value.map(String);
+                    } else {
+                      row[mapping.col] = [String(value)];
+                    }
+                  } else if (pt.startsWith('BOOLEAN')) {
                     row[mapping.col] = Boolean(value);
+                  } else if (pt === 'NUMERIC' || pt === 'INTEGER' || pt === 'SMALLINT') {
+                    const n = Number(value);
+                    if (!Number.isNaN(n) && Number.isFinite(n)) {
+                      row[mapping.col] = pt === 'INTEGER' || pt === 'SMALLINT' ? Math.round(n) : n;
+                    }
+                  } else if (pt === 'DATE') {
+                    const s = typeof value === 'string' ? value.substring(0, 10) : String(value).substring(0, 10);
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) row[mapping.col] = s;
+                  } else if (pt === 'TIMESTAMPTZ') {
+                    if (typeof value === 'string' && value.length >= 10) row[mapping.col] = value;
                   } else if (typeof value === 'object' && value !== null) {
                     row[mapping.col] = JSON.stringify(value);
                   } else {
-                    row[mapping.col] = value;
+                    row[mapping.col] = String(value);
                   }
+                } catch {
+                  // skip field on conversion error
                 }
               }
               return row;
             };
 
-            const insertBatch = async (rows: Record<string, any>[]) => {
+            let schemaRetried = false;
+            const insertBatch = async (rows: Record<string, any>[]): Promise<number> => {
               const { error: insertErr } = await supabase.schema(schemaName).from(pgTableName).insert(rows);
               if (insertErr) {
+                if (!schemaRetried && (insertErr.code === 'PGRST106' || insertErr.message?.includes('schema'))) {
+                  schemaRetried = true;
+                  await waitForSchemaReady(schemaName, pgTableName, 5000);
+                  return insertBatch(rows);
+                }
                 const midpoint = Math.ceil(rows.length / 2);
                 if (rows.length <= 1) {
-                  errors.push(`${atTable.name}: 1 record failed`);
+                  errors.push(`${atTable.name}: ${insertErr.message?.substring(0, 120) ?? 'record failed'}`);
                   return 0;
                 }
                 const [a, b] = await Promise.all([
@@ -913,8 +968,19 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             <p className="text-[13px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
               Select a base to import ({bases.length} base{bases.length !== 1 ? 's' : ''} found):
             </p>
+            {bases.length > 5 && (
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9AA2AF]" />
+                <Input
+                  value={baseSearch}
+                  onChange={(e) => setBaseSearch(e.target.value)}
+                  placeholder="Search bases..."
+                  className="h-8 pl-9 text-[13px]"
+                />
+              </div>
+            )}
             <div className="max-h-[360px] overflow-y-auto space-y-1">
-              {bases.map((base) => (
+              {bases.filter((b) => !baseSearch || b.name.toLowerCase().includes(baseSearch.toLowerCase())).map((base) => (
                 <button
                   key={base.id}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] hover:border-[#2D7FF9] hover:bg-[#F0F3FF] dark:hover:bg-[hsl(220,30%,14%)] transition-all text-left group"
@@ -974,8 +1040,19 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               {selectedCount} of {tables.length} table{tables.length !== 1 ? 's' : ''} selected
               <span className="text-[#9AA2AF]"> · {selectedTotalFields} fields total</span>
             </p>
+            {tables.length > 8 && (
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9AA2AF]" />
+                <Input
+                  value={tableSearch}
+                  onChange={(e) => setTableSearch(e.target.value)}
+                  placeholder="Search tables..."
+                  className="h-8 pl-9 text-[13px]"
+                />
+              </div>
+            )}
             <div className="max-h-[320px] overflow-y-auto space-y-1">
-              {tables.map((table) => (
+              {tables.filter((t) => !tableSearch || t.name.toLowerCase().includes(tableSearch.toLowerCase())).map((table) => (
                 <button
                   key={table.id}
                   className={cn(
