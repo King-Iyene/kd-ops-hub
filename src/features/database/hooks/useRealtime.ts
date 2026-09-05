@@ -85,10 +85,11 @@ export function usePresence(baseId: string | undefined) {
 
   useEffect(() => {
     if (!baseId) return;
+    let cancelled = false;
 
     const getUser = async () => {
       const { data } = await supabase.auth.getUser();
-      if (!data.user) return;
+      if (cancelled || !data.user) return;
       userRef.current = { id: data.user.id, email: data.user.email ?? undefined };
 
       const channel = supabase.channel(`presence-${baseId}`, {
@@ -101,6 +102,7 @@ export function usePresence(baseId: string | undefined) {
           window.dispatchEvent(new CustomEvent('db-presence-sync', { detail: state }));
         })
         .subscribe(async (status) => {
+          if (cancelled) return;
           if (status === 'SUBSCRIBED') {
             await channel.track({
               user_id: data.user!.id,
@@ -117,6 +119,7 @@ export function usePresence(baseId: string | undefined) {
     getUser();
 
     return () => {
+      cancelled = true;
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;

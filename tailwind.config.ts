@@ -116,6 +116,14 @@ export default {
           from: { opacity: "0", transform: "translateY(-4px) scale(0.98)" },
           to: { opacity: "1", transform: "translateY(0) scale(1)" },
         },
+        "fadeInUp": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "bulkBarSlideUp": {
+          from: { opacity: "0", transform: "translateX(-50%) translateY(16px)" },
+          to: { opacity: "1", transform: "translateX(-50%) translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",

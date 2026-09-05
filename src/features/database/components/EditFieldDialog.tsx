@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { confirm } from '@/hooks/use-confirm';
 import {
   Dialog,
   DialogContent,
@@ -827,8 +828,9 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
               variant="ghost"
               size="sm"
               className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 gap-1.5 w-full justify-start text-xs"
-              onClick={() => {
-                if (window.confirm(`Delete field "${field.name}"? This cannot be undone.`)) {
+              onClick={async () => {
+                const confirmed = await confirm({ description: `Delete field "${field.name}"? This cannot be undone.`, variant: 'destructive' });
+                if (confirmed) {
                   deleteField.mutate(
                     { id: field.id, table_id: field.table_id },
                     {
