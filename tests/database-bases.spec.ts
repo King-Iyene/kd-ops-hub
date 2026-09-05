@@ -384,20 +384,19 @@ test.describe('Record CRUD operations', () => {
   });
 
   test('UPDATE — edit an existing cell value', async ({ page }) => {
-    test.slow(); // Triple timeout — recovery steps need >30s
+    test.slow();
 
     const cell = page.locator('[role="gridcell"]').first();
 
     if (!await cell.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      // Diagnose the page state
       const state = await page.evaluate(() => {
         const grid = document.querySelector('[role="grid"]');
-        const empty = document.querySelector('text=No records yet') ||
-          [...document.querySelectorAll('*')].find(el => el.textContent?.includes('No records yet'));
+        const empty = Array.from(document.querySelectorAll('p, div, span'))
+          .some(el => el.textContent?.includes('No records yet'));
         const container = grid?.parentElement;
         return {
           hasGrid: !!grid,
-          hasEmpty: !!empty,
+          hasEmpty: empty,
           gridCells: document.querySelectorAll('[role="gridcell"]').length,
           gridRows: document.querySelectorAll('[role="row"]').length,
           containerHeight: container?.offsetHeight ?? -1,
@@ -408,7 +407,6 @@ test.describe('Record CRUD operations', () => {
       console.log('UPDATE diagnostics:', JSON.stringify(state));
       await screenshotStep(page, '35_diag_no_cells');
 
-      // Fix 1: force container height if grid exists but has 0 height
       if (state.hasGrid && state.containerHeight === 0) {
         await page.evaluate(() => {
           const grid = document.querySelector('[role="grid"]');
@@ -418,13 +416,10 @@ test.describe('Record CRUD operations', () => {
         await page.waitForTimeout(2000);
       }
 
-      // Fix 2: reload and try again
       if (!await cell.isVisible().catch(() => false)) {
         await page.reload();
         await page.waitForLoadState('domcontentloaded');
         await waitForGridLoad(page);
-
-        // Force height after reload
         await page.evaluate(() => {
           const grid = document.querySelector('[role="grid"]');
           const container = grid?.parentElement;
@@ -435,11 +430,9 @@ test.describe('Record CRUD operations', () => {
         await page.waitForTimeout(2000);
       }
 
-      // Fix 3: create a row if still nothing
       if (!await cell.isVisible().catch(() => false)) {
         await clickAddRow(page);
         await page.waitForTimeout(2000);
-        // Force height one more time
         await page.evaluate(() => {
           const grid = document.querySelector('[role="grid"]');
           const container = grid?.parentElement;
