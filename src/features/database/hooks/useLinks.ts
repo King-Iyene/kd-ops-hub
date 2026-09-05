@@ -111,34 +111,28 @@ export function useRecordLinks(opts: {
       }
 
       if (linkType === 'mm') {
-        const { data: linkMeta, error: linkErr } = await supabase
+        const { data: linkMeta } = await supabase
           .schema('nc_meta')
           .from('links')
           .select('junction_table_id')
           .eq('field_id', fieldId)
           .single();
-        console.log('[mm-debug] linkMeta', { fieldId, linkMeta, linkErr });
         if (!linkMeta?.junction_table_id) return [];
 
-        const { data: jTable, error: jErr } = await supabase
+        const { data: jTable } = await supabase
           .schema('nc_meta')
           .from('tables')
           .select('pg_table_name')
           .eq('id', linkMeta.junction_table_id)
           .single();
-        console.log('[mm-debug] jTable', { jTable, jErr });
         if (!jTable) return [];
 
-        const jQuery = `${tgtTable.pg_table_name}_id`;
-        const jFilter = `${srcTable.pg_table_name}_id`;
-        console.log('[mm-debug] junction query', { table: jTable.pg_table_name, select: jQuery, filter: jFilter, recordId, schema });
-        const { data: jRows, error: jRowErr } = await supabase
+        const { data: jRows } = await supabase
           .schema(schema)
           .from(jTable.pg_table_name)
-          .select(jQuery)
-          .eq(jFilter, recordId)
+          .select(`${tgtTable.pg_table_name}_id`)
+          .eq(`${srcTable.pg_table_name}_id`, recordId)
           .limit(200);
-        console.log('[mm-debug] jRows', JSON.stringify({ jRows, jRowErr }));
         if (!jRows || jRows.length === 0) return [];
 
         const ids = jRows.map((r: any) => r[`${tgtTable.pg_table_name}_id`]).filter(Boolean);
