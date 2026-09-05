@@ -32,6 +32,9 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'on-first-retry',
     actionTimeout: 10_000,
+    ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+      ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, args: ['--no-sandbox', '--disable-gpu'] } }
+      : {}),
   },
 
   projects: [
