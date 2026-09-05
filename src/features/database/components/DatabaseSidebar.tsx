@@ -7,10 +7,8 @@ import {
   Database,
   Copy,
   Palette,
-  Settings,
   ChevronLeft,
   ChevronRight,
-  Download,
   Home,
 } from 'lucide-react';
 import { confirm as styledConfirm } from '@/hooks/use-confirm';
@@ -28,8 +26,6 @@ import { useBases, useCreateBase, useDeleteBase, useUpdateBase, useDuplicateBase
 import { useWorkspaces } from '../hooks';
 import { useDatabaseNavigate } from '../hooks/useNavigate';
 import { CreateBaseDialog } from './CreateBaseDialog';
-import { ImportAirtableDialog } from './ImportAirtableDialog';
-import { BaseSettingsDialog } from './BaseSettingsDialog';
 import type { Base } from '../types';
 
 const BASE_COLORS = [
@@ -89,10 +85,8 @@ export function DatabaseSidebar() {
   const duplicateBase = useDuplicateBase();
 
   const [createBaseOpen, setCreateBaseOpen] = useState(false);
-  const [importAirtableOpen, setImportAirtableOpen] = useState(false);
   const [renamingBaseId, setRenamingBaseId] = useState<string | null>(null);
   const [colorPickerBaseId, setColorPickerBaseId] = useState<string | null>(null);
-  const [settingsBase, setSettingsBase] = useState<Base | null>(null);
 
   // Drag-to-resize state
   const isResizing = useRef(false);
@@ -196,17 +190,6 @@ export function DatabaseSidebar() {
               title="Create base"
             >
               <Plus size={15} />
-            </Button>
-          )}
-          {!sidebarCollapsed && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0 text-[#6A7184] hover:text-[#374151] hover:bg-[#E5E5E5] dark:hover:bg-[hsl(200,25%,15%)] dark:hover:text-[hsl(200,25%,88%)]"
-              onClick={() => setImportAirtableOpen(true)}
-              title="Import from Airtable"
-            >
-              <Download size={14} />
             </Button>
           )}
           <Button
@@ -325,15 +308,6 @@ export function DatabaseSidebar() {
                         ))}
                       </div>
                     )}
-                    <DropdownMenuItem
-                      className="text-xs gap-2"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSettingsBase(base as Base);
-                      }}
-                    >
-                      <Settings size={12} /> Settings
-                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-xs gap-2 text-red-500 focus:text-red-500"
@@ -378,14 +352,6 @@ export function DatabaseSidebar() {
       )}
 
       <CreateBaseDialog open={createBaseOpen} onOpenChange={setCreateBaseOpen} />
-      <ImportAirtableDialog open={importAirtableOpen} onOpenChange={setImportAirtableOpen} />
-      {settingsBase && (
-        <BaseSettingsDialog
-          open={!!settingsBase}
-          onOpenChange={(open) => { if (!open) setSettingsBase(null); }}
-          base={settingsBase}
-        />
-      )}
     </aside>
   );
 }

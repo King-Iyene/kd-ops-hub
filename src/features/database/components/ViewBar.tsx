@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import { Grid3X3, LayoutGrid, Columns3, FileText, Calendar, GanttChart, BarChart3, Plus, Pencil, Trash2, Copy, Lock, Unlock } from 'lucide-react';
+import { Grid3X3, LayoutGrid, Columns3, FileText, Calendar, Plus, Pencil, Trash2, Copy, Lock, Unlock } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -24,18 +24,14 @@ const VIEW_ICONS: Record<string, typeof Grid3X3> = {
   gallery: LayoutGrid,
   form: FileText,
   calendar: Calendar,
-  timeline: GanttChart,
-  gantt: BarChart3,
 };
 
-const VIEW_TYPE_OPTIONS: Array<{ type: 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar' | 'timeline' | 'gantt'; label: string }> = [
+const VIEW_TYPE_OPTIONS: Array<{ type: 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar'; label: string }> = [
   { type: 'grid', label: 'Grid' },
   { type: 'kanban', label: 'Kanban' },
   { type: 'gallery', label: 'Gallery' },
   { type: 'form', label: 'Form' },
   { type: 'calendar', label: 'Calendar' },
-  { type: 'timeline', label: 'Timeline' },
-  { type: 'gantt', label: 'Gantt' },
 ];
 
 function SortableViewTab({
@@ -162,7 +158,7 @@ export function ViewBar() {
   );
 
   const handleAddView = useCallback(
-    (type: 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar' | 'timeline' | 'gantt') => {
+    (type: 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar') => {
       if (!activeTableId) return;
       createView.mutate(
         {

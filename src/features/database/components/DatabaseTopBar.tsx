@@ -1,34 +1,24 @@
 import { useState, useCallback, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Zap, Link2, Key, Webhook, History, Keyboard } from 'lucide-react';
+import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuthStore } from '@/store/authStore';
 import { useDatabaseUI } from '../lib/store';
 import { useBases } from '../hooks';
-import { NotificationsPanel } from './NotificationsPanel';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { AvatarBubble } from '@/components/AvatarBubble';
 
-const AutomationsDialog = lazy(() => import('./AutomationsDialog').then(m => ({ default: m.AutomationsDialog })));
 const ShareViewDialog = lazy(() => import('./ShareViewDialog').then(m => ({ default: m.ShareViewDialog })));
-const ApiTokensDialog = lazy(() => import('./ApiTokensDialog').then(m => ({ default: m.ApiTokensDialog })));
-const WebhooksDialog = lazy(() => import('./WebhooksDialog').then(m => ({ default: m.WebhooksDialog })));
-const AuditLogDialog = lazy(() => import('./AuditLogDialog').then(m => ({ default: m.AuditLogDialog })));
 
-export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => void }) {
+export function DatabaseTopBar() {
   const { toggleSidebar, activeBaseId, activeTableId } = useDatabaseUI();
   const profile = useAuthStore((s) => s.profile);
   const { data: bases } = useBases();
   const [shareOpen, setShareOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [automationsOpen, setAutomationsOpen] = useState(false);
   const [shareViewOpen, setShareViewOpen] = useState(false);
-  const [apiTokensOpen, setApiTokensOpen] = useState(false);
-  const [webhooksOpen, setWebhooksOpen] = useState(false);
-  const [auditLogOpen, setAuditLogOpen] = useState(false);
   const activeViewId = useDatabaseUI((s) => s.activeViewId);
 
   const activeBase = bases?.find((b: any) => b.id === activeBaseId);
@@ -83,7 +73,7 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
               </>
             ) : (
               <span className="text-[14px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
-                KDOps Data
+                Bases
               </span>
             )}
           </div>
@@ -96,14 +86,6 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
                 variant="ghost"
                 size="sm"
                 className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
-                onClick={() => setApiTokensOpen(true)}
-              >
-                <Key size={13} /> API
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
                 onClick={() => setShareViewOpen(true)}
               >
                 <Link2 size={13} /> Share
@@ -112,46 +94,12 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
                 variant="ghost"
                 size="sm"
                 className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
-                onClick={() => setAutomationsOpen(true)}
-              >
-                <Zap size={13} /> Automations
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
-                onClick={() => setWebhooksOpen(true)}
-              >
-                <Webhook size={13} /> Webhooks
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
-                onClick={() => setAuditLogOpen(true)}
-              >
-                <History size={13} /> Audit Log
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] gap-1"
                 onClick={() => setShareOpen(true)}
               >
-                <Share2 size={13} /> Share Base
+                <Share2 size={13} /> Share
               </Button>
             </>
           )}
-          <NotificationsPanel />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)]"
-            onClick={() => onOpenShortcuts?.()}
-            title="Keyboard shortcuts (?)"
-          >
-            <Keyboard size={15} />
-          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -161,7 +109,6 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
             <HelpCircle size={15} />
           </Button>
           <div className="w-px h-4 bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] mx-0.5" />
-          <ThemeToggle />
           <ProfileDropdown />
         </div>
       </header>
@@ -219,10 +166,6 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
 
       <Suspense fallback={null}>
         {shareViewOpen && <ShareViewDialog open={shareViewOpen} onOpenChange={setShareViewOpen} viewId={activeViewId} tableId={activeTableId} />}
-        {apiTokensOpen && <ApiTokensDialog open={apiTokensOpen} onOpenChange={setApiTokensOpen} baseId={activeBaseId} />}
-        {automationsOpen && <AutomationsDialog open={automationsOpen} onOpenChange={setAutomationsOpen} tableId={activeTableId} baseId={activeBaseId} />}
-        {webhooksOpen && <WebhooksDialog open={webhooksOpen} onOpenChange={setWebhooksOpen} tableId={activeTableId} baseId={activeBaseId} />}
-        {auditLogOpen && <AuditLogDialog open={auditLogOpen} onOpenChange={setAuditLogOpen} baseId={activeBaseId} />}
       </Suspense>
 
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>

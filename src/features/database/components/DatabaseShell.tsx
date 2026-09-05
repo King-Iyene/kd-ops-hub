@@ -27,7 +27,7 @@ export function DatabaseShell() {
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-white dark:bg-[hsl(220,20%,10%)]">
-      <DatabaseTopBar onOpenShortcuts={handleOpenShortcuts} />
+      <DatabaseTopBar />
       <div className="flex flex-1 min-h-0">
         <DatabaseSidebar />
         <main className="flex-1 min-w-0 flex flex-col overflow-hidden">

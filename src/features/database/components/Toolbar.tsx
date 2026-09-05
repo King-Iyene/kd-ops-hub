@@ -1,16 +1,13 @@
 import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, Replace, Printer, FileJson, GripVertical, ChevronUp, ChevronDown, Paintbrush, FolderPlus, ChevronRight, Check } from 'lucide-react';
+import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, GripVertical, ChevronUp, ChevronDown, FolderPlus, ChevronRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
 import { useUndoStore } from '../lib/undo';
 import { useFields, useRecords, useCreateView } from '../hooks';
 import { CreateFieldDialog } from './CreateFieldDialog';
 const ImportCsvDialog = lazy(() => import('./ImportCsvDialog').then(m => ({ default: m.ImportCsvDialog })));
-import { SearchReplaceDialog } from './SearchReplaceDialog';
-import { ConditionalFormatDialog } from './ConditionalFormatDialog';
-import { exportToCsv, exportToJson, exportToXlsx } from '../lib/csv';
+import { exportToCsv } from '../lib/csv';
 import { useTables } from '../hooks';
-import { PrintView } from './PrintView';
 import type { Filter as FilterType, FilterGroup, Sort, Group, FilterOperator, RowColorRule, FieldMeta } from '../types';
 import { OPERATORS_BY_TYPE } from '../types';
 
@@ -969,9 +966,6 @@ export function Toolbar() {
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [importCsvOpen, setImportCsvOpen] = useState(false);
-  const [searchReplaceOpen, setSearchReplaceOpen] = useState(false);
-  const [conditionalFormatOpen, setConditionalFormatOpen] = useState(false);
-  const [printViewOpen, setPrintViewOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [hideOpen, setHideOpen] = useState(false);
@@ -1162,29 +1156,7 @@ export function Toolbar() {
                       setMoreOpen(false);
                     }}
                   >
-                    <Download size={14} className="text-zinc-400 dark:text-zinc-500" /> Export CSV
-                  </button>
-                  <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
-                    onClick={() => {
-                      if (fieldsData && recordsData?.records) {
-                        exportToXlsx(fieldsData, recordsData.records, tableName);
-                      }
-                      setMoreOpen(false);
-                    }}
-                  >
-                    <Download size={14} className="text-zinc-400 dark:text-zinc-500" /> Export XLSX
-                  </button>
-                  <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
-                    onClick={() => {
-                      if (fieldsData && recordsData?.records) {
-                        exportToJson(fieldsData, recordsData.records, tableName);
-                      }
-                      setMoreOpen(false);
-                    }}
-                  >
-                    <FileJson size={14} className="text-zinc-400 dark:text-zinc-500" /> Export JSON
+                    <Download size={14} className="text-zinc-400 dark:text-zinc-500" /> Download CSV
                   </button>
                   <button
                     className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
@@ -1195,52 +1167,10 @@ export function Toolbar() {
                   >
                     <Upload size={14} className="text-zinc-400 dark:text-zinc-500" /> Import CSV
                   </button>
-                  <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
-                  {/* Tools */}
-                  <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
-                    onClick={() => {
-                      setSearchReplaceOpen(true);
-                      setMoreOpen(false);
-                    }}
-                  >
-                    <Replace size={14} className="text-zinc-400 dark:text-zinc-500" /> Search & Replace
-                  </button>
-                  <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
-                    onClick={() => {
-                      setConditionalFormatOpen(true);
-                      setMoreOpen(false);
-                    }}
-                  >
-                    <Paintbrush size={14} className="text-zinc-400 dark:text-zinc-500" /> Conditional Format
-                  </button>
-                  <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
-                    onClick={() => {
-                      setPrintViewOpen(true);
-                      setMoreOpen(false);
-                    }}
-                  >
-                    <Printer size={14} className="text-zinc-400 dark:text-zinc-500" /> Print view
-                  </button>
                 </div>
               </>
             )}
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs text-zinc-500 dark:text-zinc-400 gap-1"
-            onClick={() => {
-              if (fieldsData && recordsData?.records) {
-                exportToCsv(fieldsData, recordsData.records, tableName);
-              }
-            }}
-            title="Download CSV"
-          >
-            <Download size={14} /> Export
-          </Button>
           <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
           <Button
             variant="ghost"
@@ -1257,16 +1187,6 @@ export function Toolbar() {
       <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />
       <SaveFilterAsViewDialog open={saveFilterViewOpen} onClose={() => setSaveFilterViewOpen(false)} />
       {importCsvOpen && <Suspense fallback={null}><ImportCsvDialog open={importCsvOpen} onOpenChange={setImportCsvOpen} /></Suspense>}
-      <SearchReplaceDialog open={searchReplaceOpen} onOpenChange={setSearchReplaceOpen} />
-      <ConditionalFormatDialog open={conditionalFormatOpen} onOpenChange={setConditionalFormatOpen} />
-      {printViewOpen && fieldsData && recordsData?.records && (
-        <PrintView
-          fields={fieldsData}
-          records={recordsData.records}
-          tableName={tableName}
-          onClose={() => setPrintViewOpen(false)}
-        />
-      )}
     </>
   );
 }
