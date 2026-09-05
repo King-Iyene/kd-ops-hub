@@ -552,7 +552,13 @@ async function handleRepairSchemaConfig(pool: Pool): Promise<{ schemas: string[]
       }
     }
 
-    const allSchemas = ['public', 'nc_meta', ...bases.map((b) => b.schema_name)];
+    // Only register schemas that actually exist in Postgres
+    const { rows: existingSchemas } = await conn.queryObject<{ schema_name: string }>(
+      `SELECT schema_name FROM information_schema.schemata WHERE schema_name = ANY($1)`,
+      [bases.map((b) => b.schema_name)],
+    );
+    const existingSet = new Set(existingSchemas.map((s) => s.schema_name));
+    const allSchemas = ['public', 'nc_meta', ...bases.map((b) => b.schema_name).filter((s) => existingSet.has(s))];
     const unique = [...new Set(allSchemas)];
 
     await conn.queryObject(

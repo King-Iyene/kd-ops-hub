@@ -132,9 +132,10 @@ const SYSTEM_FIELDS = [
 
 const SYSTEM_UI_TYPES = new Set(['ID', 'CreatedTime', 'LastModifiedTime', 'CreatedBy']);
 
-const BATCH_SIZE = 500;
-const RATE_LIMIT_DELAY = 220;
-const MAX_RETRIES = 3;
+const BATCH_SIZE = 1000;
+const RATE_LIMIT_DELAY = 200;
+const MAX_RETRIES = 5;
+const INSERT_CONCURRENCY = 3;
 
 async function rateLimitedFetch(url: string, options: RequestInit, retries = MAX_RETRIES): Promise<Response> {
   const res = await fetch(url, options);
@@ -482,17 +483,14 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           };
         });
 
-        for (const fr of fieldRows) {
-          await supabase.functions.invoke('ddl-executor', {
-            body: {
-              action: 'addColumn',
-              schemaName,
-              tableName: pgTableName,
-              columnName: fr.pg_column_name,
-              columnType: fr.pg_type,
-            },
-          });
-        }
+        await supabase.functions.invoke('ddl-executor', {
+          body: {
+            action: 'bulkAddColumns',
+            schemaName,
+            tableName: pgTableName,
+            columns: fieldRows.map((fr) => ({ name: fr.pg_column_name, type: fr.pg_type })),
+          },
+        });
 
         const { data: createdFields } = await supabase
           .schema('nc_meta')
@@ -543,47 +541,58 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             }
 
             let inserted = 0;
-            for (let b = 0; b < records.length; b += BATCH_SIZE) {
-              if (abortRef.current) break;
-              const batch = records.slice(b, b + BATCH_SIZE);
-              const rows = batch.map((rec: any, idx: number) => {
-                const row: Record<string, any> = { nc_order: b + idx + 1, airtable_id: rec.id };
-                for (const [fieldName, value] of Object.entries(rec.fields || {})) {
-                  const mapping = fieldMap[fieldName];
-                  if (mapping) {
-                    if (mapping.pgType === 'JSONB' || mapping.pgType === "JSONB DEFAULT '[]'::jsonb") {
-                      row[mapping.col] = value;
-                    } else if (mapping.pgType === 'TEXT[]') {
-                      row[mapping.col] = Array.isArray(value) ? value : [String(value)];
-                    } else if (mapping.pgType.startsWith('BOOLEAN')) {
-                      row[mapping.col] = Boolean(value);
-                    } else if (typeof value === 'object' && value !== null) {
-                      row[mapping.col] = JSON.stringify(value);
-                    } else {
-                      row[mapping.col] = value;
-                    }
+
+            const mapRecord = (rec: any, order: number) => {
+              const row: Record<string, any> = { nc_order: order, airtable_id: rec.id };
+              for (const [fieldName, value] of Object.entries(rec.fields || {})) {
+                const mapping = fieldMap[fieldName];
+                if (mapping) {
+                  if (mapping.pgType === 'JSONB' || mapping.pgType === "JSONB DEFAULT '[]'::jsonb") {
+                    row[mapping.col] = value;
+                  } else if (mapping.pgType === 'TEXT[]') {
+                    row[mapping.col] = Array.isArray(value) ? value : [String(value)];
+                  } else if (mapping.pgType.startsWith('BOOLEAN')) {
+                    row[mapping.col] = Boolean(value);
+                  } else if (typeof value === 'object' && value !== null) {
+                    row[mapping.col] = JSON.stringify(value);
+                  } else {
+                    row[mapping.col] = value;
                   }
                 }
-                return row;
-              });
+              }
+              return row;
+            };
 
+            const insertBatch = async (rows: Record<string, any>[]) => {
               const { error: insertErr } = await supabase.schema(schemaName).from(pgTableName).insert(rows);
               if (insertErr) {
-                // Retry each row individually on batch failure
-                let recoveredCount = 0;
-                for (const row of rows) {
-                  const { error: singleErr } = await supabase.schema(schemaName).from(pgTableName).insert(row);
-                  if (!singleErr) recoveredCount++;
+                const midpoint = Math.ceil(rows.length / 2);
+                if (rows.length <= 1) {
+                  errors.push(`${atTable.name}: 1 record failed`);
+                  return 0;
                 }
-                inserted += recoveredCount;
-                if (recoveredCount < rows.length) {
-                  const failedCount = rows.length - recoveredCount;
-                  errors.push(`${atTable.name}: ${failedCount} record${failedCount > 1 ? 's' : ''} failed to insert`);
-                }
-              } else {
-                inserted += batch.length;
+                const [a, b] = await Promise.all([
+                  insertBatch(rows.slice(0, midpoint)),
+                  insertBatch(rows.slice(midpoint)),
+                ]);
+                return a + b;
               }
+              return rows.length;
+            };
 
+            // Build all batches
+            const batches: Record<string, any>[][] = [];
+            for (let b = 0; b < records.length; b += BATCH_SIZE) {
+              const batch = records.slice(b, b + BATCH_SIZE);
+              batches.push(batch.map((rec: any, idx: number) => mapRecord(rec, b + idx + 1)));
+            }
+
+            // Insert batches with concurrency
+            for (let c = 0; c < batches.length; c += INSERT_CONCURRENCY) {
+              if (abortRef.current) break;
+              const chunk = batches.slice(c, c + INSERT_CONCURRENCY);
+              const results = await Promise.all(chunk.map(insertBatch));
+              inserted += results.reduce((a, b) => a + b, 0);
               setProgress((p) => ({
                 ...p,
                 recordsInserted: inserted,
