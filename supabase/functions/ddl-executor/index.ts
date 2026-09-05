@@ -470,6 +470,25 @@ async function handleDropSchema(
   const conn = await pool.connect();
   try {
     await conn.queryObject(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+
+    // Remove from PostgREST exposed schemas to prevent 503 crashes
+    const { rows } = await conn.queryObject<{ config: string }>(
+      `SELECT c AS config FROM (
+         SELECT unnest(setconfig) AS c
+         FROM pg_catalog.pg_db_role_setting
+         JOIN pg_catalog.pg_roles ON pg_roles.oid = pg_db_role_setting.setrole
+         WHERE rolname = 'authenticator'
+       ) sub WHERE c LIKE 'pgrst.db_schemas=%'`,
+    );
+    const current = rows[0]?.config?.replace('pgrst.db_schemas=', '') ?? 'public';
+    const schemas = current.split(',').map((s: string) => s.trim()).filter(Boolean);
+    const filtered = schemas.filter((s: string) => s !== body.schemaName);
+    if (filtered.length !== schemas.length) {
+      await conn.queryObject(
+        `ALTER ROLE authenticator SET pgrst.db_schemas = '${filtered.join(', ')}'`,
+      );
+      await conn.queryObject(`NOTIFY pgrst, 'reload config'`);
+    }
   } finally {
     conn.release();
   }

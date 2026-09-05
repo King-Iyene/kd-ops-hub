@@ -341,13 +341,17 @@ export interface Automation {
 
 export interface AuditLogEntry {
   id: string;
-  base_id: string;
-  table_id: string;
+  base_id: string | null;
+  table_id: string | null;
   record_id: string | null;
-  user_email: string;
-  action: 'INSERT' | 'UPDATE' | 'DELETE' | 'BULK_DELETE' | 'CREATE_TABLE' | 'DELETE_TABLE' | 'CREATE_FIELD' | 'DELETE_FIELD';
-  description: string;
-  changes: Record<string, { old: any; new: any }> | null;
+  field_id: string | null;
+  user_id: string | null;
+  user_email: string | null;
+  action: string;
+  description: string | null;
+  old_value: Record<string, any> | null;
+  new_value: Record<string, any> | null;
+  ip_address: string | null;
   created_at: string;
 }
 

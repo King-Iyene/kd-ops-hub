@@ -28,7 +28,7 @@ export function useAuditLog(
       }
       if (search?.trim()) {
         const q = `%${search.trim()}%`;
-        query = query.or(`description.ilike.${q},user_email.ilike.${q}`);
+        query = query.or(`action.ilike.${q},description.ilike.${q},user_email.ilike.${q}`);
       }
 
       const { data, error } = await query.range(from, to);

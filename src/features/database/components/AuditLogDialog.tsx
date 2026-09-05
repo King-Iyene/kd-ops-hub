@@ -82,8 +82,10 @@ function ChangeDiff({ changes }: { changes: Record<string, { old: any; new: any 
   );
 }
 
+const DEFAULT_META = { label: 'Action', color: '#6B7280', darkColor: '#9CA3AF', Icon: History };
+
 function EntryRow({ entry }: { entry: AuditLogEntry }) {
-  const meta = ACTION_META[entry.action];
+  const meta = ACTION_META[entry.action as ActionType] ?? DEFAULT_META;
   const IconComp = meta.Icon;
 
   return (
@@ -101,7 +103,7 @@ function EntryRow({ entry }: { entry: AuditLogEntry }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
-            {entry.user_email}
+            {entry.user_email ?? entry.user_id?.slice(0, 8) ?? 'System'}
           </span>
           <span
             className="text-[11px] font-medium px-1.5 py-0.5 rounded"
@@ -117,10 +119,14 @@ function EntryRow({ entry }: { entry: AuditLogEntry }) {
           </span>
         </div>
         <p className="text-[12px] text-[#6A7184] dark:text-[hsl(200,25%,60%)] mt-0.5 truncate">
-          {entry.description}
+          {entry.description ?? entry.action}
         </p>
-        {entry.action === 'UPDATE' && entry.changes && (
-          <ChangeDiff changes={entry.changes} />
+        {entry.action === 'UPDATE' && entry.old_value && entry.new_value && (
+          <ChangeDiff changes={Object.fromEntries(
+            Object.keys(entry.new_value)
+              .filter((k) => JSON.stringify(entry.old_value![k]) !== JSON.stringify(entry.new_value![k]))
+              .map((k) => [k, { old: entry.old_value![k] ?? null, new: entry.new_value![k] ?? null }])
+          )} />
         )}
       </div>
     </div>
