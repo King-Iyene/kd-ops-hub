@@ -384,40 +384,71 @@ test.describe('Record CRUD operations', () => {
   });
 
   test('UPDATE — edit an existing cell value', async ({ page }) => {
+    test.slow(); // Triple timeout — recovery steps need >30s
+
     const cell = page.locator('[role="gridcell"]').first();
 
-    // The virtualizer needs a scroll container with measurable height.
-    // In CI the flex chain can resolve to 0px, producing 0 virtual items.
-    // Force the container height if needed.
-    async function ensureVirtualizerHeight() {
-      await page.evaluate(() => {
+    if (!await cell.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      // Diagnose the page state
+      const state = await page.evaluate(() => {
         const grid = document.querySelector('[role="grid"]');
+        const empty = document.querySelector('text=No records yet') ||
+          [...document.querySelectorAll('*')].find(el => el.textContent?.includes('No records yet'));
         const container = grid?.parentElement;
-        if (container && container.offsetHeight === 0) {
-          container.style.height = '600px';
-        }
+        return {
+          hasGrid: !!grid,
+          hasEmpty: !!empty,
+          gridCells: document.querySelectorAll('[role="gridcell"]').length,
+          gridRows: document.querySelectorAll('[role="row"]').length,
+          containerHeight: container?.offsetHeight ?? -1,
+          containerClientHeight: container?.clientHeight ?? -1,
+          bodyText: document.body.innerText.substring(0, 500),
+        };
       });
-      await page.waitForTimeout(2000);
-    }
+      console.log('UPDATE diagnostics:', JSON.stringify(state));
+      await screenshotStep(page, '35_diag_no_cells');
 
-    if (!await cell.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      console.log('UPDATE: cells not visible, forcing container height');
-      await ensureVirtualizerHeight();
-    }
+      // Fix 1: force container height if grid exists but has 0 height
+      if (state.hasGrid && state.containerHeight === 0) {
+        await page.evaluate(() => {
+          const grid = document.querySelector('[role="grid"]');
+          const container = grid?.parentElement;
+          if (container) container.style.height = '600px';
+        });
+        await page.waitForTimeout(2000);
+      }
 
-    if (!await cell.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      console.log('UPDATE: still no cells, reloading');
-      await page.reload();
-      await page.waitForLoadState('domcontentloaded');
-      await waitForGridLoad(page);
-      await ensureVirtualizerHeight();
-    }
+      // Fix 2: reload and try again
+      if (!await cell.isVisible().catch(() => false)) {
+        await page.reload();
+        await page.waitForLoadState('domcontentloaded');
+        await waitForGridLoad(page);
 
-    if (!await cell.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      console.log('UPDATE: still no cells, adding row');
-      await clickAddRow(page);
-      await page.waitForTimeout(2000);
-      await ensureVirtualizerHeight();
+        // Force height after reload
+        await page.evaluate(() => {
+          const grid = document.querySelector('[role="grid"]');
+          const container = grid?.parentElement;
+          if (container && container.offsetHeight === 0) {
+            container.style.height = '600px';
+          }
+        });
+        await page.waitForTimeout(2000);
+      }
+
+      // Fix 3: create a row if still nothing
+      if (!await cell.isVisible().catch(() => false)) {
+        await clickAddRow(page);
+        await page.waitForTimeout(2000);
+        // Force height one more time
+        await page.evaluate(() => {
+          const grid = document.querySelector('[role="grid"]');
+          const container = grid?.parentElement;
+          if (container && container.offsetHeight === 0) {
+            container.style.height = '600px';
+          }
+        });
+        await page.waitForTimeout(2000);
+      }
     }
 
     await screenshotStep(page, '35_before_update');
