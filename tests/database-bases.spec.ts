@@ -53,11 +53,14 @@ async function navigateToData(page: Page) {
 }
 
 async function waitForGridLoad(page: Page) {
-  await page
-    .locator('[role="grid"]')
-    .or(page.locator('text=/No records|0 records|Add row|Empty/i'))
-    .first()
-    .waitFor({ timeout: 15_000 });
+  const grid = page.locator('[role="grid"]');
+  const empty = page.locator('text=/No records|0 records|Add row|Empty/i');
+  await grid.or(empty).first().waitFor({ timeout: 15_000 });
+  // If the grid container rendered (records exist), wait for the virtualizer
+  // to produce at least one cell before continuing.
+  if (await grid.isVisible().catch(() => false)) {
+    await page.locator('[role="gridcell"]').first().waitFor({ timeout: 10_000 }).catch(() => {});
+  }
   await page.waitForTimeout(500);
 }
 
@@ -378,7 +381,6 @@ test.describe('Record CRUD operations', () => {
 
   test('UPDATE — edit an existing cell value', async ({ page }) => {
     const cells = page.locator('[role="gridcell"]');
-    await cells.first().waitFor({ timeout: 10_000 }).catch(() => {});
     const cellCount = await cells.count();
     if (cellCount > 0) {
       const targetCell = cells.first();
