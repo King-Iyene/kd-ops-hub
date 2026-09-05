@@ -386,62 +386,44 @@ test.describe('Record CRUD operations', () => {
   test('UPDATE — edit an existing cell value', async ({ page }) => {
     test.slow();
 
+    // Reload to get a clean page state — prior tests may leave fields unloaded
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+    await waitForGridLoad(page);
+
     const cell = page.locator('[role="gridcell"]').first();
 
-    if (!await cell.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    // Wait up to 15s for gridcells to appear after the fresh page load
+    if (!await cell.isVisible({ timeout: 15_000 }).catch(() => false)) {
       const state = await page.evaluate(() => {
         const grid = document.querySelector('[role="grid"]');
-        const empty = Array.from(document.querySelectorAll('p, div, span'))
-          .some(el => el.textContent?.includes('No records yet'));
         const container = grid?.parentElement;
         return {
           hasGrid: !!grid,
-          hasEmpty: empty,
           gridCells: document.querySelectorAll('[role="gridcell"]').length,
           gridRows: document.querySelectorAll('[role="row"]').length,
           containerHeight: container?.offsetHeight ?? -1,
-          containerClientHeight: container?.clientHeight ?? -1,
-          bodyText: document.body.innerText.substring(0, 500),
         };
       });
-      console.log('UPDATE diagnostics:', JSON.stringify(state));
-      await screenshotStep(page, '35_diag_no_cells');
+      console.log('UPDATE diagnostics after reload:', JSON.stringify(state));
 
-      if (state.hasGrid && state.containerHeight === 0) {
-        await page.evaluate(() => {
-          const grid = document.querySelector('[role="grid"]');
-          const container = grid?.parentElement;
-          if (container) container.style.height = '600px';
-        });
-        await page.waitForTimeout(2000);
-      }
-
-      if (!await cell.isVisible().catch(() => false)) {
-        await page.reload();
+      // If rows exist but no cells, navigate away and back to force full re-render
+      if (state.gridRows > 0 && state.gridCells === 0) {
+        await page.goto('/data');
         await page.waitForLoadState('domcontentloaded');
+        await page.locator('aside').waitFor({ timeout: 15_000 });
+        await page.waitForTimeout(1000);
+        await clickFirstSidebarBase(page);
         await waitForGridLoad(page);
-        await page.evaluate(() => {
-          const grid = document.querySelector('[role="grid"]');
-          const container = grid?.parentElement;
-          if (container && container.offsetHeight === 0) {
-            container.style.height = '600px';
-          }
-        });
         await page.waitForTimeout(2000);
       }
+    }
 
-      if (!await cell.isVisible().catch(() => false)) {
-        await clickAddRow(page);
-        await page.waitForTimeout(2000);
-        await page.evaluate(() => {
-          const grid = document.querySelector('[role="grid"]');
-          const container = grid?.parentElement;
-          if (container && container.offsetHeight === 0) {
-            container.style.height = '600px';
-          }
-        });
-        await page.waitForTimeout(2000);
-      }
+    // If still no gridcells, create a fresh row to guarantee one exists
+    if (!await cell.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      console.log('UPDATE: creating fresh row as fallback');
+      await clickAddRow(page);
+      await page.waitForTimeout(3000);
     }
 
     await screenshotStep(page, '35_before_update');
