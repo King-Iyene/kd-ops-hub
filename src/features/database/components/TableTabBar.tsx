@@ -129,7 +129,7 @@ function darkenColor(hex: string, amount: number): string {
 export function TableTabBar() {
   const { activeBaseId, activeTableId } = useDatabaseUI();
   const { navigateToTable } = useDatabaseNavigate();
-  const { data: tables } = useTables(activeBaseId);
+  const { data: tables, isFetching: isTablesFetching } = useTables(activeBaseId);
   const { data: bases } = useBases();
   const activeBase = bases?.find((b: any) => b.id === activeBaseId);
   const baseColor = activeBase?.color || '#2D7FF9';
@@ -231,9 +231,11 @@ export function TableTabBar() {
   // Auto-select first table when base changes
   useEffect(() => {
     if (!tables || tables.length === 0 || !activeBaseId) return;
+    // Don't auto-navigate while tables are refetching (cache invalidation)
+    if (isTablesFetching) return;
     if (activeTableId && tables.some((t: any) => t.id === activeTableId)) return;
     navigateToTable(tables[0].id);
-  }, [tables, activeBaseId, activeTableId, navigateToTable]);
+  }, [tables, activeBaseId, activeTableId, navigateToTable, isTablesFetching]);
 
   if (!activeBaseId) return null;
 

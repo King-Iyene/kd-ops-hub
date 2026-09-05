@@ -34,9 +34,9 @@ export function useDatabaseNavigate() {
       if (tableId && activeBaseId) {
         const baseSlug = findSlug(bases, activeBaseId);
         const tableSlug = findSlug(tables, tableId);
-        navigate(`/data/${baseSlug}/${tableSlug}`);
+        navigate(`/data/${baseSlug}/${tableSlug}`, { replace: true });
       } else if (activeBaseId) {
-        navigate(`/data/${findSlug(bases, activeBaseId)}`);
+        navigate(`/data/${findSlug(bases, activeBaseId)}`, { replace: true });
       }
     },
     [navigate, activeBaseId, bases, tables],
