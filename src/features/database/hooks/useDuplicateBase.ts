@@ -49,6 +49,12 @@ export function useDuplicateBase() {
 
       if (ddlError) throw ddlError;
 
+      const { error: exposeError } = await supabase.functions.invoke('ddl-executor', {
+        body: { action: 'exposeSchema', schemaName },
+      });
+
+      if (exposeError) throw exposeError;
+
       // 4. Fetch all tables from the source base
       const { data: sourceTables, error: tablesError } = await supabase
         .schema('nc_meta')
