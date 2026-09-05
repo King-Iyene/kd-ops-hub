@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 
 /**
  * Comprehensive E2E test suite for the Database (Bases) feature.
@@ -10,6 +11,8 @@ import * as path from 'path';
  * the first run.
  */
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const STATE_FILE = path.join(__dirname, '.e2e-test-base-state.json');
 
 function loadPersistedState(): { name: string; url: string | null } {
