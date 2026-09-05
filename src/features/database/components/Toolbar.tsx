@@ -1011,6 +1011,17 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
+              className="h-7 text-[13px] text-zinc-500 dark:text-zinc-400 gap-1"
+              onClick={() => { setHideOpen(!hideOpen); setFilterOpen(false); setSortOpen(false); setGroupOpen(false); setColorOpen(false); }}
+            >
+              <EyeOff size={14} /> Hide fields
+            </Button>
+            {hideOpen && <HideFieldsPanel onClose={() => setHideOpen(false)} />}
+          </div>
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
               className={`h-7 text-[13px] gap-1 ${totalFilterCount > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`}
               onClick={() => { setFilterOpen(!filterOpen); setSortOpen(false); setHideOpen(false); setGroupOpen(false); setColorOpen(false); }}
             >
@@ -1027,17 +1038,6 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className={`h-7 text-[13px] gap-1 ${sorts.length > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`}
-              onClick={() => { setSortOpen(!sortOpen); setFilterOpen(false); setHideOpen(false); setGroupOpen(false); setColorOpen(false); }}
-            >
-              <ArrowUpDown size={14} /> Sort{sorts.length > 0 ? ` (${sorts.length})` : ''}
-            </Button>
-            {sortOpen && <SortPanel onClose={() => setSortOpen(false)} />}
-          </div>
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="sm"
               className={`h-7 text-[13px] gap-1 ${groupByLevels.length > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`}
               onClick={() => { setGroupOpen(!groupOpen); setFilterOpen(false); setSortOpen(false); setHideOpen(false); setColorOpen(false); }}
             >
@@ -1049,12 +1049,12 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-[13px] text-zinc-500 dark:text-zinc-400 gap-1"
-              onClick={() => { setHideOpen(!hideOpen); setFilterOpen(false); setSortOpen(false); setGroupOpen(false); setColorOpen(false); }}
+              className={`h-7 text-[13px] gap-1 ${sorts.length > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`}
+              onClick={() => { setSortOpen(!sortOpen); setFilterOpen(false); setHideOpen(false); setGroupOpen(false); setColorOpen(false); }}
             >
-              <EyeOff size={14} /> Fields
+              <ArrowUpDown size={14} /> Sort{sorts.length > 0 ? ` (${sorts.length})` : ''}
             </Button>
-            {hideOpen && <HideFieldsPanel onClose={() => setHideOpen(false)} />}
+            {sortOpen && <SortPanel onClose={() => setSortOpen(false)} />}
           </div>
           <div className="relative">
             <Button

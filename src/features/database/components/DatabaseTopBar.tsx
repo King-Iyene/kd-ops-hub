@@ -9,6 +9,13 @@ import { useBases } from '../hooks';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { AvatarBubble } from '@/components/AvatarBubble';
 
+function darkenColor(hex: string, amount: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgb(${Math.round(r * (1 - amount))}, ${Math.round(g * (1 - amount))}, ${Math.round(b * (1 - amount))})`;
+}
+
 export function DatabaseTopBar() {
   const { toggleSidebar, activeBaseId } = useDatabaseUI();
   const profile = useAuthStore((s) => s.profile);
@@ -36,39 +43,29 @@ export function DatabaseTopBar() {
 
   return (
     <>
-      <header className="flex items-center justify-between h-11 px-3 bg-white dark:bg-[hsl(200,30%,8%)] border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] shrink-0">
+      <header className="flex items-center justify-between h-[44px] px-3 shrink-0" style={{ backgroundColor: activeBase?.color ? darkenColor(activeBase.color, 0.65) : '#1F2937' }}>
         <div className="flex items-center gap-1.5">
           <Link
             to="/"
-            className="p-1.5 rounded-md hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] text-[#6A7184] dark:text-[hsl(200,20%,55%)] transition-colors"
+            className="p-1.5 rounded-md hover:bg-white/10 text-white/70 transition-colors"
           >
             <ArrowLeft size={16} />
           </Link>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)]"
+            className="h-7 w-7 text-white/70 hover:bg-white/10 hover:text-white"
             onClick={toggleSidebar}
           >
             <Menu size={16} />
           </Button>
           <div className="flex items-center gap-1.5 ml-1">
             {activeBase ? (
-              <>
-                <span
-                  className="w-5 h-5 rounded flex items-center justify-center text-[10px] shrink-0"
-                  style={{ backgroundColor: activeBase.color || '#2D7FF9' }}
-                >
-                  <span className="text-white font-bold">
-                    {activeBase.name?.charAt(0)?.toUpperCase() || 'B'}
-                  </span>
-                </span>
-                <span className="text-[14px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
-                  {activeBase.name}
-                </span>
-              </>
+              <span className="text-[14px] font-semibold text-white">
+                {activeBase.name}
+              </span>
             ) : (
-              <span className="text-[14px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
+              <span className="text-[14px] font-semibold text-white">
                 Bases
               </span>
             )}
@@ -79,7 +76,7 @@ export function DatabaseTopBar() {
           {activeBaseId && (
             <Button
               size="sm"
-              className="h-7 px-3 text-[12px] font-medium gap-1.5 rounded-full bg-white dark:bg-[hsl(200,25%,18%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border border-[#D1D5DB] dark:border-[hsl(200,25%,25%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,22%)] shadow-sm"
+              className="h-7 px-3 text-[12px] font-medium gap-1.5 rounded-full bg-white/20 text-white border border-white/25 hover:bg-white/30 shadow-sm"
               onClick={() => setShareOpen(true)}
             >
               <Share2 size={13} /> Share
@@ -88,7 +85,7 @@ export function DatabaseTopBar() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)]"
+            className="h-7 w-7 text-white/70 hover:bg-white/10 hover:text-white"
             onClick={() => setHelpOpen(true)}
           >
             <HelpCircle size={15} />

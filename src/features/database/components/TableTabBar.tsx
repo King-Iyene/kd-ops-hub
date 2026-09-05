@@ -39,6 +39,7 @@ import { useDatabaseUI } from '../lib/store';
 import { useDatabaseNavigate } from '../hooks/useNavigate';
 import {
   useTables,
+  useBases,
   useCreateTable,
   useDeleteTable,
   useUpdateTable,
@@ -118,10 +119,20 @@ function SortableTableTabWrapper({ id, children }: { id: string; children: (prop
   return <>{children({ setNodeRef, style, attributes, listeners })}</>;
 }
 
+function darkenColor(hex: string, amount: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgb(${Math.round(r * (1 - amount))}, ${Math.round(g * (1 - amount))}, ${Math.round(b * (1 - amount))})`;
+}
+
 export function TableTabBar() {
   const { activeBaseId, activeTableId } = useDatabaseUI();
   const { navigateToTable } = useDatabaseNavigate();
   const { data: tables } = useTables(activeBaseId);
+  const { data: bases } = useBases();
+  const activeBase = bases?.find((b: any) => b.id === activeBaseId);
+  const baseColor = activeBase?.color || '#2D7FF9';
   const createTable = useCreateTable();
   const deleteTable = useDeleteTable();
   const updateTable = useUpdateTable();
@@ -227,7 +238,7 @@ export function TableTabBar() {
   if (!activeBaseId) return null;
 
   return (
-    <div className="flex items-center h-[32px] bg-[#F5F5F5] dark:bg-[hsl(220,30%,12%)] border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] px-1 gap-0 overflow-x-auto shrink-0 select-none">
+    <div className="flex items-center h-[32px] px-1 gap-0 overflow-x-auto shrink-0 select-none" style={{ backgroundColor: darkenColor(baseColor, 0.55) }}>
       <DndContext sensors={tableSensors} collisionDetection={closestCenter} onDragEnd={handleTableDragEnd}>
         <SortableContext items={sortedTables.map((t: any) => t.id)} strategy={horizontalListSortingStrategy}>
       {sortedTables.map((table: any) => (
@@ -238,8 +249,8 @@ export function TableTabBar() {
             className={cn(
               'relative flex items-center gap-1.5 h-full px-3 text-[13px] cursor-pointer transition-colors',
               table.id === activeTableId
-                ? 'bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium rounded-t-md border-t border-l border-r border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] -mb-px'
-                : 'text-[#6A7184] hover:text-[#374151] dark:hover:text-[hsl(200,25%,78%)]',
+                ? 'bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium rounded-t-md -mb-px'
+                : 'text-white/70 hover:text-white',
             )}
             onClick={() => navigateToTable(table.id)}
             onDoubleClick={() => setRenamingId(table.id)}
@@ -265,7 +276,7 @@ export function TableTabBar() {
               <DropdownMenuTrigger asChild>
                 <button
                   className={cn(
-                    'p-0.5 rounded hover:bg-[#E5E5E5] dark:hover:bg-[hsl(200,25%,18%)] transition-opacity shrink-0',
+                    'p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0',
                     table.id === activeTableId
                       ? 'opacity-60 hover:opacity-100'
                       : 'opacity-0 group-hover/tab:opacity-60 hover:!opacity-100',
@@ -341,7 +352,7 @@ export function TableTabBar() {
       <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
         <DropdownMenuTrigger asChild>
           <button
-            className="flex items-center justify-center h-7 w-7 ml-0.5 rounded hover:bg-white/60 dark:hover:bg-[hsl(200,25%,16%)] text-[#6A7184] hover:text-[#374151] transition-colors shrink-0"
+            className="flex items-center justify-center h-7 w-7 ml-0.5 rounded hover:bg-white/20 text-white/70 hover:text-white transition-colors shrink-0"
             title="Add table"
           >
             <Plus size={15} />

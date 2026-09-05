@@ -104,8 +104,8 @@ function SortableViewTab({
       style={{
         ...style,
         color: isActive ? '#2D7FF9' : '#6A7184',
-        backgroundColor: isActive ? '#FFFFFF' : 'transparent',
-        borderLeft: isActive ? '2px solid #2D7FF9' : 'none',
+        backgroundColor: isActive ? 'transparent' : 'transparent',
+        borderBottom: isActive ? '2px solid #2D7FF9' : '2px solid transparent',
       }}
     >
       <Icon size={13} />
