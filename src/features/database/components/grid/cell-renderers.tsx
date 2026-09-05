@@ -198,6 +198,17 @@ export const DecimalCellRenderer = React.memo(function DecimalCellRenderer({
   );
 });
 
+const SYMBOL_TO_ISO: Record<string, string> = {
+  '₦': 'NGN', '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', '₹': 'INR',
+  '₩': 'KRW', '₽': 'RUB', '₺': 'TRY', '₴': 'UAH', '₸': 'KZT', '₫': 'VND',
+  '₵': 'GHS', 'R': 'ZAR', 'Fr': 'CHF', 'kr': 'SEK', 'zł': 'PLN', 'Kč': 'CZK',
+};
+
+function resolveISO(raw: string): string {
+  if (/^[A-Z]{3}$/.test(raw)) return raw;
+  return SYMBOL_TO_ISO[raw] ?? 'USD';
+}
+
 export const CurrencyCellRenderer = React.memo(function CurrencyCellRenderer({
   value,
   field,
@@ -205,11 +216,13 @@ export const CurrencyCellRenderer = React.memo(function CurrencyCellRenderer({
   if (value == null || value === '') return null;
   const num = Number(value);
   if (isNaN(num)) return null;
-  const code = field.options?.currencyCode || 'USD';
-  const formatted = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: code,
-  }).format(num);
+  const code = resolveISO(field.options?.currencyCode || 'USD');
+  let formatted: string;
+  try {
+    formatted = new Intl.NumberFormat(undefined, { style: 'currency', currency: code }).format(num);
+  } catch {
+    formatted = `${field.options?.currencyCode ?? ''}${num.toLocaleString()}`;
+  }
   return (
     <span className="truncate block text-right w-full">{formatted}</span>
   );
