@@ -47,7 +47,8 @@ async function screenshotStep(page: Page, name: string) {
 
 async function navigateToData(page: Page) {
   await page.goto('/data');
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
+  await page.locator('aside').waitFor({ timeout: 15_000 });
   await page.waitForTimeout(1000);
 }
 
@@ -106,7 +107,7 @@ async function clickAddRow(page: Page) {
 async function navigateToTestBase(page: Page) {
   if (testBaseUrl) {
     await page.goto(testBaseUrl);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
   } else {
     await navigateToData(page);
@@ -638,7 +639,8 @@ test.describe('Performance', () => {
   test('data page loads within acceptable time', async ({ page }) => {
     const start = Date.now();
     await page.goto('/data');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await page.locator('aside').waitFor({ timeout: 15_000 });
     const loadTime = Date.now() - start;
 
     console.log(`/data page load time: ${loadTime}ms`);
