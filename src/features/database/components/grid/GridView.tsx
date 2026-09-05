@@ -178,12 +178,11 @@ const SummaryRow = React.memo(function SummaryRow({
 
   return (
     <div
-      className="flex"
+      className="flex shrink-0 overflow-x-hidden"
       style={{
         backgroundColor: colors.headerBg,
         borderTop: `1px solid ${colors.borderStrong}`,
-        borderBottom: `1px solid ${colors.border}`,
-        minHeight: 36,
+        minHeight: 32,
       }}
     >
       {/* Sigma icon cell */}
@@ -197,7 +196,7 @@ const SummaryRow = React.memo(function SummaryRow({
           color: colors.muted,
         }}
       >
-        <Sigma size={14} />
+        <Sigma size={13} />
       </div>
 
       {fields.map((field, colIdx) => {
@@ -229,7 +228,7 @@ const SummaryRow = React.memo(function SummaryRow({
             <button
               data-summary-field={field.id}
               className="w-full h-full flex flex-col justify-center px-2 text-left"
-              style={{ minHeight: 40 }}
+              style={{ minHeight: 32 }}
               onClick={() => setSummaryDropdown(isOpen ? null : field.id)}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
@@ -1629,19 +1628,6 @@ export default function GridView({
             })}
           </div>
 
-          {/* Summary row */}
-          <SummaryRow
-            fields={fieldsWithWidths}
-            records={records}
-            summaryFunctions={summaryFunctions}
-            setSummaryFunction={setSummaryFunction}
-            summaryDropdown={summaryDropdown}
-            setSummaryDropdown={setSummaryDropdown}
-            rowNumberWidth={ROW_NUMBER_WIDTH}
-            frozenCount={frozenCount}
-            colors={GRID_COLORS}
-          />
-
           {/* Add row button */}
           <button
             className="flex items-center w-full text-left cursor-pointer transition-colors"
@@ -1704,14 +1690,27 @@ export default function GridView({
         />
       )}
 
-      {/* Pagination */}
+      {/* Summary footer row — Airtable-style: summaries above the status bar */}
+      <SummaryRow
+        fields={fieldsWithWidths}
+        records={records}
+        summaryFunctions={summaryFunctions}
+        setSummaryFunction={setSummaryFunction}
+        summaryDropdown={summaryDropdown}
+        setSummaryDropdown={setSummaryDropdown}
+        rowNumberWidth={ROW_NUMBER_WIDTH}
+        frozenCount={frozenCount}
+        colors={GRID_COLORS}
+      />
+
+      {/* Footer status bar */}
       <div
         className="flex items-center justify-between px-4 shrink-0"
         style={{
-          height: 40,
+          height: 32,
           borderTop: `1px solid ${GRID_COLORS.border}`,
           backgroundColor: GRID_COLORS.headerBg,
-          fontSize: 13,
+          fontSize: 12,
           color: GRID_COLORS.muted,
         }}
       >
@@ -1742,7 +1741,7 @@ export default function GridView({
             onClick={() => onPageChange(page - 1)}
             aria-label="Previous page"
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={14} />
           </button>
           <span>
             Page {page + 1} of {Math.max(totalPages, 1)}
@@ -1753,7 +1752,7 @@ export default function GridView({
             onClick={() => onPageChange(page + 1)}
             aria-label="Next page"
           >
-            <ChevronRight size={16} />
+            <ChevronRight size={14} />
           </button>
         </div>
       </div>
