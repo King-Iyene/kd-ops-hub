@@ -403,6 +403,7 @@ async function handleCreateRecords(
     }));
 
     dispatchWebhooks(pool, base.id, table.id, table.name, 'record.created', { records: result });
+    logAudit(pool, base.id, table.id, 'INSERT', result);
 
     return json({ records: result }, 201);
   } catch (e) {
@@ -458,6 +459,7 @@ async function handleUpdateRecords(
     }));
 
     dispatchWebhooks(pool, base.id, table.id, table.name, 'record.updated', { records: result });
+    logAudit(pool, base.id, table.id, 'UPDATE', result);
 
     return json({ records: result });
   } catch (e) {
@@ -497,6 +499,7 @@ async function handleDeleteRecords(
     const result = rows.map(r => ({ id: r.id, deleted: true }));
 
     dispatchWebhooks(pool, base.id, table.id, table.name, 'record.deleted', { records: result });
+    logAudit(pool, base.id, table.id, 'DELETE', result);
 
     return json({ records: result });
   } finally {
@@ -557,6 +560,42 @@ async function dispatchWebhooks(
            AND $3 = ANY(events)`,
         [baseId, tableId, event],
       ).catch(() => {});
+    } finally {
+      conn.release();
+    }
+  } catch { /* best-effort */ }
+}
+
+// ---------- Audit Logging ----------
+
+async function logAudit(
+  pool: Pool,
+  baseId: string,
+  tableId: string,
+  action: string,
+  records: any[],
+  oldValues?: any[],
+) {
+  try {
+    const conn = await pool.connect();
+    try {
+      for (let i = 0; i < records.length; i++) {
+        const rec = records[i];
+        await conn.queryObject(
+          `INSERT INTO nc_meta.audit_log
+           (base_id, table_id, record_id, action, old_value, new_value, description, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, now())`,
+          [
+            baseId,
+            tableId,
+            rec.id ?? null,
+            action,
+            oldValues?.[i] ? JSON.stringify(oldValues[i]) : null,
+            rec.fields ? JSON.stringify(rec.fields) : null,
+            `${action} record ${rec.id ?? ''}`.trim(),
+          ],
+        );
+      }
     } finally {
       conn.release();
     }

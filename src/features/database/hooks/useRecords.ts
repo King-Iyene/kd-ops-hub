@@ -11,6 +11,24 @@ function fireAutomations(event: string, baseId: string, tableId: string, record?
   });
 }
 
+function logRecordAudit(action: string, baseId: string, tableId: string, recordId?: string, newValue?: any, oldValue?: any) {
+  supabase.auth.getUser().then(({ data }) => {
+    supabase.schema('nc_meta').from('audit_log').insert({
+      base_id: baseId,
+      table_id: tableId,
+      record_id: recordId ?? null,
+      user_id: data.user?.id ?? null,
+      user_email: data.user?.email ?? null,
+      action,
+      old_value: oldValue ?? null,
+      new_value: newValue ?? null,
+      description: `${action} record${recordId ? ` ${recordId.slice(0, 8)}` : ''}`,
+    }).then(({ error }) => {
+      if (error) console.warn('[KDOps] Audit log failed:', error.message);
+    });
+  }).catch(() => {});
+}
+
 interface UseRecordsParams {
   baseId: string;
   tableId: string;
@@ -506,6 +524,7 @@ export function useCreateRecord() {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       qc.invalidateQueries({ queryKey: ['nc', 'recordCount'] });
       fireAutomations('record.created', variables.baseId, variables.tableId, data);
+      logRecordAudit('INSERT', variables.baseId, variables.tableId, data.id, data);
     },
   });
 }
@@ -564,6 +583,7 @@ export function useUpdateRecord() {
     },
     onSuccess: (data, variables) => {
       fireAutomations('record.updated', variables.baseId, variables.tableId, data);
+      logRecordAudit('UPDATE', variables.baseId, variables.tableId, variables.recordId, { [variables.field]: variables.value });
     },
   });
 }
@@ -640,6 +660,7 @@ export function useDeleteRecord() {
     },
     onSuccess: (_data, variables) => {
       fireAutomations('record.deleted', variables.baseId, variables.tableId, { id: variables.recordId });
+      logRecordAudit('DELETE', variables.baseId, variables.tableId, variables.recordId);
     },
     onSettled: (_data, _error, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
