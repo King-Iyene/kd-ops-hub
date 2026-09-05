@@ -2,7 +2,7 @@ import React from 'react';
 import { Check, ExternalLink, Copy, Paperclip, Plus, Star, Clock, Link2, AlertTriangle, Barcode } from 'lucide-react';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { LinkCellRenderer } from './LinkCellRenderer';
-// LookupCellRenderer and RollupCellRenderer are defined locally below
+import { LookupCellRenderer as SmartLookupCellRenderer, RollupCellRenderer as SmartRollupCellRenderer } from './LookupRollupCellRenderer';
 import { PILL_COLORS, SELECT_COLORS } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { useGridColors } from '../../hooks/useGridColors';
@@ -829,11 +829,11 @@ export function getCellRenderer(uiType: string) {
     case 'Links':
       return LinkCellRenderer;
     case 'Lookup':
-      return LookupCellRenderer;
+      return SmartLookupCellRenderer as any;
     case 'Rollup':
-      return RollupCellRenderer;
+      return SmartRollupCellRenderer as any;
     case 'Count':
-      return RollupCellRenderer;
+      return SmartRollupCellRenderer as any;
     case 'Button':
       return ButtonCellRenderer;
     case 'User':
