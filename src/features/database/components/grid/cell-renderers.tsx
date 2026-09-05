@@ -351,14 +351,14 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
             key={i}
             src={f.url}
             alt={f.name}
-            className="h-6 w-6 rounded object-cover shrink-0"
+            className="h-8 w-8 rounded object-cover shrink-0"
             style={{ border: `1px solid ${colors.dropdownBorder}` }}
             title={f.name}
           />
         ) : (
           <span
             key={i}
-            className="h-6 px-1.5 rounded flex items-center shrink-0"
+            className="h-8 px-1.5 rounded flex items-center shrink-0"
             style={{ backgroundColor: colors.dropdownHover, border: `1px solid ${colors.dropdownBorder}` }}
             title={f.name}
           >
@@ -505,7 +505,7 @@ export const PercentCellRenderer = React.memo(function PercentCellRenderer({
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
   return (
     <div className="flex items-center gap-2 w-full">
-      <div className="flex-1 h-1.5 rounded-full bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] overflow-hidden">
+      <div className="flex-1 h-1 rounded-full bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] overflow-hidden" style={{ height: 4 }}>
         <div
           className="h-full rounded-full"
           style={{ width: `${Math.min(100, Math.max(0, num))}%`, backgroundColor: '#2563EB' }}

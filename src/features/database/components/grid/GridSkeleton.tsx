@@ -2,8 +2,8 @@ import React from 'react';
 
 const SKELETON_ROWS = 12;
 const SKELETON_COLS = 6;
-const ROW_NUMBER_WIDTH = 72;
-const HEADER_HEIGHT = 36;
+const ROW_NUMBER_WIDTH = 44;
+const HEADER_HEIGHT = 32;
 
 export function GridSkeleton({ rowHeight = 44 }: { rowHeight?: number }) {
   return (

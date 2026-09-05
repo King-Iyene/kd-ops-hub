@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Expand, Copy, Link, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { RecordRow } from '../../types';
+import { confirm } from '@/hooks/use-confirm';
 
 interface RowContextMenuProps {
   x: number;
@@ -120,11 +121,12 @@ export function RowContextMenu({
 
           <button
             className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-            onClick={() => {
-              if (window.confirm('Are you sure you want to delete this record? This action cannot be undone.')) {
+            onClick={async () => {
+              onClose();
+              const confirmed = await confirm({ description: 'Are you sure you want to delete this record? This action cannot be undone.', variant: 'destructive' });
+              if (confirmed) {
                 onDeleteRow(record.id);
               }
-              onClose();
             }}
           >
             <Trash2 size={14} className="text-red-500" />
