@@ -386,19 +386,41 @@ test.describe('Record CRUD operations', () => {
   test('UPDATE — edit an existing cell value', async ({ page }) => {
     const cell = page.locator('[role="gridcell"]').first();
 
-    // If no cells visible, try reload to nudge virtualizer
+    // The virtualizer needs a scroll container with measurable height.
+    // In CI the flex chain can resolve to 0px, producing 0 virtual items.
+    // Force the container height if needed.
+    async function ensureVirtualizerHeight() {
+      await page.evaluate(() => {
+        const grid = document.querySelector('[role="grid"]');
+        const container = grid?.parentElement;
+        if (container && container.offsetHeight === 0) {
+          container.style.height = '600px';
+        }
+      });
+      await page.waitForTimeout(2000);
+    }
+
     if (!await cell.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      console.log('UPDATE: cells not visible, forcing container height');
+      await ensureVirtualizerHeight();
+    }
+
+    if (!await cell.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      console.log('UPDATE: still no cells, reloading');
       await page.reload();
       await page.waitForLoadState('domcontentloaded');
       await waitForGridLoad(page);
+      await ensureVirtualizerHeight();
     }
 
-    // Still no cells — create a row so the test is self-sufficient
     if (!await cell.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      console.log('UPDATE: still no cells, adding row');
       await clickAddRow(page);
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(2000);
+      await ensureVirtualizerHeight();
     }
 
+    await screenshotStep(page, '35_before_update');
     await expect(cell).toBeVisible({ timeout: 15_000 });
     await cell.dblclick();
     await page.waitForTimeout(300);
