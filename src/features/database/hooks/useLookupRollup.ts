@@ -28,7 +28,7 @@ function useLookupRollupData(field: FieldMeta, record: RecordRow) {
 
   const linkField = sourceFields ? resolveLinkField(field, sourceFields) : null;
   const relatedTableId = linkField?.options?.relatedTableId;
-  const linkType = linkField?.options?.linkType;
+  const linkType = linkField?.options?.linkType ?? linkField?.options?.type;
 
   const { data: linkedRecords, isLoading: linkedLoading } = useRecordLinks({
     baseId: activeBaseId,
