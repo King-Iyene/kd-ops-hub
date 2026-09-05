@@ -249,6 +249,49 @@ async function handleAddColumn(
   }
 }
 
+async function handleBulkAddColumns(
+  pool: Pool,
+  body: {
+    schemaName: string;
+    tableName: string;
+    columns: Array<{
+      columnName: string;
+      columnType: string;
+      isRequired?: boolean;
+      isUnique?: boolean;
+      defaultValue?: string;
+    }>;
+  },
+): Promise<{ added: string[] }> {
+  const schema = sanitizeIdentifier(body.schemaName);
+  const table = sanitizeIdentifier(body.tableName);
+  validateSchemaAccess(body.schemaName);
+
+  const added: string[] = [];
+  const conn = await pool.connect();
+  try {
+    await conn.queryObject('BEGIN');
+    for (const col of body.columns) {
+      const column = sanitizeIdentifier(col.columnName);
+      let ddl = `ALTER TABLE ${schema}.${table} ADD COLUMN IF NOT EXISTS ${column} ${col.columnType}`;
+      if (col.defaultValue !== undefined) {
+        ddl += ` DEFAULT ${col.defaultValue}`;
+      }
+      if (col.isRequired) ddl += ' NOT NULL';
+      if (col.isUnique) ddl += ' UNIQUE';
+      await conn.queryObject(ddl);
+      added.push(col.columnName);
+    }
+    await conn.queryObject('COMMIT');
+  } catch (err) {
+    try { await conn.queryObject('ROLLBACK'); } catch { /* ignore */ }
+    throw err;
+  } finally {
+    conn.release();
+  }
+  return { added };
+}
+
 async function handleDropColumn(
   pool: Pool,
   body: { schemaName: string; tableName: string; columnName: string },
@@ -539,21 +582,15 @@ async function handleAlterColumnType(
   const column = sanitizeIdentifier(body.columnName);
   validateSchemaAccess(body.schemaName);
 
-  // Build the USING clause. If the caller provides a custom expression use it;
-  // otherwise fall back to a USING that casts via text (handles most pg casts)
-  // and traps individual-value errors by coalescing to NULL.
   const usingExpr = body.usingExpression
     ? body.usingExpression
     : `${column}::${body.newType}`;
 
-  // Count rows that will become NULL due to failed cast (best-effort estimate)
   const qualified = `${schema}.${table}`;
   const conn = await pool.connect();
   try {
-    // Attempt the ALTER in a savepoint so we can give a clear error on failure
     await conn.queryObject('BEGIN');
 
-    // Count non-null values before
     const beforeRes = await conn.queryObject<{ cnt: number }>(
       `SELECT count(*)::int AS cnt FROM ${qualified} WHERE ${column} IS NOT NULL`,
     );
@@ -566,7 +603,6 @@ async function handleAlterColumnType(
     } catch (castErr) {
       await conn.queryObject('ROLLBACK');
       const msg = (castErr as Error).message || '';
-      // Provide a friendlier error for common cast failures
       if (msg.includes('cannot cast') || msg.includes('invalid input syntax')) {
         throw new Error(
           `Cannot convert column "${body.columnName}" to ${body.newType}: some existing values are incompatible. ` +
@@ -576,7 +612,6 @@ async function handleAlterColumnType(
       throw castErr;
     }
 
-    // Count non-null values after
     const afterRes = await conn.queryObject<{ cnt: number }>(
       `SELECT count(*)::int AS cnt FROM ${qualified} WHERE ${column} IS NOT NULL`,
     );
@@ -589,7 +624,6 @@ async function handleAlterColumnType(
       nulledRows: Math.max(0, nonNullBefore - nonNullAfter),
     };
   } catch (err) {
-    // Make sure we are not left in a dangling transaction
     try { await conn.queryObject('ROLLBACK'); } catch { /* ignore */ }
     throw err;
   } finally {
@@ -637,6 +671,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       case 'addColumn':
         await handleAddColumn(pool, body);
         break;
+      case 'bulkAddColumns': {
+        const bulkResult = await handleBulkAddColumns(pool, body);
+        await logAudit(pool, userId, action, { schemaName: body.schemaName, tableName: body.tableName, count: bulkResult.added.length });
+        const reloadConn2 = await pool.connect();
+        try { await reloadConn2.queryObject(`NOTIFY pgrst, 'reload schema'`); } catch { /* best-effort */ } finally { reloadConn2.release(); }
+        return json({ success: true, ...bulkResult });
+      }
       case 'dropColumn':
         await handleDropColumn(pool, body);
         break;
