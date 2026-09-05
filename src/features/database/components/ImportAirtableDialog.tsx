@@ -84,6 +84,7 @@ function mapAirtableType(atType: string): { uiType: string; pgType: string } {
     checkbox: { uiType: 'Checkbox', pgType: "BOOLEAN DEFAULT false" },
     singleSelect: { uiType: 'SingleSelect', pgType: 'TEXT' },
     multiSelect: { uiType: 'MultiSelect', pgType: 'TEXT[]' },
+    multipleSelects: { uiType: 'MultiSelect', pgType: 'TEXT[]' },
     date: { uiType: 'Date', pgType: 'DATE' },
     dateTime: { uiType: 'DateTime', pgType: 'TIMESTAMPTZ' },
     createdTime: { uiType: 'CreatedTime', pgType: 'TIMESTAMPTZ' },
@@ -285,6 +286,9 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
     abortRef.current = false;
     const errors: string[] = [];
     let totalRecordsImported = 0;
+    const atTableIdToKd: Record<string, string> = {};
+    const atFieldIdToKd: Record<string, string> = {};
+    const tablePgNames: Record<string, string> = {};
 
     setProgress({
       tableIndex: 0, tableCount: selectedTables.length, tableName: '',
@@ -410,7 +414,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
         const fieldRows = userFields.map((f, idx) => {
           const mapped = mapAirtableType(f.type);
-          const options: any = {};
+          const options: any = { airtable_field_id: f.id };
 
           if (f.type === 'singleSelect' && f.options?.choices) {
             options.choices = f.options.choices.map((c: any) => ({
@@ -418,7 +422,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               color: c.color ?? 'gray',
             }));
           }
-          if (f.type === 'multiSelect' && f.options?.choices) {
+          if ((f.type === 'multiSelect' || f.type === 'multipleSelects') && f.options?.choices) {
             options.choices = f.options.choices.map((c: any) => ({
               title: c.name,
               color: c.color ?? 'gray',
@@ -446,6 +450,9 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             }
             if (f.options?.prefersSingleRecordLink) {
               options.prefersSingleRecordLink = true;
+            }
+            if (f.options?.inverseLinkFieldId) {
+              options.inverseLinkFieldId = f.options.inverseLinkFieldId;
             }
           }
           if (f.type === 'lookup') {
@@ -499,6 +506,13 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           .select();
 
         const allFields = [...(sysFields ?? []), ...(createdFields ?? [])];
+
+        atTableIdToKd[atTable.id] = table.id;
+        tablePgNames[table.id] = pgTableName;
+        for (const cf of createdFields ?? []) {
+          const atFieldId = (cf as any).options?.airtable_field_id;
+          if (atFieldId) atFieldIdToKd[atFieldId] = (cf as any).id;
+        }
 
         const primaryField = (createdFields as any[])?.find((f: any) => f.is_primary);
         if (primaryField) {
@@ -608,9 +622,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         }
       }
 
-      // --- Second pass: create nc_meta rows for computed/linked fields ---
+      // --- Second pass: resolve links, lookups, rollups, formulas ---
       try {
-        // Fetch all created fields for this base
         const { data: allBaseTables } = await supabase
           .schema('nc_meta')
           .from('tables')
@@ -623,15 +636,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           .select('id, table_id, name, ui_type, options, pg_column_name')
           .in('table_id', (allBaseTables ?? []).map((t: any) => t.id));
 
-        // Build lookup of Airtable table names → KDOps table IDs
-        const tableNameToId: Record<string, string> = {};
-        for (const t of allBaseTables ?? []) {
-          tableNameToId[t.pg_table_name] = t.id;
-        }
-
-        // Create formula metadata rows
-        const formulaFields = (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Formula');
-        for (const f of formulaFields) {
+        // Formula metadata
+        for (const f of (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Formula')) {
           const expression = f.options?.formula ?? '';
           if (expression) {
             await supabase.schema('nc_meta').from('formulas').upsert({
@@ -639,64 +645,186 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               expression,
               parsed_tree: {},
               error: null,
-            }, { onConflict: 'field_id' }).select();
+            }, { onConflict: 'field_id' });
           }
         }
 
-        // Create lookup metadata rows
-        const lookupFields = (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Lookup');
-        for (const f of lookupFields) {
-          const linkFieldName = f.options?.recordLinkFieldId;
-          const lookupFieldName = f.options?.fieldIdInLinkedTable;
-          if (linkFieldName && lookupFieldName) {
-            const linkField = (allBaseFields ?? []).find(
-              (lf: any) => lf.table_id === f.table_id && lf.ui_type === 'Links'
-            );
-            if (linkField) {
-              await supabase.schema('nc_meta').from('lookups').upsert({
-                field_id: f.id,
-                link_field_id: linkField.id,
-                lookup_field_id: f.id,
-              }, { onConflict: 'field_id' }).select();
-            }
-          }
-        }
-
-        // Create rollup metadata rows
-        const rollupFields = (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Rollup');
-        for (const f of rollupFields) {
-          const rollupFn = f.options?.result?.type ?? 'COUNT';
-          const linkField = (allBaseFields ?? []).find(
-            (lf: any) => lf.table_id === f.table_id && lf.ui_type === 'Links'
-          );
-          if (linkField) {
-            await supabase.schema('nc_meta').from('rollups').upsert({
-              field_id: f.id,
-              link_field_id: linkField.id,
-              rollup_field_id: f.id,
-              rollup_function: rollupFn,
-            }, { onConflict: 'field_id' }).select();
-          }
-        }
-
-        // Create link metadata rows for multipleRecordLinks fields
+        // Link fields: create junction tables and proper metadata
         const linkFields = (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Links');
+        const createdJunctions = new Map<string, string>();
+
         for (const f of linkFields) {
-          const linkedTableName = f.options?.linkedTableName;
-          if (linkedTableName) {
-            const relatedPgName = toSnakeCase(linkedTableName);
-            const relatedTable = (allBaseTables ?? []).find(
-              (t: any) => t.pg_table_name === relatedPgName
-            );
-            if (relatedTable) {
-              await supabase.schema('nc_meta').from('links').upsert({
-                field_id: f.id,
-                related_table_id: relatedTable.id,
-                related_field_id: null,
-                junction_table_id: null,
-                type: 'hm',
-              }, { onConflict: 'field_id' }).select();
+          const atLinkedTableId = f.options?.linkedTableId;
+          if (!atLinkedTableId) continue;
+
+          const relatedKdTableId = atTableIdToKd[atLinkedTableId];
+          if (!relatedKdTableId) continue;
+
+          const sourcePgTable = tablePgNames[f.table_id];
+          const targetPgTable = tablePgNames[relatedKdTableId];
+          if (!sourcePgTable || !targetPgTable) continue;
+
+          const jnKey = [sourcePgTable, targetPgTable].sort().join(':');
+          let junctionTableId = createdJunctions.get(jnKey) ?? null;
+
+          if (!junctionTableId) {
+            const jnTableName = `jn_${[sourcePgTable, targetPgTable].sort().join('_')}`.substring(0, 63);
+            try {
+              await supabase.functions.invoke('ddl-executor', {
+                body: { action: 'createTable', schemaName, tableName: jnTableName },
+              });
+              await supabase.functions.invoke('ddl-executor', {
+                body: {
+                  action: 'bulkAddColumns',
+                  schemaName,
+                  tableName: jnTableName,
+                  columns: [
+                    { name: 'source_id', type: 'UUID' },
+                    { name: 'target_id', type: 'UUID' },
+                  ],
+                },
+              });
+            } catch { /* junction may already exist from inverse link */ }
+
+            const { data: jnMeta } = await supabase
+              .schema('nc_meta')
+              .from('tables')
+              .insert({
+                base_id: base.id,
+                name: jnTableName,
+                pg_table_name: jnTableName,
+                icon: null,
+                position: -1,
+              })
+              .select()
+              .single();
+
+            if (jnMeta) {
+              junctionTableId = jnMeta.id;
+              createdJunctions.set(jnKey, jnMeta.id);
             }
+          }
+
+          const inverseAtFieldId = f.options?.inverseLinkFieldId;
+          const inverseKdFieldId = inverseAtFieldId ? atFieldIdToKd[inverseAtFieldId] : null;
+
+          await supabase.schema('nc_meta').from('links').upsert({
+            field_id: f.id,
+            related_table_id: relatedKdTableId,
+            related_field_id: inverseKdFieldId,
+            junction_table_id: junctionTableId,
+            type: f.options?.prefersSingleRecordLink ? 'hm' : 'mm',
+          }, { onConflict: 'field_id' });
+        }
+
+        // Lookup fields: resolve Airtable field IDs → KDOps field IDs
+        for (const f of (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Lookup')) {
+          const atLinkFieldId = f.options?.recordLinkFieldId;
+          const atLookupFieldId = f.options?.fieldIdInLinkedTable;
+          if (!atLinkFieldId || !atLookupFieldId) continue;
+
+          const kdLinkFieldId = atFieldIdToKd[atLinkFieldId];
+          const kdLookupFieldId = atFieldIdToKd[atLookupFieldId];
+          if (!kdLinkFieldId) continue;
+
+          await supabase.schema('nc_meta').from('lookups').upsert({
+            field_id: f.id,
+            link_field_id: kdLinkFieldId,
+            lookup_field_id: kdLookupFieldId ?? null,
+          }, { onConflict: 'field_id' });
+        }
+
+        // Rollup fields: resolve Airtable field IDs → KDOps field IDs
+        for (const f of (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Rollup')) {
+          const atLinkFieldId = f.options?.recordLinkFieldId;
+          const atRollupFieldId = f.options?.fieldIdInLinkedTable;
+          if (!atLinkFieldId || !atRollupFieldId) continue;
+
+          const kdLinkFieldId = atFieldIdToKd[atLinkFieldId];
+          const kdRollupFieldId = atFieldIdToKd[atRollupFieldId];
+          const rollupFn = f.options?.result?.type ?? 'SUM';
+          if (!kdLinkFieldId) continue;
+
+          await supabase.schema('nc_meta').from('rollups').upsert({
+            field_id: f.id,
+            link_field_id: kdLinkFieldId,
+            rollup_field_id: kdRollupFieldId ?? null,
+            rollup_function: rollupFn,
+          }, { onConflict: 'field_id' });
+        }
+
+        // --- Third pass: populate junction tables from linked record data ---
+        setProgress((p) => ({ ...p, phase: 'schema', tableName: 'Resolving linked records...' }));
+
+        for (const f of linkFields) {
+          if (abortRef.current) break;
+          const atLinkedTableId = f.options?.linkedTableId;
+          if (!atLinkedTableId) continue;
+
+          const relatedKdTableId = atTableIdToKd[atLinkedTableId];
+          if (!relatedKdTableId) continue;
+
+          const sourcePgTable = tablePgNames[f.table_id];
+          const targetPgTable = tablePgNames[relatedKdTableId];
+          if (!sourcePgTable || !targetPgTable) continue;
+
+          const jnTableName = `jn_${[sourcePgTable, targetPgTable].sort().join('_')}`.substring(0, 63);
+
+          try {
+            const pgCol = f.pg_column_name;
+            const allSourceRecords: any[] = [];
+            let page = 0;
+            const pageSize = 1000;
+            while (true) {
+              const { data: batch } = await supabase
+                .schema(schemaName)
+                .from(sourcePgTable)
+                .select(`id, ${pgCol}, airtable_id`)
+                .not(pgCol, 'is', null)
+                .range(page * pageSize, (page + 1) * pageSize - 1);
+              if (!batch?.length) break;
+              allSourceRecords.push(...batch);
+              if (batch.length < pageSize) break;
+              page++;
+            }
+
+            if (!allSourceRecords.length) continue;
+
+            const targetIdMap: Record<string, string> = {};
+            page = 0;
+            while (true) {
+              const { data: batch } = await supabase
+                .schema(schemaName)
+                .from(targetPgTable)
+                .select('id, airtable_id')
+                .range(page * pageSize, (page + 1) * pageSize - 1);
+              if (!batch?.length) break;
+              for (const r of batch) {
+                if (r.airtable_id) targetIdMap[r.airtable_id] = r.id;
+              }
+              if (batch.length < pageSize) break;
+              page++;
+            }
+
+            const junctionRows: { source_id: string; target_id: string }[] = [];
+            for (const sr of allSourceRecords) {
+              const linkedIds = sr[pgCol];
+              if (!Array.isArray(linkedIds)) continue;
+              for (const atRecId of linkedIds) {
+                const targetUuid = targetIdMap[atRecId];
+                if (targetUuid) {
+                  junctionRows.push({ source_id: sr.id, target_id: targetUuid });
+                }
+              }
+            }
+
+            for (let b = 0; b < junctionRows.length; b += 500) {
+              if (abortRef.current) break;
+              const batch = junctionRows.slice(b, b + 500);
+              await supabase.schema(schemaName).from(jnTableName).insert(batch);
+            }
+          } catch (resolveErr) {
+            errors.push(`Link resolution (${f.name}): ${(resolveErr as Error).message}`);
           }
         }
       } catch (linkErr) {
