@@ -687,6 +687,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
       }
 
       // --- Second pass: resolve links, lookups, rollups, formulas ---
+      setProgress((p) => ({ ...p, phase: 'schema', tableName: 'Saving formula metadata...' }));
       try {
         const { data: allBaseTables } = await supabase
           .schema('nc_meta')
@@ -714,6 +715,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         }
 
         // Link fields: create junction tables and proper metadata
+        setProgress((p) => ({ ...p, tableName: 'Resolving link fields...' }));
         const linkFields = (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Links');
         const createdJunctions = new Map<string, string>();
 
@@ -772,15 +774,17 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           const inverseAtFieldId = f.options?.inverseLinkFieldId;
           const inverseKdFieldId = inverseAtFieldId ? atFieldIdToKd[inverseAtFieldId] : null;
 
-          await supabase.schema('nc_meta').from('links').upsert({
+          const { error: linkErr } = await supabase.schema('nc_meta').from('links').upsert({
             field_id: f.id,
             related_table_id: relatedKdTableId,
             related_field_id: inverseKdFieldId,
             junction_table_id: junctionTableId,
             type: f.options?.prefersSingleRecordLink ? 'hm' : 'mm',
           }, { onConflict: 'field_id' });
+          if (linkErr) console.warn(`[Import] Link upsert skipped for ${f.name}:`, linkErr.message);
         }
 
+        setProgress((p) => ({ ...p, tableName: 'Resolving lookup fields...' }));
         // Lookup fields: resolve Airtable field IDs → KDOps field IDs
         for (const f of (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Lookup')) {
           const atLinkFieldId = f.options?.recordLinkFieldId;
@@ -798,6 +802,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           }, { onConflict: 'field_id' });
         }
 
+        setProgress((p) => ({ ...p, tableName: 'Resolving rollup fields...' }));
         // Rollup fields: resolve Airtable field IDs → KDOps field IDs
         for (const f of (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Rollup')) {
           const atLinkFieldId = f.options?.recordLinkFieldId;
