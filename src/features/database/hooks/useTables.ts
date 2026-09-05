@@ -25,7 +25,7 @@ export function useTables(baseId: string | null | undefined) {
         .eq('base_id', baseId)
         .order('position');
       if (error) throw error;
-      return data as TableMeta[];
+      return (data as TableMeta[]).filter(t => !t.pg_table_name.startsWith('jn_'));
     },
   });
 }
