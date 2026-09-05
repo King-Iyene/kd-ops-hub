@@ -186,7 +186,7 @@ export const GridCell = React.memo(function GridCell({
         borderBottom: `1px solid ${GRID_COLORS.border}`,
         backgroundColor: frozen ? (rowBg ?? GRID_COLORS.bg) : (backgroundColor || (isSystemField ? GRID_COLORS.headerBg : undefined)),
         outline: isSelected ? `2px solid ${GRID_COLORS.primary}` : 'none',
-        outlineOffset: -2,
+        outlineOffset: -1,
         cursor: isSystemField ? 'default' : 'cell',
         fontSize: 13,
         lineHeight: '18px',

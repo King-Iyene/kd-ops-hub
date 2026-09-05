@@ -129,7 +129,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
       {...(field.description ? { title: field.description } : {})}
     >
       <Icon size={13} className="shrink-0" style={{ color: colors.muted }} />
-      <span className="truncate">{field.name}</span>
+      <span className="truncate" title={field.name}>{field.name}</span>
       {field.is_system && (
         <Lock size={10} className="shrink-0 opacity-50" style={{ color: colors.muted }} />
       )}
@@ -177,6 +177,11 @@ export const ColumnHeader = React.memo(function ColumnHeader({
             className="fixed z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[180px] animate-[panelSlideDown_150ms_ease-out]"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
+            <div className="px-3 py-1.5 text-[11px] font-medium tracking-wide uppercase flex items-center gap-2" style={{ color: colors.muted }}>
+              <Icon size={12} className="shrink-0" />
+              {field.ui_type.replace(/([A-Z])/g, ' $1').trim()}
+            </div>
+            <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] my-1" />
             <button
               className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={handleSortAsc}

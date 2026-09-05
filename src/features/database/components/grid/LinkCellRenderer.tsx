@@ -176,6 +176,18 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
       ? value
       : 0;
 
+  if (count === 0) {
+    return (
+      <span className="flex items-center justify-center w-full h-full opacity-0 group-hover/row:opacity-60 transition-opacity cursor-pointer">
+        <Plus size={14} className="text-[#9AA2AF]" onClick={(e) => {
+          e.stopPropagation();
+          const btn = e.currentTarget.closest('[role="gridcell"]')?.querySelector('button');
+          btn?.click();
+        }} />
+      </span>
+    );
+  }
+
   return (
     <LinkedRecordsPopover
       field={field}

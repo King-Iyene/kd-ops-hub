@@ -142,25 +142,32 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
     );
   }
 
-  return <HighlightedText text={text} className="truncate" />;
+  return <HighlightedText text={text} className="truncate" style={{ fontSize: 13 }} />;
 });
 
 export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
   value,
   rowHeight,
 }: CellRendererProps) {
-  const colors = useGridColors();
   if (value == null || value === '') return null;
   const text = String(value);
-  const lineCount = text.split('\n').length;
-  const maxLen = rowHeight === 'short' ? 50 : rowHeight === 'tall' ? 200 : rowHeight === 'extra-tall' ? 400 : 80;
-  const display = text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
+  if (rowHeight === 'short') {
+    return <span className="truncate" style={{ fontSize: 13, lineHeight: '18px' }}>{text}</span>;
+  }
+  const maxLines = rowHeight === 'tall' ? 3 : rowHeight === 'extra-tall' ? 5 : 2;
   return (
-    <span className="truncate flex items-center gap-1.5" style={{ color: 'inherit' }}>
-      <span className="truncate whitespace-pre-line" style={{ fontSize: 14, lineHeight: '20px' }}>{display}</span>
-      {lineCount > 1 && (
-        <span className="shrink-0 text-[9px] px-1 py-px rounded-sm bg-black/5 dark:bg-white/5" style={{ color: colors.systemText }}>{lineCount}L</span>
-      )}
+    <span
+      className="whitespace-pre-line"
+      style={{
+        fontSize: 13,
+        lineHeight: '18px',
+        display: '-webkit-box',
+        WebkitLineClamp: maxLines,
+        WebkitBoxOrient: 'vertical',
+        overflow: 'hidden',
+      }}
+    >
+      {text}
     </span>
   );
 });
@@ -172,7 +179,7 @@ export const NumberCellRenderer = React.memo(function NumberCellRenderer({
   const num = Number(value);
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
   return (
-    <span className="truncate block text-right w-full">
+    <span className="truncate block text-right w-full" style={{ fontSize: 13 }}>
       {num.toLocaleString()}
     </span>
   );
@@ -212,7 +219,6 @@ export const DateCellRenderer = React.memo(function DateCellRenderer({
   value,
   field,
 }: CellRendererProps) {
-  const colors = useGridColors();
   if (value == null || value === '') return null;
   const date = new Date(value);
   if (isNaN(date.getTime())) return <span className="truncate">{String(value)}</span>;
@@ -222,18 +228,8 @@ export const DateCellRenderer = React.memo(function DateCellRenderer({
       : { dateStyle: 'medium' };
   const formatted = date.toLocaleString(undefined, opts);
   return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-md px-1.5 truncate"
-      style={{
-        fontSize: 12,
-        color: colors.textSecondary,
-        backgroundColor: `${colors.border}30`,
-        height: 22,
-        lineHeight: '22px',
-      }}
-    >
-      <Clock size={10} className="shrink-0" style={{ color: colors.muted, opacity: 0.8 }} />
-      <span className="truncate">{formatted}</span>
+    <span className="truncate" style={{ fontSize: 13 }}>
+      {formatted}
     </span>
   );
 });
@@ -423,18 +419,8 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
     if (isNaN(date.getTime())) return <span style={{ color: colors.systemText }}>{String(value)}</span>;
     const formatted = date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
     return (
-      <span
-        className="inline-flex items-center gap-1.5 rounded-md px-1.5 truncate"
-        style={{
-          fontSize: 11,
-          color: colors.systemText,
-          backgroundColor: `${colors.border}40`,
-          height: 22,
-          lineHeight: '22px',
-        }}
-      >
-        <Clock size={10} className="shrink-0" style={{ opacity: 0.7 }} />
-        <span className="truncate">{formatted}</span>
+      <span className="truncate" style={{ fontSize: 12, color: colors.systemText }}>
+        {formatted}
       </span>
     );
   }
@@ -670,16 +656,36 @@ export const LinksCellRenderer = React.memo(function LinksCellRenderer({
   value,
 }: CellRendererProps) {
   const colors = useGridColors();
-  const count = Array.isArray(value) ? value.length : 0;
-  if (count === 0) return null;
+  if (!Array.isArray(value) || value.length === 0) return null;
   return (
-    <span
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80"
-      style={{ backgroundColor: `${colors.primary}20`, color: colors.linkText }}
-    >
-      <Link2 size={12} />
-      {count} linked {count === 1 ? 'record' : 'records'}
-    </span>
+    <div className="flex items-center gap-1 overflow-hidden">
+      {value.slice(0, 3).map((item: any, i: number) => {
+        const label = typeof item === 'object' && item !== null
+          ? item.title || item.name || item.primary || item.id
+          : String(item);
+        return (
+          <span
+            key={i}
+            className="inline-flex items-center px-2 rounded-sm text-xs font-medium truncate cursor-pointer hover:opacity-80"
+            style={{
+              height: 22,
+              lineHeight: '22px',
+              backgroundColor: `${colors.primary}18`,
+              color: colors.linkText,
+              maxWidth: 120,
+              border: `1px solid ${colors.primary}30`,
+            }}
+          >
+            {label}
+          </span>
+        );
+      })}
+      {value.length > 3 && (
+        <span className="text-xs shrink-0" style={{ color: colors.muted }}>
+          +{value.length - 3}
+        </span>
+      )}
+    </div>
   );
 });
 

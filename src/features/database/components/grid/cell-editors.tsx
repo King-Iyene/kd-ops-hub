@@ -63,9 +63,8 @@ export function TextCellEditor({ value, field, onCommit, onCancel }: CellEditorP
         if (e.key === 'Tab') { e.preventDefault(); onCommit(text); }
       }}
       onBlur={() => onCommit(text)}
-      placeholder="Enter text"
-      className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)]"
-      style={{ fontSize: 14, color: 'inherit' }}
+      className="w-full h-full px-2 outline-none border-none bg-transparent"
+      style={{ fontSize: 13, color: 'inherit', borderRadius: 0 }}
     />
   );
 }
@@ -93,7 +92,7 @@ export function NumberCellEditor({ value, field, onCommit, onCancel }: CellEdito
       }}
       onBlur={() => onCommit(num === '' ? null : Number(num))}
       placeholder="0"
-      className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
+      className="w-full h-full px-2 outline-none bg-transparent text-right"
       style={{ fontSize: 14, color: 'inherit' }}
     />
   );
@@ -116,7 +115,7 @@ export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEdi
   }, []);
 
   return (
-    <div className="flex items-center w-full h-full bg-white dark:bg-[hsl(200,30%,10%)]">
+    <div className="flex items-center w-full h-full bg-transparent">
       <span className="pl-2 text-xs text-[#9AA2AF] shrink-0">{symbol}</span>
       <input
         ref={ref}
@@ -229,7 +228,7 @@ export function YearCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
       }}
       onBlur={commit}
       placeholder="YYYY"
-      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
+      className="w-full h-full px-2 outline-none border-none bg-transparent"
       style={{ fontSize: 13, color: 'inherit' }}
     />
   );
@@ -269,7 +268,7 @@ export function DurationCellEditor({ value, onCommit, onCancel }: CellEditorProp
         if (e.key === 'Tab') { e.preventDefault(); const d = parseDuration(text); if (d === null) { onCancel(); } else { onCommit(d); } }
       }}
       onBlur={() => { const d = parseDuration(text); if (d === null) { onCancel(); } else { onCommit(d); } }}
-      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
+      className="w-full h-full px-2 outline-none border-none bg-transparent text-right"
       style={{ fontSize: 13, color: 'inherit', fontVariantNumeric: 'tabular-nums' }}
     />
   );
@@ -311,7 +310,7 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
         }}
         onBlur={commit}
         placeholder="name@example.com"
-        className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
+        className="w-full h-full px-2 outline-none border-none bg-transparent"
         style={{
           fontSize: 13,
           color: 'inherit',
@@ -319,7 +318,7 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
         }}
       />
       {invalid && (
-        <div className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-red-300 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap mt-0.5">
+        <div className="absolute left-0 top-full z-50 bg-transparent border border-red-300 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap mt-0.5">
           Enter a valid email address
         </div>
       )}
@@ -366,7 +365,7 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         }}
         onBlur={commit}
         placeholder="https://example.com"
-        className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
+        className="w-full h-full px-2 outline-none border-none bg-transparent"
         style={{
           fontSize: 13,
           color: 'inherit',
@@ -374,7 +373,7 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         }}
       />
       {invalid && (
-        <div className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-red-300 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap mt-0.5">
+        <div className="absolute left-0 top-full z-50 bg-transparent border border-red-300 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap mt-0.5">
           Enter a valid URL
         </div>
       )}
@@ -408,7 +407,7 @@ export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorP
         }}
         onBlur={() => onCommit(text)}
         placeholder="(555) 555-5555"
-        className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
+        className="w-full h-full px-2 outline-none border-none bg-transparent"
         style={{
           fontSize: 13,
           color: 'inherit',
@@ -416,7 +415,7 @@ export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorP
         }}
       />
       {hasLetters && (
-        <div className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-amber-300 rounded px-2 py-1 shadow text-[11px] text-amber-600 whitespace-nowrap mt-0.5">
+        <div className="absolute left-0 top-full z-50 bg-transparent border border-amber-300 rounded px-2 py-1 shadow text-[11px] text-amber-600 whitespace-nowrap mt-0.5">
           Phone number contains letters
         </div>
       )}
@@ -437,7 +436,7 @@ export function RatingCellEditor({ value, field, onCommit, onCancel }: CellEdito
     <div
       ref={ref}
       tabIndex={0}
-      className="flex items-center gap-0.5 px-2 h-full bg-white dark:bg-[hsl(200,30%,10%)] outline-none"
+      className="flex items-center gap-0.5 px-2 h-full bg-transparent outline-none"
       onKeyDown={(e) => {
         if (e.key === 'Escape') onCancel();
         if (e.key === 'Tab') onCommit(rating);
@@ -861,7 +860,7 @@ export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps
         onKeyDown={(e) => { if (e.key === 'Enter') onCommit(num === '' ? null : Number(num)); if (e.key === 'Escape') onCancel(); if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); } }}
         onBlur={() => onCommit(num === '' ? null : Number(num))}
         placeholder="0"
-        className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)] text-right" style={{ fontSize: 13 }}
+        className="w-full h-full px-2 outline-none border-none bg-transparent text-right" style={{ fontSize: 13 }}
       />
       <span className="pr-2 text-xs text-[#9AA2AF]">%</span>
     </div>
@@ -935,7 +934,7 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
   }, []);
 
   return (
-    <div className="absolute left-0 top-0 z-50 w-64 shadow-lg rounded border bg-white dark:bg-[hsl(200,30%,10%)]" style={{ minHeight: 80 }}>
+    <div className="absolute left-0 top-0 z-50 shadow-lg bg-white dark:bg-[hsl(200,30%,10%)]" style={{ minHeight: 80, minWidth: 240, border: '2px solid #2D7FF9', borderRadius: 1 }}>
       <textarea
         ref={ref}
         value={text}
@@ -946,10 +945,9 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
           if (e.key === 'Tab') { e.preventDefault(); onCommit(text); }
         }}
         onBlur={() => onCommit(text)}
-        placeholder="Enter text..."
         rows={4}
-        className="w-full p-2 outline-none resize-y border-none bg-white dark:bg-[hsl(200,30%,10%)]"
-        style={{ fontSize: 14, color: 'inherit' }}
+        className="w-full p-2 outline-none resize-y border-none bg-transparent"
+        style={{ fontSize: 13, color: 'inherit', borderRadius: 0 }}
       />
     </div>
   );
@@ -978,7 +976,7 @@ export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEdit
       }}
       onBlur={() => onCommit(num === '' ? null : Number(num))}
       placeholder="0.00"
-      className="w-full h-full px-2 outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-right"
+      className="w-full h-full px-2 outline-none bg-transparent text-right"
       style={{ fontSize: 14, color: 'inherit' }}
     />
   );
@@ -1088,7 +1086,7 @@ export function TimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         if (e.key === 'Tab') { e.preventDefault(); onCommit(time || null); }
       }}
       onBlur={() => onCommit(time || null)}
-      className="w-full h-full px-2 outline-none border-none bg-white dark:bg-[hsl(200,30%,10%)]"
+      className="w-full h-full px-2 outline-none border-none bg-transparent"
       style={{ fontSize: 13, color: 'inherit' }}
     />
   );
