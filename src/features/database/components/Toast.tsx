@@ -35,7 +35,7 @@ export const toast = {
 const BORDER_COLORS: Record<ToastItem['type'], string> = {
   success: '#22C55E',
   error: '#EF4444',
-  info: '#166EE1',
+  info: '#2D7FF9',
 };
 
 function ToastEntry({ item }: { item: ToastItem }) {

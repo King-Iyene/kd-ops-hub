@@ -16,7 +16,7 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
-const PRESENCE_COLORS = ['#166EE1', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6'];
+const PRESENCE_COLORS = ['#2D7FF9', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 export function PresenceIndicator() {
   const profile = useAuthStore((s) => s.profile);

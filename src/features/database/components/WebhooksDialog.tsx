@@ -159,7 +159,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
           <div className="w-[240px] shrink-0 border-r border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] flex flex-col bg-[#FAFAFA] dark:bg-[hsl(200,30%,8%)]">
             <div className="flex items-center justify-between px-3 py-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
               <div className="flex items-center gap-1.5">
-                <Webhook size={14} className="text-[#166EE1]" />
+                <Webhook size={14} className="text-[#2D7FF9]" />
                 <span className="text-[13px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Webhooks</span>
               </div>
               <button
@@ -203,7 +203,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                   </div>
                   <button
                     className="shrink-0 w-7 h-4 rounded-full relative transition-colors"
-                    style={{ backgroundColor: wh.enabled ? '#166EE1' : '#D1D5DB' }}
+                    style={{ backgroundColor: wh.enabled ? '#2D7FF9' : '#D1D5DB' }}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleToggle(wh);
@@ -356,7 +356,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                   <Button
                     size="sm"
                     className="h-8 px-4 text-[12px] gap-1.5"
-                    style={{ backgroundColor: '#166EE1' }}
+                    style={{ backgroundColor: '#2D7FF9' }}
                     onClick={handleSave}
                     disabled={!name.trim() || !url.trim() || createWebhook.isPending || updateWebhook.isPending}
                   >

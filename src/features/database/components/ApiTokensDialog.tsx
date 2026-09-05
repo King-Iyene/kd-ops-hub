@@ -68,7 +68,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
-            <Key size={16} className="text-[#166EE1]" />
+            <Key size={16} className="text-[#2D7FF9]" />
             API Tokens
           </DialogTitle>
         </DialogHeader>
@@ -90,7 +90,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                 <Button
                   size="sm"
                   className="h-8 px-3 text-[12px] gap-1.5 shrink-0"
-                  style={{ backgroundColor: '#166EE1' }}
+                  style={{ backgroundColor: '#2D7FF9' }}
                   onClick={() => handleCopy(newlyCreatedToken)}
                 >
                   {copied ? <Check size={13} /> : <Copy size={13} />}
@@ -186,7 +186,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                         type="checkbox"
                         checked={permissions.has(p)}
                         onChange={() => togglePermission(p)}
-                        className="rounded border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-[#166EE1]"
+                        className="rounded border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-[#2D7FF9]"
                       />
                       {p}
                     </label>
@@ -205,7 +205,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                 <Button
                   size="sm"
                   className="h-8 px-3 text-[12px]"
-                  style={{ backgroundColor: '#166EE1' }}
+                  style={{ backgroundColor: '#2D7FF9' }}
                   onClick={handleCreate}
                   disabled={!name.trim() || permissions.size === 0 || createToken.isPending}
                 >

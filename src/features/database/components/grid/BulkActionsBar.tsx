@@ -156,7 +156,7 @@ export function BulkActionsBar({
           --bulk-bar-text: #374151;
           --bulk-bar-muted: #6A7184;
           --bulk-bar-hover: #F4F4F5;
-          --bulk-bar-accent: #166EE1;
+          --bulk-bar-accent: #2D7FF9;
           --bulk-bar-accent-hover: #2952CC;
           --bulk-bar-danger: #EF4444;
           --bulk-bar-danger-hover: #DC2626;

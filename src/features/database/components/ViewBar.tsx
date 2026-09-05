@@ -84,7 +84,7 @@ function SortableViewTab({
       <div ref={setNodeRef} style={style} className="flex items-center gap-1">
         <input
           ref={renameRef}
-          className="h-6 w-28 px-1.5 text-[12px] border border-[#166EE1] rounded outline-none"
+          className="h-6 w-28 px-1.5 text-[12px] border border-[#2D7FF9] rounded outline-none"
           value={renameText}
           onChange={(e) => setRenameText(e.target.value)}
           onBlur={() => onRename(view.id)}
@@ -107,8 +107,9 @@ function SortableViewTab({
       className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[12px] font-medium whitespace-nowrap transition-colors"
       style={{
         ...style,
-        color: isActive ? '#166EE1' : '#6A7184',
-        backgroundColor: isActive ? '#EBF0FF' : 'transparent',
+        color: isActive ? '#2D7FF9' : '#6A7184',
+        backgroundColor: isActive ? '#FFFFFF' : 'transparent',
+        borderLeft: isActive ? '2px solid #2D7FF9' : 'none',
       }}
     >
       <Icon size={13} />
@@ -217,7 +218,7 @@ export function ViewBar() {
     <>
       <div
         className="flex items-center gap-0.5 px-2 shrink-0 overflow-x-auto bg-white dark:bg-[hsl(200,30%,8%)] border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]"
-        style={{ height: 32 }}
+        style={{ height: 28 }}
       >
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={sorted.map((v) => v.id)} strategy={horizontalListSortingStrategy}>
@@ -248,8 +249,10 @@ export function ViewBar() {
         <div className="relative" ref={addBtnRef}>
           <button
             onClick={() => setAddMenuOpen(!addMenuOpen)}
-            className="flex items-center gap-1 px-2 py-1 rounded text-[12px] hover:bg-gray-100 whitespace-nowrap"
-            style={{ color: '#9AA2AF' }}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[12px] hover:bg-gray-100 whitespace-nowrap transition-colors"
+            style={{ color: '#999999' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#333333')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#999999')}
           >
             <Plus size={12} />
           </button>

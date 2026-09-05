@@ -78,7 +78,7 @@ export function LinkedRecordPicker({
       <DialogContent className="sm:max-w-[440px] max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] flex items-center gap-2">
-            <Link2 size={16} className="text-[#166EE1]" />
+            <Link2 size={16} className="text-[#2D7FF9]" />
             Link Records
           </DialogTitle>
         </DialogHeader>
@@ -149,13 +149,13 @@ export function LinkedRecordPicker({
                       <span
                         className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
                         style={{
-                          borderColor: isChecked ? '#166EE1' : '#9AA2AF',
+                          borderColor: isChecked ? '#2D7FF9' : '#9AA2AF',
                         }}
                       >
                         {isChecked && (
                           <span
                             className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: '#166EE1' }}
+                            style={{ backgroundColor: '#2D7FF9' }}
                           />
                         )}
                       </span>
@@ -163,8 +163,8 @@ export function LinkedRecordPicker({
                       <span
                         className="w-4 h-4 rounded border-2 flex items-center justify-center text-[10px] shrink-0"
                         style={{
-                          borderColor: isChecked ? '#166EE1' : '#9AA2AF',
-                          backgroundColor: isChecked ? '#166EE1' : 'transparent',
+                          borderColor: isChecked ? '#2D7FF9' : '#9AA2AF',
+                          backgroundColor: isChecked ? '#2D7FF9' : 'transparent',
                           color: isChecked ? '#fff' : 'transparent',
                         }}
                       >
@@ -182,7 +182,7 @@ export function LinkedRecordPicker({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-xs text-[#166EE1] hover:text-[#2855CC] h-7"
+                    className="text-xs text-[#2D7FF9] hover:text-[#2855CC] h-7"
                     disabled={isLoadingMore}
                     onClick={loadMore}
                   >
@@ -207,7 +207,7 @@ export function LinkedRecordPicker({
           </Button>
           <Button
             size="sm"
-            style={{ backgroundColor: '#166EE1' }}
+            style={{ backgroundColor: '#2D7FF9' }}
             className="hover:opacity-90 text-white gap-1.5"
             onClick={handleConfirm}
           >

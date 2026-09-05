@@ -80,7 +80,7 @@ function InlineTextEditor({
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(text);
       }}
-      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#166EE1]"
+      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#2D7FF9]"
     />
   );
 }
@@ -99,7 +99,7 @@ function InlineLongTextEditor({
       onChange={(e) => setText(e.target.value)}
       onBlur={() => onCommit(text)}
       rows={4}
-      className="w-full px-2 py-1.5 text-sm rounded border outline-none resize-y bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#166EE1]"
+      className="w-full px-2 py-1.5 text-sm rounded border outline-none resize-y bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#2D7FF9]"
     />
   );
 }
@@ -122,7 +122,7 @@ function InlineNumberEditor({
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
       }}
-      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#166EE1]"
+      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#2D7FF9]"
     />
   );
 }
@@ -151,7 +151,7 @@ function InlineDateEditor({
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(date || null);
       }}
-      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#166EE1]"
+      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#2D7FF9]"
     />
   );
 }
@@ -168,7 +168,7 @@ function InlineCheckboxEditor({
       type="checkbox"
       checked={!!value}
       onChange={(e) => onCommit(e.target.checked)}
-      className="w-4 h-4 accent-[#166EE1] cursor-pointer"
+      className="w-4 h-4 accent-[#2D7FF9] cursor-pointer"
     />
   );
 }
@@ -302,7 +302,7 @@ function InlineAttachmentEditor({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors border-[#E5E5E5] text-[#6A7184] hover:border-[#166EE1] hover:text-[#166EE1] dark:border-[hsl(200,25%,18%)] dark:text-[#9AA2AF] dark:hover:border-[#166EE1] dark:hover:text-[#166EE1]"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors border-[#E5E5E5] text-[#6A7184] hover:border-[#2D7FF9] hover:text-[#2D7FF9] dark:border-[hsl(200,25%,18%)] dark:text-[#9AA2AF] dark:hover:border-[#2D7FF9] dark:hover:text-[#2D7FF9]"
       >
         <Paperclip size={14} />
         {attachments.length > 0
@@ -678,7 +678,7 @@ export function ExpandedRowModal({
             type="button"
             onClick={handleBtnClick}
             className="inline-flex items-center px-4 py-1.5 rounded text-xs font-medium transition-colors hover:opacity-90"
-            style={{ backgroundColor: '#166EE1', color: '#FFFFFF', cursor: urlTemplate ? 'pointer' : 'default' }}
+            style={{ backgroundColor: '#2D7FF9', color: '#FFFFFF', cursor: urlTemplate ? 'pointer' : 'default' }}
           >
             {btnLabel}
           </button>

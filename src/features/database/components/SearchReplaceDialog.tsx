@@ -117,7 +117,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
-            <Replace size={16} className="text-[#166EE1]" />
+            <Replace size={16} className="text-[#2D7FF9]" />
             Search & Replace
           </DialogTitle>
         </DialogHeader>
@@ -127,7 +127,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
             <div className="flex-1 relative">
               <Search size={14} className="absolute left-2.5 top-2.5 text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
               <input
-                className="w-full h-9 pl-8 pr-3 text-[13px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-md bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#166EE1]"
+                className="w-full h-9 pl-8 pr-3 text-[13px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-md bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#2D7FF9]"
                 placeholder="Search for..."
                 value={searchText}
                 onChange={(e) => { setSearchText(e.target.value); setReplacedCount(0); }}
@@ -149,7 +149,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
           <div className="relative">
             <Replace size={14} className="absolute left-2.5 top-2.5 text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
             <input
-              className="w-full h-9 pl-8 pr-3 text-[13px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-md bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#166EE1]"
+              className="w-full h-9 pl-8 pr-3 text-[13px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-md bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#2D7FF9]"
               placeholder="Replace with..."
               value={replaceText}
               onChange={(e) => { setReplaceText(e.target.value); setReplacedCount(0); }}
@@ -197,7 +197,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
                       </span>
                     </div>
                     <button
-                      className="text-[11px] text-[#166EE1] hover:underline ml-2 shrink-0"
+                      className="text-[11px] text-[#2D7FF9] hover:underline ml-2 shrink-0"
                       onClick={() => handleReplaceSingle(m)}
                     >
                       Replace
@@ -225,7 +225,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
             </Button>
             <Button
               size="sm"
-              style={{ backgroundColor: '#166EE1' }}
+              style={{ backgroundColor: '#2D7FF9' }}
               className="text-white"
               onClick={handleReplaceAll}
               disabled={matches.length === 0 || !searchText}

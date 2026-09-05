@@ -720,7 +720,7 @@ export const ButtonCellRenderer = React.memo(function ButtonCellRenderer({
       className="inline-flex items-center px-3 rounded text-xs font-medium transition-colors"
       style={{
         height: 24,
-        backgroundColor: '#166EE1',
+        backgroundColor: '#2D7FF9',
         color: '#FFFFFF',
         cursor: urlTemplate ? 'pointer' : 'default',
       }}

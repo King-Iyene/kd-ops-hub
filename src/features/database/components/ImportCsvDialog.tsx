@@ -385,7 +385,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
           {!parsed ? (
             <div className="space-y-3">
               <textarea
-                className="w-full h-40 text-xs font-mono border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-[#166EE1] resize-none bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                className="w-full h-40 text-xs font-mono border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-[#2D7FF9] resize-none bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
                 placeholder="Paste CSV text here..."
                 value={csvText}
                 onChange={(e) => setCsvText(e.target.value)}
@@ -477,7 +477,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               {/* Column mapping — compact list for remaining columns */}
               {remainingHeaders.length > 0 && (
                 <details className="text-xs">
-                  <summary className="cursor-pointer text-[#166EE1] hover:underline">
+                  <summary className="cursor-pointer text-[#2D7FF9] hover:underline">
                     All column mappings ({parsed.headers.length})
                   </summary>
                   <div className="mt-2 max-h-48 overflow-y-auto border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg divide-y divide-[#E5E5E5] dark:divide-[hsl(200,25%,18%)]">
@@ -512,7 +512,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                   </div>
                   <div className="w-full h-2 bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-[#166EE1] rounded-full transition-all duration-300"
+                      className="h-full bg-[#2D7FF9] rounded-full transition-all duration-300"
                       style={{ width: progress.total > 0 ? `${Math.round((progress.done / progress.total) * 100)}%` : '0%' }}
                     />
                   </div>
@@ -529,7 +529,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               {!importing && (
                 <button
                   className="text-xs hover:underline"
-                  style={{ color: '#166EE1' }}
+                  style={{ color: '#2D7FF9' }}
                   onClick={() => setParsed(null)}
                 >
                   Back to input
@@ -554,7 +554,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
             <Button
               size="sm"
               onClick={handleParse}
-              style={{ backgroundColor: '#166EE1' }}
+              style={{ backgroundColor: '#2D7FF9' }}
               className="text-white"
             >
               Preview
@@ -564,7 +564,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               size="sm"
               onClick={handleImport}
               disabled={importing}
-              style={{ backgroundColor: '#166EE1' }}
+              style={{ backgroundColor: '#2D7FF9' }}
               className="text-white gap-1"
             >
               {importing && <Loader2 size={13} className="animate-spin" />}

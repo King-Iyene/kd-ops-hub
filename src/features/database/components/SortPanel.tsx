@@ -82,7 +82,7 @@ export function SortPanel({ fields, sorts, onSortsChange }: SortPanelProps) {
           <ArrowUpDown size={14} />
           Sort
           {activeCount > 0 && (
-            <span className="ml-0.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-[#166EE1] text-white text-[10px] font-medium">
+            <span className="ml-0.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-[#2D7FF9] text-white text-[10px] font-medium">
               {activeCount}
             </span>
           )}
@@ -151,7 +151,7 @@ export function SortPanel({ fields, sorts, onSortsChange }: SortPanelProps) {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-[#166EE1] gap-1 font-medium"
+            className="h-7 text-xs text-[#2D7FF9] gap-1 font-medium"
             onClick={addSort}
           >
             <Plus size={14} /> Add sort

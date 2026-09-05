@@ -45,6 +45,7 @@ export interface Base {
   id: string;
   workspace_id: string;
   name: string;
+  slug: string | null;
   schema_name: string;
   icon: string | null;
   color: string | null;
@@ -57,6 +58,7 @@ export interface TableMeta {
   id: string;
   base_id: string;
   name: string;
+  slug: string | null;
   pg_table_name: string;
   primary_field_id: string | null;
   icon: string | null;
@@ -130,6 +132,7 @@ export interface ViewMeta {
   id: string;
   table_id: string;
   name: string;
+  slug: string | null;
   type: 'grid' | 'kanban' | 'form' | 'calendar' | 'gallery' | 'timeline' | 'gantt';
   filters: Filter[];
   sorts: Sort[];
@@ -243,7 +246,7 @@ export const VIRTUAL_TYPES: UIType[] = [
 export const SELECT_COLORS: Record<string, { bg: string; text: string; darkBg: string; darkText: string }> = {
   blueLight2:   { bg: '#D0E0FC', text: '#2750AE', darkBg: '#1a2a42', darkText: '#9CC1FA' },
   blueLight1:   { bg: '#9CC1FA', text: '#2750AE', darkBg: '#1e3a5f', darkText: '#D0E0FC' },
-  blueBright:   { bg: '#166EE1', text: '#FFFFFF', darkBg: '#166EE1', darkText: '#FFFFFF' },
+  blueBright:   { bg: '#2D7FF9', text: '#FFFFFF', darkBg: '#2D7FF9', darkText: '#FFFFFF' },
   blueDark1:    { bg: '#2750AE', text: '#FFFFFF', darkBg: '#2750AE', darkText: '#D0E0FC' },
   cyanLight2:   { bg: '#C2F5E9', text: '#0B76B7', darkBg: '#0d2d3a', darkText: '#72DDC3' },
   cyanLight1:   { bg: '#72DDC3', text: '#0B76B7', darkBg: '#0f3d4a', darkText: '#C2F5E9' },

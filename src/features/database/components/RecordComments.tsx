@@ -25,7 +25,7 @@ function timeAgo(dateStr: string): string {
 }
 
 const AVATAR_COLORS = [
-  '#166EE1', '#E11D48', '#16A34A', '#CA8A04', '#9333EA',
+  '#2D7FF9', '#E11D48', '#16A34A', '#CA8A04', '#9333EA',
   '#0891B2', '#EA580C', '#4F46E5',
 ];
 
@@ -124,12 +124,12 @@ export function RecordComments({ baseId, tableId, recordId, userEmail }: RecordC
             }
           }}
           placeholder="Write a comment..."
-          className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#166EE1] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(200,20%,40%)]"
+          className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#2D7FF9] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(200,20%,40%)]"
         />
         <button
           onClick={handleSubmit}
           disabled={!text.trim() || createComment.isPending}
-          className="p-2 rounded-lg bg-[#166EE1] text-white hover:bg-[#2952cc] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="p-2 rounded-lg bg-[#2D7FF9] text-white hover:bg-[#2952cc] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           <Send size={14} />
         </button>

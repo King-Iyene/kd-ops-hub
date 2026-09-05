@@ -37,7 +37,7 @@ export interface GridViewProps {
 
 
 const GROUP_PILL_COLORS = [
-  '#166EE1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899',
+  '#2D7FF9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899',
   '#06B6D4', '#84CC16', '#F97316', '#6366F1',
 ];
 

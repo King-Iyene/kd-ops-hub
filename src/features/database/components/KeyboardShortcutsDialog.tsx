@@ -95,7 +95,7 @@ export function KeyboardShortcutsDialog({ open, onOpenChange }: KeyboardShortcut
       <DialogContent className="sm:max-w-[560px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
-            <Keyboard size={16} className="text-[#166EE1]" />
+            <Keyboard size={16} className="text-[#2D7FF9]" />
             Keyboard Shortcuts
           </DialogTitle>
         </DialogHeader>
