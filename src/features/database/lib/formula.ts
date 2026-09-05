@@ -382,6 +382,7 @@ const BUILTIN_FUNCTIONS: Record<string, (args: any[]) => any> = {
 
   // String
   CONCAT: (args) => args.map(toString).join(''),
+  CONCATENATE: (args) => args.map(toString).join(''),
   LEFT: ([s, n]) => toString(s).slice(0, toNumber(n)),
   RIGHT: ([s, n]) => { const str = toString(s); return str.slice(Math.max(0, str.length - toNumber(n))); },
   MID: ([s, start, len]) => toString(s).slice(toNumber(start) - 1, toNumber(start) - 1 + toNumber(len)),
