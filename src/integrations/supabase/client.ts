@@ -12,17 +12,11 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
 }
 
 // ── Schema repair state ──────────────────────────────────────────────────────
-// PostgREST returns 406 when a schema isn't in its db-schemas config. This
-// happens when PostgREST restarts and the config is stale. We detect the
-// first 406 and call the ddl-executor's repairSchemaConfig action, then
-// retry the request. A single repair attempt per page load is enough.
 let _schemaRepairPromise: Promise<boolean> | null = null;
+let _lastRepairTime = 0;
 
 async function attemptSchemaRepair(): Promise<boolean> {
   try {
-    // Read the access token directly from localStorage to avoid a circular
-    // dependency — `supabase` isn't defined yet when this module initialises,
-    // but this function only runs at request-time when a 406 is encountered.
     const storageKey = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`;
     const raw = localStorage.getItem(storageKey);
     const accessToken = raw ? (JSON.parse(raw) as { access_token?: string }).access_token : null;
@@ -50,13 +44,17 @@ const retryFetch: typeof fetch = async (input, init) => {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const res = await fetch(input, init);
 
-    // 406 — schema not exposed to PostgREST; attempt one-time repair
-    if (res.status === 406 && !_schemaRepairPromise) {
-      _schemaRepairPromise = attemptSchemaRepair();
+    if (res.status === 406) {
+      // Allow re-repair after 30s cooldown
+      const now = Date.now();
+      if (!_schemaRepairPromise || now - _lastRepairTime > 30_000) {
+        _lastRepairTime = now;
+        _schemaRepairPromise = attemptSchemaRepair();
+      }
       const repaired = await _schemaRepairPromise;
-      if (repaired) {
-        await new Promise(r => setTimeout(r, 1500));
-        return fetch(input, init);
+      if (repaired && attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * 2 ** attempt));
+        continue;
       }
     }
 
