@@ -71,7 +71,7 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
               <>
                 <span
                   className="w-5 h-5 rounded flex items-center justify-center text-[10px] shrink-0"
-                  style={{ backgroundColor: activeBase.color || '#166EE1' }}
+                  style={{ backgroundColor: activeBase.color || '#2D7FF9' }}
                 >
                   <span className="text-white font-bold">
                     {activeBase.name?.charAt(0)?.toUpperCase() || 'B'}
@@ -170,7 +170,7 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
             <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
-              <Share2 size={16} className="text-[#166EE1]" />
+              <Share2 size={16} className="text-[#2D7FF9]" />
               Share {activeBase?.name ? `"${activeBase.name}"` : 'base'}
             </DialogTitle>
           </DialogHeader>
@@ -191,7 +191,7 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
                 <Button
                   size="sm"
                   className="h-8 px-3 text-[12px] gap-1.5"
-                  style={{ backgroundColor: '#166EE1' }}
+                  style={{ backgroundColor: '#2D7FF9' }}
                   onClick={handleCopyLink}
                 >
                   {copied ? <Check size={13} /> : <Copy size={13} />}
@@ -229,7 +229,7 @@ export function DatabaseTopBar({ onOpenShortcuts }: { onOpenShortcuts?: () => vo
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
-              <HelpCircle size={16} className="text-[#166EE1]" />
+              <HelpCircle size={16} className="text-[#2D7FF9]" />
               Keyboard Shortcuts
             </DialogTitle>
           </DialogHeader>

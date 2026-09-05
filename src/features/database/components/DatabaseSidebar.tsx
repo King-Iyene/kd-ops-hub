@@ -33,7 +33,7 @@ import { BaseSettingsDialog } from './BaseSettingsDialog';
 import type { Base } from '../types';
 
 const BASE_COLORS = [
-  '#166EE1', '#0D9488', '#8B5CF6', '#EC4899', '#F59E0B',
+  '#2D7FF9', '#0D9488', '#8B5CF6', '#EC4899', '#F59E0B',
   '#EF4444', '#10B981', '#6366F1', '#F97316', '#64748B',
 ];
 
@@ -65,7 +65,7 @@ function InlineRenameInput({
   return (
     <input
       ref={ref}
-      className="bg-white dark:bg-[hsl(200,30%,12%)] border border-[#166EE1] rounded px-1.5 py-0.5 text-[13px] w-full outline-none text-[#374151] dark:text-[hsl(200,25%,88%)]"
+      className="bg-white dark:bg-[hsl(200,30%,12%)] border border-[#2D7FF9] rounded px-1.5 py-0.5 text-[13px] w-full outline-none text-[#374151] dark:text-[hsl(200,25%,88%)]"
       value={text}
       onChange={(e) => setText(e.target.value)}
       onBlur={commit}
@@ -178,7 +178,7 @@ export function DatabaseSidebar() {
       <div className="h-11 flex items-center justify-between px-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
         {!sidebarCollapsed && (
           <button
-            className="flex items-center gap-1.5 text-[13px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] hover:text-[#166EE1] transition-colors"
+            className="flex items-center gap-1.5 text-[13px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] hover:text-[#2D7FF9] transition-colors"
             onClick={() => navigateToBase(null)}
             title="Go to home"
           >
@@ -230,7 +230,7 @@ export function DatabaseSidebar() {
               'group flex items-center gap-2 mx-1.5 px-2 py-[7px] rounded-md cursor-pointer transition-colors',
               sidebarCollapsed && 'justify-center mx-0.5 px-0',
               base.id === activeBaseId
-                ? 'bg-[#166EE1]/10 dark:bg-[hsl(220,50%,14%)]'
+                ? 'bg-[#2D7FF9]/10 dark:bg-[hsl(220,50%,14%)]'
                 : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,12%)]',
             )}
             onClick={() => navigateToBase(base.id)}
@@ -238,7 +238,7 @@ export function DatabaseSidebar() {
           >
             <span
               className="w-6 h-6 rounded flex items-center justify-center text-[11px] shrink-0"
-              style={{ backgroundColor: base.color || '#166EE1' }}
+              style={{ backgroundColor: base.color || '#2D7FF9' }}
             >
               <span className="text-white font-bold">
                 {base.name?.charAt(0)?.toUpperCase() || 'B'}
@@ -262,7 +262,7 @@ export function DatabaseSidebar() {
                     className={cn(
                       'text-[13px] font-medium truncate flex-1',
                       base.id === activeBaseId
-                        ? 'text-[#166EE1]'
+                        ? 'text-[#2D7FF9]'
                         : 'text-[#374151] dark:text-[hsl(200,25%,88%)]',
                     )}
                   >
@@ -353,14 +353,14 @@ export function DatabaseSidebar() {
 
         {(!bases || bases.length === 0) && !sidebarCollapsed && (
           <div className="px-4 py-8 text-center">
-            <div className="mx-auto w-10 h-10 rounded-xl bg-[#166EE1]/10 flex items-center justify-center mb-3">
-              <Database size={20} className="text-[#166EE1]" />
+            <div className="mx-auto w-10 h-10 rounded-xl bg-[#2D7FF9]/10 flex items-center justify-center mb-3">
+              <Database size={20} className="text-[#2D7FF9]" />
             </div>
             <p className="text-xs text-[#9AA2AF] mb-2">No bases yet</p>
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs text-[#166EE1] hover:text-[#2952CC]"
+              className="text-xs text-[#2D7FF9] hover:text-[#2952CC]"
               onClick={() => setCreateBaseOpen(true)}
             >
               <Plus size={12} className="mr-1" /> Create base
@@ -372,7 +372,7 @@ export function DatabaseSidebar() {
       {/* Resize drag handle */}
       {!sidebarCollapsed && (
         <div
-          className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-[#166EE1]/30 active:bg-[#166EE1]/50 transition-colors z-20"
+          className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-[#2D7FF9]/30 active:bg-[#2D7FF9]/50 transition-colors z-20"
           onMouseDown={handleResizeMouseDown}
         />
       )}

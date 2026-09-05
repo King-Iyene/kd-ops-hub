@@ -154,11 +154,11 @@ export function AttachmentManager({
               onClick={() => fileRef.current?.click()}
               className="flex flex-col items-center justify-center gap-2 py-8 rounded-lg cursor-pointer transition-colors"
               style={{
-                border: `2px dashed ${dragOver ? '#166EE1' : '#E5E5E5'}`,
+                border: `2px dashed ${dragOver ? '#2D7FF9' : '#E5E5E5'}`,
                 backgroundColor: dragOver ? 'rgba(51,102,255,0.04)' : 'transparent',
               }}
             >
-              <Upload size={24} className={dragOver ? 'text-[#166EE1]' : 'text-[#9AA2AF]'} />
+              <Upload size={24} className={dragOver ? 'text-[#2D7FF9]' : 'text-[#9AA2AF]'} />
               <span className="text-sm text-[#6A7184]">
                 {uploading ? 'Uploading...' : 'Drop files here or click to upload'}
               </span>

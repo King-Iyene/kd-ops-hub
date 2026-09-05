@@ -146,7 +146,7 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
   };
 
   const inputClass =
-    'w-full border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg px-3 py-2.5 text-sm text-[#374151] dark:text-[hsl(200,25%,88%)] bg-white dark:bg-[hsl(200,30%,8%)] focus:outline-none focus:ring-2 focus:ring-[#166EE1]/30 focus:border-[#166EE1] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(200,25%,40%)] transition-colors';
+    'w-full border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg px-3 py-2.5 text-sm text-[#374151] dark:text-[hsl(200,25%,88%)] bg-white dark:bg-[hsl(200,30%,8%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(200,25%,40%)] transition-colors';
 
   const renderInput = (f: FieldMeta) => {
     const req = isFieldRequired(f);
@@ -172,7 +172,7 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
               checked={!!values[f.id]}
               onChange={(e) => setValues((v) => ({ ...v, [f.id]: e.target.checked }))}
             />
-            <div className="w-9 h-5 bg-[#E5E5E5] dark:bg-[hsl(200,25%,20%)] peer-focus:ring-2 peer-focus:ring-[#166EE1]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#166EE1]" />
+            <div className="w-9 h-5 bg-[#E5E5E5] dark:bg-[hsl(200,25%,20%)] peer-focus:ring-2 peer-focus:ring-[#2D7FF9]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#2D7FF9]" />
           </label>
         );
       case 'Number':
@@ -298,9 +298,9 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
                 type="button"
                 onClick={handleSubmitAnother}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
-                style={{ backgroundColor: '#166EE1' }}
+                style={{ backgroundColor: '#2D7FF9' }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#2952CC')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#166EE1')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2D7FF9')}
               >
                 <RotateCcw size={14} />
                 Submit another response
@@ -401,12 +401,12 @@ export default function FormView({ fields, onAddRow, isLoading }: FormViewProps)
               type="submit"
               disabled={isLoading}
               className="px-8 py-2.5 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50"
-              style={{ backgroundColor: '#166EE1' }}
+              style={{ backgroundColor: '#2D7FF9' }}
               onMouseEnter={(e) => {
                 if (!isLoading) e.currentTarget.style.backgroundColor = '#2952CC';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#166EE1';
+                e.currentTarget.style.backgroundColor = '#2D7FF9';
               }}
             >
               {isLoading ? 'Submitting...' : 'Submit'}

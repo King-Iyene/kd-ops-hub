@@ -65,7 +65,7 @@ const timelineStyles = `
   --tl-text: #374151;
   --tl-text-muted: #6A7184;
   --tl-text-faint: #9AA2AF;
-  --tl-primary: #166EE1;
+  --tl-primary: #2D7FF9;
   --tl-primary-hover: #2952CC;
   --tl-cell-hover: #F3F4F6;
   --tl-tooltip-bg: #1F2937;

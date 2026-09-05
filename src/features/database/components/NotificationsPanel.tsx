@@ -76,7 +76,7 @@ const ICONS: Record<NotificationType, typeof Edit3> = {
 
 const ICON_COLORS: Record<NotificationType, string> = {
   record_created: '#22C55E',
-  record_updated: '#166EE1',
+  record_updated: '#2D7FF9',
   record_deleted: '#EF4444',
   comment: '#F59E0B',
   automation: '#8B5CF6',
@@ -141,7 +141,7 @@ export function NotificationsPanel() {
             </span>
             {notifications.length > 0 && (
               <button
-                className="text-[11px] text-[#166EE1] hover:underline"
+                className="text-[11px] text-[#2D7FF9] hover:underline"
                 onClick={markAllRead}
               >
                 Mark all read
@@ -181,7 +181,7 @@ export function NotificationsPanel() {
                       </span>
                     </div>
                     {!n.read && (
-                      <span className="mt-1.5 h-2 w-2 rounded-full bg-[#166EE1] shrink-0" />
+                      <span className="mt-1.5 h-2 w-2 rounded-full bg-[#2D7FF9] shrink-0" />
                     )}
                   </div>
                 );

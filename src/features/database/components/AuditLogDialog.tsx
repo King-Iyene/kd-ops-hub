@@ -20,7 +20,7 @@ type ActionType = AuditLogEntry['action'];
 
 const ACTION_META: Record<ActionType, { label: string; color: string; darkColor: string; Icon: typeof Plus }> = {
   INSERT:       { label: 'Insert',       color: '#059669', darkColor: '#34D399', Icon: Plus },
-  UPDATE:       { label: 'Update',       color: '#166EE1', darkColor: '#6B8AFF', Icon: Pencil },
+  UPDATE:       { label: 'Update',       color: '#2D7FF9', darkColor: '#6B8AFF', Icon: Pencil },
   DELETE:       { label: 'Delete',       color: '#DC2626', darkColor: '#F87171', Icon: Trash2 },
   BULK_DELETE:  { label: 'Bulk Delete',  color: '#DC2626', darkColor: '#F87171', Icon: Trash2 },
   CREATE_TABLE: { label: 'Create Table', color: '#7C3AED', darkColor: '#A78BFA', Icon: Table },
@@ -152,7 +152,7 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
         {/* Header */}
         <DialogHeader className="px-4 pt-4 pb-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] shrink-0">
           <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
-            <History size={16} className="text-[#166EE1]" />
+            <History size={16} className="text-[#2D7FF9]" />
             Audit Log
           </DialogTitle>
         </DialogHeader>

@@ -78,7 +78,7 @@ export default function SharedViewPage() {
   if (sharedViewQuery.isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#FAFAFA] dark:bg-[hsl(200,30%,6%)]">
-        <div className="animate-spin h-8 w-8 border-2 border-[#166EE1] border-t-transparent rounded-full" />
+        <div className="animate-spin h-8 w-8 border-2 border-[#2D7FF9] border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -110,7 +110,7 @@ export default function SharedViewPage() {
             <button
               type="submit"
               className="w-full py-2 rounded-lg text-white text-sm font-medium"
-              style={{ backgroundColor: '#166EE1' }}
+              style={{ backgroundColor: '#2D7FF9' }}
             >
               Submit
             </button>

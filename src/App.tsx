@@ -242,6 +242,16 @@ function AppRoutes() {
           </AuthGuard>
         }
       />
+      <Route
+        path="/data/:baseId/:tableId/:viewId"
+        element={
+          <AuthGuard>
+            <ErrorBoundary>
+              <DatabasePage />
+            </ErrorBoundary>
+          </AuthGuard>
+        }
+      />
 
       <Route
         element={

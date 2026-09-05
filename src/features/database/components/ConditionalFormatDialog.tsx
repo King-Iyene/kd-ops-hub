@@ -158,13 +158,13 @@ export function ConditionalFormatDialog({ open, onOpenChange }: ConditionalForma
 
         <div className="px-4 py-3 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] flex items-center justify-between">
           <button
-            className="text-[12px] text-[#166EE1] hover:underline font-medium"
+            className="text-[12px] text-[#2D7FF9] hover:underline font-medium"
             onClick={addRule}
           >
             + Add rule
           </button>
           <button
-            className="px-3 py-1.5 text-[12px] bg-[#166EE1] text-white rounded hover:bg-[#2952CC] font-medium"
+            className="px-3 py-1.5 text-[12px] bg-[#2D7FF9] text-white rounded hover:bg-[#2952CC] font-medium"
             onClick={() => onOpenChange(false)}
           >
             Done

@@ -74,7 +74,7 @@ function LinkedRecordsPopover({
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <button
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-[#E0F2FE] text-[#166EE1] dark:bg-[hsl(220,40%,20%)] dark:text-[#6699FF]"
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-[#E0F2FE] text-[#2D7FF9] dark:bg-[hsl(220,40%,20%)] dark:text-[#6699FF]"
           onClick={(e) => e.stopPropagation()}
         >
           <Link2 size={12} />
@@ -146,7 +146,7 @@ function LinkedRecordsPopover({
                     className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#DBEAFE] dark:hover:bg-[hsl(220,40%,20%)] transition-opacity"
                     onClick={() => linkRecord(rec.id)}
                   >
-                    <Plus size={12} className="text-[#166EE1]" />
+                    <Plus size={12} className="text-[#2D7FF9]" />
                   </button>
                 </div>
               ))}
