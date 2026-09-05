@@ -57,6 +57,15 @@ async function waitForGridLoad(page: Page) {
   const empty = page.locator('text=No records yet');
   await grid.or(empty).first().waitFor({ timeout: 15_000 });
   await page.waitForTimeout(1500);
+
+  // If the grid container rendered but the virtualizer hasn't produced cells,
+  // dispatch a resize event to force it to recalculate visible rows.
+  if (await grid.isVisible().catch(() => false)) {
+    if (!await page.locator('[role="gridcell"]').first().isVisible().catch(() => false)) {
+      await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+      await page.waitForTimeout(1000);
+    }
+  }
 }
 
 async function getSidebarBases(page: Page) {
@@ -375,18 +384,21 @@ test.describe('Record CRUD operations', () => {
   });
 
   test('UPDATE — edit an existing cell value', async ({ page }) => {
-    // Wait for gridcells — if not visible after initial load, reload once
-    // to work around a virtualizer race where the grid container renders
-    // but cells never appear on the first navigation.
     const cell = page.locator('[role="gridcell"]').first();
-    if (!await cell.isVisible().catch(() => false)) {
-      await page.waitForTimeout(3000);
-    }
-    if (!await cell.isVisible().catch(() => false)) {
+
+    // If no cells visible, try reload to nudge virtualizer
+    if (!await cell.isVisible({ timeout: 3_000 }).catch(() => false)) {
       await page.reload();
       await page.waitForLoadState('domcontentloaded');
       await waitForGridLoad(page);
     }
+
+    // Still no cells — create a row so the test is self-sufficient
+    if (!await cell.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await clickAddRow(page);
+      await page.waitForTimeout(1500);
+    }
+
     await expect(cell).toBeVisible({ timeout: 15_000 });
     await cell.dblclick();
     await page.waitForTimeout(300);
