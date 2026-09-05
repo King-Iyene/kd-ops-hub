@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { Copy, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
+import { Copy, Eye, EyeOff, Plus, Trash2, Webhook, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useUpdateBase, useDeleteBase } from '../hooks';
 import { useDatabaseUI } from '../lib/store';
 import { useDatabaseNavigate } from '../hooks/useNavigate';
@@ -46,7 +46,7 @@ const EMOJI_OPTIONS = [
   '🏠', '🎨', '💼', '🔬', '📈',
 ];
 
-type Tab = 'general' | 'api' | 'backups' | 'danger';
+type Tab = 'general' | 'api' | 'webhooks' | 'backups' | 'danger';
 
 export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDialogProps) {
   const [tab, setTab] = useState<Tab>('general');
@@ -149,6 +149,17 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
           <button
             className={cn(
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
+              tab === 'webhooks'
+                ? 'border-[#2D7FF9] text-[#2D7FF9]'
+                : 'border-transparent text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
+            )}
+            onClick={() => setTab('webhooks')}
+          >
+            Webhooks
+          </button>
+          <button
+            className={cn(
+              'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'danger'
                 ? 'border-red-500 text-red-500'
                 : 'border-transparent text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
@@ -225,6 +236,10 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
 
         {tab === 'api' && (
           <ApiKeysTab workspaceId={base.workspace_id} baseSchemaName={base.schema_name} />
+        )}
+
+        {tab === 'webhooks' && (
+          <WebhooksTab baseId={base.id} />
         )}
 
         {tab === 'danger' && (
@@ -422,6 +437,253 @@ function BackupsTab({ baseId }: { baseId: string }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Webhooks Tab ----------
+
+interface WebhookRow {
+  id: string;
+  name: string;
+  url: string;
+  events: string[];
+  is_active: boolean;
+  secret: string | null;
+  last_triggered_at: string | null;
+  created_at: string;
+}
+
+const EVENT_OPTIONS = [
+  { value: 'record.created', label: 'Record created' },
+  { value: 'record.updated', label: 'Record updated' },
+  { value: 'record.deleted', label: 'Record deleted' },
+];
+
+function WebhooksTab({ baseId }: { baseId: string }) {
+  const [hooks, setHooks] = useState<WebhookRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newName, setNewName] = useState('');
+  const [newUrl, setNewUrl] = useState('');
+  const [newSecret, setNewSecret] = useState('');
+  const [newEvents, setNewEvents] = useState<string[]>(['record.created', 'record.updated', 'record.deleted']);
+  const [creating, setCreating] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+
+  const fetchHooks = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .schema('nc_meta')
+      .from('webhooks')
+      .select('id, name, url, events, is_active, secret, last_triggered_at, created_at')
+      .eq('base_id', baseId)
+      .order('created_at', { ascending: false });
+    setHooks(data ?? []);
+    setLoading(false);
+  }, [baseId]);
+
+  useEffect(() => { fetchHooks(); }, [fetchHooks]);
+
+  const handleCreate = async () => {
+    if (!newName.trim() || !newUrl.trim()) return;
+    setCreating(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.schema('nc_meta').from('webhooks').insert({
+        base_id: baseId,
+        name: newName.trim(),
+        url: newUrl.trim(),
+        events: newEvents,
+        secret: newSecret.trim() || null,
+        is_active: true,
+        created_by: user?.id,
+      });
+      setNewName('');
+      setNewUrl('');
+      setNewSecret('');
+      setShowForm(false);
+      await fetchHooks();
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const toggleActive = async (id: string, current: boolean) => {
+    await supabase.schema('nc_meta').from('webhooks').update({ is_active: !current }).eq('id', id);
+    await fetchHooks();
+  };
+
+  const handleDelete = async (id: string) => {
+    await supabase.schema('nc_meta').from('webhooks').delete().eq('id', id);
+    await fetchHooks();
+  };
+
+  const toggleEvent = (ev: string) => {
+    setNewEvents(prev => prev.includes(ev) ? prev.filter(e => e !== ev) : [...prev, ev]);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(200,30%,8%)] p-3 space-y-1">
+        <p className="text-[12px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] flex items-center gap-1.5">
+          <Webhook size={13} className="text-[#2D7FF9]" /> Webhooks
+        </p>
+        <p className="text-[11px] text-[#9AA2AF]">
+          Send HTTP POST requests to external URLs when records are created, updated, or deleted.
+          Use with n8n, Zapier, or any webhook receiver.
+        </p>
+      </div>
+
+      {!showForm ? (
+        <Button
+          size="sm"
+          className="bg-[#2D7FF9] hover:bg-[#2952CC] w-full"
+          onClick={() => setShowForm(true)}
+        >
+          <Plus size={12} className="mr-1" /> Add Webhook
+        </Button>
+      ) : (
+        <div className="rounded-lg border border-[#2D7FF9]/30 bg-[#F0F3FF] dark:bg-[hsl(220,30%,12%)] p-3 space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Name</Label>
+            <Input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="e.g. n8n — new expenses"
+              className="h-8 text-[13px]"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">URL</Label>
+            <Input
+              value={newUrl}
+              onChange={(e) => setNewUrl(e.target.value)}
+              placeholder="https://your-n8n.com/webhook/..."
+              className="h-8 text-[13px] font-mono"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Events</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {EVENT_OPTIONS.map(ev => (
+                <button
+                  key={ev.value}
+                  className={cn(
+                    'px-2 py-1 rounded text-[11px] border transition-colors',
+                    newEvents.includes(ev.value)
+                      ? 'bg-[#2D7FF9] text-white border-[#2D7FF9]'
+                      : 'bg-white dark:bg-[hsl(200,30%,10%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-[#6A7184]',
+                  )}
+                  onClick={() => toggleEvent(ev.value)}
+                >
+                  {ev.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Secret (optional, for signature verification)</Label>
+            <Input
+              value={newSecret}
+              onChange={(e) => setNewSecret(e.target.value)}
+              placeholder="whsec_..."
+              className="h-8 text-[13px] font-mono"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="bg-[#2D7FF9] hover:bg-[#2952CC]"
+              onClick={handleCreate}
+              disabled={creating || !newName.trim() || !newUrl.trim() || !newEvents.length}
+            >
+              {creating ? 'Creating...' : 'Create Webhook'}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <Label className="text-xs">Active Webhooks</Label>
+        {loading && <p className="text-xs text-muted-foreground">Loading...</p>}
+        {!loading && hooks.length === 0 && (
+          <p className="text-xs text-muted-foreground">No webhooks configured</p>
+        )}
+        <div className="max-h-56 overflow-y-auto space-y-1.5">
+          {hooks.map((hook) => (
+            <div
+              key={hook.id}
+              className={cn(
+                'p-2.5 rounded border transition-colors',
+                hook.is_active
+                  ? 'border-border bg-muted/30'
+                  : 'border-border/50 bg-muted/10 opacity-60',
+              )}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium truncate">{hook.name}</p>
+                  <p className="text-[10px] text-muted-foreground font-mono truncate">{hook.url}</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {hook.events.map(ev => (
+                      <span key={ev} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#2D7FF9]/10 text-[#2D7FF9]">
+                        {ev.replace('record.', '')}
+                      </span>
+                    ))}
+                  </div>
+                  {hook.last_triggered_at && (
+                    <p className="text-[9px] text-muted-foreground mt-1">
+                      Last fired: {new Date(hook.last_triggered_at).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    className="p-1 rounded hover:bg-muted transition-colors"
+                    onClick={() => toggleActive(hook.id, hook.is_active)}
+                    title={hook.is_active ? 'Disable' : 'Enable'}
+                  >
+                    {hook.is_active
+                      ? <ToggleRight size={18} className="text-[#2D7FF9]" />
+                      : <ToggleLeft size={18} className="text-muted-foreground" />
+                    }
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
+                    onClick={() => handleDelete(hook.id)}
+                  >
+                    <Trash2 size={12} />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(200,30%,8%)] p-3 space-y-2">
+        <p className="text-[12px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Webhook Payload</p>
+        <pre className="text-[10px] font-mono bg-white dark:bg-[hsl(200,30%,10%)] border rounded p-2 overflow-x-auto whitespace-pre text-[#374151] dark:text-[hsl(200,25%,88%)]">{`{
+  "event": "record.created",
+  "timestamp": "2026-09-05T12:00:00Z",
+  "base_id": "uuid",
+  "table_id": "uuid",
+  "table_name": "Expenses",
+  "payload": {
+    "records": [
+      { "id": "uuid", "fields": { ... } }
+    ]
+  }
+}`}</pre>
+        <p className="text-[10px] text-[#9AA2AF]">
+          If a secret is set, requests include an <code className="bg-white dark:bg-[hsl(200,30%,10%)] px-1 rounded">X-KDOps-Signature</code> header (SHA-256 of body + secret).
+        </p>
       </div>
     </div>
   );

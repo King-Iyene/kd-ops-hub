@@ -396,13 +396,15 @@ async function handleCreateRecords(
     }
     await conn.queryObject('COMMIT');
 
-    return json({
-      records: created.map((row: any) => ({
-        id: row.id,
-        createdTime: row.created_at,
-        fields: pgRowToFields(row, fieldMeta),
-      })),
-    }, 201);
+    const result = created.map((row: any) => ({
+      id: row.id,
+      createdTime: row.created_at,
+      fields: pgRowToFields(row, fieldMeta),
+    }));
+
+    dispatchWebhooks(pool, base.id, table.id, table.name, 'record.created', { records: result });
+
+    return json({ records: result }, 201);
   } catch (e) {
     await conn.queryObject('ROLLBACK').catch(() => {});
     throw e;
@@ -449,13 +451,15 @@ async function handleUpdateRecords(
     }
     await conn.queryObject('COMMIT');
 
-    return json({
-      records: updated.map((row: any) => ({
-        id: row.id,
-        createdTime: row.created_at,
-        fields: pgRowToFields(row, fieldMeta),
-      })),
-    });
+    const result = updated.map((row: any) => ({
+      id: row.id,
+      createdTime: row.created_at,
+      fields: pgRowToFields(row, fieldMeta),
+    }));
+
+    dispatchWebhooks(pool, base.id, table.id, table.name, 'record.updated', { records: result });
+
+    return json({ records: result });
   } catch (e) {
     await conn.queryObject('ROLLBACK').catch(() => {});
     throw e;
@@ -490,12 +494,73 @@ async function handleDeleteRecords(
     const { rows } = await conn.queryObject<{ id: string }>(
       `DELETE FROM ${fqn} WHERE "id" IN (${placeholders}) RETURNING "id"`, recordIds,
     );
-    return json({
-      records: rows.map(r => ({ id: r.id, deleted: true })),
-    });
+    const result = rows.map(r => ({ id: r.id, deleted: true }));
+
+    dispatchWebhooks(pool, base.id, table.id, table.name, 'record.deleted', { records: result });
+
+    return json({ records: result });
   } finally {
     conn.release();
   }
+}
+
+// ---------- Webhooks ----------
+
+async function dispatchWebhooks(
+  pool: Pool,
+  baseId: string,
+  tableId: string,
+  tableName: string,
+  event: string,
+  payload: unknown,
+) {
+  try {
+    const conn = await pool.connect();
+    try {
+      const { rows } = await conn.queryObject<{ url: string; secret: string | null; headers: Record<string, string> }>(
+        `SELECT url, secret, headers FROM nc_meta.webhooks
+         WHERE base_id = $1 AND is_active = true
+           AND (table_id IS NULL OR table_id = $2)
+           AND $3 = ANY(events)`,
+        [baseId, tableId, event],
+      );
+      if (!rows.length) return;
+
+      const body = JSON.stringify({
+        event,
+        timestamp: new Date().toISOString(),
+        base_id: baseId,
+        table_id: tableId,
+        table_name: tableName,
+        payload,
+      });
+
+      for (const wh of rows) {
+        const hdrs: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'User-Agent': 'KDOps-Webhook/1.0',
+          ...(wh.headers ?? {}),
+        };
+        if (wh.secret) {
+          const sig = encodeHex(new Uint8Array(
+            await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body + wh.secret)),
+          ));
+          hdrs['X-KDOps-Signature'] = sig;
+        }
+        fetch(wh.url, { method: 'POST', headers: hdrs, body }).catch(() => {});
+      }
+
+      conn.queryObject(
+        `UPDATE nc_meta.webhooks SET last_triggered_at = now()
+         WHERE base_id = $1 AND is_active = true
+           AND (table_id IS NULL OR table_id = $2)
+           AND $3 = ANY(events)`,
+        [baseId, tableId, event],
+      ).catch(() => {});
+    } finally {
+      conn.release();
+    }
+  } catch { /* best-effort */ }
 }
 
 // ---------- Main ----------
