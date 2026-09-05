@@ -138,7 +138,7 @@ export function useRecordLinks(opts: {
           .select(jQuery)
           .eq(jFilter, recordId)
           .limit(200);
-        console.log('[mm-debug] jRows', { jRows, jRowErr });
+        console.log('[mm-debug] jRows', JSON.stringify({ jRows, jRowErr }));
         if (!jRows || jRows.length === 0) return [];
 
         const ids = jRows.map((r: any) => r[`${tgtTable.pg_table_name}_id`]).filter(Boolean);
