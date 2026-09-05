@@ -53,14 +53,13 @@ async function navigateToData(page: Page) {
 }
 
 async function waitForGridLoad(page: Page) {
-  const grid = page.locator('[role="grid"]');
+  const gridcell = page.locator('[role="gridcell"]').first();
   const empty = page.locator('text=/No records|0 records|Add row|Empty/i');
-  await grid.or(empty).first().waitFor({ timeout: 15_000 });
-  // If the grid container rendered (records exist), wait for the virtualizer
-  // to produce at least one cell before continuing.
-  if (await grid.isVisible().catch(() => false)) {
-    await page.locator('[role="gridcell"]').first().waitFor({ timeout: 10_000 }).catch(() => {});
-  }
+  // Wait for either a rendered gridcell (records loaded + virtualizer done)
+  // or an explicit empty-state element. This avoids a race where the grid
+  // container appears before data loads (no cells yet) or the empty state
+  // flashes before records arrive.
+  await gridcell.or(empty).first().waitFor({ timeout: 20_000 });
   await page.waitForTimeout(500);
 }
 
@@ -380,6 +379,8 @@ test.describe('Record CRUD operations', () => {
   });
 
   test('UPDATE — edit an existing cell value', async ({ page }) => {
+    // Explicitly wait for at least one gridcell (records must exist from CREATE tests)
+    await page.locator('[role="gridcell"]').first().waitFor({ timeout: 15_000 });
     const cells = page.locator('[role="gridcell"]');
     const cellCount = await cells.count();
     if (cellCount > 0) {
