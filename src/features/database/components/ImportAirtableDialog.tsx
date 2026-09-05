@@ -458,7 +458,13 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             }));
           }
           if (f.type === 'currency') {
-            options.currencyCode = f.options?.symbol ?? 'USD';
+            const sym = f.options?.symbol ?? '$';
+            const symMap: Record<string, string> = {
+              '₦': 'NGN', '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', '₹': 'INR',
+              '₩': 'KRW', '₽': 'RUB', '₺': 'TRY', '₴': 'UAH', '₸': 'KZT', '₫': 'VND',
+              '₵': 'GHS', 'R': 'ZAR', 'Fr': 'CHF', 'kr': 'SEK', 'zł': 'PLN', 'Kč': 'CZK',
+            };
+            options.currencyCode = /^[A-Z]{3}$/.test(sym) ? sym : (symMap[sym] ?? 'USD');
           }
           if (f.type === 'rating') {
             options.max = f.options?.max ?? 5;
