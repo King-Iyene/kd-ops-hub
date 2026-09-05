@@ -378,6 +378,7 @@ test.describe('Record CRUD operations', () => {
 
   test('UPDATE — edit an existing cell value', async ({ page }) => {
     const cells = page.locator('[role="gridcell"]');
+    await cells.first().waitFor({ timeout: 10_000 }).catch(() => {});
     const cellCount = await cells.count();
     if (cellCount > 0) {
       const targetCell = cells.first();
