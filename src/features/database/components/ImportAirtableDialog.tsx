@@ -127,6 +127,7 @@ const SYSTEM_FIELDS = [
   { name: 'Updated At', pg_column_name: 'updated_at', ui_type: 'LastModifiedTime', pg_type: 'TIMESTAMPTZ', is_primary: false, position: 2 },
   { name: 'Created By', pg_column_name: 'created_by', ui_type: 'CreatedBy', pg_type: 'UUID', is_primary: false, position: 3 },
   { name: 'Order', pg_column_name: 'nc_order', ui_type: 'Number', pg_type: 'NUMERIC', is_primary: false, position: 4 },
+  { name: 'Airtable ID', pg_column_name: 'airtable_id', ui_type: 'SingleLineText', pg_type: 'TEXT', is_primary: false, position: 5 },
 ];
 
 const SYSTEM_UI_TYPES = new Set(['ID', 'CreatedTime', 'LastModifiedTime', 'CreatedBy']);
@@ -366,6 +367,17 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           body: { action: 'createTable', schemaName, tableName: pgTableName },
         });
 
+        // Add airtable_id column for record ID mapping during import
+        await supabase.functions.invoke('ddl-executor', {
+          body: {
+            action: 'addColumn',
+            schemaName,
+            tableName: pgTableName,
+            columnName: 'airtable_id',
+            columnType: 'TEXT',
+          },
+        });
+
         const sysRows = SYSTEM_FIELDS.map((f) => ({
           table_id: table.id,
           name: f.name,
@@ -422,6 +434,27 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           }
           if (f.type === 'formula') {
             options.formula = f.options?.formula ?? '';
+          }
+          if (f.type === 'multipleRecordLinks') {
+            const linkedTable = selectedTables.find(
+              (t) => t.id === f.options?.linkedTableId
+            );
+            if (linkedTable) {
+              options.linkedTableName = linkedTable.name;
+              options.linkedTableId = f.options.linkedTableId;
+            }
+            if (f.options?.prefersSingleRecordLink) {
+              options.prefersSingleRecordLink = true;
+            }
+          }
+          if (f.type === 'lookup') {
+            options.recordLinkFieldId = f.options?.recordLinkFieldId;
+            options.fieldIdInLinkedTable = f.options?.fieldIdInLinkedTable;
+          }
+          if (f.type === 'rollup') {
+            options.recordLinkFieldId = f.options?.recordLinkFieldId;
+            options.fieldIdInLinkedTable = f.options?.fieldIdInLinkedTable;
+            options.result = f.options?.result;
           }
 
           let pgColName = toSnakeCase(f.name) || `field_${idx}`;
@@ -514,7 +547,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               if (abortRef.current) break;
               const batch = records.slice(b, b + BATCH_SIZE);
               const rows = batch.map((rec: any, idx: number) => {
-                const row: Record<string, any> = { nc_order: b + idx + 1 };
+                const row: Record<string, any> = { nc_order: b + idx + 1, airtable_id: rec.id };
                 for (const [fieldName, value] of Object.entries(rec.fields || {})) {
                   const mapping = fieldMap[fieldName];
                   if (mapping) {
@@ -564,6 +597,101 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           errors.push(`${atTable.name}: ${e?.message ?? 'Failed to import records'}`);
           setProgress((p) => ({ ...p, errors: [...errors] }));
         }
+      }
+
+      // --- Second pass: create nc_meta rows for computed/linked fields ---
+      try {
+        // Fetch all created fields for this base
+        const { data: allBaseTables } = await supabase
+          .schema('nc_meta')
+          .from('tables')
+          .select('id, pg_table_name')
+          .eq('base_id', base.id);
+
+        const { data: allBaseFields } = await supabase
+          .schema('nc_meta')
+          .from('fields')
+          .select('id, table_id, name, ui_type, options, pg_column_name')
+          .in('table_id', (allBaseTables ?? []).map((t: any) => t.id));
+
+        // Build lookup of Airtable table names → KDOps table IDs
+        const tableNameToId: Record<string, string> = {};
+        for (const t of allBaseTables ?? []) {
+          tableNameToId[t.pg_table_name] = t.id;
+        }
+
+        // Create formula metadata rows
+        const formulaFields = (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Formula');
+        for (const f of formulaFields) {
+          const expression = f.options?.formula ?? '';
+          if (expression) {
+            await supabase.schema('nc_meta').from('formulas').upsert({
+              field_id: f.id,
+              expression,
+              parsed_tree: {},
+              error: null,
+            }, { onConflict: 'field_id' }).select();
+          }
+        }
+
+        // Create lookup metadata rows
+        const lookupFields = (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Lookup');
+        for (const f of lookupFields) {
+          const linkFieldName = f.options?.recordLinkFieldId;
+          const lookupFieldName = f.options?.fieldIdInLinkedTable;
+          if (linkFieldName && lookupFieldName) {
+            const linkField = (allBaseFields ?? []).find(
+              (lf: any) => lf.table_id === f.table_id && lf.ui_type === 'Links'
+            );
+            if (linkField) {
+              await supabase.schema('nc_meta').from('lookups').upsert({
+                field_id: f.id,
+                link_field_id: linkField.id,
+                lookup_field_id: f.id,
+              }, { onConflict: 'field_id' }).select();
+            }
+          }
+        }
+
+        // Create rollup metadata rows
+        const rollupFields = (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Rollup');
+        for (const f of rollupFields) {
+          const rollupFn = f.options?.result?.type ?? 'COUNT';
+          const linkField = (allBaseFields ?? []).find(
+            (lf: any) => lf.table_id === f.table_id && lf.ui_type === 'Links'
+          );
+          if (linkField) {
+            await supabase.schema('nc_meta').from('rollups').upsert({
+              field_id: f.id,
+              link_field_id: linkField.id,
+              rollup_field_id: f.id,
+              rollup_function: rollupFn,
+            }, { onConflict: 'field_id' }).select();
+          }
+        }
+
+        // Create link metadata rows for multipleRecordLinks fields
+        const linkFields = (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Links');
+        for (const f of linkFields) {
+          const linkedTableName = f.options?.linkedTableName;
+          if (linkedTableName) {
+            const relatedPgName = toSnakeCase(linkedTableName);
+            const relatedTable = (allBaseTables ?? []).find(
+              (t: any) => t.pg_table_name === relatedPgName
+            );
+            if (relatedTable) {
+              await supabase.schema('nc_meta').from('links').upsert({
+                field_id: f.id,
+                related_table_id: relatedTable.id,
+                related_field_id: null,
+                junction_table_id: null,
+                type: 'hm',
+              }, { onConflict: 'field_id' }).select();
+            }
+          }
+        }
+      } catch (linkErr) {
+        errors.push(`Link/formula metadata: ${(linkErr as Error).message}`);
       }
 
       setImportedCount(selectedTables.length);
