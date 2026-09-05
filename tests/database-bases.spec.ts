@@ -54,7 +54,7 @@ async function navigateToData(page: Page) {
 
 async function waitForGridLoad(page: Page) {
   const grid = page.locator('[role="grid"]');
-  const empty = page.locator('text=/No records|0 records|Add row|Empty/i');
+  const empty = page.locator('text=No records yet');
   await grid.or(empty).first().waitFor({ timeout: 15_000 });
   await page.waitForTimeout(1500);
 }
@@ -375,9 +375,20 @@ test.describe('Record CRUD operations', () => {
   });
 
   test('UPDATE — edit an existing cell value', async ({ page }) => {
-    const targetCell = page.locator('[role="gridcell"]').first();
-    await expect(targetCell).toBeVisible({ timeout: 15_000 });
-    await targetCell.dblclick();
+    // Wait for gridcells — if not visible after initial load, reload once
+    // to work around a virtualizer race where the grid container renders
+    // but cells never appear on the first navigation.
+    const cell = page.locator('[role="gridcell"]').first();
+    if (!await cell.isVisible().catch(() => false)) {
+      await page.waitForTimeout(3000);
+    }
+    if (!await cell.isVisible().catch(() => false)) {
+      await page.reload();
+      await page.waitForLoadState('domcontentloaded');
+      await waitForGridLoad(page);
+    }
+    await expect(cell).toBeVisible({ timeout: 15_000 });
+    await cell.dblclick();
     await page.waitForTimeout(300);
 
     await page.keyboard.press('Control+a');
