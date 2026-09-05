@@ -90,12 +90,15 @@ export const GridCell = React.memo(function GridCell({
         onCellUpdate(record.id, field.id, !value);
         return;
       }
+      if (!isEditing) {
+        setEditingCell(null);
+      }
       setSelectedCell(cellId);
       if (!isSystemField && SINGLE_CLICK_EDIT_TYPES.has(field.ui_type)) {
         setEditingCell(cellId);
       }
     },
-    [cellId, field, record.id, value, isSystemField, onCellUpdate, setSelectedCell, setEditingCell],
+    [cellId, field, record.id, value, isSystemField, isEditing, onCellUpdate, setSelectedCell, setEditingCell],
   );
 
   const handleDoubleClick = useCallback(() => {
