@@ -149,18 +149,19 @@ async function rateLimitedFetch(url: string, options: RequestInit, retries = MAX
   return res;
 }
 
-async function waitForSchemaReady(schemaName: string, tableName?: string, maxWaitMs = 8000): Promise<void> {
+async function waitForSchemaReady(schemaName: string, tableName?: string, columns?: string[], maxWaitMs = 12000): Promise<void> {
   const start = Date.now();
-  const target = tableName ?? '__schema_check__';
   while (Date.now() - start < maxWaitMs) {
     try {
+      const selectCols = columns?.length ? ['id', ...columns.slice(0, 3)].join(',') : 'id';
       const { error } = tableName
-        ? await supabase.schema(schemaName).from(tableName).select('id').limit(0)
+        ? await supabase.schema(schemaName).from(tableName).select(selectCols).limit(0)
         : await supabase.schema(schemaName).from('__ping__').select('id').limit(0);
-      if (!error || error.code === 'PGRST116' || error.message?.includes('does not exist')) {
-        return;
+      if (!error) return;
+      if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
+        if (!tableName) return;
       }
-      if (error.code !== 'PGRST106' && !error.message?.includes('schema')) {
+      if (error.code !== 'PGRST106' && !error.message?.includes('schema') && !error.message?.includes('column')) {
         return;
       }
     } catch {
@@ -527,7 +528,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           },
         });
 
-        await waitForSchemaReady(schemaName, pgTableName);
+        const colSample = fieldRows.slice(0, 3).map((fr) => fr.pg_column_name);
+        await waitForSchemaReady(schemaName, pgTableName, colSample);
 
         const { data: createdFields } = await supabase
           .schema('nc_meta')
@@ -626,13 +628,14 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               return row;
             };
 
-            let schemaRetried = false;
+            let schemaRetries = 0;
             const insertBatch = async (rows: Record<string, any>[]): Promise<number> => {
               const { error: insertErr } = await supabase.schema(schemaName).from(pgTableName).insert(rows);
               if (insertErr) {
-                if (!schemaRetried && (insertErr.code === 'PGRST106' || insertErr.message?.includes('schema'))) {
-                  schemaRetried = true;
-                  await waitForSchemaReady(schemaName, pgTableName, 5000);
+                const isSchemaErr = insertErr.code === 'PGRST106' || insertErr.message?.includes('schema') || insertErr.message?.includes('column');
+                if (isSchemaErr && schemaRetries < 3) {
+                  schemaRetries++;
+                  await waitForSchemaReady(schemaName, pgTableName, colSample, 8000);
                   return insertBatch(rows);
                 }
                 const midpoint = Math.ceil(rows.length / 2);
