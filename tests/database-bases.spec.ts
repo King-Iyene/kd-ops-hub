@@ -52,10 +52,11 @@ async function navigateToData(page: Page) {
 }
 
 async function waitForGridLoad(page: Page) {
-  await page.waitForSelector(
-    '[role="grid"], text=/No records|0 records|Add row|Empty/i',
-    { timeout: 15_000 },
-  );
+  await page
+    .locator('[role="grid"]')
+    .or(page.locator('text=/No records|0 records|Add row|Empty/i'))
+    .first()
+    .waitFor({ timeout: 15_000 });
   await page.waitForTimeout(500);
 }
 
