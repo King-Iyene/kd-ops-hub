@@ -472,6 +472,58 @@ async function handleExposeSchema(
   }
 }
 
+async function handleRepairSchemaConfig(pool: Pool): Promise<{ schemas: string[] }> {
+  const conn = await pool.connect();
+  try {
+    await conn.queryObject(`GRANT USAGE ON SCHEMA nc_meta TO authenticated, anon`);
+    await conn.queryObject(
+      `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA nc_meta TO authenticated`,
+    );
+    await conn.queryObject(
+      `GRANT SELECT ON ALL TABLES IN SCHEMA nc_meta TO anon`,
+    );
+    await conn.queryObject(
+      `ALTER DEFAULT PRIVILEGES IN SCHEMA nc_meta GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated`,
+    );
+    await conn.queryObject(
+      `ALTER DEFAULT PRIVILEGES IN SCHEMA nc_meta GRANT SELECT ON TABLES TO anon`,
+    );
+
+    const { rows: bases } = await conn.queryObject<{ schema_name: string }>(
+      `SELECT schema_name FROM nc_meta.bases`,
+    );
+
+    for (const base of bases) {
+      const name = base.schema_name;
+      if (!IDENTIFIER_RE.test(name)) continue;
+      try {
+        await conn.queryObject(`GRANT USAGE ON SCHEMA "${name}" TO authenticated, anon`);
+        await conn.queryObject(
+          `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "${name}" TO authenticated`,
+        );
+        await conn.queryObject(
+          `GRANT SELECT ON ALL TABLES IN SCHEMA "${name}" TO anon`,
+        );
+      } catch {
+        // Schema may have been dropped but metadata remains; skip it
+      }
+    }
+
+    const allSchemas = ['public', 'nc_meta', ...bases.map((b) => b.schema_name)];
+    const unique = [...new Set(allSchemas)];
+
+    await conn.queryObject(
+      `ALTER ROLE authenticator SET pgrst.db_schemas = '${unique.join(', ')}'`,
+    );
+    await conn.queryObject(`NOTIFY pgrst, 'reload config'`);
+    await conn.queryObject(`NOTIFY pgrst, 'reload schema'`);
+
+    return { schemas: unique };
+  } finally {
+    conn.release();
+  }
+}
+
 async function handleAlterColumnType(
   pool: Pool,
   body: {
@@ -617,6 +669,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       case 'deleteVirtualFieldMeta':
         await handleDeleteVirtualFieldMeta(pool, body);
         break;
+      case 'repairSchemaConfig': {
+        const result = await handleRepairSchemaConfig(pool);
+        await logAudit(pool, userId, action, { schemas: result.schemas });
+        return json({ success: true, ...result });
+      }
       default:
         return json({ success: false, error: `Unknown action: ${action}` }, 400);
     }

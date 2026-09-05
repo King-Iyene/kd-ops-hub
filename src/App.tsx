@@ -111,7 +111,7 @@ const queryClient = new QueryClient({
       gcTime: 5 * 60_000,
       retry: (failureCount, error) => {
         const msg = (error as Error)?.message ?? '';
-        if (msg.includes('503') || msg.includes('PGRST') || msg.includes('schema cache')) {
+        if (msg.includes('406') || msg.includes('Not Acceptable') || msg.includes('503') || msg.includes('PGRST') || msg.includes('schema cache')) {
           return failureCount < 4;
         }
         return failureCount < 1;

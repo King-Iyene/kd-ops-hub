@@ -11,10 +11,50 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
   throw new Error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY environment variable');
 }
 
+// ── Schema repair state ──────────────────────────────────────────────────────
+// PostgREST returns 406 when a schema isn't in its db-schemas config. This
+// happens when PostgREST restarts and the config is stale. We detect the
+// first 406 and call the ddl-executor's repairSchemaConfig action, then
+// retry the request. A single repair attempt per page load is enough.
+let _schemaRepairPromise: Promise<boolean> | null = null;
+
+async function attemptSchemaRepair(): Promise<boolean> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return false;
+
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/ddl-executor`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+      },
+      body: JSON.stringify({ action: 'repairSchemaConfig' }),
+    });
+    if (!res.ok) return false;
+    const body = await res.json();
+    return body?.success === true;
+  } catch {
+    return false;
+  }
+}
+
 const retryFetch: typeof fetch = async (input, init) => {
   const maxRetries = 3;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const res = await fetch(input, init);
+
+    // 406 — schema not exposed to PostgREST; attempt one-time repair
+    if (res.status === 406 && !_schemaRepairPromise) {
+      _schemaRepairPromise = attemptSchemaRepair();
+      const repaired = await _schemaRepairPromise;
+      if (repaired) {
+        await new Promise(r => setTimeout(r, 1500));
+        return fetch(input, init);
+      }
+    }
+
     if (res.status === 503 && attempt < maxRetries) {
       await new Promise(r => setTimeout(r, 1000 * 2 ** attempt));
       continue;
