@@ -121,38 +121,16 @@ export function useDeleteBase() {
 
       if (fetchError) throw fetchError;
 
+      // Drop the Postgres schema (CASCADE drops all data tables)
       const { error: ddlError } = await supabase.functions.invoke('ddl-executor', {
         body: { action: 'dropSchema', schemaName: base.schema_name },
       });
 
       if (ddlError) throw ddlError;
 
-      const { data: tables } = await supabase
-        .schema('nc_meta')
-        .from('tables')
-        .select('id')
-        .eq('base_id', baseId);
-
-      const tableIds = (tables ?? []).map((t: any) => t.id);
-      if (tableIds.length > 0) {
-        await supabase.schema('nc_meta').from('views').delete().in('table_id', tableIds);
-
-        const fieldIds = (
-          await supabase.schema('nc_meta').from('fields').select('id').in('table_id', tableIds)
-        ).data?.map((f: any) => f.id) ?? [];
-
-        if (fieldIds.length > 0) {
-          await supabase.schema('nc_meta').from('links').delete().in('field_id', fieldIds);
-          await supabase.schema('nc_meta').from('links').delete().in('related_field_id', fieldIds);
-          await supabase.schema('nc_meta').from('lookups').delete().in('field_id', fieldIds);
-          await supabase.schema('nc_meta').from('formulas').delete().in('field_id', fieldIds);
-          await supabase.schema('nc_meta').from('rollups').delete().in('field_id', fieldIds);
-        }
-
-        await supabase.schema('nc_meta').from('fields').delete().in('table_id', tableIds);
-        await supabase.schema('nc_meta').from('tables').delete().eq('base_id', baseId);
-      }
-
+      // Delete the base row — all metadata (tables, fields, views, links,
+      // lookups, formulas, rollups, webhooks, snapshots) cascades automatically
+      // via ON DELETE CASCADE foreign keys.
       const { error: deleteError } = await supabase
         .schema('nc_meta')
         .from('bases')
