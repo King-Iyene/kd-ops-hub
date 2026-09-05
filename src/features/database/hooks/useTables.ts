@@ -232,8 +232,12 @@ export function useUpdateTable() {
       if (input.icon !== undefined) updates.icon = input.icon;
       if (input.position !== undefined) updates.position = input.position;
 
+      let oldPgName: string | null = null;
+      let schemaName: string | null = null;
+      let newPgName: string | null = null;
+
       if (input.name !== undefined) {
-        const newPgName = toSnakeCase(input.name);
+        newPgName = toSnakeCase(input.name);
         updates.pg_table_name = newPgName;
 
         const { data: oldTable } = await supabase
@@ -250,16 +254,8 @@ export function useUpdateTable() {
           .eq('id', input.baseId)
           .single();
 
-        if (oldTable && base && oldTable.pg_table_name !== newPgName) {
-          await supabase.functions.invoke('ddl-executor', {
-            body: {
-              action: 'renameTable',
-              schemaName: base.schema_name,
-              oldName: oldTable.pg_table_name,
-              newName: newPgName,
-            },
-          });
-        }
+        oldPgName = oldTable?.pg_table_name ?? null;
+        schemaName = base?.schema_name ?? null;
       }
 
       const { data, error } = await supabase
@@ -271,6 +267,22 @@ export function useUpdateTable() {
         .single();
 
       if (error) throw error;
+
+      if (oldPgName && schemaName && newPgName && oldPgName !== newPgName) {
+        const { error: ddlError } = await supabase.functions.invoke('ddl-executor', {
+          body: {
+            action: 'renameTable',
+            schemaName,
+            oldName: oldPgName,
+            newName: newPgName,
+          },
+        });
+        if (ddlError) {
+          await supabase.schema('nc_meta').from('tables').update({ pg_table_name: oldPgName }).eq('id', input.id);
+          throw ddlError;
+        }
+      }
+
       return data as TableMeta;
     },
     onSuccess: (_data, variables) => {

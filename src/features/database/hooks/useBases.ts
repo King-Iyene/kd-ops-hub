@@ -82,17 +82,22 @@ export function useCreateBase() {
 
       if (insertError) throw insertError;
 
-      const { error: ddlError } = await supabase.functions.invoke('ddl-executor', {
-        body: { action: 'createSchema', schemaName },
-      });
+      try {
+        const { error: ddlError } = await supabase.functions.invoke('ddl-executor', {
+          body: { action: 'createSchema', schemaName },
+        });
 
-      if (ddlError) throw ddlError;
+        if (ddlError) throw ddlError;
 
-      const { error: exposeError } = await supabase.functions.invoke('ddl-executor', {
-        body: { action: 'exposeSchema', schemaName },
-      });
+        const { error: exposeError } = await supabase.functions.invoke('ddl-executor', {
+          body: { action: 'exposeSchema', schemaName },
+        });
 
-      if (exposeError) throw exposeError;
+        if (exposeError) throw exposeError;
+      } catch (schemaErr) {
+        await supabase.schema('nc_meta').from('bases').delete().eq('id', (base as any).id);
+        throw schemaErr;
+      }
 
       return base as Base;
     },
@@ -131,6 +136,17 @@ export function useDeleteBase() {
       const tableIds = (tables ?? []).map((t: any) => t.id);
       if (tableIds.length > 0) {
         await supabase.schema('nc_meta').from('views').delete().in('table_id', tableIds);
+        await supabase.schema('nc_meta').from('links').delete().in('source_table_id', tableIds);
+        await supabase.schema('nc_meta').from('links').delete().in('target_table_id', tableIds);
+        await supabase.schema('nc_meta').from('lookups').delete().in('field_id',
+          (await supabase.schema('nc_meta').from('fields').select('id').in('table_id', tableIds)).data?.map((f: any) => f.id) ?? []
+        );
+        await supabase.schema('nc_meta').from('formulas').delete().in('field_id',
+          (await supabase.schema('nc_meta').from('fields').select('id').in('table_id', tableIds)).data?.map((f: any) => f.id) ?? []
+        );
+        await supabase.schema('nc_meta').from('rollups').delete().in('field_id',
+          (await supabase.schema('nc_meta').from('fields').select('id').in('table_id', tableIds)).data?.map((f: any) => f.id) ?? []
+        );
         await supabase.schema('nc_meta').from('fields').delete().in('table_id', tableIds);
         await supabase.schema('nc_meta').from('tables').delete().eq('base_id', baseId);
       }

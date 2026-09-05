@@ -275,7 +275,7 @@ export function useUpdateField() {
       qc.invalidateQueries({ queryKey: ['nc', 'fields', variables.table_id] });
     },
     onError: (err: any) => {
-      toast({ title: 'Failed to create field', description: err?.message ?? 'Unknown error', variant: 'destructive' });
+      toast({ title: 'Failed to update field', description: err?.message ?? 'Unknown error', variant: 'destructive' });
     },
   });
 }
