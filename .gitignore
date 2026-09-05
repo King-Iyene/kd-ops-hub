@@ -30,6 +30,7 @@ dist-ssr
 /blob-report/
 /playwright/.cache/
 tests/.auth/
+tests/.e2e-test-base-state.json
 
 # Supabase CLI temp files / cache
 supabase/.temp/

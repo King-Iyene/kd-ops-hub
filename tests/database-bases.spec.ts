@@ -1,11 +1,37 @@
 import { test, expect, type Page } from '@playwright/test';
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
  * Comprehensive E2E test suite for the Database (Bases) feature.
+ *
+ * State is persisted to a temp file so that Playwright retry workers
+ * (which re-evaluate the module) can pick up the base URL created in
+ * the first run.
  */
 
-const TEST_BASE_NAME = `E2E Test Base ${Date.now()}`;
-let testBaseUrl: string | null = null;
+const STATE_FILE = path.join(__dirname, '.e2e-test-base-state.json');
+
+function loadPersistedState(): { name: string; url: string | null } {
+  try {
+    return JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
+  } catch {
+    return { name: '', url: null };
+  }
+}
+
+function persistState(name: string, url: string | null) {
+  fs.writeFileSync(STATE_FILE, JSON.stringify({ name, url }));
+}
+
+const persisted = loadPersistedState();
+const TEST_BASE_NAME = persisted.name || `E2E Test Base ${Date.now()}`;
+let testBaseUrl: string | null = persisted.url;
+
+// Persist the name immediately so retry workers use the same name
+if (!persisted.name) {
+  persistState(TEST_BASE_NAME, null);
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -186,6 +212,7 @@ test.describe('Create a new test base', () => {
     const url = page.url();
     expect(url).toContain('/data/');
     testBaseUrl = url;
+    persistState(TEST_BASE_NAME, url);
     console.log('PASS: Base created, navigated to:', url);
   });
 });
