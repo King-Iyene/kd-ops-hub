@@ -249,6 +249,49 @@ async function handleAddColumn(
   }
 }
 
+async function handleBulkAddColumns(
+  pool: Pool,
+  body: {
+    schemaName: string;
+    tableName: string;
+    columns: Array<{
+      columnName: string;
+      columnType: string;
+      isRequired?: boolean;
+      isUnique?: boolean;
+      defaultValue?: string;
+    }>;
+  },
+): Promise<{ added: string[] }> {
+  const schema = sanitizeIdentifier(body.schemaName);
+  const table = sanitizeIdentifier(body.tableName);
+  validateSchemaAccess(body.schemaName);
+
+  const added: string[] = [];
+  const conn = await pool.connect();
+  try {
+    await conn.queryObject('BEGIN');
+    for (const col of body.columns) {
+      const column = sanitizeIdentifier(col.columnName);
+      let ddl = `ALTER TABLE ${schema}.${table} ADD COLUMN IF NOT EXISTS ${column} ${col.columnType}`;
+      if (col.defaultValue !== undefined) {
+        ddl += ` DEFAULT ${col.defaultValue}`;
+      }
+      if (col.isRequired) ddl += ' NOT NULL';
+      if (col.isUnique) ddl += ' UNIQUE';
+      await conn.queryObject(ddl);
+      added.push(col.columnName);
+    }
+    await conn.queryObject('COMMIT');
+  } catch (err) {
+    try { await conn.queryObject('ROLLBACK'); } catch { /* ignore */ }
+    throw err;
+  } finally {
+    conn.release();
+  }
+  return { added };
+}
+
 async function handleDropColumn(
   pool: Pool,
   body: { schemaName: string; tableName: string; columnName: string },
@@ -637,6 +680,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       case 'addColumn':
         await handleAddColumn(pool, body);
         break;
+      case 'bulkAddColumns': {
+        const bulkResult = await handleBulkAddColumns(pool, body);
+        await logAudit(pool, userId, action, { schemaName: body.schemaName, tableName: body.tableName, count: bulkResult.added.length });
+        const reloadConn2 = await pool.connect();
+        try { await reloadConn2.queryObject(`NOTIFY pgrst, 'reload schema'`); } catch { /* best-effort */ } finally { reloadConn2.release(); }
+        return json({ success: true, ...bulkResult });
+      }
       case 'dropColumn':
         await handleDropColumn(pool, body);
         break;
