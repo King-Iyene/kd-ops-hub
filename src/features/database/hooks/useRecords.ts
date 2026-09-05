@@ -6,7 +6,9 @@ import { toast } from '../components/Toast';
 function fireAutomations(event: string, baseId: string, tableId: string, record?: any, oldRecord?: any) {
   supabase.functions.invoke('automation-runner', {
     body: { event, baseId, tableId, record, oldRecord },
-  }).catch(() => {});
+  }).catch((err) => {
+    console.warn('[KDOps] Automation failed:', err?.message ?? err);
+  });
 }
 
 interface UseRecordsParams {
@@ -34,23 +36,14 @@ async function resolveTableContext(baseId: string, tableId: string) {
     return { schemaName: cached.schemaName, tableName: cached.tableName };
   }
 
-  const { data: base, error: baseError } = await supabase
-    .schema('nc_meta')
-    .from('bases')
-    .select('schema_name')
-    .eq('id', baseId)
-    .single();
-  if (baseError) throw baseError;
+  const [baseRes, tableRes] = await Promise.all([
+    supabase.schema('nc_meta').from('bases').select('schema_name').eq('id', baseId).single(),
+    supabase.schema('nc_meta').from('tables').select('pg_table_name').eq('id', tableId).single(),
+  ]);
+  if (baseRes.error) throw baseRes.error;
+  if (tableRes.error) throw tableRes.error;
 
-  const { data: table, error: tableError } = await supabase
-    .schema('nc_meta')
-    .from('tables')
-    .select('pg_table_name')
-    .eq('id', tableId)
-    .single();
-  if (tableError) throw tableError;
-
-  const result = { schemaName: base.schema_name, tableName: table.pg_table_name };
+  const result = { schemaName: baseRes.data.schema_name, tableName: tableRes.data.pg_table_name };
   contextCache.set(key, { ...result, ts: Date.now() });
   return result;
 }

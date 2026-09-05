@@ -189,13 +189,22 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
         }
       }
 
-      // Build all records for bulk insert
-      const allRecords = parsed.rows.map((row) => {
-        const record: Record<string, any> = {};
+      // Build all records for bulk insert with type coercion
+      const allRecords = parsed.rows.map((row, rowIdx) => {
+        const record: Record<string, any> = { nc_order: rowIdx + 1 };
         parsed.headers.forEach((header, i) => {
           const colName = fieldNameToColumn.get(header.toLowerCase());
           if (colName && row[i] !== undefined && row[i] !== '') {
-            record[colName] = row[i];
+            const uiType = columnTypes[i];
+            if (uiType === 'Number') {
+              const n = Number(row[i]);
+              record[colName] = isNaN(n) ? null : n;
+            } else if (uiType === 'Checkbox') {
+              const v = row[i].toLowerCase().trim();
+              record[colName] = v === 'true' || v === '1' || v === 'yes';
+            } else {
+              record[colName] = row[i];
+            }
           }
         });
         return record;

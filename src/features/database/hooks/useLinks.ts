@@ -48,8 +48,9 @@ export function useRecordLinks(opts: {
   fieldId: string;
   recordId: string | null;
   linkType: string | undefined;
+  fkColumnName?: string | null;
 }) {
-  const { baseId, sourceTableId, targetTableId, fieldId, recordId, linkType } = opts;
+  const { baseId, sourceTableId, targetTableId, fieldId, recordId, linkType, fkColumnName } = opts;
   return useQuery({
     queryKey: ['nc', 'linked-records', baseId, sourceTableId, fieldId, recordId],
     enabled: !!baseId && !!targetTableId && !!recordId,
@@ -81,7 +82,7 @@ export function useRecordLinks(opts: {
       const schema = base.schema_name;
 
       if (linkType === 'hm') {
-        const fkCol = `${srcTable.pg_table_name}_id`;
+        const fkCol = fkColumnName || `${srcTable.pg_table_name}_id`;
         const { data } = await supabase
           .schema(schema)
           .from(tgtTable.pg_table_name)
@@ -92,7 +93,7 @@ export function useRecordLinks(opts: {
       }
 
       if (linkType === 'bt') {
-        const fkCol = `${tgtTable.pg_table_name}_id`;
+        const fkCol = fkColumnName || `${tgtTable.pg_table_name}_id`;
         const { data: srcRow } = await supabase
           .schema(schema)
           .from(srcTable.pg_table_name)
@@ -388,15 +389,16 @@ export function useCreateLink() {
       let junctionTableId: string | null = null;
 
       // Create FK columns or junction table via ddl-executor
+      let fkColumnName: string | null = null;
       if (shortType === 'hm' || shortType === 'oo') {
         // hm: FK column on target table pointing to source
-        const fkCol = `${srcTable.pg_table_name}_id`;
+        fkColumnName = `${srcTable.pg_table_name}_id`;
         await supabase.functions.invoke('ddl-executor', {
           body: {
             action: 'addColumn',
             schemaName: schema,
             tableName: tgtTable.pg_table_name,
-            columnName: fkCol,
+            columnName: fkColumnName,
             columnType: 'UUID REFERENCES ' + `"${schema}"."${srcTable.pg_table_name}"(id)`,
           },
         });
@@ -465,6 +467,7 @@ export function useCreateLink() {
           options: {
             relatedTableId: input.target_table_id,
             type: shortType,
+            fkColumnName: fkColumnName,
           },
           position: 999,
           width: 180,
@@ -497,6 +500,7 @@ export function useCreateLink() {
           options: {
             relatedTableId: input.table_id,
             type: reciprocalType,
+            fkColumnName: fkColumnName,
           },
           position: 999,
           width: 180,
@@ -518,12 +522,10 @@ export function useCreateLink() {
         .schema('nc_meta')
         .from('links')
         .insert({
-          base_id: input.base_id,
-          source_table_id: input.table_id,
-          source_field_id: (field as FieldMeta).id,
-          target_table_id: input.target_table_id,
-          target_field_id: (reciprocalField as FieldMeta).id,
-          relation_type: input.relation_type,
+          field_id: (field as FieldMeta).id,
+          related_table_id: input.target_table_id,
+          related_field_id: (reciprocalField as FieldMeta).id,
+          type: shortType,
           junction_table_id: junctionTableId,
         })
         .select()

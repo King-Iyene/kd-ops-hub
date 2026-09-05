@@ -48,6 +48,7 @@ function LinkedRecordsPopover({
     fieldId: field.id,
     recordId: isOpen ? record.id : null,
     linkType,
+    fkColumnName: field.options?.fkColumnName as string | undefined,
   });
 
   const { data: searchResults = [] } = useRelatedTableSearch({

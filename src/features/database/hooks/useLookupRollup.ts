@@ -37,6 +37,7 @@ function useLookupRollupData(field: FieldMeta, record: RecordRow) {
     fieldId: linkField?.id ?? '',
     recordId: record?.id ?? null,
     linkType,
+    fkColumnName: linkField?.options?.fkColumnName as string | undefined,
   });
 
   const { data: relatedFields, isLoading: relatedLoading } = useFields(relatedTableId);

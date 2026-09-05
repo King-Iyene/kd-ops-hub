@@ -136,17 +136,19 @@ export function useDeleteBase() {
       const tableIds = (tables ?? []).map((t: any) => t.id);
       if (tableIds.length > 0) {
         await supabase.schema('nc_meta').from('views').delete().in('table_id', tableIds);
-        await supabase.schema('nc_meta').from('links').delete().in('source_table_id', tableIds);
-        await supabase.schema('nc_meta').from('links').delete().in('target_table_id', tableIds);
-        await supabase.schema('nc_meta').from('lookups').delete().in('field_id',
-          (await supabase.schema('nc_meta').from('fields').select('id').in('table_id', tableIds)).data?.map((f: any) => f.id) ?? []
-        );
-        await supabase.schema('nc_meta').from('formulas').delete().in('field_id',
-          (await supabase.schema('nc_meta').from('fields').select('id').in('table_id', tableIds)).data?.map((f: any) => f.id) ?? []
-        );
-        await supabase.schema('nc_meta').from('rollups').delete().in('field_id',
-          (await supabase.schema('nc_meta').from('fields').select('id').in('table_id', tableIds)).data?.map((f: any) => f.id) ?? []
-        );
+
+        const fieldIds = (
+          await supabase.schema('nc_meta').from('fields').select('id').in('table_id', tableIds)
+        ).data?.map((f: any) => f.id) ?? [];
+
+        if (fieldIds.length > 0) {
+          await supabase.schema('nc_meta').from('links').delete().in('field_id', fieldIds);
+          await supabase.schema('nc_meta').from('links').delete().in('related_field_id', fieldIds);
+          await supabase.schema('nc_meta').from('lookups').delete().in('field_id', fieldIds);
+          await supabase.schema('nc_meta').from('formulas').delete().in('field_id', fieldIds);
+          await supabase.schema('nc_meta').from('rollups').delete().in('field_id', fieldIds);
+        }
+
         await supabase.schema('nc_meta').from('fields').delete().in('table_id', tableIds);
         await supabase.schema('nc_meta').from('tables').delete().eq('base_id', baseId);
       }
