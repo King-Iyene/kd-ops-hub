@@ -30,6 +30,10 @@ function useLookupRollupData(field: FieldMeta, record: RecordRow) {
   const relatedTableId = linkField?.options?.relatedTableId;
   const linkType = linkField?.options?.linkType ?? linkField?.options?.type;
 
+  if (field.ui_type === 'Count' || field.ui_type === 'Rollup' || field.ui_type === 'Lookup') {
+    console.log('[LR-debug]', field.name, { activeBaseId, linkField: linkField?.id, relatedTableId, linkType, recordId: record?.id, sourceFieldsCount: sourceFields?.length });
+  }
+
   const { data: linkedRecords, isLoading: linkedLoading } = useRecordLinks({
     baseId: activeBaseId,
     sourceTableId: field.table_id,
