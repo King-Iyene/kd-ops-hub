@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,10 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { Copy, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
 import { useUpdateBase, useDeleteBase } from '../hooks';
 import { useDatabaseUI } from '../lib/store';
 import { useDatabaseNavigate } from '../hooks/useNavigate';
 import { useSnapshots, useCreateSnapshot, useRestoreSnapshot, useDeleteSnapshot, useExportBase } from '../hooks/useBackups';
+import { supabase } from '@/lib/supabase';
 import type { Base } from '../types';
 
 interface BaseSettingsDialogProps {
@@ -44,7 +46,7 @@ const EMOJI_OPTIONS = [
   '🏠', '🎨', '💼', '🔬', '📈',
 ];
 
-type Tab = 'general' | 'backups' | 'danger';
+type Tab = 'general' | 'api' | 'backups' | 'danger';
 
 export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDialogProps) {
   const [tab, setTab] = useState<Tab>('general');
@@ -136,6 +138,17 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
           <button
             className={cn(
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
+              tab === 'api'
+                ? 'border-[#2D7FF9] text-[#2D7FF9]'
+                : 'border-transparent text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
+            )}
+            onClick={() => setTab('api')}
+          >
+            API
+          </button>
+          <button
+            className={cn(
+              'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'danger'
                 ? 'border-red-500 text-red-500'
                 : 'border-transparent text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
@@ -208,6 +221,10 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
 
         {tab === 'backups' && (
           <BackupsTab baseId={base.id} />
+        )}
+
+        {tab === 'api' && (
+          <ApiKeysTab workspaceId={base.workspace_id} baseSchemaName={base.schema_name} />
         )}
 
         {tab === 'danger' && (
@@ -405,6 +422,204 @@ function BackupsTab({ baseId }: { baseId: string }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- API Keys Tab ----------
+
+interface ApiKey {
+  id: string;
+  name: string;
+  key_prefix: string;
+  scopes: string[];
+  last_used_at: string | null;
+  created_at: string;
+}
+
+async function generateApiKey(): Promise<string> {
+  const bytes = new Uint8Array(36);
+  crypto.getRandomValues(bytes);
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let token = 'kdops_';
+  for (const b of bytes) token += chars[b % chars.length];
+  return token;
+}
+
+async function hashApiKey(raw: string): Promise<string> {
+  const data = new TextEncoder().encode(raw);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; baseSchemaName: string }) {
+  const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [createdKey, setCreatedKey] = useState<string | null>(null);
+  const [showKey, setShowKey] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+
+  const fetchKeys = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .schema('nc_meta')
+      .from('api_keys')
+      .select('id, name, key_prefix, scopes, last_used_at, created_at')
+      .eq('workspace_id', workspaceId)
+      .is('revoked_at', null)
+      .order('created_at', { ascending: false });
+    setKeys(data ?? []);
+    setLoading(false);
+  }, [workspaceId]);
+
+  useEffect(() => { fetchKeys(); }, [fetchKeys]);
+
+  const handleCreate = async () => {
+    if (!newKeyName.trim()) return;
+    setCreating(true);
+    try {
+      const raw = await generateApiKey();
+      const hash = await hashApiKey(raw);
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.schema('nc_meta').from('api_keys').insert({
+        workspace_id: workspaceId,
+        name: newKeyName.trim(),
+        key_hash: hash,
+        key_prefix: raw.substring(0, 12),
+        scopes: ['records:read', 'records:write', 'schema:read'],
+        created_by: user?.id,
+      });
+      setCreatedKey(raw);
+      setNewKeyName('');
+      await fetchKeys();
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleRevoke = async (keyId: string) => {
+    await supabase.schema('nc_meta').from('api_keys').update({ revoked_at: new Date().toISOString() }).eq('id', keyId);
+    await fetchKeys();
+  };
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const apiBaseUrl = `${supabaseUrl}/functions/v1/rest-api/v1`;
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(200,30%,8%)] p-3 space-y-2">
+        <p className="text-[12px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">API Base URL</p>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 text-[11px] bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-2 py-1.5 font-mono text-[#374151] dark:text-[hsl(200,25%,88%)] select-all overflow-x-auto">
+            {apiBaseUrl}
+          </code>
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" onClick={() => handleCopy(apiBaseUrl)}>
+            <Copy size={12} />
+          </Button>
+        </div>
+        <p className="text-[11px] text-[#9AA2AF]">
+          Use with header: <code className="bg-white dark:bg-[hsl(200,30%,10%)] px-1 rounded text-[10px]">Authorization: Bearer kdops_xxx</code>
+        </p>
+      </div>
+
+      {createdKey && (
+        <div className="rounded-lg border border-green-200 dark:border-green-800/40 bg-green-50 dark:bg-green-900/10 p-3 space-y-2">
+          <p className="text-[12px] font-medium text-green-700 dark:text-green-400">
+            API key created — copy it now, you won't see it again
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 text-[11px] font-mono bg-white dark:bg-[hsl(200,30%,10%)] border rounded px-2 py-1.5 overflow-x-auto">
+              {showKey ? createdKey : createdKey.substring(0, 12) + '•'.repeat(30)}
+            </code>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" onClick={() => setShowKey(!showKey)}>
+              {showKey ? <EyeOff size={12} /> : <Eye size={12} />}
+            </Button>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" onClick={() => handleCopy(createdKey)}>
+              <Copy size={12} />
+            </Button>
+          </div>
+          {copied && <p className="text-[10px] text-green-600">Copied!</p>}
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label className="text-xs">Create API Key</Label>
+        <div className="flex gap-2">
+          <Input
+            value={newKeyName}
+            onChange={(e) => setNewKeyName(e.target.value)}
+            placeholder="Key name (e.g. n8n integration)"
+            className="flex-1"
+            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+          />
+          <Button
+            size="sm"
+            className="bg-[#2D7FF9] hover:bg-[#2952CC] shrink-0"
+            onClick={handleCreate}
+            disabled={creating || !newKeyName.trim()}
+          >
+            <Plus size={12} className="mr-1" />
+            {creating ? 'Creating...' : 'Create'}
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs">Active Keys</Label>
+        {loading && <p className="text-xs text-muted-foreground">Loading...</p>}
+        {!loading && keys.length === 0 && (
+          <p className="text-xs text-muted-foreground">No API keys yet</p>
+        )}
+        <div className="max-h-48 overflow-y-auto space-y-1.5">
+          {keys.map((key) => (
+            <div
+              key={key.id}
+              className="flex items-center justify-between p-2 rounded border border-border bg-muted/30"
+            >
+              <div className="min-w-0">
+                <p className="text-xs font-medium truncate">{key.name}</p>
+                <p className="text-[10px] text-muted-foreground font-mono">
+                  {key.key_prefix}•••
+                  {key.last_used_at && (
+                    <> · Last used {new Date(key.last_used_at).toLocaleDateString()}</>
+                  )}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-[10px] h-6 px-2 text-red-500 hover:text-red-600 shrink-0"
+                onClick={() => handleRevoke(key.id)}
+              >
+                <Trash2 size={10} className="mr-1" />
+                Revoke
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(200,30%,8%)] p-3 space-y-2">
+        <p className="text-[12px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Quick Start</p>
+        <pre className="text-[10px] font-mono bg-white dark:bg-[hsl(200,30%,10%)] border rounded p-2 overflow-x-auto whitespace-pre text-[#374151] dark:text-[hsl(200,25%,88%)]">{`# List records
+curl "${apiBaseUrl}/bases/${baseSchemaName}/tables/TABLE_SLUG/records" \\
+  -H "Authorization: Bearer kdops_YOUR_KEY"
+
+# Create record
+curl -X POST "${apiBaseUrl}/bases/${baseSchemaName}/tables/TABLE_SLUG/records" \\
+  -H "Authorization: Bearer kdops_YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"records":[{"fields":{"Name":"Test"}}]}'`}</pre>
       </div>
     </div>
   );
