@@ -20,14 +20,19 @@ let _schemaRepairPromise: Promise<boolean> | null = null;
 
 async function attemptSchemaRepair(): Promise<boolean> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) return false;
+    // Read the access token directly from localStorage to avoid a circular
+    // dependency — `supabase` isn't defined yet when this module initialises,
+    // but this function only runs at request-time when a 406 is encountered.
+    const storageKey = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`;
+    const raw = localStorage.getItem(storageKey);
+    const accessToken = raw ? (JSON.parse(raw) as { access_token?: string }).access_token : null;
+    if (!accessToken) return false;
 
     const res = await fetch(`${SUPABASE_URL}/functions/v1/ddl-executor`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${accessToken}`,
         apikey: SUPABASE_PUBLISHABLE_KEY,
       },
       body: JSON.stringify({ action: 'repairSchemaConfig' }),

@@ -28,12 +28,16 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- Read current pgrst.db_schemas config
-  SELECT unnest(setconfig) INTO _current
-    FROM pg_catalog.pg_db_role_setting
-    JOIN pg_catalog.pg_roles ON pg_roles.oid = pg_db_role_setting.setrole
-   WHERE rolname = 'authenticator'
-     AND unnest(setconfig) LIKE 'pgrst.db_schemas=%'
+  -- Read current pgrst.db_schemas config (use a subquery to avoid
+  -- "set-returning functions are not allowed in WHERE")
+  SELECT c INTO _current
+    FROM (
+      SELECT unnest(setconfig) AS c
+        FROM pg_catalog.pg_db_role_setting
+        JOIN pg_catalog.pg_roles ON pg_roles.oid = pg_db_role_setting.setrole
+       WHERE rolname = 'authenticator'
+    ) sub
+   WHERE c LIKE 'pgrst.db_schemas=%'
    LIMIT 1;
 
   IF _current IS NULL THEN
