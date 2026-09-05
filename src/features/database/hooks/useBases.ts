@@ -139,7 +139,18 @@ export function useDeleteBase() {
 
       if (deleteError) throw deleteError;
     },
-    onSuccess: () => {
+    onMutate: async (baseId: string) => {
+      await qc.cancelQueries({ queryKey: ['nc', 'bases'] });
+      const prev = qc.getQueryData<any[]>(['nc', 'bases']);
+      qc.setQueryData(['nc', 'bases'], (old: any[] | undefined) =>
+        old?.filter((b) => b.id !== baseId),
+      );
+      return { prev };
+    },
+    onError: (_err: unknown, _baseId: string, ctx: { prev?: any[] } | undefined) => {
+      if (ctx?.prev) qc.setQueryData(['nc', 'bases'], ctx.prev);
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['nc', 'bases'] });
       qc.invalidateQueries({ queryKey: ['nc', 'tables'] });
       qc.invalidateQueries({ queryKey: ['nc', 'fields'] });

@@ -17,31 +17,34 @@ export default function DatabasePage() {
   const activeBaseId = useDatabaseUI((s) => s.activeBaseId);
   const activeTableId = useDatabaseUI((s) => s.activeTableId);
 
-  const { data: resolved } = useSlugResolver(rawBase, rawTable, rawView);
+  const { data: resolved, isLoading } = useSlugResolver(rawBase, rawTable, rawView);
 
   const baseId = resolved?.baseId;
   const tableId = resolved?.tableId;
   const viewId = resolved?.viewId;
 
   useEffect(() => {
+    if (isLoading) return;
     if (baseId && baseId !== activeBaseId) {
       setActiveBase(baseId);
-    } else if (!baseId && activeBaseId) {
+    } else if (!rawBase && activeBaseId) {
       setActiveBase(null);
     }
-  }, [baseId]);
+  }, [baseId, rawBase, isLoading]);
 
   useEffect(() => {
+    if (isLoading) return;
     if (tableId && tableId !== activeTableId) {
       setActiveTable(tableId);
     }
-  }, [tableId]);
+  }, [tableId, isLoading]);
 
   useEffect(() => {
+    if (isLoading) return;
     if (viewId) {
       setActiveView(viewId);
     }
-  }, [viewId]);
+  }, [viewId, isLoading]);
 
   return <DatabaseShell />;
 }

@@ -299,56 +299,39 @@ export function useDeleteTable() {
 
   return useMutation({
     mutationFn: async (input: { tableId: string; baseId: string }) => {
-      // Get table and base info
-      const { data: table, error: tableError } = await supabase
-        .schema('nc_meta')
-        .from('tables')
-        .select('pg_table_name, base_id')
-        .eq('id', input.tableId)
-        .single();
+      const [{ data: table, error: tableError }, { data: base, error: baseError }] = await Promise.all([
+        supabase.schema('nc_meta').from('tables').select('pg_table_name, base_id').eq('id', input.tableId).single(),
+        supabase.schema('nc_meta').from('bases').select('schema_name').eq('id', input.baseId).single(),
+      ]);
 
       if (tableError) throw tableError;
-
-      const { data: base, error: baseError } = await supabase
-        .schema('nc_meta')
-        .from('bases')
-        .select('schema_name')
-        .eq('id', table.base_id)
-        .single();
-
       if (baseError) throw baseError;
 
-      // Drop the actual table
       const { error: ddlError } = await supabase.functions.invoke('ddl-executor', {
-        body: {
-          action: 'dropTable',
-          schemaName: base.schema_name,
-          tableName: table.pg_table_name,
-        },
+        body: { action: 'dropTable', schemaName: base.schema_name, tableName: table.pg_table_name },
       });
-
       if (ddlError) throw ddlError;
 
-      const { error: viewsDelError } = await supabase.schema('nc_meta').from('views').delete().eq('table_id', input.tableId);
-      if (viewsDelError) throw viewsDelError;
-      const { error: fieldsDelError } = await supabase.schema('nc_meta').from('fields').delete().eq('table_id', input.tableId);
-      if (fieldsDelError) throw fieldsDelError;
-
-      const { error: deleteError } = await supabase
-        .schema('nc_meta')
-        .from('tables')
-        .delete()
-        .eq('id', input.tableId);
-
+      // Delete table row — views and fields cascade automatically
+      const { error: deleteError } = await supabase.schema('nc_meta').from('tables').delete().eq('id', input.tableId);
       if (deleteError) throw deleteError;
     },
-    onSuccess: (_data, variables) => {
+    onMutate: async (input: { tableId: string; baseId: string }) => {
+      await qc.cancelQueries({ queryKey: ['nc', 'tables', input.baseId] });
+      const prev = qc.getQueryData<any[]>(['nc', 'tables', input.baseId]);
+      qc.setQueryData(['nc', 'tables', input.baseId], (old: any[] | undefined) =>
+        old?.filter((t) => t.id !== input.tableId),
+      );
+      return { prev };
+    },
+    onError: (err: any, input: { tableId: string; baseId: string }, ctx: { prev?: any[] } | undefined) => {
+      if (ctx?.prev) qc.setQueryData(['nc', 'tables', input.baseId], ctx.prev);
+      toast({ title: 'Failed to delete table', description: err?.message ?? 'Unknown error', variant: 'destructive' });
+    },
+    onSettled: (_data: unknown, _err: unknown, variables: { tableId: string; baseId: string }) => {
       qc.invalidateQueries({ queryKey: ['nc', 'tables', variables.baseId] });
       qc.invalidateQueries({ queryKey: ['nc', 'fields'] });
       qc.invalidateQueries({ queryKey: ['nc', 'views'] });
-    },
-    onError: (err: any) => {
-      toast({ title: 'Failed to delete table', description: err?.message ?? 'Unknown error', variant: 'destructive' });
     },
   });
 }
