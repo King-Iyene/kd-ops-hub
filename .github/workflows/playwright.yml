@@ -2,9 +2,10 @@ name: Playwright E2E Tests
 
 on:
   push:
-    branches: [main, develop, "feature/**"]
+    branches: [main, develop, "feature/**", "claude/**"]
   pull_request:
     branches: [main, develop]
+  workflow_dispatch:
 
 jobs:
   e2e:
@@ -71,9 +72,9 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
-      - name: Upload failure screenshots and traces
+      - name: Upload test screenshots and traces
         uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         continue-on-error: true
         with:
           name: test-results
