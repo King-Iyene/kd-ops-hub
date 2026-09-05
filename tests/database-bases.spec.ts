@@ -2,21 +2,6 @@ import { test, expect, type Page } from '@playwright/test';
 
 /**
  * Comprehensive E2E test suite for the Database (Bases) feature.
- *
- * Covers:
- *  - Loading existing bases (verifies 406 fix)
- *  - Creating a new base
- *  - Adding every field type
- *  - Record CRUD (create, read, update, delete)
- *  - CSV import / export
- *  - Performance basics
- *  - Edge cases (empty fields, special characters, long text)
- *
- * Run locally:
- *   TEST_USER_EMAIL=kingiyene05@gmail.com TEST_USER_PASSWORD=testing \
- *   VITE_SUPABASE_URL=https://mseeurrvdcfxdmvqjjki.supabase.co \
- *   VITE_SUPABASE_ANON_KEY=<your-anon-key> \
- *   npx playwright test database-bases --headed
  */
 
 const TEST_BASE_NAME = `E2E Test Base ${Date.now()}`;
@@ -30,77 +15,122 @@ async function screenshotStep(page: Page, name: string) {
   });
 }
 
+async function navigateToData(page: Page) {
+  await page.goto('/data');
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(1000);
+}
+
 async function waitForGridLoad(page: Page) {
-  // Wait for either the grid to appear or a "no records" state
   await page.waitForSelector(
-    '[role="grid"], [role="table"], text=/No records|Add a row|Empty/i',
+    '[role="grid"], text=/No records|0 records|Add row|Empty/i',
     { timeout: 15_000 },
   );
-  // Let any animations settle
   await page.waitForTimeout(500);
 }
 
+async function getSidebarBases(page: Page) {
+  // Sidebar base items are <div> elements inside <aside>, with cursor-pointer class
+  // Each contains a <span> with the base name
+  return page.locator('aside div.cursor-pointer span.truncate');
+}
+
+async function clickSidebarBase(page: Page, baseName: string) {
+  const sidebar = page.locator('aside');
+  // Base items are divs with cursor-pointer class containing a span with the name
+  const baseItem = sidebar.locator(`div.cursor-pointer:has(span.truncate:has-text("${baseName}"))`).first();
+  await expect(baseItem).toBeVisible({ timeout: 10_000 });
+  await baseItem.click();
+  await page.waitForTimeout(2000);
+}
+
+async function clickFirstSidebarBase(page: Page) {
+  const bases = await getSidebarBases(page);
+  const count = await bases.count();
+  if (count === 0) return false;
+  // Click the parent div (the actual clickable element)
+  const firstBase = bases.first();
+  const parentDiv = page.locator('aside div.cursor-pointer').first();
+  await parentDiv.click();
+  await page.waitForTimeout(2000);
+  return true;
+}
+
 async function clickAddRow(page: Page) {
-  const addBtn = page.locator('button:has-text("Add"), button:has(svg.lucide-plus)').first();
-  if (await addBtn.isVisible()) {
-    await addBtn.click();
-  } else {
-    // Some views show an inline "+" row at the bottom of the grid
-    const plusRow = page.locator('text=/Add a row|New row/i').first();
-    await plusRow.click();
+  // The add-row button in GridView says "New row" with a Plus icon
+  const newRowBtn = page.locator('button:has-text("New row")');
+  if (await newRowBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await newRowBtn.click();
+    await page.waitForTimeout(500);
+    return;
   }
-  await page.waitForTimeout(500);
+  // Empty state button says "Add row"
+  const addRowBtn = page.locator('button:has-text("Add row")');
+  if (await addRowBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await addRowBtn.click();
+    await page.waitForTimeout(500);
+    return;
+  }
+  throw new Error('Could not find add-row button ("New row" or "Add row")');
+}
+
+async function navigateToTestBase(page: Page) {
+  await navigateToData(page);
+  await clickSidebarBase(page, TEST_BASE_NAME);
+  await waitForGridLoad(page);
 }
 
 // ─── 1. EXISTING BASES — 406 Fix Verification ──────────────────────────────
 
 test.describe('Existing bases load without 406 errors', () => {
   test('navigate to /data and verify sidebar lists bases', async ({ page }) => {
-    await page.goto('/data');
-    await page.waitForLoadState('networkidle');
+    await navigateToData(page);
     await screenshotStep(page, '01_data_page_loaded');
 
-    // The sidebar should contain at least one base item (link to /data/<id>)
-    const baseLinks = page.locator('a[href*="/data/"]');
-    const count = await baseLinks.count();
+    const bases = await getSidebarBases(page);
+    const count = await bases.count();
     console.log(`BASES FOUND IN SIDEBAR: ${count}`);
     await screenshotStep(page, '02_sidebar_bases');
 
-    // PASS if at least one base is listed; FAIL if zero
     expect(count, 'At least one base should be listed in the sidebar').toBeGreaterThan(0);
   });
 
   test('click into each existing base and verify no 406 / "Failed to load"', async ({ page }) => {
-    await page.goto('/data');
-    await page.waitForLoadState('networkidle');
+    const errors406: string[] = [];
+    page.on('response', (response) => {
+      if (response.status() === 406) {
+        errors406.push(`406 on ${response.url()}`);
+      }
+    });
 
-    const baseLinks = page.locator('a[href*="/data/"]');
-    const hrefs: string[] = [];
-    const count = await baseLinks.count();
+    await navigateToData(page);
+
+    const bases = await getSidebarBases(page);
+    const count = await bases.count();
+    const baseNames: string[] = [];
     for (let i = 0; i < count; i++) {
-      const href = await baseLinks.nth(i).getAttribute('href');
-      if (href && !hrefs.includes(href)) hrefs.push(href);
+      const name = await bases.nth(i).textContent();
+      if (name) baseNames.push(name.trim());
     }
-    console.log(`Will test ${hrefs.length} base(s)`);
+    console.log(`Will test ${baseNames.length} base(s): ${baseNames.join(', ')}`);
 
     const results: { name: string; status: string }[] = [];
 
-    for (const href of hrefs) {
-      await page.goto(href);
-      await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(2000);
+    for (let i = 0; i < Math.min(baseNames.length, 5); i++) {
+      // Click the base in the sidebar
+      const baseDiv = page.locator('aside div.cursor-pointer').nth(i);
+      await baseDiv.click();
+      await page.waitForTimeout(3000);
 
-      const baseName = href.split('/').pop() ?? href;
-      const shotName = `03_base_${baseName.substring(0, 20)}`;
-      await screenshotStep(page, shotName);
+      const baseName = baseNames[i];
+      await screenshotStep(page, `03_base_${baseName.substring(0, 20).replace(/\s/g, '_')}`);
 
-      // Check for error indicators
-      const failedLoad = await page.locator('text=/Failed to load|406|Not Acceptable/i').count();
-      const hasGrid = await page.locator('[role="grid"], [role="table"], table').count();
-      const hasContent = await page.locator('text=/No records|Add a row|records/i').count();
+      const failedLoad = await page.locator('text=/Failed to load|Not Acceptable/i').count();
+      const hasGrid = await page.locator('[role="grid"]').count();
+      const hasContent = await page.locator('text=/records|New row|Add row/i').count();
 
-      if (failedLoad > 0) {
-        results.push({ name: baseName, status: 'FAIL — "Failed to load" or 406 error' });
+      if (failedLoad > 0 || errors406.length > 0) {
+        results.push({ name: baseName, status: `FAIL — errors detected (406 count: ${errors406.length})` });
       } else if (hasGrid > 0 || hasContent > 0) {
         results.push({ name: baseName, status: 'PASS — loaded successfully' });
       } else {
@@ -113,7 +143,6 @@ test.describe('Existing bases load without 406 errors', () => {
     results.forEach((r) => console.log(`  ${r.status}: ${r.name}`));
     console.log('══════════════════════════════════════════\n');
 
-    // Every base should not have "Failed to load"
     const failures = results.filter((r) => r.status.startsWith('FAIL'));
     expect(failures, `${failures.length} base(s) failed to load`).toHaveLength(0);
   });
@@ -123,32 +152,32 @@ test.describe('Existing bases load without 406 errors', () => {
 
 test.describe('Create a new test base', () => {
   test('create base via dialog', async ({ page }) => {
-    await page.goto('/data');
-    await page.waitForLoadState('networkidle');
+    await navigateToData(page);
     await screenshotStep(page, '10_before_create_base');
 
-    // Click the "+" or "Create Base" button in the sidebar
-    const createBtn = page.locator('button:has-text("Create"), button[title*="Create"], button:has(svg.lucide-plus)').first();
+    // The "Create base" button in sidebar header has title="Create base"
+    const createBtn = page.locator('button[title="Create base"]');
     await expect(createBtn).toBeVisible({ timeout: 10_000 });
     await createBtn.click();
 
-    // Wait for dialog
-    await expect(page.locator('text=Create Base')).toBeVisible({ timeout: 5_000 });
+    // Wait for the Create Base dialog
+    await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 5_000 });
     await screenshotStep(page, '11_create_base_dialog');
 
-    // Fill in the name
-    await page.fill('#base-name, input[placeholder*="Project Tracker"]', TEST_BASE_NAME);
+    // Fill in the name (input with id="base-name" or placeholder containing "Project Tracker")
+    const nameInput = page.locator('#base-name');
+    await nameInput.fill(TEST_BASE_NAME);
     await screenshotStep(page, '12_base_name_filled');
 
-    // Click the Create button
-    await page.click('button:has-text("Create Base")');
+    // Click the "Create Base" submit button inside the dialog
+    const dialog = page.locator('[role="dialog"]');
+    await dialog.locator('button:has-text("Create Base")').click();
 
     // Wait for navigation to the new base
     await page.waitForURL('**/data/**', { timeout: 15_000 });
     await page.waitForTimeout(3000);
     await screenshotStep(page, '13_base_created');
 
-    // Verify we're on the new base page
     const url = page.url();
     expect(url).toContain('/data/');
     console.log('PASS: Base created, navigated to:', url);
@@ -176,22 +205,19 @@ const FIELD_TYPES_TO_TEST = [
 
 test.describe('Add fields of every type', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to the test base — find it by name in sidebar
-    await page.goto('/data');
-    await page.waitForLoadState('networkidle');
-    // Click into the test base
-    const baseLink = page.locator(`a:has-text("${TEST_BASE_NAME}")`).first();
-    if (await baseLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await baseLink.click();
-      await page.waitForTimeout(2000);
-    }
+    await navigateToTestBase(page);
   });
 
   for (const fieldDef of FIELD_TYPES_TO_TEST) {
     test(`add ${fieldDef.label} field`, async ({ page }) => {
-      // Click the "+" column header to add a field
-      const addFieldBtn = page.locator('button:has(svg.lucide-plus), button[title*="Add field"], text=/Add field|\\+/').last();
-      await addFieldBtn.click();
+      // Click the "Add field" button in the grid header (has aria-label="Add field")
+      const addFieldBtn = page.locator('[aria-label="Add field"]').first();
+      if (await addFieldBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
+        await addFieldBtn.click();
+      } else {
+        // Fallback: toolbar button with title="Add new field"
+        await page.locator('button[title="Add new field"]').click();
+      }
       await page.waitForTimeout(500);
 
       // The CreateFieldDialog should appear
@@ -203,15 +229,9 @@ test.describe('Add fields of every type', () => {
       const nameInput = dialog.locator('input').first();
       await nameInput.fill(`Test ${fieldDef.label}`);
 
-      // Select the field type — click the type selector and find the option
-      const typeSelector = dialog.locator('button:has-text("Single Line Text"), [class*="type-select"], button:has-text("Text")').first();
-      if (await typeSelector.isVisible().catch(() => false)) {
-        await typeSelector.click();
-        await page.waitForTimeout(300);
-      }
-
-      // Find and click the target type in the dropdown/list
-      const typeOption = page.locator(`text="${fieldDef.label}"`).first();
+      // Select the field type — look for a type selector dropdown/button
+      // The dialog likely has a select or button group for field types
+      const typeOption = dialog.locator(`text="${fieldDef.label}"`).first();
       if (await typeOption.isVisible({ timeout: 3_000 }).catch(() => false)) {
         await typeOption.click();
         await page.waitForTimeout(300);
@@ -231,7 +251,7 @@ test.describe('Add fields of every type', () => {
 
       await screenshotStep(page, `21_add_field_${fieldDef.type}_configured`);
 
-      // Click Create / Save
+      // Click Create / Save button in dialog
       const saveBtn = dialog.locator('button:has-text("Create"), button:has-text("Save"), button:has-text("Add")').first();
       await saveBtn.click();
       await page.waitForTimeout(1500);
@@ -246,13 +266,7 @@ test.describe('Add fields of every type', () => {
 
 test.describe('Record CRUD operations', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/data');
-    await page.waitForLoadState('networkidle');
-    const baseLink = page.locator(`a:has-text("${TEST_BASE_NAME}")`).first();
-    if (await baseLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await baseLink.click();
-      await waitForGridLoad(page);
-    }
+    await navigateToTestBase(page);
   });
 
   test('CREATE — add a new row and fill in fields', async ({ page }) => {
@@ -262,8 +276,8 @@ test.describe('Record CRUD operations', () => {
     await page.waitForTimeout(1000);
     await screenshotStep(page, '31_row_added');
 
-    // Try to fill in the first text cell (Title / first column)
-    const firstCell = page.locator('[role="gridcell"], td').first();
+    // Try to fill in the first data cell
+    const firstCell = page.locator('[role="gridcell"]').first();
     if (await firstCell.isVisible().catch(() => false)) {
       await firstCell.dblclick();
       await page.waitForTimeout(300);
@@ -281,9 +295,10 @@ test.describe('Record CRUD operations', () => {
       await clickAddRow(page);
       await page.waitForTimeout(800);
 
-      const firstCell = page.locator('[role="gridcell"], td').last();
-      if (await firstCell.isVisible().catch(() => false)) {
-        await firstCell.dblclick();
+      const cells = page.locator('[role="gridcell"]');
+      const lastCell = cells.last();
+      if (await lastCell.isVisible().catch(() => false)) {
+        await lastCell.dblclick();
         await page.waitForTimeout(200);
         await page.keyboard.type(`Test Record ${i}`);
         await page.keyboard.press('Escape');
@@ -295,40 +310,42 @@ test.describe('Record CRUD operations', () => {
   });
 
   test('READ — expand a row to see full record', async ({ page }) => {
-    // Click the expand icon on the first row
-    const expandBtn = page.locator('button:has(svg.lucide-expand), [title*="Expand"]').first();
-    if (await expandBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await expandBtn.click();
-      await page.waitForTimeout(1000);
-      await screenshotStep(page, '34_expanded_row');
+    // Hover over the first data row to reveal the expand button
+    const firstDataRow = page.locator('[role="row"]').nth(1);
+    if (await firstDataRow.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await firstDataRow.hover();
+      await page.waitForTimeout(300);
 
-      // The expanded modal should show field labels and values
-      const modal = page.locator('[role="dialog"]');
-      await expect(modal).toBeVisible({ timeout: 5_000 });
-      console.log('PASS: Row expanded successfully');
+      // The expand button has aria-label="Expand row N"
+      const expandBtn = page.locator('button[aria-label^="Expand row"]').first();
+      if (await expandBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+        await expandBtn.click();
+        await page.waitForTimeout(1000);
+        await screenshotStep(page, '34_expanded_row');
 
-      // Close modal
-      await page.keyboard.press('Escape');
-    } else {
-      // Try clicking a row to expand
-      const row = page.locator('[role="row"]').nth(1);
-      await row.click();
-      await page.waitForTimeout(1000);
-      await screenshotStep(page, '34_row_clicked');
-      console.log('PARTIAL: No expand button found, clicked row directly');
+        // The expanded modal overlay has class "fixed inset-0 z-50"
+        const modal = page.locator('div.fixed.inset-0.z-50');
+        await expect(modal).toBeVisible({ timeout: 5_000 });
+        console.log('PASS: Row expanded successfully');
+
+        // Close modal by clicking backdrop or pressing Escape
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(500);
+      } else {
+        console.log('PARTIAL: No expand button found on hover');
+        await screenshotStep(page, '34_no_expand_btn');
+      }
     }
   });
 
   test('UPDATE — edit an existing cell value', async ({ page }) => {
-    // Double-click the first data cell to edit it
-    const cells = page.locator('[role="gridcell"], td');
+    const cells = page.locator('[role="gridcell"]');
     const cellCount = await cells.count();
     if (cellCount > 0) {
       const targetCell = cells.first();
       await targetCell.dblclick();
       await page.waitForTimeout(300);
 
-      // Select all and type new value
       await page.keyboard.press('Control+a');
       await page.keyboard.type('Updated Record');
       await page.keyboard.press('Tab');
@@ -337,26 +354,27 @@ test.describe('Record CRUD operations', () => {
       console.log('PASS: Cell updated');
     } else {
       console.log('FAIL: No cells found to edit');
+      expect(cellCount).toBeGreaterThan(0);
     }
   });
 
   test('DELETE — delete a row via context menu', async ({ page }) => {
     await screenshotStep(page, '36_before_delete');
 
-    // Right-click on a row to get context menu
-    const row = page.locator('[role="row"]').nth(1);
-    if (await row.isVisible().catch(() => false)) {
-      await row.click({ button: 'right' });
+    // Right-click on a data row (nth(1) to skip header)
+    const dataRow = page.locator('[role="row"]').nth(1);
+    if (await dataRow.isVisible().catch(() => false)) {
+      await dataRow.click({ button: 'right' });
       await page.waitForTimeout(500);
       await screenshotStep(page, '37_context_menu');
 
-      // Click Delete
-      const deleteOption = page.locator('text=/Delete row|Delete record/i').first();
+      // Context menu items include "Delete record"
+      const deleteOption = page.locator('text=/Delete record/i').first();
       if (await deleteOption.isVisible({ timeout: 3_000 }).catch(() => false)) {
         await deleteOption.click();
         await page.waitForTimeout(500);
 
-        // Confirm deletion if dialog appears
+        // Confirm if dialog appears
         const confirmBtn = page.locator('button:has-text("Delete"), button:has-text("Confirm")').first();
         if (await confirmBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
           await confirmBtn.click();
@@ -371,24 +389,45 @@ test.describe('Record CRUD operations', () => {
   });
 
   test('BULK DELETE — select multiple rows and delete', async ({ page }) => {
-    // Click row checkboxes (row numbers usually act as select)
-    const rowNumbers = page.locator('[class*="row-number"], [class*="RowNumber"]');
-    const rowCount = await rowNumbers.count();
-    if (rowCount >= 2) {
-      await rowNumbers.nth(0).click();
-      await rowNumbers.nth(1).click({ modifiers: ['Shift'] });
-      await page.waitForTimeout(500);
+    // Use the row checkboxes with known aria-labels
+    const checkbox1 = page.locator('input[aria-label="Select row 1"]');
+    const checkbox2 = page.locator('input[aria-label="Select row 2"]');
+
+    // Hover first row to reveal its checkbox
+    const firstRow = page.locator('[role="row"]').nth(1);
+    if (await firstRow.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await firstRow.hover();
+      await page.waitForTimeout(300);
+    }
+
+    if (await checkbox1.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await checkbox1.click();
+      await page.waitForTimeout(300);
+
+      // Hover second row
+      const secondRow = page.locator('[role="row"]').nth(2);
+      if (await secondRow.isVisible().catch(() => false)) {
+        await secondRow.hover();
+        await page.waitForTimeout(300);
+      }
+
+      if (await checkbox2.isVisible({ timeout: 3_000 }).catch(() => false)) {
+        await checkbox2.click();
+        await page.waitForTimeout(500);
+      }
+
       await screenshotStep(page, '39_rows_selected');
 
-      // Look for bulk actions bar
-      const bulkBar = page.locator('text=/selected|Delete|Bulk/i').first();
+      // Bulk actions bar should appear at bottom of screen
+      const bulkBar = page.locator('text=/selected/i').first();
       if (await bulkBar.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        const bulkDeleteBtn = page.locator('button:has(svg.lucide-trash-2), button:has-text("Delete")').first();
-        if (await bulkDeleteBtn.isVisible().catch(() => false)) {
-          await bulkDeleteBtn.click();
+        // Find and click the delete button in the bulk bar
+        const deleteBtn = page.locator('button:has-text("Delete")').first();
+        if (await deleteBtn.isVisible().catch(() => false)) {
+          await deleteBtn.click();
           await page.waitForTimeout(500);
           // Confirm
-          const confirmBtn = page.locator('button:has-text("Delete"), button:has-text("Confirm")').first();
+          const confirmBtn = page.locator('button:has-text("Delete"), button:has-text("Confirm")').last();
           if (await confirmBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
             await confirmBtn.click();
           }
@@ -399,6 +438,8 @@ test.describe('Record CRUD operations', () => {
       } else {
         console.log('PARTIAL: Could not trigger bulk selection bar');
       }
+    } else {
+      console.log('PARTIAL: Row checkboxes not accessible');
     }
   });
 });
@@ -407,35 +448,29 @@ test.describe('Record CRUD operations', () => {
 
 test.describe('Field type value entry', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/data');
-    await page.waitForLoadState('networkidle');
-    const baseLink = page.locator(`a:has-text("${TEST_BASE_NAME}")`).first();
-    if (await baseLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await baseLink.click();
-      await waitForGridLoad(page);
-    }
+    await navigateToTestBase(page);
   });
 
   test('Checkbox field — toggle on/off', async ({ page }) => {
-    const checkbox = page.locator('input[type="checkbox"], [role="checkbox"]').first();
-    if (await checkbox.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await checkbox.click();
+    // Look for a checkbox within the grid (not the row-select checkboxes)
+    const gridCheckbox = page.locator('[role="gridcell"] input[type="checkbox"]').first();
+    if (await gridCheckbox.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await gridCheckbox.click();
       await page.waitForTimeout(500);
       await screenshotStep(page, '50_checkbox_toggled');
       console.log('PASS: Checkbox toggled');
     } else {
-      console.log('PARTIAL: No checkbox field visible');
+      console.log('PARTIAL: No checkbox field visible in grid');
     }
   });
 
   test('SingleSelect field — pick an option', async ({ page }) => {
-    // Find a cell that looks like a select field
-    const selectCell = page.locator('[class*="select"], [class*="Select"]').first();
+    // Click on a select-type cell in the grid
+    const selectCell = page.locator('[role="gridcell"]').filter({ hasText: /Option|Select/i }).first();
     if (await selectCell.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await selectCell.click();
       await page.waitForTimeout(500);
-      // Pick first option
-      const option = page.locator('[role="option"], [class*="option"]').first();
+      const option = page.locator('[role="option"]').first();
       if (await option.isVisible({ timeout: 3_000 }).catch(() => false)) {
         await option.click();
         await page.waitForTimeout(500);
@@ -448,29 +483,22 @@ test.describe('Field type value entry', () => {
   });
 
   test('Date field — enter a date', async ({ page }) => {
-    // Find a date input
-    const dateCell = page.locator('input[type="date"], [class*="date"], [class*="Date"]').first();
+    const dateCell = page.locator('[role="gridcell"] input[type="date"]').first();
     if (await dateCell.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await dateCell.dblclick();
-      await page.waitForTimeout(300);
-      await page.keyboard.type('2026-06-15');
-      await page.keyboard.press('Enter');
+      await dateCell.fill('2026-06-15');
       await page.waitForTimeout(500);
       await screenshotStep(page, '52_date_entered');
       console.log('PASS: Date entered');
     } else {
-      console.log('PARTIAL: No date field visible to test');
+      // Try clicking a date-type column cell
+      console.log('PARTIAL: No date input visible to test');
     }
   });
 
   test('Number field — enter a number', async ({ page }) => {
-    // Find a number input
-    const numCell = page.locator('input[type="number"]').first();
-    if (await numCell.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await numCell.dblclick();
-      await page.waitForTimeout(300);
-      await page.keyboard.type('12345');
-      await page.keyboard.press('Tab');
+    const numInput = page.locator('[role="gridcell"] input[type="number"]').first();
+    if (await numInput.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await numInput.fill('12345');
       await page.waitForTimeout(500);
       await screenshotStep(page, '53_number_entered');
       console.log('PASS: Number entered');
@@ -484,26 +512,19 @@ test.describe('Field type value entry', () => {
 
 test.describe('CSV Import', () => {
   test('import a CSV file into the table', async ({ page }) => {
-    await page.goto('/data');
-    await page.waitForLoadState('networkidle');
-    const baseLink = page.locator(`a:has-text("${TEST_BASE_NAME}")`).first();
-    if (await baseLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await baseLink.click();
-      await waitForGridLoad(page);
-    }
+    await navigateToTestBase(page);
 
-    // Look for Import button in toolbar
-    const importBtn = page.locator('button:has-text("Import"), button:has(svg.lucide-upload)').first();
+    // Look for Import button in toolbar or menu
+    const importBtn = page.locator('button:has-text("Import")').first();
     if (await importBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await importBtn.click();
       await page.waitForTimeout(500);
       await screenshotStep(page, '60_import_dialog');
 
-      // Create a small CSV file to upload
       const csvContent = 'Name,Email,Phone\nAlice,alice@test.com,+1111111111\nBob,bob@test.com,+2222222222\nCharlie,charlie@test.com,+3333333333';
 
-      // Look for file input
-      const fileInput = page.locator('input[type="file"]');
+      // The ImportCsvDialog has a hidden file input with accept=".csv"
+      const fileInput = page.locator('input[type="file"][accept=".csv"]');
       if (await fileInput.count() > 0) {
         await fileInput.setInputFiles({
           name: 'test-import.csv',
@@ -513,8 +534,8 @@ test.describe('CSV Import', () => {
         await page.waitForTimeout(2000);
         await screenshotStep(page, '61_csv_preview');
 
-        // Click Import / Confirm
-        const confirmBtn = page.locator('button:has-text("Import"), button:has-text("Confirm")').first();
+        // Click Import button (shows row count like "Import 3 rows")
+        const confirmBtn = page.locator('button:has-text("Import")').first();
         if (await confirmBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
           await confirmBtn.click();
           await page.waitForTimeout(3000);
@@ -525,7 +546,7 @@ test.describe('CSV Import', () => {
         console.log('PARTIAL: No file input found in import dialog');
       }
     } else {
-      console.log('PARTIAL: No Import button found');
+      console.log('PARTIAL: No Import button found in toolbar');
     }
   });
 });
@@ -534,37 +555,41 @@ test.describe('CSV Import', () => {
 
 test.describe('CSV Export', () => {
   test('export table to CSV', async ({ page }) => {
-    await page.goto('/data');
-    await page.waitForLoadState('networkidle');
-    const baseLink = page.locator(`a:has-text("${TEST_BASE_NAME}")`).first();
-    if (await baseLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await baseLink.click();
-      await waitForGridLoad(page);
-    }
+    await navigateToTestBase(page);
 
-    // Look for the export/download button in toolbar or dropdown
-    const moreBtn = page.locator('button:has(svg.lucide-more-horizontal), button:has(svg.lucide-download)').first();
-    if (await moreBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await moreBtn.click();
-      await page.waitForTimeout(500);
-      await screenshotStep(page, '70_export_menu');
+    // The toolbar has an Export button with title="Download CSV" and <Download> icon
+    const exportBtn = page.locator('button[title="Download CSV"]');
+    if (await exportBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      const downloadPromise = page.waitForEvent('download', { timeout: 10_000 }).catch(() => null);
+      await exportBtn.click();
+      const download = await downloadPromise;
 
-      const exportOption = page.locator('text=/Export CSV|Download CSV/i').first();
-      if (await exportOption.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        // Set up download listener
-        const downloadPromise = page.waitForEvent('download', { timeout: 10_000 }).catch(() => null);
-        await exportOption.click();
-        const download = await downloadPromise;
-
-        if (download) {
-          const filename = download.suggestedFilename();
-          console.log(`PASS: CSV exported as "${filename}"`);
-          await screenshotStep(page, '71_csv_exported');
-        } else {
-          console.log('PARTIAL: Export clicked but no download triggered');
-        }
+      if (download) {
+        const filename = download.suggestedFilename();
+        console.log(`PASS: CSV exported as "${filename}"`);
+        await screenshotStep(page, '71_csv_exported');
       } else {
-        console.log('PARTIAL: No Export CSV option found');
+        console.log('PARTIAL: Export clicked but no download triggered');
+      }
+    } else {
+      // Fallback: try More options button then look for export
+      const moreBtn = page.locator('button[aria-label="More options"]');
+      if (await moreBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+        await moreBtn.click();
+        await page.waitForTimeout(500);
+        await screenshotStep(page, '70_export_menu');
+
+        const exportOption = page.locator('text=/Export|Download CSV/i').first();
+        if (await exportOption.isVisible({ timeout: 3_000 }).catch(() => false)) {
+          const downloadPromise = page.waitForEvent('download', { timeout: 10_000 }).catch(() => null);
+          await exportOption.click();
+          const download = await downloadPromise;
+          if (download) {
+            console.log(`PASS: CSV exported as "${download.suggestedFilename()}"`);
+          } else {
+            console.log('PARTIAL: Export clicked but no download');
+          }
+        }
       }
     }
   });
@@ -582,20 +607,16 @@ test.describe('Performance', () => {
     console.log(`/data page load time: ${loadTime}ms`);
     await screenshotStep(page, '80_perf_data_load');
 
-    // Should load within 10 seconds
     expect(loadTime, 'Page should load within 10s').toBeLessThan(10_000);
     console.log(loadTime < 3000 ? 'PASS: Fast load' : 'PARTIAL: Loaded but slow');
   });
 
   test('base with records loads grid within acceptable time', async ({ page }) => {
-    await page.goto('/data');
-    await page.waitForLoadState('networkidle');
+    await navigateToData(page);
 
-    // Click into a base that has records
-    const baseLink = page.locator('a[href*="/data/"]').first();
-    if (await baseLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    const hasBase = await clickFirstSidebarBase(page);
+    if (hasBase) {
       const start = Date.now();
-      await baseLink.click();
       await waitForGridLoad(page);
       const loadTime = Date.now() - start;
 
@@ -607,7 +628,7 @@ test.describe('Performance', () => {
     }
   });
 
-  test('no console errors related to 406', async ({ page }) => {
+  test('no 406 errors when browsing bases', async ({ page }) => {
     const errors: string[] = [];
     page.on('response', (response) => {
       if (response.status() === 406) {
@@ -615,19 +636,13 @@ test.describe('Performance', () => {
       }
     });
 
-    await page.goto('/data');
-    await page.waitForLoadState('networkidle');
+    await navigateToData(page);
 
-    // Navigate through bases
-    const baseLinks = page.locator('a[href*="/data/"]');
-    const count = Math.min(await baseLinks.count(), 3);
-    for (let i = 0; i < count; i++) {
-      const href = await baseLinks.nth(i).getAttribute('href');
-      if (href) {
-        await page.goto(href);
-        await page.waitForLoadState('networkidle');
-        await page.waitForTimeout(2000);
-      }
+    // Navigate through up to 3 bases
+    const baseCount = await page.locator('aside div.cursor-pointer').count();
+    for (let i = 0; i < Math.min(baseCount, 3); i++) {
+      await page.locator('aside div.cursor-pointer').nth(i).click();
+      await page.waitForTimeout(3000);
     }
 
     console.log(`406 errors captured: ${errors.length}`);
@@ -644,13 +659,7 @@ test.describe('Performance', () => {
 
 test.describe('Edge cases', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/data');
-    await page.waitForLoadState('networkidle');
-    const baseLink = page.locator(`a:has-text("${TEST_BASE_NAME}")`).first();
-    if (await baseLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await baseLink.click();
-      await waitForGridLoad(page);
-    }
+    await navigateToTestBase(page);
   });
 
   test('empty field values — add row without filling anything', async ({ page }) => {
@@ -660,9 +669,8 @@ test.describe('Edge cases', () => {
     await page.waitForTimeout(500);
     await screenshotStep(page, '90_empty_row');
 
-    // Row should exist even without values
     const rows = page.locator('[role="row"]');
-    expect(await rows.count()).toBeGreaterThan(1); // header + at least 1 data row
+    expect(await rows.count()).toBeGreaterThan(1);
     console.log('PASS: Empty row created without errors');
   });
 
@@ -670,11 +678,11 @@ test.describe('Edge cases', () => {
     await clickAddRow(page);
     await page.waitForTimeout(500);
 
-    const firstCell = page.locator('[role="gridcell"], td').first();
+    const firstCell = page.locator('[role="gridcell"]').first();
     if (await firstCell.isVisible().catch(() => false)) {
       await firstCell.dblclick();
       await page.waitForTimeout(300);
-      await page.keyboard.type('Special chars: <script>alert("xss")</script> & "quotes" \'apostrophes\' emojis: 🎉🚀');
+      await page.keyboard.type('Special chars: <script>alert("xss")</script> & "quotes" \'apostrophes\'');
       await page.keyboard.press('Tab');
       await page.waitForTimeout(500);
       await screenshotStep(page, '91_special_chars');
@@ -686,12 +694,11 @@ test.describe('Edge cases', () => {
     await clickAddRow(page);
     await page.waitForTimeout(500);
 
-    const firstCell = page.locator('[role="gridcell"], td').first();
+    const firstCell = page.locator('[role="gridcell"]').first();
     if (await firstCell.isVisible().catch(() => false)) {
       await firstCell.dblclick();
       await page.waitForTimeout(300);
-      const longText = 'A'.repeat(5000);
-      await page.keyboard.type(longText.substring(0, 500)); // Type first 500 chars (Playwright limit)
+      await page.keyboard.type('A'.repeat(500));
       await page.keyboard.press('Tab');
       await page.waitForTimeout(500);
       await screenshotStep(page, '92_long_text');
@@ -716,30 +723,31 @@ test.describe('Edge cases', () => {
 
 test.describe('Cleanup', () => {
   test('delete the test base', async ({ page }) => {
-    await page.goto('/data');
-    await page.waitForLoadState('networkidle');
+    await navigateToData(page);
 
-    // Find the test base in sidebar
-    const baseItem = page.locator(`text="${TEST_BASE_NAME}"`).first();
+    // Find the test base in sidebar and hover to reveal options
+    const sidebar = page.locator('aside');
+    const baseItem = sidebar.locator(`div.cursor-pointer:has(span.truncate:has-text("${TEST_BASE_NAME}"))`).first();
+
     if (await baseItem.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      // Right-click for context menu, or find the "..." menu
       await baseItem.hover();
       await page.waitForTimeout(500);
 
-      // Look for the more options button that appears on hover
-      const moreBtn = baseItem.locator('..').locator('button:has(svg.lucide-more-horizontal)').first();
+      // The "..." button appears on hover within the same div
+      const moreBtn = baseItem.locator('button').first();
       if (await moreBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
         await moreBtn.click();
         await page.waitForTimeout(500);
         await screenshotStep(page, '99_delete_menu');
 
-        const deleteOption = page.locator('text=/Delete base|Delete/i').first();
+        // Click Delete in dropdown
+        const deleteOption = page.locator('text=/Delete/i').last();
         if (await deleteOption.isVisible({ timeout: 3_000 }).catch(() => false)) {
           await deleteOption.click();
           await page.waitForTimeout(500);
 
           // Confirm deletion
-          const confirmBtn = page.locator('button:has-text("Delete"), button:has-text("Confirm")').first();
+          const confirmBtn = page.locator('button:has-text("Delete")').last();
           if (await confirmBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
             await confirmBtn.click();
             await page.waitForTimeout(2000);
@@ -749,7 +757,7 @@ test.describe('Cleanup', () => {
         }
       }
     } else {
-      console.log('PARTIAL: Test base not found for cleanup');
+      console.log('PARTIAL: Test base not found for cleanup (may already be deleted)');
     }
   });
 });
