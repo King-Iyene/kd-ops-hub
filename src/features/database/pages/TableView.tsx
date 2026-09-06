@@ -124,7 +124,17 @@ export function TableView() {
   const updateField = useUpdateField();
   const reorderFields = useReorderFields();
   const reorderRows = useReorderRows();
-  const [expandedRecord, setExpandedRecord] = useState<RecordRow | null>(null);
+  const [expandedRecord, setExpandedRecordRaw] = useState<RecordRow | null>(null);
+  const setExpandedRecord = useCallback((record: RecordRow | null) => {
+    setExpandedRecordRaw(record);
+    const url = new URL(window.location.href);
+    if (record) {
+      url.searchParams.set('rowId', record.id);
+    } else {
+      url.searchParams.delete('rowId');
+    }
+    window.history.replaceState(null, '', url.toString());
+  }, []);
 
   const visibleFields = useMemo(
     () =>
@@ -172,6 +182,21 @@ export function TableView() {
       return patched as RecordRow;
     });
   }, [infiniteRecords, fields]);
+
+  // Auto-expand record from URL deep link (?rowId=...)
+  const deepLinkedRef = useRef(false);
+  useEffect(() => {
+    if (deepLinkedRef.current || records.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const rowId = params.get('rowId');
+    if (rowId) {
+      const match = records.find((r) => r.id === rowId);
+      if (match) {
+        setExpandedRecordRaw(match);
+        deepLinkedRef.current = true;
+      }
+    }
+  }, [records]);
 
   const handleCellUpdate = useCallback(
     (recordId: string, fieldId: string, value: any) => {
