@@ -875,6 +875,37 @@ Deno.serve(async (req: Request): Promise<Response> => {
         } finally { rc.release(); }
         return json({ success: true });
       }
+      case 'bulkInsert': {
+        const { schemaName: biSchema, tableName: biTable, columns: biCols, rows: biRows } = body;
+        if (!biSchema || !biTable || !biCols?.length || !biRows?.length) {
+          return json({ success: false, error: 'Missing schemaName, tableName, columns, or rows' }, 400);
+        }
+        const conn = await pool.connect();
+        try {
+          const colList = biCols.map((c: string) => `"${c}"`).join(', ');
+          const batchSize = 200;
+          let inserted = 0;
+          for (let i = 0; i < biRows.length; i += batchSize) {
+            const chunk = biRows.slice(i, i + batchSize);
+            const valueClauses: string[] = [];
+            const params: unknown[] = [];
+            for (const row of chunk) {
+              const placeholders: string[] = [];
+              for (const col of biCols) {
+                params.push(row[col] ?? null);
+                placeholders.push(`$${params.length}`);
+              }
+              valueClauses.push(`(${placeholders.join(', ')})`);
+            }
+            await conn.queryObject(
+              `INSERT INTO "${biSchema}"."${biTable}" (${colList}) VALUES ${valueClauses.join(', ')}`,
+              params,
+            );
+            inserted += chunk.length;
+          }
+          return json({ success: true, inserted });
+        } finally { conn.release(); }
+      }
       default:
         return json({ success: false, error: `Unknown action: ${action}` }, 400);
     }

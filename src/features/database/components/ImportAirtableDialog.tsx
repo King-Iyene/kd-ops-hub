@@ -143,10 +143,10 @@ const SYSTEM_FIELDS = [
 
 const SYSTEM_UI_TYPES = new Set(['ID', 'CreatedTime', 'LastModifiedTime', 'CreatedBy', 'LastModifiedBy']);
 
-const BATCH_SIZE = 1000;
+const BATCH_SIZE = 500;
 const RATE_LIMIT_DELAY = 200;
 const MAX_RETRIES = 5;
-const INSERT_CONCURRENCY = 3;
+const INSERT_CONCURRENCY = 2;
 
 async function rateLimitedFetch(url: string, options: RequestInit, retries = MAX_RETRIES): Promise<Response> {
   const res = await fetch(url, options);
@@ -559,9 +559,6 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         });
 
         const allColNames = fieldRows.map((fr) => fr.pg_column_name).filter(Boolean);
-        // Force schema reload after DDL, then wait for all workers to catch up
-        await forceSchemaReload();
-        await waitForSchemaReady(schemaName, pgTableName, allColNames);
 
         const { data: createdFields } = await supabase
           .schema('nc_meta')
@@ -666,22 +663,24 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               return row;
             };
 
-            let schemaRetries = 0;
+            const insertCols = ['nc_order', 'airtable_id', ...allColNames];
             const insertBatch = async (rows: Record<string, any>[]): Promise<number> => {
-              const { error: insertErr } = await supabase.schema(schemaName).from(pgTableName).insert(rows);
-              if (insertErr) {
-                const isSchemaErr = insertErr.code === 'PGRST106' || insertErr.message?.includes('schema') || insertErr.message?.includes('column');
-                if (isSchemaErr && schemaRetries < 5) {
-                  schemaRetries++;
-                  await forceSchemaReload();
-                  await waitForSchemaReady(schemaName, pgTableName, allColNames, 15000);
-                  return insertBatch(rows);
-                }
-                const midpoint = Math.ceil(rows.length / 2);
+              const { data, error: insertErr } = await supabase.functions.invoke('ddl-executor', {
+                body: {
+                  action: 'bulkInsert',
+                  schemaName,
+                  tableName: pgTableName,
+                  columns: insertCols,
+                  rows,
+                },
+              });
+              if (insertErr || (data && !data.success)) {
+                const errMsg = data?.error ?? insertErr?.message ?? 'insert failed';
                 if (rows.length <= 1) {
-                  errors.push(`${atTable.name}: ${insertErr.message?.substring(0, 120) ?? 'record failed'}`);
+                  errors.push(`${atTable.name}: ${String(errMsg).substring(0, 120)}`);
                   return 0;
                 }
+                const midpoint = Math.ceil(rows.length / 2);
                 const [a, b] = await Promise.all([
                   insertBatch(rows.slice(0, midpoint)),
                   insertBatch(rows.slice(midpoint)),
