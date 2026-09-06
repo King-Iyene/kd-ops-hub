@@ -196,7 +196,7 @@ export function useRecordLinks(opts: {
       }
 
       if (linkType === 'mm') {
-        if (!junctionTable) return [];
+        if (!junctionTable) return []; // mm via source_id/target_id
 
         const { data: jRows } = await supabase
           .schema(schema)
