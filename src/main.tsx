@@ -110,6 +110,6 @@ if (
 createRoot(document.getElementById("root")!).render(
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
     <App />
-    <SpeedInsights />
+    {import.meta.env.PROD && <SpeedInsights />}
   </ThemeProvider>,
 );
