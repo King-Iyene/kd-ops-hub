@@ -701,16 +701,33 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           .select('id, table_id, name, ui_type, options, pg_column_name')
           .in('table_id', (allBaseTables ?? []).map((t: any) => t.id));
 
+        // Build Airtable field ID → field name map for formula translation
+        const atFieldIdToName: Record<string, string> = {};
+        for (const f of (allBaseFields ?? [])) {
+          const atId = f.options?.airtable_field_id;
+          if (atId) atFieldIdToName[atId] = f.name;
+        }
+
         // Formula metadata
         for (const f of (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Formula')) {
-          const expression = f.options?.formula ?? '';
+          let expression = f.options?.formula ?? '';
           if (expression) {
+            // Translate Airtable field ID references {fldXXX} → {FieldName}
+            expression = expression.replace(/\{(fld[A-Za-z0-9]+)\}/g, (_: string, atId: string) => {
+              const name = atFieldIdToName[atId];
+              return name ? `{${name}}` : `{${atId}}`;
+            });
             await supabase.schema('nc_meta').from('formulas').upsert({
               field_id: f.id,
               expression,
               parsed_tree: {},
               error: null,
             }, { onConflict: 'field_id' });
+
+            // Update field options with translated formula
+            await supabase.schema('nc_meta').from('fields').update({
+              options: { ...f.options, formula: expression },
+            }).eq('id', f.id);
           }
         }
 
@@ -745,8 +762,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                   schemaName,
                   tableName: jnTableName,
                   columns: [
-                    { name: 'source_id', type: 'UUID' },
-                    { name: 'target_id', type: 'UUID' },
+                    { name: `${sourcePgTable}_id`, type: 'UUID' },
+                    { name: `${targetPgTable}_id`, type: 'UUID' },
                   ],
                 },
               });
@@ -774,14 +791,25 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           const inverseAtFieldId = f.options?.inverseLinkFieldId;
           const inverseKdFieldId = inverseAtFieldId ? atFieldIdToKd[inverseAtFieldId] : null;
 
+          const linkType = f.options?.prefersSingleRecordLink ? 'hm' : 'mm';
           const { error: linkErr } = await supabase.schema('nc_meta').from('links').upsert({
             field_id: f.id,
             related_table_id: relatedKdTableId,
             related_field_id: inverseKdFieldId,
             junction_table_id: junctionTableId,
-            type: f.options?.prefersSingleRecordLink ? 'hm' : 'mm',
+            type: linkType,
           }, { onConflict: 'field_id' });
           if (linkErr) console.warn(`[Import] Link upsert skipped for ${f.name}:`, linkErr.message);
+
+          // Update field options with resolved KDOps IDs so renderers work
+          await supabase.schema('nc_meta').from('fields').update({
+            options: {
+              ...f.options,
+              relatedTableId: relatedKdTableId,
+              type: linkType,
+              linkedTableId: relatedKdTableId,
+            },
+          }).eq('id', f.id);
         }
 
         setProgress((p) => ({ ...p, tableName: 'Resolving lookup fields...' }));
@@ -800,6 +828,15 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             link_field_id: kdLinkFieldId,
             lookup_field_id: kdLookupFieldId ?? null,
           }, { onConflict: 'field_id' });
+
+          // Update field options with resolved KDOps IDs so renderers work
+          await supabase.schema('nc_meta').from('fields').update({
+            options: {
+              ...f.options,
+              linkFieldId: kdLinkFieldId,
+              lookupFieldId: kdLookupFieldId ?? null,
+            },
+          }).eq('id', f.id);
         }
 
         setProgress((p) => ({ ...p, tableName: 'Resolving rollup fields...' }));
@@ -811,7 +848,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
           const kdLinkFieldId = atFieldIdToKd[atLinkFieldId];
           const kdRollupFieldId = atFieldIdToKd[atRollupFieldId];
-          const rollupFn = f.options?.result?.type ?? 'SUM';
+          // Airtable API doesn't expose the rollup function; default to SUM for numeric results
+          const rollupFn = 'SUM';
           if (!kdLinkFieldId) continue;
 
           await supabase.schema('nc_meta').from('rollups').upsert({
@@ -820,6 +858,16 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             rollup_field_id: kdRollupFieldId ?? null,
             rollup_function: rollupFn,
           }, { onConflict: 'field_id' });
+
+          // Update field options with resolved KDOps IDs so renderers work
+          await supabase.schema('nc_meta').from('fields').update({
+            options: {
+              ...f.options,
+              linkFieldId: kdLinkFieldId,
+              rollupFieldId: kdRollupFieldId ?? null,
+              fn: rollupFn,
+            },
+          }).eq('id', f.id);
         }
 
         // --- Third pass: populate junction tables from linked record data ---
@@ -875,14 +923,16 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               page++;
             }
 
-            const junctionRows: { source_id: string; target_id: string }[] = [];
+            const srcColName = `${sourcePgTable}_id`;
+            const tgtColName = `${targetPgTable}_id`;
+            const junctionRows: Record<string, string>[] = [];
             for (const sr of allSourceRecords) {
               const linkedIds = sr[pgCol];
               if (!Array.isArray(linkedIds)) continue;
               for (const atRecId of linkedIds) {
                 const targetUuid = targetIdMap[atRecId];
                 if (targetUuid) {
-                  junctionRows.push({ source_id: sr.id, target_id: targetUuid });
+                  junctionRows.push({ [srcColName]: sr.id, [tgtColName]: targetUuid });
                 }
               }
             }
