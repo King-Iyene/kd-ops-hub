@@ -103,7 +103,7 @@ function useLinkResolutionMeta(opts: {
 
   const { data: junctionMeta } = useQuery({
     queryKey: ['nc', 'junction-meta', fieldId],
-    enabled: linkType === 'mm' && !!fieldId,
+    enabled: !!fieldId && !!linkType,
     staleTime: Infinity,
     gcTime: 10 * 60_000,
     refetchOnWindowFocus: false,
@@ -125,7 +125,7 @@ function useLinkResolutionMeta(opts: {
     },
   });
 
-  const ready = !!baseMeta && !!srcTableMeta && !!tgtTableMeta && (linkType !== 'mm' || !!junctionMeta);
+  const ready = !!baseMeta && !!srcTableMeta && !!tgtTableMeta && (junctionMeta !== undefined);
 
   return {
     ready,
@@ -166,6 +166,30 @@ export function useRecordLinks(opts: {
       const { schema, srcTable, tgtTable, junctionTable } = meta;
       if (!schema || !srcTable || !tgtTable) return [];
 
+      // All link types in NocoDB Airtable imports use junction tables
+      if (junctionTable) {
+        const { data: jRows } = await supabase
+          .schema(schema)
+          .from(junctionTable)
+          .select('source_id, target_id')
+          .or(`source_id.eq.${recordId},target_id.eq.${recordId}`)
+          .limit(200);
+
+        if (!jRows || jRows.length === 0) return [];
+
+        const ids = jRows
+          .map((r: any) => r.source_id === recordId ? r.target_id : r.source_id)
+          .filter(Boolean);
+
+        const { data } = await supabase
+          .schema(schema)
+          .from(tgtTable)
+          .select('*')
+          .in('id', ids);
+        return (data ?? []) as RecordRow[];
+      }
+
+      // Fallback for hm/bt without junction table (direct FK)
       if (linkType === 'hm') {
         const fkCol = fkColumnName || `${srcTable}_id`;
         const { data } = await supabase
@@ -192,30 +216,6 @@ export function useRecordLinks(opts: {
           .select('*')
           .eq('id', srcRow[fkCol])
           .limit(1);
-        return (data ?? []) as RecordRow[];
-      }
-
-      if (linkType === 'mm') {
-        if (!junctionTable) return []; // mm via source_id/target_id
-
-        const { data: jRows } = await supabase
-          .schema(schema)
-          .from(junctionTable)
-          .select('source_id, target_id')
-          .or(`source_id.eq.${recordId},target_id.eq.${recordId}`)
-          .limit(200);
-
-        if (!jRows || jRows.length === 0) return [];
-
-        const ids = jRows
-          .map((r: any) => r.source_id === recordId ? r.target_id : r.source_id)
-          .filter(Boolean);
-
-        const { data } = await supabase
-          .schema(schema)
-          .from(tgtTable)
-          .select('*')
-          .in('id', ids);
         return (data ?? []) as RecordRow[];
       }
 
@@ -320,16 +320,15 @@ export function useLinkMutations(opts: {
       const t = await resolveTables();
       if (!t) return;
 
-      if (linkType === 'hm') {
-        await supabase.schema(t.schema).from(t.tgt).update({ [`${t.src}_id`]: recordId }).eq('id', targetRecordId);
-      } else if (linkType === 'bt') {
-        await supabase.schema(t.schema).from(t.src).update({ [`${t.tgt}_id`]: targetRecordId }).eq('id', recordId);
-      } else if (linkType === 'mm') {
-        const { data: linkMeta } = await supabase.schema('nc_meta').from('links').select('junction_table_id').eq('field_id', field.id).single();
-        if (!linkMeta?.junction_table_id) return;
+      const { data: linkMeta } = await supabase.schema('nc_meta').from('links').select('junction_table_id').eq('field_id', field.id).single();
+      if (linkMeta?.junction_table_id) {
         const { data: jTable } = await supabase.schema('nc_meta').from('tables').select('pg_table_name').eq('id', linkMeta.junction_table_id).single();
         if (!jTable) return;
         await supabase.schema(t.schema).from(jTable.pg_table_name).insert({ source_id: recordId, target_id: targetRecordId });
+      } else if (linkType === 'hm') {
+        await supabase.schema(t.schema).from(t.tgt).update({ [`${t.src}_id`]: recordId }).eq('id', targetRecordId);
+      } else if (linkType === 'bt') {
+        await supabase.schema(t.schema).from(t.src).update({ [`${t.tgt}_id`]: targetRecordId }).eq('id', recordId);
       }
       invalidate();
     },
@@ -341,16 +340,15 @@ export function useLinkMutations(opts: {
       const t = await resolveTables();
       if (!t) return;
 
-      if (linkType === 'hm') {
-        await supabase.schema(t.schema).from(t.tgt).update({ [`${t.src}_id`]: null }).eq('id', targetRecordId);
-      } else if (linkType === 'bt') {
-        await supabase.schema(t.schema).from(t.src).update({ [`${t.tgt}_id`]: null }).eq('id', recordId);
-      } else if (linkType === 'mm') {
-        const { data: linkMeta } = await supabase.schema('nc_meta').from('links').select('junction_table_id').eq('field_id', field.id).single();
-        if (!linkMeta?.junction_table_id) return;
+      const { data: linkMeta } = await supabase.schema('nc_meta').from('links').select('junction_table_id').eq('field_id', field.id).single();
+      if (linkMeta?.junction_table_id) {
         const { data: jTable } = await supabase.schema('nc_meta').from('tables').select('pg_table_name').eq('id', linkMeta.junction_table_id).single();
         if (!jTable) return;
         await supabase.schema(t.schema).from(jTable.pg_table_name).delete().or(`and(source_id.eq.${recordId},target_id.eq.${targetRecordId}),and(source_id.eq.${targetRecordId},target_id.eq.${recordId})`);
+      } else if (linkType === 'hm') {
+        await supabase.schema(t.schema).from(t.tgt).update({ [`${t.src}_id`]: null }).eq('id', targetRecordId);
+      } else if (linkType === 'bt') {
+        await supabase.schema(t.schema).from(t.src).update({ [`${t.tgt}_id`]: null }).eq('id', recordId);
       }
       invalidate();
     },
