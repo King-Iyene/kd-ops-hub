@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import GridView from '../components/grid/GridView';
 import type { FieldMeta, RecordRow } from '../types';
@@ -8,16 +8,23 @@ import type { FieldMeta, RecordRow } from '../types';
 export default function SharedViewPage() {
   const { token } = useParams<{ token: string }>();
   const [password, setPassword] = useState('');
-  const [enteredPassword, setEnteredPassword] = useState<string | null>(null);
+  const [passwordVerified, setPasswordVerified] = useState(false);
+  const [page, setPage] = useState(0);
+  const pageSize = 500;
 
   const sharedViewQuery = useQuery({
     queryKey: ['shared_view_public', token],
     enabled: !!token,
     queryFn: async () => {
+      // Never select password_hash here - only metadata plus a boolean flag
+      // telling us whether a password is required. The actual check happens
+      // server-side via the verify_shared_view_password RPC below.
       const { data, error } = await supabase
         .schema('nc_meta')
         .from('shared_views')
-        .select('*, view:view_id(*, table:table_id(*, base:base_id(*)))')
+        .select(
+          'id, view_id, table_id, share_token, is_enabled, allow_csv_download, is_password_protected, created_at, view:view_id(*, table:table_id(*, base:base_id(*)))',
+        )
         .eq('share_token', token)
         .eq('is_enabled', true)
         .maybeSingle();
@@ -31,7 +38,20 @@ export default function SharedViewPage() {
   const table = view?.table as any;
   const base = table?.base as any;
 
-  const needsPassword = sharedView?.password && enteredPassword !== sharedView.password;
+  const needsPassword = !!sharedView?.is_password_protected && !passwordVerified;
+
+  const verifyPassword = useMutation({
+    mutationFn: async (candidate: string) => {
+      const { data, error } = await supabase
+        .schema('nc_meta')
+        .rpc('verify_shared_view_password', { p_share_token: token, p_password: candidate });
+      if (error) throw error;
+      return data as boolean;
+    },
+    onSuccess: (isCorrect) => {
+      setPasswordVerified(isCorrect);
+    },
+  });
 
   const fieldsQuery = useQuery({
     queryKey: ['shared_fields', sharedView?.table_id],
@@ -48,8 +68,21 @@ export default function SharedViewPage() {
     },
   });
 
+  const recordsCountQuery = useQuery({
+    queryKey: ['shared_records_count', base?.schema_name, table?.pg_table_name],
+    enabled: !!base?.schema_name && !!table?.pg_table_name && !needsPassword,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .schema(base!.schema_name)
+        .from(table!.pg_table_name)
+        .select('*', { count: 'exact', head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
   const recordsQuery = useQuery({
-    queryKey: ['shared_records', base?.schema_name, table?.pg_table_name],
+    queryKey: ['shared_records', base?.schema_name, table?.pg_table_name, page],
     enabled: !!base?.schema_name && !!table?.pg_table_name && !needsPassword,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -57,7 +90,7 @@ export default function SharedViewPage() {
         .from(table!.pg_table_name)
         .select('*')
         .order('nc_order', { ascending: true })
-        .limit(500);
+        .range(page * pageSize, page * pageSize + pageSize - 1);
       if (error) throw error;
       return data as RecordRow[];
     },
@@ -65,6 +98,7 @@ export default function SharedViewPage() {
 
   const fields = fieldsQuery.data ?? [];
   const records = recordsQuery.data ?? [];
+  const totalCount = recordsCountQuery.data ?? records.length;
 
   const visibleFields = useMemo(() => {
     if (!view?.field_order?.length) return fields.filter((f) => !f.is_system && !f.is_hidden);
@@ -99,7 +133,7 @@ export default function SharedViewPage() {
       <div className="flex items-center justify-center h-screen bg-[#FAFAFA] dark:bg-[hsl(200,30%,6%)]">
         <div className="bg-white dark:bg-[hsl(200,30%,8%)] rounded-xl shadow-lg p-8 w-[360px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
           <h2 className="text-lg font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] mb-4">This view is password protected</h2>
-          <form onSubmit={(e) => { e.preventDefault(); setEnteredPassword(password); }}>
+          <form onSubmit={(e) => { e.preventDefault(); verifyPassword.mutate(password); }}>
             <input
               type="password"
               value={password}
@@ -109,12 +143,18 @@ export default function SharedViewPage() {
             />
             <button
               type="submit"
-              className="w-full py-2 rounded-lg text-white text-sm font-medium"
+              disabled={verifyPassword.isPending}
+              className="w-full py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60"
               style={{ backgroundColor: '#2D7FF9' }}
             >
               Submit
             </button>
-            {enteredPassword !== null && <p className="text-red-500 text-xs mt-2">Incorrect password</p>}
+            {verifyPassword.isSuccess && !verifyPassword.data && (
+              <p className="text-red-500 text-xs mt-2">Incorrect password</p>
+            )}
+            {verifyPassword.isError && (
+              <p className="text-red-500 text-xs mt-2">Something went wrong. Please try again.</p>
+            )}
           </form>
         </div>
       </div>
@@ -132,10 +172,14 @@ export default function SharedViewPage() {
         <GridView
           fields={visibleFields}
           records={records}
-          totalCount={records.length}
+          totalCount={totalCount}
           isLoading={recordsQuery.isLoading}
           onCellUpdate={() => {}}
           onAddRow={() => {}}
+          onAddField={() => {}}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
         />
       </div>
     </div>

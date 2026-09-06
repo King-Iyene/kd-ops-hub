@@ -34,7 +34,8 @@ export function useRealtimeRecords(baseId: string | undefined, tableId: string |
         'postgres_changes',
         { event: '*', schema: resolved.schema, table: resolved.table },
         () => {
-          qc.invalidateQueries({ queryKey: ['nc', 'records', resolved.schema, resolved.table] });
+          qc.invalidateQueries({ queryKey: ['nc', 'records', baseId, tableId] });
+          qc.invalidateQueries({ queryKey: ['nc', 'recordCount', baseId, tableId] });
         },
       )
       .subscribe();

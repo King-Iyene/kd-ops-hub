@@ -2,6 +2,27 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { RecordRow, Filter, FilterGroup, Sort } from '../types';
 import { toast } from '../components/Toast';
+import { useUndoStore } from '../lib/undo';
+
+/**
+ * Run async batch jobs with a bounded concurrency instead of fully serial
+ * or fully parallel execution, to avoid overwhelming the database while
+ * still getting a meaningful speedup over one-at-a-time batches.
+ */
+async function runWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<void>,
+): Promise<void> {
+  let cursor = 0;
+  const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      await worker(items[index], index);
+    }
+  });
+  await Promise.all(runners);
+}
 
 function fireAutomations(event: string, baseId: string, tableId: string, record?: any, oldRecord?: any) {
   supabase.functions.invoke('automation-runner', {
@@ -431,9 +452,14 @@ export function useRecords(params: UseRecordsParams) {
         }
       }
 
-      // Search across text columns
+      // Search across text columns.
+      // TODO(search): naive per-column `ilike` OR-chaining doesn't scale well
+      // and can't rank results. Consider a Postgres full-text search (tsvector
+      // column + GIN index, or pg_trgm) exposed via an RPC for future work.
       if (search) {
         const textCols = (fieldsMeta ?? [])
+          // Only search actual text-type columns — number/date/boolean/array/json
+          // columns don't support `ilike` and are skipped.
           .filter((f: any) => ['TEXT', 'VARCHAR'].includes(f.pg_type) && !f.pg_column_name.startsWith('nc_'))
           .map((f: any) => f.pg_column_name);
         if (textCols.length > 0) {
@@ -546,15 +572,19 @@ export function useUpdateRecord() {
       baseId: string;
       tableId: string;
       recordId: string;
-      field: string; // pg_column_name
-      value: any;
+      // Legacy single-field form (still supported for existing callers):
+      field?: string; // pg_column_name
+      value?: any;
+      // New multi-field form — pass a map of pg_column_name -> value.
+      fields?: Record<string, any>;
     }) => {
       const ctx = await resolveTableContext(input.baseId, input.tableId);
+      const updates = input.fields ?? (input.field ? { [input.field]: input.value } : {});
 
       const { data, error } = await supabase
         .schema(ctx.schemaName)
         .from(ctx.tableName)
-        .update({ [input.field]: input.value })
+        .update(updates)
         .eq('id', input.recordId)
         .select()
         .single();
@@ -568,6 +598,42 @@ export function useUpdateRecord() {
       await qc.cancelQueries({ queryKey });
 
       const previous = qc.getQueriesData<RecordsResult>({ queryKey });
+      const updates = variables.fields ?? (variables.field ? { [variables.field]: variables.value } : {});
+
+      // Capture the record's prior values (for the fields being changed) so we
+      // can push an undo entry that restores them.
+      let oldValues: Record<string, any> | null = null;
+      for (const [, data] of previous) {
+        const rec = data?.records.find((r) => r.id === variables.recordId);
+        if (rec) {
+          oldValues = {};
+          for (const key of Object.keys(updates)) {
+            oldValues[key] = (rec as any)[key];
+          }
+          break;
+        }
+      }
+
+      if (oldValues) {
+        const updateRecordFn = async (fields: Record<string, any>) => {
+          const ctx = await resolveTableContext(variables.baseId, variables.tableId);
+          const { error } = await supabase
+            .schema(ctx.schemaName)
+            .from(ctx.tableName)
+            .update(fields)
+            .eq('id', variables.recordId);
+          if (error) throw error;
+          qc.invalidateQueries({ queryKey });
+        };
+
+        useUndoStore.getState().push({
+          type: 'cell_update',
+          description: 'Update record',
+          payload: { recordId: variables.recordId, oldValues, newValues: updates },
+          undo: () => updateRecordFn(oldValues!),
+          redo: () => updateRecordFn(updates),
+        });
+      }
 
       qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
         if (!old) return old;
@@ -575,7 +641,7 @@ export function useUpdateRecord() {
           ...old,
           records: old.records.map((r) =>
             r.id === variables.recordId
-              ? { ...r, [variables.field]: variables.value }
+              ? { ...r, ...updates }
               : r
           ),
         };
@@ -591,9 +657,10 @@ export function useUpdateRecord() {
       }
     },
     onSuccess: (data, variables) => {
+      const updates = variables.fields ?? (variables.field ? { [variables.field]: variables.value } : {});
       fireAutomations('record.updated', variables.baseId, variables.tableId, data);
       fireWebhooks('record.updated', variables.baseId, variables.tableId, data);
-      logRecordAudit('UPDATE', variables.baseId, variables.tableId, variables.recordId, { [variables.field]: variables.value });
+      logRecordAudit('UPDATE', variables.baseId, variables.tableId, variables.recordId, updates);
     },
   });
 }
@@ -650,6 +717,45 @@ export function useDeleteRecord() {
       const queryKey = ['nc', 'records', variables.baseId, variables.tableId];
       await qc.cancelQueries({ queryKey });
       const previous = qc.getQueriesData<RecordsResult>({ queryKey });
+
+      let deletedRecord: RecordRow | null = null;
+      for (const [, data] of previous) {
+        const rec = data?.records.find((r) => r.id === variables.recordId);
+        if (rec) {
+          deletedRecord = rec;
+          break;
+        }
+      }
+
+      if (deletedRecord) {
+        const record = deletedRecord;
+        useUndoStore.getState().push({
+          type: 'row_delete',
+          description: 'Delete record',
+          payload: { record },
+          undo: async () => {
+            const ctx = await resolveTableContext(variables.baseId, variables.tableId);
+            const { id: _id, ...rest } = record as any;
+            const { error } = await supabase
+              .schema(ctx.schemaName)
+              .from(ctx.tableName)
+              .insert({ id: _id, ...rest });
+            if (error) throw error;
+            qc.invalidateQueries({ queryKey });
+          },
+          redo: async () => {
+            const ctx = await resolveTableContext(variables.baseId, variables.tableId);
+            const { error } = await supabase
+              .schema(ctx.schemaName)
+              .from(ctx.tableName)
+              .delete()
+              .eq('id', variables.recordId);
+            if (error) throw error;
+            qc.invalidateQueries({ queryKey });
+          },
+        });
+      }
+
       qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
         if (!old) return old;
         return {
@@ -692,10 +798,13 @@ export function useBulkCreateRecords() {
       const ctx = await resolveTableContext(input.baseId, input.tableId);
       const batchSize = 50;
       const total = input.records.length;
-      let created = 0;
-
+      const batches: Array<Record<string, any>[]> = [];
       for (let i = 0; i < total; i += batchSize) {
-        const batch = input.records.slice(i, i + batchSize);
+        batches.push(input.records.slice(i, i + batchSize));
+      }
+
+      let created = 0;
+      await runWithConcurrency(batches, 4, async (batch) => {
         const { error } = await supabase
           .schema(ctx.schemaName)
           .from(ctx.tableName)
@@ -703,9 +812,27 @@ export function useBulkCreateRecords() {
         if (error) throw error;
         created += batch.length;
         input.onProgress?.(created, total);
-      }
+      });
 
       return { created };
+    },
+    onMutate: async (variables) => {
+      const queryKey = ['nc', 'records', variables.baseId, variables.tableId];
+      await qc.cancelQueries({ queryKey });
+      const previous = qc.getQueriesData<RecordsResult>({ queryKey });
+      const optimisticRows = variables.records.map((rec, i) => ({
+        id: `temp-${Date.now()}-${i}`,
+        ...rec,
+      })) as RecordRow[];
+      qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          records: [...old.records, ...optimisticRows],
+          totalCount: old.totalCount + optimisticRows.length,
+        };
+      });
+      return { previous };
     },
     onSuccess: (data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
@@ -714,7 +841,12 @@ export function useBulkCreateRecords() {
       fireWebhooks('record.created', variables.baseId, variables.tableId, { count: data.created });
       toast.success(`${data.created} record${data.created !== 1 ? 's' : ''} created`);
     },
-    onError: () => {
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        for (const [key, data] of context.previous) {
+          qc.setQueryData(key, data);
+        }
+      }
       toast.error('Failed to create records');
     },
   });
@@ -733,10 +865,13 @@ export function useBulkUpdateRecords() {
       const ctx = await resolveTableContext(input.baseId, input.tableId);
       const batchSize = 50;
       const total = input.updates.length;
-      let updated = 0;
-
+      const batches: Array<Array<{ id: string; fields: Record<string, any> }>> = [];
       for (let i = 0; i < total; i += batchSize) {
-        const batch = input.updates.slice(i, i + batchSize);
+        batches.push(input.updates.slice(i, i + batchSize));
+      }
+
+      let updated = 0;
+      await runWithConcurrency(batches, 4, async (batch) => {
         const rows = batch.map((u) => ({ id: u.id, ...u.fields }));
         const { error } = await supabase
           .schema(ctx.schemaName)
@@ -745,16 +880,37 @@ export function useBulkUpdateRecords() {
         if (error) throw error;
         updated += batch.length;
         input.onProgress?.(updated, total);
-      }
+      });
 
       return { updated };
+    },
+    onMutate: async (variables) => {
+      const queryKey = ['nc', 'records', variables.baseId, variables.tableId];
+      await qc.cancelQueries({ queryKey });
+      const previous = qc.getQueriesData<RecordsResult>({ queryKey });
+      const updatesById = new Map(variables.updates.map((u) => [u.id, u.fields]));
+      qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          records: old.records.map((r) =>
+            updatesById.has(r.id) ? { ...r, ...updatesById.get(r.id) } : r
+          ),
+        };
+      });
+      return { previous };
     },
     onSuccess: (data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       fireAutomations('record.updated', variables.baseId, variables.tableId, { count: data.updated });
       fireWebhooks('record.updated', variables.baseId, variables.tableId, { count: data.updated });
     },
-    onError: () => {
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        for (const [key, data] of context.previous) {
+          qc.setQueryData(key, data);
+        }
+      }
       toast.error('Failed to update records');
     },
   });
@@ -773,10 +929,13 @@ export function useBulkDeleteRecords() {
       const ctx = await resolveTableContext(input.baseId, input.tableId);
       const batchSize = 50;
       const total = input.recordIds.length;
-      let deleted = 0;
-
+      const batches: string[][] = [];
       for (let i = 0; i < total; i += batchSize) {
-        const batch = input.recordIds.slice(i, i + batchSize);
+        batches.push(input.recordIds.slice(i, i + batchSize));
+      }
+
+      let deleted = 0;
+      await runWithConcurrency(batches, 4, async (batch) => {
         const { error } = await supabase
           .schema(ctx.schemaName)
           .from(ctx.tableName)
@@ -785,7 +944,7 @@ export function useBulkDeleteRecords() {
         if (error) throw error;
         deleted += batch.length;
         input.onProgress?.(deleted, total);
-      }
+      });
 
       return { deleted };
     },

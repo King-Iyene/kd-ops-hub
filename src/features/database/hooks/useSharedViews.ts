@@ -6,11 +6,16 @@ export interface SharedView {
   view_id: string;
   table_id: string;
   share_token: string;
-  password: string | null;
+  is_password_protected: boolean;
   is_enabled: boolean;
   allow_csv_download: boolean;
   created_at: string;
 }
+
+// Never select password_hash from the client - the DB also revokes column
+// access to it, but keep the explicit list here as the source of truth.
+const SHARED_VIEW_COLUMNS =
+  'id, view_id, table_id, share_token, is_password_protected, is_enabled, allow_csv_download, created_at';
 
 export function useSharedView(viewId: string | null | undefined) {
   return useQuery({
@@ -20,7 +25,7 @@ export function useSharedView(viewId: string | null | undefined) {
       const { data, error } = await supabase
         .schema('nc_meta')
         .from('shared_views')
-        .select('*')
+        .select(SHARED_VIEW_COLUMNS)
         .eq('view_id', viewId)
         .maybeSingle();
       if (error) throw error;
@@ -38,7 +43,7 @@ export function useCreateSharedView() {
         .schema('nc_meta')
         .from('shared_views')
         .insert({ view_id: input.view_id, table_id: input.table_id })
-        .select()
+        .select(SHARED_VIEW_COLUMNS)
         .single();
       if (error) throw error;
       return data as SharedView;
@@ -56,17 +61,36 @@ export function useUpdateSharedView() {
     mutationFn: async (input: {
       id: string;
       view_id: string;
-      updates: Partial<Pick<SharedView, 'password' | 'is_enabled' | 'allow_csv_download'>>;
+      updates: Partial<Pick<SharedView, 'is_enabled' | 'allow_csv_download'>>;
     }) => {
       const { data, error } = await supabase
         .schema('nc_meta')
         .from('shared_views')
         .update(input.updates)
         .eq('id', input.id)
-        .select()
+        .select(SHARED_VIEW_COLUMNS)
         .single();
       if (error) throw error;
       return data as SharedView;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'shared_views', variables.view_id] });
+    },
+  });
+}
+
+// Sets (or clears, with password: null) a shared view's password via a
+// SECURITY DEFINER RPC. The password is hashed server-side and never
+// stored or read back as plaintext.
+export function useSetSharedViewPassword() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { id: string; view_id: string; password: string | null }) => {
+      const { error } = await supabase
+        .schema('nc_meta')
+        .rpc('set_shared_view_password', { p_id: input.id, p_password: input.password });
+      if (error) throw error;
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'shared_views', variables.view_id] });

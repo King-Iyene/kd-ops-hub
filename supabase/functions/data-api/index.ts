@@ -28,6 +28,17 @@ const PROTECTED_SCHEMAS = new Set([
   'supabase_migrations', 'information_schema', 'pg_catalog',
 ]);
 
+// Module-level singleton so the pool is reused across invocations within the
+// same Deno isolate instead of being recreated (and never fully torn down)
+// on every request.
+let _pool: Pool | null = null;
+function getPool(): Pool {
+  if (_pool) return _pool;
+  const dbUrl = Deno.env.get('SUPABASE_DB_URL')!;
+  _pool = new Pool(dbUrl, 3, true);
+  return _pool;
+}
+
 interface FilterDef {
   field: string;
   operator: string;
@@ -197,8 +208,7 @@ Deno.serve(async (req) => {
     const table = validateId(tableName);
     const fqn = `${schema}.${table}`;
 
-    const dbUrl = Deno.env.get('SUPABASE_DB_URL')!;
-    const pool = new Pool(dbUrl, 1, true);
+    const pool = getPool();
     const conn = await pool.connect();
 
     try {
@@ -320,26 +330,31 @@ Deno.serve(async (req) => {
           if (records.length > maxBatch) {
             return jsonResponse({ error: `Max ${maxBatch} records per batch` }, 400);
           }
-          const created: unknown[] = [];
-          await conn.queryObject('BEGIN');
-          try {
-            for (const rec of records) {
-              const r = { ...rec, created_by: user.id };
-              const keys = Object.keys(r);
-              const cols = keys.map(k => validateId(k)).join(', ');
-              const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
-              const vals = keys.map(k => r[k]);
-              const result = await conn.queryObject(
-                `INSERT INTO ${fqn} (${cols}) VALUES (${placeholders}) RETURNING *`,
-                vals,
-              );
-              created.push(result.rows[0]);
-            }
-            await conn.queryObject('COMMIT');
-          } catch (e) {
-            await conn.queryObject('ROLLBACK');
-            throw e;
+          // Build the union of all keys across records so every row can be
+          // inserted in a single multi-row INSERT statement (much faster
+          // than inserting row-by-row for large batches).
+          const enriched = records.map((rec: Record<string, unknown>) => ({ ...rec, created_by: user.id }));
+          const keySet = new Set<string>();
+          for (const r of enriched) {
+            for (const k of Object.keys(r)) keySet.add(k);
           }
+          const keys = Array.from(keySet);
+          const cols = keys.map(k => validateId(k)).join(', ');
+
+          const vals: unknown[] = [];
+          const rowTuples = enriched.map((r: Record<string, unknown>) => {
+            const placeholders = keys.map(k => {
+              vals.push(Object.prototype.hasOwnProperty.call(r, k) ? r[k] : null);
+              return `$${vals.length}`;
+            });
+            return `(${placeholders.join(', ')})`;
+          });
+
+          const result = await conn.queryObject(
+            `INSERT INTO ${fqn} (${cols}) VALUES ${rowTuples.join(', ')} RETURNING *`,
+            vals,
+          );
+          const created = result.rows;
           return jsonResponse({ records: created, count: created.length }, 201);
         }
 
@@ -397,7 +412,6 @@ Deno.serve(async (req) => {
       }
     } finally {
       conn.release();
-      await pool.end();
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal error';

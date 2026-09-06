@@ -5,6 +5,7 @@ import { getFieldTypeIcon } from './field-icons';
 import { useDatabaseUI } from '../../lib/store';
 import { useGridColors } from '../../hooks/useGridColors';
 import { confirm } from '@/hooks/use-confirm';
+import { useUpdateField } from '../../hooks/useFields';
 
 interface ColumnHeaderProps {
   field: FieldMeta;
@@ -20,6 +21,22 @@ interface ColumnHeaderProps {
   columnIndex?: number;
   onFreezeUpTo?: (columnIndex: number) => void;
   isFrozen?: boolean;
+}
+
+const AUTO_FIT_WIDTHS: Record<string, number> = {
+  Email: 200,
+  URL: 250,
+  SingleLineText: 300,
+  LongText: 300,
+  Number: 120,
+  Date: 140,
+  Checkbox: 80,
+  SingleSelect: 160,
+  MultiSelect: 200,
+};
+
+function getAutoFitWidth(uiType: string): number {
+  return AUTO_FIT_WIDTHS[uiType] ?? 180;
 }
 
 const menuItemClass =
@@ -46,6 +63,9 @@ export const ColumnHeader = React.memo(function ColumnHeader({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const { sorts, setSorts, toggleHiddenField, filters, setFilters, groupByLevels, setGroupByLevels } = useDatabaseUI();
   const colors = useGridColors();
+  const updateField = useUpdateField();
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState(field.description ?? '');
 
   const currentSort = sorts.find((s) => s.field_id === field.id);
 
@@ -78,6 +98,32 @@ export const ColumnHeader = React.memo(function ColumnHeader({
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
 
+  const headerRef = useRef<HTMLDivElement>(null);
+
+  const openMenuFromKeyboard = useCallback(() => {
+    const rect = headerRef.current?.getBoundingClientRect();
+    setContextMenu({
+      x: rect ? rect.left : 0,
+      y: rect ? rect.bottom : 0,
+    });
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      // Shift+F10 and the Context Menu key are the conventional keyboard
+      // triggers for a context menu; also support Enter/Space to open it.
+      if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+        e.preventDefault();
+        openMenuFromKeyboard();
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        // Enter/Space on the header still triggers sort by default;
+        // hold no modifier to sort, or use the dedicated keys above for the menu.
+        onSort?.(field.id);
+      }
+    },
+    [field.id, onSort, openMenuFromKeyboard],
+  );
+
   const handleSortAsc = useCallback(() => {
     setSorts([...sorts.filter((s) => s.field_id !== field.id), { field_id: field.id, direction: 'asc' }]);
     setContextMenu(null);
@@ -105,6 +151,22 @@ export const ColumnHeader = React.memo(function ColumnHeader({
     setContextMenu(null);
   }, [field, onEditField]);
 
+  const handleSaveDescription = useCallback(() => {
+    const trimmed = descriptionDraft.trim();
+    setIsEditingDescription(false);
+    if (trimmed === (field.description ?? '')) return;
+    updateField.mutate({
+      id: field.id,
+      table_id: field.table_id,
+      updates: { description: trimmed || null },
+    });
+  }, [descriptionDraft, field.description, field.id, field.table_id, updateField]);
+
+  const handleCancelDescription = useCallback(() => {
+    setDescriptionDraft(field.description ?? '');
+    setIsEditingDescription(false);
+  }, [field.description]);
+
   return (
     <div
       className="relative flex items-center gap-1.5 px-2 select-none group/col"
@@ -120,11 +182,15 @@ export const ColumnHeader = React.memo(function ColumnHeader({
         letterSpacing: '0.01em',
         cursor: 'pointer',
       }}
+      ref={headerRef}
+      tabIndex={0}
+      role="columnheader"
       draggable={isDraggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={() => onSort?.(field.id)}
       onContextMenu={handleRightClick}
+      onKeyDown={handleKeyDown}
       aria-sort={currentSort ? (currentSort.direction === 'asc' ? 'ascending' : 'descending') : undefined}
       {...(field.description ? { title: field.description } : {})}
     >
@@ -133,12 +199,57 @@ export const ColumnHeader = React.memo(function ColumnHeader({
       {field.is_system && (
         <Lock size={10} className="shrink-0 opacity-50" style={{ color: colors.muted }} />
       )}
-      {field.description && (
+      {(field.description || isEditingDescription) && (
         <span className="relative shrink-0 group/info">
-          <Info size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] hover:text-[#6A7184] dark:hover:text-[hsl(200,20%,70%)] cursor-help" />
-          <span className="hidden group-hover/info:block absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white dark:bg-[hsl(200,30%,12%)] shadow-lg rounded-md px-2.5 py-1.5 text-[11px] text-[#374151] dark:text-[hsl(200,25%,88%)] font-normal max-w-[200px] whitespace-normal leading-snug border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
-            {field.description}
-          </span>
+          <Info
+            size={12}
+            className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] hover:text-[#6A7184] dark:hover:text-[hsl(200,20%,70%)] cursor-help"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDescriptionDraft(field.description ?? '');
+              setIsEditingDescription(true);
+            }}
+          />
+          {isEditingDescription ? (
+            <span
+              className="block absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white dark:bg-[hsl(200,30%,12%)] shadow-lg rounded-md p-1.5 min-w-[200px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <textarea
+                autoFocus
+                className="w-full text-[11px] font-normal text-[#374151] dark:text-[hsl(200,25%,88%)] bg-transparent border-0 outline-none resize-none leading-snug"
+                rows={2}
+                value={descriptionDraft}
+                placeholder="Add a description..."
+                onChange={(e) => setDescriptionDraft(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSaveDescription();
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    handleCancelDescription();
+                  }
+                }}
+                onBlur={handleSaveDescription}
+              />
+            </span>
+          ) : (
+            <span className="hidden group-hover/info:flex items-start gap-1 absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white dark:bg-[hsl(200,30%,12%)] shadow-lg rounded-md px-2.5 py-1.5 text-[11px] text-[#374151] dark:text-[hsl(200,25%,88%)] font-normal max-w-[200px] whitespace-normal leading-snug border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
+              <span className="flex-1">{field.description}</span>
+              <Pencil
+                size={11}
+                className="shrink-0 mt-0.5 cursor-pointer text-[#9AA2AF] hover:text-[#6A7184] dark:hover:text-[hsl(200,20%,70%)]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDescriptionDraft(field.description ?? '');
+                  setIsEditingDescription(true);
+                }}
+              />
+            </span>
+          )}
         </span>
       )}
       {currentSort && (
@@ -152,19 +263,27 @@ export const ColumnHeader = React.memo(function ColumnHeader({
       )}
 
       <div
-        className="absolute right-0 top-0 h-full"
-        style={{ width: 4, cursor: 'col-resize' }}
-        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.primary)}
-        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+        className="absolute right-0 top-0 h-full flex justify-center"
+        style={{ width: 12, marginRight: -4, cursor: 'col-resize' }}
         role="separator"
         aria-label={`Resize column ${field.name}`}
         onMouseDown={handleMouseDown}
+        onMouseEnter={(e) => {
+          const indicator = e.currentTarget.firstElementChild as HTMLElement | null;
+          if (indicator) indicator.style.backgroundColor = colors.primary;
+        }}
+        onMouseLeave={(e) => {
+          const indicator = e.currentTarget.firstElementChild as HTMLElement | null;
+          if (indicator) indicator.style.backgroundColor = 'transparent';
+        }}
         onDoubleClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          onResize(field.id, 180);
+          onResize(field.id, getAutoFitWidth(field.ui_type));
         }}
-      />
+      >
+        <div className="h-full pointer-events-none" style={{ width: 4, backgroundColor: 'transparent' }} />
+      </div>
 
       {contextMenu && (
         <>

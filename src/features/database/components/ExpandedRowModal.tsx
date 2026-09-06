@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, Star, MessageSquare, ChevronDown, Paperclip, Link2, Trash2, Clock, Activity, Copy } from 'lucide-react';
 import { RecordComments } from './RecordComments';
 import { LinkCellRenderer } from './grid/LinkCellRenderer';
@@ -272,6 +272,8 @@ function InlineRatingEditor({
           type="button"
           onClick={() => onCommit(i + 1 === rating ? 0 : i + 1)}
           className="p-0 hover:scale-110 transition-transform"
+          aria-label={`Rate ${i + 1} of ${max} stars`}
+          aria-pressed={i < rating}
         >
           <Star
             size={20}
@@ -565,6 +567,10 @@ export function ExpandedRowModal({
     }
   }, [hasNext, records, onNavigate, currentIndex]);
 
+  const modalRef = useRef<HTMLDivElement>(null);
+  const titleId = 'expanded-row-modal-title';
+  const triggerElRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -588,6 +594,57 @@ export function ExpandedRowModal({
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [open, onOpenChange, goToPrev, goToNext]);
+
+  // Focus trapping: focus first focusable element on mount, trap Tab/Shift+Tab,
+  // and restore focus to the trigger element on close.
+  useEffect(() => {
+    if (!open) return;
+    triggerElRef.current = document.activeElement as HTMLElement | null;
+
+    const getFocusable = (): HTMLElement[] => {
+      const node = modalRef.current;
+      if (!node) return [];
+      const selector =
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+      return Array.from(node.querySelectorAll<HTMLElement>(selector)).filter(
+        (el) => el.offsetParent !== null || el === document.activeElement
+      );
+    };
+
+    // Focus the first focusable element after mount.
+    const raf = requestAnimationFrame(() => {
+      const focusable = getFocusable();
+      (focusable[0] ?? modalRef.current)?.focus();
+    });
+
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const focusable = getFocusable();
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (e.shiftKey) {
+        if (active === first || !modalRef.current?.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (active === last || !modalRef.current?.contains(active)) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleTab);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('keydown', handleTab);
+      triggerElRef.current?.focus?.();
+    };
+  }, [open]);
 
   if (!open || !record) return null;
 
@@ -721,12 +778,17 @@ export function ExpandedRowModal({
         onClick={() => onOpenChange(false)}
       />
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className="relative bg-white dark:bg-[hsl(200,30%,10%)] rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] animate-[panelSlideDown_150ms_ease-out]"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <h2 className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
+            <h2 id={titleId} className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
               {title || 'Untitled'}
             </h2>
             {records && records.length > 0 && currentIndex >= 0 && (

@@ -51,6 +51,22 @@ const ROW_HEIGHTS: Record<string, number> = {
 const ROW_NUMBER_WIDTH = 44;
 const HEADER_HEIGHT = 32;
 
+/** Best-effort plain-text rendering of a cell's value for aria-label purposes. */
+function formatCellAriaValue(record: RecordRow, field: FieldMeta): string {
+  const val = record[field.pg_column_name];
+  if (val == null || val === '') return 'empty';
+  if (Array.isArray(val)) {
+    return val
+      .map((v) => (typeof v === 'object' && v !== null ? (v.title ?? v.name ?? v.email ?? JSON.stringify(v)) : String(v)))
+      .join(', ');
+  }
+  if (typeof val === 'object') {
+    return (val as any).title ?? (val as any).name ?? (val as any).email ?? JSON.stringify(val);
+  }
+  if (typeof val === 'boolean') return val ? 'checked' : 'unchecked';
+  return String(val);
+}
+
 const NUMERIC_TYPES: UIType[] = ['Number', 'Decimal', 'Currency', 'Percent', 'Rating', 'Duration'];
 
 const SUMMARY_OPTIONS: { value: SummaryFunction; label: string; numericOnly: boolean }[] = [
@@ -155,6 +171,7 @@ const SummaryRow = React.memo(function SummaryRow({
   rowNumberWidth,
   frozenCount = 0,
   colors,
+  frozenLeftOffsets,
 }: {
   fields: (FieldMeta & { width: number })[];
   records: RecordRow[];
@@ -165,6 +182,7 @@ const SummaryRow = React.memo(function SummaryRow({
   rowNumberWidth: number;
   frozenCount?: number;
   colors: GridColorTokens;
+  frozenLeftOffsets: number[];
 }) {
   const summaryValues = useMemo(() => {
     const map: Record<string, string> = {};
@@ -208,10 +226,7 @@ const SummaryRow = React.memo(function SummaryRow({
         const isOpen = summaryDropdown === field.id;
         const isFroz = colIdx < frozenCount;
         const isLastFroz = colIdx === frozenCount - 1;
-        let cellLeft = rowNumberWidth;
-        if (isFroz) {
-          for (let i = 0; i < colIdx; i++) cellLeft += fields[i].width;
-        }
+        const cellLeft = frozenLeftOffsets[colIdx] ?? rowNumberWidth;
 
         return (
           <div
@@ -380,7 +395,32 @@ export default function GridView({
     setDragRowId(recordId);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', recordId);
-  }, []);
+
+    // Custom drag preview: a small offscreen chip showing the row number and
+    // its primary-field value, instead of the browser's default full-row snapshot.
+    const rowIdx = records.findIndex((r) => r.id === recordId);
+    const rowRecord = rowIdx >= 0 ? records[rowIdx] : undefined;
+    const primaryField = fields.find((f) => f.is_primary);
+    const label = rowRecord && primaryField ? rowRecord[primaryField.pg_column_name] : undefined;
+    const preview = document.createElement('div');
+    preview.textContent = `#${rowIdx + 1}${label ? ` ${String(label)}` : ''}`;
+    Object.assign(preview.style, {
+      position: 'absolute',
+      top: '-1000px',
+      left: '-1000px',
+      padding: '4px 10px',
+      borderRadius: '6px',
+      background: '#2D7FF9',
+      color: '#fff',
+      fontSize: '12px',
+      fontWeight: '500',
+      whiteSpace: 'nowrap',
+      pointerEvents: 'none',
+    });
+    document.body.appendChild(preview);
+    e.dataTransfer.setDragImage(preview, 10, 10);
+    setTimeout(() => document.body.removeChild(preview), 0);
+  }, [records, fields]);
 
   const handleRowDragOver = useCallback((e: React.DragEvent, idx: number) => {
     if (dragRowId === null) return;
@@ -561,6 +601,18 @@ export default function GridView({
     [fieldsWithWidths],
   );
 
+  // Precompute the sticky-left offset for every column once per render pass,
+  // instead of re-running an O(colIdx) loop inside every cell's render.
+  const frozenLeftOffsets = useMemo(() => {
+    const offsets: number[] = [];
+    let left = ROW_NUMBER_WIDTH;
+    for (let i = 0; i < fieldsWithWidths.length; i++) {
+      offsets[i] = left;
+      if (i < frozenCount) left += fieldsWithWidths[i].width;
+    }
+    return offsets;
+  }, [fieldsWithWidths, frozenCount]);
+
   const rowHeightPx = ROW_HEIGHTS[rowHeight] || ROW_HEIGHTS.medium;
 
   // --- Multi-level group-by logic ---
@@ -735,8 +787,38 @@ export default function GridView({
     showToast(`${cellCount} cell${cellCount !== 1 ? 's' : ''} copied`);
   }, [records, fieldsWithWidths, cellToText, showToast]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+  // Keep the latest frequently-changing state on a ref so the keydown handler
+  // below can be created once (stable identity) instead of being rebuilt —
+  // and the window listener re-attached — on nearly every state change.
+  const keyboardStateRef = useRef({
+    selectedCellId,
+    editingCellId,
+    records,
+    fieldsWithWidths,
+    selectedRowIds,
+    selectionRange,
+    selectionAnchor,
+  });
+  keyboardStateRef.current = {
+    selectedCellId,
+    editingCellId,
+    records,
+    fieldsWithWidths,
+    selectedRowIds,
+    selectionRange,
+    selectionAnchor,
+  };
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+      const {
+        selectedCellId,
+        editingCellId,
+        records,
+        fieldsWithWidths,
+        selectedRowIds,
+        selectionRange,
+        selectionAnchor,
+      } = keyboardStateRef.current;
       // Don't intercept keys when focus is in an input, textarea, or dialog
       const target = e.target as HTMLElement;
       if (
@@ -986,11 +1068,12 @@ export default function GridView({
       if (nextRow !== rowIdx) {
         virtualizer.scrollToIndex(nextRow, { align: 'auto' });
       }
-    };
+  }, [setSelectedCell, setEditingCell, onCellUpdate, copySelectedRows, copyRange, cellToText, showToast, flashCellIds, onPasteRows, onExpandRow, onAddRow, virtualizer]);
 
+  useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedCellId, editingCellId, records, fieldsWithWidths, setSelectedCell, setEditingCell, onCellUpdate, selectedRowIds, selectionRange, selectionAnchor, copySelectedRows, copyRange, cellToText, showToast, flashCellIds, onPasteRows, onExpandRow, onAddRow, virtualizer]);
+  }, [handleKeyDown]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -1013,7 +1096,7 @@ export default function GridView({
     return () => observer.disconnect();
   }, [setEditingCell]);
 
-  if (isLoading && records.length === 0) {
+  if (isLoading) {
     return <GridSkeleton rowHeight={rowHeightPx} />;
   }
 
@@ -1046,7 +1129,30 @@ export default function GridView({
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <div ref={parentRef} className="flex-1 overflow-auto">
+      {/* Mobile card layout: below 640px, show a simple stacked list instead of the
+          horizontally-scrolling grid, which is unusable on narrow touch screens. */}
+      <div className="sm:hidden flex-1 overflow-auto divide-y" style={{ borderColor: GRID_COLORS.border }}>
+        {records.map((record, i) => (
+          <div
+            key={record.id}
+            className="p-3 space-y-1.5 active:opacity-70"
+            style={{ borderBottom: `1px solid ${GRID_COLORS.border}` }}
+            onClick={() => onExpandRow?.(record)}
+          >
+            {fieldsWithWidths.map((field) => (
+              <div key={field.id} className="flex justify-between gap-3 text-sm">
+                <span className="shrink-0 font-medium" style={{ color: GRID_COLORS.muted, fontSize: 11 }}>
+                  {field.name}
+                </span>
+                <span className="text-right truncate" style={{ color: GRID_COLORS.text }}>
+                  {formatCellAriaValue(record, field)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div ref={parentRef} className="hidden sm:block flex-1 overflow-auto">
         <div style={{ minWidth: totalWidth }} role="grid" aria-colcount={fieldsWithWidths.length} aria-rowcount={records.length}>
           {/* Group collapse/expand bar */}
           {groupByLevels.length > 0 && (
@@ -1119,11 +1225,7 @@ export default function GridView({
             {fieldsWithWidths.map((field, colIdx) => {
               const isFrozen = colIdx < frozenCount;
               const isLastFrozen = colIdx === frozenCount - 1;
-              // Compute left offset for sticky frozen columns
-              let stickyLeft = ROW_NUMBER_WIDTH;
-              if (isFrozen) {
-                for (let i = 0; i < colIdx; i++) stickyLeft += fieldsWithWidths[i].width;
-              }
+              const stickyLeft = frozenLeftOffsets[colIdx];
               return (
                 <div
                   key={field.id}
@@ -1315,6 +1417,7 @@ export default function GridView({
                     key={record.id}
                     className="absolute left-0 w-full flex group/row"
                     role="row"
+                    aria-rowindex={rowNum}
                     aria-selected={selectedRowIds.has(record.id)}
                     style={{
                       height: rowHeightPx,
@@ -1353,11 +1456,11 @@ export default function GridView({
                       onDrop={(e) => handleRowDrop(e, virtualRow.index)}
                     >
                       {selectedRowIds.has(record.id) ? (
-                        <input type="checkbox" className="w-3.5 h-3.5 rounded" style={{ accentColor: GRID_COLORS.primary }} checked onChange={() => toggleRowSelection(record.id)} aria-label={`Deselect row ${rowNum}`} />
+                        <input type="checkbox" className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1" style={{ accentColor: GRID_COLORS.primary, outlineColor: GRID_COLORS.primary }} checked onChange={() => toggleRowSelection(record.id)} aria-label={`Deselect row ${rowNum}`} />
                       ) : (
                         <>
-                          <span className="group-hover/row:hidden">{rowNum}</span>
-                          <div className="hidden group-hover/row:flex items-center gap-1">
+                          <span className="group-hover/row:opacity-0 group-focus-within/row:opacity-0">{rowNum}</span>
+                          <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 transition-opacity">
                             <span
                               draggable
                               className="cursor-grab active:cursor-grabbing px-0.5 text-[#9AA2AF] hover:text-[#374151] dark:text-[hsl(200,20%,55%)] dark:hover:text-[hsl(200,25%,88%)]"
@@ -1369,7 +1472,7 @@ export default function GridView({
                             >
                               &#8801;
                             </span>
-                            <input type="checkbox" className="w-3.5 h-3.5 rounded" checked={false} onChange={() => toggleRowSelection(record.id)} aria-label={`Select row ${rowNum}`} />
+                            <input type="checkbox" className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1" style={{ outlineColor: GRID_COLORS.primary }} checked={false} onChange={() => toggleRowSelection(record.id)} aria-label={`Select row ${rowNum}`} />
                             {onExpandRow && (
                               <button className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)]" onClick={(e) => { e.stopPropagation(); onExpandRow(record); }} aria-label={`Expand row ${rowNum}`}>
                                 <Expand size={12} />
@@ -1381,7 +1484,15 @@ export default function GridView({
                                 e.stopPropagation();
                                 setRowMenu({ x: e.clientX, y: e.clientY, record });
                               }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+                                  e.preventDefault();
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setRowMenu({ x: rect.left, y: rect.bottom, record });
+                                }
+                              }}
                               aria-label={`Row ${rowNum} options`}
+                              aria-haspopup="menu"
                             >
                               <MoreHorizontal size={12} />
                             </button>
@@ -1392,16 +1503,15 @@ export default function GridView({
                     {fieldsWithWidths.map((field, colIdx) => {
                       const isFroz = colIdx < frozenCount;
                       const isLastFroz = colIdx === frozenCount - 1;
-                      let cellLeft = ROW_NUMBER_WIDTH;
-                      if (isFroz) {
-                        for (let i = 0; i < colIdx; i++) cellLeft += fieldsWithWidths[i].width;
-                      }
+                      const cellLeft = frozenLeftOffsets[colIdx];
                       return (
                         <div
                           key={field.id}
                           className="shrink-0"
                           role="gridcell"
                           aria-colindex={colIdx + 1}
+                          aria-rowindex={rowNum}
+                          aria-label={`Row ${rowNum}, ${field.name}: ${formatCellAriaValue(record, field)}`}
                           style={{
                             height: '100%',
                             width: field.width || 180,
@@ -1424,7 +1534,7 @@ export default function GridView({
                               } : {}),
                             }}
                           >
-                            <GridCell field={field} record={record} onCellUpdate={onCellUpdate} backgroundColor={getCellColor(record, field.id)} />
+                            <GridCell field={field} record={record} onCellUpdate={onCellUpdate} backgroundColor={getCellColor(record, field.id)} colors={GRID_COLORS} frozen={isFroz} frozenLeft={cellLeft} />
                           </div>
                         </div>
                       );
@@ -1446,6 +1556,7 @@ export default function GridView({
                   key={record.id}
                   className="absolute left-0 w-full flex group/row"
                   role="row"
+                  aria-rowindex={rowNum}
                   aria-selected={selectedRowIds.has(record.id)}
                   style={{
                     height: rowHeightPx,
@@ -1495,16 +1606,16 @@ export default function GridView({
                     {selectedRowIds.has(record.id) ? (
                       <input
                         type="checkbox"
-                        className="w-3.5 h-3.5 rounded"
-                        style={{ accentColor: GRID_COLORS.primary }}
+                        className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
+                        style={{ accentColor: GRID_COLORS.primary, outlineColor: GRID_COLORS.primary }}
                         checked
                         onChange={() => toggleRowSelection(record.id)}
                         aria-label={`Deselect row ${rowNum}`}
                       />
                     ) : (
                       <>
-                        <span className="group-hover/row:hidden">{rowNum}</span>
-                        <div className="hidden group-hover/row:flex items-center gap-1">
+                        <span className="group-hover/row:opacity-0 group-focus-within/row:opacity-0">{rowNum}</span>
+                        <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 transition-opacity">
                           <span
                             draggable
                             className="cursor-grab active:cursor-grabbing px-0.5 text-[#9AA2AF] hover:text-[#374151] dark:text-[hsl(200,20%,55%)] dark:hover:text-[hsl(200,25%,88%)]"
@@ -1518,7 +1629,8 @@ export default function GridView({
                           </span>
                           <input
                             type="checkbox"
-                            className="w-3.5 h-3.5 rounded"
+                            className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
+                            style={{ outlineColor: GRID_COLORS.primary }}
                             checked={false}
                             onChange={() => toggleRowSelection(record.id)}
                             aria-label={`Select row ${rowNum}`}
@@ -1538,7 +1650,15 @@ export default function GridView({
                               e.stopPropagation();
                               setRowMenu({ x: e.clientX, y: e.clientY, record });
                             }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+                                e.preventDefault();
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setRowMenu({ x: rect.left, y: rect.bottom, record });
+                              }
+                            }}
                             aria-label={`Row ${rowNum} options`}
+                            aria-haspopup="menu"
                           >
                             <MoreHorizontal size={12} />
                           </button>
@@ -1568,6 +1688,8 @@ export default function GridView({
                         className="shrink-0"
                         role="gridcell"
                         aria-colindex={colIdx + 1}
+                        aria-rowindex={rowNum}
+                        aria-label={`Row ${rowNum}, ${field.name}: ${formatCellAriaValue(record, field)}`}
                         style={{
                           height: '100%',
                           width: field.width || 180,
@@ -1618,6 +1740,7 @@ export default function GridView({
                             frozen={isFroz}
                             frozenLeft={cellLeft}
                             rowBg={rowBgUngrouped}
+                            colors={GRID_COLORS}
                           />
                         </div>
                       </div>
@@ -1701,6 +1824,7 @@ export default function GridView({
         rowNumberWidth={ROW_NUMBER_WIDTH}
         frozenCount={frozenCount}
         colors={GRID_COLORS}
+        frozenLeftOffsets={frozenLeftOffsets}
       />
 
       {/* Footer status bar */}
@@ -1765,6 +1889,13 @@ export default function GridView({
 
       {/* Clipboard toast notification */}
       {toastMessage && (
+        <>
+        <style>{`
+          @keyframes fadeInUp {
+            from { opacity: 0; transform: translate(-50%, 8px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+          }
+        `}</style>
         <div
           style={{
             position: 'fixed',
@@ -1784,6 +1915,7 @@ export default function GridView({
         >
           {toastMessage}
         </div>
+        </>
       )}
     </div>
   );

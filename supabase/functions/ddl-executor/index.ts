@@ -40,6 +40,129 @@ function sanitizeIdentifier(name: string): string {
   return `"${name}"`;
 }
 
+// ---------------------------------------------------------------------------
+// Column type / DEFAULT / USING expression validation
+//
+// These three values (columnType, defaultValue, usingExpression) all end up
+// concatenated directly into DDL statements. Postgres does not support bind
+// parameters ($1, $2, ...) inside DDL for type names or DEFAULT expressions,
+// so we validate them against strict whitelists instead.
+// ---------------------------------------------------------------------------
+
+const ALLOWED_BASE_COLUMN_TYPES = [
+  'text',
+  'integer',
+  'bigint',
+  'boolean',
+  'numeric',
+  'real',
+  'double precision',
+  'date',
+  'timestamp',
+  'timestamptz',
+  'uuid',
+  'jsonb',
+  'json',
+  'varchar',
+  'char',
+  'bytea',
+  'smallint',
+  'serial',
+  'bigserial',
+  'interval',
+  'time',
+  'timetz',
+  'inet',
+  'cidr',
+  'macaddr',
+  'point',
+  'line',
+  'box',
+  'path',
+  'polygon',
+  'circle',
+  'tsquery',
+  'tsvector',
+  'xml',
+  'money',
+];
+
+// Matches one of the allowed base types, optionally followed by a
+// parenthesized length/precision (e.g. "varchar(255)", "numeric(10,2)").
+const COLUMN_TYPE_RE = new RegExp(
+  `^(${ALLOWED_BASE_COLUMN_TYPES.map((t) => t.replace(' ', '\\s+')).join('|')})(\\s*\\(\\s*\\d+(\\s*,\\s*\\d+)?\\s*\\))?$`,
+  'i',
+);
+
+function sanitizeColumnType(rawType: string): string {
+  const type = (rawType ?? '').trim();
+  if (!type || !COLUMN_TYPE_RE.test(type)) {
+    throw new Error(
+      `Invalid column type "${rawType}". Allowed types: ${ALLOWED_BASE_COLUMN_TYPES.join(', ')} (optionally with a length/precision, e.g. varchar(255)).`,
+    );
+  }
+  return type;
+}
+
+// Safe literal patterns for DEFAULT expressions, tried in order.
+const SAFE_DEFAULT_LITERALS: Array<{ re: RegExp; transform: (v: string) => string }> = [
+  { re: /^-?\d+(\.\d+)?$/, transform: (v) => v },
+  { re: /^(true|false)$/i, transform: (v) => v.toLowerCase() },
+  { re: /^null$/i, transform: () => 'NULL' },
+  { re: /^current_timestamp$/i, transform: () => 'CURRENT_TIMESTAMP' },
+  { re: /^now\(\)$/i, transform: () => 'NOW()' },
+  { re: /^gen_random_uuid\(\)$/i, transform: () => 'gen_random_uuid()' },
+  { re: /^uuid_generate_v4\(\)$/i, transform: () => 'uuid_generate_v4()' },
+];
+
+function sanitizeDefaultValue(rawValue: string): string {
+  const value = (rawValue ?? '').trim();
+
+  for (const { re, transform } of SAFE_DEFAULT_LITERALS) {
+    if (re.test(value)) {
+      return transform(value);
+    }
+  }
+
+  // String literal, e.g. 'some text'. Re-quote using dollar-quoting so no
+  // amount of embedded quote characters can break out of the literal.
+  const stringMatch = value.match(/^'([\s\S]*)'$/);
+  if (stringMatch) {
+    const inner = stringMatch[1];
+    if (inner.includes('$$') || inner.includes('\\')) {
+      throw new Error(
+        `Invalid default value "${rawValue}". String literals cannot contain "$$" or backslashes.`,
+      );
+    }
+    return `$$${inner}$$`;
+  }
+
+  throw new Error(
+    `Invalid default value "${rawValue}". Allowed: string literals ('text'), numeric literals, ` +
+    `true/false, NULL, CURRENT_TIMESTAMP, NOW(), gen_random_uuid(), or uuid_generate_v4().`,
+  );
+}
+
+// USING expression for ALTER COLUMN ... TYPE ... USING <expr>. Only allow
+// "identifier::type" (optionally preceded by "column ::"), where identifier
+// matches the standard identifier rule and type is on the column-type
+// whitelist. This blocks arbitrary SQL from being interpolated here.
+const USING_EXPRESSION_RE = new RegExp(
+  `^([a-z_][a-z0-9_]*)\\s*::\\s*(${ALLOWED_BASE_COLUMN_TYPES.map((t) => t.replace(' ', '\\s+')).join('|')})(\\s*\\(\\s*\\d+(\\s*,\\s*\\d+)?\\s*\\))?$`,
+  'i',
+);
+
+function sanitizeUsingExpression(rawExpression: string): string {
+  const expr = (rawExpression ?? '').trim();
+  if (!expr || !USING_EXPRESSION_RE.test(expr)) {
+    throw new Error(
+      `Invalid USING expression "${rawExpression}". Only "column_name::type" expressions are allowed, ` +
+      `where type is one of: ${ALLOWED_BASE_COLUMN_TYPES.join(', ')}.`,
+    );
+  }
+  return expr;
+}
+
 function validateSchemaAccess(schemaName: string): void {
   if (PROTECTED_SCHEMAS.has(schemaName)) {
     throw new ForbiddenError(`Schema "${schemaName}" is protected and cannot be modified.`);
@@ -218,12 +341,12 @@ async function handleAddColumn(
   const column = sanitizeIdentifier(body.columnName);
   validateSchemaAccess(body.schemaName);
 
-  // columnType is validated loosely -- Postgres will reject invalid types.
-  let ddl = `ALTER TABLE ${schema}.${table} ADD COLUMN ${column} ${body.columnType}`;
+  const columnType = sanitizeColumnType(body.columnType);
+  let ddl = `ALTER TABLE ${schema}.${table} ADD COLUMN ${column} ${columnType}`;
 
   if (body.defaultValue !== undefined) {
-    // defaultValue is inserted as a literal SQL expression -- callers must be trusted (admin only).
-    ddl += ` DEFAULT ${body.defaultValue}`;
+    const defaultValue = sanitizeDefaultValue(body.defaultValue);
+    ddl += ` DEFAULT ${defaultValue}`;
   }
   if (body.isRequired) {
     ddl += ' NOT NULL';
@@ -276,9 +399,10 @@ async function handleBulkAddColumns(
       const colType = (col as any).columnType ?? (col as any).type;
       if (!colName || !colType) continue;
       const column = sanitizeIdentifier(colName);
-      let ddl = `ALTER TABLE ${schema}.${table} ADD COLUMN IF NOT EXISTS ${column} ${colType}`;
+      const columnType = sanitizeColumnType(colType);
+      let ddl = `ALTER TABLE ${schema}.${table} ADD COLUMN IF NOT EXISTS ${column} ${columnType}`;
       if (col.defaultValue !== undefined) {
-        ddl += ` DEFAULT ${col.defaultValue}`;
+        ddl += ` DEFAULT ${sanitizeDefaultValue(col.defaultValue)}`;
       }
       if (col.isRequired) ddl += ' NOT NULL';
       if (col.isUnique) ddl += ' UNIQUE';
@@ -610,9 +734,10 @@ async function handleAlterColumnType(
   const column = sanitizeIdentifier(body.columnName);
   validateSchemaAccess(body.schemaName);
 
+  const newType = sanitizeColumnType(body.newType);
   const usingExpr = body.usingExpression
-    ? body.usingExpression
-    : `${column}::${body.newType}`;
+    ? sanitizeUsingExpression(body.usingExpression)
+    : `${column}::${newType}`;
 
   const qualified = `${schema}.${table}`;
   const conn = await pool.connect();
@@ -626,14 +751,14 @@ async function handleAlterColumnType(
 
     try {
       await conn.queryObject(
-        `ALTER TABLE ${qualified} ALTER COLUMN ${column} TYPE ${body.newType} USING ${usingExpr}`,
+        `ALTER TABLE ${qualified} ALTER COLUMN ${column} TYPE ${newType} USING ${usingExpr}`,
       );
     } catch (castErr) {
       await conn.queryObject('ROLLBACK');
       const msg = (castErr as Error).message || '';
       if (msg.includes('cannot cast') || msg.includes('invalid input syntax')) {
         throw new Error(
-          `Cannot convert column "${body.columnName}" to ${body.newType}: some existing values are incompatible. ` +
+          `Cannot convert column "${body.columnName}" to ${newType}: some existing values are incompatible. ` +
           `Detail: ${msg}`,
         );
       }

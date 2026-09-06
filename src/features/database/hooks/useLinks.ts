@@ -55,6 +55,7 @@ export function useRecordLinks(opts: {
     queryKey: ['nc', 'linked-records', baseId, sourceTableId, fieldId, recordId],
     enabled: !!baseId && !!targetTableId && !!recordId,
     staleTime: 30_000,
+    gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,
     queryFn: async (): Promise<RecordRow[]> => {
       const { data: base } = await supabase

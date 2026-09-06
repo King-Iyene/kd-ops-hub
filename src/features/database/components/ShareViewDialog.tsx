@@ -2,7 +2,13 @@ import { useState, useCallback } from 'react';
 import { Copy, Check, Link2, Eye, EyeOff, Download, ToggleLeft, ToggleRight, Trash2, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useSharedView, useCreateSharedView, useUpdateSharedView, useDeleteSharedView } from '../hooks/useSharedViews';
+import {
+  useSharedView,
+  useCreateSharedView,
+  useUpdateSharedView,
+  useSetSharedViewPassword,
+  useDeleteSharedView,
+} from '../hooks/useSharedViews';
 
 interface ShareViewDialogProps {
   open: boolean;
@@ -15,6 +21,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
   const { data: sharedView, isLoading } = useSharedView(viewId);
   const createShared = useCreateSharedView();
   const updateShared = useUpdateSharedView();
+  const setSharedPassword = useSetSharedViewPassword();
   const deleteShared = useDeleteSharedView();
 
   const [copied, setCopied] = useState(false);
@@ -55,10 +62,10 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
 
   const handleSetPassword = () => {
     if (!sharedView) return;
-    updateShared.mutate({
+    setSharedPassword.mutate({
       id: sharedView.id,
       view_id: sharedView.view_id,
-      updates: { password: password || null },
+      password: password || null,
     });
   };
 
@@ -145,7 +152,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder={sharedView.password ? '(password set)' : 'Set a password'}
+                      placeholder={sharedView.is_password_protected ? '(password set)' : 'Set a password'}
                       className="w-full px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#6A7184] dark:placeholder:text-[hsl(200,20%,40%)] pr-8"
                     />
                     <button
@@ -160,7 +167,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                     variant="outline"
                     className="h-8 px-3 text-[12px]"
                     onClick={handleSetPassword}
-                    disabled={updateShared.isPending}
+                    disabled={setSharedPassword.isPending}
                   >
                     Save
                   </Button>

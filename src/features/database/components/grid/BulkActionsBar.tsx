@@ -27,6 +27,7 @@ export function BulkActionsBar({
   const [showUpdateField, setShowUpdateField] = useState(false);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [updateValue, setUpdateValue] = useState('');
+  const [updateMultiValue, setUpdateMultiValue] = useState<string[]>([]);
   const [copyFeedback, setCopyFeedback] = useState(false);
   const updateRef = useRef<HTMLDivElement>(null);
 
@@ -41,6 +42,7 @@ export function BulkActionsBar({
         setShowUpdateField(false);
         setSelectedFieldId(null);
         setUpdateValue('');
+        setUpdateMultiValue([]);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -91,6 +93,10 @@ export function BulkActionsBar({
       if (isNaN(parsedValue)) parsedValue = null;
     } else if (uiType === 'Checkbox') {
       parsedValue = ['true', '1', 'yes'].includes(updateValue.toLowerCase());
+    } else if (uiType === 'MultiSelect') {
+      parsedValue = updateMultiValue;
+    } else if (uiType === 'Date') {
+      parsedValue = updateValue || null;
     }
 
     for (const id of selectedRowIds) {
@@ -99,7 +105,8 @@ export function BulkActionsBar({
     setShowUpdateField(false);
     setSelectedFieldId(null);
     setUpdateValue('');
-  }, [selectedFieldId, updateValue, selectedRowIds, fields, onCellUpdate]);
+    setUpdateMultiValue([]);
+  }, [selectedFieldId, updateValue, updateMultiValue, selectedRowIds, fields, onCellUpdate]);
 
   const handleExportCSV = useCallback(() => {
     const visibleFields = fields.filter((f) => !f.is_hidden).sort((a, b) => a.position - b.position);
@@ -138,7 +145,7 @@ export function BulkActionsBar({
 
   return (
     <div
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl border shadow-lg backdrop-blur-sm"
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-wrap items-center justify-center gap-2 px-4 py-2.5 rounded-xl border shadow-lg backdrop-blur-sm max-w-[calc(100vw-1.5rem)]"
       style={{
         animation: 'bulkBarSlideUp 200ms ease-out',
         backgroundColor: 'var(--bulk-bar-bg, #fff)',
@@ -269,6 +276,7 @@ export function BulkActionsBar({
               onChange={(e) => {
                 setSelectedFieldId(e.target.value || null);
                 setUpdateValue('');
+                setUpdateMultiValue([]);
               }}
             >
               <option value="">Select a field...</option>
@@ -307,6 +315,55 @@ export function BulkActionsBar({
                         <option value="true">Checked</option>
                         <option value="false">Unchecked</option>
                       </select>
+                    );
+                  }
+
+                  if (field.ui_type === 'Date') {
+                    return (
+                      <input
+                        type="date"
+                        className="w-full border rounded-md px-2 py-1.5 text-[13px] mb-2"
+                        style={{
+                          borderColor: 'var(--bulk-bar-border)',
+                          backgroundColor: 'var(--bulk-bar-bg)',
+                          color: 'var(--bulk-bar-text)',
+                        }}
+                        value={updateValue}
+                        onChange={(e) => setUpdateValue(e.target.value)}
+                      />
+                    );
+                  }
+
+                  if (field.ui_type === 'MultiSelect' && field.options?.choices) {
+                    return (
+                      <div
+                        className="w-full border rounded-md px-2 py-1.5 mb-2 max-h-32 overflow-y-auto"
+                        style={{
+                          borderColor: 'var(--bulk-bar-border)',
+                          backgroundColor: 'var(--bulk-bar-bg)',
+                        }}
+                      >
+                        {field.options.choices!.map((c) => (
+                          <label
+                            key={c.title}
+                            className="flex items-center gap-1.5 text-[13px] py-0.5 cursor-pointer"
+                            style={{ color: 'var(--bulk-bar-text)' }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={updateMultiValue.includes(c.title)}
+                              onChange={(e) => {
+                                setUpdateMultiValue((prev) =>
+                                  e.target.checked
+                                    ? [...prev, c.title]
+                                    : prev.filter((t) => t !== c.title),
+                                );
+                              }}
+                            />
+                            {c.title}
+                          </label>
+                        ))}
+                      </div>
                     );
                   }
 

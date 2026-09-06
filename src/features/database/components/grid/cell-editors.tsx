@@ -451,6 +451,8 @@ export function RatingCellEditor({ value, field, onCommit, onCancel }: CellEdito
           tabIndex={-1}
           className="p-0 border-none bg-transparent cursor-pointer"
           onClick={() => onCommit(i + 1 === rating ? 0 : i + 1)}
+          aria-label={`Rate ${i + 1} of ${max} stars`}
+          aria-pressed={i < rating}
         >
           <Star
             size={16}

@@ -20,6 +20,8 @@ function encodeHex(bytes: Uint8Array): string {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 Deno.serve(async (req) => {
   const cors = getCorsHeaders(req);
 
@@ -32,9 +34,10 @@ Deno.serve(async (req) => {
   }
 
   const authHeader = req.headers.get('authorization');
-  if (!authHeader) {
+  if (!authHeader?.startsWith('Bearer ')) {
     return json({ error: 'Missing authorization' }, 401, req);
   }
+  const bearer = authHeader.slice(7);
 
   let body: { event: string; baseId: string; tableId: string; record?: unknown; oldRecord?: unknown };
   try {
@@ -47,18 +50,49 @@ Deno.serve(async (req) => {
   if (!event || !baseId || !tableId) {
     return json({ error: 'Missing required fields: event, baseId, tableId' }, 400, req);
   }
+  if (!UUID_RE.test(baseId) || !UUID_RE.test(tableId)) {
+    return json({ error: 'baseId and tableId must be valid UUIDs' }, 400, req);
+  }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  // Validate the caller's JWT and, using a client scoped to that user's
+  // identity (so RLS applies), confirm they actually have access to the
+  // base being reported on. This prevents any authenticated caller from
+  // triggering webhook dispatch for a base they don't have access to.
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${bearer}` } },
+  });
+
+  const { data: userData, error: authError } = await userClient.auth.getUser(bearer);
+  if (authError || !userData?.user) {
+    return json({ error: 'Invalid or expired session' }, 401, req);
+  }
+
+  const { data: baseRow, error: baseError } = await userClient
+    .schema('nc_meta')
+    .from('bases')
+    .select('id')
+    .eq('id', baseId)
+    .maybeSingle();
+
+  if (baseError || !baseRow) {
+    return json({ error: 'Base not found or access denied' }, 403, req);
+  }
+
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  // Fetch active webhooks matching this event
+  // Fetch active webhooks matching this event, either base-wide
+  // (table_id IS NULL) or scoped to this specific table.
   const { data: webhooks, error: fetchError } = await supabase
     .schema('nc_meta')
     .from('webhooks')
     .select('id, url, secret, headers, events')
     .eq('base_id', baseId)
     .eq('is_active', true)
+    .or(`table_id.is.null,table_id.eq.${tableId}`)
     .contains('events', [event]);
 
   if (fetchError) {
@@ -66,25 +100,7 @@ Deno.serve(async (req) => {
     return json({ error: 'Failed to fetch webhooks' }, 500, req);
   }
 
-  // Also fetch webhooks with table_id = null (base-wide) or matching tableId
-  const matching = (webhooks ?? []).filter((wh: any) => true);
-
-  // Refetch with table_id filter for precision
-  const { data: tableWebhooks } = await supabase
-    .schema('nc_meta')
-    .from('webhooks')
-    .select('id, url, secret, headers, events')
-    .eq('table_id', tableId)
-    .eq('is_active', true)
-    .contains('events', [event]);
-
-  // Merge and deduplicate
-  const allWebhooks = new Map<string, any>();
-  for (const wh of [...(webhooks ?? []), ...(tableWebhooks ?? [])]) {
-    allWebhooks.set(wh.id, wh);
-  }
-
-  const uniqueWebhooks = Array.from(allWebhooks.values());
+  const uniqueWebhooks = webhooks ?? [];
 
   if (uniqueWebhooks.length === 0) {
     return json({ dispatched: 0 }, 200, req);

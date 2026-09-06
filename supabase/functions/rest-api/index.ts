@@ -24,10 +24,10 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
 };
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, extraHeaders?: Record<string, string>) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS, 'Content-Type': 'application/json' },
+    headers: { ...CORS, 'Content-Type': 'application/json', ...(extraHeaders ?? {}) },
   });
 }
 
@@ -41,7 +41,72 @@ function safeId(name: string): string {
   return `"${name}"`;
 }
 
+// Escapes LIKE/ILIKE metacharacters (%, _, \) so user input used with a
+// LIKE pattern cannot inject its own wildcards.
+function escapeLike(str: string): string {
+  return str.replace(/[%_\\]/g, '\\$&');
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// ---------- Pool ----------
+// Module-level singleton so the pool is reused across invocations within the
+// same Deno isolate instead of being recreated (and never fully torn down)
+// on every request.
+let _pool: Pool | null = null;
+function getPool(): Pool | null {
+  if (_pool) return _pool;
+  const dbUrl = Deno.env.get('SUPABASE_DB_URL');
+  if (!dbUrl) return null;
+  _pool = new Pool(dbUrl, 2, true);
+  return _pool;
+}
+
+// ---------- Rate limiting ----------
+// Simple fixed-window, per-API-key rate limiter. Module-level so counters
+// persist across requests handled by the same Deno isolate. Not distributed
+// (each isolate has its own counters), but good enough to blunt abusive
+// clients hammering a single instance.
+const RATE_LIMIT_MAX = 100; // requests per window
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_CLEANUP_THRESHOLD = 1000;
+
+interface RateWindow {
+  count: number;
+  windowStart: number;
+}
+
+const rateLimits = new Map<string, RateWindow>();
+
+function cleanupRateLimits(now: number) {
+  if (rateLimits.size <= RATE_LIMIT_CLEANUP_THRESHOLD) return;
+  for (const [key, w] of rateLimits) {
+    if (now - w.windowStart >= RATE_LIMIT_WINDOW_MS) {
+      rateLimits.delete(key);
+    }
+  }
+}
+
+// Returns null if the request is allowed, or the number of seconds the
+// caller should wait before retrying if the rate limit was exceeded.
+function checkRateLimit(keyHash: string): number | null {
+  const now = Date.now();
+  cleanupRateLimits(now);
+
+  const existing = rateLimits.get(keyHash);
+  if (!existing || now - existing.windowStart >= RATE_LIMIT_WINDOW_MS) {
+    rateLimits.set(keyHash, { count: 1, windowStart: now });
+    return null;
+  }
+
+  if (existing.count >= RATE_LIMIT_MAX) {
+    const retryAfterMs = RATE_LIMIT_WINDOW_MS - (now - existing.windowStart);
+    return Math.max(1, Math.ceil(retryAfterMs / 1000));
+  }
+
+  existing.count++;
+  return null;
+}
 
 // ---------- Auth ----------
 
@@ -358,7 +423,7 @@ async function handleListRecords(
         case 'gte': clauses.push(`${col} >= $${pidx}`); whereParams.push(val); break;
         case 'lt': clauses.push(`${col} < $${pidx}`); whereParams.push(val); break;
         case 'lte': clauses.push(`${col} <= $${pidx}`); whereParams.push(val); break;
-        case 'contains': clauses.push(`${col}::text ILIKE $${pidx}`); whereParams.push(`%${val}%`); break;
+        case 'contains': clauses.push(`${col}::text ILIKE $${pidx}`); whereParams.push(`%${escapeLike(val)}%`); break;
       }
     }
     if (clauses.length) whereClause = `WHERE ${clauses.join(' AND ')}`;
@@ -689,13 +754,24 @@ Deno.serve(async (req) => {
     return new Response(null, { status: 204, headers: CORS });
   }
 
-  const dbUrl = Deno.env.get('SUPABASE_DB_URL');
-  if (!dbUrl) return err('Server misconfigured', 500);
-
-  const pool = new Pool(dbUrl, 2, true);
+  const pool = getPool();
+  if (!pool) return err('Server misconfigured', 500);
 
   try {
-    const auth = await authenticateApiKey(pool, req.headers.get('Authorization'));
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader?.startsWith('Bearer ') && authHeader.slice(7).startsWith('kdops_')) {
+      const keyHash = await hashKey(authHeader.slice(7));
+      const retryAfter = checkRateLimit(keyHash);
+      if (retryAfter !== null) {
+        return json(
+          { error: { type: 'RATE_LIMIT_EXCEEDED', message: `Too many requests. Retry after ${retryAfter} seconds.` } },
+          429,
+          { 'Retry-After': String(retryAfter) },
+        );
+      }
+    }
+
+    const auth = await authenticateApiKey(pool, authHeader);
     const url = new URL(req.url);
     const route = parseRoute(url.pathname);
     if (!route) return err('Not found. Use /v1/bases, /v1/bases/:id/tables, or .../records', 404);
@@ -734,7 +810,5 @@ Deno.serve(async (req) => {
     const msg = e instanceof Error ? e.message : 'Internal error';
     if (msg.includes('API key') || msg.includes('Missing')) return err(msg, 401);
     return err(msg, 500);
-  } finally {
-    await pool.end();
   }
 });

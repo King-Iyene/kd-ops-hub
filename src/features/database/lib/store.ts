@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Filter, FilterGroup, Sort, Group, RowColorRule, ConditionalFormatRule } from '../types';
 
 export type SummaryFunction =
@@ -72,7 +73,51 @@ interface DatabaseUIState {
   setFrozenColumns: (count: number) => void;
 }
 
-export const useDatabaseUI = create<DatabaseUIState>((set) => ({
+// Persisted view-level UI prefs (row height, column widths, hidden fields,
+// frozen columns) are keyed per-view so switching views doesn't clobber
+// each other's layout, and survive a page refresh via localStorage.
+// Filters/sorts are intentionally excluded here — those are view-specific
+// and already saved server-side with the view itself.
+let persistViewKeySuffix = 'default';
+
+function viewUiStorageKey(): string {
+  return `kd-ops:db-view-ui:${persistViewKeySuffix}`;
+}
+
+const viewUiStorage = {
+  getItem: (): string | null => {
+    try {
+      return localStorage.getItem(viewUiStorageKey());
+    } catch {
+      return null;
+    }
+  },
+  setItem: (_name: string, value: string): void => {
+    try {
+      localStorage.setItem(viewUiStorageKey(), value);
+    } catch {
+      /* ignore quota / privacy-mode errors */
+    }
+  },
+  removeItem: (): void => {
+    try {
+      localStorage.removeItem(viewUiStorageKey());
+    } catch {
+      /* ignore */
+    }
+  },
+};
+
+interface PersistedViewUiState {
+  rowHeight: DatabaseUIState['rowHeight'];
+  fieldWidths: Record<string, number>;
+  hiddenFieldIds: string[];
+  frozenColumns: number;
+}
+
+export const useDatabaseUI = create<DatabaseUIState>()(
+  persist<DatabaseUIState, PersistedViewUiState>(
+    (set) => ({
   activeBaseId: null,
   activeTableId: null,
   activeViewId: null,
@@ -132,18 +177,25 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       fieldWidths: {},
       summaryFunctions: {},
     }),
-  setActiveView: (id, viewConfig) => set((state) => ({
-    activeViewId: id,
-    activeViewType: viewConfig?.type ?? (viewConfig === undefined ? state.activeViewType : null),
-    ...(viewConfig ? {
-      filters: viewConfig.filters ?? [],
-      sorts: viewConfig.sorts ?? [],
-      groupByLevels: viewConfig.groups ?? [],
-      hiddenFieldIds: viewConfig.hiddenFieldIds ?? new Set(),
-      fieldOrder: viewConfig.fieldOrder ?? [],
-      fieldWidths: viewConfig.fieldWidths ?? {},
-    } : {}),
-  })),
+  setActiveView: (id, viewConfig) => {
+    // Switch the localStorage key this store persists row height / column
+    // widths / hidden fields / frozen columns to, then re-hydrate from it so
+    // per-view layout prefs survive switching views and page refreshes.
+    persistViewKeySuffix = id ?? 'default';
+    set((state) => ({
+      activeViewId: id,
+      activeViewType: viewConfig?.type ?? (viewConfig === undefined ? state.activeViewType : null),
+      ...(viewConfig ? {
+        filters: viewConfig.filters ?? [],
+        sorts: viewConfig.sorts ?? [],
+        groupByLevels: viewConfig.groups ?? [],
+        hiddenFieldIds: viewConfig.hiddenFieldIds ?? new Set(),
+        fieldOrder: viewConfig.fieldOrder ?? [],
+        fieldWidths: viewConfig.fieldWidths ?? {},
+      } : {}),
+    }));
+    void useDatabaseUI.persist.rehydrate();
+  },
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
@@ -177,4 +229,26 @@ export const useDatabaseUI = create<DatabaseUIState>((set) => ({
       fieldWidths: { ...s.fieldWidths, [fieldId]: width },
     })),
   setFrozenColumns: (count) => set({ frozenColumns: count }),
-}));
+    }),
+    {
+      name: 'kd-ops:db-view-ui',
+      storage: createJSONStorage(() => viewUiStorage),
+      partialize: (state): PersistedViewUiState => ({
+        rowHeight: state.rowHeight,
+        fieldWidths: state.fieldWidths,
+        hiddenFieldIds: Array.from(state.hiddenFieldIds),
+        frozenColumns: state.frozenColumns,
+      }),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<PersistedViewUiState>;
+        return {
+          ...current,
+          rowHeight: p.rowHeight ?? current.rowHeight,
+          fieldWidths: p.fieldWidths ?? current.fieldWidths,
+          hiddenFieldIds: p.hiddenFieldIds ? new Set(p.hiddenFieldIds) : current.hiddenFieldIds,
+          frozenColumns: p.frozenColumns ?? current.frozenColumns,
+        };
+      },
+    },
+  ),
+);

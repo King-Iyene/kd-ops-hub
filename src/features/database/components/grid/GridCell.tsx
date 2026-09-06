@@ -4,7 +4,7 @@ import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { getCellRenderer } from './cell-renderers';
 import { getCellEditor } from './cell-editors';
-import { useGridColors } from '../../hooks/useGridColors';
+import type { GridColorTokens } from '../../hooks/useGridColors';
 import { useUpdateField } from '../../hooks/useFields';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,6 +56,7 @@ interface GridCellProps {
   frozen?: boolean;
   frozenLeft?: number;
   rowBg?: string;
+  colors: GridColorTokens;
 }
 
 export const GridCell = React.memo(function GridCell({
@@ -66,6 +67,7 @@ export const GridCell = React.memo(function GridCell({
   frozen = false,
   frozenLeft = 0,
   rowBg,
+  colors,
 }: GridCellProps) {
   const cellId = `${record.id}:${field.id}`;
   const isSelected = useDatabaseUI((s) => s.selectedCellId === cellId);
@@ -173,7 +175,7 @@ export const GridCell = React.memo(function GridCell({
 
   const Renderer = getCellRenderer(field.ui_type);
   const Editor = getCellEditor(field.ui_type);
-  const GRID_COLORS = useGridColors();
+  const GRID_COLORS = colors;
 
   return (
     <div
