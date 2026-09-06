@@ -11,6 +11,7 @@ const WebhooksDialog = lazy(() => import('./WebhooksDialog').then(m => ({ defaul
 const AutomationsDialog = lazy(() => import('./AutomationsDialog').then(m => ({ default: m.AutomationsDialog })));
 const IntegrationsDialog = lazy(() => import('./IntegrationsDialog').then(m => ({ default: m.IntegrationsDialog })));
 const TrashDialog = lazy(() => import('./TrashDialog').then(m => ({ default: m.TrashDialog })));
+import { SaveStatusIndicator } from './SaveStatusIndicator';
 import { exportToCsv } from '../lib/csv';
 import { useTables } from '../hooks';
 import type { Filter as FilterType, FilterGroup, Sort, Group, FilterOperator, RowColorRule, FieldMeta } from '../types';
@@ -1078,6 +1079,8 @@ export function Toolbar() {
             {colorOpen && <ColorPanel onClose={() => setColorOpen(false)} />}
           </div>
         </div>
+
+        <SaveStatusIndicator />
 
         {/* Right: search, overflow menu, + Field */}
         <div className="flex items-center gap-1">
