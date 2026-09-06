@@ -55,6 +55,8 @@ const OPERATOR_LABELS: Record<string, string> = {
   isWithinPastWeek: 'is within past week',
   isWithinPastMonth: 'is within past month',
   isWithinPastYear: 'is within past year',
+  linkContains: 'linked record contains',
+  linkDoesNotContain: 'linked record does not contain',
   linkCountIs: 'link count is',
   linkCountGt: 'link count >',
   linkCountLt: 'link count <',

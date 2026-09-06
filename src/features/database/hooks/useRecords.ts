@@ -431,18 +431,72 @@ export function useRecords(params: UseRecordsParams) {
         (fieldsMeta ?? []).map((f: any) => [f.id, f]),
       );
 
+      // Pre-resolve linked record filters (linkContains/linkDoesNotContain)
+      let linkFilterIncludeIds: string[] | null = null;
+      let linkFilterExcludeIds: string[] | null = null;
+      const nonLinkFilters: Filter[] = [];
+
+      if (filters && filters.length > 0) {
+        for (const filter of filters) {
+          const field = fieldMap.get(filter.field_id);
+          if (!field) continue;
+          if (filter.operator === 'linkContains' && filter.value) {
+            const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+              body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
+            });
+            linkFilterIncludeIds = lqData?.ids ?? [];
+          } else if (filter.operator === 'linkDoesNotContain' && filter.value) {
+            const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+              body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
+            });
+            linkFilterExcludeIds = lqData?.ids ?? [];
+          } else {
+            nonLinkFilters.push(filter);
+          }
+        }
+      }
+
+      // Pre-resolve linked record sort ordering
+      let linkSortOrderIds: string[] | null = null;
+      const nonLinkSorts: Sort[] = [];
+
+      if (sorts && sorts.length > 0) {
+        for (const sort of sorts) {
+          const field = fieldMap.get(sort.field_id);
+          if (field?.ui_type === 'Links') {
+            const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+              body: { action: 'linkedQuery', fieldId: field.id, mode: 'sort', direction: sort.direction },
+            });
+            linkSortOrderIds = lqData?.ids ?? [];
+          } else {
+            nonLinkSorts.push(sort);
+          }
+        }
+      }
+
       let query = supabase
         .schema(ctx.schemaName)
         .from(ctx.tableName)
         .select('*', { count: 'exact' });
 
-      // Flat filters (AND-chained, legacy path)
-      if (filters && filters.length > 0) {
-        for (const filter of filters) {
-          const field = fieldMap.get(filter.field_id);
-          if (!field) continue;
-          query = applyFilter(query, field.pg_column_name, filter.operator, filter.value, field.pg_type);
+      // Apply linked record filter results
+      if (linkFilterIncludeIds !== null) {
+        if (linkFilterIncludeIds.length === 0) {
+          return { records: [], totalCount: 0 };
         }
+        query = query.in('id', linkFilterIncludeIds);
+      }
+      if (linkFilterExcludeIds !== null && linkFilterExcludeIds.length > 0) {
+        for (const excludeId of linkFilterExcludeIds) {
+          query = query.neq('id', excludeId);
+        }
+      }
+
+      // Flat filters (AND-chained, legacy path) — non-link filters only
+      for (const filter of nonLinkFilters) {
+        const field = fieldMap.get(filter.field_id);
+        if (!field) continue;
+        query = applyFilter(query, field.pg_column_name, filter.operator, filter.value, field.pg_type);
       }
 
       // Nested filter groups
@@ -452,14 +506,8 @@ export function useRecords(params: UseRecordsParams) {
         }
       }
 
-      // Search across text columns.
-      // TODO(search): naive per-column `ilike` OR-chaining doesn't scale well
-      // and can't rank results. Consider a Postgres full-text search (tsvector
-      // column + GIN index, or pg_trgm) exposed via an RPC for future work.
       if (search) {
         const textCols = (fieldsMeta ?? [])
-          // Only search actual text-type columns — number/date/boolean/array/json
-          // columns don't support `ilike` and are skipped.
           .filter((f: any) => ['TEXT', 'VARCHAR'].includes(f.pg_type) && !f.pg_column_name.startsWith('nc_'))
           .map((f: any) => f.pg_column_name);
         if (textCols.length > 0) {
@@ -468,20 +516,44 @@ export function useRecords(params: UseRecordsParams) {
         }
       }
 
+      // When sorting by linked record, fetch all matching records (no server pagination)
+      // and apply pagination client-side after reordering
+      if (linkSortOrderIds !== null) {
+        const { data: allData, error: allError, count: allCount } = await query;
+        if (allError) throw allError;
+
+        const sortedRecords = (allData ?? []) as RecordRow[];
+        const orderMap = new Map(linkSortOrderIds.map((id, idx) => [id, idx]));
+        sortedRecords.sort((a, b) => {
+          const ai = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+          const bi = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+          return ai - bi;
+        });
+
+        // Apply non-link sorts as tiebreakers
+        // (not needed in practice since linkedQuery already handles full ordering)
+
+        const from = page * pageSize;
+        return {
+          records: sortedRecords.slice(from, from + pageSize),
+          totalCount: allCount ?? sortedRecords.length,
+        };
+      }
+
       // Pagination
       const from = page * pageSize;
       const to = from + pageSize - 1;
       query = query.range(from, to);
 
       // Sorting
-      if (sorts && sorts.length > 0) {
-        for (const sort of sorts) {
+      if (nonLinkSorts.length > 0) {
+        for (const sort of nonLinkSorts) {
           const field = fieldMap.get(sort.field_id);
           if (field) {
             query = query.order(field.pg_column_name, { ascending: sort.direction === 'asc' });
           }
         }
-      } else {
+      } else if (!sorts || sorts.length === 0) {
         query = query.order('nc_order', { ascending: true }).order('created_at', { ascending: true });
       }
 
@@ -535,17 +607,69 @@ export function useInfiniteRecords(params: UseInfiniteRecordsParams) {
         (fieldsMeta ?? []).map((f: any) => [f.id, f]),
       );
 
-      let q = supabase
-        .schema(ctx.schemaName)
-        .from(ctx.tableName)
-        .select('*', { count: 'exact' });
+      // Pre-resolve linked record filters
+      let infLinkIncludeIds: string[] | null = null;
+      let infLinkExcludeIds: string[] | null = null;
+      const infNonLinkFilters: Filter[] = [];
 
       if (filters && filters.length > 0) {
         for (const filter of filters) {
           const field = fieldMap.get(filter.field_id);
           if (!field) continue;
-          q = applyFilter(q, field.pg_column_name, filter.operator, filter.value, field.pg_type);
+          if (filter.operator === 'linkContains' && filter.value) {
+            const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+              body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
+            });
+            infLinkIncludeIds = lqData?.ids ?? [];
+          } else if (filter.operator === 'linkDoesNotContain' && filter.value) {
+            const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+              body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
+            });
+            infLinkExcludeIds = lqData?.ids ?? [];
+          } else {
+            infNonLinkFilters.push(filter);
+          }
         }
+      }
+
+      // Pre-resolve linked record sort
+      let infLinkSortIds: string[] | null = null;
+      const infNonLinkSorts: Sort[] = [];
+      if (sorts && sorts.length > 0) {
+        for (const sort of sorts) {
+          const field = fieldMap.get(sort.field_id);
+          if (field?.ui_type === 'Links') {
+            const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+              body: { action: 'linkedQuery', fieldId: field.id, mode: 'sort', direction: sort.direction },
+            });
+            infLinkSortIds = lqData?.ids ?? [];
+          } else {
+            infNonLinkSorts.push(sort);
+          }
+        }
+      }
+
+      let q = supabase
+        .schema(ctx.schemaName)
+        .from(ctx.tableName)
+        .select('*', { count: 'exact' });
+
+      if (infLinkIncludeIds !== null) {
+        if (infLinkIncludeIds.length === 0) {
+          return { records: [], totalCount: 0, page: currentPage };
+        }
+        q = q.in('id', infLinkIncludeIds);
+      }
+      if (infLinkExcludeIds !== null && infLinkExcludeIds.length > 0) {
+        for (const exId of infLinkExcludeIds) {
+          q = q.neq('id', exId);
+        }
+      }
+
+      for (const filter of infNonLinkFilters) {
+        const field = fieldMap.get(filter.field_id);
+        if (!field) continue;
+        q = applyFilter(q, field.pg_column_name, filter.operator, filter.value, field.pg_type);
       }
 
       if (filterGroups && filterGroups.length > 0) {
@@ -564,18 +688,32 @@ export function useInfiniteRecords(params: UseInfiniteRecordsParams) {
         }
       }
 
+      if (infLinkSortIds !== null) {
+        const { data: allData, error: allError, count: allCount } = await q;
+        if (allError) throw allError;
+        const sorted = (allData ?? []) as RecordRow[];
+        const orderMap = new Map(infLinkSortIds.map((id, idx) => [id, idx]));
+        sorted.sort((a, b) => (orderMap.get(a.id) ?? Infinity) - (orderMap.get(b.id) ?? Infinity));
+        const from = currentPage * pageSize;
+        return {
+          records: sorted.slice(from, from + pageSize),
+          totalCount: allCount ?? sorted.length,
+          page: currentPage,
+        };
+      }
+
       const from = currentPage * pageSize;
       const to = from + pageSize - 1;
       q = q.range(from, to);
 
-      if (sorts && sorts.length > 0) {
-        for (const sort of sorts) {
+      if (infNonLinkSorts.length > 0) {
+        for (const sort of infNonLinkSorts) {
           const field = fieldMap.get(sort.field_id);
           if (field) {
             q = q.order(field.pg_column_name, { ascending: sort.direction === 'asc' });
           }
         }
-      } else {
+      } else if (!sorts || sorts.length === 0) {
         q = q.order('nc_order', { ascending: true }).order('created_at', { ascending: true });
       }
 

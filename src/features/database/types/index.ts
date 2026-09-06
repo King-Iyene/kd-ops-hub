@@ -157,7 +157,8 @@ export type FilterOperator =
   | 'isAnyOf' | 'isNoneOf' | 'isExactly'
   | 'containsAnyOf' | 'doesNotContainAnyOf'
   | 'isChecked' | 'isNotChecked'
-  | 'linkCountIs' | 'linkCountGt' | 'linkCountLt';
+  | 'linkCountIs' | 'linkCountGt' | 'linkCountLt'
+  | 'linkContains' | 'linkDoesNotContain';
 
 export interface Filter {
   id: string;
@@ -523,7 +524,7 @@ export const OPERATORS_BY_TYPE: Partial<Record<UIType, FilterOperator[]>> = {
   Attachment: ['isEmpty', 'isNotEmpty'],
   JSON: ['isEmpty', 'isNotEmpty'],
   Barcode: ['is', 'isNot', 'contains', 'doesNotContain', 'startsWith', 'endsWith', 'isEmpty', 'isNotEmpty'],
-  Links: ['linkCountIs', 'linkCountGt', 'linkCountLt', 'isEmpty', 'isNotEmpty'],
+  Links: ['linkContains', 'linkDoesNotContain', 'linkCountIs', 'linkCountGt', 'linkCountLt', 'isEmpty', 'isNotEmpty'],
   Lookup: ['is', 'isNot', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
   Rollup: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isEmpty', 'isNotEmpty'],
   Count: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isEmpty', 'isNotEmpty'],

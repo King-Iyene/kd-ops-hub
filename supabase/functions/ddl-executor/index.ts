@@ -875,6 +875,92 @@ Deno.serve(async (req: Request): Promise<Response> => {
         } finally { rc.release(); }
         return json({ success: true });
       }
+      case 'linkedQuery': {
+        const { fieldId: lqFieldId, mode: lqMode, searchTerm: lqSearch, direction: lqDir } = body;
+        if (!lqFieldId) return json({ success: false, error: 'Missing fieldId' }, 400);
+        const lqConn = await pool.connect();
+        try {
+          // Resolve field → link meta → junction/target table info
+          const { rows: fieldRows } = await lqConn.queryObject<{ table_id: string; options: any }>(
+            `SELECT table_id, options FROM nc_meta.fields WHERE id = $1`, [lqFieldId],
+          );
+          if (!fieldRows.length) return json({ success: false, error: 'Field not found' }, 404);
+          const fieldRow = fieldRows[0];
+          const relatedTableId = fieldRow.options?.relatedTableId;
+          if (!relatedTableId) return json({ success: false, error: 'Not a link field' }, 400);
+
+          // Get base schema
+          const { rows: tableRows } = await lqConn.queryObject<{ base_id: string; pg_table_name: string }>(
+            `SELECT base_id, pg_table_name FROM nc_meta.tables WHERE id = $1`, [fieldRow.table_id],
+          );
+          if (!tableRows.length) return json({ success: false, error: 'Source table not found' }, 404);
+          const { rows: baseRows } = await lqConn.queryObject<{ schema_name: string }>(
+            `SELECT schema_name FROM nc_meta.bases WHERE id = $1`, [tableRows[0].base_id],
+          );
+          if (!baseRows.length) return json({ success: false, error: 'Base not found' }, 404);
+          const schemaName = baseRows[0].schema_name;
+          const srcTable = tableRows[0].pg_table_name;
+
+          // Get target table + primary field column
+          const { rows: tgtRows } = await lqConn.queryObject<{ pg_table_name: string; primary_field_id: string }>(
+            `SELECT pg_table_name, primary_field_id FROM nc_meta.tables WHERE id = $1`, [relatedTableId],
+          );
+          if (!tgtRows.length) return json({ success: false, error: 'Target table not found' }, 404);
+          const tgtTable = tgtRows[0].pg_table_name;
+          const primaryFieldId = tgtRows[0].primary_field_id;
+
+          let primaryCol = 'id';
+          if (primaryFieldId) {
+            const { rows: pfRows } = await lqConn.queryObject<{ pg_column_name: string }>(
+              `SELECT pg_column_name FROM nc_meta.fields WHERE id = $1`, [primaryFieldId],
+            );
+            if (pfRows.length) primaryCol = pfRows[0].pg_column_name;
+          }
+
+          // Get junction table
+          const { rows: linkRows } = await lqConn.queryObject<{ junction_table_id: string }>(
+            `SELECT junction_table_id FROM nc_meta.links WHERE field_id = $1`, [lqFieldId],
+          );
+          if (!linkRows.length || !linkRows[0].junction_table_id) {
+            return json({ success: false, error: 'No junction table found' }, 404);
+          }
+          const { rows: jnRows } = await lqConn.queryObject<{ pg_table_name: string }>(
+            `SELECT pg_table_name FROM nc_meta.tables WHERE id = $1`, [linkRows[0].junction_table_id],
+          );
+          if (!jnRows.length) return json({ success: false, error: 'Junction table not found' }, 404);
+          const jnTable = jnRows[0].pg_table_name;
+
+          const s = `"${schemaName}"`;
+
+          if (lqMode === 'filter') {
+            // Return source record IDs where any linked target record's primary field matches
+            const sql = `
+              SELECT DISTINCT src."id"::text AS id FROM ${s}."${srcTable}" src
+              JOIN ${s}."${jnTable}" jn ON jn."source_id" = src."id" OR jn."target_id" = src."id"
+              JOIN ${s}."${tgtTable}" tgt ON (tgt."id" = jn."target_id" OR tgt."id" = jn."source_id") AND tgt."id" != src."id"
+              WHERE tgt."${primaryCol}"::text ILIKE $1
+            `;
+            const { rows: matchRows } = await lqConn.queryObject<{ id: string }>(sql, [`%${lqSearch}%`]);
+            return json({ success: true, ids: matchRows.map((r) => r.id) });
+          } else if (lqMode === 'sort') {
+            // Return all source record IDs ordered by aggregated linked names
+            const dir = lqDir === 'desc' ? 'DESC' : 'ASC';
+            const sql = `
+              SELECT src."id"::text AS id,
+                     COALESCE(string_agg(tgt."${primaryCol}"::text, ', ' ORDER BY tgt."${primaryCol}"::text), '') AS linked_names
+              FROM ${s}."${srcTable}" src
+              LEFT JOIN ${s}."${jnTable}" jn ON jn."source_id" = src."id" OR jn."target_id" = src."id"
+              LEFT JOIN ${s}."${tgtTable}" tgt ON (tgt."id" = jn."target_id" OR tgt."id" = jn."source_id") AND tgt."id" != src."id"
+              GROUP BY src."id"
+              ORDER BY linked_names ${dir}, src."nc_order" ASC
+            `;
+            const { rows: sortRows } = await lqConn.queryObject<{ id: string }>(sql, []);
+            return json({ success: true, ids: sortRows.map((r) => r.id) });
+          } else {
+            return json({ success: false, error: 'mode must be "filter" or "sort"' }, 400);
+          }
+        } finally { lqConn.release(); }
+      }
       case 'bulkInsert': {
         const { schemaName: biSchema, tableName: biTable, columns: biCols, rows: biRows } = body;
         if (!biSchema || !biTable || !biCols?.length || !biRows?.length) {
