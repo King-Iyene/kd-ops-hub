@@ -150,11 +150,12 @@ async function rateLimitedFetch(url: string, options: RequestInit, retries = MAX
   return res;
 }
 
-async function waitForSchemaReady(schemaName: string, tableName?: string, columns?: string[], maxWaitMs = 12000): Promise<void> {
+async function waitForSchemaReady(schemaName: string, tableName?: string, columns?: string[], maxWaitMs = 20000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     try {
-      const selectCols = columns?.length ? ['id', ...columns.slice(0, 3)].join(',') : 'id';
+      // Probe ALL columns, not just a sample — PostgREST may cache some but not others
+      const selectCols = columns?.length ? ['id', ...columns].join(',') : 'id';
       const { error } = tableName
         ? await supabase.schema(schemaName).from(tableName).select(selectCols).limit(0)
         : await supabase.schema(schemaName).from('__ping__').select('id').limit(0);
@@ -168,7 +169,7 @@ async function waitForSchemaReady(schemaName: string, tableName?: string, column
     } catch {
       // ignore
     }
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 600));
   }
 }
 
@@ -535,8 +536,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           },
         });
 
-        const colSample = fieldRows.slice(0, 3).map((fr) => fr.pg_column_name);
-        await waitForSchemaReady(schemaName, pgTableName, colSample);
+        const allColNames = fieldRows.map((fr) => fr.pg_column_name).filter(Boolean);
+        await waitForSchemaReady(schemaName, pgTableName, allColNames);
 
         const { data: createdFields } = await supabase
           .schema('nc_meta')
@@ -642,7 +643,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                 const isSchemaErr = insertErr.code === 'PGRST106' || insertErr.message?.includes('schema') || insertErr.message?.includes('column');
                 if (isSchemaErr && schemaRetries < 3) {
                   schemaRetries++;
-                  await waitForSchemaReady(schemaName, pgTableName, colSample, 8000);
+                  await waitForSchemaReady(schemaName, pgTableName, allColNames, 8000);
                   return insertBatch(rows);
                 }
                 const midpoint = Math.ceil(rows.length / 2);
