@@ -143,7 +143,7 @@ const SYSTEM_FIELDS = [
 
 const SYSTEM_UI_TYPES = new Set(['ID', 'CreatedTime', 'LastModifiedTime', 'CreatedBy', 'LastModifiedBy']);
 
-const BATCH_SIZE = 200;
+const BATCH_SIZE = 100;
 const RATE_LIMIT_DELAY = 200;
 const MAX_RETRIES = 5;
 const INSERT_CONCURRENCY = 1;
@@ -975,9 +975,9 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               }
             }
 
-            for (let b = 0; b < junctionRows.length; b += 500) {
+            for (let b = 0; b < junctionRows.length; b += BATCH_SIZE) {
               if (abortRef.current) break;
-              const batch = junctionRows.slice(b, b + 500);
+              const batch = junctionRows.slice(b, b + BATCH_SIZE);
               await invokeDDL({
                 action: 'bulkInsert',
                 schemaName,
