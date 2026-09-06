@@ -143,7 +143,7 @@ const SYSTEM_FIELDS = [
 
 const SYSTEM_UI_TYPES = new Set(['ID', 'CreatedTime', 'LastModifiedTime', 'CreatedBy', 'LastModifiedBy']);
 
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 200;
 const RATE_LIMIT_DELAY = 200;
 const MAX_RETRIES = 5;
 const INSERT_CONCURRENCY = 1;
@@ -162,11 +162,14 @@ async function invokeDDL(body: Record<string, unknown>, retries = 3): Promise<{ 
   for (let attempt = 0; attempt <= retries; attempt++) {
     const { data, error } = await supabase.functions.invoke('ddl-executor', { body });
     if (!error && data?.success !== false) return { data, error: null };
+    const errMsg = data?.error ?? error?.message ?? 'unknown';
     if (attempt < retries) {
+      console.warn(`[import] ${body.action} attempt ${attempt + 1} failed: ${errMsg}, retrying...`);
       const delay = Math.min(1000 * 2 ** attempt, 8000);
       await new Promise((r) => setTimeout(r, delay));
       continue;
     }
+    console.error(`[import] ${body.action} failed after ${retries + 1} attempts: ${errMsg}`);
     return { data, error: error || new Error(data?.error || 'Edge function failed') };
   }
   return { data: null, error: new Error('Exhausted retries') };
