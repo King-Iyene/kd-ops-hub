@@ -48,10 +48,18 @@ interface AirtableField {
   options?: any;
 }
 
+interface AirtableView {
+  id: string;
+  name: string;
+  type: string;
+  personalForUser?: string;
+}
+
 interface AirtableTable {
   id: string;
   name: string;
   fields: AirtableField[];
+  views: AirtableView[];
   selected: boolean;
   recordCount?: number;
 }
@@ -255,6 +263,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           id: t.id,
           name: t.name,
           fields: t.fields || [],
+          views: (t.views || []).filter((v: any) => !v.personalForUser),
           selected: true,
         }))
       );
@@ -563,20 +572,26 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             .eq('id', table.id);
         }
 
-        await supabase.schema('nc_meta').from('views').insert({
+        const atViews = atTable.views?.length ? atTable.views : [{ id: '_default', name: 'Grid view', type: 'grid' }];
+        const viewTypeMap: Record<string, string> = {
+          grid: 'grid', form: 'form', calendar: 'calendar', gallery: 'gallery',
+          kanban: 'kanban', timeline: 'timeline', gantt: 'gantt', block: 'grid',
+        };
+        const viewRows = atViews.map((av, vi) => ({
           table_id: table.id,
-          name: 'Grid view',
-          type: 'grid',
+          name: av.name,
+          type: viewTypeMap[av.type] ?? 'grid',
           filters: [],
           sorts: [],
           groups: [],
           field_order: allFields.map((f: any) => f.id),
           field_visibility: {},
           field_widths: {},
-          is_default: true,
+          is_default: vi === 0,
           is_locked: false,
-          position: 0,
-        });
+          position: vi,
+        }));
+        await supabase.schema('nc_meta').from('views').insert(viewRows);
 
         // Fetch records with progress tracking
         try {
