@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { Filter, FilterGroup, Sort, Group, RowColorRule, ConditionalFormatRule } from '../types';
+import type { Filter, FilterGroup, Sort, Group, RowColorRule, ConditionalFormatRule, RecordRow } from '../types';
 
 export type SummaryFunction =
   | 'none'
@@ -38,7 +38,9 @@ interface DatabaseUIState {
   fieldWidths: Record<string, number>;
   frozenColumns: number;
   focusedFilterId: string | null;
+  linkedRecordExpand: { record: RecordRow; tableId: string; baseId: string } | null;
 
+  setLinkedRecordExpand: (data: { record: RecordRow; tableId: string; baseId: string } | null) => void;
   setConditionalFormats: (rules: ConditionalFormatRule[]) => void;
   setActiveBase: (id: string | null) => void;
   setActiveTable: (id: string | null) => void;
@@ -141,7 +143,9 @@ export const useDatabaseUI = create<DatabaseUIState>()(
   summaryFunctions: {},
   fieldWidths: {},
   frozenColumns: 0,
+  linkedRecordExpand: null,
 
+  setLinkedRecordExpand: (data) => set({ linkedRecordExpand: data }),
   setActiveBase: (id) =>
     set({
       activeBaseId: id,

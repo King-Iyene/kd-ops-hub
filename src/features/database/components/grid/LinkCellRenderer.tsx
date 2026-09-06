@@ -31,22 +31,32 @@ function RecordCard({
   visibleFields,
   action,
   onAction,
+  onExpand,
 }: {
   rec: RecordRow;
   primaryField: FieldMeta | null | undefined;
   visibleFields: FieldMeta[];
   action: 'link' | 'unlink';
   onAction: (id: string) => void;
+  onExpand?: (rec: RecordRow) => void;
 }) {
   const displayVal = getRecordDisplayValue(rec, primaryField);
   const extraFields = visibleFields.filter(
     (f) => f.id !== primaryField?.id && rec[f.pg_column_name] != null && String(rec[f.pg_column_name]).trim() !== '',
   ).slice(0, 3);
 
+  const handleClick = () => {
+    if (action === 'link') {
+      onAction(rec.id);
+    } else if (onExpand) {
+      onExpand(rec);
+    }
+  };
+
   return (
     <div
       className="flex items-start justify-between px-2.5 py-2 rounded-md hover:bg-[#F1F5F9] dark:hover:bg-[hsl(200,25%,14%)] group/item cursor-pointer transition-colors"
-      onClick={() => onAction(rec.id)}
+      onClick={handleClick}
     >
       <div className="flex-1 min-w-0">
         <div className="text-[12px] font-medium text-[#334155] dark:text-[hsl(200,25%,88%)] truncate">
@@ -124,6 +134,8 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
   });
 
   const { data: visibleFields = [] } = useTargetTableFields(relatedTableId, isOpen);
+
+  const setLinkedRecordExpand = useDatabaseUI((s) => s.setLinkedRecordExpand);
 
   const { linkRecord, unlinkRecord } = useLinkMutations({
     baseId: activeBaseId,
@@ -223,6 +235,12 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
                   visibleFields={visibleFields}
                   action="unlink"
                   onAction={unlinkRecord}
+                  onExpand={(r) => {
+                    if (relatedTableId && activeBaseId) {
+                      setLinkedRecordExpand({ record: r, tableId: relatedTableId, baseId: activeBaseId });
+                      setIsOpen(false);
+                    }
+                  }}
                 />
               ))}
             </div>

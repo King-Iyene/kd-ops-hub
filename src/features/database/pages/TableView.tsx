@@ -38,6 +38,27 @@ import { FindReplaceDialog } from '../components/FindReplaceDialog';
 import { PrintView } from '../components/PrintView';
 import { useLinkDisplayLookup } from '../hooks/useLinkDisplayLookup';
 
+function LinkedRecordExpandModal() {
+  const linkedRecordExpand = useDatabaseUI((s) => s.linkedRecordExpand);
+  const setLinkedRecordExpand = useDatabaseUI((s) => s.setLinkedRecordExpand);
+  const { data: linkedFields } = useFields(linkedRecordExpand?.tableId);
+
+  if (!linkedRecordExpand) return null;
+
+  return (
+    <ExpandedRowModal
+      open={true}
+      onOpenChange={(open) => {
+        if (!open) setLinkedRecordExpand(null);
+      }}
+      record={linkedRecordExpand.record}
+      fields={linkedFields ?? []}
+      baseId={linkedRecordExpand.baseId}
+      tableId={linkedRecordExpand.tableId}
+    />
+  );
+}
+
 export function TableView() {
   const {
     activeTableId,
@@ -549,6 +570,7 @@ export function TableView() {
           }
         }}
       />
+      <LinkedRecordExpandModal />
       <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />
       <FindReplaceDialog
         open={findReplaceOpen}
