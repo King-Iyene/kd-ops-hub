@@ -263,6 +263,23 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
     );
   }
 
+  // Currency / Number
+  if ((ui_type === 'Currency' || ui_type === 'Number' || ui_type === 'Decimal' || ui_type === 'Percent') && typeof value === 'number') {
+    let formatted: string;
+    if (ui_type === 'Currency') {
+      formatted = value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } else if (ui_type === 'Percent') {
+      formatted = `${value}%`;
+    } else {
+      formatted = value.toLocaleString();
+    }
+    return (
+      <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] font-variant-numeric tabular-nums">
+        {formatted}
+      </span>
+    );
+  }
+
   // Default
   return (
     <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] line-clamp-2">

@@ -341,7 +341,7 @@ export default function GridView({
 
   const parentRef = useRef<HTMLDivElement>(null);
   const [summaryDropdown, setSummaryDropdown] = useState<string | null>(null);
-  const [rowMenu, setRowMenu] = useState<{ x: number; y: number; record: RecordRow } | null>(null);
+  const [rowMenu, setRowMenu] = useState<{ x: number; y: number; record: RecordRow; fieldId?: string } | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [dragRowId, setDragRowId] = useState<string | null>(null);
   const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
