@@ -93,7 +93,7 @@ function TabRecordCount({ baseId, tableId }: { baseId: string; tableId: string }
   const { data: count } = useRecordCount(baseId, tableId);
   if (count == null) return null;
   return (
-    <span className="text-[10px] opacity-50 tabular-nums ml-0.5">
+    <span className="text-[11px] opacity-50 tabular-nums ml-0.5">
       {count > 999 ? `${(count / 1000).toFixed(1)}k` : count}
     </span>
   );
@@ -240,7 +240,7 @@ export function TableTabBar() {
   if (!activeBaseId) return null;
 
   return (
-    <div className="flex items-center h-[32px] px-1 gap-0 overflow-x-auto shrink-0 select-none" style={{ backgroundColor: darkenColor(baseColor, 0.55) }}>
+    <div className="flex items-center h-[38px] px-1 gap-0 overflow-x-auto shrink-0 select-none" style={{ backgroundColor: darkenColor(baseColor, 0.55) }}>
       <DndContext sensors={tableSensors} collisionDetection={closestCenter} onDragEnd={handleTableDragEnd}>
         <SortableContext items={sortedTables.map((t: any) => t.id)} strategy={horizontalListSortingStrategy}>
       {sortedTables.map((table: any) => (

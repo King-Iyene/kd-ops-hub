@@ -214,7 +214,7 @@ export function ViewBar() {
     <>
       <div
         className="flex items-center gap-0.5 px-2 shrink-0 overflow-x-auto bg-white dark:bg-[hsl(200,30%,8%)] border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]"
-        style={{ height: 28 }}
+        style={{ height: 34 }}
       >
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={sorted.map((v) => v.id)} strategy={horizontalListSortingStrategy}>

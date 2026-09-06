@@ -1014,7 +1014,7 @@ export function Toolbar() {
 
   return (
     <>
-      <div className="flex items-center justify-between h-[36px] px-3 bg-white dark:bg-zinc-900 border-b border-[#E5E5E5] dark:border-zinc-700/60 shrink-0">
+      <div className="flex items-center justify-between h-[40px] px-3 bg-white dark:bg-zinc-900 border-b border-[#E5E5E5] dark:border-zinc-700/60 shrink-0">
         {/* Left: view controls */}
         <div className="flex items-center gap-1">
           <div className="relative">

@@ -43,14 +43,14 @@ const GROUP_PILL_COLORS = [
 ];
 
 const ROW_HEIGHTS: Record<string, number> = {
-  short: 32,
-  medium: 44,
-  tall: 64,
-  'extra-tall': 100,
+  short: 36,
+  medium: 52,
+  tall: 68,
+  'extra-tall': 108,
 };
 
-const ROW_NUMBER_WIDTH = 44;
-const HEADER_HEIGHT = 32;
+const ROW_NUMBER_WIDTH = 48;
+const HEADER_HEIGHT = 36;
 
 /** Best-effort plain-text rendering of a cell's value for aria-label purposes. */
 function formatCellAriaValue(record: RecordRow, field: FieldMeta): string {
@@ -1856,10 +1856,10 @@ export default function GridView({
       <div
         className="flex items-center justify-between px-4 shrink-0"
         style={{
-          height: 32,
+          height: 36,
           borderTop: `1px solid ${GRID_COLORS.border}`,
           backgroundColor: GRID_COLORS.headerBg,
-          fontSize: 12,
+          fontSize: 13,
           color: GRID_COLORS.muted,
         }}
       >
