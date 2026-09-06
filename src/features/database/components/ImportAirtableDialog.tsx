@@ -972,7 +972,15 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             for (let b = 0; b < junctionRows.length; b += 500) {
               if (abortRef.current) break;
               const batch = junctionRows.slice(b, b + 500);
-              await supabase.schema(schemaName).from(jnTableName).insert(batch);
+              await supabase.functions.invoke('ddl-executor', {
+                body: {
+                  action: 'bulkInsert',
+                  schemaName,
+                  tableName: jnTableName,
+                  columns: [srcColName, tgtColName],
+                  rows: batch,
+                },
+              });
             }
           } catch (resolveErr) {
             errors.push(`Link resolution (${f.name}): ${(resolveErr as Error).message}`);
