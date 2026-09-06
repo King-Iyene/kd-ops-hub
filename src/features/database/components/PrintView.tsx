@@ -29,9 +29,24 @@ export function PrintView({ fields, records, tableName, onClose }: PrintViewProp
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  const formatValue = (val: unknown): string => {
+  const formatValue = (val: unknown, field: FieldMeta): string => {
     if (val == null) return '';
     if (Array.isArray(val)) return val.join(', ');
+    const uiType = field.ui_type;
+    if ((uiType === 'Currency') && typeof val === 'number') {
+      const sym = field.options?.currencyCode || field.options?.symbol || '$';
+      return `${sym}${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    if ((uiType === 'Number' || uiType === 'Decimal') && typeof val === 'number') {
+      return val.toLocaleString(undefined, uiType === 'Decimal' ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : undefined);
+    }
+    if (uiType === 'Percent' && typeof val === 'number') return `${val}%`;
+    if ((uiType === 'Date' || uiType === 'DateTime') && typeof val === 'string') {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) return d.toLocaleDateString(undefined, { dateStyle: 'medium' });
+    }
+    if (uiType === 'Checkbox') return val ? '✓' : '';
+    if (typeof val === 'number') return val.toLocaleString();
     return String(val);
   };
 
@@ -161,7 +176,7 @@ export function PrintView({ fields, records, tableName, onClose }: PrintViewProp
             {records.map((r) => (
               <tr key={r.id}>
                 {visibleFields.map((f) => (
-                  <td key={f.id}>{formatValue(r[f.pg_column_name])}</td>
+                  <td key={f.id} style={{ textAlign: ['Number', 'Decimal', 'Currency', 'Percent'].includes(f.ui_type) ? 'right' : undefined }}>{formatValue(r[f.pg_column_name], f)}</td>
                 ))}
               </tr>
             ))}

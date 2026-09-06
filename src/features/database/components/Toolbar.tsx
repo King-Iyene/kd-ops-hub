@@ -1143,7 +1143,7 @@ export function Toolbar() {
             {moreOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
-                <div className="absolute right-0 top-full z-50 mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1 min-w-[180px]">
+                <div className="absolute right-0 top-full z-50 mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1 min-w-[180px] max-h-[calc(100vh-160px)] overflow-y-auto">
                   {/* Row height */}
                   <div className="px-3 py-1 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Row height</div>
                   {ROW_HEIGHT_OPTIONS.map((opt) => (
