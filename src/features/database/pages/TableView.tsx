@@ -36,6 +36,7 @@ import { useRealtimeRecords } from '../hooks/useRealtime';
 import { parseFormula, evaluateFormula } from '../lib/formula';
 import { FindReplaceDialog } from '../components/FindReplaceDialog';
 import { PrintView } from '../components/PrintView';
+import { useLinkDisplayLookup } from '../hooks/useLinkDisplayLookup';
 
 export function TableView() {
   const {
@@ -54,6 +55,7 @@ export function TableView() {
   useRealtimeRecords(activeBaseId ?? undefined, activeTableId ?? undefined);
   const { data: fields } = useFields(activeTableId);
   const { data: views } = useViews(activeTableId);
+  const linkLookup = useLinkDisplayLookup(activeBaseId, fields);
   const pageSize = 100;
   const [galleryPage, setGalleryPage] = useState(0);
   const [fieldDialogOpen, setFieldDialogOpenRaw] = useState(false);
@@ -206,21 +208,22 @@ export function TableView() {
     });
 
     return raw.map((record) => {
-      const patched = { ...record };
+      const patched = { ...record, __linkLookup: linkLookup } as any;
       for (const { col, ast } of parsed) {
         if (!ast) {
           patched[col] = '#ERROR';
           continue;
         }
         try {
-          patched[col] = evaluateFormula(ast, record, fieldMap);
+          patched[col] = evaluateFormula(ast, patched, fieldMap);
         } catch {
           patched[col] = '#ERROR';
         }
       }
+      delete patched.__linkLookup;
       return patched as RecordRow;
     });
-  }, [infiniteRecords, patchedFields]);
+  }, [infiniteRecords, patchedFields, linkLookup]);
 
   // Auto-expand record from URL deep link (?rowId=...)
   const deepLinkedRef = useRef(false);

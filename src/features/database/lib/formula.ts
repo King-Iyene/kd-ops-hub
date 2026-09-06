@@ -492,7 +492,15 @@ function evaluate(node: ASTNode, record: Record<string, any>, fieldMap: FieldMap
     case 'FieldRef': {
       const col = fieldMap[node.name];
       if (col == null) return null;
-      return record[col] ?? null;
+      const val = record[col] ?? null;
+      if (Array.isArray(val)) {
+        const lookup = (record as any).__linkLookup as Record<string, string> | undefined;
+        if (lookup) {
+          return val.map((id: string) => lookup[id] ?? id).join(', ');
+        }
+        return val.join(', ');
+      }
+      return val;
     }
     case 'UnaryOp':
       if (node.op === '-') return -toNumber(evaluate(node.operand, record, fieldMap));
