@@ -181,7 +181,7 @@ export const NumberCellRenderer = React.memo(function NumberCellRenderer({
   const num = Number(value);
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
   return (
-    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums' }}>
+    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums', color: num < 0 ? '#EF4444' : undefined }}>
       {num.toLocaleString()}
     </span>
   );
@@ -194,7 +194,7 @@ export const DecimalCellRenderer = React.memo(function DecimalCellRenderer({
   const num = Number(value);
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
   return (
-    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums' }}>
+    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums', color: num < 0 ? '#EF4444' : undefined }}>
       {num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     </span>
   );
@@ -240,7 +240,7 @@ export const CurrencyCellRenderer = React.memo(function CurrencyCellRenderer({
     }
   }
   return (
-    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatted}</span>
+    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums', color: num < 0 ? '#EF4444' : undefined }}>{formatted}</span>
   );
 });
 
