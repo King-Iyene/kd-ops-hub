@@ -667,17 +667,13 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               return row;
             };
 
-            const insertCols = ['nc_order', 'airtable_id', ...allColNames];
             const insertBatch = async (rows: Record<string, any>[]): Promise<number> => {
-              const { data, error: insertErr } = await invokeDDL({
-                action: 'bulkInsert',
-                schemaName,
-                tableName: pgTableName,
-                columns: insertCols,
-                rows,
-              });
-              if (insertErr || (data && !data.success)) {
-                const errMsg = data?.error ?? insertErr?.message ?? 'insert failed';
+              const { error: insertErr } = await supabase
+                .schema(schemaName)
+                .from(pgTableName)
+                .insert(rows);
+              if (insertErr) {
+                const errMsg = insertErr.message ?? 'insert failed';
                 if (rows.length <= 1) {
                   errors.push(`${atTable.name}: ${String(errMsg).substring(0, 120)}`);
                   return 0;
@@ -978,13 +974,10 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             for (let b = 0; b < junctionRows.length; b += BATCH_SIZE) {
               if (abortRef.current) break;
               const batch = junctionRows.slice(b, b + BATCH_SIZE);
-              await invokeDDL({
-                action: 'bulkInsert',
-                schemaName,
-                tableName: jnTableName,
-                columns: [srcColName, tgtColName],
-                rows: batch,
-              });
+              await supabase
+                .schema(schemaName)
+                .from(jnTableName)
+                .insert(batch);
             }
           } catch (resolveErr) {
             errors.push(`Link resolution (${f.name}): ${(resolveErr as Error).message}`);
