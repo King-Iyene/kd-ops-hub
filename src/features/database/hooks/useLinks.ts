@@ -198,37 +198,18 @@ export function useRecordLinks(opts: {
       if (linkType === 'mm') {
         if (!junctionTable) return [];
 
-        const srcCol = `${srcTable}_id`;
-        const tgtCol = `${tgtTable}_id`;
-
-        let jRows: any[] | null = null;
-        const { data: rows1, error: err1 } = await supabase
+        const { data: jRows } = await supabase
           .schema(schema)
           .from(junctionTable)
-          .select(tgtCol)
-          .eq(srcCol, recordId)
+          .select('source_id, target_id')
+          .or(`source_id.eq.${recordId},target_id.eq.${recordId}`)
           .limit(200);
-
-        if (!err1 && rows1 && rows1.length > 0) {
-          jRows = rows1;
-        } else {
-          const { data: rows2 } = await supabase
-            .schema(schema)
-            .from(junctionTable)
-            .select('target_id, source_id')
-            .or(`source_id.eq.${recordId},target_id.eq.${recordId}`)
-            .limit(200);
-          if (rows2 && rows2.length > 0) {
-            jRows = rows2.map((r: any) => ({
-              [tgtCol]: r.source_id === recordId ? r.target_id : r.source_id,
-            }));
-          }
-        }
 
         if (!jRows || jRows.length === 0) return [];
 
-        const ids = jRows.map((r: any) => r[tgtCol]).filter(Boolean);
-        if (ids.length === 0) return [];
+        const ids = jRows
+          .map((r: any) => r.source_id === recordId ? r.target_id : r.source_id)
+          .filter(Boolean);
 
         const { data } = await supabase
           .schema(schema)
@@ -348,7 +329,7 @@ export function useLinkMutations(opts: {
         if (!linkMeta?.junction_table_id) return;
         const { data: jTable } = await supabase.schema('nc_meta').from('tables').select('pg_table_name').eq('id', linkMeta.junction_table_id).single();
         if (!jTable) return;
-        await supabase.schema(t.schema).from(jTable.pg_table_name).insert({ [`${t.src}_id`]: recordId, [`${t.tgt}_id`]: targetRecordId });
+        await supabase.schema(t.schema).from(jTable.pg_table_name).insert({ source_id: recordId, target_id: targetRecordId });
       }
       invalidate();
     },
@@ -369,7 +350,7 @@ export function useLinkMutations(opts: {
         if (!linkMeta?.junction_table_id) return;
         const { data: jTable } = await supabase.schema('nc_meta').from('tables').select('pg_table_name').eq('id', linkMeta.junction_table_id).single();
         if (!jTable) return;
-        await supabase.schema(t.schema).from(jTable.pg_table_name).delete().eq(`${t.src}_id`, recordId).eq(`${t.tgt}_id`, targetRecordId);
+        await supabase.schema(t.schema).from(jTable.pg_table_name).delete().or(`and(source_id.eq.${recordId},target_id.eq.${targetRecordId}),and(source_id.eq.${targetRecordId},target_id.eq.${recordId})`);
       }
       invalidate();
     },

@@ -28,16 +28,13 @@ export function useLinkDisplayLookup(
     queryFn: async () => {
       const map: Record<string, string> = {};
 
-      const { data: baseMeta, error: baseErr } = await supabase
+      const { data: baseMeta } = await supabase
         .schema('nc_meta')
         .from('bases')
         .select('schema_name')
         .eq('id', baseId)
         .single();
-      if (!baseMeta?.schema_name) {
-        console.warn('[LinkLookup] No base schema found for', baseId, baseErr);
-        return map;
-      }
+      if (!baseMeta?.schema_name) return map;
 
       for (const tableId of relatedTableIds) {
         try {
@@ -64,24 +61,18 @@ export function useLinkDisplayLookup(
             .not('airtable_id', 'is', null)
             .limit(5000);
 
-          if (error || !rows) {
-            console.warn('[LinkLookup] Query failed for', tableMeta.pg_table_name, error);
-            continue;
-          }
+          if (error || !rows) continue;
 
           for (const row of rows) {
             if (row.airtable_id && row[primaryField.pg_column_name] != null) {
               map[row.airtable_id] = String(row[primaryField.pg_column_name]);
             }
           }
-        } catch (e) {
-          console.warn('[LinkLookup] Exception for table', tableId, e);
+        } catch {
+          // table may lack airtable_id column
         }
       }
 
-      if (Object.keys(map).length > 0) {
-        console.log('[LinkLookup] Resolved', Object.keys(map).length, 'airtable IDs');
-      }
       return map;
     },
   });
