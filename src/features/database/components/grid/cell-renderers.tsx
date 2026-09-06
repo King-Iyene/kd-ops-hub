@@ -205,8 +205,9 @@ const SYMBOL_TO_ISO: Record<string, string> = {
 };
 
 function resolveISO(raw: string): string {
-  if (/^[A-Z]{3}$/.test(raw)) return raw;
-  return SYMBOL_TO_ISO[raw] ?? 'USD';
+  const trimmed = raw.trim();
+  if (/^[A-Z]{3}$/.test(trimmed)) return trimmed;
+  return SYMBOL_TO_ISO[trimmed] ?? 'USD';
 }
 
 export const CurrencyCellRenderer = React.memo(function CurrencyCellRenderer({

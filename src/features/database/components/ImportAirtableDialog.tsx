@@ -458,7 +458,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             }));
           }
           if (f.type === 'currency') {
-            const sym = f.options?.symbol ?? '$';
+            const sym = (f.options?.symbol ?? '$').trim();
             const symMap: Record<string, string> = {
               '₦': 'NGN', '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', '₹': 'INR',
               '₩': 'KRW', '₽': 'RUB', '₺': 'TRY', '₴': 'UAH', '₸': 'KZT', '₫': 'VND',
