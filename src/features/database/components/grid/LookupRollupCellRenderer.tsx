@@ -112,7 +112,7 @@ export const RollupCellRenderer = React.memo(function RollupCellRenderer({
   return (
     <span
       className={isNumeric ? 'truncate block text-right w-full' : 'truncate'}
-      style={{ color: colors.text, fontVariantNumeric: isNumeric ? 'tabular-nums' : undefined }}
+      style={{ color: isNumeric && typeof result === 'number' && result < 0 ? '#EF4444' : colors.text, fontVariantNumeric: isNumeric ? 'tabular-nums' : undefined }}
     >
       {displayValue}
     </span>

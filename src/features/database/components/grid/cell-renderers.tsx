@@ -678,7 +678,7 @@ export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({
   if (numVal !== null) {
     const formatted = formatFormulaNumber(numVal, field);
     return (
-      <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums' }}>
+      <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums', color: numVal < 0 ? '#EF4444' : undefined }}>
         {formatted}
       </span>
     );
