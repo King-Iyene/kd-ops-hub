@@ -11,6 +11,14 @@ function fireAutomations(event: string, baseId: string, tableId: string, record?
   });
 }
 
+function fireWebhooks(event: string, baseId: string, tableId: string, record?: any, oldRecord?: any) {
+  supabase.functions.invoke('webhook-dispatcher', {
+    body: { event, baseId, tableId, record, oldRecord },
+  }).catch((err) => {
+    console.warn('[KDOps] Webhook dispatch failed:', err?.message ?? err);
+  });
+}
+
 function logRecordAudit(action: string, baseId: string, tableId: string, recordId?: string, newValue?: any, oldValue?: any) {
   supabase.auth.getUser().then(({ data }) => {
     supabase.schema('nc_meta').from('audit_log').insert({
@@ -524,6 +532,7 @@ export function useCreateRecord() {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       qc.invalidateQueries({ queryKey: ['nc', 'recordCount'] });
       fireAutomations('record.created', variables.baseId, variables.tableId, data);
+      fireWebhooks('record.created', variables.baseId, variables.tableId, data);
       logRecordAudit('INSERT', variables.baseId, variables.tableId, data.id, data);
     },
   });
@@ -583,6 +592,7 @@ export function useUpdateRecord() {
     },
     onSuccess: (data, variables) => {
       fireAutomations('record.updated', variables.baseId, variables.tableId, data);
+      fireWebhooks('record.updated', variables.baseId, variables.tableId, data);
       logRecordAudit('UPDATE', variables.baseId, variables.tableId, variables.recordId, { [variables.field]: variables.value });
     },
   });
@@ -660,6 +670,7 @@ export function useDeleteRecord() {
     },
     onSuccess: (_data, variables) => {
       fireAutomations('record.deleted', variables.baseId, variables.tableId, { id: variables.recordId });
+      fireWebhooks('record.deleted', variables.baseId, variables.tableId, { id: variables.recordId });
       logRecordAudit('DELETE', variables.baseId, variables.tableId, variables.recordId);
     },
     onSettled: (_data, _error, variables) => {
@@ -700,6 +711,7 @@ export function useBulkCreateRecords() {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       qc.invalidateQueries({ queryKey: ['nc', 'recordCount', variables.baseId, variables.tableId] });
       fireAutomations('record.created', variables.baseId, variables.tableId, { count: data.created });
+      fireWebhooks('record.created', variables.baseId, variables.tableId, { count: data.created });
       toast.success(`${data.created} record${data.created !== 1 ? 's' : ''} created`);
     },
     onError: () => {
@@ -740,6 +752,7 @@ export function useBulkUpdateRecords() {
     onSuccess: (data, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       fireAutomations('record.updated', variables.baseId, variables.tableId, { count: data.updated });
+      fireWebhooks('record.updated', variables.baseId, variables.tableId, { count: data.updated });
     },
     onError: () => {
       toast.error('Failed to update records');
@@ -801,6 +814,7 @@ export function useBulkDeleteRecords() {
     },
     onSuccess: (data, variables) => {
       fireAutomations('record.deleted', variables.baseId, variables.tableId, { count: data.deleted });
+      fireWebhooks('record.deleted', variables.baseId, variables.tableId, { count: data.deleted });
     },
     onSettled: (_data, _error, variables) => {
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });

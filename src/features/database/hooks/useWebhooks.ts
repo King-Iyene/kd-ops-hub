@@ -10,7 +10,7 @@ export function useWebhooks(tableId: string | null) {
       const { data, error } = await supabase
         .schema('nc_meta')
         .from('webhooks')
-        .select('*')
+        .select('id, base_id, table_id, name, url, events, headers, is_active, secret, created_at, last_triggered_at, failure_count')
         .eq('table_id', tableId)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -27,11 +27,12 @@ export function useCreateWebhook() {
       base_id: string;
       table_id: string;
       name: string;
-      event: WebhookMeta['event'];
-      method: WebhookMeta['method'];
+      events: string[];
       url: string;
       headers?: Record<string, string>;
+      secret?: string;
     }) => {
+      const { data: { user } } = await supabase.auth.getUser();
       const { data, error } = await supabase
         .schema('nc_meta')
         .from('webhooks')
@@ -39,11 +40,12 @@ export function useCreateWebhook() {
           base_id: params.base_id,
           table_id: params.table_id,
           name: params.name,
-          event: params.event,
-          method: params.method,
+          events: params.events,
           url: params.url,
           headers: params.headers ?? {},
-          enabled: true,
+          is_active: true,
+          secret: params.secret ?? null,
+          created_by: user?.id ?? null,
         })
         .select()
         .single();
@@ -61,7 +63,7 @@ export function useUpdateWebhook() {
   return useMutation({
     mutationFn: async (
       params: { id: string; table_id: string } & Partial<
-        Pick<WebhookMeta, 'name' | 'event' | 'method' | 'url' | 'headers' | 'enabled'>
+        Pick<WebhookMeta, 'name' | 'events' | 'url' | 'headers' | 'is_active' | 'secret'>
       >,
     ) => {
       const { id, table_id, ...updates } = params;

@@ -295,29 +295,22 @@ export const PILL_COLORS = SELECT_COLOR_NAMES.map((name) => ({
   text: SELECT_COLORS[name].text,
 }));
 
-export interface WebhookConfig {
-  id: string;
-  table_id: string;
-  name: string;
-  event: 'record.created' | 'record.updated' | 'record.deleted';
-  url: string;
-  method: 'POST' | 'PUT' | 'PATCH';
-  headers: Record<string, string>;
-  enabled: boolean;
-  created_at: string;
-}
+export type WebhookEvent = 'record.created' | 'record.updated' | 'record.deleted';
 
 export interface WebhookMeta {
   id: string;
   base_id: string;
   table_id: string;
   name: string;
-  event: 'record.created' | 'record.updated' | 'record.deleted';
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   url: string;
+  events: WebhookEvent[];
   headers: Record<string, string>;
-  enabled: boolean;
+  is_active: boolean;
+  secret: string | null;
+  created_by: string | null;
   created_at: string;
+  last_triggered_at: string | null;
+  failure_count: number;
 }
 
 export interface AutomationAction {

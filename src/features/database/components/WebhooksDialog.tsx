@@ -4,18 +4,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook } from '../hooks';
 import { supabase } from '@/lib/supabase';
-import type { WebhookMeta } from '../types';
+import type { WebhookMeta, WebhookEvent } from '../types';
 
-const EVENTS: { value: WebhookMeta['event']; label: string }[] = [
+const EVENTS: { value: WebhookEvent; label: string }[] = [
   { value: 'record.created', label: 'After Insert' },
   { value: 'record.updated', label: 'After Update' },
   { value: 'record.deleted', label: 'After Delete' },
 ];
-
-const METHODS: WebhookMeta['method'][] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 
 interface WebhooksDialogProps {
   open: boolean;
@@ -37,12 +34,12 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
   // Form state for the selected webhook (or new)
   const [isNew, setIsNew] = useState(false);
   const [name, setName] = useState('');
-  const [event, setEvent] = useState<WebhookMeta['event']>('record.created');
-  const [method, setMethod] = useState<WebhookMeta['method']>('POST');
+  const [events, setEvents] = useState<WebhookEvent[]>(['record.created']);
   const [url, setUrl] = useState('');
   const [headers, setHeaders] = useState<Record<string, string>>({});
   const [headerKey, setHeaderKey] = useState('');
   const [headerValue, setHeaderValue] = useState('');
+  const [secret, setSecret] = useState('');
 
   const selected = webhooks.find((w) => w.id === selectedId) ?? null;
 
@@ -50,10 +47,10 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
     setSelectedId(wh.id);
     setIsNew(false);
     setName(wh.name);
-    setEvent(wh.event);
-    setMethod(wh.method);
+    setEvents([...wh.events]);
     setUrl(wh.url);
     setHeaders({ ...wh.headers });
+    setSecret(wh.secret ?? '');
     setHeaderKey('');
     setHeaderValue('');
     setTestResult(null);
@@ -63,13 +60,24 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
     setSelectedId(null);
     setIsNew(true);
     setName('');
-    setEvent('record.created');
-    setMethod('POST');
+    setEvents(['record.created']);
     setUrl('');
     setHeaders({});
+    setSecret('');
     setHeaderKey('');
     setHeaderValue('');
     setTestResult(null);
+  }, []);
+
+  const handleToggleEvent = useCallback((ev: WebhookEvent) => {
+    setEvents((prev) => {
+      if (prev.includes(ev)) {
+        // Don't allow deselecting all events
+        if (prev.length <= 1) return prev;
+        return prev.filter((e) => e !== ev);
+      }
+      return [...prev, ev];
+    });
   }, []);
 
   const handleAddHeader = useCallback(() => {
@@ -89,10 +97,10 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
   }, []);
 
   const handleSave = useCallback(() => {
-    if (!name.trim() || !url.trim() || !tableId || !baseId) return;
+    if (!name.trim() || !url.trim() || !tableId || !baseId || events.length === 0) return;
     if (isNew) {
       createWebhook.mutate(
-        { base_id: baseId, table_id: tableId, name: name.trim(), event, method, url: url.trim(), headers },
+        { base_id: baseId, table_id: tableId, name: name.trim(), events, url: url.trim(), headers, secret: secret || undefined },
         {
           onSuccess: (wh) => {
             loadWebhook(wh);
@@ -100,14 +108,22 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
         },
       );
     } else if (selectedId) {
-      updateWebhook.mutate({ id: selectedId, table_id: tableId, name: name.trim(), event, method, url: url.trim(), headers });
+      updateWebhook.mutate({
+        id: selectedId,
+        table_id: tableId,
+        name: name.trim(),
+        events,
+        url: url.trim(),
+        headers,
+        secret: secret || undefined,
+      });
     }
-  }, [isNew, selectedId, name, event, method, url, headers, tableId, baseId, createWebhook, updateWebhook, loadWebhook]);
+  }, [isNew, selectedId, name, events, url, headers, secret, tableId, baseId, createWebhook, updateWebhook, loadWebhook]);
 
   const handleToggle = useCallback(
     (wh: WebhookMeta) => {
       if (!tableId) return;
-      updateWebhook.mutate({ id: wh.id, table_id: tableId, enabled: !wh.enabled });
+      updateWebhook.mutate({ id: wh.id, table_id: tableId, is_active: !wh.is_active });
     },
     [tableId, updateWebhook],
   );
@@ -132,9 +148,9 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
       const { data, error } = await supabase.functions.invoke('webhook-proxy', {
         body: {
           url: url.trim(),
-          method,
+          method: 'POST',
           headers: { 'Content-Type': 'application/json', ...headers },
-          payload: { test: true, event, timestamp: new Date().toISOString() },
+          payload: { test: true, events, timestamp: new Date().toISOString() },
         },
       });
       if (error) {
@@ -147,7 +163,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
     } finally {
       setTesting(false);
     }
-  }, [url, method, headers, event]);
+  }, [url, headers, events]);
 
   const showPanel = isNew || selectedId;
 
@@ -192,27 +208,27 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                   <div className="flex-1 min-w-0">
                     <p
                       className={`text-[12px] font-medium truncate ${
-                        wh.enabled ? 'text-[#374151] dark:text-[hsl(200,25%,88%)]' : 'text-[#9CA3AF] dark:text-[hsl(200,25%,50%)]'
+                        wh.is_active ? 'text-[#374151] dark:text-[hsl(200,25%,88%)]' : 'text-[#9CA3AF] dark:text-[hsl(200,25%,50%)]'
                       }`}
                     >
                       {wh.name}
                     </p>
                     <p className="text-[10px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] mt-0.5 truncate">
-                      {EVENTS.find((e) => e.value === wh.event)?.label} &middot; {wh.method}
+                      {wh.events.map((e) => EVENTS.find((ev) => ev.value === e)?.label).filter(Boolean).join(', ')}
                     </p>
                   </div>
                   <button
                     className="shrink-0 w-7 h-4 rounded-full relative transition-colors"
-                    style={{ backgroundColor: wh.enabled ? '#2D7FF9' : '#D1D5DB' }}
+                    style={{ backgroundColor: wh.is_active ? '#2D7FF9' : '#D1D5DB' }}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleToggle(wh);
                     }}
-                    title={wh.enabled ? 'Disable' : 'Enable'}
+                    title={wh.is_active ? 'Disable' : 'Enable'}
                   >
                     <span
                       className="absolute top-0.5 w-3 h-3 rounded-full bg-white dark:bg-[hsl(200,25%,88%)] shadow transition-transform"
-                      style={{ left: wh.enabled ? '13px' : '2px' }}
+                      style={{ left: wh.is_active ? '13px' : '2px' }}
                     />
                   </button>
                 </div>
@@ -257,46 +273,51 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                   />
                 </div>
 
-                {/* Event */}
+                {/* Events (multi-select checkboxes) */}
                 <div>
-                  <Label className="text-[11px] font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Event</Label>
-                  <Select value={event} onValueChange={(v) => setEvent(v as WebhookMeta['event'])}>
-                    <SelectTrigger className="mt-1 h-8 text-[13px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EVENTS.map((e) => (
-                        <SelectItem key={e.value} value={e.value}>
-                          {e.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-[11px] font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Events</Label>
+                  <div className="mt-1.5 space-y-1.5">
+                    {EVENTS.map((ev) => (
+                      <label
+                        key={ev.value}
+                        className="flex items-center gap-2 cursor-pointer text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={events.includes(ev.value)}
+                          onChange={() => handleToggleEvent(ev.value)}
+                          className="rounded border-[#D1D5DB] dark:border-[hsl(200,25%,30%)] text-[#2D7FF9] focus:ring-[#2D7FF9] h-3.5 w-3.5"
+                        />
+                        {ev.label}
+                      </label>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Method + URL */}
+                {/* URL */}
                 <div>
-                  <Label className="text-[11px] font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Request</Label>
-                  <div className="flex gap-2 mt-1">
-                    <Select value={method} onValueChange={(v) => setMethod(v as WebhookMeta['method'])}>
-                      <SelectTrigger className="w-[100px] h-8 text-[13px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {METHODS.map((m) => (
-                          <SelectItem key={m} value={m}>
-                            {m}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      className="flex-1 h-8 text-[13px]"
-                      placeholder="https://example.com/webhook"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                    />
-                  </div>
+                  <Label className="text-[11px] font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">URL</Label>
+                  <Input
+                    className="mt-1 h-8 text-[13px]"
+                    placeholder="https://example.com/webhook"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                  />
+                </div>
+
+                {/* Secret */}
+                <div>
+                  <Label className="text-[11px] font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Signing Secret (optional)</Label>
+                  <Input
+                    className="mt-1 h-8 text-[13px] font-mono"
+                    placeholder="whsec_..."
+                    type="password"
+                    value={secret}
+                    onChange={(e) => setSecret(e.target.value)}
+                  />
+                  <p className="text-[10px] text-[#9CA3AF] dark:text-[hsl(200,20%,45%)] mt-1">
+                    Used to sign payloads via X-KDOps-Signature header
+                  </p>
                 </div>
 
                 {/* Headers */}
@@ -338,6 +359,18 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                   </div>
                 </div>
 
+                {/* Last triggered info */}
+                {!isNew && selected?.last_triggered_at && (
+                  <p className="text-[10px] text-[#9CA3AF] dark:text-[hsl(200,20%,45%)]">
+                    Last triggered: {new Date(selected.last_triggered_at).toLocaleString()}
+                    {selected.failure_count > 0 && (
+                      <span className="ml-2 text-[#DC2626] dark:text-[#FCA5A5]">
+                        ({selected.failure_count} failure{selected.failure_count !== 1 ? 's' : ''})
+                      </span>
+                    )}
+                  </p>
+                )}
+
                 {/* Test result */}
                 {testResult && (
                   <div
@@ -358,7 +391,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                     className="h-8 px-4 text-[12px] gap-1.5"
                     style={{ backgroundColor: '#2D7FF9' }}
                     onClick={handleSave}
-                    disabled={!name.trim() || !url.trim() || createWebhook.isPending || updateWebhook.isPending}
+                    disabled={!name.trim() || !url.trim() || events.length === 0 || createWebhook.isPending || updateWebhook.isPending}
                   >
                     {isNew ? 'Create' : 'Save'}
                   </Button>
