@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Check, ExternalLink, Copy, Paperclip, Plus, Star, Clock, Link2, AlertTriangle, Barcode } from 'lucide-react';
+import AttachmentLightbox from '../AttachmentLightbox';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { LinkCellRenderer } from './LinkCellRenderer';
 import { LookupCellRenderer as SmartLookupCellRenderer, RollupCellRenderer as SmartRollupCellRenderer } from './LookupRollupCellRenderer';
@@ -361,8 +362,9 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
   value,
 }: CellRendererProps) {
   const colors = useGridColors();
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   if (value == null) return null;
-  const files: { name: string; url: string; type: string; size: number }[] = Array.isArray(value) ? value : [];
+  const files: { name: string; url: string; type: string; size: number; uploaded_at?: string }[] = Array.isArray(value) ? value : [];
   if (files.length === 0) {
     return (
       <span className="flex items-center gap-1 text-xs cursor-pointer" style={{ color: colors.starEmpty }}>
@@ -371,35 +373,47 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
     );
   }
   const isImage = (type: string) => type?.startsWith('image/');
+  const asAttachmentMeta = files.map(f => ({ ...f, uploaded_at: f.uploaded_at ?? '' }));
   return (
-    <div className="flex items-center gap-1 h-full overflow-hidden">
-      {files.slice(0, 3).map((f, i) =>
-        isImage(f.type) ? (
-          <img
-            key={i}
-            src={f.url}
-            alt={f.name}
-            className="h-8 w-8 rounded object-cover shrink-0"
-            style={{ border: `1px solid ${colors.dropdownBorder}` }}
-            title={f.name}
-          />
-        ) : (
-          <span
-            key={i}
-            className="h-8 px-1.5 rounded flex items-center shrink-0"
-            style={{ backgroundColor: colors.dropdownHover, border: `1px solid ${colors.dropdownBorder}` }}
-            title={f.name}
-          >
-            <Paperclip size={11} style={{ color: colors.systemText }} />
+    <>
+      <div className="flex items-center gap-1 h-full overflow-hidden">
+        {files.slice(0, 3).map((f, i) =>
+          isImage(f.type) ? (
+            <img
+              key={i}
+              src={f.url}
+              alt={f.name}
+              className="h-8 w-8 rounded object-cover shrink-0 cursor-pointer"
+              style={{ border: `1px solid ${colors.dropdownBorder}` }}
+              title={f.name}
+              onClick={(e) => { e.stopPropagation(); setLightboxIndex(i); }}
+            />
+          ) : (
+            <span
+              key={i}
+              className="h-8 px-1.5 rounded flex items-center shrink-0 cursor-pointer"
+              style={{ backgroundColor: colors.dropdownHover, border: `1px solid ${colors.dropdownBorder}` }}
+              title={f.name}
+              onClick={(e) => { e.stopPropagation(); setLightboxIndex(i); }}
+            >
+              <Paperclip size={11} style={{ color: colors.systemText }} />
+            </span>
+          ),
+        )}
+        {files.length > 3 && (
+          <span className="text-[10px] shrink-0" style={{ color: colors.systemText }}>
+            +{files.length - 3}
           </span>
-        ),
+        )}
+      </div>
+      {lightboxIndex !== null && (
+        <AttachmentLightbox
+          attachments={asAttachmentMeta}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
       )}
-      {files.length > 3 && (
-        <span className="text-[10px] shrink-0" style={{ color: colors.systemText }}>
-          +{files.length - 3}
-        </span>
-      )}
-    </div>
+    </>
   );
 });
 

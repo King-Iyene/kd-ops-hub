@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { X, Upload, Trash2, FileText, File, Image as ImageIcon, Paperclip } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import AttachmentLightbox from './AttachmentLightbox';
 
 export interface AttachmentMeta {
   name: string;
@@ -42,7 +43,7 @@ export function AttachmentManager({
   const [attachments, setAttachments] = useState<AttachmentMeta[]>(value ?? []);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const uploadFiles = useCallback(
@@ -191,7 +192,7 @@ export function AttachmentManager({
                       {/* Preview area */}
                       <div
                         className="h-28 flex items-center justify-center cursor-pointer"
-                        onClick={() => isImage ? setLightbox(att.url) : window.open(att.url, '_blank')}
+                        onClick={() => isImage ? setLightboxIndex(i) : window.open(att.url, '_blank')}
                       >
                         {isImage ? (
                           <img
@@ -230,24 +231,12 @@ export function AttachmentManager({
       </div>
 
       {/* Lightbox */}
-      {lightbox && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70"
-          onClick={() => setLightbox(null)}
-        >
-          <button
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20"
-            onClick={() => setLightbox(null)}
-          >
-            <X size={20} className="text-white" />
-          </button>
-          <img
-            src={lightbox}
-            alt="Preview"
-            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
+      {lightboxIndex !== null && (
+        <AttachmentLightbox
+          attachments={attachments}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
       )}
     </>
   );
