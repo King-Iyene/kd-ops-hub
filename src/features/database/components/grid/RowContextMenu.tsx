@@ -130,7 +130,7 @@ export function RowContextMenu({
             }}
           >
             <Trash2 size={14} className="text-red-500" />
-            Delete record
+            Move to trash
           </button>
         </div>
       </div>

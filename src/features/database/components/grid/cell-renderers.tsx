@@ -6,6 +6,7 @@ import { LookupCellRenderer as SmartLookupCellRenderer, RollupCellRenderer as Sm
 import { PILL_COLORS, SELECT_COLORS } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { useGridColors } from '../../hooks/useGridColors';
+import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
 
 interface CellRendererProps {
   value: any;
@@ -803,6 +804,54 @@ export const ButtonCellRenderer = React.memo(function ButtonCellRenderer({
   );
 });
 
+export const LastModifiedByCellRenderer = React.memo(function LastModifiedByCellRenderer({
+  value,
+  record,
+}: CellRendererProps) {
+  const colors = useGridColors();
+  const { data: users = [] } = useWorkspaceUsers();
+
+  // Prefer field value (updated_by), fall back to created_by
+  const userId = value ?? record.updated_by ?? record.created_by;
+  if (!userId) return null;
+
+  const idStr = String(userId);
+
+  // If the value is an object (email/name), display directly
+  if (typeof userId === 'object' && userId !== null) {
+    const display = userId.email || userId.name || 'Unknown';
+    const initial = display.charAt(0).toUpperCase();
+    return (
+      <span className="truncate flex items-center gap-1.5" style={{ color: colors.systemText }}>
+        <span
+          className="shrink-0 flex items-center justify-center rounded-full text-white"
+          style={{ width: 18, height: 18, fontSize: 10, fontWeight: 600, backgroundColor: colors.avatarBg }}
+        >
+          {initial}
+        </span>
+        <span className="truncate" style={{ fontSize: 12 }}>{display}</span>
+      </span>
+    );
+  }
+
+  // UUID lookup
+  const user = users.find((u) => u.id === idStr);
+  const display = user ? (user.full_name || user.email) : (idStr.length > 8 ? idStr.slice(0, 8) + '…' : idStr);
+  const initial = display.charAt(0).toUpperCase();
+
+  return (
+    <span className="truncate flex items-center gap-1.5" style={{ color: colors.systemText }}>
+      <span
+        className="shrink-0 flex items-center justify-center rounded-full text-white"
+        style={{ width: 18, height: 18, fontSize: 10, fontWeight: 600, backgroundColor: colors.avatarBg }}
+      >
+        {initial}
+      </span>
+      <span className="truncate" style={{ fontSize: 12 }}>{display}</span>
+    </span>
+  );
+});
+
 export const UserCellRenderer = React.memo(function UserCellRenderer({
   value,
 }: CellRendererProps) {
@@ -905,12 +954,13 @@ export function getCellRenderer(uiType: string) {
       return ButtonCellRenderer;
     case 'User':
       return UserCellRenderer;
+    case 'LastModifiedBy':
+      return LastModifiedByCellRenderer;
     case 'ID':
     case 'CreatedTime':
     case 'LastModifiedTime':
     case 'AutoNumber':
     case 'CreatedBy':
-    case 'LastModifiedBy':
       return SystemCellRenderer;
     default:
       return TextCellRenderer;

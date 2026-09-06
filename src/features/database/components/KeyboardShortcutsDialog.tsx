@@ -68,7 +68,7 @@ const SECTIONS: ShortcutSection[] = [
     shortcuts: [
       { keys: ['Ctrl', 'N'], description: 'Add new record' },
       { keys: ['Ctrl', 'F'], description: 'Find / search' },
-      { keys: ['Ctrl', 'Shift', 'F'], description: 'Search & replace' },
+      { keys: ['Ctrl', 'H'], description: 'Search & replace' },
       { keys: ['?'], description: 'Show keyboard shortcuts' },
     ],
   },
@@ -149,10 +149,12 @@ export function useGlobalShortcuts({
   onOpenShortcuts,
   onAddRow,
   onOpenSearch,
+  onOpenReplace,
 }: {
   onOpenShortcuts: () => void;
   onAddRow?: () => void;
   onOpenSearch?: () => void;
+  onOpenReplace?: () => void;
 }) {
   const handleGlobalKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -183,8 +185,15 @@ export function useGlobalShortcuts({
         onOpenSearch?.();
         return;
       }
+
+      // Ctrl+H or Ctrl+Shift+F to open search & replace
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'h' || (e.key === 'f' && e.shiftKey)) && !e.altKey) {
+        e.preventDefault();
+        onOpenReplace?.();
+        return;
+      }
     },
-    [onOpenShortcuts, onAddRow, onOpenSearch],
+    [onOpenShortcuts, onAddRow, onOpenSearch, onOpenReplace],
   );
 
   useEffect(() => {

@@ -163,7 +163,8 @@ interface Route {
   baseId?: string;
   tableId?: string;
   recordId?: string;
-  resource: 'bases' | 'tables' | 'records' | 'record';
+  fieldId?: string;
+  resource: 'bases' | 'tables' | 'records' | 'record' | 'fields' | 'field';
 }
 
 function parseRoute(pathname: string): Route | null {
@@ -186,6 +187,14 @@ function parseRoute(pathname: string): Route | null {
   // /v1/bases/:baseId/tables/:tableId/records
   if (parts[0] === 'v1' && parts[1] === 'bases' && parts[3] === 'tables' && parts[5] === 'records' && parts.length === 6) {
     return { baseId: parts[2], tableId: parts[4], resource: 'records' };
+  }
+  // /v1/bases/:baseId/tables/:tableId/fields/:fieldId
+  if (parts[0] === 'v1' && parts[1] === 'bases' && parts[3] === 'tables' && parts[5] === 'fields' && parts.length === 7) {
+    return { baseId: parts[2], tableId: parts[4], fieldId: parts[6], resource: 'field' };
+  }
+  // /v1/bases/:baseId/tables/:tableId/fields
+  if (parts[0] === 'v1' && parts[1] === 'bases' && parts[3] === 'tables' && parts[5] === 'fields' && parts.length === 6) {
+    return { baseId: parts[2], tableId: parts[4], resource: 'fields' };
   }
   return null;
 }
@@ -271,6 +280,28 @@ function toSnakeCase(name: string): string {
   let result = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
   if (/^[0-9]/.test(result)) result = 'f_' + result;
   return result.substring(0, 63);
+}
+
+const UI_TYPE_TO_PG_TYPE: Record<string, string> = {
+  SingleLineText: 'TEXT', LongText: 'TEXT', Email: 'TEXT', PhoneNumber: 'TEXT', URL: 'TEXT',
+  Number: 'NUMERIC', Decimal: 'NUMERIC(15,4)', Currency: 'NUMERIC(15,2)', Percent: 'NUMERIC(8,4)',
+  Duration: 'INTEGER', Rating: 'SMALLINT', Date: 'DATE', DateTime: 'TIMESTAMPTZ', Year: 'SMALLINT',
+  Time: 'TIME', SingleSelect: 'TEXT', MultiSelect: 'TEXT[]', Checkbox: 'BOOLEAN DEFAULT false',
+  Attachment: "JSONB DEFAULT '[]'::jsonb", AutoNumber: 'SERIAL', JSON: 'JSONB', Barcode: 'TEXT',
+  User: "JSONB DEFAULT '[]'::jsonb",
+};
+
+const VIRTUAL_TYPES = new Set([
+  'Links', 'Lookup', 'Rollup', 'Count', 'Formula',
+  'CreatedTime', 'LastModifiedTime', 'CreatedBy', 'LastModifiedBy', 'ID', 'Button',
+]);
+
+const FIELD_NAME_RE = /^[a-zA-Z0-9_ ]+$/;
+function validateFieldName(name: string): string | null {
+  if (!name || name.trim().length === 0) return 'Field name is required';
+  if (name.length > 63) return 'Field name must be 63 characters or fewer';
+  if (!FIELD_NAME_RE.test(name)) return 'Field name must contain only letters, numbers, underscores, and spaces';
+  return null;
 }
 
 function inferPgType(value: unknown): { pgType: string; uiType: string } {
@@ -652,6 +683,169 @@ async function handleDeleteRecords(
   }
 }
 
+// ---------- Field Handlers ----------
+
+async function handleListFields(pool: Pool, _auth: ApiKeyInfo, baseIdOrSlug: string, tableIdOrSlug: string) {
+  const base = await resolveBase(pool, _auth.workspace_id, baseIdOrSlug);
+  if (!base) return err('Base not found', 404);
+  const table = await resolveTable(pool, base.id, tableIdOrSlug);
+  if (!table) return err('Table not found', 404);
+
+  const conn = await pool.connect();
+  try {
+    const { rows } = await conn.queryObject(
+      `SELECT id, name, pg_column_name, ui_type, pg_type, options, position, width,
+              is_primary, is_required, is_unique, is_system, is_hidden, description
+       FROM nc_meta.fields WHERE table_id = $1 ORDER BY position`,
+      [table.id],
+    );
+    return json({ fields: rows });
+  } finally {
+    conn.release();
+  }
+}
+
+async function handleCreateField(
+  pool: Pool, auth: ApiKeyInfo,
+  baseIdOrSlug: string, tableIdOrSlug: string, body: any,
+) {
+  const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
+  if (!base) return err('Base not found', 404);
+  const table = await resolveTable(pool, base.id, tableIdOrSlug);
+  if (!table) return err('Table not found', 404);
+
+  const { name, type, description, options } = body;
+  const nameErr = validateFieldName(name);
+  if (nameErr) return err(nameErr, 422);
+  if (!type) return err('Field type is required', 422);
+
+  const isVirtual = VIRTUAL_TYPES.has(type);
+  const pgType = isVirtual ? '' : (UI_TYPE_TO_PG_TYPE[type] ?? 'TEXT');
+  const rawPgType = pgType.split(/\s+DEFAULT\s+/i)[0].trim();
+  const pgCol = isVirtual ? '' : toSnakeCase(name);
+
+  const conn = await pool.connect();
+  try {
+    // Get max position
+    const { rows: posRows } = await conn.queryObject<{ max_pos: number | null }>(
+      `SELECT MAX(position) AS max_pos FROM nc_meta.fields WHERE table_id = $1`,
+      [table.id],
+    );
+    const nextPos = ((posRows[0]?.max_pos) ?? 0) + 1;
+
+    // Insert field metadata
+    const { rows } = await conn.queryObject(
+      `INSERT INTO nc_meta.fields
+       (table_id, name, pg_column_name, ui_type, pg_type, options, position, width,
+        is_primary, is_required, is_unique, is_system, is_hidden, description)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 180, false, false, false, false, false, $8)
+       RETURNING *`,
+      [table.id, name, pgCol, type, rawPgType, JSON.stringify(options ?? {}), nextPos, description ?? null],
+    );
+
+    // Add physical column if non-virtual
+    if (!isVirtual && pgCol) {
+      await conn.queryObject(
+        `ALTER TABLE ${safeId(base.schema_name)}.${safeId(table.pg_table_name)}
+         ADD COLUMN IF NOT EXISTS ${safeId(pgCol)} ${pgType}`,
+      );
+    }
+
+    return json({ field: rows[0] }, 201);
+  } finally {
+    conn.release();
+  }
+}
+
+async function handleUpdateField(
+  pool: Pool, auth: ApiKeyInfo,
+  baseIdOrSlug: string, tableIdOrSlug: string, fieldId: string, body: any,
+) {
+  const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
+  if (!base) return err('Base not found', 404);
+  const table = await resolveTable(pool, base.id, tableIdOrSlug);
+  if (!table) return err('Table not found', 404);
+
+  const conn = await pool.connect();
+  try {
+    // Verify field exists and belongs to this table
+    const { rows: existing } = await conn.queryObject<{ id: string }>(
+      `SELECT id FROM nc_meta.fields WHERE id = $1 AND table_id = $2`,
+      [fieldId, table.id],
+    );
+    if (!existing.length) return err('Field not found', 404);
+
+    const setClauses: string[] = [];
+    const vals: unknown[] = [];
+    let idx = 1;
+
+    if (body.name !== undefined) {
+      const nameErr = validateFieldName(body.name);
+      if (nameErr) return err(nameErr, 422);
+      setClauses.push(`name = $${idx++}`);
+      vals.push(body.name);
+    }
+    if (body.description !== undefined) {
+      setClauses.push(`description = $${idx++}`);
+      vals.push(body.description);
+    }
+    if (body.options !== undefined) {
+      setClauses.push(`options = $${idx++}`);
+      vals.push(JSON.stringify(body.options));
+    }
+
+    if (!setClauses.length) return err('No valid fields to update', 422);
+
+    vals.push(fieldId);
+    const { rows } = await conn.queryObject(
+      `UPDATE nc_meta.fields SET ${setClauses.join(', ')} WHERE id = $${idx} RETURNING *`,
+      vals,
+    );
+    return json({ field: rows[0] });
+  } finally {
+    conn.release();
+  }
+}
+
+async function handleDeleteField(
+  pool: Pool, auth: ApiKeyInfo,
+  baseIdOrSlug: string, tableIdOrSlug: string, fieldId: string,
+) {
+  const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
+  if (!base) return err('Base not found', 404);
+  const table = await resolveTable(pool, base.id, tableIdOrSlug);
+  if (!table) return err('Table not found', 404);
+
+  const conn = await pool.connect();
+  try {
+    const { rows: existing } = await conn.queryObject<{
+      id: string; pg_column_name: string; is_system: boolean; is_primary: boolean;
+    }>(
+      `SELECT id, pg_column_name, is_system, is_primary FROM nc_meta.fields
+       WHERE id = $1 AND table_id = $2`,
+      [fieldId, table.id],
+    );
+    if (!existing.length) return err('Field not found', 404);
+
+    const field = existing[0];
+    if (field.is_system) return err('Cannot delete a system field', 422);
+    if (field.is_primary) return err('Cannot delete the primary field', 422);
+
+    // Drop physical column if non-virtual
+    if (field.pg_column_name) {
+      await conn.queryObject(
+        `ALTER TABLE ${safeId(base.schema_name)}.${safeId(table.pg_table_name)}
+         DROP COLUMN IF EXISTS ${safeId(field.pg_column_name)}`,
+      );
+    }
+
+    await conn.queryObject(`DELETE FROM nc_meta.fields WHERE id = $1`, [fieldId]);
+    return json({ id: fieldId, deleted: true });
+  } finally {
+    conn.release();
+  }
+}
+
 // ---------- Webhooks ----------
 
 async function dispatchWebhooks(
@@ -789,6 +983,34 @@ Deno.serve(async (req) => {
       case 'record':
         if (req.method !== 'GET') return err('Method not allowed on single record URL', 405);
         return handleGetRecord(pool, auth, route.baseId!, route.tableId!, route.recordId!);
+
+      case 'fields': {
+        const body = (req.method === 'POST') ? await req.json().catch(() => ({})) : {};
+        switch (req.method) {
+          case 'GET':
+            if (!hasScope(auth.scopes, 'schema:read')) return err('Scope schema:read required', 403);
+            return handleListFields(pool, auth, route.baseId!, route.tableId!);
+          case 'POST':
+            if (!hasScope(auth.scopes, 'records:write')) return err('Scope records:write required', 403);
+            return handleCreateField(pool, auth, route.baseId!, route.tableId!, body);
+          default:
+            return err('Method not allowed', 405);
+        }
+      }
+
+      case 'field': {
+        const body = (req.method === 'PATCH') ? await req.json().catch(() => ({})) : {};
+        switch (req.method) {
+          case 'PATCH':
+            if (!hasScope(auth.scopes, 'records:write')) return err('Scope records:write required', 403);
+            return handleUpdateField(pool, auth, route.baseId!, route.tableId!, route.fieldId!, body);
+          case 'DELETE':
+            if (!hasScope(auth.scopes, 'records:write')) return err('Scope records:write required', 403);
+            return handleDeleteField(pool, auth, route.baseId!, route.tableId!, route.fieldId!);
+          default:
+            return err('Method not allowed', 405);
+        }
+      }
 
       case 'records': {
         const body = req.method !== 'GET' ? await req.json().catch(() => ({})) : {};

@@ -128,11 +128,12 @@ const SYSTEM_FIELDS = [
   { name: 'Created At', pg_column_name: 'created_at', ui_type: 'CreatedTime', pg_type: 'TIMESTAMPTZ', is_primary: false, position: 1 },
   { name: 'Updated At', pg_column_name: 'updated_at', ui_type: 'LastModifiedTime', pg_type: 'TIMESTAMPTZ', is_primary: false, position: 2 },
   { name: 'Created By', pg_column_name: 'created_by', ui_type: 'CreatedBy', pg_type: 'UUID', is_primary: false, position: 3 },
-  { name: 'Order', pg_column_name: 'nc_order', ui_type: 'Number', pg_type: 'NUMERIC', is_primary: false, position: 4 },
-  { name: 'Airtable ID', pg_column_name: 'airtable_id', ui_type: 'SingleLineText', pg_type: 'TEXT', is_primary: false, position: 5 },
+  { name: 'Last Modified By', pg_column_name: 'updated_by', ui_type: 'LastModifiedBy', pg_type: 'UUID', is_primary: false, position: 4 },
+  { name: 'Order', pg_column_name: 'nc_order', ui_type: 'Number', pg_type: 'NUMERIC', is_primary: false, position: 5 },
+  { name: 'Airtable ID', pg_column_name: 'airtable_id', ui_type: 'SingleLineText', pg_type: 'TEXT', is_primary: false, position: 6 },
 ];
 
-const SYSTEM_UI_TYPES = new Set(['ID', 'CreatedTime', 'LastModifiedTime', 'CreatedBy']);
+const SYSTEM_UI_TYPES = new Set(['ID', 'CreatedTime', 'LastModifiedTime', 'CreatedBy', 'LastModifiedBy']);
 
 const BATCH_SIZE = 1000;
 const RATE_LIMIT_DELAY = 200;

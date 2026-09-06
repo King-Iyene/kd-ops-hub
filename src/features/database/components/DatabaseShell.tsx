@@ -8,6 +8,7 @@ import { EmptyState } from '../pages/EmptyState';
 import { ToastContainer } from './Toast';
 import { KeyboardShortcutsDialog, useGlobalShortcuts } from './KeyboardShortcutsDialog';
 import { GlobalSearchDialog } from './GlobalSearchDialog';
+import { SearchReplaceDialog } from './SearchReplaceDialog';
 import { useRealtimeMetadata, usePresence } from '../hooks/useRealtime';
 
 export function DatabaseShell() {
@@ -15,11 +16,14 @@ export function DatabaseShell() {
   const activeTableId = useDatabaseUI((s) => s.activeTableId);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [replaceOpen, setReplaceOpen] = useState(false);
 
   const handleOpenShortcuts = useCallback(() => setShortcutsOpen(true), []);
+  const handleOpenReplace = useCallback(() => setReplaceOpen(true), []);
 
   useGlobalShortcuts({
     onOpenShortcuts: handleOpenShortcuts,
+    onOpenReplace: handleOpenReplace,
   });
 
   useRealtimeMetadata();
@@ -38,6 +42,7 @@ export function DatabaseShell() {
       <ToastContainer />
       <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <GlobalSearchDialog open={globalSearchOpen} onOpenChange={setGlobalSearchOpen} />
+      <SearchReplaceDialog open={replaceOpen} onOpenChange={setReplaceOpen} />
     </div>
   );
 }

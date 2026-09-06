@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, ChevronLeft, ChevronRight, ChevronDown, Loader2, Expand, Copy, Trash2, MoreHorizontal, Sigma, Lock, ChevronsUpDown, ChevronsDownUp, Rows3, ClipboardCopy, PlusCircle } from 'lucide-react';
+import { Plus, ChevronRight, ChevronDown, Loader2, Expand, Copy, Trash2, MoreHorizontal, Sigma, Lock, ChevronsUpDown, ChevronsDownUp, Rows3, ClipboardCopy, PlusCircle } from 'lucide-react';
 import type { FieldMeta, RecordRow, RowColorRule, UIType, ConditionalFormatRule, Group } from '@/features/database/types';
 import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
 import { useUndoStore } from '../../lib/undo';
@@ -22,9 +22,6 @@ export interface GridViewProps {
   onCellUpdate: (recordId: string, fieldId: string, value: any) => void;
   onAddRow: (record?: Record<string, any>) => void;
   onAddField: () => void;
-  page: number;
-  pageSize: number;
-  onPageChange: (page: number) => void;
   onExpandRow?: (record: RecordRow) => void;
   onDeleteRow?: (recordId: string) => void;
   onDuplicateRow?: (record: RecordRow) => void;
@@ -33,6 +30,10 @@ export interface GridViewProps {
   onBulkDeleteRows?: (recordIds: string[]) => void;
   onReorderFields?: (fieldIds: string[]) => void;
   onPasteRows?: (rows: Record<string, any>[]) => void;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onReorderRows?: (rows: Array<{ id: string; nc_order: number }>) => void;
 }
 
 
@@ -317,9 +318,10 @@ export default function GridView({
   onBulkDeleteRows,
   onReorderFields,
   onPasteRows,
-  page,
-  pageSize,
-  onPageChange,
+  onLoadMore,
+  hasMore,
+  isLoadingMore,
+  onReorderRows,
 }: GridViewProps) {
   const GRID_COLORS = useGridColors();
   const rowHeight = useDatabaseUI((s) => s.rowHeight);
@@ -462,17 +464,22 @@ export default function GridView({
     const span = rangeEnd - rangeStart + 1;
     const step = (highOrder - lowOrder) / (span + 1);
 
+    const updates: Array<{ id: string; nc_order: number }> = [];
     for (let i = rangeStart; i <= rangeEnd; i++) {
       const record = reordered[i];
       const newOrder = lowOrder + step * (i - rangeStart + 1);
       if (record.nc_order !== newOrder) {
-        onCellUpdate(record.id, 'nc_order', newOrder);
+        updates.push({ id: record.id, nc_order: newOrder });
       }
+    }
+
+    if (updates.length > 0 && onReorderRows) {
+      onReorderRows(updates);
     }
 
     setDragRowId(null);
     setDropTargetIdx(null);
-  }, [dragRowId, records, onCellUpdate]);
+  }, [dragRowId, records, onReorderRows]);
 
   const handleRowDragEnd = useCallback(() => {
     setDragRowId(null);
@@ -675,7 +682,7 @@ export default function GridView({
       if (depth >= groupFields.length || depth >= groupByLevels.length) {
         // Leaf: emit rows
         for (const r of recs) {
-          items.push({ type: 'row', record: r, rowNum: page * pageSize + runningIdx + 1 });
+          items.push({ type: 'row', record: r, rowNum: runningIdx + 1 });
           runningIdx++;
         }
         return;
@@ -714,7 +721,7 @@ export default function GridView({
 
     buildLevel(records, 0, '');
     return items;
-  }, [groupFields, groupByLevels, records, collapsedGroups, page, pageSize]);
+  }, [groupFields, groupByLevels, records, collapsedGroups]);
 
   const collapseAll = useCallback(() => {
     if (!flatItems) return;
@@ -739,7 +746,23 @@ export default function GridView({
     overscan: 10,
   });
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  // Infinite scroll: load more when scrolled within 5 rows of the bottom
+  useEffect(() => {
+    const scrollEl = parentRef.current;
+    if (!scrollEl || !onLoadMore) return;
+
+    const handleScroll = () => {
+      if (!hasMore || isLoadingMore) return;
+      const threshold = 5 * rowHeightPx;
+      const { scrollTop, scrollHeight, clientHeight } = scrollEl;
+      if (scrollHeight - scrollTop - clientHeight < threshold) {
+        onLoadMore();
+      }
+    };
+
+    scrollEl.addEventListener('scroll', handleScroll, { passive: true });
+    return () => scrollEl.removeEventListener('scroll', handleScroll);
+  }, [onLoadMore, hasMore, isLoadingMore, rowHeightPx]);
 
   const handleResize = useCallback((fieldId: string, width: number) => {
     setFieldWidth(fieldId, width);
@@ -1545,7 +1568,7 @@ export default function GridView({
 
               // --- Default (ungrouped) rendering ---
               const record = records[virtualRow.index];
-              const rowNum = page * pageSize + virtualRow.index + 1;
+              const rowNum = virtualRow.index + 1;
               const isRowSelected = selectedCellId?.startsWith(record.id + ':');
               const rowColorUngrouped = getRowColor(record);
               const altBg = virtualRow.index % 2 === 1 ? GRID_COLORS.altRowBg : GRID_COLORS.bg;
@@ -1751,6 +1774,22 @@ export default function GridView({
             })}
           </div>
 
+          {/* Loading more spinner row */}
+          {isLoadingMore && (
+            <div
+              className="flex items-center justify-center w-full"
+              style={{
+                height: rowHeightPx,
+                borderBottom: `1px solid ${GRID_COLORS.border}`,
+                color: GRID_COLORS.muted,
+                fontSize: 13,
+              }}
+            >
+              <Loader2 size={14} className="animate-spin mr-2" />
+              Loading more records...
+            </div>
+          )}
+
           {/* Add row button */}
           <button
             className="flex items-center w-full text-left cursor-pointer transition-colors"
@@ -1859,25 +1898,14 @@ export default function GridView({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)] disabled:opacity-40 disabled:cursor-not-allowed"
-            disabled={page === 0}
-            onClick={() => onPageChange(page - 1)}
-            aria-label="Previous page"
-          >
-            <ChevronLeft size={14} />
-          </button>
-          <span>
-            Page {page + 1} of {Math.max(totalPages, 1)}
-          </span>
-          <button
-            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)] disabled:opacity-40 disabled:cursor-not-allowed"
-            disabled={page >= totalPages - 1}
-            onClick={() => onPageChange(page + 1)}
-            aria-label="Next page"
-          >
-            <ChevronRight size={14} />
-          </button>
+          {isLoadingMore && (
+            <span className="flex items-center gap-1">
+              <Loader2 size={12} className="animate-spin" /> Loading more...
+            </span>
+          )}
+          {!isLoadingMore && hasMore && (
+            <span>{records.length} of {totalCount} loaded</span>
+          )}
         </div>
       </div>
 

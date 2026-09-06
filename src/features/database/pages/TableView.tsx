@@ -5,11 +5,13 @@ import { useDatabaseUI } from '../lib/store';
 import { useUndoStore } from '../lib/undo';
 import {
   useFields,
-  useRecords,
+  useInfiniteRecords,
+  useReorderRows,
   useCreateRecord,
   useUpdateRecord,
   useDeleteRecord,
-  useBulkDeleteRecords,
+  useSoftDeleteRecord,
+  useBulkSoftDeleteRecords,
   useDuplicateRecord,
   useCreateField,
   useDeleteField,
@@ -50,8 +52,8 @@ export function TableView() {
   useRealtimeRecords(activeBaseId ?? undefined, activeTableId ?? undefined);
   const { data: fields } = useFields(activeTableId);
   const { data: views } = useViews(activeTableId);
-  const [page, setPage] = useState(0);
   const pageSize = 100;
+  const [galleryPage, setGalleryPage] = useState(0);
   const [fieldDialogOpen, setFieldDialogOpenRaw] = useState(false);
   const setEditingCell = useDatabaseUI((s) => s.setEditingCell);
   const setFieldDialogOpen = useCallback((open: boolean) => {
@@ -91,10 +93,18 @@ export function TableView() {
     return () => clearTimeout(saveTimerRef.current);
   }, [filters, sorts, groupByLevels, hiddenFieldIds, fieldWidths, fieldOrder, activeViewId, activeTableId]);
 
-  const { data: recordsData, isLoading, isError, refetch } = useRecords({
+  const {
+    records: infiniteRecords,
+    totalCount: infiniteTotalCount,
+    isLoading,
+    isError,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteRecords({
     baseId: activeBaseId!,
     tableId: activeTableId!,
-    page,
     pageSize,
     filters: filters.length > 0 ? filters : undefined,
     filterGroups: filterGroups.length > 0 ? filterGroups : undefined,
@@ -106,12 +116,14 @@ export function TableView() {
   const updateRecord = useUpdateRecord();
   const deleteRecord = useDeleteRecord();
   const duplicateRecord = useDuplicateRecord();
-  const bulkDeleteRecords = useBulkDeleteRecords();
+  const softDeleteRecord = useSoftDeleteRecord();
+  const bulkSoftDelete = useBulkSoftDeleteRecords();
   const createField = useCreateField();
   const deleteField = useDeleteField();
   const duplicateField = useDuplicateField();
   const updateField = useUpdateField();
   const reorderFields = useReorderFields();
+  const reorderRows = useReorderRows();
   const [expandedRecord, setExpandedRecord] = useState<RecordRow | null>(null);
 
   const visibleFields = useMemo(
@@ -123,7 +135,7 @@ export function TableView() {
   );
 
   const records = useMemo(() => {
-    const raw = recordsData?.records ?? [];
+    const raw = infiniteRecords;
     if (!fields || fields.length === 0) return raw;
 
     const formulaFields = fields.filter(
@@ -159,7 +171,7 @@ export function TableView() {
       }
       return patched as RecordRow;
     });
-  }, [recordsData?.records, fields]);
+  }, [infiniteRecords, fields]);
 
   const handleCellUpdate = useCallback(
     (recordId: string, fieldId: string, value: any) => {
@@ -235,23 +247,9 @@ export function TableView() {
   const handleDeleteRow = useCallback(
     (recordId: string) => {
       if (!activeBaseId || !activeTableId) return;
-      const record = records.find((r) => r.id === recordId);
-      deleteRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, recordId });
-      if (record) {
-        const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = record;
-        pushUndo({
-          type: 'row_delete',
-          payload: { recordId },
-          undo: async () => {
-            createRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record: rest });
-          },
-          redo: async () => {
-            deleteRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, recordId });
-          },
-        });
-      }
+      softDeleteRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, recordId });
     },
-    [activeBaseId, activeTableId, deleteRecord, createRecord, records, pushUndo],
+    [activeBaseId, activeTableId, softDeleteRecord],
   );
 
   const handleUpdateFieldOptions = useCallback(
@@ -283,25 +281,9 @@ export function TableView() {
   const handleBulkDeleteRows = useCallback(
     (recordIds: string[]) => {
       if (!activeBaseId || !activeTableId) return;
-      const deletedRecords = records.filter((r: RecordRow) => recordIds.includes(r.id));
-      bulkDeleteRecords.mutate({ baseId: activeBaseId, tableId: activeTableId, recordIds });
-      if (deletedRecords.length > 0) {
-        pushUndo({
-          type: 'row_delete',
-          payload: { recordIds },
-          undo: async () => {
-            for (const rec of deletedRecords) {
-              const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = rec;
-              createRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record: rest });
-            }
-          },
-          redo: async () => {
-            bulkDeleteRecords.mutate({ baseId: activeBaseId, tableId: activeTableId, recordIds });
-          },
-        });
-      }
+      bulkSoftDelete.mutate({ baseId: activeBaseId, tableId: activeTableId, recordIds });
     },
-    [activeBaseId, activeTableId, bulkDeleteRecords, createRecord, records, pushUndo],
+    [activeBaseId, activeTableId, bulkSoftDelete],
   );
 
   const handleDeleteField = useCallback(
@@ -352,6 +334,14 @@ export function TableView() {
     [activeTableId, reorderFields],
   );
 
+  const handleReorderRows = useCallback(
+    (rows: Array<{ id: string; nc_order: number }>) => {
+      if (!activeBaseId || !activeTableId) return;
+      reorderRows.mutate({ baseId: activeBaseId, tableId: activeTableId, rows });
+    },
+    [activeBaseId, activeTableId, reorderRows],
+  );
+
   const activeViewType = useDatabaseUI((s) => s.activeViewType);
   const viewType = activeView?.type ?? activeViewType ?? 'grid';
 
@@ -362,7 +352,7 @@ export function TableView() {
           <KanbanView
             fields={visibleFields}
             records={records}
-            totalCount={recordsData?.totalCount ?? 0}
+            totalCount={infiniteTotalCount}
             isLoading={isLoading}
             onCellUpdate={handleCellUpdate}
             onAddRow={(record) => handleAddRow(record)}
@@ -376,16 +366,16 @@ export function TableView() {
           <GalleryView
             fields={visibleFields}
             records={records}
-            totalCount={recordsData?.totalCount ?? 0}
+            totalCount={infiniteTotalCount}
             isLoading={isLoading}
             onCellUpdate={handleCellUpdate}
             onAddRow={() => handleAddRow()}
             onExpandRow={setExpandedRecord}
             onDeleteRow={handleDeleteRow}
             onDuplicateRow={handleDuplicateRow}
-            page={page}
+            page={galleryPage}
             pageSize={pageSize}
-            onPageChange={setPage}
+            onPageChange={setGalleryPage}
           />
         );
       case 'form':
@@ -401,7 +391,7 @@ export function TableView() {
           <CalendarView
             fields={fields ?? []}
             records={records}
-            totalCount={recordsData?.totalCount ?? 0}
+            totalCount={infiniteTotalCount}
             isLoading={isLoading}
             onExpandRow={setExpandedRecord}
             onAddRow={(record) => handleAddRow(record)}
@@ -412,7 +402,7 @@ export function TableView() {
           <TimelineView
             fields={fields ?? []}
             records={records}
-            totalCount={recordsData?.totalCount ?? 0}
+            totalCount={infiniteTotalCount}
             isLoading={isLoading}
             onExpandRow={setExpandedRecord}
           />
@@ -422,7 +412,7 @@ export function TableView() {
           <GanttView
             fields={fields ?? []}
             records={records}
-            totalCount={recordsData?.totalCount ?? 0}
+            totalCount={infiniteTotalCount}
             isLoading={isLoading}
             onCellUpdate={handleCellUpdate}
             onExpandRow={setExpandedRecord}
@@ -433,14 +423,11 @@ export function TableView() {
           <GridView
             fields={visibleFields}
             records={records}
-            totalCount={recordsData?.totalCount ?? 0}
+            totalCount={infiniteTotalCount}
             isLoading={isLoading}
             onCellUpdate={handleCellUpdate}
             onAddRow={handleAddRow}
             onAddField={() => setFieldDialogOpen(true)}
-            page={page}
-            pageSize={pageSize}
-            onPageChange={setPage}
             onExpandRow={setExpandedRecord}
             onDeleteRow={handleDeleteRow}
             onDuplicateRow={handleDuplicateRow}
@@ -449,6 +436,10 @@ export function TableView() {
             onBulkDeleteRows={handleBulkDeleteRows}
             onReorderFields={handleReorderFields}
             onPasteRows={handlePasteRows}
+            onLoadMore={() => fetchNextPage()}
+            hasMore={!!hasNextPage}
+            isLoadingMore={isFetchingNextPage}
+            onReorderRows={handleReorderRows}
           />
         );
     }
@@ -485,6 +476,11 @@ export function TableView() {
         onNavigate={setExpandedRecord}
         onDeleteRecord={handleDeleteRow}
         onDuplicateRecord={(record) => { handleDuplicateRow(record); setExpandedRecord(null); }}
+        onReorderFields={(fieldIds) => {
+          if (activeTableId) {
+            reorderFields.mutate({ table_id: activeTableId, fieldIds });
+          }
+        }}
       />
       <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />
     </div>

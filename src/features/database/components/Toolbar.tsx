@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, GripVertical, ChevronUp, ChevronDown, FolderPlus, ChevronRight, Check, Key, Webhook, Zap, Cable } from 'lucide-react';
+import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, GripVertical, ChevronUp, ChevronDown, FolderPlus, ChevronRight, Check, Key, Webhook, Zap, Cable, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
 import { useUndoStore } from '../lib/undo';
@@ -10,6 +10,7 @@ const ApiTokensDialog = lazy(() => import('./ApiTokensDialog').then(m => ({ defa
 const WebhooksDialog = lazy(() => import('./WebhooksDialog').then(m => ({ default: m.WebhooksDialog })));
 const AutomationsDialog = lazy(() => import('./AutomationsDialog').then(m => ({ default: m.AutomationsDialog })));
 const IntegrationsDialog = lazy(() => import('./IntegrationsDialog').then(m => ({ default: m.IntegrationsDialog })));
+const TrashDialog = lazy(() => import('./TrashDialog').then(m => ({ default: m.TrashDialog })));
 import { exportToCsv } from '../lib/csv';
 import { useTables } from '../hooks';
 import type { Filter as FilterType, FilterGroup, Sort, Group, FilterOperator, RowColorRule, FieldMeta } from '../types';
@@ -971,6 +972,7 @@ export function Toolbar() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [importCsvOpen, setImportCsvOpen] = useState(false);
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
   const [apiTokensOpen, setApiTokensOpen] = useState(false);
   const [webhooksOpen, setWebhooksOpen] = useState(false);
   const [automationsOpen, setAutomationsOpen] = useState(false);
@@ -1118,6 +1120,16 @@ export function Toolbar() {
             <Cable size={14} />
             <span className="hidden sm:inline">Integrations</span>
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-zinc-500 dark:text-zinc-400 gap-1"
+            onClick={() => setTrashOpen(true)}
+            aria-label="Trash"
+          >
+            <Trash2 size={14} />
+            <span className="hidden sm:inline">Trash</span>
+          </Button>
           <div className="relative">
             <Button
               variant="ghost"
@@ -1209,6 +1221,7 @@ export function Toolbar() {
       {webhooksOpen && <Suspense fallback={null}><WebhooksDialog open={webhooksOpen} onOpenChange={setWebhooksOpen} tableId={activeTableId} baseId={activeBaseId} /></Suspense>}
       {automationsOpen && <Suspense fallback={null}><AutomationsDialog open={automationsOpen} onOpenChange={setAutomationsOpen} tableId={activeTableId} baseId={activeBaseId} /></Suspense>}
       {integrationsOpen && <Suspense fallback={null}><IntegrationsDialog open={integrationsOpen} onOpenChange={setIntegrationsOpen} tableId={activeTableId} baseId={activeBaseId} /></Suspense>}
+      {trashOpen && <Suspense fallback={null}><TrashDialog open={trashOpen} onOpenChange={setTrashOpen} baseId={activeBaseId} /></Suspense>}
     </>
   );
 }

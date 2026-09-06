@@ -5,6 +5,8 @@ export { useFields, useCreateField, useUpdateField, useDeleteField, useReorderFi
 export { useViews, useCreateView, useUpdateView, useDeleteView, useActiveView, useLoadViewConfig, useSaveViewConfig } from './useViews';
 export {
   useRecords,
+  useInfiniteRecords,
+  useReorderRows,
   useRecordCount,
   useCreateRecord,
   useUpdateRecord,
@@ -23,6 +25,9 @@ export { useAutomations, useCreateAutomation, useUpdateAutomation, useDeleteAuto
 export { useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook } from './useWebhooks';
 export { useDuplicateBase } from './useDuplicateBase';
 export { useAuditLog } from './useAuditLog';
+export { useTrashRecords, useSoftDeleteRecord, useBulkSoftDeleteRecords, useRestoreRecord, usePermanentlyDeleteRecord, useEmptyTrash } from './useTrash';
+export type { TrashEntry } from './useTrash';
+export { useRecordHistory } from './useRecordHistory';
 export { useWorkspaceUsers } from './useWorkspaceUsers';
 export type { WorkspaceUser } from './useWorkspaceUsers';
 export { useLookupValue, useRollupValue } from './useLookupRollup';

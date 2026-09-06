@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { X, ChevronLeft, ChevronRight, Star, MessageSquare, ChevronDown, Paperclip, Link2, Trash2, Clock, Activity, Copy } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, MessageSquare, ChevronDown, Paperclip, Link2, Trash2, Clock, Activity, Copy, GripVertical } from 'lucide-react';
 import { RecordComments } from './RecordComments';
+import { RecordHistoryPanel } from './RecordHistoryPanel';
 import { LinkCellRenderer } from './grid/LinkCellRenderer';
 import { LookupCellRenderer, RollupCellRenderer } from './grid/LookupRollupCellRenderer';
 import type { FieldMeta, RecordRow, SelectChoice } from '../types';
@@ -41,6 +42,7 @@ interface ExpandedRowModalProps {
   onNavigate?: (record: RecordRow) => void;
   onDeleteRecord?: (recordId: string) => void;
   onDuplicateRecord?: (record: RecordRow) => void;
+  onReorderFields?: (fieldIds: string[]) => void;
 }
 
 function getPillColor(colorName: string) {
@@ -538,6 +540,64 @@ function SystemFieldsAccordion({
   );
 }
 
+/* ── Right sidebar with tabs ────────────────────────────────────────── */
+type SidebarTab = 'comments' | 'history' | 'activity';
+
+function RightSidebar({
+  baseId,
+  tableId,
+  record,
+  fields,
+}: {
+  baseId: string;
+  tableId: string;
+  record: RecordRow;
+  fields: FieldMeta[];
+}) {
+  const [activeTab, setActiveTab] = useState<SidebarTab>('comments');
+
+  const tabs: { id: SidebarTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'comments', label: 'Comments', icon: <MessageSquare size={13} /> },
+    { id: 'history', label: 'History', icon: <Clock size={13} /> },
+    { id: 'activity', label: 'Activity', icon: <Activity size={13} /> },
+  ];
+
+  return (
+    <div className="lg:w-[320px] shrink-0 lg:overflow-y-auto border-t lg:border-t-0 border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] flex flex-col">
+      {/* Tab bar */}
+      <div className="flex border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] px-3 pt-2 gap-1 shrink-0">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-medium rounded-t transition-colors ${
+              activeTab === tab.id
+                ? 'text-[#2D7FF9] border-b-2 border-[#2D7FF9] -mb-px'
+                : 'text-[#9AA2AF] hover:text-[#6A7184] dark:hover:text-[hsl(200,25%,70%)]'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {activeTab === 'comments' && (
+          <CommentsSection baseId={baseId} tableId={tableId} recordId={record.id} />
+        )}
+        {activeTab === 'history' && (
+          <RecordHistoryPanel baseId={baseId} tableId={tableId} recordId={record.id} fields={fields} />
+        )}
+        {activeTab === 'activity' && (
+          <ActivitySection record={record} fields={fields} />
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ExpandedRowModal({
   open,
   onOpenChange,
@@ -550,6 +610,7 @@ export function ExpandedRowModal({
   onNavigate,
   onDeleteRecord,
   onDuplicateRecord,
+  onReorderFields,
 }: ExpandedRowModalProps) {
   const currentIndex = records && record ? records.findIndex((r) => r.id === record.id) : -1;
   const hasPrev = currentIndex > 0;
@@ -645,6 +706,70 @@ export function ExpandedRowModal({
       triggerElRef.current?.focus?.();
     };
   }, [open]);
+
+  // ── Drag-and-drop reorder state ──────────────────────────────────────
+  const [dragFieldId, setDragFieldId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [dropPosition, setDropPosition] = useState<'before' | 'after'>('before');
+
+  const handleDragStart = useCallback((e: React.DragEvent, fieldId: string) => {
+    setDragFieldId(fieldId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', fieldId);
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5';
+    }
+  }, []);
+
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
+
+    if (dragFieldId && dropTargetId && dragFieldId !== dropTargetId && onReorderFields) {
+      const visF = fields
+        .filter((f) => !f.is_hidden && f.ui_type !== 'ID')
+        .sort((a, b) => a.position - b.position);
+      const regF = visF.filter((f) => !isPrimaryField(f) && !isSystemField(f));
+      const priF = visF.filter((f) => isPrimaryField(f) && !isSystemField(f));
+      const sysF = visF.filter((f) => isSystemField(f));
+      const currentOrder = regF.map((f) => f.id);
+      const dragIdx = currentOrder.indexOf(dragFieldId);
+      let dropIdx = currentOrder.indexOf(dropTargetId);
+      if (dragIdx === -1 || dropIdx === -1) {
+        setDragFieldId(null);
+        setDropTargetId(null);
+        return;
+      }
+      const newOrder = [...currentOrder];
+      newOrder.splice(dragIdx, 1);
+      dropIdx = newOrder.indexOf(dropTargetId);
+      const insertIdx = dropPosition === 'after' ? dropIdx + 1 : dropIdx;
+      newOrder.splice(insertIdx, 0, dragFieldId);
+      const allFieldIds = [
+        ...priF.map((f) => f.id),
+        ...newOrder,
+        ...sysF.map((f) => f.id),
+      ];
+      onReorderFields(allFieldIds);
+    }
+
+    setDragFieldId(null);
+    setDropTargetId(null);
+  }, [dragFieldId, dropTargetId, dropPosition, fields, onReorderFields]);
+
+  const handleDragOver = useCallback((e: React.DragEvent, fieldId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (fieldId === dragFieldId) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    setDropPosition(e.clientY < midY ? 'before' : 'after');
+    setDropTargetId(fieldId);
+  }, [dragFieldId]);
+
+  const handleDragLeave = useCallback(() => {
+  }, []);
 
   if (!open || !record) return null;
 
@@ -746,24 +871,55 @@ export function ExpandedRowModal({
     }
   };
 
-  const renderFieldRow = (field: FieldMeta) => {
+  const renderFieldRow = (field: FieldMeta, options?: { draggable?: boolean }) => {
     const Icon = getFieldTypeIcon(field.ui_type);
+    const isDraggable = options?.draggable && onReorderFields;
+    const isDropTarget = dropTargetId === field.id && dragFieldId !== field.id;
+
     return (
-      <div key={field.id}>
-        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-[#6A7184] dark:text-[#9AA2AF] uppercase tracking-wider mb-1.5">
-          {field.description ? (
-            <Tooltip text={field.description}>
-              <Icon size={11} className="text-[#9AA2AF]" />
-            </Tooltip>
-          ) : (
-            <Icon size={11} className="text-[#9AA2AF]" />
+      <div
+        key={field.id}
+        draggable={!!isDraggable}
+        onDragStart={isDraggable ? (e) => handleDragStart(e, field.id) : undefined}
+        onDragEnd={isDraggable ? handleDragEnd : undefined}
+        onDragOver={isDraggable ? (e) => handleDragOver(e, field.id) : undefined}
+        onDragLeave={isDraggable ? handleDragLeave : undefined}
+        className="relative"
+        style={{ cursor: isDraggable ? 'grab' : undefined }}
+      >
+        {/* Drop indicator line */}
+        {isDropTarget && dropPosition === 'before' && (
+          <div className="absolute -top-0.5 left-0 right-0 h-0.5 bg-[#2D7FF9] rounded-full z-10" />
+        )}
+
+        <div className="flex items-start gap-2">
+          {isDraggable && (
+            <div className="mt-0.5 shrink-0 cursor-grab text-[#C0C5CE] dark:text-[hsl(200,15%,35%)] hover:text-[#9AA2AF] dark:hover:text-[hsl(200,15%,50%)] transition-colors">
+              <GripVertical size={14} />
+            </div>
           )}
-          {field.name}
-          {field.is_required && <span className="text-red-400">*</span>}
-        </label>
-        <div className="text-sm text-[#374151] dark:text-[hsl(200,25%,88%)] min-h-[28px] flex items-center">
-          {renderEditor(field)}
+          <div className="flex-1 min-w-0">
+            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-[#6A7184] dark:text-[#9AA2AF] uppercase tracking-wider mb-1.5">
+              {field.description ? (
+                <Tooltip text={field.description}>
+                  <Icon size={11} className="text-[#9AA2AF]" />
+                </Tooltip>
+              ) : (
+                <Icon size={11} className="text-[#9AA2AF]" />
+              )}
+              {field.name}
+              {field.is_required && <span className="text-red-400">*</span>}
+            </label>
+            <div className="text-sm text-[#374151] dark:text-[hsl(200,25%,88%)] min-h-[28px] flex items-center">
+              {renderEditor(field)}
+            </div>
+          </div>
         </div>
+
+        {/* Drop indicator line (after) */}
+        {isDropTarget && dropPosition === 'after' && (
+          <div className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-[#2D7FF9] rounded-full z-10" />
+        )}
       </div>
     );
   };
@@ -848,14 +1004,14 @@ export function ExpandedRowModal({
             {/* Primary fields */}
             {primaryFields.length > 0 && (
               <div className="space-y-4 mb-6">
-                {primaryFields.map(renderFieldRow)}
+                {primaryFields.map((f) => renderFieldRow(f))}
               </div>
             )}
 
-            {/* Regular fields */}
+            {/* Regular fields (draggable) */}
             {regularFields.length > 0 && (
               <div className="space-y-4">
-                {regularFields.map(renderFieldRow)}
+                {regularFields.map((f) => renderFieldRow(f, { draggable: true }))}
               </div>
             )}
 
@@ -867,13 +1023,8 @@ export function ExpandedRowModal({
             )}
           </div>
 
-          {/* Right: Comments + Activity */}
-          <div className="lg:w-[320px] shrink-0 lg:overflow-y-auto p-5 border-t lg:border-t-0 border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
-            <CommentsSection baseId={baseId} tableId={tableId} recordId={record.id} />
-            <div className="mt-6 pt-4 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
-              <ActivitySection record={record} fields={fields} />
-            </div>
-          </div>
+          {/* Right: Tabs for Comments / History / Activity */}
+          <RightSidebar baseId={baseId} tableId={tableId} record={record} fields={fields} />
         </div>
       </div>
     </div>

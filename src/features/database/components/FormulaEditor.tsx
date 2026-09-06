@@ -1,12 +1,17 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { FORMULA_FUNCTIONS } from '../lib/formula';
+import { useQueryClient } from '@tanstack/react-query';
+import { FORMULA_FUNCTIONS, parseFormula, evaluateFormula } from '../lib/formula';
+import type { ASTNode } from '../lib/formula';
 import type { FieldMeta } from '../types';
+import { useDatabaseUI } from '../lib/store';
 
 interface FormulaEditorProps {
   value: string;
   onChange: (value: string) => void;
   fields: FieldMeta[];
   error?: string;
+  /** Sample records used for live preview evaluation. If omitted, pulled from query cache. */
+  sampleRecords?: Record<string, any>[];
 }
 
 interface Suggestion {
@@ -15,8 +20,26 @@ interface Suggestion {
   insert: string;
 }
 
-export function FormulaEditor({ value, onChange, fields, error }: FormulaEditorProps) {
+export function FormulaEditor({ value, onChange, fields, error, sampleRecords: sampleRecordsProp }: FormulaEditorProps) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+
+  // Pull sample records from query cache if not provided via props
+  const qc = useQueryClient();
+  const { activeBaseId, activeTableId } = useDatabaseUI();
+  const sampleRecords = useMemo(() => {
+    if (sampleRecordsProp && sampleRecordsProp.length > 0) return sampleRecordsProp;
+    if (!activeBaseId || !activeTableId) return [];
+    // Look for cached infinite-records data
+    const queries = qc.getQueriesData<any>({
+      queryKey: ['nc', 'records', activeBaseId, activeTableId, 'infinite'],
+    });
+    for (const [, data] of queries) {
+      if (data?.pages?.[0]?.records) {
+        return (data.pages[0].records as Record<string, any>[]).slice(0, 3);
+      }
+    }
+    return [];
+  }, [sampleRecordsProp, activeBaseId, activeTableId, qc]);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -142,6 +165,59 @@ export function FormulaEditor({ value, onChange, fields, error }: FormulaEditorP
     updateSuggestions();
   }, [value, updateSuggestions]);
 
+  // ── Live preview with debounce ──────────────────────────────────────
+  const [preview, setPreview] = useState<
+    | { status: 'idle' }
+    | { status: 'error'; message: string }
+    | { status: 'ok'; rows: { index: number; value: any }[] }
+  >({ status: 'idle' });
+
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    clearTimeout(previewTimerRef.current);
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setPreview({ status: 'idle' });
+      return;
+    }
+
+    previewTimerRef.current = setTimeout(() => {
+      try {
+        const ast: ASTNode = parseFormula(trimmed);
+
+        // Build field-name → pg_column_name map
+        const fieldMap: Record<string, string> = {};
+        for (const f of fields) {
+          fieldMap[f.name] = f.pg_column_name;
+        }
+
+        const samples = (sampleRecords ?? []).slice(0, 3);
+        if (samples.length === 0) {
+          // No sample data — just confirm it parses
+          setPreview({ status: 'ok', rows: [] });
+          return;
+        }
+
+        const rows = samples.map((rec, i) => {
+          try {
+            const result = evaluateFormula(ast, rec, fieldMap);
+            return { index: i + 1, value: result };
+          } catch {
+            return { index: i + 1, value: '#ERROR' };
+          }
+        });
+
+        setPreview({ status: 'ok', rows });
+      } catch (e: any) {
+        setPreview({ status: 'error', message: e?.message ?? 'Invalid formula' });
+      }
+    }, 300);
+
+    return () => clearTimeout(previewTimerRef.current);
+  }, [value, fields, sampleRecords]);
+
   const isValid = !error && value.trim();
 
   return (
@@ -200,6 +276,33 @@ export function FormulaEditor({ value, onChange, fields, error }: FormulaEditorP
         <span className="font-medium">Functions:</span>{' '}
         {FORMULA_FUNCTIONS.slice(0, 12).join(', ')}...
       </div>
+
+      {/* Live preview panel */}
+      {preview.status === 'error' && (
+        <div className="mt-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40">
+          <p className="text-xs text-red-600 dark:text-red-400 font-mono">{preview.message}</p>
+        </div>
+      )}
+      {preview.status === 'ok' && preview.rows.length > 0 && (
+        <div className="mt-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/15 border border-blue-200 dark:border-blue-800/40">
+          <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">
+            Preview
+          </p>
+          <div className="space-y-0.5">
+            {preview.rows.map((r) => (
+              <p key={r.index} className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] font-mono">
+                <span className="text-[#9AA2AF] mr-1.5">Row {r.index}:</span>
+                {r.value == null ? <span className="text-[#9AA2AF] italic">empty</span> : String(r.value)}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+      {preview.status === 'ok' && preview.rows.length === 0 && value.trim() && (
+        <div className="mt-2 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-900/15 border border-green-200 dark:border-green-800/40">
+          <p className="text-xs text-green-600 dark:text-green-400">Formula parses successfully. Add records to see preview values.</p>
+        </div>
+      )}
     </div>
   );
 }

@@ -444,7 +444,7 @@ export function BulkActionsBar({
             onClick={() => setShowDeleteConfirm(true)}
           >
             <Trash2 size={14} />
-            Delete
+            Move to trash
           </button>
         ) : (
           <div className="flex items-center gap-1.5">

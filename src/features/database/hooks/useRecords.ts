@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { RecordRow, Filter, FilterGroup, Sort } from '../types';
 import { toast } from '../components/Toast';
@@ -496,6 +496,142 @@ export function useRecords(params: UseRecordsParams) {
   });
 }
 
+interface UseInfiniteRecordsParams {
+  baseId: string;
+  tableId: string;
+  pageSize?: number;
+  filters?: Filter[];
+  filterGroups?: FilterGroup[];
+  sorts?: Sort[];
+  search?: string;
+}
+
+interface InfiniteRecordsPage {
+  records: RecordRow[];
+  totalCount: number;
+  page: number;
+}
+
+export function useInfiniteRecords(params: UseInfiniteRecordsParams) {
+  const { baseId, tableId, pageSize = 100, filters, filterGroups, sorts, search } = params;
+
+  const query = useInfiniteQuery<InfiniteRecordsPage, Error>({
+    queryKey: ['nc', 'records', baseId, tableId, 'infinite', pageSize, filters, filterGroups, sorts, search],
+    enabled: !!baseId && !!tableId,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }): Promise<InfiniteRecordsPage> => {
+      const currentPage = pageParam as number;
+      const ctx = await resolveTableContext(baseId, tableId);
+
+      const { data: fieldsMeta } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .select('id, pg_column_name, pg_type, ui_type')
+        .eq('table_id', tableId);
+
+      const fieldMap = new Map(
+        (fieldsMeta ?? []).map((f: any) => [f.id, f]),
+      );
+
+      let q = supabase
+        .schema(ctx.schemaName)
+        .from(ctx.tableName)
+        .select('*', { count: 'exact' });
+
+      if (filters && filters.length > 0) {
+        for (const filter of filters) {
+          const field = fieldMap.get(filter.field_id);
+          if (!field) continue;
+          q = applyFilter(q, field.pg_column_name, filter.operator, filter.value, field.pg_type);
+        }
+      }
+
+      if (filterGroups && filterGroups.length > 0) {
+        for (const group of filterGroups) {
+          q = applyFilterGroup(q, group, fieldMap);
+        }
+      }
+
+      if (search) {
+        const textCols = (fieldsMeta ?? [])
+          .filter((f: any) => ['TEXT', 'VARCHAR'].includes(f.pg_type) && !f.pg_column_name.startsWith('nc_'))
+          .map((f: any) => f.pg_column_name);
+        if (textCols.length > 0) {
+          const orClause = textCols.map((c: string) => `${c}.ilike.%${search}%`).join(',');
+          q = q.or(orClause);
+        }
+      }
+
+      const from = currentPage * pageSize;
+      const to = from + pageSize - 1;
+      q = q.range(from, to);
+
+      if (sorts && sorts.length > 0) {
+        for (const sort of sorts) {
+          const field = fieldMap.get(sort.field_id);
+          if (field) {
+            q = q.order(field.pg_column_name, { ascending: sort.direction === 'asc' });
+          }
+        }
+      } else {
+        q = q.order('nc_order', { ascending: true }).order('created_at', { ascending: true });
+      }
+
+      const { data, error, count } = await q;
+      if (error) throw error;
+
+      return {
+        records: (data ?? []) as RecordRow[],
+        totalCount: count ?? 0,
+        page: currentPage,
+      };
+    },
+    getNextPageParam: (lastPage) => {
+      const fetched = (lastPage.page + 1) * pageSize;
+      if (fetched < lastPage.totalCount) {
+        return lastPage.page + 1;
+      }
+      return undefined;
+    },
+  });
+
+  const allRecords = query.data?.pages.flatMap((p) => p.records) ?? [];
+  const totalCount = query.data?.pages[0]?.totalCount ?? 0;
+
+  return {
+    ...query,
+    records: allRecords,
+    totalCount,
+  };
+}
+
+export function useReorderRows() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      baseId: string;
+      tableId: string;
+      rows: Array<{ id: string; nc_order: number }>;
+    }) => {
+      const ctx = await resolveTableContext(input.baseId, input.tableId);
+      const { error } = await supabase
+        .schema(ctx.schemaName)
+        .from(ctx.tableName)
+        .upsert(input.rows, { onConflict: 'id' });
+      if (error) throw error;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
+    },
+    onError: () => {
+      toast.error('Failed to reorder rows');
+    },
+  });
+}
+
 export function useRecordCount(baseId: string | null | undefined, tableId: string | null | undefined) {
   return useQuery({
     queryKey: ['nc', 'recordCount', baseId, tableId],
@@ -580,6 +716,12 @@ export function useUpdateRecord() {
     }) => {
       const ctx = await resolveTableContext(input.baseId, input.tableId);
       const updates = input.fields ?? (input.field ? { [input.field]: input.value } : {});
+
+      // Stamp the current user as the last modifier
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData?.user?.id) {
+        (updates as Record<string, any>).updated_by = authData.user.id;
+      }
 
       const { data, error } = await supabase
         .schema(ctx.schemaName)
