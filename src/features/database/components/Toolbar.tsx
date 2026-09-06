@@ -1191,6 +1191,29 @@ export function Toolbar() {
                   <button
                     className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
                     onClick={() => {
+                      if (fieldsData && recordsData?.records) {
+                        const visible = fieldsData.filter((f: FieldMeta) => !f.is_system && f.ui_type !== 'ID');
+                        const rows = recordsData.records.map((r: any) => {
+                          const obj: Record<string, any> = {};
+                          for (const f of visible) obj[f.name] = r[f.pg_column_name] ?? null;
+                          return obj;
+                        });
+                        const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${tableName || 'export'}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }
+                      setMoreOpen(false);
+                    }}
+                  >
+                    <Download size={14} className="text-zinc-400 dark:text-zinc-500" /> Download JSON
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
+                    onClick={() => {
                       setImportCsvOpen(true);
                       setMoreOpen(false);
                     }}
