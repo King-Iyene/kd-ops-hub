@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, GripVertical, ChevronUp, ChevronDown, FolderPlus, ChevronRight, Check, Key, Webhook, Zap, Cable, Trash2 } from 'lucide-react';
+import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, GripVertical, ChevronUp, ChevronDown, FolderPlus, ChevronRight, Check, Key, Webhook, Zap, Cable, Trash2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
 import { useUndoStore } from '../lib/undo';
@@ -1219,6 +1219,16 @@ export function Toolbar() {
                     }}
                   >
                     <Upload size={14} className="text-zinc-400 dark:text-zinc-500" /> Import CSV
+                  </button>
+                  <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('kdops:print'));
+                      setMoreOpen(false);
+                    }}
+                  >
+                    <Printer size={14} className="text-zinc-400 dark:text-zinc-500" /> Print view
                   </button>
                 </div>
               </>

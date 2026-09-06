@@ -35,6 +35,7 @@ import type { RecordRow } from '../types';
 import { useRealtimeRecords } from '../hooks/useRealtime';
 import { parseFormula, evaluateFormula } from '../lib/formula';
 import { FindReplaceDialog } from '../components/FindReplaceDialog';
+import { PrintView } from '../components/PrintView';
 
 export function TableView() {
   const {
@@ -63,13 +64,25 @@ export function TableView() {
   }, [setEditingCell]);
   const pushUndo = useUndoStore((s) => s.push);
   const [findReplaceOpen, setFindReplaceOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
 
-  // Ctrl+F / Ctrl+H to open Find & Replace
+  // Listen for print event from toolbar
+  useEffect(() => {
+    const handler = () => setPrintOpen(true);
+    window.addEventListener('kdops:print', handler);
+    return () => window.removeEventListener('kdops:print', handler);
+  }, []);
+
+  // Ctrl+F / Ctrl+H to open Find & Replace, Ctrl+P for print
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'h')) {
         e.preventDefault();
         setFindReplaceOpen(true);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        setPrintOpen(true);
       }
     };
     window.addEventListener('keydown', handler);
@@ -529,6 +542,14 @@ export function TableView() {
         records={records}
         onCellUpdate={handleCellUpdate}
       />
+      {printOpen && (
+        <PrintView
+          fields={fields ?? []}
+          records={records}
+          tableName={document.title.split('·')[0]?.trim() || 'Table'}
+          onClose={() => setPrintOpen(false)}
+        />
+      )}
     </div>
   );
 }
