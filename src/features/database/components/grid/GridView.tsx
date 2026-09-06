@@ -89,10 +89,24 @@ const SUMMARY_LABELS: Record<SummaryFunction, string> = {
   percentEmpty: '% Empty', percentFilled: '% Filled',
 };
 
+function formatSummaryNum(num: number, field?: FieldMeta): string {
+  const uiType = field?.ui_type;
+  const resultType = field?.options?.result?.type;
+  if (uiType === 'Currency' || resultType === 'currency') {
+    const sym = field?.options?.currencyCode || field?.options?.symbol || field?.options?.result?.options?.symbol || '₦';
+    return `${sym}${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  if (uiType === 'Percent' || resultType === 'percent') {
+    return `${num.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`;
+  }
+  return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
+}
+
 function computeSummary(
   fn: SummaryFunction,
   records: RecordRow[],
   pgCol: string,
+  field?: FieldMeta,
 ): string {
   if (fn === 'none') return '';
   const total = records.length;
@@ -112,10 +126,10 @@ function computeSummary(
   const nums = values.map((v) => (typeof v === 'number' ? v : parseFloat(String(v)))).filter((n) => !isNaN(n));
   if (nums.length === 0) return '';
 
-  if (fn === 'sum') return nums.reduce((a, b) => a + b, 0).toLocaleString(undefined, { maximumFractionDigits: 4 });
-  if (fn === 'avg') return (nums.reduce((a, b) => a + b, 0) / nums.length).toLocaleString(undefined, { maximumFractionDigits: 4 });
-  if (fn === 'min') return nums.reduce((a, b) => (b < a ? b : a), nums[0]).toLocaleString(undefined, { maximumFractionDigits: 4 });
-  if (fn === 'max') return nums.reduce((a, b) => (b > a ? b : a), nums[0]).toLocaleString(undefined, { maximumFractionDigits: 4 });
+  if (fn === 'sum') return formatSummaryNum(nums.reduce((a, b) => a + b, 0), field);
+  if (fn === 'avg') return formatSummaryNum(nums.reduce((a, b) => a + b, 0) / nums.length, field);
+  if (fn === 'min') return formatSummaryNum(nums.reduce((a, b) => (b < a ? b : a), nums[0]), field);
+  if (fn === 'max') return formatSummaryNum(nums.reduce((a, b) => (b > a ? b : a), nums[0]), field);
   return '';
 }
 
@@ -190,7 +204,7 @@ const SummaryRow = React.memo(function SummaryRow({
     for (const field of fields) {
       const explicit = summaryFunctions[field.id];
       const fn = explicit ?? getDefaultSummary(field.ui_type);
-      map[field.id] = computeSummary(fn, records, field.pg_column_name);
+      map[field.id] = computeSummary(fn, records, field.pg_column_name, field);
     }
     return map;
   }, [fields, records, summaryFunctions]);
@@ -1337,7 +1351,7 @@ export default function GridView({
                   for (const f of fieldsWithWidths) {
                     const fn = summaryFunctions[f.id];
                     if (fn && fn !== 'none') {
-                      const val = computeSummary(fn, item.summaryRecords, f.pg_column_name);
+                      const val = computeSummary(fn, item.summaryRecords, f.pg_column_name, f);
                       if (val) summaryParts.push(`${SUMMARY_LABELS[fn]}: ${val}`);
                     }
                   }
