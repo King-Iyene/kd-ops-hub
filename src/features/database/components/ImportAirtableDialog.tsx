@@ -1248,7 +1248,11 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               variant="outline"
               size="sm"
               className="w-full"
-              onClick={() => { abortRef.current = true; }}
+              onClick={() => {
+                abortRef.current = true;
+                setStep('done');
+                setError('Import cancelled.');
+              }}
             >
               Cancel import
             </Button>
