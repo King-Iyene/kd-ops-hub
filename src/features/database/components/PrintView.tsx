@@ -33,20 +33,25 @@ export function PrintView({ fields, records, tableName, onClose }: PrintViewProp
     if (val == null) return '';
     if (Array.isArray(val)) return val.join(', ');
     const uiType = field.ui_type;
-    if ((uiType === 'Currency') && typeof val === 'number') {
-      const sym = field.options?.currencyCode || field.options?.symbol || '$';
-      return `${sym}${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const num = typeof val === 'number' ? val : (typeof val === 'string' && val !== '' && !isNaN(Number(val)) ? Number(val) : null);
+    const resultType = field.options?.result?.type;
+    if ((uiType === 'Currency' || resultType === 'currency') && num !== null) {
+      const sym = field.options?.currencyCode || field.options?.symbol || field.options?.result?.options?.symbol || '₦';
+      return `${sym}${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
-    if ((uiType === 'Number' || uiType === 'Decimal') && typeof val === 'number') {
-      return val.toLocaleString(undefined, uiType === 'Decimal' ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : undefined);
+    if ((uiType === 'Number' || uiType === 'Decimal') && num !== null) {
+      return num.toLocaleString(undefined, uiType === 'Decimal' ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : undefined);
     }
-    if (uiType === 'Percent' && typeof val === 'number') return `${val}%`;
+    if ((uiType === 'Percent' || resultType === 'percent') && num !== null) return `${num}%`;
     if ((uiType === 'Date' || uiType === 'DateTime') && typeof val === 'string') {
       const d = new Date(val);
       if (!isNaN(d.getTime())) return d.toLocaleDateString(undefined, { dateStyle: 'medium' });
     }
     if (uiType === 'Checkbox') return val ? '✓' : '';
-    if (typeof val === 'number') return val.toLocaleString();
+    if ((uiType === 'Formula' || uiType === 'Rollup' || uiType === 'Count') && num !== null) {
+      return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+    if (num !== null && typeof val === 'number') return num.toLocaleString();
     return String(val);
   };
 
@@ -176,7 +181,7 @@ export function PrintView({ fields, records, tableName, onClose }: PrintViewProp
             {records.map((r) => (
               <tr key={r.id}>
                 {visibleFields.map((f) => (
-                  <td key={f.id} style={{ textAlign: ['Number', 'Decimal', 'Currency', 'Percent'].includes(f.ui_type) ? 'right' : undefined }}>{formatValue(r[f.pg_column_name], f)}</td>
+                  <td key={f.id} style={{ textAlign: ['Number', 'Decimal', 'Currency', 'Percent', 'Formula', 'Rollup', 'Count'].includes(f.ui_type) ? 'right' : undefined }}>{formatValue(r[f.pg_column_name], f)}</td>
                 ))}
               </tr>
             ))}
