@@ -188,6 +188,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const [rollupFieldId, setRollupFieldId] = useState('');
   const [rollupFunction, setRollupFunction] = useState<RollupFunction>('COUNT');
   const [richText, setRichText] = useState(false);
+  const [currencyCode, setCurrencyCode] = useState('USD');
+  const [precision, setPrecision] = useState(2);
   const [durationFormat, setDurationFormat] = useState('h:mm');
   const [buttonLabel, setButtonLabel] = useState('Click');
   const [buttonUrl, setButtonUrl] = useState('');
@@ -223,6 +225,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       setRollupFieldId((field.options as any)?.rollupFieldId ?? '');
       setRollupFunction((field.options as any)?.fn ?? 'COUNT');
       setRichText((field.options as any)?.richText ?? false);
+      setCurrencyCode((field.options as any)?.currencyCode ?? (field.options as any)?.symbol ?? 'USD');
+      setPrecision((field.options as any)?.precision ?? 2);
       setDurationFormat((field.options as any)?.format ?? 'h:mm');
       setButtonLabel((field.options as any)?.label ?? 'Click');
       setButtonUrl((field.options as any)?.url ?? '');
@@ -236,6 +240,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const isLookup = field?.ui_type === 'Lookup';
   const isRollup = field?.ui_type === 'Rollup';
   const isCount = field?.ui_type === 'Count';
+  const isCurrency = field?.ui_type === 'Currency';
   const isButton = field?.ui_type === 'Button';
   const isUser = field?.ui_type === 'User';
 
@@ -340,6 +345,9 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       }
       if (isLookup) {
         updates.options = { ...(field.options as any), linkFieldId, lookupFieldId };
+      }
+      if (isCurrency) {
+        updates.options = { ...(field.options as any), currencyCode, precision };
       }
       if (isLongText) {
         updates.options = { ...(field.options as any), richText };
@@ -758,6 +766,58 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                   </select>
                 </div>
               )}
+            </div>
+          )}
+
+          {isCurrency && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Currency</Label>
+                <select
+                  value={currencyCode}
+                  onChange={(e) => setCurrencyCode(e.target.value)}
+                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                >
+                  {[
+                    { code: 'USD', label: 'US Dollar ($)' },
+                    { code: 'EUR', label: 'Euro (€)' },
+                    { code: 'GBP', label: 'British Pound (£)' },
+                    { code: 'NGN', label: 'Nigerian Naira (₦)' },
+                    { code: 'JPY', label: 'Japanese Yen (¥)' },
+                    { code: 'CAD', label: 'Canadian Dollar (CA$)' },
+                    { code: 'AUD', label: 'Australian Dollar (A$)' },
+                    { code: 'CHF', label: 'Swiss Franc (CHF)' },
+                    { code: 'CNY', label: 'Chinese Yuan (¥)' },
+                    { code: 'INR', label: 'Indian Rupee (₹)' },
+                    { code: 'KRW', label: 'South Korean Won (₩)' },
+                    { code: 'BRL', label: 'Brazilian Real (R$)' },
+                    { code: 'ZAR', label: 'South African Rand (R)' },
+                    { code: 'GHS', label: 'Ghanaian Cedi (₵)' },
+                    { code: 'KES', label: 'Kenyan Shilling (KSh)' },
+                    { code: 'SEK', label: 'Swedish Krona (kr)' },
+                    { code: 'PLN', label: 'Polish Złoty (zł)' },
+                    { code: 'TRY', label: 'Turkish Lira (₺)' },
+                    { code: 'RUB', label: 'Russian Ruble (₽)' },
+                    { code: 'MXN', label: 'Mexican Peso (MX$)' },
+                  ].map((c) => (
+                    <option key={c.code} value={c.code}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Decimal Places</Label>
+                <select
+                  value={precision}
+                  onChange={(e) => setPrecision(Number(e.target.value))}
+                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                >
+                  <option value={0}>0 (1,000)</option>
+                  <option value={1}>1 (1,000.0)</option>
+                  <option value={2}>2 (1,000.00)</option>
+                  <option value={3}>3 (1,000.000)</option>
+                  <option value={4}>4 (1,000.0000)</option>
+                </select>
+              </div>
             </div>
           )}
 

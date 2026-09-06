@@ -800,6 +800,58 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
             </div>
           )}
 
+          {uiType === 'Currency' && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Currency</Label>
+                <select
+                  value={currencyCode}
+                  onChange={(e) => setCurrencyCode(e.target.value)}
+                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                >
+                  {[
+                    { code: 'USD', label: 'US Dollar ($)' },
+                    { code: 'EUR', label: 'Euro (€)' },
+                    { code: 'GBP', label: 'British Pound (£)' },
+                    { code: 'NGN', label: 'Nigerian Naira (₦)' },
+                    { code: 'JPY', label: 'Japanese Yen (¥)' },
+                    { code: 'CAD', label: 'Canadian Dollar (CA$)' },
+                    { code: 'AUD', label: 'Australian Dollar (A$)' },
+                    { code: 'CHF', label: 'Swiss Franc (CHF)' },
+                    { code: 'CNY', label: 'Chinese Yuan (¥)' },
+                    { code: 'INR', label: 'Indian Rupee (₹)' },
+                    { code: 'KRW', label: 'South Korean Won (₩)' },
+                    { code: 'BRL', label: 'Brazilian Real (R$)' },
+                    { code: 'ZAR', label: 'South African Rand (R)' },
+                    { code: 'GHS', label: 'Ghanaian Cedi (₵)' },
+                    { code: 'KES', label: 'Kenyan Shilling (KSh)' },
+                    { code: 'SEK', label: 'Swedish Krona (kr)' },
+                    { code: 'PLN', label: 'Polish Złoty (zł)' },
+                    { code: 'TRY', label: 'Turkish Lira (₺)' },
+                    { code: 'RUB', label: 'Russian Ruble (₽)' },
+                    { code: 'MXN', label: 'Mexican Peso (MX$)' },
+                  ].map((c) => (
+                    <option key={c.code} value={c.code}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Decimal Places</Label>
+                <select
+                  value={precision}
+                  onChange={(e) => setPrecision(Number(e.target.value))}
+                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-[13px] bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                >
+                  <option value={0}>0 (1,000)</option>
+                  <option value={1}>1 (1,000.0)</option>
+                  <option value={2}>2 (1,000.00)</option>
+                  <option value={3}>3 (1,000.000)</option>
+                  <option value={4}>4 (1,000.0000)</option>
+                </select>
+              </div>
+            </div>
+          )}
+
           {uiType === 'Duration' && (
             <div className="space-y-1.5">
               <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Duration Format</Label>

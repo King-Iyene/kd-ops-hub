@@ -211,14 +211,16 @@ function AppRoutes() {
         }
       />
 
-      {/* Database Platform — full-screen app shell, no KDOps sidebar. */}
+      {/* Database Platform — full-screen app shell, no KDOps sidebar. Super admin only. */}
       <Route
         path="/data"
         element={
           <AuthGuard>
-            <ErrorBoundary>
-              <DatabasePage />
-            </ErrorBoundary>
+            <RoleGuard roles={['super_admin']}>
+              <ErrorBoundary>
+                <DatabasePage />
+              </ErrorBoundary>
+            </RoleGuard>
           </AuthGuard>
         }
       />
@@ -226,9 +228,11 @@ function AppRoutes() {
         path="/data/:baseId"
         element={
           <AuthGuard>
-            <ErrorBoundary>
-              <DatabasePage />
-            </ErrorBoundary>
+            <RoleGuard roles={['super_admin']}>
+              <ErrorBoundary>
+                <DatabasePage />
+              </ErrorBoundary>
+            </RoleGuard>
           </AuthGuard>
         }
       />
@@ -236,9 +240,11 @@ function AppRoutes() {
         path="/data/:baseId/:tableId"
         element={
           <AuthGuard>
-            <ErrorBoundary>
-              <DatabasePage />
-            </ErrorBoundary>
+            <RoleGuard roles={['super_admin']}>
+              <ErrorBoundary>
+                <DatabasePage />
+              </ErrorBoundary>
+            </RoleGuard>
           </AuthGuard>
         }
       />
@@ -246,9 +252,11 @@ function AppRoutes() {
         path="/data/:baseId/:tableId/:viewId"
         element={
           <AuthGuard>
-            <ErrorBoundary>
-              <DatabasePage />
-            </ErrorBoundary>
+            <RoleGuard roles={['super_admin']}>
+              <ErrorBoundary>
+                <DatabasePage />
+              </ErrorBoundary>
+            </RoleGuard>
           </AuthGuard>
         }
       />

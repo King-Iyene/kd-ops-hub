@@ -158,7 +158,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Settings',         url: '/settings',          icon: Settings,        roles: ['super_admin', 'admin'] },
   { title: 'Principal Disbursements', url: '/principal-disbursements', icon: Landmark, roles: ['super_admin'] },
   // Workspace addition (Assistant)
-  { title: 'Database',         url: '/data',              icon: Database,        roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Database',         url: '/data',              icon: Database,        roles: ['super_admin'] },
   { title: 'Assistant',        url: '/assistant',         icon: Bot,             roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Messages',         url: '/messages',          icon: MessageSquare,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Platform Guide',   url: '/guide',             icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
@@ -181,11 +181,11 @@ export const NAV_GROUPS = [
   { key: 'compWell',   label: 'Compensation & Wellbeing', titles: ['Benefits', 'Staff Loans'] },
   { key: 'policy',     label: 'Policy & Compliance',  titles: ['Disciplinary', 'Grievances', 'Surveys', 'HR Letters', 'Handbook'] },
   { key: 'operations', label: 'Operations',          titles: ['Fleet', 'Vendors'] },
-  { key: 'productivity', label: 'Productivity',       titles: ['Tasks', 'Projects', 'Goals', 'Database'] },
+  { key: 'productivity', label: 'Productivity',       titles: ['Tasks', 'Projects', 'Goals'] },
   { key: 'comms',      label: 'Communication',        titles: ['Assistant', 'Messages'] },
   { key: 'intel',      label: 'Intelligence',         titles: ['Reports', 'HR Analytics', 'Knowledge', 'Documents'] },
   { key: 'crm',        label: 'CRM',                 titles: ['Clients', 'Contacts', 'Referrals', 'Public Links', 'Communications'] },
-  { key: 'admin',      label: 'Admin',               titles: ['Audit Log', 'Approval Workflows', 'Settings', 'Principal Disbursements'] },
+  { key: 'admin',      label: 'Admin',               titles: ['Audit Log', 'Approval Workflows', 'Settings', 'Principal Disbursements', 'Database'] },
 ] as const;
 
 export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];
