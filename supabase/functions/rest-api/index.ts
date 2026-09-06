@@ -45,6 +45,14 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 // ---------- Auth ----------
 
+function hasScope(scopes: string[], needed: string): boolean {
+  if (scopes.includes(needed)) return true;
+  // Map simplified scopes from UI (read/write/delete) to API scopes
+  if (needed === 'records:read' || needed === 'schema:read') return scopes.includes('read');
+  if (needed === 'records:write') return scopes.includes('write') || scopes.includes('delete');
+  return false;
+}
+
 interface ApiKeyInfo {
   workspace_id: string;
   scopes: string[];
@@ -194,6 +202,70 @@ function fieldsToRow(input: Record<string, unknown>, fields: FieldMeta[]): Recor
   return row;
 }
 
+function toSnakeCase(name: string): string {
+  let result = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  if (/^[0-9]/.test(result)) result = 'f_' + result;
+  return result.substring(0, 63);
+}
+
+function inferPgType(value: unknown): { pgType: string; uiType: string } {
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? { pgType: 'BIGINT', uiType: 'Number' } : { pgType: 'DOUBLE PRECISION', uiType: 'Decimal' };
+  }
+  if (typeof value === 'boolean') return { pgType: 'BOOLEAN DEFAULT false', uiType: 'Checkbox' };
+  if (typeof value === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}(T|\s)/.test(value)) return { pgType: 'TIMESTAMPTZ', uiType: 'DateTime' };
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return { pgType: 'DATE', uiType: 'Date' };
+    if (value.startsWith('http://') || value.startsWith('https://')) return { pgType: 'TEXT', uiType: 'URL' };
+    if (value.includes('@') && value.includes('.')) return { pgType: 'TEXT', uiType: 'Email' };
+    if (value.length > 255) return { pgType: 'TEXT', uiType: 'LongText' };
+    return { pgType: 'TEXT', uiType: 'SingleLineText' };
+  }
+  if (Array.isArray(value)) return { pgType: 'JSONB DEFAULT \'[]\'::jsonb', uiType: 'JSON' };
+  if (value && typeof value === 'object') return { pgType: 'JSONB DEFAULT \'{}\'::jsonb', uiType: 'JSON' };
+  return { pgType: 'TEXT', uiType: 'SingleLineText' };
+}
+
+async function autoCreateFields(
+  pool: Pool, tableId: string, schemaName: string, pgTableName: string,
+  allRecords: Record<string, unknown>[], existingFields: FieldMeta[],
+): Promise<FieldMeta[]> {
+  const known = new Set(existingFields.filter(f => !f.is_system).map(f => f.name));
+  const toCreate = new Map<string, { pgType: string; uiType: string }>();
+
+  for (const rec of allRecords) {
+    for (const [name, value] of Object.entries(rec)) {
+      if (known.has(name) || toCreate.has(name)) continue;
+      if (value === null || value === undefined) continue;
+      toCreate.set(name, inferPgType(value));
+    }
+  }
+
+  if (toCreate.size === 0) return existingFields;
+
+  const maxPos = existingFields.reduce((m, f) => Math.max(m, (f as any).position ?? 0), 0);
+  const conn = await pool.connect();
+  try {
+    let pos = maxPos + 1;
+    for (const [name, { pgType, uiType }] of toCreate) {
+      const pgCol = toSnakeCase(name);
+      const rawPgType = pgType.split(/\s+DEFAULT\s+/i)[0].trim();
+      await conn.queryObject(
+        `ALTER TABLE ${safeId(schemaName)}.${safeId(pgTableName)} ADD COLUMN IF NOT EXISTS ${safeId(pgCol)} ${pgType}`,
+      );
+      await conn.queryObject(
+        `INSERT INTO nc_meta.fields (table_id, name, pg_column_name, ui_type, pg_type, options, position, width, is_primary, is_required, is_unique, is_system, is_hidden)
+         VALUES ($1, $2, $3, $4, $5, '{}'::jsonb, $6, 180, false, false, false, false, false)`,
+        [tableId, name, pgCol, uiType, rawPgType, pos++],
+      );
+    }
+  } finally {
+    conn.release();
+  }
+
+  return getFields(pool, tableId);
+}
+
 // ---------- Handlers ----------
 
 async function handleListBases(pool: Pool, auth: ApiKeyInfo) {
@@ -241,7 +313,7 @@ async function handleListRecords(
   baseIdOrSlug: string, tableIdOrSlug: string,
   url: URL,
 ) {
-  if (!auth.scopes.includes('records:read')) return err('Scope records:read required', 403);
+  if (!hasScope(auth.scopes,'records:read')) return err('Scope records:read required', 403);
 
   const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
@@ -329,7 +401,7 @@ async function handleGetRecord(
   pool: Pool, auth: ApiKeyInfo,
   baseIdOrSlug: string, tableIdOrSlug: string, recordId: string,
 ) {
-  if (!auth.scopes.includes('records:read')) return err('Scope records:read required', 403);
+  if (!hasScope(auth.scopes,'records:read')) return err('Scope records:read required', 403);
 
   const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
@@ -357,7 +429,7 @@ async function handleCreateRecords(
   pool: Pool, auth: ApiKeyInfo,
   baseIdOrSlug: string, tableIdOrSlug: string, body: any,
 ) {
-  if (!auth.scopes.includes('records:write')) return err('Scope records:write required', 403);
+  if (!hasScope(auth.scopes,'records:write')) return err('Scope records:write required', 403);
 
   const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
@@ -373,13 +445,17 @@ async function handleCreateRecords(
     return err('Max 10 records per request', 422);
   }
 
+  // Auto-create fields for any unknown field names in the input
+  const allFieldInputs = inputRecords.map((r: any) => r.fields || {});
+  let fields = await autoCreateFields(pool, table.id, base.schema_name, table.pg_table_name, allFieldInputs, fieldMeta);
+
   const fqn = `${safeId(base.schema_name)}.${safeId(table.pg_table_name)}`;
   const conn = await pool.connect();
   try {
     await conn.queryObject('BEGIN');
     const created: any[] = [];
     for (const rec of inputRecords) {
-      const row = fieldsToRow(rec.fields || {}, fieldMeta);
+      const row = fieldsToRow(rec.fields || {}, fields);
       const keys = Object.keys(row);
       if (!keys.length) {
         const r = await conn.queryObject(`INSERT INTO ${fqn} DEFAULT VALUES RETURNING *`);
@@ -399,7 +475,7 @@ async function handleCreateRecords(
     const result = created.map((row: any) => ({
       id: row.id,
       createdTime: row.created_at,
-      fields: pgRowToFields(row, fieldMeta),
+      fields: pgRowToFields(row, fields),
     }));
 
     dispatchWebhooks(pool, base.id, table.id, table.name, 'record.created', { records: result });
@@ -418,7 +494,7 @@ async function handleUpdateRecords(
   pool: Pool, auth: ApiKeyInfo,
   baseIdOrSlug: string, tableIdOrSlug: string, body: any,
 ) {
-  if (!auth.scopes.includes('records:write')) return err('Scope records:write required', 403);
+  if (!hasScope(auth.scopes,'records:write')) return err('Scope records:write required', 403);
 
   const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
@@ -432,6 +508,10 @@ async function handleUpdateRecords(
   }
   if (inputRecords.length > 10) return err('Max 10 records per request', 422);
 
+  // Auto-create fields for any unknown field names
+  const allFieldInputs = inputRecords.map((r: any) => r.fields || {});
+  let fields = await autoCreateFields(pool, table.id, base.schema_name, table.pg_table_name, allFieldInputs, fieldMeta);
+
   const fqn = `${safeId(base.schema_name)}.${safeId(table.pg_table_name)}`;
   const conn = await pool.connect();
   try {
@@ -439,7 +519,7 @@ async function handleUpdateRecords(
     const updated: any[] = [];
     for (const rec of inputRecords) {
       if (!rec.id) continue;
-      const row = fieldsToRow(rec.fields || {}, fieldMeta);
+      const row = fieldsToRow(rec.fields || {}, fields);
       const keys = Object.keys(row);
       if (!keys.length) continue;
       const setClauses = keys.map((k, i) => `${safeId(k)} = $${i + 1}`).join(', ');
@@ -455,7 +535,7 @@ async function handleUpdateRecords(
     const result = updated.map((row: any) => ({
       id: row.id,
       createdTime: row.created_at,
-      fields: pgRowToFields(row, fieldMeta),
+      fields: pgRowToFields(row, fields),
     }));
 
     dispatchWebhooks(pool, base.id, table.id, table.name, 'record.updated', { records: result });
@@ -474,7 +554,7 @@ async function handleDeleteRecords(
   pool: Pool, auth: ApiKeyInfo,
   baseIdOrSlug: string, tableIdOrSlug: string, url: URL, body: any,
 ) {
-  if (!auth.scopes.includes('records:write')) return err('Scope records:write required', 403);
+  if (!hasScope(auth.scopes,'records:write')) return err('Scope records:write required', 403);
 
   const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
@@ -627,7 +707,7 @@ Deno.serve(async (req) => {
 
       case 'tables':
         if (req.method !== 'GET') return err('Method not allowed', 405);
-        if (!auth.scopes.includes('schema:read')) return err('Scope schema:read required', 403);
+        if (!hasScope(auth.scopes,'schema:read')) return err('Scope schema:read required', 403);
         return handleListTables(pool, auth, route.baseId!);
 
       case 'record':
