@@ -547,12 +547,13 @@ export const PercentCellRenderer = React.memo(function PercentCellRenderer({
   if (value == null || value === '') return null;
   const num = Number(value);
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
+  const barColor = num >= 75 ? '#22C55E' : num >= 50 ? '#2563EB' : num >= 25 ? '#F59E0B' : '#EF4444';
   return (
     <div className="flex items-center gap-2 w-full">
       <div className="flex-1 h-1 rounded-full bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] overflow-hidden" style={{ height: 4 }}>
         <div
-          className="h-full rounded-full"
-          style={{ width: `${Math.min(100, Math.max(0, num))}%`, backgroundColor: '#2563EB' }}
+          className="h-full rounded-full transition-all"
+          style={{ width: `${Math.min(100, Math.max(0, num))}%`, backgroundColor: barColor }}
         />
       </div>
       <span className="text-xs shrink-0 text-[#6A7184] dark:text-[hsl(200,20%,55%)]">{num}%</span>
