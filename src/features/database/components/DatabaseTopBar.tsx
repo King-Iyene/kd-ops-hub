@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock } from 'lucide-react';
+import { ArrowLeft, Menu, HelpCircle, Share2, Copy, Check, Lock, Sun, Moon } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuthStore } from '@/store/authStore';
@@ -14,6 +15,22 @@ function darkenColor(hex: string, amount: number): string {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgb(${Math.round(r * (1 - amount))}, ${Math.round(g * (1 - amount))}, ${Math.round(b * (1 - amount))})`;
+}
+
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-7 w-7 text-white/70 hover:bg-white/10 hover:text-white"
+      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      {isDark ? <Sun size={15} /> : <Moon size={15} />}
+    </Button>
+  );
 }
 
 export function DatabaseTopBar() {
@@ -82,6 +99,7 @@ export function DatabaseTopBar() {
               <Share2 size={13} /> Share
             </Button>
           )}
+          <ThemeToggle />
           <Button
             variant="ghost"
             size="icon"

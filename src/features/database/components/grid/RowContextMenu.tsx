@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Expand, Copy, Link, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { Expand, Copy, Link, Trash2, ArrowUp, ArrowDown, ClipboardCopy } from 'lucide-react';
 import { RecordRow } from '../../types';
 import { confirm } from '@/hooks/use-confirm';
 
@@ -43,6 +43,20 @@ export function RowContextMenu({
       el.style.top = `${window.innerHeight - rect.height - 8}px`;
     }
   }, [x, y]);
+
+  const handleCopyRowData = () => {
+    const skip = new Set(['id', 'nc_order', 'created_at', 'updated_at', 'deleted_at']);
+    const lines = Object.entries(record)
+      .filter(([k]) => !skip.has(k) && !k.startsWith('nc_'))
+      .map(([k, v]) => {
+        const label = k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+        const val = v == null ? '' : Array.isArray(v) ? v.join(', ') : String(v);
+        return `${label}: ${val}`;
+      })
+      .join('\n');
+    navigator.clipboard.writeText(lines).catch(() => {});
+    onClose();
+  };
 
   const handleCopyRowLink = () => {
     const url = new URL(window.location.href);
@@ -111,6 +125,11 @@ export function RowContextMenu({
           </button>
 
           <div className="my-1 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]" />
+
+          <button className={menuItemClass} onClick={handleCopyRowData}>
+            <ClipboardCopy size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+            Copy row data
+          </button>
 
           <button className={menuItemClass} onClick={handleCopyRowLink}>
             <Link size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
