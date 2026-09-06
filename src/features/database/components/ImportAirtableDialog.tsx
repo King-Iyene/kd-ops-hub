@@ -146,7 +146,7 @@ const SYSTEM_UI_TYPES = new Set(['ID', 'CreatedTime', 'LastModifiedTime', 'Creat
 const BATCH_SIZE = 500;
 const RATE_LIMIT_DELAY = 200;
 const MAX_RETRIES = 5;
-const INSERT_CONCURRENCY = 2;
+const INSERT_CONCURRENCY = 1;
 
 async function rateLimitedFetch(url: string, options: RequestInit, retries = MAX_RETRIES): Promise<Response> {
   const res = await fetch(url, options);
@@ -158,11 +158,22 @@ async function rateLimitedFetch(url: string, options: RequestInit, retries = MAX
   return res;
 }
 
+async function invokeDDL(body: Record<string, unknown>, retries = 3): Promise<{ data: any; error: any }> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const { data, error } = await supabase.functions.invoke('ddl-executor', { body });
+    if (!error && data?.success !== false) return { data, error: null };
+    if (attempt < retries) {
+      const delay = Math.min(1000 * 2 ** attempt, 8000);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+    return { data, error: error || new Error(data?.error || 'Edge function failed') };
+  }
+  return { data: null, error: new Error('Exhausted retries') };
+}
+
 async function forceSchemaReload(): Promise<void> {
-  await supabase.functions.invoke('ddl-executor', {
-    body: { action: 'reloadSchema' },
-  }).catch(() => {});
-  // Hard delay to let ALL PostgREST workers pick up the NOTIFY
+  await invokeDDL({ action: 'reloadSchema' }).catch(() => {});
   await new Promise((r) => setTimeout(r, 3000));
 }
 
@@ -381,12 +392,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         .single();
       if (baseError) throw baseError;
 
-      await supabase.functions.invoke('ddl-executor', {
-        body: { action: 'createSchema', schemaName },
-      });
-      await supabase.functions.invoke('ddl-executor', {
-        body: { action: 'exposeSchema', schemaName },
-      });
+      await invokeDDL({ action: 'createSchema', schemaName });
+      await invokeDDL({ action: 'exposeSchema', schemaName });
 
       await waitForSchemaReady(schemaName);
 
@@ -421,19 +428,15 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           .single();
         if (tableError) throw tableError;
 
-        await supabase.functions.invoke('ddl-executor', {
-          body: { action: 'createTable', schemaName, tableName: pgTableName },
-        });
+        await invokeDDL({ action: 'createTable', schemaName, tableName: pgTableName });
 
         // Add airtable_id column for record ID mapping during import
-        await supabase.functions.invoke('ddl-executor', {
-          body: {
-            action: 'addColumn',
-            schemaName,
-            tableName: pgTableName,
-            columnName: 'airtable_id',
-            columnType: 'TEXT',
-          },
+        await invokeDDL({
+          action: 'addColumn',
+          schemaName,
+          tableName: pgTableName,
+          columnName: 'airtable_id',
+          columnType: 'TEXT',
         });
 
         const sysRows = SYSTEM_FIELDS.map((f) => ({
@@ -549,13 +552,11 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           };
         });
 
-        await supabase.functions.invoke('ddl-executor', {
-          body: {
-            action: 'bulkAddColumns',
-            schemaName,
-            tableName: pgTableName,
-            columns: fieldRows.map((fr) => ({ columnName: fr.pg_column_name, columnType: fr.pg_type })),
-          },
+        await invokeDDL({
+          action: 'bulkAddColumns',
+          schemaName,
+          tableName: pgTableName,
+          columns: fieldRows.map((fr) => ({ columnName: fr.pg_column_name, columnType: fr.pg_type })),
         });
 
         const allColNames = fieldRows.map((fr) => fr.pg_column_name).filter(Boolean);
@@ -665,14 +666,12 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
             const insertCols = ['nc_order', 'airtable_id', ...allColNames];
             const insertBatch = async (rows: Record<string, any>[]): Promise<number> => {
-              const { data, error: insertErr } = await supabase.functions.invoke('ddl-executor', {
-                body: {
-                  action: 'bulkInsert',
-                  schemaName,
-                  tableName: pgTableName,
-                  columns: insertCols,
-                  rows,
-                },
+              const { data, error: insertErr } = await invokeDDL({
+                action: 'bulkInsert',
+                schemaName,
+                tableName: pgTableName,
+                columns: insertCols,
+                rows,
               });
               if (insertErr || (data && !data.success)) {
                 const errMsg = data?.error ?? insertErr?.message ?? 'insert failed';
@@ -785,19 +784,15 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           if (!junctionTableId) {
             const jnTableName = `jn_${[sourcePgTable, targetPgTable].sort().join('_')}`.substring(0, 63);
             try {
-              await supabase.functions.invoke('ddl-executor', {
-                body: { action: 'createTable', schemaName, tableName: jnTableName },
-              });
-              await supabase.functions.invoke('ddl-executor', {
-                body: {
-                  action: 'bulkAddColumns',
-                  schemaName,
-                  tableName: jnTableName,
-                  columns: [
-                    { name: `${sourcePgTable}_id`, type: 'UUID' },
-                    { name: `${targetPgTable}_id`, type: 'UUID' },
-                  ],
-                },
+              await invokeDDL({ action: 'createTable', schemaName, tableName: jnTableName });
+              await invokeDDL({
+                action: 'bulkAddColumns',
+                schemaName,
+                tableName: jnTableName,
+                columns: [
+                  { name: `${sourcePgTable}_id`, type: 'UUID' },
+                  { name: `${targetPgTable}_id`, type: 'UUID' },
+                ],
               });
             } catch { /* junction may already exist from inverse link */ }
 
@@ -925,16 +920,14 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             let page = 0;
             const pageSize = 1000;
             while (true) {
-              const { data: srcData } = await supabase.functions.invoke('ddl-executor', {
-                body: {
-                  action: 'directQuery',
-                  schemaName,
-                  tableName: sourcePgTable,
-                  columns: ['id', pgCol, 'airtable_id'],
-                  where: [[pgCol, 'IS NOT', null]],
-                  limit: pageSize,
-                  offset: page * pageSize,
-                },
+              const { data: srcData } = await invokeDDL({
+                action: 'directQuery',
+                schemaName,
+                tableName: sourcePgTable,
+                columns: ['id', pgCol, 'airtable_id'],
+                where: [[pgCol, 'IS NOT', null]],
+                limit: pageSize,
+                offset: page * pageSize,
               });
               const batch = srcData?.rows ?? [];
               if (!batch.length) break;
@@ -948,15 +941,13 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             const targetIdMap: Record<string, string> = {};
             page = 0;
             while (true) {
-              const { data: tgtData } = await supabase.functions.invoke('ddl-executor', {
-                body: {
-                  action: 'directQuery',
-                  schemaName,
-                  tableName: targetPgTable,
-                  columns: ['id', 'airtable_id'],
-                  limit: pageSize,
-                  offset: page * pageSize,
-                },
+              const { data: tgtData } = await invokeDDL({
+                action: 'directQuery',
+                schemaName,
+                tableName: targetPgTable,
+                columns: ['id', 'airtable_id'],
+                limit: pageSize,
+                offset: page * pageSize,
               });
               const batch = tgtData?.rows ?? [];
               if (!batch.length) break;
@@ -984,14 +975,12 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             for (let b = 0; b < junctionRows.length; b += 500) {
               if (abortRef.current) break;
               const batch = junctionRows.slice(b, b + 500);
-              await supabase.functions.invoke('ddl-executor', {
-                body: {
-                  action: 'bulkInsert',
-                  schemaName,
-                  tableName: jnTableName,
-                  columns: [srcColName, tgtColName],
-                  rows: batch,
-                },
+              await invokeDDL({
+                action: 'bulkInsert',
+                schemaName,
+                tableName: jnTableName,
+                columns: [srcColName, tgtColName],
+                rows: batch,
               });
             }
           } catch (resolveErr) {
