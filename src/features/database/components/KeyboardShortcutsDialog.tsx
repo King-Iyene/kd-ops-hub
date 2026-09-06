@@ -42,6 +42,7 @@ const SECTIONS: ShortcutSection[] = [
       { keys: ['Ctrl', 'V'], description: 'Paste into cell' },
       { keys: ['Ctrl', 'Z'], description: 'Undo last change' },
       { keys: ['Ctrl', 'Shift', 'Z'], description: 'Redo last change' },
+      { keys: ['Ctrl', 'D'], description: 'Fill down (copy cell above)' },
       { keys: ['Space'], description: 'Toggle checkbox field' },
     ],
   },

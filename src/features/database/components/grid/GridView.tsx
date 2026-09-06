@@ -1049,6 +1049,8 @@ export default function GridView({
           const valueAbove = aboveRecord[field.pg_column_name];
           if (valueAbove !== undefined) {
             onCellUpdate(rowId, fieldId, valueAbove);
+            flashCellIds([selectedCellId]);
+            showToast('Filled down');
           }
         }
         return;
