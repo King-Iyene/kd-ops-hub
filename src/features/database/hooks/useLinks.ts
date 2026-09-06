@@ -127,15 +127,37 @@ export function useRecordLinks(opts: {
           .single();
         if (!jTable) return [];
 
-        const { data: jRows } = await supabase
+        const srcCol = `${srcTable.pg_table_name}_id`;
+        const tgtCol = `${tgtTable.pg_table_name}_id`;
+
+        let jRows: any[] | null = null;
+        const { data: rows1, error: err1 } = await supabase
           .schema(schema)
           .from(jTable.pg_table_name)
-          .select(`${tgtTable.pg_table_name}_id`)
-          .eq(`${srcTable.pg_table_name}_id`, recordId)
+          .select(tgtCol)
+          .eq(srcCol, recordId)
           .limit(200);
+
+        if (!err1 && rows1 && rows1.length > 0) {
+          jRows = rows1;
+        } else {
+          // Fallback: legacy source_id/target_id columns
+          const { data: rows2 } = await supabase
+            .schema(schema)
+            .from(jTable.pg_table_name)
+            .select('target_id, source_id')
+            .or(`source_id.eq.${recordId},target_id.eq.${recordId}`)
+            .limit(200);
+          if (rows2 && rows2.length > 0) {
+            jRows = rows2.map((r: any) => ({
+              [tgtCol]: r.source_id === recordId ? r.target_id : r.source_id,
+            }));
+          }
+        }
+
         if (!jRows || jRows.length === 0) return [];
 
-        const ids = jRows.map((r: any) => r[`${tgtTable.pg_table_name}_id`]).filter(Boolean);
+        const ids = jRows.map((r: any) => r[tgtCol]).filter(Boolean);
         if (ids.length === 0) return [];
 
         const { data } = await supabase
