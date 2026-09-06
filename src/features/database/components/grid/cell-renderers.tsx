@@ -384,9 +384,11 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
               src={f.url}
               alt={f.name}
               className="h-8 w-8 rounded object-cover shrink-0 cursor-pointer"
+              loading="lazy"
               style={{ border: `1px solid ${colors.dropdownBorder}` }}
               title={f.name}
               onClick={(e) => { e.stopPropagation(); setLightboxIndex(i); }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           ) : (
             <span

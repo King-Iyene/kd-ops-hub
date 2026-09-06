@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { X, Upload, Trash2, FileText, File, Image as ImageIcon, Paperclip } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import AttachmentLightbox from './AttachmentLightbox';
@@ -46,11 +46,20 @@ export function AttachmentManager({
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    setAttachments(value ?? []);
+  }, [value]);
+
   const uploadFiles = useCallback(
     async (files: FileList | File[]) => {
       setUploading(true);
       const newAttachments: AttachmentMeta[] = [];
+      const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
       for (const file of Array.from(files)) {
+        if (file.size > MAX_FILE_SIZE) {
+          console.error(`File "${file.name}" exceeds 50MB limit`);
+          continue;
+        }
         const ts = Date.now();
         const path = `${storagePath}/${ts}_${file.name}`;
         const { error } = await supabase.storage
@@ -71,12 +80,14 @@ export function AttachmentManager({
           uploaded_at: new Date().toISOString(),
         });
       }
-      const updated = [...attachments, ...newAttachments];
-      setAttachments(updated);
-      onCommit(updated);
+      setAttachments(prev => {
+        const updated = [...prev, ...newAttachments];
+        onCommit(updated);
+        return updated;
+      });
       setUploading(false);
     },
-    [attachments, onCommit, storagePath],
+    [onCommit, storagePath],
   );
 
   const handleDelete = useCallback(
@@ -192,13 +203,18 @@ export function AttachmentManager({
                       {/* Preview area */}
                       <div
                         className="h-28 flex items-center justify-center cursor-pointer"
-                        onClick={() => isImage ? setLightboxIndex(i) : window.open(att.url, '_blank')}
+                        onClick={() => {
+                          const isPreviewable = isImage || att.type === 'application/pdf' || att.type?.startsWith('video/') || att.type?.startsWith('audio/');
+                          if (isPreviewable) setLightboxIndex(i);
+                          else window.open(att.url, '_blank');
+                        }}
                       >
                         {isImage ? (
                           <img
                             src={att.url}
                             alt={att.name}
                             className="w-full h-full object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.innerHTML = '<span style="color:#9AA2AF;font-size:12px">Failed to load</span>'; }}
                           />
                         ) : (
                           <Icon size={32} className="text-[#9AA2AF]" />

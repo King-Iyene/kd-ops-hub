@@ -119,9 +119,12 @@ function AttachmentLightbox({ attachments, initialIndex, onClose }: AttachmentLi
 
   const handleImageClick = useCallback(() => {
     if (isDragging) return;
-    setZoom((z) => (z === 1 ? 2 : 1));
-    if (zoom !== 1) setPan({ x: 0, y: 0 });
-  }, [isDragging, zoom]);
+    setZoom((z) => {
+      const next = z === 1 ? 2 : 1;
+      if (next === 1) setPan({ x: 0, y: 0 });
+      return next;
+    });
+  }, [isDragging]);
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/90 flex flex-col">
