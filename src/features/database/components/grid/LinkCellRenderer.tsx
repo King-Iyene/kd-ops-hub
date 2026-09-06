@@ -64,11 +64,11 @@ function LinkedRecordsPopover({
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <button
-          className="inline-flex items-center gap-1 px-1.5 py-0 rounded text-xs cursor-pointer hover:opacity-80 transition-opacity"
+          className="inline-flex items-center justify-center w-5 h-5 rounded-full cursor-pointer opacity-0 group-hover/row:opacity-100 transition-opacity hover:bg-black/5 dark:hover:bg-white/10"
           onClick={(e) => e.stopPropagation()}
           style={{ background: 'transparent' }}
         >
-          <Plus size={12} className="text-[#9AA2AF] shrink-0" />
+          <Plus size={11} strokeWidth={2.5} className="text-[#9AA2AF] shrink-0" />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -208,10 +208,10 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
           return (
             <span
               key={rec.id}
-              className="inline-flex items-center px-2 py-0.5 rounded-sm text-xs shrink-0 max-w-[200px] truncate"
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 max-w-[200px] truncate leading-tight"
               style={{
-                backgroundColor: colors.linkPillBg ?? '#E0F2FE',
-                color: colors.linkPillText ?? '#2D7FF9',
+                backgroundColor: colors.linkPillBg,
+                color: colors.linkPillText,
               }}
             >
               {displayVal}

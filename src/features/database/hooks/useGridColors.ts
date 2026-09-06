@@ -28,6 +28,8 @@ const LIGHT = {
   avatarBg: '#8B5CF6',
   tealText: '#0D9488',
   highlightBg: '#FEF08A',
+  linkPillBg: '#DBE7FD',
+  linkPillText: '#1D4ED8',
 };
 
 const DARK = {
@@ -57,6 +59,8 @@ const DARK = {
   avatarBg: '#7C3AED',
   tealText: '#2DD4BF',
   highlightBg: 'hsl(45, 80%, 25%)',
+  linkPillBg: 'hsl(220, 40%, 20%)',
+  linkPillText: '#93B4F8',
 };
 
 export type GridColorTokens = typeof LIGHT;

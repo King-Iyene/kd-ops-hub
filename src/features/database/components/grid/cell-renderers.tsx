@@ -179,7 +179,7 @@ export const NumberCellRenderer = React.memo(function NumberCellRenderer({
   const num = Number(value);
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
   return (
-    <span className="truncate block text-right w-full" style={{ fontSize: 13 }}>
+    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums' }}>
       {num.toLocaleString()}
     </span>
   );
@@ -192,7 +192,7 @@ export const DecimalCellRenderer = React.memo(function DecimalCellRenderer({
   const num = Number(value);
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
   return (
-    <span className="truncate block text-right w-full">
+    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums' }}>
       {num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     </span>
   );
