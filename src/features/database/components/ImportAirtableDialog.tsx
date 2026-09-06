@@ -158,26 +158,22 @@ async function rateLimitedFetch(url: string, options: RequestInit, retries = MAX
   return res;
 }
 
-async function invokeDDL(body: Record<string, unknown>, retries = 3): Promise<{ data: any; error: any }> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const { data, error } = await supabase.functions.invoke('ddl-executor', { body });
-    if (!error && data?.success !== false) return { data, error: null };
-    const errMsg = data?.error ?? error?.message ?? 'unknown';
-    if (attempt < retries) {
-      console.warn(`[import] ${body.action} attempt ${attempt + 1} failed: ${errMsg}, retrying...`);
-      const delay = Math.min(1000 * 2 ** attempt, 8000);
-      await new Promise((r) => setTimeout(r, delay));
-      continue;
-    }
-    console.error(`[import] ${body.action} failed after ${retries + 1} attempts: ${errMsg}`);
-    return { data, error: error || new Error(data?.error || 'Edge function failed') };
+async function invokeDDL(body: Record<string, unknown>): Promise<{ data: any; error: any }> {
+  const { data, error } = await supabase.rpc('nc_import_ddl', { payload: body });
+  if (error) {
+    console.error(`[import] ${body.action} failed:`, error.message);
+    return { data: null, error };
   }
-  return { data: null, error: new Error('Exhausted retries') };
+  if (data && !data.success) {
+    console.error(`[import] ${body.action} failed:`, data.error);
+    return { data, error: new Error(data.error) };
+  }
+  return { data, error: null };
 }
 
 async function forceSchemaReload(): Promise<void> {
   await invokeDDL({ action: 'reloadSchema' }).catch(() => {});
-  await new Promise((r) => setTimeout(r, 3000));
+  await new Promise((r) => setTimeout(r, 1000));
 }
 
 async function waitForSchemaReady(schemaName: string, tableName?: string, columns?: string[], maxWaitMs = 30000): Promise<void> {
