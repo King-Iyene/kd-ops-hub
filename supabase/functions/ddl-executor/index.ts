@@ -789,7 +789,7 @@ async function handleAlterColumnType(
 // ---------------------------------------------------------------------------
 
 const dbUrl = Deno.env.get('SUPABASE_DB_URL')!;
-const pool = new Pool(dbUrl, 5, true);
+const pool = new Pool(dbUrl, 1, true);
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
