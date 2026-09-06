@@ -15,6 +15,7 @@ import {
   getRecordDisplayValue,
 } from '../../hooks/useLinks';
 import { useDatabaseUI } from '../../lib/store';
+import { useGridColors } from '../../hooks/useGridColors';
 
 interface LinkCellRendererProps {
   value: any;
@@ -26,30 +27,19 @@ interface LinkCellRendererProps {
 function LinkedRecordsPopover({
   field,
   record,
-  linkedCount,
+  linkedRecords,
+  primaryField,
 }: {
   field: FieldMeta;
   record: RecordRow;
-  linkedCount: number;
+  linkedRecords: any[];
+  primaryField: any;
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const { activeBaseId } = useDatabaseUI();
 
   const relatedTableId = field.options?.relatedTableId as string | undefined;
-  const linkType = field.options?.type as string | undefined;
-
-  const { data: primaryField } = usePrimaryField(relatedTableId, isOpen);
-
-  const { data: linkedRecords = [], isLoading } = useRecordLinks({
-    baseId: activeBaseId,
-    sourceTableId: field.table_id,
-    targetTableId: relatedTableId,
-    fieldId: field.id,
-    recordId: isOpen ? record.id : null,
-    linkType,
-    fkColumnName: field.options?.fkColumnName as string | undefined,
-  });
 
   const { data: searchResults = [] } = useRelatedTableSearch({
     baseId: activeBaseId,
@@ -74,11 +64,11 @@ function LinkedRecordsPopover({
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <button
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-[#E0F2FE] text-[#2D7FF9] dark:bg-[hsl(220,40%,20%)] dark:text-[#6699FF]"
+          className="inline-flex items-center gap-1 px-1.5 py-0 rounded text-xs cursor-pointer hover:opacity-80 transition-opacity"
           onClick={(e) => e.stopPropagation()}
+          style={{ background: 'transparent' }}
         >
-          <Link2 size={12} />
-          {linkedCount} {linkedCount === 1 ? 'record' : 'records'}
+          <Plus size={12} className="text-[#9AA2AF] shrink-0" />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -99,10 +89,7 @@ function LinkedRecordsPopover({
         </div>
 
         <div className="max-h-60 overflow-y-auto">
-          {/* Linked records */}
-          {isLoading ? (
-            <div className="p-3 text-xs text-[#9AA2AF]">Loading...</div>
-          ) : linkedRecords.length > 0 ? (
+          {linkedRecords.length > 0 ? (
             <div className="p-1">
               <p className="px-2 py-1 text-[10px] font-medium text-[#9AA2AF] uppercase tracking-wider">
                 Linked
@@ -128,7 +115,6 @@ function LinkedRecordsPopover({
             <div className="p-3 text-xs text-[#9AA2AF]">No linked records</div>
           )}
 
-          {/* Search results to link */}
           {searchTerm && filteredSearchResults.length > 0 && (
             <div className="p-1 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
               <p className="px-2 py-1 text-[10px] font-medium text-[#9AA2AF] uppercase tracking-wider">
@@ -170,11 +156,29 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
   record,
   rowHeight,
 }: LinkCellRendererProps) {
+  const colors = useGridColors();
+  const { activeBaseId } = useDatabaseUI();
+
+  const relatedTableId = field.options?.relatedTableId as string | undefined;
+  const linkType = field.options?.type as string | undefined;
+
   const count = Array.isArray(value)
     ? value.length
     : typeof value === 'number'
       ? value
       : 0;
+
+  const { data: primaryField } = usePrimaryField(relatedTableId, count > 0);
+
+  const { data: linkedRecords = [], isLoading } = useRecordLinks({
+    baseId: activeBaseId,
+    sourceTableId: field.table_id,
+    targetTableId: relatedTableId,
+    fieldId: field.id,
+    recordId: count > 0 ? record.id : null,
+    linkType,
+    fkColumnName: field.options?.fkColumnName as string | undefined,
+  });
 
   if (count === 0) {
     return (
@@ -188,11 +192,44 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
     );
   }
 
+  if (isLoading) {
+    return (
+      <span className="text-xs truncate" style={{ color: colors.muted }}>
+        Loading...
+      </span>
+    );
+  }
+
   return (
-    <LinkedRecordsPopover
-      field={field}
-      record={record}
-      linkedCount={count}
-    />
+    <div className="flex items-center gap-1 overflow-hidden w-full">
+      <div className="flex items-center gap-1 overflow-hidden flex-1 min-w-0">
+        {linkedRecords.slice(0, 10).map((rec) => {
+          const displayVal = getRecordDisplayValue(rec, primaryField);
+          return (
+            <span
+              key={rec.id}
+              className="inline-flex items-center px-2 py-0.5 rounded-sm text-xs shrink-0 max-w-[200px] truncate"
+              style={{
+                backgroundColor: colors.linkPillBg ?? '#E0F2FE',
+                color: colors.linkPillText ?? '#2D7FF9',
+              }}
+            >
+              {displayVal}
+            </span>
+          );
+        })}
+        {linkedRecords.length > 10 && (
+          <span className="text-xs shrink-0" style={{ color: colors.muted }}>
+            +{linkedRecords.length - 10}
+          </span>
+        )}
+      </div>
+      <LinkedRecordsPopover
+        field={field}
+        record={record}
+        linkedRecords={linkedRecords}
+        primaryField={primaryField}
+      />
+    </div>
   );
 });

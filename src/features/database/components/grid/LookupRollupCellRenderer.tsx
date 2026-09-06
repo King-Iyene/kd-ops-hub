@@ -85,12 +85,20 @@ export const RollupCellRenderer = React.memo(function RollupCellRenderer({
       const code = /^[A-Z]{3}$/.test(trimmed) ? trimmed : (SYMBOL_TO_ISO[trimmed] ?? 'USD');
       const precision = field.options?.result?.options?.precision ?? 0;
       try {
-        displayValue = new Intl.NumberFormat(undefined, {
+        displayValue = new Intl.NumberFormat('en-US', {
           style: 'currency', currency: code,
           minimumFractionDigits: precision, maximumFractionDigits: precision,
+          currencyDisplay: 'narrowSymbol',
         }).format(result);
       } catch {
-        displayValue = `${sym}${result.toLocaleString()}`;
+        try {
+          displayValue = new Intl.NumberFormat('en-US', {
+            style: 'currency', currency: code,
+            minimumFractionDigits: precision, maximumFractionDigits: precision,
+          }).format(result);
+        } catch {
+          displayValue = `${sym}${result.toLocaleString()}`;
+        }
       }
     } else if (resultType === 'percent') {
       displayValue = `${(result * 100).toFixed(1)}%`;

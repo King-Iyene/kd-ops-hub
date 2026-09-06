@@ -217,15 +217,28 @@ export const CurrencyCellRenderer = React.memo(function CurrencyCellRenderer({
   if (value == null || value === '') return null;
   const num = Number(value);
   if (isNaN(num)) return null;
-  const code = resolveISO(field.options?.currencyCode || 'USD');
+  const rawCode = field.options?.currencyCode || field.options?.symbol || 'USD';
+  const code = resolveISO(rawCode);
+  const precision = field.options?.precision ?? 2;
   let formatted: string;
   try {
-    formatted = new Intl.NumberFormat(undefined, { style: 'currency', currency: code }).format(num);
+    formatted = new Intl.NumberFormat('en-US', {
+      style: 'currency', currency: code,
+      minimumFractionDigits: precision, maximumFractionDigits: precision,
+      currencyDisplay: 'narrowSymbol',
+    }).format(num);
   } catch {
-    formatted = `${field.options?.currencyCode ?? ''}${num.toLocaleString()}`;
+    try {
+      formatted = new Intl.NumberFormat('en-US', {
+        style: 'currency', currency: code,
+        minimumFractionDigits: precision, maximumFractionDigits: precision,
+      }).format(num);
+    } catch {
+      formatted = `${rawCode}${num.toLocaleString()}`;
+    }
   }
   return (
-    <span className="truncate block text-right w-full">{formatted}</span>
+    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatted}</span>
   );
 });
 
@@ -580,8 +593,46 @@ export const YearCellRenderer = React.memo(function YearCellRenderer({
 });
 
 
+const FORMULA_SYMBOL_TO_ISO: Record<string, string> = {
+  '₦': 'NGN', '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', '₹': 'INR',
+  '₩': 'KRW', '₽': 'RUB', '₺': 'TRY', '₴': 'UAH', '₸': 'KZT', '₫': 'VND',
+  '₵': 'GHS', 'R': 'ZAR', 'Fr': 'CHF', 'kr': 'SEK', 'zł': 'PLN', 'Kč': 'CZK',
+};
+
+function formatFormulaNumber(val: number, field: FieldMeta): string {
+  const resultType = field.options?.result?.type;
+  if (resultType === 'currency') {
+    const sym = field.options?.result?.options?.symbol ?? '$';
+    const trimmed = (sym as string).trim();
+    const code = /^[A-Z]{3}$/.test(trimmed) ? trimmed : (FORMULA_SYMBOL_TO_ISO[trimmed] ?? 'USD');
+    const precision = field.options?.result?.options?.precision ?? 0;
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency', currency: code,
+        minimumFractionDigits: precision, maximumFractionDigits: precision,
+        currencyDisplay: 'narrowSymbol',
+      }).format(val);
+    } catch {
+      try {
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency', currency: code,
+          minimumFractionDigits: precision, maximumFractionDigits: precision,
+        }).format(val);
+      } catch {
+        return `${sym}${val.toLocaleString()}`;
+      }
+    }
+  }
+  if (resultType === 'percent') {
+    const precision = field.options?.result?.options?.precision ?? 1;
+    return `${(val * 100).toFixed(precision)}%`;
+  }
+  return val.toLocaleString();
+}
+
 export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({
   value,
+  field,
 }: CellRendererProps) {
   const colors = useGridColors();
   if (value == null || value === '') return null;
@@ -605,10 +656,12 @@ export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({
       </div>
     );
   }
-  if (typeof value === 'number') {
+  const numVal = typeof value === 'number' ? value : (typeof value === 'string' && value !== '' && !isNaN(Number(value)) ? Number(value) : null);
+  if (numVal !== null) {
+    const formatted = formatFormulaNumber(numVal, field);
     return (
-      <span className="truncate block text-right w-full">
-        {value.toLocaleString()}
+      <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums' }}>
+        {formatted}
       </span>
     );
   }
