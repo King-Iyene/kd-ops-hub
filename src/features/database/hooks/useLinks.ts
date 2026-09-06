@@ -38,8 +38,110 @@ export function getRecordDisplayValue(
 }
 
 /**
+ * Cached metadata for link resolution — shared across all cells in the same
+ * column so TanStack deduplicates the metadata queries.
+ */
+function useLinkResolutionMeta(opts: {
+  baseId: string | null | undefined;
+  sourceTableId: string;
+  targetTableId: string | null | undefined;
+  fieldId: string;
+  linkType: string | undefined;
+}) {
+  const { baseId, sourceTableId, targetTableId, fieldId, linkType } = opts;
+
+  const { data: baseMeta } = useQuery({
+    queryKey: ['nc', 'base-schema', baseId],
+    enabled: !!baseId,
+    staleTime: Infinity,
+    gcTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const { data } = await supabase
+        .schema('nc_meta')
+        .from('bases')
+        .select('schema_name')
+        .eq('id', baseId)
+        .single();
+      return data as { schema_name: string } | null;
+    },
+  });
+
+  const { data: srcTableMeta } = useQuery({
+    queryKey: ['nc', 'table-pg-name', sourceTableId],
+    enabled: !!sourceTableId,
+    staleTime: Infinity,
+    gcTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const { data } = await supabase
+        .schema('nc_meta')
+        .from('tables')
+        .select('pg_table_name')
+        .eq('id', sourceTableId)
+        .single();
+      return data as { pg_table_name: string } | null;
+    },
+  });
+
+  const { data: tgtTableMeta } = useQuery({
+    queryKey: ['nc', 'table-pg-name', targetTableId],
+    enabled: !!targetTableId,
+    staleTime: Infinity,
+    gcTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const { data } = await supabase
+        .schema('nc_meta')
+        .from('tables')
+        .select('pg_table_name')
+        .eq('id', targetTableId)
+        .single();
+      return data as { pg_table_name: string } | null;
+    },
+  });
+
+  const { data: junctionMeta } = useQuery({
+    queryKey: ['nc', 'junction-meta', fieldId],
+    enabled: linkType === 'mm' && !!fieldId,
+    staleTime: Infinity,
+    gcTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const { data: linkMeta } = await supabase
+        .schema('nc_meta')
+        .from('links')
+        .select('junction_table_id')
+        .eq('field_id', fieldId)
+        .single();
+      if (!linkMeta?.junction_table_id) return null;
+      const { data: jTable } = await supabase
+        .schema('nc_meta')
+        .from('tables')
+        .select('pg_table_name')
+        .eq('id', linkMeta.junction_table_id)
+        .single();
+      return jTable as { pg_table_name: string } | null;
+    },
+  });
+
+  const ready = !!baseMeta && !!srcTableMeta && !!tgtTableMeta && (linkType !== 'mm' || !!junctionMeta);
+
+  return {
+    ready,
+    schema: baseMeta?.schema_name,
+    srcTable: srcTableMeta?.pg_table_name,
+    tgtTable: tgtTableMeta?.pg_table_name,
+    junctionTable: junctionMeta?.pg_table_name ?? null,
+  };
+}
+
+/**
  * Fetch records currently linked to a specific source record through a link
  * field. Handles hm (has-many), bt (belongs-to), and mm (many-to-many).
+ *
+ * Metadata queries (base schema, table names, junction info) are cached with
+ * Infinity staleTime so TanStack deduplicates them across all cells in a column.
  */
 export function useRecordLinks(opts: {
   baseId: string | null | undefined;
@@ -51,42 +153,24 @@ export function useRecordLinks(opts: {
   fkColumnName?: string | null;
 }) {
   const { baseId, sourceTableId, targetTableId, fieldId, recordId, linkType, fkColumnName } = opts;
+
+  const meta = useLinkResolutionMeta({ baseId, sourceTableId, targetTableId, fieldId, linkType });
+
   return useQuery({
     queryKey: ['nc', 'linked-records', baseId, sourceTableId, fieldId, recordId],
-    enabled: !!baseId && !!targetTableId && !!recordId,
+    enabled: !!baseId && !!targetTableId && !!recordId && meta.ready,
     staleTime: 30_000,
     gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,
     queryFn: async (): Promise<RecordRow[]> => {
-      const { data: base } = await supabase
-        .schema('nc_meta')
-        .from('bases')
-        .select('schema_name')
-        .eq('id', baseId)
-        .single();
-      if (!base) return [];
-
-      const { data: srcTable } = await supabase
-        .schema('nc_meta')
-        .from('tables')
-        .select('pg_table_name')
-        .eq('id', sourceTableId)
-        .single();
-      const { data: tgtTable } = await supabase
-        .schema('nc_meta')
-        .from('tables')
-        .select('pg_table_name')
-        .eq('id', targetTableId)
-        .single();
-      if (!srcTable || !tgtTable) return [];
-
-      const schema = base.schema_name;
+      const { schema, srcTable, tgtTable, junctionTable } = meta;
+      if (!schema || !srcTable || !tgtTable) return [];
 
       if (linkType === 'hm') {
-        const fkCol = fkColumnName || `${srcTable.pg_table_name}_id`;
+        const fkCol = fkColumnName || `${srcTable}_id`;
         const { data } = await supabase
           .schema(schema)
-          .from(tgtTable.pg_table_name)
+          .from(tgtTable)
           .select('*')
           .eq(fkCol, recordId)
           .limit(200);
@@ -94,17 +178,17 @@ export function useRecordLinks(opts: {
       }
 
       if (linkType === 'bt') {
-        const fkCol = fkColumnName || `${tgtTable.pg_table_name}_id`;
+        const fkCol = fkColumnName || `${tgtTable}_id`;
         const { data: srcRow } = await supabase
           .schema(schema)
-          .from(srcTable.pg_table_name)
+          .from(srcTable)
           .select(fkCol)
           .eq('id', recordId)
           .single();
         if (!srcRow || !srcRow[fkCol]) return [];
         const { data } = await supabase
           .schema(schema)
-          .from(tgtTable.pg_table_name)
+          .from(tgtTable)
           .select('*')
           .eq('id', srcRow[fkCol])
           .limit(1);
@@ -112,29 +196,15 @@ export function useRecordLinks(opts: {
       }
 
       if (linkType === 'mm') {
-        const { data: linkMeta } = await supabase
-          .schema('nc_meta')
-          .from('links')
-          .select('junction_table_id')
-          .eq('field_id', fieldId)
-          .single();
-        if (!linkMeta?.junction_table_id) return [];
+        if (!junctionTable) return [];
 
-        const { data: jTable } = await supabase
-          .schema('nc_meta')
-          .from('tables')
-          .select('pg_table_name')
-          .eq('id', linkMeta.junction_table_id)
-          .single();
-        if (!jTable) return [];
-
-        const srcCol = `${srcTable.pg_table_name}_id`;
-        const tgtCol = `${tgtTable.pg_table_name}_id`;
+        const srcCol = `${srcTable}_id`;
+        const tgtCol = `${tgtTable}_id`;
 
         let jRows: any[] | null = null;
         const { data: rows1, error: err1 } = await supabase
           .schema(schema)
-          .from(jTable.pg_table_name)
+          .from(junctionTable)
           .select(tgtCol)
           .eq(srcCol, recordId)
           .limit(200);
@@ -142,10 +212,9 @@ export function useRecordLinks(opts: {
         if (!err1 && rows1 && rows1.length > 0) {
           jRows = rows1;
         } else {
-          // Fallback: legacy source_id/target_id columns
           const { data: rows2 } = await supabase
             .schema(schema)
-            .from(jTable.pg_table_name)
+            .from(junctionTable)
             .select('target_id, source_id')
             .or(`source_id.eq.${recordId},target_id.eq.${recordId}`)
             .limit(200);
@@ -163,7 +232,7 @@ export function useRecordLinks(opts: {
 
         const { data } = await supabase
           .schema(schema)
-          .from(tgtTable.pg_table_name)
+          .from(tgtTable)
           .select('*')
           .in('id', ids);
         return (data ?? []) as RecordRow[];
