@@ -188,7 +188,7 @@ export function TableView() {
     if (!patchedFields || patchedFields.length === 0) return raw;
 
     const formulaFields = patchedFields.filter(
-      (f) => f.ui_type === 'Formula' && f.options?.expression,
+      (f) => f.ui_type === 'Formula' && (f.options?.expression || f.options?.formula),
     );
     if (formulaFields.length === 0) return raw;
 
@@ -199,7 +199,7 @@ export function TableView() {
 
     const parsed = formulaFields.map((f) => {
       try {
-        return { col: f.pg_column_name, ast: parseFormula(f.options.expression!) };
+        return { col: f.pg_column_name, ast: parseFormula((f.options.expression || f.options.formula)!) };
       } catch {
         return { col: f.pg_column_name, ast: null };
       }

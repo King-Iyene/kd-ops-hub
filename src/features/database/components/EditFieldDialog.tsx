@@ -216,7 +216,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       setShowTypeSelector(false);
       setTypeChangeConfirmed(false);
       // Populate formula/lookup state from field options
-      setFormulaExpression((field.options as any)?.expression ?? '');
+      setFormulaExpression((field.options as any)?.expression ?? (field.options as any)?.formula ?? '');
       setFormulaError('');
       setLinkFieldId((field.options as any)?.linkFieldId ?? '');
       setLookupFieldId((field.options as any)?.lookupFieldId ?? '');
