@@ -1883,7 +1883,35 @@ export default function GridView({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* Quick calculation for cell selection */}
+          {selectionRange && (() => {
+            const r1 = Math.min(selectionRange.startRow, selectionRange.endRow);
+            const r2 = Math.max(selectionRange.startRow, selectionRange.endRow);
+            const c1 = Math.min(selectionRange.startCol, selectionRange.endCol);
+            const c2 = Math.max(selectionRange.startCol, selectionRange.endCol);
+            const cellCount = (r2 - r1 + 1) * (c2 - c1 + 1);
+            const nums: number[] = [];
+            for (let ri = r1; ri <= r2; ri++) {
+              for (let ci = c1; ci <= c2; ci++) {
+                const f = fieldsWithWidths[ci];
+                if (!f) continue;
+                const v = records[ri]?.[f.pg_column_name];
+                if (typeof v === 'number') nums.push(v);
+                else if (typeof v === 'string' && v !== '' && !isNaN(Number(v))) nums.push(Number(v));
+              }
+            }
+            if (nums.length === 0) return <span style={{ color: GRID_COLORS.primary }}>{cellCount} cells</span>;
+            const sum = nums.reduce((a, b) => a + b, 0);
+            const avg = sum / nums.length;
+            return (
+              <span className="flex items-center gap-3 font-medium" style={{ color: GRID_COLORS.primary }}>
+                <span>Sum: {sum.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                <span>Avg: {avg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                <span>Count: {nums.length}</span>
+              </span>
+            );
+          })()}
           {isLoadingMore && (
             <span className="flex items-center gap-1">
               <Loader2 size={12} className="animate-spin" /> Loading more...
