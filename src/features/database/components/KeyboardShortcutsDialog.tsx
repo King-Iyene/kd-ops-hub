@@ -69,6 +69,7 @@ const SECTIONS: ShortcutSection[] = [
       { keys: ['Ctrl', 'N'], description: 'Add new record' },
       { keys: ['Ctrl', 'F'], description: 'Find / search' },
       { keys: ['Ctrl', 'H'], description: 'Search & replace' },
+      { keys: ['Ctrl', 'P'], description: 'Print view' },
       { keys: ['?'], description: 'Show keyboard shortcuts' },
     ],
   },
