@@ -789,7 +789,7 @@ async function handleAlterColumnType(
 // ---------------------------------------------------------------------------
 
 const dbUrl = Deno.env.get('SUPABASE_DB_URL')!;
-const pool = new Pool(dbUrl, 1, true);
+const pool = new Pool(dbUrl, 5, true);
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
@@ -1042,7 +1042,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (err instanceof ForbiddenError) {
       return json({ success: false, error: err.message }, 403);
     }
-    console.error('DDL Executor error:', err);
+    console.error('DDL Executor error:', (err as Error).message, (err as Error).stack);
     return json({ success: false, error: (err as Error).message }, 500);
   }
 });
