@@ -11,6 +11,7 @@ import {
   usePrimaryField,
   useRecordLinks,
   useRelatedTableSearch,
+  useTargetTableFields,
   useLinkMutations,
   getRecordDisplayValue,
 } from '../../hooks/useLinks';
@@ -22,6 +23,69 @@ interface LinkCellRendererProps {
   field: FieldMeta;
   record: RecordRow;
   rowHeight: 'short' | 'medium' | 'tall' | 'extra-tall';
+}
+
+function RecordCard({
+  rec,
+  primaryField,
+  visibleFields,
+  action,
+  onAction,
+}: {
+  rec: RecordRow;
+  primaryField: FieldMeta | null | undefined;
+  visibleFields: FieldMeta[];
+  action: 'link' | 'unlink';
+  onAction: (id: string) => void;
+}) {
+  const displayVal = getRecordDisplayValue(rec, primaryField);
+  const extraFields = visibleFields.filter(
+    (f) => f.id !== primaryField?.id && rec[f.pg_column_name] != null && String(rec[f.pg_column_name]).trim() !== '',
+  ).slice(0, 3);
+
+  return (
+    <div
+      className="flex items-start justify-between px-2.5 py-2 rounded-md hover:bg-[#F1F5F9] dark:hover:bg-[hsl(200,25%,14%)] group/item cursor-pointer transition-colors"
+      onClick={() => onAction(rec.id)}
+    >
+      <div className="flex-1 min-w-0">
+        <div className="text-[12px] font-medium text-[#334155] dark:text-[hsl(200,25%,88%)] truncate">
+          {displayVal}
+        </div>
+        {extraFields.length > 0 && (
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+            {extraFields.map((f) => {
+              const val = rec[f.pg_column_name];
+              const formatted = f.ui_type === 'Currency' || f.ui_type === 'Number' || f.ui_type === 'Decimal'
+                ? Number(val).toLocaleString()
+                : String(val);
+              return (
+                <span key={f.id} className="text-[10px] text-[#9AA2AF] truncate max-w-[120px]">
+                  <span className="text-[#B0B8C4] dark:text-[hsl(200,20%,40%)]">{f.name}: </span>
+                  {formatted}
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div className="shrink-0 ml-2 mt-0.5">
+        {action === 'unlink' ? (
+          <button
+            className="opacity-0 group-hover/item:opacity-100 p-0.5 rounded hover:bg-[#E5E5E5] dark:hover:bg-[hsl(200,25%,18%)] transition-opacity"
+            onClick={(e) => { e.stopPropagation(); onAction(rec.id); }}
+          >
+            <X size={12} className="text-[#9AA2AF]" />
+          </button>
+        ) : (
+          <Plus
+            size={13}
+            className="text-[#2D7FF9] opacity-0 group-hover/item:opacity-100 transition-opacity"
+          />
+        )}
+      </div>
+    </div>
+  );
 }
 
 export const LinkCellRenderer = React.memo(function LinkCellRenderer({
@@ -58,6 +122,8 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
     primaryField,
     enabled: isOpen,
   });
+
+  const { data: visibleFields = [] } = useTargetTableFields(relatedTableId, isOpen);
 
   const { linkRecord, unlinkRecord } = useLinkMutations({
     baseId: activeBaseId,
@@ -124,8 +190,9 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
         </div>
       </PopoverTrigger>
       <PopoverContent
-        className="w-80 p-0"
+        className="w-96 p-0"
         align="start"
+        onOpenAutoFocus={(e) => e.preventDefault()}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
@@ -137,57 +204,44 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
               onChange={(e) => setSearchTerm(e.target.value)}
               className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 p-0"
               autoFocus
+              onKeyDown={(e) => e.stopPropagation()}
             />
           </div>
         </div>
 
-        <div className="max-h-60 overflow-y-auto">
-          {linkedRecords.length > 0 ? (
+        <div className="max-h-72 overflow-y-auto">
+          {linkedRecords.length > 0 && (
             <div className="p-1">
               <p className="px-2 py-1 text-[10px] font-medium text-[#9AA2AF] uppercase tracking-wider">
                 Linked
               </p>
               {linkedRecords.map((rec) => (
-                <div
+                <RecordCard
                   key={rec.id}
-                  className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-[#F1F5F9] dark:hover:bg-[hsl(200,25%,14%)] group/item"
-                >
-                  <span className="text-xs text-[#334155] dark:text-[hsl(200,25%,88%)] truncate">
-                    {getRecordDisplayValue(rec, primaryField)}
-                  </span>
-                  <button
-                    className="opacity-0 group-hover/item:opacity-100 p-0.5 rounded hover:bg-[#E5E5E5] dark:hover:bg-[hsl(200,25%,18%)] transition-opacity"
-                    onClick={() => unlinkRecord(rec.id)}
-                  >
-                    <X size={12} className="text-[#9AA2AF]" />
-                  </button>
-                </div>
+                  rec={rec}
+                  primaryField={primaryField}
+                  visibleFields={visibleFields}
+                  action="unlink"
+                  onAction={unlinkRecord}
+                />
               ))}
             </div>
-          ) : (
-            <div className="p-3 text-xs text-[#9AA2AF]">No linked records</div>
           )}
 
-          {searchTerm && filteredSearchResults.length > 0 && (
+          {filteredSearchResults.length > 0 && (
             <div className="p-1 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
               <p className="px-2 py-1 text-[10px] font-medium text-[#9AA2AF] uppercase tracking-wider">
-                Link new
+                {searchTerm ? 'Search results' : 'Available records'}
               </p>
               {filteredSearchResults.map((rec) => (
-                <div
+                <RecordCard
                   key={rec.id}
-                  className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-[#F1F5F9] dark:hover:bg-[hsl(200,25%,14%)] group/item"
-                >
-                  <span className="text-xs text-[#334155] dark:text-[hsl(200,25%,88%)] truncate">
-                    {getRecordDisplayValue(rec, primaryField)}
-                  </span>
-                  <button
-                    className="opacity-0 group-hover/item:opacity-100 p-0.5 rounded hover:bg-[#DBEAFE] dark:hover:bg-[hsl(220,40%,20%)] transition-opacity"
-                    onClick={() => linkRecord(rec.id)}
-                  >
-                    <Plus size={12} className="text-[#2D7FF9]" />
-                  </button>
-                </div>
+                  rec={rec}
+                  primaryField={primaryField}
+                  visibleFields={visibleFields}
+                  action="link"
+                  onAction={linkRecord}
+                />
               ))}
             </div>
           )}
@@ -196,6 +250,10 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
             <div className="p-3 text-xs text-[#9AA2AF] border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
               No matching records found
             </div>
+          )}
+
+          {!searchTerm && filteredSearchResults.length === 0 && linkedRecords.length === 0 && (
+            <div className="p-3 text-xs text-[#9AA2AF]">No records available</div>
           )}
         </div>
       </PopoverContent>

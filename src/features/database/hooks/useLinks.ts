@@ -235,7 +235,8 @@ export function useRelatedTableSearch(opts: {
   const { baseId, targetTableId, searchTerm, primaryField, enabled = true } = opts;
   return useQuery({
     queryKey: ['nc', 'link-search', targetTableId, searchTerm],
-    enabled: !!targetTableId && !!searchTerm && !!baseId && enabled,
+    enabled: !!targetTableId && !!baseId && enabled,
+    placeholderData: keepPreviousData,
     queryFn: async (): Promise<RecordRow[]> => {
       const { data: base } = await supabase
         .schema('nc_meta')
@@ -259,13 +260,34 @@ export function useRelatedTableSearch(opts: {
         .select('*')
         .limit(20);
 
-      if (primaryField?.pg_column_name) {
+      if (searchTerm && primaryField?.pg_column_name) {
         query = query.ilike(primaryField.pg_column_name, `%${searchTerm}%`);
       }
 
       const { data, error } = await query;
       if (error) return [];
       return (data ?? []) as RecordRow[];
+    },
+  });
+}
+
+/** Fetch visible fields for a target table (for rich search result cards). */
+export function useTargetTableFields(tableId: string | null | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ['nc', 'target-fields', tableId],
+    enabled: !!tableId && enabled,
+    staleTime: 60_000,
+    queryFn: async (): Promise<FieldMeta[]> => {
+      const { data, error } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .select('*')
+        .eq('table_id', tableId)
+        .not('pg_column_name', 'eq', '')
+        .order('display_order', { ascending: true })
+        .limit(6);
+      if (error) return [];
+      return (data ?? []) as FieldMeta[];
     },
   });
 }
