@@ -961,6 +961,36 @@ Deno.serve(async (req: Request): Promise<Response> => {
           }
         } finally { lqConn.release(); }
       }
+      case 'directQuery': {
+        const { schemaName: dqSchema, tableName: dqTable, columns: dqCols, where: dqWhere, limit: dqLimit, offset: dqOffset } = body;
+        if (!dqSchema || !dqTable) {
+          return json({ success: false, error: 'Missing schemaName or tableName' }, 400);
+        }
+        const dqConn = await pool.connect();
+        try {
+          const cols = dqCols?.length ? dqCols.map((c: string) => `"${c}"`).join(', ') : '*';
+          let sql = `SELECT ${cols} FROM "${dqSchema}"."${dqTable}"`;
+          const params: unknown[] = [];
+          if (dqWhere) {
+            const clauses: string[] = [];
+            for (const [col, op, val] of dqWhere) {
+              if (op === 'IS NOT' && val === null) {
+                clauses.push(`"${col}" IS NOT NULL`);
+              } else if (op === 'IS' && val === null) {
+                clauses.push(`"${col}" IS NULL`);
+              } else {
+                params.push(val);
+                clauses.push(`"${col}" ${op} $${params.length}`);
+              }
+            }
+            sql += ` WHERE ${clauses.join(' AND ')}`;
+          }
+          if (dqLimit) sql += ` LIMIT ${parseInt(String(dqLimit), 10)}`;
+          if (dqOffset) sql += ` OFFSET ${parseInt(String(dqOffset), 10)}`;
+          const { rows } = await dqConn.queryObject(sql, params);
+          return json({ success: true, rows });
+        } finally { dqConn.release(); }
+      }
       case 'bulkInsert': {
         const { schemaName: biSchema, tableName: biTable, columns: biCols, rows: biRows } = body;
         if (!biSchema || !biTable || !biCols?.length || !biRows?.length) {

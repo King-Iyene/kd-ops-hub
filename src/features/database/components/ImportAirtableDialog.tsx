@@ -925,13 +925,19 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             let page = 0;
             const pageSize = 1000;
             while (true) {
-              const { data: batch } = await supabase
-                .schema(schemaName)
-                .from(sourcePgTable)
-                .select(`id, ${pgCol}, airtable_id`)
-                .not(pgCol, 'is', null)
-                .range(page * pageSize, (page + 1) * pageSize - 1);
-              if (!batch?.length) break;
+              const { data: srcData } = await supabase.functions.invoke('ddl-executor', {
+                body: {
+                  action: 'directQuery',
+                  schemaName,
+                  tableName: sourcePgTable,
+                  columns: ['id', pgCol, 'airtable_id'],
+                  where: [[pgCol, 'IS NOT', null]],
+                  limit: pageSize,
+                  offset: page * pageSize,
+                },
+              });
+              const batch = srcData?.rows ?? [];
+              if (!batch.length) break;
               allSourceRecords.push(...batch);
               if (batch.length < pageSize) break;
               page++;
@@ -942,12 +948,18 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             const targetIdMap: Record<string, string> = {};
             page = 0;
             while (true) {
-              const { data: batch } = await supabase
-                .schema(schemaName)
-                .from(targetPgTable)
-                .select('id, airtable_id')
-                .range(page * pageSize, (page + 1) * pageSize - 1);
-              if (!batch?.length) break;
+              const { data: tgtData } = await supabase.functions.invoke('ddl-executor', {
+                body: {
+                  action: 'directQuery',
+                  schemaName,
+                  tableName: targetPgTable,
+                  columns: ['id', 'airtable_id'],
+                  limit: pageSize,
+                  offset: page * pageSize,
+                },
+              });
+              const batch = tgtData?.rows ?? [];
+              if (!batch.length) break;
               for (const r of batch) {
                 if (r.airtable_id) targetIdMap[r.airtable_id] = r.id;
               }
