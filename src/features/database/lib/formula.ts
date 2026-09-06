@@ -61,12 +61,13 @@ function tokenize(expr: string): Token[] {
       continue;
     }
 
-    // string literal "..."
-    if (ch === '"') {
+    // string literal "..." or '...'
+    if (ch === '"' || ch === "'") {
+      const quote = ch;
       const start = i;
       i++;
       let s = '';
-      while (i < len && expr[i] !== '"') {
+      while (i < len && expr[i] !== quote) {
         if (expr[i] === '\\' && i + 1 < len) {
           i++;
           s += expr[i];
@@ -76,7 +77,7 @@ function tokenize(expr: string): Token[] {
         i++;
       }
       if (i >= len) throw new Error(`Unterminated string at position ${start}`);
-      i++; // skip closing "
+      i++; // skip closing quote
       tokens.push({ type: 'STRING', value: s, pos: start });
       continue;
     }
@@ -475,8 +476,39 @@ const BUILTIN_FUNCTIONS: Record<string, (args: any[]) => any> = {
   MONTH: ([d]) => { const dt = new Date(d); return isNaN(dt.getTime()) ? null : dt.getMonth() + 1; },
   DAY: ([d]) => { const dt = new Date(d); return isNaN(dt.getTime()) ? null : dt.getDate(); },
   WEEKDAY: ([d]) => { const dt = new Date(d); return isNaN(dt.getTime()) ? null : dt.getDay(); },
+  DATETIME_FORMAT: ([d, fmt]) => {
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return null;
+    const f = toString(fmt);
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const monthsShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const daysShort = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    return f
+      .replace(/YYYY/g, String(dt.getFullYear()))
+      .replace(/YY/g, String(dt.getFullYear()).slice(-2))
+      .replace(/MMMM/g, months[dt.getMonth()])
+      .replace(/MMM/g, monthsShort[dt.getMonth()])
+      .replace(/MM/g, String(dt.getMonth() + 1).padStart(2, '0'))
+      .replace(/M(?!a|o)/g, String(dt.getMonth() + 1))
+      .replace(/dddd/g, days[dt.getDay()])
+      .replace(/ddd/g, daysShort[dt.getDay()])
+      .replace(/DD/g, String(dt.getDate()).padStart(2, '0'))
+      .replace(/D(?!e)/g, String(dt.getDate()))
+      .replace(/HH/g, String(dt.getHours()).padStart(2, '0'))
+      .replace(/mm/g, String(dt.getMinutes()).padStart(2, '0'))
+      .replace(/ss/g, String(dt.getSeconds()).padStart(2, '0'));
+  },
+  DATETIME_PARSE: ([s, fmt]) => {
+    const str = toString(s);
+    if (!str) return null;
+    const dt = new Date(str);
+    return isNaN(dt.getTime()) ? null : dt.toISOString();
+  },
+  BLANK: () => null,
 
   // Aggregate-like
+  SUM: (args) => args.reduce((acc: number, v: any) => acc + toNumber(v), 0),
   COUNTA: (args) => args.filter((a) => !isBlank(a)).length,
   COUNTBLANK: (args) => args.filter((a) => isBlank(a)).length,
 };
