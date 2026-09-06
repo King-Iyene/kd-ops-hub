@@ -162,25 +162,21 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
   const relatedTableId = field.options?.relatedTableId as string | undefined;
   const linkType = field.options?.type as string | undefined;
 
-  const count = Array.isArray(value)
-    ? value.length
-    : typeof value === 'number'
-      ? value
-      : 0;
+  const hasRelation = !!relatedTableId;
 
-  const { data: primaryField } = usePrimaryField(relatedTableId, count > 0);
+  const { data: primaryField } = usePrimaryField(relatedTableId, hasRelation);
 
   const { data: linkedRecords = [], isLoading } = useRecordLinks({
     baseId: activeBaseId,
     sourceTableId: field.table_id,
     targetTableId: relatedTableId,
     fieldId: field.id,
-    recordId: count > 0 ? record.id : null,
+    recordId: hasRelation ? record.id : null,
     linkType,
     fkColumnName: field.options?.fkColumnName as string | undefined,
   });
 
-  if (count === 0) {
+  if (!hasRelation || (linkedRecords.length === 0 && !isLoading)) {
     return (
       <span className="flex items-center justify-center w-full h-full opacity-0 group-hover/row:opacity-60 transition-opacity cursor-pointer">
         <Plus size={14} className="text-[#9AA2AF]" onClick={(e) => {

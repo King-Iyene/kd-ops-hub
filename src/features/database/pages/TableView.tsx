@@ -163,26 +163,38 @@ export function TableView() {
     window.history.replaceState(null, '', url.toString());
   }, []);
 
+  // Patch virtual formula fields with a synthetic pg_column_name so cell
+  // renderers can find computed values in the record object.
+  const patchedFields = useMemo(
+    () =>
+      (fields ?? []).map((f) =>
+        f.ui_type === 'Formula' && !f.pg_column_name
+          ? { ...f, pg_column_name: `__formula_${f.id}` }
+          : f,
+      ),
+    [fields],
+  );
+
   const visibleFields = useMemo(
     () =>
-      (fields ?? [])
+      patchedFields
         .filter((f) => !f.is_hidden && !hiddenFieldIds.has(f.id))
         .sort((a, b) => a.position - b.position),
-    [fields, hiddenFieldIds],
+    [patchedFields, hiddenFieldIds],
   );
 
   const records = useMemo(() => {
     const raw = infiniteRecords;
-    if (!fields || fields.length === 0) return raw;
+    if (!patchedFields || patchedFields.length === 0) return raw;
 
-    const formulaFields = fields.filter(
+    const formulaFields = patchedFields.filter(
       (f) => f.ui_type === 'Formula' && f.options?.expression,
     );
     if (formulaFields.length === 0) return raw;
 
     const fieldMap: Record<string, string> = {};
-    for (const f of fields) {
-      fieldMap[f.name] = f.pg_column_name;
+    for (const f of patchedFields) {
+      if (f.pg_column_name) fieldMap[f.name] = f.pg_column_name;
     }
 
     const parsed = formulaFields.map((f) => {
@@ -208,7 +220,7 @@ export function TableView() {
       }
       return patched as RecordRow;
     });
-  }, [infiniteRecords, fields]);
+  }, [infiniteRecords, patchedFields]);
 
   // Auto-expand record from URL deep link (?rowId=...)
   const deepLinkedRef = useRef(false);
@@ -433,7 +445,7 @@ export function TableView() {
       case 'form':
         return (
           <FormView
-            fields={fields ?? []}
+            fields={patchedFields}
             onAddRow={handleAddRow}
             isLoading={isLoading}
           />
@@ -441,7 +453,7 @@ export function TableView() {
       case 'calendar':
         return (
           <CalendarView
-            fields={fields ?? []}
+            fields={patchedFields}
             records={records}
             totalCount={infiniteTotalCount}
             isLoading={isLoading}
@@ -452,7 +464,7 @@ export function TableView() {
       case 'timeline':
         return (
           <TimelineView
-            fields={fields ?? []}
+            fields={patchedFields}
             records={records}
             totalCount={infiniteTotalCount}
             isLoading={isLoading}
@@ -462,7 +474,7 @@ export function TableView() {
       case 'gantt':
         return (
           <GanttView
-            fields={fields ?? []}
+            fields={patchedFields}
             records={records}
             totalCount={infiniteTotalCount}
             isLoading={isLoading}
@@ -520,7 +532,7 @@ export function TableView() {
           if (!open) setExpandedRecord(null);
         }}
         record={expandedRecord}
-        fields={fields ?? []}
+        fields={patchedFields}
         baseId={activeBaseId!}
         tableId={activeTableId!}
         onCellUpdate={handleCellUpdate}
@@ -538,13 +550,13 @@ export function TableView() {
       <FindReplaceDialog
         open={findReplaceOpen}
         onOpenChange={setFindReplaceOpen}
-        fields={fields ?? []}
+        fields={patchedFields}
         records={records}
         onCellUpdate={handleCellUpdate}
       />
       {printOpen && (
         <PrintView
-          fields={fields ?? []}
+          fields={patchedFields}
           records={records}
           tableName={document.title.split('·')[0]?.trim() || 'Table'}
           onClose={() => setPrintOpen(false)}
