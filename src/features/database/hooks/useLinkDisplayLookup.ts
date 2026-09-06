@@ -41,35 +41,39 @@ export function useLinkDisplayLookup(
       if (!baseMeta?.schema_name) return map;
 
       for (const tableId of relatedTableIds) {
-        const { data: tableMeta } = await supabase
-          .schema('nc_meta')
-          .from('tables')
-          .select('pg_table_name, primary_field_id')
-          .eq('id', tableId)
-          .single();
-        if (!tableMeta) continue;
+        try {
+          const { data: tableMeta } = await supabase
+            .schema('nc_meta')
+            .from('tables')
+            .select('pg_table_name, primary_field_id')
+            .eq('id', tableId)
+            .single();
+          if (!tableMeta?.primary_field_id) continue;
 
-        const { data: primaryField } = await supabase
-          .schema('nc_meta')
-          .from('fields')
-          .select('pg_column_name')
-          .eq('id', tableMeta.primary_field_id)
-          .single();
-        if (!primaryField?.pg_column_name) continue;
+          const { data: primaryField } = await supabase
+            .schema('nc_meta')
+            .from('fields')
+            .select('pg_column_name')
+            .eq('id', tableMeta.primary_field_id)
+            .single();
+          if (!primaryField?.pg_column_name) continue;
 
-        const { data: rows } = await supabase
-          .schema(baseMeta.schema_name)
-          .from(tableMeta.pg_table_name)
-          .select(`airtable_id, ${primaryField.pg_column_name}`)
-          .not('airtable_id', 'is', null)
-          .limit(5000);
+          const { data: rows, error } = await supabase
+            .schema(baseMeta.schema_name)
+            .from(tableMeta.pg_table_name)
+            .select(`airtable_id, ${primaryField.pg_column_name}`)
+            .not('airtable_id', 'is', null)
+            .limit(5000);
 
-        if (rows) {
+          if (error || !rows) continue;
+
           for (const row of rows) {
             if (row.airtable_id && row[primaryField.pg_column_name] != null) {
               map[row.airtable_id] = String(row[primaryField.pg_column_name]);
             }
           }
+        } catch {
+          // Table may not have airtable_id column — skip silently
         }
       }
 
