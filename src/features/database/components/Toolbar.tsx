@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, GripVertical, ChevronUp, ChevronDown, FolderPlus, ChevronRight, Check, Key, Webhook, Zap } from 'lucide-react';
+import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, GripVertical, ChevronUp, ChevronDown, FolderPlus, ChevronRight, Check, Key, Webhook, Zap, Cable } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
 import { useUndoStore } from '../lib/undo';
@@ -9,6 +9,7 @@ const ImportCsvDialog = lazy(() => import('./ImportCsvDialog').then(m => ({ defa
 const ApiTokensDialog = lazy(() => import('./ApiTokensDialog').then(m => ({ default: m.ApiTokensDialog })));
 const WebhooksDialog = lazy(() => import('./WebhooksDialog').then(m => ({ default: m.WebhooksDialog })));
 const AutomationsDialog = lazy(() => import('./AutomationsDialog').then(m => ({ default: m.AutomationsDialog })));
+const IntegrationsDialog = lazy(() => import('./IntegrationsDialog').then(m => ({ default: m.IntegrationsDialog })));
 import { exportToCsv } from '../lib/csv';
 import { useTables } from '../hooks';
 import type { Filter as FilterType, FilterGroup, Sort, Group, FilterOperator, RowColorRule, FieldMeta } from '../types';
@@ -969,6 +970,7 @@ export function Toolbar() {
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [importCsvOpen, setImportCsvOpen] = useState(false);
+  const [integrationsOpen, setIntegrationsOpen] = useState(false);
   const [apiTokensOpen, setApiTokensOpen] = useState(false);
   const [webhooksOpen, setWebhooksOpen] = useState(false);
   const [automationsOpen, setAutomationsOpen] = useState(false);
@@ -1106,6 +1108,16 @@ export function Toolbar() {
               <Search size={14} />
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-[11px] text-zinc-500 dark:text-zinc-400 gap-1 px-2 hover:text-blue-600 dark:hover:text-blue-400"
+            onClick={() => setIntegrationsOpen(true)}
+            aria-label="Integrations"
+          >
+            <Cable size={14} />
+            <span className="hidden sm:inline">Integrations</span>
+          </Button>
           <div className="relative">
             <Button
               variant="ghost"
@@ -1173,26 +1185,6 @@ export function Toolbar() {
                   >
                     <Upload size={14} className="text-zinc-400 dark:text-zinc-500" /> Import CSV
                   </button>
-                  <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
-                  <div className="px-3 py-1 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Developer</div>
-                  <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
-                    onClick={() => { setApiTokensOpen(true); setMoreOpen(false); }}
-                  >
-                    <Key size={14} className="text-zinc-400 dark:text-zinc-500" /> API Tokens
-                  </button>
-                  <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
-                    onClick={() => { setWebhooksOpen(true); setMoreOpen(false); }}
-                  >
-                    <Webhook size={14} className="text-zinc-400 dark:text-zinc-500" /> Webhooks
-                  </button>
-                  <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
-                    onClick={() => { setAutomationsOpen(true); setMoreOpen(false); }}
-                  >
-                    <Zap size={14} className="text-zinc-400 dark:text-zinc-500" /> Automations
-                  </button>
                 </div>
               </>
             )}
@@ -1216,6 +1208,7 @@ export function Toolbar() {
       {apiTokensOpen && <Suspense fallback={null}><ApiTokensDialog open={apiTokensOpen} onOpenChange={setApiTokensOpen} baseId={activeBaseId} /></Suspense>}
       {webhooksOpen && <Suspense fallback={null}><WebhooksDialog open={webhooksOpen} onOpenChange={setWebhooksOpen} tableId={activeTableId} baseId={activeBaseId} /></Suspense>}
       {automationsOpen && <Suspense fallback={null}><AutomationsDialog open={automationsOpen} onOpenChange={setAutomationsOpen} tableId={activeTableId} baseId={activeBaseId} /></Suspense>}
+      {integrationsOpen && <Suspense fallback={null}><IntegrationsDialog open={integrationsOpen} onOpenChange={setIntegrationsOpen} tableId={activeTableId} baseId={activeBaseId} /></Suspense>}
     </>
   );
 }
