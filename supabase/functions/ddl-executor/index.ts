@@ -868,6 +868,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
         await logAudit(pool, userId, action, { schemas: result.schemas });
         return json({ success: true, ...result });
       }
+      case 'reloadSchema': {
+        const rc = await pool.connect();
+        try {
+          await rc.queryObject(`NOTIFY pgrst, 'reload schema'`);
+        } finally { rc.release(); }
+        return json({ success: true });
+      }
       default:
         return json({ success: false, error: `Unknown action: ${action}` }, 400);
     }

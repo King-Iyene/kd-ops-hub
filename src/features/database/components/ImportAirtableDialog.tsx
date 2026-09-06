@@ -158,11 +158,19 @@ async function rateLimitedFetch(url: string, options: RequestInit, retries = MAX
   return res;
 }
 
-async function waitForSchemaReady(schemaName: string, tableName?: string, columns?: string[], maxWaitMs = 20000): Promise<void> {
+async function forceSchemaReload(): Promise<void> {
+  await supabase.functions.invoke('ddl-executor', {
+    body: { action: 'reloadSchema' },
+  }).catch(() => {});
+  // Hard delay to let ALL PostgREST workers pick up the NOTIFY
+  await new Promise((r) => setTimeout(r, 3000));
+}
+
+async function waitForSchemaReady(schemaName: string, tableName?: string, columns?: string[], maxWaitMs = 30000): Promise<void> {
   const start = Date.now();
+  let attempts = 0;
   while (Date.now() - start < maxWaitMs) {
     try {
-      // Probe ALL columns, not just a sample — PostgREST may cache some but not others
       const selectCols = columns?.length ? ['id', ...columns].join(',') : 'id';
       const { error } = tableName
         ? await supabase.schema(schemaName).from(tableName).select(selectCols).limit(0)
@@ -174,10 +182,15 @@ async function waitForSchemaReady(schemaName: string, tableName?: string, column
       if (error.code !== 'PGRST106' && !error.message?.includes('schema') && !error.message?.includes('column')) {
         return;
       }
+      // Every 3 failed probes, force another schema reload
+      attempts++;
+      if (attempts % 3 === 0) {
+        await forceSchemaReload();
+      }
     } catch {
       // ignore
     }
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 1000));
   }
 }
 
@@ -546,6 +559,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         });
 
         const allColNames = fieldRows.map((fr) => fr.pg_column_name).filter(Boolean);
+        // Force schema reload after DDL, then wait for all workers to catch up
+        await forceSchemaReload();
         await waitForSchemaReady(schemaName, pgTableName, allColNames);
 
         const { data: createdFields } = await supabase
@@ -656,9 +671,10 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               const { error: insertErr } = await supabase.schema(schemaName).from(pgTableName).insert(rows);
               if (insertErr) {
                 const isSchemaErr = insertErr.code === 'PGRST106' || insertErr.message?.includes('schema') || insertErr.message?.includes('column');
-                if (isSchemaErr && schemaRetries < 3) {
+                if (isSchemaErr && schemaRetries < 5) {
                   schemaRetries++;
-                  await waitForSchemaReady(schemaName, pgTableName, allColNames, 8000);
+                  await forceSchemaReload();
+                  await waitForSchemaReady(schemaName, pgTableName, allColNames, 15000);
                   return insertBatch(rows);
                 }
                 const midpoint = Math.ceil(rows.length / 2);
