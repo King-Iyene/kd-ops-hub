@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link2, Plus, X, Search } from 'lucide-react';
+import { Plus, X, Search } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -24,22 +24,32 @@ interface LinkCellRendererProps {
   rowHeight: 'short' | 'medium' | 'tall' | 'extra-tall';
 }
 
-function LinkedRecordsPopover({
+export const LinkCellRenderer = React.memo(function LinkCellRenderer({
+  value,
   field,
   record,
-  linkedRecords,
-  primaryField,
-}: {
-  field: FieldMeta;
-  record: RecordRow;
-  linkedRecords: any[];
-  primaryField: any;
-}) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
+  rowHeight,
+}: LinkCellRendererProps) {
+  const colors = useGridColors();
   const { activeBaseId } = useDatabaseUI();
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const relatedTableId = field.options?.relatedTableId as string | undefined;
+  const linkType = field.options?.type as string | undefined;
+  const hasRelation = !!relatedTableId;
+
+  const { data: primaryField } = usePrimaryField(relatedTableId, hasRelation);
+
+  const { data: linkedRecords = [], isLoading } = useRecordLinks({
+    baseId: activeBaseId,
+    sourceTableId: field.table_id,
+    targetTableId: relatedTableId,
+    fieldId: field.id,
+    recordId: hasRelation ? record.id : null,
+    linkType,
+    fkColumnName: field.options?.fkColumnName as string | undefined,
+  });
 
   const { data: searchResults = [] } = useRelatedTableSearch({
     baseId: activeBaseId,
@@ -60,16 +70,58 @@ function LinkedRecordsPopover({
     (r) => !linkedIds.has(r.id),
   );
 
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (!open) setSearchTerm('');
+  };
+
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <button
-          className="inline-flex items-center justify-center w-5 h-5 rounded-full cursor-pointer opacity-0 group-hover/row:opacity-100 transition-opacity hover:bg-black/5 dark:hover:bg-white/10"
+        <div
+          className="flex items-center gap-1 w-full h-full cursor-pointer min-h-[28px]"
           onClick={(e) => e.stopPropagation()}
-          style={{ background: 'transparent' }}
         >
-          <Plus size={11} strokeWidth={2.5} className="text-[#9AA2AF] shrink-0" />
-        </button>
+          {isLoading ? (
+            <span className="text-xs truncate" style={{ color: colors.muted }}>
+              Loading...
+            </span>
+          ) : linkedRecords.length > 0 ? (
+            <>
+              <div className="flex items-center gap-1 overflow-hidden flex-1 min-w-0">
+                {linkedRecords.slice(0, 10).map((rec) => {
+                  const displayVal = getRecordDisplayValue(rec, primaryField);
+                  return (
+                    <span
+                      key={rec.id}
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 max-w-[200px] truncate leading-tight"
+                      style={{
+                        backgroundColor: colors.linkPillBg,
+                        color: colors.linkPillText,
+                      }}
+                    >
+                      {displayVal}
+                    </span>
+                  );
+                })}
+                {linkedRecords.length > 10 && (
+                  <span className="text-xs shrink-0" style={{ color: colors.muted }}>
+                    +{linkedRecords.length - 10}
+                  </span>
+                )}
+              </div>
+              <Plus
+                size={11}
+                strokeWidth={2.5}
+                className="text-[#9AA2AF] shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity"
+              />
+            </>
+          ) : (
+            <span className="flex items-center justify-center w-full h-full opacity-0 group-hover/row:opacity-60 transition-opacity">
+              <Plus size={14} className="text-[#9AA2AF]" />
+            </span>
+          )}
+        </div>
       </PopoverTrigger>
       <PopoverContent
         className="w-80 p-0"
@@ -84,6 +136,7 @@ function LinkedRecordsPopover({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 p-0"
+              autoFocus
             />
           </div>
         </div>
@@ -97,13 +150,13 @@ function LinkedRecordsPopover({
               {linkedRecords.map((rec) => (
                 <div
                   key={rec.id}
-                  className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-[#F1F5F9] dark:hover:bg-[hsl(200,25%,14%)] group"
+                  className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-[#F1F5F9] dark:hover:bg-[hsl(200,25%,14%)] group/item"
                 >
                   <span className="text-xs text-[#334155] dark:text-[hsl(200,25%,88%)] truncate">
                     {getRecordDisplayValue(rec, primaryField)}
                   </span>
                   <button
-                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#E5E5E5] dark:hover:bg-[hsl(200,25%,18%)] transition-opacity"
+                    className="opacity-0 group-hover/item:opacity-100 p-0.5 rounded hover:bg-[#E5E5E5] dark:hover:bg-[hsl(200,25%,18%)] transition-opacity"
                     onClick={() => unlinkRecord(rec.id)}
                   >
                     <X size={12} className="text-[#9AA2AF]" />
@@ -123,13 +176,13 @@ function LinkedRecordsPopover({
               {filteredSearchResults.map((rec) => (
                 <div
                   key={rec.id}
-                  className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-[#F1F5F9] dark:hover:bg-[hsl(200,25%,14%)] group"
+                  className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-[#F1F5F9] dark:hover:bg-[hsl(200,25%,14%)] group/item"
                 >
                   <span className="text-xs text-[#334155] dark:text-[hsl(200,25%,88%)] truncate">
                     {getRecordDisplayValue(rec, primaryField)}
                   </span>
                   <button
-                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#DBEAFE] dark:hover:bg-[hsl(220,40%,20%)] transition-opacity"
+                    className="opacity-0 group-hover/item:opacity-100 p-0.5 rounded hover:bg-[#DBEAFE] dark:hover:bg-[hsl(220,40%,20%)] transition-opacity"
                     onClick={() => linkRecord(rec.id)}
                   >
                     <Plus size={12} className="text-[#2D7FF9]" />
@@ -147,85 +200,5 @@ function LinkedRecordsPopover({
         </div>
       </PopoverContent>
     </Popover>
-  );
-}
-
-export const LinkCellRenderer = React.memo(function LinkCellRenderer({
-  value,
-  field,
-  record,
-  rowHeight,
-}: LinkCellRendererProps) {
-  const colors = useGridColors();
-  const { activeBaseId } = useDatabaseUI();
-
-  const relatedTableId = field.options?.relatedTableId as string | undefined;
-  const linkType = field.options?.type as string | undefined;
-
-  const hasRelation = !!relatedTableId;
-
-  const { data: primaryField } = usePrimaryField(relatedTableId, hasRelation);
-
-  const { data: linkedRecords = [], isLoading } = useRecordLinks({
-    baseId: activeBaseId,
-    sourceTableId: field.table_id,
-    targetTableId: relatedTableId,
-    fieldId: field.id,
-    recordId: hasRelation ? record.id : null,
-    linkType,
-    fkColumnName: field.options?.fkColumnName as string | undefined,
-  });
-
-  if (!hasRelation || (linkedRecords.length === 0 && !isLoading)) {
-    return (
-      <span className="flex items-center justify-center w-full h-full opacity-0 group-hover/row:opacity-60 transition-opacity cursor-pointer">
-        <Plus size={14} className="text-[#9AA2AF]" onClick={(e) => {
-          e.stopPropagation();
-          const btn = e.currentTarget.closest('[role="gridcell"]')?.querySelector('button');
-          btn?.click();
-        }} />
-      </span>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <span className="text-xs truncate" style={{ color: colors.muted }}>
-        Loading...
-      </span>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-1 overflow-hidden w-full">
-      <div className="flex items-center gap-1 overflow-hidden flex-1 min-w-0">
-        {linkedRecords.slice(0, 10).map((rec) => {
-          const displayVal = getRecordDisplayValue(rec, primaryField);
-          return (
-            <span
-              key={rec.id}
-              className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 max-w-[200px] truncate leading-tight"
-              style={{
-                backgroundColor: colors.linkPillBg,
-                color: colors.linkPillText,
-              }}
-            >
-              {displayVal}
-            </span>
-          );
-        })}
-        {linkedRecords.length > 10 && (
-          <span className="text-xs shrink-0" style={{ color: colors.muted }}>
-            +{linkedRecords.length - 10}
-          </span>
-        )}
-      </div>
-      <LinkedRecordsPopover
-        field={field}
-        record={record}
-        linkedRecords={linkedRecords}
-        primaryField={primaryField}
-      />
-    </div>
   );
 });

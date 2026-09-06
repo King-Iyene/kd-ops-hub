@@ -3,12 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { FieldMeta } from '../types';
 
-/**
- * For each Links field in the current table, fetch a lookup map of
- * airtable_id → primary-field display value from the related table.
- * Used to resolve raw Airtable ID arrays stored in link columns
- * before formula evaluation.
- */
+const EMPTY_LOOKUP: Record<string, string> = {};
+
 export function useLinkDisplayLookup(
   baseId: string | null | undefined,
   fields: FieldMeta[] | undefined,
@@ -32,13 +28,16 @@ export function useLinkDisplayLookup(
     queryFn: async () => {
       const map: Record<string, string> = {};
 
-      const { data: baseMeta } = await supabase
+      const { data: baseMeta, error: baseErr } = await supabase
         .schema('nc_meta')
         .from('bases')
         .select('schema_name')
         .eq('id', baseId)
         .single();
-      if (!baseMeta?.schema_name) return map;
+      if (!baseMeta?.schema_name) {
+        console.warn('[LinkLookup] No base schema found for', baseId, baseErr);
+        return map;
+      }
 
       for (const tableId of relatedTableIds) {
         try {
@@ -65,21 +64,27 @@ export function useLinkDisplayLookup(
             .not('airtable_id', 'is', null)
             .limit(5000);
 
-          if (error || !rows) continue;
+          if (error || !rows) {
+            console.warn('[LinkLookup] Query failed for', tableMeta.pg_table_name, error);
+            continue;
+          }
 
           for (const row of rows) {
             if (row.airtable_id && row[primaryField.pg_column_name] != null) {
               map[row.airtable_id] = String(row[primaryField.pg_column_name]);
             }
           }
-        } catch {
-          // Table may not have airtable_id column — skip silently
+        } catch (e) {
+          console.warn('[LinkLookup] Exception for table', tableId, e);
         }
       }
 
+      if (Object.keys(map).length > 0) {
+        console.log('[LinkLookup] Resolved', Object.keys(map).length, 'airtable IDs');
+      }
       return map;
     },
   });
 
-  return lookupMap ?? {};
+  return lookupMap ?? EMPTY_LOOKUP;
 }
