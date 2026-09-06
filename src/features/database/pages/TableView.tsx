@@ -34,6 +34,7 @@ import { CreateFieldDialog } from '../components/CreateFieldDialog';
 import type { RecordRow } from '../types';
 import { useRealtimeRecords } from '../hooks/useRealtime';
 import { parseFormula, evaluateFormula } from '../lib/formula';
+import { FindReplaceDialog } from '../components/FindReplaceDialog';
 
 export function TableView() {
   const {
@@ -61,6 +62,19 @@ export function TableView() {
     setFieldDialogOpenRaw(open);
   }, [setEditingCell]);
   const pushUndo = useUndoStore((s) => s.push);
+  const [findReplaceOpen, setFindReplaceOpen] = useState(false);
+
+  // Ctrl+F / Ctrl+H to open Find & Replace
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'h')) {
+        e.preventDefault();
+        setFindReplaceOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const activeView = useMemo(
     () => views?.find((v) => v.id === activeViewId),
@@ -508,6 +522,13 @@ export function TableView() {
         }}
       />
       <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />
+      <FindReplaceDialog
+        open={findReplaceOpen}
+        onOpenChange={setFindReplaceOpen}
+        fields={fields ?? []}
+        records={records}
+        onCellUpdate={handleCellUpdate}
+      />
     </div>
   );
 }
