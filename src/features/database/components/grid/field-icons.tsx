@@ -1,8 +1,10 @@
 import {
-  Type, Hash, DollarSign, Calendar, CheckSquare, List, Link2,
+  Type, Hash, DollarSign, Calendar, CheckSquare, Link2,
   Paperclip, Mail, Phone, Globe, Clock, User, FileText, Star,
-  Percent, Braces, Barcode, Users, MousePointerClick, ChevronDown,
+  Percent, Barcode, Users, MousePointerClick,
   Search, ListOrdered, UserPlus, UserCog, LucideIcon,
+  SquareFunction, Sigma, CornerRightDown, Tags, CircleDot,
+  ListChecks, Braces,
 } from 'lucide-react';
 import type { UIType } from '@/features/database/types';
 
@@ -24,14 +26,14 @@ const iconMap: Record<UIType, LucideIcon> = {
   Time: Clock,
   CreatedTime: Clock,
   LastModifiedTime: Clock,
-  SingleSelect: ChevronDown,
-  MultiSelect: List,
+  SingleSelect: CircleDot,
+  MultiSelect: Tags,
   Checkbox: CheckSquare,
   Links: Link2,
-  Lookup: Search,
-  Rollup: Hash,
-  Count: Hash,
-  Formula: Braces,
+  Lookup: CornerRightDown,
+  Rollup: Sigma,
+  Count: ListChecks,
+  Formula: SquareFunction,
   Attachment: Paperclip,
   ID: Hash,
   AutoNumber: ListOrdered,
