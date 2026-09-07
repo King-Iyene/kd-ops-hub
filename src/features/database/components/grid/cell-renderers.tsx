@@ -417,28 +417,50 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
       <div className="flex items-center gap-1 h-full overflow-hidden">
         {files.slice(0, 3).map((f, i) =>
           isImage(f.type) ? (
-            <img
-              key={i}
-              src={f.url}
-              alt={f.name}
-              className="h-7 w-7 rounded-[4px] object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-              loading="lazy"
-              style={{ border: `1px solid ${colors.dropdownBorder}` }}
-              title={f.name}
-              onClick={(e) => { e.stopPropagation(); setLightboxIndex(i); }}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
+            <span key={i} className="relative group shrink-0">
+              <img
+                src={f.url}
+                alt={f.name}
+                className="h-7 w-7 rounded-[4px] object-cover cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
+                loading="lazy"
+                style={{ border: `1px solid ${colors.dropdownBorder}` }}
+                title={f.name}
+                onClick={(e) => { e.stopPropagation(); setLightboxIndex(i); }}
+                onError={(e) => {
+                  const img = e.target as HTMLImageElement;
+                  const parent = img.parentElement;
+                  if (parent) {
+                    const { Icon, color, bg } = getFileIcon(f.type, f.name);
+                    const fallback = document.createElement('span');
+                    fallback.className = 'h-7 w-7 rounded-[4px] flex items-center justify-center shrink-0 cursor-pointer';
+                    fallback.style.backgroundColor = bg;
+                    fallback.style.border = `1px solid ${colors.dropdownBorder}`;
+                    fallback.title = f.name;
+                    fallback.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+                    parent.replaceChild(fallback, img);
+                  }
+                }}
+              />
+              <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">
+                <img src={f.url} alt={f.name} className="w-32 h-32 object-cover rounded-lg shadow-xl border border-white/20" />
+                <div className="text-[10px] text-center mt-1 px-1 truncate max-w-[140px] text-white bg-black/70 rounded" style={{ margin: '0 auto' }}>{f.name}</div>
+              </div>
+            </span>
           ) : (() => {
             const { Icon, color, bg } = getFileIcon(f.type, f.name);
             return (
-              <span
-                key={i}
-                className="h-7 w-7 rounded-[4px] flex items-center justify-center shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                style={{ backgroundColor: bg, border: `1px solid ${colors.dropdownBorder}` }}
-                title={f.name}
-                onClick={(e) => { e.stopPropagation(); setLightboxIndex(i); }}
-              >
-                <Icon size={13} style={{ color }} />
+              <span key={i} className="relative group shrink-0">
+                <span
+                  className="h-7 w-7 rounded-[4px] flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
+                  style={{ backgroundColor: bg, border: `1px solid ${colors.dropdownBorder}` }}
+                  title={f.name}
+                  onClick={(e) => { e.stopPropagation(); setLightboxIndex(i); }}
+                >
+                  <Icon size={13} style={{ color }} />
+                </span>
+                <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">
+                  <div className="text-[10px] text-center px-2 py-1 truncate max-w-[140px] text-white bg-black/80 rounded shadow-lg whitespace-nowrap">{f.name}</div>
+                </div>
               </span>
             );
           })(),
