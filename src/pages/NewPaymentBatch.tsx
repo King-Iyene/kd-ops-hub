@@ -705,13 +705,13 @@ const NewPaymentBatch = () => {
           .from('contractors')
           .select('id, wht_rate')
           .in('id', contractorIds);
-        for (const c of cRows || []) whtMap.set(c.id, { wht_rate: Number(c.wht_rate) || 0 });
+        for (const c of cRows || []) whtMap.set(c.id, { wht_rate: c.wht_rate != null ? Number(c.wht_rate) : 0 });
       }
 
       if (persisted.length > 0) {
         const batchItems = persisted.map((item) => {
           const wht = item.contractor_id ? whtMap.get(item.contractor_id) : null;
-          const whtRate = wht?.wht_rate || 0;
+          const whtRate = wht?.wht_rate ?? 0;
           const gross = item.amount_ngn;
           const whtAmount = Math.round(gross * whtRate);
           const net = gross - whtAmount;
