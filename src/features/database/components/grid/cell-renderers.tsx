@@ -376,7 +376,14 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
   const colors = useGridColors();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   if (value == null) return null;
-  const files: { name: string; url: string; type: string; size: number; uploaded_at?: string }[] = Array.isArray(value) ? value : [];
+  const raw: any[] = Array.isArray(value) ? value : [];
+  const files = raw.map((f) => ({
+    name: f.name || f.filename || 'file',
+    url: f.url || '',
+    type: f.type || '',
+    size: f.size || 0,
+    uploaded_at: f.uploaded_at ?? '',
+  }));
   if (files.length === 0) {
     return (
       <span className="flex items-center gap-1 text-xs cursor-pointer" style={{ color: colors.starEmpty }}>

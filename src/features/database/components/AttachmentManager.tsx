@@ -40,14 +40,23 @@ export function AttachmentManager({
   onCommit,
   storagePath,
 }: AttachmentManagerProps) {
-  const [attachments, setAttachments] = useState<AttachmentMeta[]>(value ?? []);
+  const normalizeAttachments = (raw: any[]): AttachmentMeta[] =>
+    (raw ?? []).map((f: any) => ({
+      name: f.name || f.filename || 'file',
+      url: f.url || '',
+      size: f.size || 0,
+      type: f.type || '',
+      uploaded_at: f.uploaded_at ?? '',
+    }));
+
+  const [attachments, setAttachments] = useState<AttachmentMeta[]>(() => normalizeAttachments(value));
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setAttachments(value ?? []);
+    setAttachments(normalizeAttachments(value));
   }, [value]);
 
   const uploadFiles = useCallback(

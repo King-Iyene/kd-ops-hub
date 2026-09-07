@@ -625,14 +625,47 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           if (records.length > 0 && !abortRef.current) {
             setProgress((p) => ({ ...p, phase: 'inserting', totalRecords: records.length }));
 
-            const fieldMap: Record<string, { col: string; pgType: string }> = {};
+            const fieldMap: Record<string, { col: string; pgType: string; uiType: string }> = {};
             for (const fr of fieldRows) {
-              fieldMap[fr.name] = { col: fr.pg_column_name, pgType: fr.pg_type };
+              fieldMap[fr.name] = { col: fr.pg_column_name, pgType: fr.pg_type, uiType: fr.ui_type };
             }
 
             let inserted = 0;
 
-            const mapRecord = (rec: any, order: number) => {
+            const reuploadAttachment = async (att: any, basePath: string): Promise<any> => {
+              try {
+                const resp = await fetch(att.url);
+                if (!resp.ok) throw new Error('fetch failed');
+                const blob = await resp.blob();
+                const filename = att.filename || att.name || 'file';
+                const ts = Date.now();
+                const path = `${basePath}/${ts}_${filename}`;
+                const { error: upErr } = await supabase.storage
+                  .from('attachments')
+                  .upload(path, blob, { upsert: false, contentType: att.type || blob.type });
+                if (upErr) throw upErr;
+                const { data: urlData } = supabase.storage
+                  .from('attachments')
+                  .getPublicUrl(path);
+                return {
+                  name: filename,
+                  url: urlData.publicUrl,
+                  size: att.size || blob.size,
+                  type: att.type || blob.type || '',
+                  uploaded_at: new Date().toISOString(),
+                };
+              } catch {
+                return {
+                  name: att.filename || att.name || 'file',
+                  url: att.url || '',
+                  size: att.size || 0,
+                  type: att.type || '',
+                  uploaded_at: '',
+                };
+              }
+            };
+
+            const mapRecord = async (rec: any, order: number) => {
               const row: Record<string, any> = { nc_order: order, airtable_id: rec.id };
               for (const [fieldName, value] of Object.entries(rec.fields || {})) {
                 if (value === null || value === undefined) continue;
@@ -640,7 +673,13 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                 if (!mapping) continue;
                 const pt = mapping.pgType;
                 try {
-                  if (pt === 'JSONB' || pt === "JSONB DEFAULT '[]'::jsonb") {
+                  if (mapping.uiType === 'Attachment' && Array.isArray(value)) {
+                    const storagePath = `${selectedBaseId}/${atTable.id}/${rec.id}`;
+                    const uploaded = await Promise.all(
+                      value.map((att: any) => reuploadAttachment(att, storagePath)),
+                    );
+                    row[mapping.col] = uploaded;
+                  } else if (pt === 'JSONB' || pt === "JSONB DEFAULT '[]'::jsonb") {
                     row[mapping.col] = value;
                   } else if (pt === 'TEXT[]') {
                     if (Array.isArray(value)) {
@@ -693,11 +732,15 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               return rows.length;
             };
 
-            // Build all batches
+            // Build all batches (mapRecord is async for attachment re-upload)
             const batches: Record<string, any>[][] = [];
             for (let b = 0; b < records.length; b += BATCH_SIZE) {
+              if (abortRef.current) break;
               const batch = records.slice(b, b + BATCH_SIZE);
-              batches.push(batch.map((rec: any, idx: number) => mapRecord(rec, b + idx + 1)));
+              const mapped = await Promise.all(
+                batch.map((rec: any, idx: number) => mapRecord(rec, b + idx + 1)),
+              );
+              batches.push(mapped);
             }
 
             // Insert batches with concurrency
