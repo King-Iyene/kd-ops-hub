@@ -379,7 +379,7 @@ export const PayrollDialogs = ({
                           <LayoutGrid className="h-4 w-4" />
                         </span>
                         <span className="block text-sm font-semibold leading-tight">All Pay Groups</span>
-                        <span className="block text-[11px] text-muted-foreground -mt-1.5">Everyone active</span>
+                        <span className="block text-[11px] text-muted-foreground -mt-1.5">Everyone active — pick a specific group for cleaner runs</span>
                       </button>
                       {segmentPayGroups.map((g, i) => {
                         const selected = currentPayGroupId === g.id;

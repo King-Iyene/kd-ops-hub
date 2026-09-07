@@ -821,13 +821,17 @@ const Payroll = () => {
 
       const missingTin = list.filter((e: any) => !e.tax_id).map((e: any) => e.full_name);
       const missingPensionPin = list.filter((e: any) => e.pension_enabled !== false && !e.pension_pin).map((e: any) => e.full_name);
+      const noPayGroup = list.filter((e: any) => !e.pay_group_id).map((e: any) => e.full_name);
 
       const issues: { kind: string; message: string; names: string[] }[] = [];
+      if (noPayGroup.length > 0) {
+        issues.push({ kind: 'no_pay_group', message: `${noPayGroup.length} employee${noPayGroup.length === 1 ? '' : 's'} not assigned to any Pay Group — they may be included unintentionally. Assign them in Employee Profile → Job & Pay`, names: noPayGroup });
+      }
       if (missingBank.length > 0) {
-        issues.push({ kind: 'missing_bank', message: `${missingBank.length} employee${missingBank.length === 1 ? '' : 's'} missing bank details — disbursement will skip ${missingBank.length === 1 ? 'them' : 'them'} unless fixed`, names: missingBank });
+        issues.push({ kind: 'missing_bank', message: `${missingBank.length} employee${missingBank.length === 1 ? '' : 's'} missing bank details — disbursement will skip them unless fixed`, names: missingBank });
       }
       if (zeroSalary.length > 0) {
-        issues.push({ kind: 'zero_salary', message: `${zeroSalary.length} employee${zeroSalary.length === 1 ? '' : 's'} has no salary configured`, names: zeroSalary });
+        issues.push({ kind: 'zero_salary', message: `${zeroSalary.length} employee${zeroSalary.length === 1 ? '' : 's'} with ₦0 salary — if they're commission or hourly staff, add their earnings via Bonuses & Adjustments before approving`, names: zeroSalary });
       }
       if (duplicateAccounts.length > 0) {
         issues.push({ kind: 'duplicate_account', message: `${duplicateAccounts.length} employees share the same bank account number — check for a data-entry mistake`, names: duplicateAccounts });
