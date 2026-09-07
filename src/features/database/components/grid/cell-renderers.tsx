@@ -240,7 +240,17 @@ export const CurrencyCellRenderer = React.memo(function CurrencyCellRenderer({
     }
   }
   return (
-    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums', color: num < 0 ? '#EF4444' : undefined }}>{formatted}</span>
+    <span
+      className="truncate block text-right w-full"
+      style={{
+        fontVariantNumeric: 'tabular-nums',
+        color: num < 0 ? '#EF4444' : undefined,
+        fontSize: 13,
+        letterSpacing: '-0.01em',
+      }}
+    >
+      {formatted}
+    </span>
   );
 });
 

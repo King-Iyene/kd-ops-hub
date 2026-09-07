@@ -158,17 +158,26 @@ async function rateLimitedFetch(url: string, options: RequestInit, retries = MAX
   return res;
 }
 
-async function invokeDDL(body: Record<string, unknown>): Promise<{ data: any; error: any }> {
-  const { data, error } = await supabase.rpc('nc_import_ddl', { payload: body });
-  if (error) {
-    console.error(`[import] ${body.action} failed:`, error.message);
-    return { data: null, error };
+async function invokeDDL(body: Record<string, unknown>, timeoutMs = 60000): Promise<{ data: any; error: any }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const { data, error } = await supabase.rpc('nc_import_ddl', { payload: body });
+    clearTimeout(timer);
+    if (error) {
+      console.error(`[import] ${body.action} failed:`, error.message);
+      return { data: null, error };
+    }
+    if (data && !data.success) {
+      console.error(`[import] ${body.action} failed:`, data.error);
+      return { data, error: new Error(data.error) };
+    }
+    return { data, error: null };
+  } catch (e: any) {
+    clearTimeout(timer);
+    console.error(`[import] ${body.action} timed out or failed:`, e?.message);
+    return { data: null, error: e };
   }
-  if (data && !data.success) {
-    console.error(`[import] ${body.action} failed:`, data.error);
-    return { data, error: new Error(data.error) };
-  }
-  return { data, error: null };
 }
 
 async function forceSchemaReload(): Promise<void> {
@@ -713,7 +722,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
       }
 
       // --- Second pass: resolve links, lookups, rollups, formulas ---
-      setProgress((p) => ({ ...p, phase: 'schema', tableName: 'Saving formula metadata...' }));
+      setProgress((p) => ({ ...p, phase: 'metadata' as any, tableIndex: selectedTables.length, tableName: 'Saving formula metadata...' }));
       try {
         const { data: allBaseTables } = await supabase
           .schema('nc_meta')
@@ -736,6 +745,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
         // Formula metadata
         for (const f of (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Formula')) {
+          if (abortRef.current) break;
           let expression = f.options?.formula ?? '';
           if (expression) {
             // Translate Airtable field ID references {fldXXX} → {FieldName}
@@ -758,11 +768,12 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         }
 
         // Link fields: create junction tables and proper metadata
-        setProgress((p) => ({ ...p, tableName: 'Resolving link fields...' }));
+        setProgress((p) => ({ ...p, phase: 'metadata' as any, tableName: 'Resolving link fields...' }));
         const linkFields = (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Links');
         const createdJunctions = new Map<string, string>();
 
         for (const f of linkFields) {
+          if (abortRef.current) break;
           const atLinkedTableId = f.options?.linkedTableId;
           if (!atLinkedTableId) continue;
 
@@ -834,9 +845,10 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           }).eq('id', f.id);
         }
 
-        setProgress((p) => ({ ...p, tableName: 'Resolving lookup fields...' }));
+        setProgress((p) => ({ ...p, phase: 'metadata' as any, tableName: 'Resolving lookup fields...' }));
         // Lookup fields: resolve Airtable field IDs → KDOps field IDs
         for (const f of (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Lookup')) {
+          if (abortRef.current) break;
           const atLinkFieldId = f.options?.recordLinkFieldId;
           const atLookupFieldId = f.options?.fieldIdInLinkedTable;
           if (!atLinkFieldId || !atLookupFieldId) continue;
@@ -861,9 +873,10 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           }).eq('id', f.id);
         }
 
-        setProgress((p) => ({ ...p, tableName: 'Resolving rollup fields...' }));
+        setProgress((p) => ({ ...p, phase: 'metadata' as any, tableName: 'Resolving rollup fields...' }));
         // Rollup fields: resolve Airtable field IDs → KDOps field IDs
         for (const f of (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Rollup')) {
+          if (abortRef.current) break;
           const atLinkFieldId = f.options?.recordLinkFieldId;
           const atRollupFieldId = f.options?.fieldIdInLinkedTable;
           if (!atLinkFieldId || !atRollupFieldId) continue;
@@ -893,7 +906,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         }
 
         // --- Third pass: populate junction tables from linked record data ---
-        setProgress((p) => ({ ...p, phase: 'schema', tableName: 'Resolving linked records...' }));
+        setProgress((p) => ({ ...p, phase: 'metadata' as any, tableName: 'Resolving linked records...' }));
 
         for (const f of linkFields) {
           if (abortRef.current) break;
@@ -1199,6 +1212,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                   {progress.phase === 'schema' && ' · Creating schema...'}
                   {progress.phase === 'fetching' && ` · Fetching records... ${formatNumber(progress.recordsFetched)}`}
                   {progress.phase === 'inserting' && ` · Inserting ${formatNumber(progress.recordsInserted)} of ${formatNumber(progress.totalRecords)}`}
+                  {progress.phase === 'metadata' && ' · Finalizing...'}
                 </p>
               </div>
             </div>
@@ -1212,7 +1226,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               <div className="w-full bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] rounded-full h-2">
                 <div
                   className="bg-[#2D7FF9] h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${progress.tableCount ? (progress.tableIndex / progress.tableCount) * 100 : 0}%` }}
+                  style={{ width: `${(progress.phase as string) === 'metadata' ? 100 : progress.tableCount ? (progress.tableIndex / progress.tableCount) * 100 : 0}%` }}
                 />
               </div>
             </div>
@@ -1250,8 +1264,9 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               className="w-full"
               onClick={() => {
                 abortRef.current = true;
+                setImportedCount(progress.tableIndex);
                 setStep('done');
-                setError('Import cancelled.');
+                setError('Import cancelled — tables already imported are available.');
               }}
             >
               Cancel import

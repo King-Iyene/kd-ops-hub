@@ -207,14 +207,14 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
         onOpenAutoFocus={(e) => e.preventDefault()}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
-          <div className="flex items-center gap-2">
-            <Search size={14} className="text-[#9AA2AF]" />
+        <div className="p-2.5 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
+          <div className="flex items-center gap-2 px-2.5 h-8 rounded-md bg-[#F5F5F5] dark:bg-[hsl(200,20%,12%)] border border-[#E0E0E0] dark:border-[hsl(200,20%,20%)] focus-within:border-[#2D7FF9] focus-within:ring-1 focus-within:ring-[#2D7FF9]/30 transition-all">
+            <Search size={14} className="text-[#9AA2AF] shrink-0" />
             <Input
-              placeholder="Search records to link..."
+              placeholder="Find a record..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 p-0"
+              className="h-full text-xs border-0 shadow-none focus-visible:ring-0 p-0 bg-transparent placeholder:text-[#B0B8C4]"
               autoFocus
               onKeyDown={(e) => e.stopPropagation()}
             />
