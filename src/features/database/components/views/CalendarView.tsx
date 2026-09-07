@@ -12,6 +12,7 @@ interface CalendarViewProps {
   isLoading: boolean;
   onExpandRow?: (record: RecordRow) => void;
   onAddRow: (record?: Record<string, any>) => void;
+  onCellUpdate?: (recordId: string, fieldId: string, value: any) => void;
 }
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -190,6 +191,7 @@ function CalendarEvent({
     <>
       <div
         ref={ref}
+        draggable
         className={`calendar-event${compact ? ' compact' : ''}`}
         style={{
           '--event-bg': colors.bg,
@@ -198,6 +200,10 @@ function CalendarEvent({
           '--event-dark-text': colors.darkText,
         } as React.CSSProperties}
         onClick={() => onExpandRow?.(record)}
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/plain', record.id);
+          e.dataTransfer.effectAllowed = 'move';
+        }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={() => setTooltip(null)}
       >
@@ -539,6 +545,16 @@ const calendarStyles = `
 }
 .calendar-more-link:hover { color: var(--cal-primary); }
 
+/* ===== Drop target ===== */
+.calendar-month-cell.drop-over,
+.calendar-hour-slot.drop-over {
+  background: var(--cal-primary-light) !important;
+  outline: 2px dashed var(--cal-primary);
+  outline-offset: -2px;
+}
+.calendar-event[draggable="true"] { cursor: grab; }
+.calendar-event[draggable="true"]:active { cursor: grabbing; opacity: 0.6; }
+
 /* ===== Events ===== */
 .calendar-event {
   font-size: 10px;
@@ -750,10 +766,12 @@ export default function CalendarView({
   isLoading,
   onExpandRow,
   onAddRow,
+  onCellUpdate,
 }: CalendarViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [showMiniCal, setShowMiniCal] = useState(false);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
 
   const dateField = useMemo(
     () =>
@@ -873,6 +891,37 @@ export default function CalendarView({
     [dateField, onAddRow],
   );
 
+  const handleDropOnDate = useCallback(
+    (e: React.DragEvent, targetDate: Date) => {
+      e.preventDefault();
+      setDropTarget(null);
+      const recordId = e.dataTransfer.getData('text/plain');
+      if (!recordId || !dateField || !onCellUpdate) return;
+      const record = records.find((r) => r.id === recordId);
+      if (!record) return;
+      const oldVal = record[dateField.pg_column_name];
+      const oldDate = oldVal ? new Date(oldVal) : null;
+      if (oldDate) {
+        targetDate.setHours(oldDate.getHours(), oldDate.getMinutes(), oldDate.getSeconds());
+      }
+      onCellUpdate(recordId, dateField.id, targetDate.toISOString());
+    },
+    [dateField, onCellUpdate, records],
+  );
+
+  const handleDropOnHour = useCallback(
+    (e: React.DragEvent, day: Date, hour: number) => {
+      e.preventDefault();
+      setDropTarget(null);
+      const recordId = e.dataTransfer.getData('text/plain');
+      if (!recordId || !dateField || !onCellUpdate) return;
+      const targetDate = new Date(day);
+      targetDate.setHours(hour, 0, 0, 0);
+      onCellUpdate(recordId, dateField.id, targetDate.toISOString());
+    },
+    [dateField, onCellUpdate],
+  );
+
   const headerLabel = useMemo(() => {
     if (viewMode === 'month') {
       return currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -967,9 +1016,16 @@ export default function CalendarView({
               return (
                 <div
                   key={i}
-                  className={`calendar-month-cell${isToday ? ' today' : ''}${day === null ? ' empty' : ''}`}
+                  className={`calendar-month-cell${isToday ? ' today' : ''}${day === null ? ' empty' : ''}${dropTarget === `month-${day}` ? ' drop-over' : ''}`}
                   onDoubleClick={() => {
                     if (cellDate && dayRecords.length === 0) handleClickEmptyDay(cellDate);
+                  }}
+                  onDragOver={(e) => {
+                    if (day !== null) { e.preventDefault(); setDropTarget(`month-${day}`); }
+                  }}
+                  onDragLeave={() => setDropTarget(null)}
+                  onDrop={(e) => {
+                    if (cellDate) handleDropOnDate(e, new Date(cellDate));
                   }}
                 >
                   {day !== null && (
@@ -1039,12 +1095,15 @@ export default function CalendarView({
                     {HOURS.map((h) => (
                       <div
                         key={h}
-                        className="calendar-hour-slot"
+                        className={`calendar-hour-slot${dropTarget === `week-${ci}-${h}` ? ' drop-over' : ''}`}
                         onDoubleClick={() => {
                           const d = new Date(wd);
                           d.setHours(h, 0, 0, 0);
                           handleClickEmptyDay(d);
                         }}
+                        onDragOver={(e) => { e.preventDefault(); setDropTarget(`week-${ci}-${h}`); }}
+                        onDragLeave={() => setDropTarget(null)}
+                        onDrop={(e) => handleDropOnHour(e, wd, h)}
                       />
                     ))}
                     {/* Render events positioned by hour */}
@@ -1099,12 +1158,15 @@ export default function CalendarView({
                 {HOURS.map((h) => (
                   <div
                     key={h}
-                    className="calendar-hour-slot"
+                    className={`calendar-hour-slot${dropTarget === `day-${h}` ? ' drop-over' : ''}`}
                     onDoubleClick={() => {
                       const d = new Date(currentDate);
                       d.setHours(h, 0, 0, 0);
                       handleClickEmptyDay(d);
                     }}
+                    onDragOver={(e) => { e.preventDefault(); setDropTarget(`day-${h}`); }}
+                    onDragLeave={() => setDropTarget(null)}
+                    onDrop={(e) => handleDropOnHour(e, currentDate, h)}
                   />
                 ))}
                 {getRecordsForDate(currentDate).map((r) => {

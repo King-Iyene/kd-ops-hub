@@ -485,6 +485,7 @@ export function TableView() {
             isLoading={isLoading}
             onExpandRow={setExpandedRecord}
             onAddRow={(record) => handleAddRow(record)}
+            onCellUpdate={handleCellUpdate}
           />
         );
       case 'timeline':
