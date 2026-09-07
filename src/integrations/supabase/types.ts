@@ -16639,6 +16639,7 @@ export type Database = {
           title: string
         }[]
       }
+      nc_import_ddl: { Args: { payload: Json }; Returns: Json }
       next_pay_dates: {
         Args: { p_count?: number; p_schedule_id: string }
         Returns: {
