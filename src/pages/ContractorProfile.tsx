@@ -87,6 +87,9 @@ interface ContractorData {
   onboarding_complete: boolean | null;
   tags: string[] | null;
   created_at: string;
+  wht_rate?: number | null;
+  tin?: string | null;
+  service_type?: string | null;
 }
 
 const onboardingChecks = (c: ContractorData) => [
@@ -153,7 +156,7 @@ const ContractorProfile = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('contractors')
-      .select('id, full_name, first_name, last_name, bank_name, bank_code, account_number, account_name, default_amount_ngn, default_amount, whatsapp_phone, heyreach_email, heyreach_password_enc, heyreach_status, heyreach_synced_at, linkedin_id, linkedin_url, notes, status, agreement_signed, kyc_document_uploaded, created_at')
+      .select('id, full_name, first_name, last_name, bank_name, bank_code, account_number, account_name, default_amount_ngn, default_amount, whatsapp_phone, heyreach_email, heyreach_password_enc, heyreach_status, heyreach_synced_at, linkedin_id, linkedin_url, notes, status, agreement_signed, kyc_document_uploaded, created_at, wht_rate, tin, service_type')
       .eq('id', id)
       .single();
     if (error || !data) {
@@ -300,6 +303,9 @@ const ContractorProfile = () => {
         default_amount_ngn: Number(form.default_amount),
         default_amount: Number(form.default_amount),
         notes: form.notes,
+        tin: form.tin || null,
+        service_type: form.service_type || 'professional',
+        wht_rate: Number(form.wht_rate) || 0.05,
       })
       .eq('id', id);
     if (error) {
@@ -780,6 +786,37 @@ const ContractorProfile = () => {
                   ) : (
                     <p className="text-sm py-2 currency">
                       {formatNaira(contractor.default_amount_ngn ?? contractor.default_amount ?? 0)}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label>TIN (Tax Identification Number)</Label>
+                  {editMode ? (
+                    <Input
+                      value={form.tin || ''}
+                      onChange={(e) => patch({ tin: e.target.value })}
+                      placeholder="e.g. 12345678-0001"
+                    />
+                  ) : (
+                    <p className="text-sm py-2">{contractor.tin || '—'}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label>WHT Service Type</Label>
+                  {editMode ? (
+                    <Select value={form.service_type || 'professional'} onValueChange={(v) => patch({ service_type: v, wht_rate: v === 'professional' ? 0.05 : v === 'non_professional' ? 0.10 : 0 })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="professional">Professional (5% WHT)</SelectItem>
+                        <SelectItem value="non_professional">Non-Professional (10% WHT)</SelectItem>
+                        <SelectItem value="exempt">Exempt (0% WHT)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-sm py-2">
+                      {contractor.service_type === 'non_professional' ? 'Non-Professional (10%)' : contractor.service_type === 'exempt' ? 'Exempt' : 'Professional (5%)'}
                     </p>
                   )}
                 </div>

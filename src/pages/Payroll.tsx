@@ -798,7 +798,7 @@ const Payroll = () => {
     try {
       const { data: employees, error } = await supabase
         .from('profiles')
-        .select('id, full_name, salary_ngn, bank_name, bank_account_number, department_id, employee_category, employment_type, pay_group_id')
+        .select('id, full_name, salary_ngn, bank_name, bank_account_number, department_id, employee_category, employment_type, pay_group_id, tax_id, pension_pin, nhf_number, pension_enabled')
         .eq('status', 'active')
         .neq('role', 'driver')
         .limit(500);
@@ -817,6 +817,9 @@ const Payroll = () => {
       }
       const duplicateAccounts = [...acctCounts.values()].filter((names) => names.length > 1).flat();
 
+      const missingTin = list.filter((e: any) => !e.tax_id).map((e: any) => e.full_name);
+      const missingPensionPin = list.filter((e: any) => e.pension_enabled !== false && !e.pension_pin).map((e: any) => e.full_name);
+
       const issues: { kind: string; message: string; names: string[] }[] = [];
       if (missingBank.length > 0) {
         issues.push({ kind: 'missing_bank', message: `${missingBank.length} employee${missingBank.length === 1 ? '' : 's'} missing bank details — disbursement will skip ${missingBank.length === 1 ? 'them' : 'them'} unless fixed`, names: missingBank });
@@ -826,6 +829,12 @@ const Payroll = () => {
       }
       if (duplicateAccounts.length > 0) {
         issues.push({ kind: 'duplicate_account', message: `${duplicateAccounts.length} employees share the same bank account number — check for a data-entry mistake`, names: duplicateAccounts });
+      }
+      if (missingTin.length > 0) {
+        issues.push({ kind: 'missing_tin', message: `${missingTin.length} employee${missingTin.length === 1 ? '' : 's'} missing TIN — PAYE remittance to LIRS/FIRS requires a Tax Identification Number`, names: missingTin });
+      }
+      if (missingPensionPin.length > 0) {
+        issues.push({ kind: 'missing_pension_pin', message: `${missingPensionPin.length} employee${missingPensionPin.length === 1 ? '' : 's'} with pension enabled but no RSA PIN — PenCom requires this for remittance (2% monthly penalty)`, names: missingPensionPin });
       }
 
       if (issues.length === 0) {

@@ -697,19 +697,40 @@ const NewPaymentBatch = () => {
         }
       }
 
+      // Fetch WHT rates for contractor items so we can split gross/net/WHT
+      const contractorIds = persisted.filter((i) => i.contractor_id).map((i) => i.contractor_id!);
+      const whtMap = new Map<string, { wht_rate: number }>();
+      if (contractorIds.length > 0) {
+        const { data: cRows } = await supabase
+          .from('contractors')
+          .select('id, wht_rate')
+          .in('id', contractorIds);
+        for (const c of cRows || []) whtMap.set(c.id, { wht_rate: Number(c.wht_rate) || 0 });
+      }
+
       if (persisted.length > 0) {
-        const batchItems = persisted.map((item) => ({
-          batch_id: batchId,
-          contractor_id: item.contractor_id || null,
-          employee_id: item.employee_id || null,
-          item_type: item.item_type || 'adhoc',
-          full_name: item.full_name,
-          bank_name: item.bank_name,
-          account_number: item.account_number,
-          amount_ngn: item.amount_ngn,
-          reference: item.reference,
-          status: 'pending',
-        }));
+        const batchItems = persisted.map((item) => {
+          const wht = item.contractor_id ? whtMap.get(item.contractor_id) : null;
+          const whtRate = wht?.wht_rate || 0;
+          const gross = item.amount_ngn;
+          const whtAmount = Math.round(gross * whtRate);
+          const net = gross - whtAmount;
+          return {
+            batch_id: batchId,
+            contractor_id: item.contractor_id || null,
+            employee_id: item.employee_id || null,
+            item_type: item.item_type || 'adhoc',
+            full_name: item.full_name,
+            bank_name: item.bank_name,
+            account_number: item.account_number,
+            amount_ngn: whtRate > 0 ? net : gross,
+            gross_amount_ngn: whtRate > 0 ? gross : null,
+            wht_rate: whtRate,
+            wht_amount_ngn: whtAmount,
+            reference: item.reference,
+            status: 'pending',
+          };
+        });
         const { data: insertedItems } = await supabase.from('batch_items').insert(batchItems).select();
 
         // Phase 3 — create employee_advances records for salary advance batches
