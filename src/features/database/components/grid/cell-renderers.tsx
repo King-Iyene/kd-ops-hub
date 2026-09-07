@@ -68,7 +68,7 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
         <a
           href={`mailto:${text}`}
           className="truncate hover:underline"
-          style={{ color: colors.tealText }}
+          style={{ color: colors.tealText, fontSize: 13 }}
           onClick={(e) => e.stopPropagation()}
         >
           <HighlightedText text={text} className="truncate" style={{ color: colors.tealText }} />
@@ -100,13 +100,13 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="truncate flex items-center gap-1 hover:underline"
+          className="truncate flex items-center gap-1.5 hover:underline group/url"
           style={{ color: colors.tealText }}
           onClick={(e) => e.stopPropagation()}
           title={text}
         >
-          <HighlightedText text={domain} className="truncate" style={{ color: colors.tealText }} />
-          <ExternalLink size={12} className="shrink-0" />
+          <HighlightedText text={domain} className="truncate" style={{ color: colors.tealText, fontSize: 13 }} />
+          <ExternalLink size={11} className="shrink-0 opacity-0 group-hover/url:opacity-100 transition-opacity" />
         </a>
       );
     }
@@ -181,7 +181,7 @@ export const NumberCellRenderer = React.memo(function NumberCellRenderer({
   const num = Number(value);
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
   return (
-    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums', color: num < 0 ? '#EF4444' : undefined }}>
+    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em', fontSize: 13, color: num < 0 ? '#EF4444' : undefined }}>
       {num.toLocaleString()}
     </span>
   );
@@ -194,7 +194,7 @@ export const DecimalCellRenderer = React.memo(function DecimalCellRenderer({
   const num = Number(value);
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
   return (
-    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums', color: num < 0 ? '#EF4444' : undefined }}>
+    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em', fontSize: 13, color: num < 0 ? '#EF4444' : undefined }}>
       {num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     </span>
   );
@@ -267,7 +267,7 @@ export const DateCellRenderer = React.memo(function DateCellRenderer({
       : { dateStyle: 'medium' };
   const formatted = date.toLocaleString(undefined, opts);
   return (
-    <span className="truncate" style={{ fontSize: 13 }}>
+    <span className="truncate text-[#374151] dark:text-[hsl(210,18%,78%)]" style={{ fontSize: 13, letterSpacing: '-0.01em' }}>
       {formatted}
     </span>
   );
@@ -282,14 +282,14 @@ export const CheckboxCellRenderer = React.memo(function CheckboxCellRenderer({
     <div className="flex items-center justify-center w-full h-full cursor-pointer">
       {checked ? (
         <div
-          className="w-[18px] h-[18px] rounded flex items-center justify-center"
+          className="w-[17px] h-[17px] rounded-[4px] flex items-center justify-center shadow-sm transition-all"
           style={{ backgroundColor: colors.checkboxChecked }}
         >
-          <Check size={13} color="#fff" strokeWidth={3} />
+          <Check size={12} color="#fff" strokeWidth={3} />
         </div>
       ) : (
         <div
-          className="w-[18px] h-[18px] rounded border-2 border-[#D1D5DB] dark:border-[hsl(215,12%,35%)] group-hover/row:border-[#9CA3AF] dark:group-hover/row:border-[hsl(215,12%,45%)] transition-colors"
+          className="w-[17px] h-[17px] rounded-[4px] border-[1.5px] border-[#CBD5E1] dark:border-[hsl(215,12%,32%)] group-hover/row:border-[#94A3B8] dark:group-hover/row:border-[hsl(215,12%,42%)] transition-colors"
         />
       )}
     </div>
@@ -316,6 +316,8 @@ export const SelectCellRenderer = React.memo(function SelectCellRenderer({
         height: 22,
         lineHeight: '22px',
         maxWidth: '100%',
+        letterSpacing: '-0.01em',
+        fontSize: 12,
       } as React.CSSProperties}
     >
       {String(value)}
@@ -393,7 +395,7 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
               key={i}
               src={f.url}
               alt={f.name}
-              className="h-8 w-8 rounded object-cover shrink-0 cursor-pointer"
+              className="h-7 w-7 rounded-[4px] object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
               loading="lazy"
               style={{ border: `1px solid ${colors.dropdownBorder}` }}
               title={f.name}
@@ -403,7 +405,7 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
           ) : (
             <span
               key={i}
-              className="h-8 px-1.5 rounded flex items-center shrink-0 cursor-pointer"
+              className="h-7 w-7 rounded-[4px] flex items-center justify-center shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
               style={{ backgroundColor: colors.dropdownHover, border: `1px solid ${colors.dropdownBorder}` }}
               title={f.name}
               onClick={(e) => { e.stopPropagation(); setLightboxIndex(i); }}
@@ -497,16 +499,17 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
         <span
           className="shrink-0 flex items-center justify-center rounded-full text-white"
           style={{
-            width: 18,
-            height: 18,
+            width: 20,
+            height: 20,
             fontSize: 10,
             fontWeight: 600,
             backgroundColor: colors.avatarBg,
+            letterSpacing: '0.02em',
           }}
         >
           {initial}
         </span>
-        <span className="truncate" style={{ fontSize: 12 }}>{display}</span>
+        <span className="truncate" style={{ fontSize: 12, fontWeight: 450 }}>{display}</span>
       </span>
     );
   }
@@ -559,14 +562,14 @@ export const PercentCellRenderer = React.memo(function PercentCellRenderer({
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
   const barColor = num >= 75 ? '#22C55E' : num >= 50 ? '#2563EB' : num >= 25 ? '#F59E0B' : '#EF4444';
   return (
-    <div className="flex items-center gap-2 w-full">
-      <div className="flex-1 h-1 rounded-full bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] overflow-hidden" style={{ height: 4 }}>
+    <div className="flex items-center gap-2.5 w-full">
+      <div className="flex-1 rounded-full bg-[#E5E5E5] dark:bg-[hsl(220,15%,20%)] overflow-hidden" style={{ height: 5 }}>
         <div
-          className="h-full rounded-full transition-all"
+          className="h-full rounded-full transition-all duration-300"
           style={{ width: `${Math.min(100, Math.max(0, num))}%`, backgroundColor: barColor }}
         />
       </div>
-      <span className="text-xs shrink-0 text-[#6A7184] dark:text-[hsl(200,20%,55%)]">{num}%</span>
+      <span className="text-xs shrink-0 tabular-nums" style={{ fontSize: 12, letterSpacing: '-0.01em', color: barColor, fontWeight: 500 }}>{num}%</span>
     </div>
   );
 });
@@ -599,7 +602,7 @@ export const DurationCellRenderer = React.memo(function DurationCellRenderer({
     display = `${h}:${pad2(m)}`;
   }
   return (
-    <span className="flex items-center gap-1 truncate" style={{ color: colors.muted }}>
+    <span className="flex items-center gap-1.5 truncate" style={{ color: colors.muted, fontVariantNumeric: 'tabular-nums', fontSize: 13, letterSpacing: '-0.01em' }}>
       <Clock size={12} className="shrink-0" style={{ color: colors.systemText }} />
       {display}
     </span>
@@ -688,7 +691,7 @@ export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({
   if (numVal !== null) {
     const formatted = formatFormulaNumber(numVal, field);
     return (
-      <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums', color: numVal < 0 ? '#EF4444' : undefined }}>
+      <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em', fontSize: 13, color: numVal < 0 ? '#EF4444' : undefined }}>
         {formatted}
       </span>
     );

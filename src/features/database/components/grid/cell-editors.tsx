@@ -116,7 +116,7 @@ export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEdi
 
   return (
     <div className="flex items-center w-full h-full bg-transparent">
-      <span className="pl-2 text-xs text-[#9AA2AF] shrink-0">{symbol}</span>
+      <span className="pl-2 text-[13px] text-[#94A3B8] dark:text-[hsl(215,12%,45%)] shrink-0 font-medium">{symbol}</span>
       <input
         ref={ref}
         type="text"
@@ -131,7 +131,7 @@ export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEdi
         onBlur={() => onCommit(num === '' ? null : Number(num))}
         placeholder="0.00"
         className="w-full h-full px-2 outline-none bg-transparent text-right"
-        style={{ fontSize: 14, color: 'inherit' }}
+        style={{ fontSize: 13, color: 'inherit', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}
       />
     </div>
   );
