@@ -1123,6 +1123,45 @@ export default function GridView({
     return () => window.removeEventListener('grid:expand-row', handler);
   }, [onExpandRow]);
 
+  // Fill handle: drag from selected cell corner to fill values down
+  useEffect(() => {
+    let fillSource: { recordId: string; fieldId: string } | null = null;
+    const onFillStart = (e: Event) => {
+      fillSource = (e as CustomEvent).detail;
+      const onMouseMove = (me: MouseEvent) => {
+        me.preventDefault();
+      };
+      const onMouseUp = (me: MouseEvent) => {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        if (!fillSource) return;
+        const target = document.elementFromPoint(me.clientX, me.clientY)?.closest('[data-cell-id]') as HTMLElement | null;
+        if (!target) return;
+        const targetCellId = target.getAttribute('data-cell-id');
+        if (!targetCellId) return;
+        const [targetRowId] = targetCellId.split(':');
+        const sourceField = fields.find((f) => f.id === fillSource!.fieldId);
+        if (!sourceField) return;
+        const sourceIdx = records.findIndex((r) => r.id === fillSource!.recordId);
+        const targetIdx = records.findIndex((r) => r.id === targetRowId);
+        if (sourceIdx === -1 || targetIdx === -1 || targetIdx <= sourceIdx) return;
+        const sourceVal = records[sourceIdx][sourceField.pg_column_name];
+        const flashIds: string[] = [];
+        for (let i = sourceIdx + 1; i <= targetIdx; i++) {
+          onCellUpdate(records[i].id, sourceField.id, sourceVal);
+          flashIds.push(`${records[i].id}:${sourceField.id}`);
+        }
+        flashCellIds(flashIds);
+        showToast(`Filled ${flashIds.length} cell${flashIds.length !== 1 ? 's' : ''}`);
+        fillSource = null;
+      };
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    };
+    window.addEventListener('grid:fill-start', onFillStart);
+    return () => window.removeEventListener('grid:fill-start', onFillStart);
+  }, [fields, records, onCellUpdate, flashCellIds, showToast]);
+
   // Dismiss cell editors when a modal dialog opens (but not cell-editor popovers)
   useEffect(() => {
     const observer = new MutationObserver(() => {

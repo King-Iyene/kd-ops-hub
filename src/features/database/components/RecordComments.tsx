@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { MessageSquare, Send, Trash2 } from 'lucide-react';
-import { useComments, useCreateComment, useDeleteComment } from '../hooks/useComments';
+import { MessageSquare, Send, Trash2, Pencil, Check, X } from 'lucide-react';
+import { useComments, useCreateComment, useDeleteComment, useUpdateComment } from '../hooks/useComments';
 
 interface RecordCommentsProps {
   baseId: string;
@@ -41,7 +41,10 @@ export function RecordComments({ baseId, tableId, recordId, userEmail }: RecordC
   const { data: comments, isLoading } = useComments(tableId, recordId);
   const createComment = useCreateComment();
   const deleteComment = useDeleteComment();
+  const updateComment = useUpdateComment();
   const [text, setText] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
 
   const handleSubmit = () => {
     const trimmed = text.trim();
@@ -88,6 +91,15 @@ export function RecordComments({ baseId, tableId, recordId, userEmail }: RecordC
                   <span className="text-[10px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] shrink-0">
                     {timeAgo(c.created_at)}
                   </span>
+                  {c.user_email === userEmail && (
+                    <button
+                      onClick={() => { setEditingId(c.id); setEditText(c.comment); }}
+                      className="ml-auto p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] transition-opacity"
+                      title="Edit comment"
+                    >
+                      <Pencil size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+                    </button>
+                  )}
                   <button
                     onClick={() =>
                       deleteComment.mutate({
@@ -96,15 +108,43 @@ export function RecordComments({ baseId, tableId, recordId, userEmail }: RecordC
                         recordId,
                       })
                     }
-                    className="ml-auto p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-900/20 transition-opacity"
+                    className={`${c.user_email === userEmail ? '' : 'ml-auto '}p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-900/20 transition-opacity`}
                     title="Delete comment"
                   >
                     <Trash2 size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] hover:text-red-500" />
                   </button>
                 </div>
-                <p className="text-sm text-[#374151] dark:text-[hsl(200,25%,88%)] mt-0.5 whitespace-pre-wrap break-words">
-                  {c.comment}
-                </p>
+                {editingId === c.id ? (
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <input
+                      type="text"
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          updateComment.mutate({ commentId: c.id, tableId, recordId, comment: editText.trim() });
+                          setEditingId(null);
+                        }
+                        if (e.key === 'Escape') setEditingId(null);
+                      }}
+                      autoFocus
+                      className="flex-1 px-2 py-0.5 text-sm rounded border border-[#2D7FF9] bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none"
+                    />
+                    <button
+                      onClick={() => { updateComment.mutate({ commentId: c.id, tableId, recordId, comment: editText.trim() }); setEditingId(null); }}
+                      className="p-0.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                    >
+                      <Check size={14} />
+                    </button>
+                    <button onClick={() => setEditingId(null)} className="p-0.5 text-[#9AA2AF] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-[#374151] dark:text-[hsl(200,25%,88%)] mt-0.5 whitespace-pre-wrap break-words">
+                    {c.comment}
+                  </p>
+                )}
               </div>
             </div>
           );

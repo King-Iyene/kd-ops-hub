@@ -66,6 +66,35 @@ export function useCreateComment() {
   });
 }
 
+export function useUpdateComment() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      commentId: string;
+      tableId: string;
+      recordId: string;
+      comment: string;
+    }) => {
+      const { data, error } = await supabase
+        .schema('nc_meta')
+        .from('record_comments')
+        .update({ comment: input.comment })
+        .eq('id', input.commentId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as RecordComment;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({
+        queryKey: ['record_comments', variables.tableId, variables.recordId],
+      });
+    },
+  });
+}
+
 export function useDeleteComment() {
   const qc = useQueryClient();
 

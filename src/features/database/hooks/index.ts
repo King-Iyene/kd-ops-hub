@@ -20,7 +20,7 @@ export { useLinks, useCreateLink, useLinkedRecords, useLinkedRecordsPaginated } 
 export type { LinkMeta, PaginatedLinkedRecords } from './useLinks';
 export { useSharedView, useCreateSharedView, useUpdateSharedView, useDeleteSharedView } from './useSharedViews';
 export { useApiKeys, useCreateApiKey, useRevokeApiKey } from './useApiKeys';
-export { useComments, useCreateComment, useDeleteComment } from './useComments';
+export { useComments, useCreateComment, useUpdateComment, useDeleteComment } from './useComments';
 export { useAutomations, useCreateAutomation, useUpdateAutomation, useDeleteAutomation } from './useAutomations';
 export { useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook } from './useWebhooks';
 export { useDuplicateBase } from './useDuplicateBase';

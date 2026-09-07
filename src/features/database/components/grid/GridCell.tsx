@@ -180,6 +180,7 @@ export const GridCell = React.memo(function GridCell({
   return (
     <div
       ref={cellRef}
+      data-cell-id={cellId}
       className={`relative flex items-center overflow-hidden ${frozen ? 'sticky z-10' : ''}`}
       style={{
         boxSizing: 'border-box',
@@ -237,6 +238,17 @@ export const GridCell = React.memo(function GridCell({
           field={field}
           record={record}
           rowHeight={rowHeight}
+        />
+      )}
+      {isSelected && !isEditing && !isSystemField && (
+        <div
+          className="absolute bottom-0 right-0 w-[7px] h-[7px] cursor-crosshair z-20"
+          style={{ backgroundColor: GRID_COLORS.primary, transform: 'translate(50%, 50%)' }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('grid:fill-start', { detail: { recordId: record.id, fieldId: field.id } }));
+          }}
         />
       )}
     </div>

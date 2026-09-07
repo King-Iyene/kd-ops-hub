@@ -922,6 +922,20 @@ export function LinksCellEditor({ onCancel }: CellEditorProps) {
   return null;
 }
 
+function wrapSelection(textarea: HTMLTextAreaElement, before: string, after: string, setText: (t: string) => void) {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const val = textarea.value;
+  const selected = val.slice(start, end);
+  const newVal = val.slice(0, start) + before + selected + after + val.slice(end);
+  setText(newVal);
+  requestAnimationFrame(() => {
+    textarea.focus();
+    textarea.selectionStart = start + before.length;
+    textarea.selectionEnd = end + before.length;
+  });
+}
+
 export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -936,7 +950,15 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
   }, []);
 
   return (
-    <div className="absolute left-0 top-0 z-50 shadow-lg bg-white dark:bg-[hsl(200,30%,10%)]" style={{ minHeight: 80, minWidth: 240, border: '2px solid #2D7FF9', borderRadius: 1 }}>
+    <div className="absolute left-0 top-0 z-50 shadow-lg bg-white dark:bg-[hsl(200,30%,10%)]" style={{ minHeight: 80, minWidth: 300, border: '2px solid #2D7FF9', borderRadius: 1 }}>
+      <div className="flex items-center gap-0.5 px-1.5 py-1 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
+        <button type="button" className="px-1.5 py-0.5 text-[11px] font-bold text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '**', '**', setText); }} title="Bold">B</button>
+        <button type="button" className="px-1.5 py-0.5 text-[11px] italic text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '*', '*', setText); }} title="Italic">I</button>
+        <button type="button" className="px-1.5 py-0.5 text-[11px] line-through text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '~~', '~~', setText); }} title="Strikethrough">S</button>
+        <div className="w-px h-3 bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] mx-0.5" />
+        <button type="button" className="px-1.5 py-0.5 text-[11px] text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '`', '`', setText); }} title="Code">&lt;/&gt;</button>
+        <button type="button" className="px-1.5 py-0.5 text-[11px] text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '- ', '', setText); }} title="List">•</button>
+      </div>
       <textarea
         ref={ref}
         value={text}
@@ -945,12 +967,15 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
           if (e.key === 'Escape') onCancel();
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) onCommit(text);
           if (e.key === 'Tab') { e.preventDefault(); onCommit(text); }
+          if (e.key === 'b' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); wrapSelection(e.currentTarget, '**', '**', setText); }
+          if (e.key === 'i' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); wrapSelection(e.currentTarget, '*', '*', setText); }
         }}
         onBlur={() => onCommit(text)}
-        rows={4}
+        rows={5}
         className="w-full p-2 outline-none resize-y border-none bg-transparent"
         style={{ fontSize: 13, color: 'inherit', borderRadius: 0 }}
       />
+      <div className="px-2 pb-1 text-[10px] text-[#9AA2AF]">⌘+Enter to save · Esc to cancel</div>
     </div>
   );
 }
