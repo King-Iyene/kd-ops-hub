@@ -839,8 +839,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                 schemaName,
                 tableName: jnTableName,
                 columns: [
-                  { name: `${sourcePgTable}_id`, type: 'UUID' },
-                  { name: `${targetPgTable}_id`, type: 'UUID' },
+                  { columnName: 'source_id', columnType: 'UUID' },
+                  { columnName: 'target_id', columnType: 'UUID' },
                 ],
               });
             } catch { /* junction may already exist from inverse link */ }
@@ -1009,8 +1009,6 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               page++;
             }
 
-            const srcColName = `${sourcePgTable}_id`;
-            const tgtColName = `${targetPgTable}_id`;
             const junctionRows: Record<string, string>[] = [];
             for (const sr of allSourceRecords) {
               const linkedIds = sr[pgCol];
@@ -1018,7 +1016,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               for (const atRecId of linkedIds) {
                 const targetUuid = targetIdMap[atRecId];
                 if (targetUuid) {
-                  junctionRows.push({ [srcColName]: sr.id, [tgtColName]: targetUuid });
+                  junctionRows.push({ source_id: sr.id, target_id: targetUuid });
                 }
               }
             }

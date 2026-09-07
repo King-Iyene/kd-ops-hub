@@ -277,7 +277,12 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
     onAddRow(record);
     setValues({});
     setErrors({});
-    setSubmitted(true);
+    if (formConfig.redirect_url) {
+      window.open(formConfig.redirect_url, isPublic ? '_self' : '_blank');
+      if (!isPublic) setSubmitted(true);
+    } else {
+      setSubmitted(true);
+    }
   };
 
   const handleSubmitAnother = () => {
@@ -554,10 +559,23 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
             />
           </div>
 
+          {/* Redirect URL */}
+          <div className="px-4 py-3 border-b border-[#F1F5F9] dark:border-[hsl(220,15%,15%)]">
+            <label className="text-[11px] font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-wider mb-1.5 block">Redirect after submit</label>
+            <input
+              type="url"
+              value={formConfig.redirect_url ?? ''}
+              onChange={(e) => saveConfig({ redirect_url: e.target.value })}
+              placeholder="https://example.com/thank-you"
+              className="w-full text-xs px-2.5 py-1.5 rounded-md border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-[#2D7FF9] text-[#1E293B] dark:text-[hsl(210,20%,85%)] placeholder:text-[#CBD5E1]"
+            />
+            <p className="text-[10px] text-[#94A3B8] mt-1">Leave empty to show success message</p>
+          </div>
+
           {/* Visible fields */}
           <div className="px-4 py-3">
             <label className="text-[11px] font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-wider mb-2 block">
-              Fields ({visibleFields.length})
+              Visible Fields ({visibleFields.length})
             </label>
             <div className="space-y-0.5">
               {visibleFields.map((f) => {
@@ -567,7 +585,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
                 return (
                   <div
                     key={f.id}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${isSelected ? 'bg-[#2D7FF9]/10' : 'hover:bg-[#F1F5F9] dark:hover:bg-[hsl(220,15%,14%)]'}`}
+                    className={`group/field flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${isSelected ? 'bg-[#2D7FF9]/10' : 'hover:bg-[#F1F5F9] dark:hover:bg-[hsl(220,15%,14%)]'}`}
                     onClick={() => setSelectedFieldId(isSelected ? null : f.id)}
                   >
                     <GripVertical size={12} className="text-[#CBD5E1] dark:text-[hsl(215,12%,30%)] shrink-0" />
@@ -575,11 +593,11 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
                     <span className="text-xs text-[#1E293B] dark:text-[hsl(210,20%,85%)] truncate flex-1">{f.name}</span>
                     {fc.required && <span className="text-red-400 text-[10px]">*</span>}
                     <button
-                      className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-[#FEE2E2] rounded transition-all"
+                      className="opacity-0 group-hover/field:opacity-100 p-0.5 hover:bg-[#FEE2E2] dark:hover:bg-red-900/20 rounded transition-all"
                       onClick={(e) => { e.stopPropagation(); updateFieldConfig(f.id, { hidden: true }); }}
-                      title="Hide field"
+                      title="Hide field from form"
                     >
-                      <EyeOff size={11} className="text-[#94A3B8]" />
+                      <EyeOff size={11} className="text-[#94A3B8] hover:text-red-500" />
                     </button>
                   </div>
                 );
@@ -622,20 +640,21 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
           {hiddenFields.length > 0 && (
             <div className="px-4 py-3 border-t border-[#E2E8F0] dark:border-[hsl(220,15%,18%)]">
               <label className="text-[11px] font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-wider mb-2 block">
-                Hidden ({hiddenFields.length})
+                Hidden Fields ({hiddenFields.length})
               </label>
+              <p className="text-[10px] text-[#94A3B8] mb-2">Click to add back to form</p>
               <div className="space-y-0.5">
                 {hiddenFields.map((f) => {
                   const Icon = getFieldTypeIcon(f.ui_type);
                   return (
                     <div
                       key={f.id}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#F1F5F9] dark:hover:bg-[hsl(220,15%,14%)] cursor-pointer opacity-50 transition-colors"
+                      className="group/hidden flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#F0F9FF] dark:hover:bg-[hsl(220,20%,14%)] cursor-pointer opacity-60 hover:opacity-100 transition-all"
                       onClick={() => updateFieldConfig(f.id, { hidden: false })}
                     >
                       <Icon size={12} className="text-[#94A3B8] shrink-0" />
-                      <span className="text-xs text-[#64748B] truncate flex-1">{f.name}</span>
-                      <Eye size={11} className="text-[#94A3B8] shrink-0" />
+                      <span className="text-xs text-[#64748B] dark:text-[hsl(215,15%,55%)] truncate flex-1">{f.name}</span>
+                      <Eye size={11} className="text-[#2D7FF9] opacity-0 group-hover/hidden:opacity-100 transition-opacity shrink-0" />
                     </div>
                   );
                 })}
