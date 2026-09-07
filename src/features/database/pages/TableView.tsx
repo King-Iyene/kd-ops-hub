@@ -472,6 +472,7 @@ export function TableView() {
             fields={patchedFields}
             onAddRow={handleAddRow}
             isLoading={isLoading}
+            view={activeView}
           />
         );
       case 'calendar':

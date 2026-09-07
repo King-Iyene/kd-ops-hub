@@ -3,7 +3,8 @@ import { useParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import GridView from '../components/grid/GridView';
-import type { FieldMeta, RecordRow } from '../types';
+import FormView from '../components/views/FormView';
+import type { FieldMeta, RecordRow, ViewMeta } from '../types';
 
 export default function SharedViewPage() {
   const { token } = useParams<{ token: string }>();
@@ -16,9 +17,6 @@ export default function SharedViewPage() {
     queryKey: ['shared_view_public', token],
     enabled: !!token,
     queryFn: async () => {
-      // Never select password_hash here - only metadata plus a boolean flag
-      // telling us whether a password is required. The actual check happens
-      // server-side via the verify_shared_view_password RPC below.
       const { data, error } = await supabase
         .schema('nc_meta')
         .from('shared_views')
@@ -34,7 +32,7 @@ export default function SharedViewPage() {
   });
 
   const sharedView = sharedViewQuery.data;
-  const view = sharedView?.view as any;
+  const view = sharedView?.view as (ViewMeta & { table: any }) | undefined;
   const table = view?.table as any;
   const base = table?.base as any;
 
@@ -70,7 +68,7 @@ export default function SharedViewPage() {
 
   const recordsCountQuery = useQuery({
     queryKey: ['shared_records_count', base?.schema_name, table?.pg_table_name],
-    enabled: !!base?.schema_name && !!table?.pg_table_name && !needsPassword,
+    enabled: !!base?.schema_name && !!table?.pg_table_name && !needsPassword && view?.type !== 'form',
     queryFn: async () => {
       const { count, error } = await supabase
         .schema(base!.schema_name)
@@ -83,7 +81,7 @@ export default function SharedViewPage() {
 
   const recordsQuery = useQuery({
     queryKey: ['shared_records', base?.schema_name, table?.pg_table_name, page],
-    enabled: !!base?.schema_name && !!table?.pg_table_name && !needsPassword,
+    enabled: !!base?.schema_name && !!table?.pg_table_name && !needsPassword && view?.type !== 'form',
     queryFn: async () => {
       const { data, error } = await supabase
         .schema(base!.schema_name)
@@ -93,6 +91,17 @@ export default function SharedViewPage() {
         .range(page * pageSize, page * pageSize + pageSize - 1);
       if (error) throw error;
       return data as RecordRow[];
+    },
+  });
+
+  const addRowMutation = useMutation({
+    mutationFn: async (record: Record<string, any>) => {
+      if (!base?.schema_name || !table?.pg_table_name) throw new Error('Missing table info');
+      const { error } = await supabase
+        .schema(base.schema_name)
+        .from(table.pg_table_name)
+        .insert(record);
+      if (error) throw error;
     },
   });
 
@@ -157,6 +166,20 @@ export default function SharedViewPage() {
             )}
           </form>
         </div>
+      </div>
+    );
+  }
+
+  if (view?.type === 'form') {
+    return (
+      <div className="h-screen flex flex-col bg-[#F8FAFC] dark:bg-[hsl(220,20%,7%)]">
+        <FormView
+          fields={fields}
+          onAddRow={(record) => addRowMutation.mutate(record)}
+          isLoading={addRowMutation.isPending}
+          view={view}
+          isPublic
+        />
       </div>
     );
   }
