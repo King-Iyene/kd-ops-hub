@@ -177,6 +177,44 @@ const pickIcon = (mime: string | null) => {
   return FileIcon;
 };
 
+function DocThumbnail({ doc, size = 'sm' }: { doc: DocumentRow; size?: 'sm' | 'lg' }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const mime = (doc.mime_type || '').toLowerCase();
+  const isImage = mime.startsWith('image/');
+  const dim = size === 'lg' ? 'h-12 w-12' : 'h-8 w-8';
+  const iconDim = size === 'lg' ? 'h-6 w-6' : 'h-4 w-4';
+
+  useEffect(() => {
+    if (!isImage) return;
+    let cancelled = false;
+    supabase.storage
+      .from('documents')
+      .createSignedUrl(doc.storage_path, 600)
+      .then(({ data }) => {
+        if (!cancelled && data?.signedUrl) setUrl(data.signedUrl);
+      });
+    return () => { cancelled = true; };
+  }, [doc.storage_path, isImage]);
+
+  if (isImage && url) {
+    return (
+      <img
+        src={url}
+        alt={doc.title}
+        className={`${dim} rounded-lg object-cover shrink-0 bg-muted`}
+        loading="lazy"
+      />
+    );
+  }
+
+  const Icon = pickIcon(doc.mime_type);
+  return (
+    <div className={`flex ${dim} items-center justify-center rounded-lg bg-muted shrink-0`}>
+      <Icon className={`${iconDim} text-muted-foreground`} />
+    </div>
+  );
+}
+
 const MAX_MB = 25;
 
 const FOLDER_COLORS = [
@@ -1007,15 +1045,12 @@ const Documents = () => {
                       </TableHeader>
                       <TableBody>
                         {pagination.slice.map((r) => {
-                          const Icon = pickIcon(r.mime_type);
                           const canDelete = canManage || r.uploaded_by === profile?.id;
                           return (
                             <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openDetail(r)}>
                               <TableCell>
                                 <div className="flex items-center gap-3">
-                                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted shrink-0">
-                                    <Icon className="h-4 w-4 text-muted-foreground" />
-                                  </div>
+                                  <DocThumbnail doc={r} />
                                   <div className="min-w-0">
                                     <p className="font-medium truncate max-w-[200px]">{r.title}</p>
                                     {r.description && (
@@ -1070,14 +1105,11 @@ const Documents = () => {
                   {/* Mobile cards */}
                   <div className="md:hidden space-y-2 p-3">
                     {pagination.slice.map((r) => {
-                      const Icon = pickIcon(r.mime_type);
                       return (
                         <MobileCard key={r.id} onClick={() => openDetail(r)}>
                           <MobileCardHeader>
                             <div className="flex items-center gap-2">
-                              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted shrink-0">
-                                <Icon className="h-4 w-4 text-muted-foreground" />
-                              </div>
+                              <DocThumbnail doc={r} />
                               <div className="min-w-0 flex-1">
                                 <MobileCardTitle>{r.title}</MobileCardTitle>
                                 <MobileCardMeta>
@@ -1121,15 +1153,14 @@ const Documents = () => {
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-3">
                     {pagination.slice.map((r) => {
-                      const Icon = pickIcon(r.mime_type);
                       return (
                         <button
                           key={r.id}
                           onClick={() => openDetail(r)}
                           className="flex flex-col items-center p-4 rounded-xl border hover:bg-muted/50 transition-colors text-center group"
                         >
-                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted mb-2 group-hover:bg-primary/10 transition-colors">
-                            <Icon className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+                          <div className="mb-2">
+                            <DocThumbnail doc={r} size="lg" />
                           </div>
                           <p className="text-sm font-medium truncate w-full">{r.title}</p>
                           <p className="text-[10px] text-muted-foreground capitalize">{r.category.replace(/_/g, ' ')}</p>
