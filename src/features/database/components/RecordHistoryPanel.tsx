@@ -26,8 +26,24 @@ function resolveFieldName(key: string, fields: FieldMeta[]): string {
 
 function formatValue(val: unknown): string {
   if (val == null) return '(empty)';
+  if (Array.isArray(val)) {
+    if (val.length > 0 && typeof val[0] === 'object' && val[0]?.name) {
+      return val.map((a: any) => a.name).join(', ');
+    }
+    return val.map(v => typeof v === 'object' ? JSON.stringify(v) : String(v)).join(', ');
+  }
   if (typeof val === 'object') return JSON.stringify(val);
   return String(val);
+}
+
+function countChangedFields(oldVal: Record<string, any> | null, newVal: Record<string, any> | null): number {
+  const allKeys = new Set([...Object.keys(oldVal ?? {}), ...Object.keys(newVal ?? {})]);
+  let count = 0;
+  for (const k of allKeys) {
+    if (k.startsWith('nc_') || k === 'id' || k === 'created_at' || k === 'updated_at') continue;
+    if (oldVal?.[k] !== newVal?.[k]) count++;
+  }
+  return count;
 }
 
 function DiffView({
@@ -152,6 +168,14 @@ export function RecordHistoryPanel({ baseId, tableId, recordId, fields }: Record
               <span className="text-[10px] text-[#9AA2AF]" title={new Date(entry.created_at).toLocaleString()}>
                 {timeAgo(entry.created_at)}
               </span>
+              {entry.action === 'UPDATE' && (() => {
+                const n = countChangedFields(entry.old_value, entry.new_value);
+                return n > 0 ? (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-500 dark:text-blue-400">
+                    {n} field{n !== 1 ? 's' : ''}
+                  </span>
+                ) : null;
+              })()}
             </div>
 
             {entry.user_email && (

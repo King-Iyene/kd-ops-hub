@@ -507,8 +507,9 @@ export function useRecords(params: UseRecordsParams) {
       }
 
       if (search) {
+        const searchableTypes = new Set(['TEXT', 'VARCHAR', 'CHAR', 'UUID']);
         const textCols = (fieldsMeta ?? [])
-          .filter((f: any) => ['TEXT', 'VARCHAR'].includes(f.pg_type) && !f.pg_column_name.startsWith('nc_'))
+          .filter((f: any) => searchableTypes.has(f.pg_type) && !f.pg_column_name?.startsWith('nc_'))
           .map((f: any) => f.pg_column_name);
         if (textCols.length > 0) {
           const orClause = textCols.map((c: string) => `${c}.ilike.%${search}%`).join(',');

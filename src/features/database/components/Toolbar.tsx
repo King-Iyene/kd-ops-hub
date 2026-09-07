@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, GripVertical, ChevronUp, ChevronDown, FolderPlus, ChevronRight, Check, Key, Webhook, Zap, Cable, Trash2, Printer, RefreshCw } from 'lucide-react';
+import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, GripVertical, ChevronUp, ChevronDown, FolderPlus, ChevronRight, Check, Key, Webhook, Zap, Cable, Trash2, Printer, RefreshCw, ScanSearch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
 import { useUndoStore } from '../lib/undo';
@@ -12,6 +12,7 @@ const AutomationsDialog = lazy(() => import('./AutomationsDialog').then(m => ({ 
 const IntegrationsDialog = lazy(() => import('./IntegrationsDialog').then(m => ({ default: m.IntegrationsDialog })));
 const TrashDialog = lazy(() => import('./TrashDialog').then(m => ({ default: m.TrashDialog })));
 const RefreshAttachmentsDialog = lazy(() => import('./RefreshAttachmentsDialog').then(m => ({ default: m.RefreshAttachmentsDialog })));
+const DuplicateDetectionDialog = lazy(() => import('./DuplicateDetectionDialog').then(m => ({ default: m.DuplicateDetectionDialog })));
 import { SaveStatusIndicator } from './SaveStatusIndicator';
 import { exportToCsv } from '../lib/csv';
 import { useTables } from '../hooks';
@@ -979,6 +980,7 @@ export function Toolbar() {
   const [webhooksOpen, setWebhooksOpen] = useState(false);
   const [automationsOpen, setAutomationsOpen] = useState(false);
   const [refreshAttOpen, setRefreshAttOpen] = useState(false);
+  const [duplicateDetOpen, setDuplicateDetOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [hideOpen, setHideOpen] = useState(false);
@@ -1245,6 +1247,16 @@ export function Toolbar() {
                   >
                     <Printer size={14} className="text-zinc-400 dark:text-zinc-500" /> Print view
                   </button>
+                  <div className="h-px bg-zinc-100 dark:bg-zinc-700/50 my-1" />
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
+                    onClick={() => {
+                      setDuplicateDetOpen(true);
+                      setMoreOpen(false);
+                    }}
+                  >
+                    <ScanSearch size={14} className="text-amber-500" /> Find duplicates
+                  </button>
                 </div>
               </>
             )}
@@ -1271,6 +1283,7 @@ export function Toolbar() {
       {integrationsOpen && <Suspense fallback={null}><IntegrationsDialog open={integrationsOpen} onOpenChange={setIntegrationsOpen} tableId={activeTableId} baseId={activeBaseId} /></Suspense>}
       {trashOpen && <Suspense fallback={null}><TrashDialog open={trashOpen} onOpenChange={setTrashOpen} baseId={activeBaseId} /></Suspense>}
       {refreshAttOpen && <Suspense fallback={null}><RefreshAttachmentsDialog open={refreshAttOpen} onOpenChange={setRefreshAttOpen} baseId={activeBaseId} /></Suspense>}
+      {duplicateDetOpen && <Suspense fallback={null}><DuplicateDetectionDialog open={duplicateDetOpen} onOpenChange={setDuplicateDetOpen} records={recordsData?.data ?? []} fields={fieldsData ?? []} /></Suspense>}
     </>
   );
 }
