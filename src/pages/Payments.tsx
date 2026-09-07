@@ -5,7 +5,7 @@ import { errorMessage } from '@/lib/db-errors';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useCompanySettings } from '@/queries';
-import { useEffectiveRole } from '@/store/authStore';
+import { useEffectiveRole, useAuthStore } from '@/store/authStore';
 import { formatNaira, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -87,6 +87,8 @@ const BATCH_TYPE_META: Record<string, { label: string; bg: string; text: string 
 const Payments = () => {
   usePageTitle('Payments');
   const navigate = useNavigate();
+  const { profile } = useAuthStore();
+  const effectiveRole = useEffectiveRole();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const canQuickPay = useFeatureAccess('payments.quick_pay', APPROVER_ROLES);
@@ -228,6 +230,11 @@ const Payments = () => {
         }
       }
 
+      // Operations users only see batches they created.
+      if (effectiveRole === 'operations' && profile?.id) {
+        query = query.eq('created_by', profile.id);
+      }
+
       const { data, error } = await query;
       if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
       const fetched = (data as PaymentBatch[]) || [];
@@ -338,7 +345,6 @@ const Payments = () => {
   // still get every row back from the server — the simulation wouldn't match
   // what a real Operations user sees. Mirror the same predicate client-side
   // when the effective role is operations so the preview is accurate.
-  const effectiveRole = useEffectiveRole();
   const filtered = useMemo(() => {
     let rows = batches;
     if (effectiveRole === 'operations') {
@@ -434,8 +440,8 @@ const Payments = () => {
           module the operator picked. Hairline tiles, mono counts,
           local currency glyph (₦), no ISO prefix, no dots on the
           tile (those are kept on the rows below). Time-of-day
-          holographic hover. */}
-      <div className="rounded-lg border border-border/70 bg-card grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-border/70 overflow-hidden">
+          holographic hover. Hidden from operators — they only see their own batches. */}
+      {effectiveRole !== 'operations' && <div className="rounded-lg border border-border/70 bg-card grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-border/70 overflow-hidden">
         {[
           {
             label: 'Pending approval',
@@ -467,7 +473,7 @@ const Payments = () => {
             </div>
           </div>
         ))}
-      </div>
+      </div>}
 
       {/* ── Filters + list ─────────────────────────────────────── */}
       <div className="space-y-3" id="batches-list">

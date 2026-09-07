@@ -149,6 +149,8 @@ const Transactions = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | string>('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const effectiveRole = useEffectiveRole();
+  const isOpsView = effectiveRole === 'operations';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -186,6 +188,11 @@ const Transactions = () => {
     // 2000 is generous — 500 was truncating even a single month of dispatch
     // activity for a company running 700+ partners. PostgREST caps at
     // db.max_rows (default 1000 on Supabase); the tighter of the two wins.
+    // Operations users only see transactions they created — no unrelated financial data.
+    if (effectiveRole === 'operations' && profile?.id) {
+      q = q.eq('created_by', profile.id);
+    }
+
     q = q.limit(2000);
 
     const { data, error } = await q;
@@ -196,7 +203,7 @@ const Transactions = () => {
       setRows((data as unknown as Transaction[]) || []);
     }
     setLoading(false);
-  }, [statusFilter, from, to]);
+  }, [statusFilter, from, to, effectiveRole, profile?.id]);
 
   useEffect(() => {
     load();
@@ -215,8 +222,6 @@ const Transactions = () => {
   // and any payment_category that's an employee flavour (salary / advance /
   // bonus). Other categories (fuel / expense) also fall outside Operations'
   // scope and are hidden.
-  const effectiveRole = useEffectiveRole();
-  const isOpsView = effectiveRole === 'operations';
 
   const roleScopedRows = useMemo(() => {
     if (!isOpsView) return rows;
@@ -388,7 +393,9 @@ const Transactions = () => {
     <div className="space-y-6">
       <PageHeader
         title="Transactions"
-        description={`All financial activity across KDOps — ${roleScopedRows.length.toLocaleString()} transactions`}
+        description={isOpsView
+          ? `Your transactions — ${roleScopedRows.length.toLocaleString()} records`
+          : `All financial activity across KDOps — ${roleScopedRows.length.toLocaleString()} transactions`}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => window.print()}>
