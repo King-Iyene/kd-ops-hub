@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, GripVertical, ChevronUp, ChevronDown, FolderPlus, ChevronRight, Check, Key, Webhook, Zap, Cable, Trash2, Printer } from 'lucide-react';
+import { Filter, ArrowUpDown, EyeOff, Search, Plus, Rows3, X, Undo2, Redo2, Download, Upload, MoreHorizontal, Layers, Palette, GripVertical, ChevronUp, ChevronDown, FolderPlus, ChevronRight, Check, Key, Webhook, Zap, Cable, Trash2, Printer, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
 import { useUndoStore } from '../lib/undo';
@@ -11,6 +11,7 @@ const WebhooksDialog = lazy(() => import('./WebhooksDialog').then(m => ({ defaul
 const AutomationsDialog = lazy(() => import('./AutomationsDialog').then(m => ({ default: m.AutomationsDialog })));
 const IntegrationsDialog = lazy(() => import('./IntegrationsDialog').then(m => ({ default: m.IntegrationsDialog })));
 const TrashDialog = lazy(() => import('./TrashDialog').then(m => ({ default: m.TrashDialog })));
+const RefreshAttachmentsDialog = lazy(() => import('./RefreshAttachmentsDialog').then(m => ({ default: m.RefreshAttachmentsDialog })));
 import { SaveStatusIndicator } from './SaveStatusIndicator';
 import { exportToCsv } from '../lib/csv';
 import { useTables } from '../hooks';
@@ -977,6 +978,7 @@ export function Toolbar() {
   const [apiTokensOpen, setApiTokensOpen] = useState(false);
   const [webhooksOpen, setWebhooksOpen] = useState(false);
   const [automationsOpen, setAutomationsOpen] = useState(false);
+  const [refreshAttOpen, setRefreshAttOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [hideOpen, setHideOpen] = useState(false);
@@ -1126,6 +1128,16 @@ export function Toolbar() {
           <Button
             variant="ghost"
             size="sm"
+            className="h-7 text-[11px] text-zinc-500 dark:text-zinc-400 gap-1 px-2 hover:text-blue-600 dark:hover:text-blue-400"
+            onClick={() => setRefreshAttOpen(true)}
+            aria-label="Refresh Attachments"
+          >
+            <RefreshCw size={14} />
+            <span className="hidden sm:inline">Refresh Att.</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             className="h-7 text-xs text-zinc-500 dark:text-zinc-400 gap-1"
             onClick={() => setTrashOpen(true)}
             aria-label="Trash"
@@ -1258,6 +1270,7 @@ export function Toolbar() {
       {automationsOpen && <Suspense fallback={null}><AutomationsDialog open={automationsOpen} onOpenChange={setAutomationsOpen} tableId={activeTableId} baseId={activeBaseId} /></Suspense>}
       {integrationsOpen && <Suspense fallback={null}><IntegrationsDialog open={integrationsOpen} onOpenChange={setIntegrationsOpen} tableId={activeTableId} baseId={activeBaseId} /></Suspense>}
       {trashOpen && <Suspense fallback={null}><TrashDialog open={trashOpen} onOpenChange={setTrashOpen} baseId={activeBaseId} /></Suspense>}
+      {refreshAttOpen && <Suspense fallback={null}><RefreshAttachmentsDialog open={refreshAttOpen} onOpenChange={setRefreshAttOpen} baseId={activeBaseId} /></Suspense>}
     </>
   );
 }
