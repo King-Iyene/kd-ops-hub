@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useParams, useNavigate } from 'react-router-dom';
 import { errorMessage } from '@/lib/db-errors';
 import { Loader2, ChevronDown, Camera, History } from 'lucide-react';
@@ -1519,6 +1520,7 @@ const EmployeeProfile = () => {
       </div>
 
       {/* ── Tab content ── */}
+      <ErrorBoundary context="This tab ran into an error." key={activeTab}>
       {activeTab === 'job_pay' && (
         <JobPayTab
           employee={employee}
@@ -1858,7 +1860,7 @@ const EmployeeProfile = () => {
               empPlacementPayments={empPlacementPayments}
             />
       )}
-
+      </ErrorBoundary>
 
       {/* ── Deactivate dialog ── */}
       <Dialog open={confirmDeactivate} onOpenChange={setConfirmDeactivate}>
