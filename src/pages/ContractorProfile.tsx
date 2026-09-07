@@ -305,7 +305,7 @@ const ContractorProfile = () => {
         notes: form.notes,
         tin: form.tin || null,
         service_type: form.service_type || 'professional',
-        wht_rate: Number(form.wht_rate) || 0.05,
+        wht_rate: form.wht_rate != null && form.wht_rate !== '' ? Number(form.wht_rate) : 0.05,
       })
       .eq('id', id);
     if (error) {
