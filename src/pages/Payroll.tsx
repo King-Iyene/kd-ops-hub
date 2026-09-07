@@ -572,12 +572,14 @@ const Payroll = () => {
       };
       const nhfBaseFor = (r: any) =>
         r.use_salary_components ? Number(r.basic_ngn || 0) : Number(r.salary_ngn || 0);
+      const companyPensionOn = companySettings?.pension_enabled !== false;
+      const companyNhfOn = companySettings?.nhf_enabled === true;
       const pension = filteredEmployees.reduce(
-        (s: number, r: any) => s + (r.pension_enabled !== false ? pensionBaseFor(r) * PENSION_RATE : 0), 0);
+        (s: number, r: any) => s + (companyPensionOn && r.pension_enabled !== false ? pensionBaseFor(r) * PENSION_RATE : 0), 0);
       const nhf = filteredEmployees.reduce(
-        (s: number, r: any) => s + (r.nhf_enabled === true ? nhfBaseFor(r) * NHF_RATE : 0), 0);
+        (s: number, r: any) => s + (companyNhfOn && r.nhf_enabled === true ? nhfBaseFor(r) * NHF_RATE : 0), 0);
       const employerPension = filteredEmployees.reduce(
-        (s: number, r: any) => s + (r.pension_enabled !== false ? pensionBaseFor(r) * EMPLOYER_PENSION_RATE : 0), 0);
+        (s: number, r: any) => s + (companyPensionOn && r.pension_enabled !== false ? pensionBaseFor(r) * EMPLOYER_PENSION_RATE : 0), 0);
       const bonusTotal = form.bonuses.reduce((s, b) => s + Number(b.amount || 0), 0);
       const housingAllowance = totalEmployee * (form.housing_allowance_pct / 100);
       const transportAllowance = empCount * form.transport_per_emp;
