@@ -2,12 +2,14 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   CheckCircle, Star, GripVertical, ImageIcon, RotateCcw, Eye, EyeOff,
   Settings2, Share2, ExternalLink, Copy, Check, Palette, Type,
+  Upload, Paperclip, X, FileText,
 } from 'lucide-react';
 import type { FieldMeta, ViewMeta, FormConfig, FormFieldConfig } from '../../types';
 import { PILL_COLORS, VIRTUAL_TYPES } from '../../types';
 import { getFieldTypeIcon } from '../grid/field-icons';
 import { useUpdateView } from '../../hooks/useViews';
 import { useSharedView, useCreateSharedView } from '../../hooks/useSharedViews';
+import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 
 interface FormViewProps {
@@ -85,6 +87,85 @@ function RatingInput({
           ★
         </button>
       ))}
+    </div>
+  );
+}
+
+function AttachmentInput({
+  value,
+  onChange,
+}: {
+  value: { name: string; url: string; type: string; size: number }[];
+  onChange: (v: { name: string; url: string; type: string; size: number }[]) => void;
+}) {
+  const [dragOver, setDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFiles = async (files: FileList | File[]) => {
+    setUploading(true);
+    const newFiles: { name: string; url: string; type: string; size: number }[] = [];
+    for (const file of Array.from(files)) {
+      if (file.size > 50 * 1024 * 1024) continue;
+      const ts = Date.now();
+      const path = `form-uploads/${ts}_${file.name}`;
+      const { error } = await supabase.storage
+        .from('attachments')
+        .upload(path, file, { upsert: false });
+      if (error) continue;
+      const { data: urlData } = supabase.storage.from('attachments').getPublicUrl(path);
+      newFiles.push({ name: file.name, url: urlData.publicUrl, type: file.type, size: file.size });
+    }
+    onChange([...value, ...newFiles]);
+    setUploading(false);
+  };
+
+  const removeFile = (idx: number) => {
+    onChange(value.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div>
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); }}
+        onClick={() => fileRef.current?.click()}
+        className="flex flex-col items-center justify-center gap-1.5 py-6 rounded-lg cursor-pointer transition-colors"
+        style={{
+          border: `2px dashed ${dragOver ? '#2D7FF9' : '#E2E8F0'}`,
+          backgroundColor: dragOver ? 'rgba(45,127,249,0.04)' : 'transparent',
+        }}
+      >
+        <Upload size={20} className={dragOver ? 'text-[#2D7FF9]' : 'text-[#94A3B8]'} />
+        <span className="text-xs text-[#64748B]">
+          {uploading ? 'Uploading...' : 'Drop files or click to upload'}
+        </span>
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) => { if (e.target.files?.length) { handleFiles(e.target.files); e.target.value = ''; } }}
+      />
+      {value.length > 0 && (
+        <div className="mt-2 space-y-1.5">
+          {value.map((f, i) => (
+            <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-md bg-[#F8FAFC] dark:bg-[hsl(220,18%,12%)] border border-[#E2E8F0] dark:border-[hsl(220,15%,20%)]">
+              {f.type?.startsWith('image/') ? (
+                <img src={f.url} alt={f.name} className="h-8 w-8 rounded object-cover shrink-0" />
+              ) : (
+                <FileText size={16} className="text-[#94A3B8] shrink-0" />
+              )}
+              <span className="text-xs text-[#1E293B] dark:text-[hsl(210,20%,85%)] truncate flex-1">{f.name}</span>
+              <button type="button" onClick={(e) => { e.stopPropagation(); removeFile(i); }} className="p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20">
+                <X size={12} className="text-[#94A3B8] hover:text-red-500" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -353,6 +434,13 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
             field={f}
             value={Array.isArray(values[f.id]) ? values[f.id] : []}
             onChange={(v) => setValues((prev) => ({ ...prev, [f.id]: v }))}
+          />
+        );
+      case 'Attachment':
+        return (
+          <AttachmentInput
+            value={Array.isArray(values[f.id]) ? values[f.id] : []}
+            onChange={(v) => { setValues((prev) => ({ ...prev, [f.id]: v })); setErrors((p) => { const n = { ...p }; delete n[f.id]; return n; }); }}
           />
         );
       default:
