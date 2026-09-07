@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import { Grid3X3, LayoutGrid, Columns3, FileText, Calendar, Plus, Pencil, Trash2, Copy, Lock, Unlock } from 'lucide-react';
+import { Grid3X3, LayoutGrid, Columns3, FileText, Calendar, Plus, Pencil, Trash2, Copy, Lock, Unlock, GanttChart, Clock } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -24,14 +24,18 @@ const VIEW_ICONS: Record<string, typeof Grid3X3> = {
   gallery: LayoutGrid,
   form: FileText,
   calendar: Calendar,
+  gantt: GanttChart,
+  timeline: Clock,
 };
 
-const VIEW_TYPE_OPTIONS: Array<{ type: 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar'; label: string }> = [
+const VIEW_TYPE_OPTIONS: Array<{ type: 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar' | 'gantt' | 'timeline'; label: string }> = [
   { type: 'grid', label: 'Grid' },
   { type: 'kanban', label: 'Kanban' },
   { type: 'gallery', label: 'Gallery' },
   { type: 'form', label: 'Form' },
   { type: 'calendar', label: 'Calendar' },
+  { type: 'gantt', label: 'Gantt' },
+  { type: 'timeline', label: 'Timeline' },
 ];
 
 function SortableViewTab({

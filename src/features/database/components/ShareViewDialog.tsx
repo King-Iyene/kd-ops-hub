@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Copy, Check, Link2, Eye, EyeOff, Download, ToggleLeft, ToggleRight, Trash2, Share2 } from 'lucide-react';
+import { Copy, Check, Link2, Eye, EyeOff, Download, ToggleLeft, ToggleRight, Trash2, Share2, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -25,6 +25,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
   const deleteShared = useDeleteSharedView();
 
   const [copied, setCopied] = useState(false);
+  const [copiedEmbed, setCopiedEmbed] = useState(false);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -196,6 +197,32 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                     ? <ToggleRight size={28} />
                     : <ToggleLeft size={28} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]" />}
                 </button>
+              </div>
+
+              {/* Embed code */}
+              <div>
+                <label className="text-[12px] font-medium text-[#4A5268] dark:text-[hsl(200,25%,70%)] mb-1.5 block">
+                  Embed code
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] font-mono truncate">
+                    <Code size={12} className="shrink-0" />
+                    <span className="truncate">{`<iframe src="${shareUrl}" width="100%" height="600" frameborder="0"></iframe>`}</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-3 text-[12px] gap-1.5"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`<iframe src="${shareUrl}" width="100%" height="600" frameborder="0"></iframe>`).catch(() => { /* clipboard unavailable */ });
+                      setCopiedEmbed(true);
+                      setTimeout(() => setCopiedEmbed(false), 2000);
+                    }}
+                  >
+                    {copiedEmbed ? <Check size={13} /> : <Copy size={13} />}
+                    {copiedEmbed ? 'Copied' : 'Copy'}
+                  </Button>
+                </div>
               </div>
 
               {/* Delete sharing */}

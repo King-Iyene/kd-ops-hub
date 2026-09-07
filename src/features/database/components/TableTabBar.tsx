@@ -12,6 +12,7 @@ import {
   EyeOff,
   Eye,
 } from 'lucide-react';
+import { EmojiPicker } from './EmojiPicker';
 import {
   DndContext,
   closestCenter,
@@ -199,7 +200,6 @@ export function TableTabBar() {
     [sortedTables, activeBaseId, updateTable],
   );
 
-  const TABLE_ICONS = ['📊', '📋', '📁', '📅', '📦', '🚀', '⭐', '💡', '🎯', '🔧', '📝', '📚', '🧩', '🌐', '❤️', '🏠', '👥', '💰', '🎨', '📱'];
 
   const handleRename = useCallback(
     (tableId: string, name: string) => {
@@ -344,31 +344,14 @@ export function TableTabBar() {
                   <Smile size={12} /> Change icon
                 </DropdownMenuItem>
                 {iconPickerId === table.id && (
-                  <div className="px-3 py-2 flex flex-wrap gap-1">
-                    {TABLE_ICONS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        className="w-7 h-7 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,18%)] flex items-center justify-center text-sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (activeBaseId) updateTable.mutate({ id: table.id, baseId: activeBaseId, icon: emoji });
-                          setIconPickerId(null);
-                        }}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                    <button
-                      className="w-7 h-7 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,18%)] flex items-center justify-center text-[10px] text-[#9AA2AF]"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (activeBaseId) updateTable.mutate({ id: table.id, baseId: activeBaseId, icon: null });
+                  <div className="relative" onClick={(e) => e.stopPropagation()}>
+                    <EmojiPicker
+                      onSelect={(emoji) => {
+                        if (activeBaseId) updateTable.mutate({ id: table.id, baseId: activeBaseId, icon: emoji || null });
                         setIconPickerId(null);
                       }}
-                    >
-                      ✕
-                    </button>
+                      onClose={() => setIconPickerId(null)}
+                    />
                   </div>
                 )}
                 <DropdownMenuItem

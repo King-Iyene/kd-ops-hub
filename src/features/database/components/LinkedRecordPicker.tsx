@@ -8,9 +8,10 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, X, Link2, Loader2 } from 'lucide-react';
+import { Search, X, Link2, Loader2, Plus } from 'lucide-react';
 import { useLinkedRecordsPaginated, getRecordDisplayValue } from '../hooks/useLinks';
 import { useFields } from '../hooks/useFields';
+import { useCreateRecord } from '../hooks/useRecords';
 import type { RecordRow } from '../types';
 
 interface LinkedRecordPickerProps {
@@ -54,7 +55,27 @@ export function LinkedRecordPicker({
     searchColumn: primaryField?.pg_column_name,
   });
 
+  const createRecord = useCreateRecord();
+  const [isCreating, setIsCreating] = useState(false);
   const isSingleSelect = relationType === 'one_to_one';
+
+  const handleCreateAndLink = async () => {
+    if (!primaryField || !search.trim()) return;
+    setIsCreating(true);
+    try {
+      const newRecord = await createRecord.mutateAsync({
+        baseId,
+        tableId: targetTableId,
+        record: { [primaryField.pg_column_name]: search.trim() },
+      });
+      setSelected((prev) => isSingleSelect ? [newRecord.id] : [...prev, newRecord.id]);
+      setSearch('');
+    } catch {
+      /* creation failed — user sees no new record */
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const toggle = (id: string) => {
     if (isSingleSelect) {
@@ -114,6 +135,19 @@ export function LinkedRecordPicker({
             className="h-8 pl-8 text-xs"
           />
         </div>
+
+        {/* Create new record */}
+        {search.trim() && primaryField && (
+          <button
+            type="button"
+            className="w-full text-left px-2.5 py-1.5 flex items-center gap-2 text-[12px] text-[#2D7FF9] hover:bg-[#2D7FF9]/5 rounded-md transition-colors"
+            onClick={handleCreateAndLink}
+            disabled={isCreating}
+          >
+            {isCreating ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+            Create &quot;{search.trim()}&quot;
+          </button>
+        )}
 
         {/* Record count */}
         {totalCount > 0 && (

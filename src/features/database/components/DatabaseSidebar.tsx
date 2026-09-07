@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Home,
   Star,
+  Smile,
 } from 'lucide-react';
 import { confirm as styledConfirm } from '@/hooks/use-confirm';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useDatabaseUI } from '../lib/store';
+import { EmojiPicker } from './EmojiPicker';
 import { useBases, useCreateBase, useDeleteBase, useUpdateBase, useDuplicateBase } from '../hooks';
 import { useWorkspaces } from '../hooks';
 import { useDatabaseNavigate } from '../hooks/useNavigate';
@@ -88,6 +90,7 @@ export function DatabaseSidebar() {
   const [createBaseOpen, setCreateBaseOpen] = useState(false);
   const [renamingBaseId, setRenamingBaseId] = useState<string | null>(null);
   const [colorPickerBaseId, setColorPickerBaseId] = useState<string | null>(null);
+  const [iconPickerBaseId, setIconPickerBaseId] = useState<string | null>(null);
 
   const STAR_KEY = 'kd-ops:starred-bases';
   const [starredIds, setStarredIds] = useState<Set<string>>(() => {
@@ -240,11 +243,15 @@ export function DatabaseSidebar() {
           >
             <span
               className="w-6 h-6 rounded flex items-center justify-center text-[11px] shrink-0"
-              style={{ backgroundColor: base.color || '#2D7FF9' }}
+              style={{ backgroundColor: base.icon ? 'transparent' : (base.color || '#2D7FF9') }}
             >
-              <span className="text-white font-bold">
-                {base.name?.charAt(0)?.toUpperCase() || 'B'}
-              </span>
+              {base.icon ? (
+                <span className="text-[16px] leading-none">{base.icon}</span>
+              ) : (
+                <span className="text-white font-bold">
+                  {base.name?.charAt(0)?.toUpperCase() || 'B'}
+                </span>
+              )}
             </span>
             {!sidebarCollapsed && (
               <>
@@ -337,6 +344,26 @@ export function DatabaseSidebar() {
                             }}
                           />
                         ))}
+                      </div>
+                    )}
+                    <DropdownMenuItem
+                      className="text-xs gap-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIconPickerBaseId(iconPickerBaseId === base.id ? null : base.id);
+                      }}
+                    >
+                      <Smile size={12} /> Change icon
+                    </DropdownMenuItem>
+                    {iconPickerBaseId === base.id && (
+                      <div className="relative" onClick={(e) => e.stopPropagation()}>
+                        <EmojiPicker
+                          onSelect={(emoji) => {
+                            updateBase.mutate({ id: base.id, icon: emoji || null });
+                            setIconPickerBaseId(null);
+                          }}
+                          onClose={() => setIconPickerBaseId(null)}
+                        />
                       </div>
                     )}
                     <DropdownMenuSeparator />

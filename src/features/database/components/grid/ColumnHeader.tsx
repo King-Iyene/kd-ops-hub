@@ -351,6 +351,16 @@ export const ColumnHeader = React.memo(function ColumnHeader({
                 <Copy size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Duplicate field
               </button>
             )}
+            <button
+              className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              onClick={() => {
+                setDescriptionDraft(field.description ?? '');
+                setIsEditingDescription(true);
+                setContextMenu(null);
+              }}
+            >
+              <Info size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> {field.description ? 'Edit description' : 'Add description'}
+            </button>
             {!field.is_system && (
               <button
                 className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
