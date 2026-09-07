@@ -79,7 +79,7 @@ export function useUpdateView() {
     mutationFn: async (input: {
       id: string;
       table_id: string;
-      updates: Partial<Pick<ViewMeta, 'name' | 'filters' | 'sorts' | 'groups' | 'field_order' | 'field_visibility' | 'field_widths' | 'is_locked' | 'position'>>;
+      updates: Partial<Pick<ViewMeta, 'name' | 'filters' | 'sorts' | 'groups' | 'field_order' | 'field_visibility' | 'field_widths' | 'is_locked' | 'position' | 'form_config'>>;
     }) => {
       const { data, error } = await supabase
         .schema('nc_meta')

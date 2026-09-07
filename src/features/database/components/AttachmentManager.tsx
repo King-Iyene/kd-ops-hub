@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { X, Upload, Trash2, FileText, File, Image as ImageIcon, Paperclip } from 'lucide-react';
+import { X, Upload, Trash2, FileText, File, Image as ImageIcon, Paperclip, FileSpreadsheet, FileCode, FileArchive, FileVideo, FileAudio, Presentation } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import AttachmentLightbox from './AttachmentLightbox';
 
@@ -27,9 +27,17 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function fileIcon(type: string) {
+function fileIcon(type: string, name?: string) {
+  const ext = (name || '').split('.').pop()?.toLowerCase() || '';
   if (type.startsWith('image/')) return ImageIcon;
-  if (type === 'application/pdf') return FileText;
+  if (type === 'application/pdf' || ext === 'pdf') return FileText;
+  if (type.includes('spreadsheet') || type.includes('excel') || ['xlsx', 'xls', 'csv'].includes(ext)) return FileSpreadsheet;
+  if (type.includes('presentation') || type.includes('powerpoint') || ['pptx', 'ppt'].includes(ext)) return Presentation;
+  if (type.includes('word') || type.includes('document') || ['doc', 'docx'].includes(ext)) return FileText;
+  if (type.startsWith('video/')) return FileVideo;
+  if (type.startsWith('audio/')) return FileAudio;
+  if (type.includes('zip') || type.includes('archive') || ['zip', 'rar', '7z'].includes(ext)) return FileArchive;
+  if (type.includes('json') || type.includes('javascript') || ['js', 'ts', 'json', 'xml', 'html', 'css', 'py'].includes(ext)) return FileCode;
   return File;
 }
 
@@ -203,7 +211,7 @@ export function AttachmentManager({
               <div className="grid grid-cols-2 gap-3">
                 {attachments.map((att, i) => {
                   const isImage = att.type?.startsWith('image/');
-                  const Icon = fileIcon(att.type);
+                  const Icon = fileIcon(att.type, att.name);
                   return (
                     <div
                       key={att.url || i}

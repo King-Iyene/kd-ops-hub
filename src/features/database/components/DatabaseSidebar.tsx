@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
+  Star,
 } from 'lucide-react';
 import { confirm as styledConfirm } from '@/hooks/use-confirm';
 import { Button } from '@/components/ui/button';
@@ -87,6 +88,20 @@ export function DatabaseSidebar() {
   const [createBaseOpen, setCreateBaseOpen] = useState(false);
   const [renamingBaseId, setRenamingBaseId] = useState<string | null>(null);
   const [colorPickerBaseId, setColorPickerBaseId] = useState<string | null>(null);
+
+  const STAR_KEY = 'kd-ops:starred-bases';
+  const [starredIds, setStarredIds] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(STAR_KEY) || '[]')); } catch { return new Set(); }
+  });
+  const toggleStar = useCallback((baseId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setStarredIds(prev => {
+      const next = new Set(prev);
+      if (next.has(baseId)) next.delete(baseId); else next.add(baseId);
+      try { localStorage.setItem(STAR_KEY, JSON.stringify([...next])); } catch { /* localStorage unavailable */ }
+      return next;
+    });
+  }, []);
 
   // Drag-to-resize state
   const isResizing = useRef(false);
@@ -206,7 +221,11 @@ export function DatabaseSidebar() {
 
       {/* Base list */}
       <div className="flex-1 overflow-y-auto py-1.5">
-        {bases?.map((base: any) => (
+        {[...(bases || [])].sort((a: any, b: any) => {
+          const aStarred = starredIds.has(a.id) ? 0 : 1;
+          const bStarred = starredIds.has(b.id) ? 0 : 1;
+          return aStarred - bStarred || (a.position ?? 0) - (b.position ?? 0);
+        }).map((base: any) => (
           <div
             key={base.id}
             className={cn(
@@ -252,6 +271,18 @@ export function DatabaseSidebar() {
                     {base.name}
                   </span>
                 )}
+                <button
+                  className={cn(
+                    'p-0.5 rounded transition-opacity shrink-0',
+                    starredIds.has(base.id)
+                      ? 'opacity-100 text-amber-400'
+                      : 'opacity-0 group-hover:opacity-100 text-[#9AA2AF] hover:text-amber-400',
+                  )}
+                  onClick={(e) => toggleStar(base.id, e)}
+                  title={starredIds.has(base.id) ? 'Unstar base' : 'Star base'}
+                >
+                  <Star size={13} fill={starredIds.has(base.id) ? 'currentColor' : 'none'} />
+                </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button

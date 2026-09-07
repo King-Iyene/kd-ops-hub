@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Table2,
   Plus,
-  MoreHorizontal,
   Pencil,
   Copy,
   Trash2,
@@ -10,6 +9,8 @@ import {
   Smile,
   Upload,
   Download,
+  EyeOff,
+  Eye,
 } from 'lucide-react';
 import {
   DndContext,
@@ -143,10 +144,38 @@ export function TableTabBar() {
   const [createTableOpen, setCreateTableOpen] = useState(false);
   const [importCsvOpen, setImportCsvOpen] = useState(false);
   const [importAirtableOpen, setImportAirtableOpen] = useState(false);
+  const [showHiddenMenu, setShowHiddenMenu] = useState(false);
+
+  const HIDDEN_KEY = `kd-ops:hidden-tables:${activeBaseId || ''}`;
+  const [hiddenTableIds, setHiddenTableIds] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY) || '[]')); } catch { return new Set(); }
+  });
+  useEffect(() => {
+    if (!activeBaseId) return;
+    const key = `kd-ops:hidden-tables:${activeBaseId}`;
+    try { setHiddenTableIds(new Set(JSON.parse(localStorage.getItem(key) || '[]'))); } catch { setHiddenTableIds(new Set()); }
+  }, [activeBaseId]);
+
+  const toggleHideTable = useCallback((tableId: string) => {
+    setHiddenTableIds(prev => {
+      const next = new Set(prev);
+      if (next.has(tableId)) next.delete(tableId); else next.add(tableId);
+      try { localStorage.setItem(HIDDEN_KEY, JSON.stringify([...next])); } catch { /* localStorage unavailable */ }
+      return next;
+    });
+  }, [HIDDEN_KEY]);
 
   const sortedTables = useMemo(
     () => (tables ?? []).slice().sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)),
     [tables],
+  );
+  const visibleTables = useMemo(
+    () => sortedTables.filter((t: any) => !hiddenTableIds.has(t.id)),
+    [sortedTables, hiddenTableIds],
+  );
+  const hiddenTables = useMemo(
+    () => sortedTables.filter((t: any) => hiddenTableIds.has(t.id)),
+    [sortedTables, hiddenTableIds],
   );
 
   const tableSensors = useSensors(
@@ -242,8 +271,8 @@ export function TableTabBar() {
   return (
     <div className="flex items-center h-[38px] px-1 gap-0 overflow-x-auto shrink-0 select-none" style={{ backgroundColor: darkenColor(baseColor, 0.55) }}>
       <DndContext sensors={tableSensors} collisionDetection={closestCenter} onDragEnd={handleTableDragEnd}>
-        <SortableContext items={sortedTables.map((t: any) => t.id)} strategy={horizontalListSortingStrategy}>
-      {sortedTables.map((table: any) => (
+        <SortableContext items={visibleTables.map((t: any) => t.id)} strategy={horizontalListSortingStrategy}>
+      {visibleTables.map((table: any) => (
         <SortableTableTabWrapper key={table.id} id={table.id}>
           {({ setNodeRef, style: dndStyle, attributes, listeners }) => (
         <div ref={setNodeRef} style={dndStyle} {...attributes} {...listeners} className="group/tab flex items-center h-full">
@@ -256,6 +285,12 @@ export function TableTabBar() {
             )}
             onClick={() => navigateToTable(table.id)}
             onDoubleClick={() => setRenamingId(table.id)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              navigateToTable(table.id);
+              const trigger = e.currentTarget.querySelector<HTMLButtonElement>('[data-tab-menu-trigger]');
+              if (trigger) trigger.click();
+            }}
           >
             {table.icon ? (
               <span className="text-[13px] shrink-0">{table.icon}</span>
@@ -277,6 +312,7 @@ export function TableTabBar() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
+                  data-tab-menu-trigger
                   className={cn(
                     'p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0',
                     table.id === activeTableId
@@ -335,6 +371,18 @@ export function TableTabBar() {
                     </button>
                   </div>
                 )}
+                <DropdownMenuItem
+                  className="text-xs gap-2"
+                  onClick={() => {
+                    toggleHideTable(table.id);
+                    if (table.id === activeTableId) {
+                      const next = visibleTables.find((t: any) => t.id !== table.id);
+                      if (next) navigateToTable(next.id);
+                    }
+                  }}
+                >
+                  <EyeOff size={12} /> Hide table
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-xs gap-2 text-red-500 focus:text-red-500"
@@ -373,6 +421,39 @@ export function TableTabBar() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {hiddenTables.length > 0 && (
+        <DropdownMenu open={showHiddenMenu} onOpenChange={setShowHiddenMenu}>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="flex items-center gap-1 h-7 px-2 ml-0.5 rounded hover:bg-white/20 text-white/60 hover:text-white transition-colors shrink-0 text-[11px]"
+              title={`${hiddenTables.length} hidden table${hiddenTables.length > 1 ? 's' : ''}`}
+            >
+              <EyeOff size={12} />
+              <span>{hiddenTables.length}</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <div className="px-2 py-1 text-[10px] font-medium text-[#9AA2AF] uppercase tracking-wider">
+              Hidden tables
+            </div>
+            {hiddenTables.map((table: any) => (
+              <DropdownMenuItem
+                key={table.id}
+                className="text-xs gap-2"
+                onClick={() => {
+                  toggleHideTable(table.id);
+                  navigateToTable(table.id);
+                }}
+              >
+                <Eye size={12} />
+                {table.icon && <span className="text-[12px]">{table.icon}</span>}
+                <span className="truncate">{table.name}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       <CreateTableDialog
         open={createTableOpen}

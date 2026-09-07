@@ -143,8 +143,26 @@ export interface ViewMeta {
   is_default: boolean;
   is_locked: boolean;
   position: number;
+  form_config: FormConfig;
   created_at: string;
   updated_at: string;
+}
+
+export interface FormFieldConfig {
+  required?: boolean;
+  hidden?: boolean;
+  description?: string;
+}
+
+export interface FormConfig {
+  title?: string;
+  description?: string;
+  cover_color?: string;
+  submit_label?: string;
+  success_message?: string;
+  show_branding?: boolean;
+  redirect_url?: string;
+  field_configs?: Record<string, FormFieldConfig>;
 }
 
 export type FilterOperator =

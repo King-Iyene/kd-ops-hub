@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Check, ExternalLink, Copy, Paperclip, Plus, Star, Clock, Link2, AlertTriangle, Barcode } from 'lucide-react';
+import { Check, ExternalLink, Copy, Plus, Star, Clock, AlertTriangle, Barcode, FileText, FileSpreadsheet, FileCode, FileArchive, FileVideo, FileAudio, File, FileImage, Presentation } from 'lucide-react';
 import AttachmentLightbox from '../AttachmentLightbox';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { LinkCellRenderer } from './LinkCellRenderer';
 import { LookupCellRenderer as SmartLookupCellRenderer, RollupCellRenderer as SmartRollupCellRenderer } from './LookupRollupCellRenderer';
-import { PILL_COLORS, SELECT_COLORS } from '@/features/database/types';
+import { SELECT_COLORS } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
@@ -41,10 +41,6 @@ function HighlightedText({ text, style, className }: { text: string; style?: Rea
       )}
     </span>
   );
-}
-
-function getPillColor(colorName: string) {
-  return PILL_COLORS.find((c) => c.name === colorName) || PILL_COLORS[7];
 }
 
 function getSelectColor(colorName: string) {
@@ -370,6 +366,29 @@ export const MultiSelectCellRenderer = React.memo(function MultiSelectCellRender
   );
 });
 
+function getFileIcon(type: string, name: string): { Icon: React.ElementType; color: string; bg: string } {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  if (type === 'application/pdf' || ext === 'pdf')
+    return { Icon: FileText, color: '#EF4444', bg: 'rgba(239,68,68,0.1)' };
+  if (type.includes('spreadsheet') || type.includes('excel') || ['xlsx', 'xls', 'csv'].includes(ext))
+    return { Icon: FileSpreadsheet, color: '#22C55E', bg: 'rgba(34,197,94,0.1)' };
+  if (type.includes('presentation') || type.includes('powerpoint') || ['pptx', 'ppt'].includes(ext))
+    return { Icon: Presentation, color: '#F97316', bg: 'rgba(249,115,22,0.1)' };
+  if (type.includes('word') || type.includes('document') || ['doc', 'docx'].includes(ext))
+    return { Icon: FileText, color: '#3B82F6', bg: 'rgba(59,130,246,0.1)' };
+  if (type.startsWith('video/') || ['mp4', 'mov', 'avi', 'webm'].includes(ext))
+    return { Icon: FileVideo, color: '#A855F7', bg: 'rgba(168,85,247,0.1)' };
+  if (type.startsWith('audio/') || ['mp3', 'wav', 'ogg', 'aac'].includes(ext))
+    return { Icon: FileAudio, color: '#EC4899', bg: 'rgba(236,72,153,0.1)' };
+  if (type.includes('zip') || type.includes('archive') || type.includes('compressed') || ['zip', 'rar', '7z', 'tar', 'gz'].includes(ext))
+    return { Icon: FileArchive, color: '#EAB308', bg: 'rgba(234,179,8,0.1)' };
+  if (type.includes('json') || type.includes('javascript') || type.includes('xml') || ['js', 'ts', 'json', 'xml', 'html', 'css', 'py'].includes(ext))
+    return { Icon: FileCode, color: '#06B6D4', bg: 'rgba(6,182,212,0.1)' };
+  if (type.startsWith('image/'))
+    return { Icon: FileImage, color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)' };
+  return { Icon: File, color: '#6B7280', bg: 'rgba(107,114,128,0.1)' };
+}
+
 export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer({
   value,
 }: CellRendererProps) {
@@ -409,17 +428,20 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
               onClick={(e) => { e.stopPropagation(); setLightboxIndex(i); }}
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
-          ) : (
-            <span
-              key={i}
-              className="h-7 w-7 rounded-[4px] flex items-center justify-center shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-              style={{ backgroundColor: colors.dropdownHover, border: `1px solid ${colors.dropdownBorder}` }}
-              title={f.name}
-              onClick={(e) => { e.stopPropagation(); setLightboxIndex(i); }}
-            >
-              <Paperclip size={11} style={{ color: colors.systemText }} />
-            </span>
-          ),
+          ) : (() => {
+            const { Icon, color, bg } = getFileIcon(f.type, f.name);
+            return (
+              <span
+                key={i}
+                className="h-7 w-7 rounded-[4px] flex items-center justify-center shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                style={{ backgroundColor: bg, border: `1px solid ${colors.dropdownBorder}` }}
+                title={f.name}
+                onClick={(e) => { e.stopPropagation(); setLightboxIndex(i); }}
+              >
+                <Icon size={13} style={{ color }} />
+              </span>
+            );
+          })(),
         )}
         {files.length > 3 && (
           <span className="text-[10px] shrink-0" style={{ color: colors.systemText }}>
