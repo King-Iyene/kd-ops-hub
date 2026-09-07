@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
 import { Toolbar } from '../components/Toolbar';
 import { ViewBar } from '../components/ViewBar';
 import { useDatabaseUI } from '../lib/store';
@@ -23,20 +23,21 @@ import {
   useUpdateField,
 } from '../hooks';
 import GridView from '../components/grid/GridView';
-import KanbanView from '../components/views/KanbanView';
-import GalleryView from '../components/views/GalleryView';
-import FormView from '../components/views/FormView';
-import CalendarView from '../components/views/CalendarView';
-import TimelineView from '../components/views/TimelineView';
-import GanttView from '../components/views/GanttView';
-import { ExpandedRowModal } from '../components/ExpandedRowModal';
-import { CreateFieldDialog } from '../components/CreateFieldDialog';
 import type { RecordRow } from '../types';
 import { useRealtimeRecords } from '../hooks/useRealtime';
 import { parseFormula, evaluateFormula } from '../lib/formula';
-import { FindReplaceDialog } from '../components/FindReplaceDialog';
-import { PrintView } from '../components/PrintView';
 import { useLinkDisplayLookup } from '../hooks/useLinkDisplayLookup';
+
+const KanbanView = lazy(() => import('../components/views/KanbanView'));
+const GalleryView = lazy(() => import('../components/views/GalleryView'));
+const FormView = lazy(() => import('../components/views/FormView'));
+const CalendarView = lazy(() => import('../components/views/CalendarView'));
+const TimelineView = lazy(() => import('../components/views/TimelineView'));
+const GanttView = lazy(() => import('../components/views/GanttView'));
+const ExpandedRowModal = lazy(() => import('../components/ExpandedRowModal').then(m => ({ default: m.ExpandedRowModal })));
+const CreateFieldDialog = lazy(() => import('../components/CreateFieldDialog').then(m => ({ default: m.CreateFieldDialog })));
+const FindReplaceDialog = lazy(() => import('../components/FindReplaceDialog').then(m => ({ default: m.FindReplaceDialog })));
+const PrintView = lazy(() => import('../components/PrintView').then(m => ({ default: m.PrintView })));
 
 function LinkedRecordExpandModal() {
   const linkedRecordExpand = useDatabaseUI((s) => s.linkedRecordExpand);
@@ -549,45 +550,57 @@ export function TableView() {
               Retry
             </button>
           </div>
-        ) : renderView()}
+        ) : <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-[#2D7FF9] border-t-transparent rounded-full animate-spin" /></div>}>{renderView()}</Suspense>}
       </div>
-      <ExpandedRowModal
-        open={!!expandedRecord}
-        onOpenChange={(open) => {
-          if (!open) setExpandedRecord(null);
-        }}
-        record={expandedRecord}
-        fields={patchedFields}
-        baseId={activeBaseId!}
-        tableId={activeTableId!}
-        onCellUpdate={handleCellUpdate}
-        records={records}
-        onNavigate={setExpandedRecord}
-        onDeleteRecord={handleDeleteRow}
-        onDuplicateRecord={(record) => { handleDuplicateRow(record); setExpandedRecord(null); }}
-        onReorderFields={(fieldIds) => {
-          if (activeTableId) {
-            reorderFields.mutate({ table_id: activeTableId, fieldIds });
-          }
-        }}
-      />
+      <Suspense fallback={null}>
+        {!!expandedRecord && (
+          <ExpandedRowModal
+            open={!!expandedRecord}
+            onOpenChange={(open) => {
+              if (!open) setExpandedRecord(null);
+            }}
+            record={expandedRecord}
+            fields={patchedFields}
+            baseId={activeBaseId!}
+            tableId={activeTableId!}
+            onCellUpdate={handleCellUpdate}
+            records={records}
+            onNavigate={setExpandedRecord}
+            onDeleteRecord={handleDeleteRow}
+            onDuplicateRecord={(record) => { handleDuplicateRow(record); setExpandedRecord(null); }}
+            onReorderFields={(fieldIds) => {
+              if (activeTableId) {
+                reorderFields.mutate({ table_id: activeTableId, fieldIds });
+              }
+            }}
+          />
+        )}
+      </Suspense>
       <LinkedRecordExpandModal />
-      <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />
-      <FindReplaceDialog
-        open={findReplaceOpen}
-        onOpenChange={setFindReplaceOpen}
-        fields={patchedFields}
-        records={records}
-        onCellUpdate={handleCellUpdate}
-      />
-      {printOpen && (
-        <PrintView
-          fields={patchedFields}
-          records={records}
-          tableName={document.title.split('·')[0]?.trim() || 'Table'}
-          onClose={() => setPrintOpen(false)}
-        />
-      )}
+      <Suspense fallback={null}>
+        {fieldDialogOpen && <CreateFieldDialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen} />}
+      </Suspense>
+      <Suspense fallback={null}>
+        {findReplaceOpen && (
+          <FindReplaceDialog
+            open={findReplaceOpen}
+            onOpenChange={setFindReplaceOpen}
+            fields={patchedFields}
+            records={records}
+            onCellUpdate={handleCellUpdate}
+          />
+        )}
+      </Suspense>
+      <Suspense fallback={null}>
+        {printOpen && (
+          <PrintView
+            fields={patchedFields}
+            records={records}
+            tableName={document.title.split('·')[0]?.trim() || 'Table'}
+            onClose={() => setPrintOpen(false)}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }
