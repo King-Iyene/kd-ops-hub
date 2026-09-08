@@ -830,18 +830,18 @@ const NewPaymentBatch = () => {
                       }
                     }}
                     className={cn(
-                      'flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-all',
+                      'flex flex-col items-start gap-3 rounded-2xl border p-5 text-left transition-all duration-200',
                       batchType === t.type
-                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/30',
+                        ? 'border-primary/60 bg-primary/[0.06] shadow-[0_0_0_1px_hsl(var(--primary)/0.3),0_4px_12px_-2px_hsl(var(--primary)/0.15)]'
+                        : 'border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12]',
                     )}
                   >
-                    <div className={cn('rounded-lg p-1.5 bg-muted', t.color)}>
+                    <div className={cn('rounded-xl p-2.5 bg-white/[0.06] backdrop-blur-sm', t.color)}>
                       {t.icon}
                     </div>
                     <div>
-                      <p className="font-semibold text-sm leading-tight">{t.label}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{t.desc}</p>
+                      <p className="font-semibold text-[15px] leading-tight">{t.label}</p>
+                      <p className="text-[13px] text-muted-foreground/60 mt-1 leading-snug">{t.desc}</p>
                     </div>
                   </button>
                 ))}
