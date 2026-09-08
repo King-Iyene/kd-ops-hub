@@ -22,6 +22,7 @@ const toneConfig: Record<NonNullable<Props['tone']>, {
   trendUp: string;
   trendDown: string;
   bg: string;
+  border: string;
 }> = {
   default: {
     iconBg:  'bg-slate-100 dark:bg-slate-800',
@@ -30,54 +31,61 @@ const toneConfig: Record<NonNullable<Props['tone']>, {
     trendUp: 'text-emerald-600 dark:text-emerald-400',
     trendDown: 'text-rose-600 dark:text-rose-400',
     bg:      '',
+    border:  '',
   },
   primary: {
-    iconBg:  'bg-primary/10 dark:bg-primary/15',
+    iconBg:  'bg-primary/12 dark:bg-primary/20',
     iconColor: 'text-primary',
     dot:     'bg-primary',
     trendUp: 'text-primary',
     trendDown: 'text-rose-600 dark:text-rose-400',
     bg:      'kd-stat-primary',
+    border:  'border-l-[3px] border-l-primary/60',
   },
   success: {
-    iconBg:  'bg-emerald-50 dark:bg-emerald-900/20',
+    iconBg:  'bg-emerald-100 dark:bg-emerald-900/30',
     iconColor: 'text-emerald-600 dark:text-emerald-400',
     dot:     'bg-emerald-500',
     trendUp: 'text-emerald-600 dark:text-emerald-400',
     trendDown: 'text-rose-600 dark:text-rose-400',
     bg:      'kd-stat-success',
+    border:  'border-l-[3px] border-l-emerald-500/60',
   },
   warning: {
-    iconBg:  'bg-amber-50 dark:bg-amber-900/20',
+    iconBg:  'bg-amber-100 dark:bg-amber-900/30',
     iconColor: 'text-amber-600 dark:text-amber-400',
     dot:     'bg-amber-500',
     trendUp: 'text-emerald-600 dark:text-emerald-400',
     trendDown: 'text-amber-600 dark:text-amber-400',
     bg:      'kd-stat-warning',
+    border:  'border-l-[3px] border-l-amber-500/60',
   },
   danger: {
-    iconBg:  'bg-rose-50 dark:bg-rose-900/20',
+    iconBg:  'bg-rose-100 dark:bg-rose-900/30',
     iconColor: 'text-rose-600 dark:text-rose-400',
     dot:     'bg-rose-500',
     trendUp: 'text-emerald-600 dark:text-emerald-400',
     trendDown: 'text-rose-600 dark:text-rose-400',
     bg:      'kd-stat-danger',
+    border:  'border-l-[3px] border-l-rose-500/60',
   },
   gold: {
-    iconBg:  'bg-amber-50 dark:bg-amber-900/20',
+    iconBg:  'bg-amber-100 dark:bg-amber-900/30',
     iconColor: 'text-amber-500 dark:text-amber-400',
     dot:     'bg-amber-400',
     trendUp: 'text-emerald-600 dark:text-emerald-400',
     trendDown: 'text-rose-600 dark:text-rose-400',
     bg:      'kd-stat-gold',
+    border:  'border-l-[3px] border-l-amber-400/60',
   },
   info: {
-    iconBg:  'bg-sky-50 dark:bg-sky-900/20',
+    iconBg:  'bg-sky-100 dark:bg-sky-900/30',
     iconColor: 'text-sky-600 dark:text-sky-400',
     dot:     'bg-sky-500',
     trendUp: 'text-emerald-600 dark:text-emerald-400',
     trendDown: 'text-rose-600 dark:text-rose-400',
     bg:      '',
+    border:  'border-l-[3px] border-l-sky-500/60',
   },
 };
 
@@ -113,6 +121,7 @@ export function StatCard({
       className={cn(
         'kd-holographic relative rounded-xl border bg-card kd-transition overflow-hidden',
         cfg.bg,
+        cfg.border,
         onClick && 'cursor-pointer',
         className,
       )}
@@ -135,10 +144,10 @@ export function StatCard({
           </div>
           {Icon && (
             <div className={cn(
-              'h-7 w-7 rounded-lg flex items-center justify-center shrink-0 -mt-0.5',
+              'h-9 w-9 rounded-xl flex items-center justify-center shrink-0 -mt-0.5',
               cfg.iconBg,
             )}>
-              <Icon className={cn('h-3.5 w-3.5', cfg.iconColor)} strokeWidth={2} />
+              <Icon className={cn('h-4 w-4', cfg.iconColor)} strokeWidth={2} />
             </div>
           )}
         </div>

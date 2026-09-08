@@ -42,9 +42,12 @@ export function AuroraHero({
   return (
     <div
       className={cn(
-        'relative rounded-2xl border border-border/60 bg-card p-5 sm:p-6 overflow-hidden',
+        'relative rounded-2xl border border-border/60 overflow-hidden',
         className,
       )}
+      style={{
+        background: 'linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--card)) 60%, hsl(var(--primary) / 0.08) 100%)',
+      }}
     >
       {pattern !== 'none' && (
         <div

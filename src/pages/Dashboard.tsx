@@ -659,20 +659,22 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent className="p-3 space-y-2">
             {[
-              { label: 'Create Payment Batch', icon: Plus, onClick: () => navigate('/payments/new'), variant: 'default' as const },
-              { label: 'Approvals Inbox', icon: CheckCircle, onClick: () => navigate('/approvals'), badge: approvalCounts.total, variant: 'outline' as const },
-              { label: 'Clients', icon: Building2, onClick: () => navigate('/clients'), variant: 'outline' as const },
-              { label: 'Subscriptions', icon: CalendarClock, onClick: () => navigate('/subscriptions'), variant: 'outline' as const },
-              { label: 'Reports', icon: FileText, onClick: () => navigate('/reports'), variant: 'outline' as const },
-              { label: 'Payroll', icon: DollarSign, onClick: () => navigate('/payroll'), variant: 'outline' as const },
-            ].map(({ label, icon: Icon, onClick, badge, variant }) => (
+              { label: 'Create Payment Batch', icon: Plus, onClick: () => navigate('/payments/new'), variant: 'default' as const, iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
+              { label: 'Approvals Inbox', icon: CheckCircle, onClick: () => navigate('/approvals'), badge: approvalCounts.total, variant: 'outline' as const, iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400' },
+              { label: 'Clients', icon: Building2, onClick: () => navigate('/clients'), variant: 'outline' as const, iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' },
+              { label: 'Subscriptions', icon: CalendarClock, onClick: () => navigate('/subscriptions'), variant: 'outline' as const, iconBg: 'bg-sky-100 dark:bg-sky-900/30', iconColor: 'text-sky-600 dark:text-sky-400' },
+              { label: 'Reports', icon: FileText, onClick: () => navigate('/reports'), variant: 'outline' as const, iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400' },
+              { label: 'Payroll', icon: DollarSign, onClick: () => navigate('/payroll'), variant: 'outline' as const, iconBg: 'bg-rose-100 dark:bg-rose-900/25', iconColor: 'text-rose-600 dark:text-rose-400' },
+            ].map(({ label, icon: Icon, onClick, badge, variant, iconBg, iconColor }) => (
               <Button
                 key={label}
                 variant={variant}
-                className="w-full justify-start h-9 text-sm"
+                className="w-full justify-start h-10 text-sm gap-3"
                 onClick={onClick}
               >
-                <Icon className="mr-2 h-4 w-4 shrink-0" />
+                <span className={cn('h-7 w-7 rounded-lg flex items-center justify-center shrink-0', iconBg)}>
+                  <Icon className={cn('h-3.5 w-3.5', iconColor)} strokeWidth={2} />
+                </span>
                 {label}
                 {badge !== undefined && badge > 0 && (
                   <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">

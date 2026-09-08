@@ -161,7 +161,7 @@ input[type=number] {
      ever feels too intense, dial down the alphas in the .aurora-bg
      gradients further down (currently 0.65 / 0.55 / 0.45). */
   html.dark {
-    --background: 200 30% 8%;          /* near-black with brand teal tint */
+    --background: 210 25% 8%;          /* near-black with slight warm shift */
     --foreground: 200 25% 92%;
 
     --card: 200 28% 13%;
