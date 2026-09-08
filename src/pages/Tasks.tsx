@@ -751,14 +751,14 @@ const Tasks = () => {
 
   const confirmDeleteSpace = async () => {
     if (!pendingDeleteSpace) return;
-    const { error } = await supabase.from('project_spaces').update({ deleted_at: new Date().toISOString() }).eq('id', pendingDeleteSpace.id);
+    const { error } = await supabase.rpc('soft_delete_space', { space_id: pendingDeleteSpace.id });
     setPendingDeleteSpace(null);
     if (error) {
       toast({ title: 'Could not delete', description: error.message, variant: 'destructive' });
       return;
     }
-    await logAudit('space_deleted', `Space "${pendingDeleteSpace.name}" deleted`, profile);
-    toast({ title: 'Space removed' });
+    await logAudit('space_deleted', `Folder "${pendingDeleteSpace.name}" deleted`, profile);
+    toast({ title: 'Folder removed' });
     if (selectedSpace === pendingDeleteSpace.id) setSelectedSpace(null);
     load();
   };
