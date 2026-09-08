@@ -79,12 +79,7 @@ export function CashBurnCard() {
               {runwayMonths.toFixed(1)} months at this burn rate
             </p>
           </div>
-        ) : (
-          <p className="text-[11px] text-muted-foreground/80 mt-3">
-            Tip: set <code>kdops:cash_on_hand</code> in localStorage to see a
-            runway estimate here.
-          </p>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );

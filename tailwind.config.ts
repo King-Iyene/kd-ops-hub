@@ -100,7 +100,7 @@ export default {
         "display-lg": ["2.25rem", { lineHeight: "1.2", letterSpacing: "-0.035em" }],
         "label-xs": ["0.6875rem", { lineHeight: "1.4", letterSpacing: "0.04em" }],
         "stat-sm": ["1.375rem", { lineHeight: "1", letterSpacing: "-0.02em" }],
-        "stat-md": ["1.75rem", { lineHeight: "1", letterSpacing: "-0.03em" }],
+        "stat-md": ["2rem", { lineHeight: "1", letterSpacing: "-0.03em" }],
         "stat-lg": ["2.25rem", { lineHeight: "1", letterSpacing: "-0.04em" }],
       },
       keyframes: {

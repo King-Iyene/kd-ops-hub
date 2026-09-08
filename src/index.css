@@ -164,8 +164,8 @@ input[type=number] {
     --background: 200 30% 8%;          /* near-black with brand teal tint */
     --foreground: 200 25% 92%;
 
-    --card: 200 30% 11%;
-    --card-foreground: 200 25% 92%;
+    --card: 200 28% 13%;
+    --card-foreground: 200 25% 93%;
 
     --popover: 200 30% 11%;
     --popover-foreground: 200 25% 92%;
@@ -177,8 +177,8 @@ input[type=number] {
     --secondary: 186 80% 45%;
     --secondary-foreground: 201 100% 8%;
 
-    --muted: 200 25% 15%;
-    --muted-foreground: 200 15% 60%;
+    --muted: 200 22% 16%;
+    --muted-foreground: 200 15% 64%;
 
     --accent: 41 62% 58%;
     --accent-foreground: 201 100% 8%;
@@ -186,8 +186,8 @@ input[type=number] {
     --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 200 25% 18%;
-    --input: 200 25% 16%;
+    --border: 200 22% 20%;
+    --input: 200 22% 18%;
     --ring: 186 100% 55%;
 
     /* Sidebar in dark mode keeps the dark-on-dark aesthetic with a touch
@@ -1149,6 +1149,14 @@ input[type=number] {
     transform: translateY(-1px);
   }
 
+  /* Dark mode: card-tech gets a brighter border so it lifts off the bg */
+  html.dark .kd-card-tech {
+    border-color: hsl(200 22% 22%);
+  }
+  html.dark .kd-card-tech::before {
+    opacity: 0.9;
+  }
+
   /* Better button interactions */
   button:not(:disabled) {
     cursor: pointer;
@@ -1286,6 +1294,38 @@ input[type=number] {
       radial-gradient(circle at 85% 5%, hsl(var(--accent) / 0.14) 0%, transparent 50%),
       hsl(var(--card));
     border-color: hsl(var(--accent) / 0.25);
+  }
+
+  /* Dark mode: boost tone gradients so stat tiles pop against dark cards */
+  html.dark .kd-stat-primary {
+    background:
+      radial-gradient(circle at 85% 5%, hsl(var(--primary) / 0.22) 0%, transparent 55%),
+      hsl(var(--card));
+    border-color: hsl(var(--primary) / 0.3);
+  }
+  html.dark .kd-stat-success {
+    background:
+      radial-gradient(circle at 85% 5%, hsl(var(--success) / 0.18) 0%, transparent 55%),
+      hsl(var(--card));
+    border-color: hsl(var(--success) / 0.3);
+  }
+  html.dark .kd-stat-warning {
+    background:
+      radial-gradient(circle at 85% 5%, hsl(var(--warning) / 0.18) 0%, transparent 55%),
+      hsl(var(--card));
+    border-color: hsl(var(--warning) / 0.3);
+  }
+  html.dark .kd-stat-danger {
+    background:
+      radial-gradient(circle at 85% 5%, hsl(var(--destructive) / 0.16) 0%, transparent 55%),
+      hsl(var(--card));
+    border-color: hsl(var(--destructive) / 0.28);
+  }
+  html.dark .kd-stat-gold {
+    background:
+      radial-gradient(circle at 85% 5%, hsl(var(--accent) / 0.22) 0%, transparent 55%),
+      hsl(var(--card));
+    border-color: hsl(var(--accent) / 0.35);
   }
 
   /* ─── Phase 2: Improved table styles ─────────────────────────────── */
