@@ -1,15 +1,9 @@
-// Platform Guide — the single in-app destination for "how do I use KDOps"
-// and "what does KDOps enforce." Each topic is its own real, bookmarkable
-// page under /guide/*, grouped in a collapsible sidebar (Start Here, How
-// To, Technical Reference, Help) rather than one long scrolling document.
 import { useState } from 'react';
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { cn } from '@/lib/utils';
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import {
-  Rocket, Shield, BookOpen, HelpCircle, Search,
+  Rocket, Shield, BookOpen, HelpCircle, Search, ChevronRight,
 } from 'lucide-react';
 
 import { GettingStartedSection } from '@/components/guide/sections/GettingStarted';
@@ -60,7 +54,7 @@ const NAV: NavGroup[] = [
     { id: 'technical/expenses', label: 'Expenses & Budgets' },
     { id: 'technical/fleet', label: 'Fleet Technical Reference' },
     { id: 'technical/hr', label: 'HR & Leave Technical Reference' },
-    { id: 'technical/workspace', label: 'Workspace / Tasks Technical Reference' },
+    { id: 'technical/workspace', label: 'Workspace / Tasks' },
     { id: 'technical/security', label: 'Security Settings' },
     { id: 'technical/files', label: 'Files & Data Retention' },
     { id: 'technical/infra', label: 'Infrastructure & Capacity' },
@@ -78,54 +72,60 @@ function GuideSidebar() {
     ? NAV.map((g) => ({ ...g, items: g.items.filter((i) => i.label.toLowerCase().includes(q)) })).filter((g) => g.items.length)
     : NAV;
 
-  const activeGroup = NAV.find((g) => g.items.some((i) => location.pathname.endsWith(i.id)))?.id ?? 'start';
-
   return (
-    <nav className="hidden lg:block sticky top-6 self-start h-[calc(100vh-3rem)] overflow-y-auto pr-2 w-64 shrink-0">
-      <div className="relative mb-3">
-        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search the guide..."
-          className="w-full h-9 pl-8 pr-3 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-        />
-      </div>
-      <Accordion type="multiple" defaultValue={NAV.map((g) => g.id)} className="border-none">
-        {filtered.map((g) => (
-          <AccordionItem key={g.id} value={g.id} className="border-none mb-1">
-            <AccordionTrigger
-              className={cn(
-                'py-2 px-2.5 rounded-md text-[11px] font-semibold uppercase tracking-wide hover:no-underline hover:bg-muted/60',
-                activeGroup === g.id ? 'text-primary' : 'text-muted-foreground',
-              )}
-            >
-              <span className="flex items-center gap-1.5">
-                <g.icon className="h-3.5 w-3.5" />
-                {g.group}
-              </span>
-            </AccordionTrigger>
-            <AccordionContent className="pb-1 pt-0">
-              <div className="flex flex-col gap-0.5 pl-1.5">
-                {g.items.map((item) => (
-                  <NavLink
-                    key={item.id}
-                    to={`/guide/${item.id}`}
-                    className={({ isActive }) => cn(
-                      'text-sm px-2.5 py-1.5 rounded-md transition-colors leading-snug',
-                      isActive
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                    )}
-                  >
-                    {item.label}
-                  </NavLink>
-                ))}
+    <nav className="hidden lg:block sticky top-6 self-start h-[calc(100vh-3rem)] overflow-y-auto w-64 shrink-0">
+      <div className="rounded-2xl border border-white/[0.08] bg-card/60 backdrop-blur-2xl shadow-[0_2px_20px_-4px_rgba(0,0,0,0.12)] p-3">
+        {/* Search */}
+        <div className="relative mb-3">
+          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/50" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search the guide..."
+            className="w-full h-9 pl-8 pr-3 rounded-xl border border-white/[0.06] bg-white/[0.03] text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 kd-transition"
+          />
+        </div>
+
+        {/* Nav groups */}
+        <div className="space-y-4">
+          {filtered.map((g) => {
+            const Icon = g.icon;
+            return (
+              <div key={g.id}>
+                <div className="flex items-center gap-1.5 px-2 mb-1.5">
+                  <Icon className="h-3.5 w-3.5 text-muted-foreground/50" />
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60">
+                    {g.group}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {g.items.map((item) => {
+                    const isActive = location.pathname.endsWith(item.id);
+                    return (
+                      <NavLink
+                        key={item.id}
+                        to={`/guide/${item.id}`}
+                        className={cn(
+                          'group flex items-center justify-between text-[13px] px-2.5 py-1.5 rounded-lg kd-transition leading-snug',
+                          isActive
+                            ? 'bg-primary/10 text-primary font-medium'
+                            : 'text-muted-foreground/80 hover:bg-white/[0.04] hover:text-foreground',
+                        )}
+                      >
+                        <span>{item.label}</span>
+                        <ChevronRight className={cn(
+                          'h-3 w-3 shrink-0 kd-transition',
+                          isActive ? 'text-primary/60' : 'text-transparent group-hover:text-muted-foreground/30',
+                        )} />
+                      </NavLink>
+                    );
+                  })}
+                </div>
               </div>
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
+            );
+          })}
+        </div>
+      </div>
     </nav>
   );
 }
@@ -134,7 +134,7 @@ function MobileNav() {
   const location = useLocation();
   const allItems = NAV.flatMap((g) => g.items);
   return (
-    <div className="lg:hidden -mx-4 px-4 mb-4 overflow-x-auto">
+    <div className="lg:hidden -mx-4 px-4 mb-5 overflow-x-auto">
       <div className="flex gap-1.5 pb-1 w-max">
         {allItems.map((item) => {
           const active = location.pathname.endsWith(item.id);
@@ -143,8 +143,10 @@ function MobileNav() {
               key={item.id}
               to={`/guide/${item.id}`}
               className={cn(
-                'text-xs whitespace-nowrap px-3 py-1.5 rounded-full border transition-colors',
-                active ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground',
+                'text-xs whitespace-nowrap px-3 py-1.5 rounded-full border kd-transition',
+                active
+                  ? 'bg-primary/10 text-primary border-primary/30 font-medium'
+                  : 'text-muted-foreground/70 border-white/[0.06] hover:bg-white/[0.04]',
               )}
             >
               {item.label}
@@ -156,41 +158,39 @@ function MobileNav() {
   );
 }
 
-function TechnicalPageWrapper({ children }: { children: React.ReactNode }) {
-  return <div className="space-y-4">{children}</div>;
-}
-
 function GuideBody() {
   return (
     <div className="flex gap-8 items-start">
       <GuideSidebar />
       <div className="min-w-0 flex-1">
         <MobileNav />
-        <Routes>
-          <Route index element={<Navigate to="/guide/getting-started" replace />} />
-          <Route path="getting-started" element={<GettingStartedSection />} />
-          <Route path="roles-permissions" element={<RolesPermissionsSection />} />
-          <Route path="how-to/everyday-work" element={<EverydayWorkSection />} />
-          <Route path="how-to/growth-wellbeing" element={<GrowthWellbeingSection />} />
-          <Route path="how-to/finance" element={<FinanceOpsSection />} />
-          <Route path="how-to/people-operations" element={<PeopleOpsSection />} />
-          <Route path="how-to/fleet-assets" element={<FleetOpsSection />} />
-          <Route path="how-to/crm-outreach" element={<CrmOutreachSection />} />
-          <Route path="how-to/shifts-scheduling" element={<ShiftsSchedulingSection />} />
-          <Route path="how-to/admin-tools" element={<AdminToolsSection />} />
-          <Route path="technical/overview" element={<TechnicalPageWrapper><TechOverviewSection /></TechnicalPageWrapper>} />
-          <Route path="technical/payments" element={<TechnicalPageWrapper><TechPaymentsSection /></TechnicalPageWrapper>} />
-          <Route path="technical/finance" element={<TechnicalPageWrapper><TechFinanceSection /></TechnicalPageWrapper>} />
-          <Route path="technical/expenses" element={<TechnicalPageWrapper><TechExpensesSection /></TechnicalPageWrapper>} />
-          <Route path="technical/fleet" element={<TechnicalPageWrapper><TechFleetSection /></TechnicalPageWrapper>} />
-          <Route path="technical/hr" element={<TechnicalPageWrapper><TechHrSection /></TechnicalPageWrapper>} />
-          <Route path="technical/workspace" element={<TechnicalPageWrapper><TechWorkspaceSection /></TechnicalPageWrapper>} />
-          <Route path="technical/security" element={<TechnicalPageWrapper><TechSecuritySection /></TechnicalPageWrapper>} />
-          <Route path="technical/files" element={<TechnicalPageWrapper><TechFilesSection /></TechnicalPageWrapper>} />
-          <Route path="technical/infra" element={<TechnicalPageWrapper><TechInfraSection /></TechnicalPageWrapper>} />
-          <Route path="faq" element={<FaqSection />} />
-          <Route path="*" element={<Navigate to="/guide/getting-started" replace />} />
-        </Routes>
+        <div className="rounded-2xl border border-white/[0.08] bg-card/60 backdrop-blur-2xl shadow-[0_2px_20px_-4px_rgba(0,0,0,0.12)] p-5 sm:p-7">
+          <Routes>
+            <Route index element={<Navigate to="/guide/getting-started" replace />} />
+            <Route path="getting-started" element={<GettingStartedSection />} />
+            <Route path="roles-permissions" element={<RolesPermissionsSection />} />
+            <Route path="how-to/everyday-work" element={<EverydayWorkSection />} />
+            <Route path="how-to/growth-wellbeing" element={<GrowthWellbeingSection />} />
+            <Route path="how-to/finance" element={<FinanceOpsSection />} />
+            <Route path="how-to/people-operations" element={<PeopleOpsSection />} />
+            <Route path="how-to/fleet-assets" element={<FleetOpsSection />} />
+            <Route path="how-to/crm-outreach" element={<CrmOutreachSection />} />
+            <Route path="how-to/shifts-scheduling" element={<ShiftsSchedulingSection />} />
+            <Route path="how-to/admin-tools" element={<AdminToolsSection />} />
+            <Route path="technical/overview" element={<TechOverviewSection />} />
+            <Route path="technical/payments" element={<TechPaymentsSection />} />
+            <Route path="technical/finance" element={<TechFinanceSection />} />
+            <Route path="technical/expenses" element={<TechExpensesSection />} />
+            <Route path="technical/fleet" element={<TechFleetSection />} />
+            <Route path="technical/hr" element={<TechHrSection />} />
+            <Route path="technical/workspace" element={<TechWorkspaceSection />} />
+            <Route path="technical/security" element={<TechSecuritySection />} />
+            <Route path="technical/files" element={<TechFilesSection />} />
+            <Route path="technical/infra" element={<TechInfraSection />} />
+            <Route path="faq" element={<FaqSection />} />
+            <Route path="*" element={<Navigate to="/guide/getting-started" replace />} />
+          </Routes>
+        </div>
       </div>
     </div>
   );
@@ -200,10 +200,13 @@ export default function Guide() {
   usePageTitle('Guide');
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto">
-      <PageHeader
-        title="Platform Guide"
-        description="Everything you need to run your day inside KDOps — how-to walkthroughs, roles & permissions, and the full technical reference."
-      />
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Platform Guide</h1>
+        <p className="text-sm text-muted-foreground/70 mt-1">
+          Step-by-step walkthroughs for every part of KDOps. Pick a topic from the sidebar to get started.
+        </p>
+      </div>
       <GuideBody />
     </div>
   );
