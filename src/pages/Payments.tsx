@@ -444,35 +444,19 @@ const Payments = () => {
             <PendingPayoutsCard walletBalanceNgn={balance?.available ?? null} />
           )}
 
-          {/* Stat tiles — each in its own card */}
-          {effectiveRole !== 'operations' && [
-            {
-              label: 'In processing',
-              value: stats.processingCount,
-              sub: 'Active transfers',
-              pulse: stats.processingCount > 0,
-            },
-            {
-              label: 'Paid this month',
-              value: formatNaira(stats.thisMonthAmount),
-              sub: 'Settled — Paystack + Flutterwave',
-            },
-          ].map(({ label, value, sub, pulse }) => (
-            <Card key={label} className="border-border/70">
+          {effectiveRole !== 'operations' && (
+            <Card className="border-border/70">
               <CardContent className="kd-holographic relative px-4 py-3.5 kd-transition">
                 <div className="relative z-[2]">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1.5">
-                    {label}
-                    {pulse && <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-blue-500 animate-pulse" />}
-                  </p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Paid this month</p>
                   <p className="mt-1.5 text-[20px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
-                    {value}
+                    {formatNaira(stats.thisMonthAmount)}
                   </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground/80 tabular-nums truncate">{sub}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground/80 tabular-nums truncate">Settled — Paystack + Flutterwave</p>
                 </div>
               </CardContent>
             </Card>
-          ))}
+          )}
         </div>
       )}
 
