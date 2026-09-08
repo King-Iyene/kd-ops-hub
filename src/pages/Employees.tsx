@@ -584,8 +584,8 @@ const Employees = () => {
       {/* Mercury-style list wrapper: hairline-bordered surface, sticky
           filter strip, no card chrome. Replaces shadcn Card so the
           page reads as one ledger-grade list. */}
-      <div className="rounded-lg border border-border/70 bg-card overflow-hidden">
-        <div className="px-3 py-2.5 border-b border-border/70 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 sticky top-0 z-10 print:hidden">
+      <div className="rounded-2xl border border-white/[0.08] dark:border-white/[0.06] bg-card/60 backdrop-blur-2xl shadow-[0_2px_20px_-4px_rgba(0,0,0,0.12)] dark:shadow-[0_2px_20px_-4px_rgba(0,0,0,0.4)] overflow-hidden">
+        <div className="px-3 py-2.5 border-b border-white/[0.06] bg-card/40 backdrop-blur-2xl sticky top-0 z-10 print:hidden">
           <MobileFilterBar
             activeCount={activeEmployeeFilterCount}
             onClear={clearEmployeeFilters}
@@ -809,12 +809,12 @@ const Employees = () => {
               </div>
 
               {/* Mobile employees list */}
-              {/* Apple-style clean list — hairline dividers, no card chrome */}
-              <div className="md:hidden divide-y divide-border/40">
+              {/* Apple-style clean list — hairline dividers, frosted glass */}
+              <div className="md:hidden divide-y divide-white/[0.04] dark:divide-white/[0.03]">
                 {employees.map((e) => (
                   <div
                     key={e.id}
-                    className="flex items-center gap-3 px-4 py-3 active:bg-muted/30 kd-transition cursor-pointer"
+                    className="flex items-center gap-3 px-4 py-3.5 active:bg-white/[0.04] hover:bg-white/[0.02] kd-transition cursor-pointer"
                     onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)}
                   >
                     <EmployeeAvatar
