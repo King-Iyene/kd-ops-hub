@@ -78,6 +78,7 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useCompanySettings } from '@/queries';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -372,6 +373,7 @@ const Compliance = () => {
   const [generatingPenCom, setGeneratingPenCom] = useState(false);
   const [penComSummary, setPenComSummary] = useState<{ employees: number; pfas: number; total: number } | null>(null);
 
+  const { data: companySettings } = useCompanySettings();
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
   const canManageRemittances =
     profile?.role === 'super_admin' || profile?.role === 'admin' || profile?.role === 'finance';
@@ -505,11 +507,10 @@ const Compliance = () => {
       const toInsert: Array<Record<string, unknown>> = [];
       for (const run of runs) {
         const periodMonth = `${run.period}-01`;
-        const candidates: Array<{ type: RemittanceType; amount: number }> = [
-          { type: 'paye', amount: run.paye_ngn || 0 },
-          { type: 'pension', amount: (run.pension_ngn || 0) * 2.25 }, // employee 8% + employer 10%
-          { type: 'nhf', amount: run.nhf_ngn || 0 },
-        ];
+        const candidates: Array<{ type: RemittanceType; amount: number }> = [];
+        if (companySettings?.paye_enabled !== false) candidates.push({ type: 'paye', amount: run.paye_ngn || 0 });
+        if (companySettings?.pension_enabled !== false) candidates.push({ type: 'pension', amount: (run.pension_ngn || 0) * 2.25 }); // employee 8% + employer 10%
+        if (companySettings?.nhf_enabled === true) candidates.push({ type: 'nhf', amount: run.nhf_ngn || 0 });
         for (const c of candidates) {
           if (c.amount <= 0) continue;
           const key = `${c.type}:${periodMonth}`;
@@ -558,7 +559,7 @@ const Compliance = () => {
       setRemittancesLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [companySettings]);
 
   useEffect(() => {
     loadRemittances();
@@ -641,12 +642,21 @@ const Compliance = () => {
     }
   };
 
+  const activeRemittances = useMemo(() => {
+    const disabled = new Set<string>();
+    if (companySettings?.paye_enabled === false) disabled.add('paye');
+    if (companySettings?.pension_enabled === false) disabled.add('pension');
+    if (companySettings?.nhf_enabled !== true) disabled.add('nhf');
+    if (disabled.size === 0) return remittances;
+    return remittances.filter((r) => !disabled.has(r.remittance_type));
+  }, [remittances, companySettings]);
+
   const exportRemittances = () => {
     const header = [
       'period', 'type', 'amount_ngn', 'due_date', 'status',
       'remitted_at', 'confirmed_at', 'provider_reference', 'notes',
     ];
-    const data = remittances.map((r) => [
+    const data = activeRemittances.map((r) => [
       r.period_month.slice(0, 7),
       REMIT_LABELS[r.remittance_type],
       r.amount_ngn,
@@ -658,35 +668,35 @@ const Compliance = () => {
       r.notes || '',
     ]);
     downloadCsv(`kdops-remittances-${toIsoDate(new Date())}.csv`, toCsv(header, data));
-    logAudit('remittance_csv_exported', `${remittances.length} remittance row(s) exported`, profile);
+    logAudit('remittance_csv_exported', `${activeRemittances.length} remittance row(s) exported`, profile);
   };
 
   const remittanceStats = useMemo(() => {
-    const withStatus = remittances.map((r) => ({ r, status: remittanceStatus(r) }));
+    const withStatus = activeRemittances.map((r) => ({ r, status: remittanceStatus(r) }));
     const totalPending = withStatus
       .filter((x) => x.status === 'pending' || x.status === 'late')
       .reduce((sum, x) => sum + (x.r.amount_ngn || 0), 0);
     const overdueCount = withStatus.filter((x) => x.status === 'late').length;
-    const remittedDates = remittances.map((r) => r.remitted_at).filter(Boolean) as string[];
+    const remittedDates = activeRemittances.map((r) => r.remitted_at).filter(Boolean) as string[];
     const lastRemittanceDate = remittedDates.length
       ? remittedDates.reduce((a, b) => (a > b ? a : b))
       : null;
     const currentYear = new Date().getFullYear();
-    const ytdRemitted = remittances
+    const ytdRemitted = activeRemittances
       .filter((r) => r.remitted_at && new Date(r.remitted_at).getFullYear() === currentYear)
       .reduce((sum, r) => sum + (r.amount_ngn || 0), 0);
     return { totalPending, overdueCount, lastRemittanceDate, ytdRemitted };
-  }, [remittances]);
+  }, [activeRemittances]);
 
   const remittancesByMonth = useMemo(() => {
     const groups = new Map<string, TaxRemittance[]>();
-    for (const r of remittances) {
+    for (const r of activeRemittances) {
       const arr = groups.get(r.period_month) || [];
       arr.push(r);
       groups.set(r.period_month, arr);
     }
     return Array.from(groups.entries()).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [remittances]);
+  }, [activeRemittances]);
 
   const addFiling = async () => {
     if (!form.kind || !form.period) {
