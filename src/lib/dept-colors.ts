@@ -28,11 +28,8 @@ export function deptBadgeStyle(name: string): React.CSSProperties {
   if (!name) return {};
   const h = deptHue(name);
   return {
-    backgroundColor: `hsl(${h} 75% 50% / 0.15)`,
-    color:           `hsl(${h} 60% 42%)`,
-    borderColor:     `hsl(${h} 60% 50% / 0.35)`,
-    borderWidth: 1,
-    borderStyle: 'solid',
+    backgroundColor: `hsl(${h} 30% 50% / 0.08)`,
+    color:           `hsl(${h} 25% 55%)`,
   };
 }
 
@@ -40,5 +37,5 @@ export function deptBadgeStyle(name: string): React.CSSProperties {
 export function deptDotStyle(name: string): React.CSSProperties {
   if (!name) return { backgroundColor: 'var(--muted)' };
   const h = deptHue(name);
-  return { backgroundColor: `hsl(${h} 70% 55%)` };
+  return { backgroundColor: `hsl(${h} 35% 55%)` };
 }

@@ -122,9 +122,9 @@ const FALLBACK_DEPARTMENTS = [
 ];
 
 const STATUS_BADGE: Record<string, string> = {
-  active: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20',
-  inactive: 'bg-muted/80 text-muted-foreground border border-border/50',
-  invited: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20',
+  active: 'bg-emerald-500/8 text-emerald-600/80 dark:text-emerald-400/80',
+  inactive: 'bg-muted/60 text-muted-foreground/60',
+  invited: 'bg-amber-500/8 text-amber-600/80 dark:text-amber-400/80',
 };
 
 const Employees = () => {
@@ -683,9 +683,9 @@ const Employees = () => {
                 </TableHeader>
                 <TableBody>
                   {employees.map((e) => (
-                    <TableRow key={e.id} className="group kd-transition cursor-pointer hover:bg-primary/[0.03] dark:hover:bg-primary/[0.06]" onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)} onAuxClick={(ev) => { if (ev.button === 1 && e.status !== 'invited') { window.open(`/employees/${e.id}`, '_blank'); ev.preventDefault(); } }}>
-                      <TableCell className="font-medium py-3.5">
-                        <div className="flex items-center gap-3.5 min-w-0">
+                    <TableRow key={e.id} className="group kd-transition cursor-pointer hover:bg-white/[0.02] dark:hover:bg-white/[0.02]" onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)} onAuxClick={(ev) => { if (ev.button === 1 && e.status !== 'invited') { window.open(`/employees/${e.id}`, '_blank'); ev.preventDefault(); } }}>
+                      <TableCell className="font-medium py-2.5">
+                        <div className="flex items-center gap-3 min-w-0">
                           <EmployeeAvatar
                             photoUrl={e.photo_url ?? null}
                             name={displayName(e.first_name, e.last_name, e.full_name)}
@@ -717,18 +717,15 @@ const Employees = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-[13px] text-muted-foreground capitalize">{roleLabel(e.role)}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-[13px] text-muted-foreground">
                         {(() => {
                           const name =
                             e.department?.name
                             ?? departments.find((d) => d.id === e.department_id)?.name
                             ?? null;
-                          if (!name) return <span className="text-muted-foreground/40">—</span>;
+                          if (!name) return <span className="text-muted-foreground/30">—</span>;
                           return (
-                            <span
-                              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap"
-                              style={deptBadgeStyle(name)}
-                            >
+                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                               <span
                                 className="h-1.5 w-1.5 rounded-full shrink-0"
                                 style={deptDotStyle(name)}
@@ -744,8 +741,8 @@ const Employees = () => {
                       <TableCell className="text-[13px] text-muted-foreground/80 tabular-nums">
                         {e.phone || <span className="text-muted-foreground/40">—</span>}
                       </TableCell>
-                      <TableCell className="text-[13px] text-muted-foreground/70 tabular-nums">
-                        {e.created_at ? formatDate(e.created_at) : '—'}
+                      <TableCell className="text-[13px] text-muted-foreground/70 tabular-nums whitespace-nowrap">
+                        {e.created_at ? new Date(e.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -1115,6 +1112,16 @@ export default Employees;
 // presents one consistent face per user across the sidebar, comments,
 // and the employees table. onError falls back to the initials variant
 // if the storage object 403s or 404s.
+const AVATAR_PALETTE = [
+  '#5E6AD2', '#E5484D', '#F76B15', '#12A594', '#3E63DD',
+  '#7C66DC', '#D6409F', '#0091FF', '#46A758', '#E38E0A',
+];
+function avatarColor(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = ((h << 5) - h + name.charCodeAt(i)) | 0;
+  return AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
+}
+
 function EmployeeAvatar({
   photoUrl, name, size = 36,
 }: {
@@ -1126,6 +1133,7 @@ function EmployeeAvatar({
     .split(/\s+/).filter(Boolean).slice(0, 2)
     .map((w) => w[0].toUpperCase()).join('') || 'U';
   const fontSize = Math.max(11, Math.round(size * 0.36));
+  const bg = avatarColor(name);
   if (photoUrl) {
     return (
       <img
@@ -1133,36 +1141,33 @@ function EmployeeAvatar({
         alt=""
         width={size}
         height={size}
-        className="rounded-full object-cover ring-2 ring-background shadow-sm shrink-0"
+        className="rounded-full object-cover shrink-0"
         style={{ height: size, width: size }}
         onError={(e) => {
           const t = e.currentTarget as HTMLImageElement;
-          t.replaceWith(makeInitialsBubble(initials, size, fontSize));
+          t.replaceWith(makeInitialsBubble(initials, size, fontSize, bg));
         }}
       />
     );
   }
   return (
     <div
-      className="rounded-full kd-gradient-brand flex items-center justify-center ring-2 ring-background shadow-sm shrink-0"
-      style={{ height: size, width: size }}
+      className="rounded-full flex items-center justify-center shrink-0"
+      style={{ height: size, width: size, backgroundColor: bg }}
     >
-      <span className="font-bold text-white" style={{ fontSize }}>{initials}</span>
+      <span className="font-semibold text-white" style={{ fontSize }}>{initials}</span>
     </div>
   );
 }
 
-// Imperative fallback used by the onError handler — replaces a broken
-// <img> with the initials bubble inline so the row never shows a
-// broken-image glyph.
-function makeInitialsBubble(initials: string, size: number, fontSize: number): HTMLElement {
+function makeInitialsBubble(initials: string, size: number, fontSize: number, bg: string): HTMLElement {
   const div = document.createElement('div');
-  div.className = 'rounded-full flex items-center justify-center ring-2 ring-background shadow-sm shrink-0';
+  div.className = 'rounded-full flex items-center justify-center shrink-0';
   div.style.height = `${size}px`;
   div.style.width = `${size}px`;
-  div.style.background = 'linear-gradient(135deg, #006994 0%, #0481ad 100%)';
+  div.style.background = bg;
   const span = document.createElement('span');
-  span.style.cssText = `font-size:${fontSize}px;font-weight:700;color:#fff;`;
+  span.style.cssText = `font-size:${fontSize}px;font-weight:600;color:#fff;`;
   span.textContent = initials;
   div.appendChild(span);
   return div;
