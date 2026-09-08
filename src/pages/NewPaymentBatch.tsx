@@ -69,11 +69,11 @@ interface BatchItem {
 interface Contractor {
   id: string;
   full_name: string;
+  first_name?: string | null;
+  last_name?: string | null;
   bank_name: string;
   account_number: string;
   default_amount_ngn: number;
-  // HeyReach signal — surfaced as a status indicator on each contractor row
-  // (no longer blocks payment; lifecycle/connection state is informational).
   status?: string | null;
   heyreach_status?: string | null;
   heyreach_email?: string | null;
