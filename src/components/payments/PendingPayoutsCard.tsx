@@ -401,20 +401,20 @@ function KpiCell({
     neutral: 'text-foreground',
   };
   return (
-    <div className="px-3 py-2">
-      <div className="flex items-center gap-1 text-[9px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
+    <div className="px-4 py-3">
+      <div className="flex items-center gap-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
         {icon}
         <span>{label}</span>
         {hint && <InfoHint>{hint}</InfoHint>}
       </div>
       {value === null ? (
-        <Skeleton className="h-4 w-16 mt-1" />
+        <Skeleton className="h-5 w-20 mt-1.5" />
       ) : (
-        <p className={cn('text-[15px] font-bold tabular-nums font-mono mt-0.5 leading-tight truncate', valueClass[tone])}>
+        <p className={cn('text-[18px] font-bold tabular-nums font-mono mt-1 leading-tight', valueClass[tone])}>
           {value}
         </p>
       )}
-      <p className="text-[9.5px] text-muted-foreground mt-0.5 truncate">{sub}</p>
+      <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{sub}</p>
     </div>
   );
 }

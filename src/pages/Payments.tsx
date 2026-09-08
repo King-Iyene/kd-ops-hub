@@ -441,7 +441,9 @@ const Payments = () => {
           )}
 
           {canSeeWallet && (
-            <PendingPayoutsCard walletBalanceNgn={balance?.available ?? null} />
+            <div className="lg:col-span-2">
+              <PendingPayoutsCard walletBalanceNgn={balance?.available ?? null} />
+            </div>
           )}
 
         </div>
