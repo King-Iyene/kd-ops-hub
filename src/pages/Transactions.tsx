@@ -657,9 +657,6 @@ const Transactions = () => {
                         >
                           <td className="px-3 py-2 text-[12px] text-muted-foreground tabular-nums whitespace-nowrap">
                             <span className="font-mono">{formatDate(r.created_at)}</span>
-                            <span className="ml-1.5 text-[10px] text-muted-foreground/60">
-                              {new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
                           </td>
                           <td className="px-3 py-2 text-[13px] max-w-[260px]">
                             <div className="flex items-center gap-1.5 min-w-0">
