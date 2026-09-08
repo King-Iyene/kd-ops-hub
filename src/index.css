@@ -1099,9 +1099,17 @@ input[type=number] {
 
 /* ─── Component Overrides ────────────────────────────────────────────── */
 @layer components {
-  /* Better card base */
+  /* Better card base — glassmorphism in dark mode for layered depth */
   .card {
     box-shadow: var(--shadow-sm);
+  }
+  html.dark .card {
+    background: hsl(var(--card) / 0.82);
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+    box-shadow:
+      0 1px 0 0 hsl(var(--border) / 0.4) inset,
+      var(--shadow-sm);
   }
 
   /* Tech card — frosted glass + brand-tinted top edge highlight + soft glow.
@@ -1212,11 +1220,12 @@ input[type=number] {
     @apply text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-3;
   }
 
-  /* Number display */
+  /* Number display — tabular figures, tight tracking for that fintech feel */
   .kd-stat-number {
     font-family: 'Inter', system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
+    font-feature-settings: "tnum", "ss01";
   }
 
   /* ─── Phase 1: Layout utilities ───────────────────────────────────── */
@@ -1228,7 +1237,7 @@ input[type=number] {
 
   /* Responsive stat grid — single col → 2 → 4 */
   .kd-stat-grid {
-    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3;
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4;
   }
 
   /* Two-column content grid */

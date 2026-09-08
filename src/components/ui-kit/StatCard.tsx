@@ -25,8 +25,8 @@ const toneConfig: Record<NonNullable<Props['tone']>, {
   border: string;
 }> = {
   default: {
-    iconBg:  'bg-slate-100 dark:bg-slate-800',
-    iconColor: 'text-slate-500',
+    iconBg:  'bg-slate-100 dark:bg-slate-800/60',
+    iconColor: 'text-slate-500 dark:text-slate-400',
     dot:     'bg-slate-400',
     trendUp: 'text-emerald-600 dark:text-emerald-400',
     trendDown: 'text-rose-600 dark:text-rose-400',
@@ -34,58 +34,58 @@ const toneConfig: Record<NonNullable<Props['tone']>, {
     border:  '',
   },
   primary: {
-    iconBg:  'bg-primary/12 dark:bg-primary/20',
+    iconBg:  'bg-primary/10 dark:bg-primary/15',
     iconColor: 'text-primary',
     dot:     'bg-primary',
     trendUp: 'text-primary',
     trendDown: 'text-rose-600 dark:text-rose-400',
     bg:      'kd-stat-primary',
-    border:  'border-l-[3px] border-l-primary/60',
+    border:  '',
   },
   success: {
-    iconBg:  'bg-emerald-100 dark:bg-emerald-900/30',
+    iconBg:  'bg-emerald-50 dark:bg-emerald-900/25',
     iconColor: 'text-emerald-600 dark:text-emerald-400',
     dot:     'bg-emerald-500',
     trendUp: 'text-emerald-600 dark:text-emerald-400',
     trendDown: 'text-rose-600 dark:text-rose-400',
     bg:      'kd-stat-success',
-    border:  'border-l-[3px] border-l-emerald-500/60',
+    border:  '',
   },
   warning: {
-    iconBg:  'bg-amber-100 dark:bg-amber-900/30',
+    iconBg:  'bg-amber-50 dark:bg-amber-900/25',
     iconColor: 'text-amber-600 dark:text-amber-400',
     dot:     'bg-amber-500',
     trendUp: 'text-emerald-600 dark:text-emerald-400',
     trendDown: 'text-amber-600 dark:text-amber-400',
     bg:      'kd-stat-warning',
-    border:  'border-l-[3px] border-l-amber-500/60',
+    border:  'border-l-[3px] border-l-amber-500/70',
   },
   danger: {
-    iconBg:  'bg-rose-100 dark:bg-rose-900/30',
+    iconBg:  'bg-rose-50 dark:bg-rose-900/25',
     iconColor: 'text-rose-600 dark:text-rose-400',
     dot:     'bg-rose-500',
     trendUp: 'text-emerald-600 dark:text-emerald-400',
     trendDown: 'text-rose-600 dark:text-rose-400',
     bg:      'kd-stat-danger',
-    border:  'border-l-[3px] border-l-rose-500/60',
+    border:  'border-l-[3px] border-l-rose-500/70',
   },
   gold: {
-    iconBg:  'bg-amber-100 dark:bg-amber-900/30',
+    iconBg:  'bg-amber-50 dark:bg-amber-900/25',
     iconColor: 'text-amber-500 dark:text-amber-400',
     dot:     'bg-amber-400',
     trendUp: 'text-emerald-600 dark:text-emerald-400',
     trendDown: 'text-rose-600 dark:text-rose-400',
     bg:      'kd-stat-gold',
-    border:  'border-l-[3px] border-l-amber-400/60',
+    border:  '',
   },
   info: {
-    iconBg:  'bg-sky-100 dark:bg-sky-900/30',
+    iconBg:  'bg-sky-50 dark:bg-sky-900/25',
     iconColor: 'text-sky-600 dark:text-sky-400',
     dot:     'bg-sky-500',
     trendUp: 'text-emerald-600 dark:text-emerald-400',
     trendDown: 'text-rose-600 dark:text-rose-400',
     bg:      '',
-    border:  'border-l-[3px] border-l-sky-500/60',
+    border:  '',
   },
 };
 
@@ -133,7 +133,7 @@ export function StatCard({
         <div className="pointer-events-none absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-200 bg-gradient-to-br from-transparent to-[hsl(var(--primary)/0.04)]" />
       )}
 
-      <div className="relative z-[2] p-4">
+      <div className="relative z-[2] p-4 sm:p-5">
         {/* Header row: label + icon */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-1.5 min-w-0">
@@ -153,7 +153,7 @@ export function StatCard({
         </div>
 
         {/* Value — display-weight number */}
-        <div className="kd-stat-number text-stat-md font-bold text-foreground leading-none tabular-nums truncate">
+        <div className="kd-stat-number text-stat-md font-extrabold text-foreground leading-none tabular-nums truncate">
           {typeof value === 'number' && Number.isFinite(value)
             ? <CountUp value={value} />
             : value}
