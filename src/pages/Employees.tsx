@@ -867,53 +867,52 @@ const Employees = () => {
                         </Badge>
                       </MobileCardHeader>
 
-                      <MobileCardRow label="Email">
+                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground px-1 truncate">
                         <span className="truncate">{e.email}</span>
-                      </MobileCardRow>
-                      {e.phone && <MobileCardRow label="Phone">{e.phone}</MobileCardRow>}
-                      {e.created_at && <MobileCardRow label="Joined">{formatDate(e.created_at)}</MobileCardRow>}
+                        {e.phone && <><span className="text-muted-foreground/40">·</span><span className="shrink-0">{e.phone}</span></>}
+                      </div>
 
                       {canEditEmployee(e) && (
-                        <MobileCardFooter>
+                        <div className="flex items-center justify-end gap-1.5 px-1 pt-1">
                           {isAdmin && e.status === 'invited' && (
                             <Button
                               size="sm"
-                              variant="outline"
-                              className="flex-1 h-9"
+                              variant="ghost"
+                              className="h-7 px-2 text-[11px]"
                               onClick={(evt) => { evt.stopPropagation(); resendInvite(e); }}
                             >
-                              <Mail className="h-4 w-4 mr-1.5" /> Resend invite
+                              <Mail className="h-3 w-3 mr-1" /> Resend
                             </Button>
                           )}
                           <Button
                             size="sm"
-                            variant="outline"
-                            className="flex-1 h-9"
+                            variant="ghost"
+                            className="h-7 px-2 text-[11px]"
                             onClick={(evt) => { evt.stopPropagation(); openEdit(e); }}
                           >
-                            <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                            <Pencil className="h-3 w-3 mr-1" /> Edit
                           </Button>
                           {isAdmin && e.status === 'active' && (
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-9 px-3 text-destructive"
+                              className="h-7 px-2 text-[11px] text-destructive"
                               onClick={(evt) => { evt.stopPropagation(); toggleStatus(e); }}
                             >
-                              <UserX className="h-4 w-4" />
+                              <UserX className="h-3 w-3" />
                             </Button>
                           )}
                           {isAdmin && e.status === 'inactive' && (
                             <Button
                               size="sm"
-                              variant="outline"
-                              className="flex-1 h-9"
+                              variant="ghost"
+                              className="h-7 px-2 text-[11px]"
                               onClick={(evt) => { evt.stopPropagation(); setConfirmReactivate(e); }}
                             >
                               Reactivate
                             </Button>
                           )}
-                        </MobileCardFooter>
+                        </div>
                       )}
                     </MobileCard>
                   );
