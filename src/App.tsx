@@ -71,7 +71,6 @@ const Vendors          = lazy(() => import('./pages/Vendors'));
 const Performance      = lazy(() => import('./pages/Performance'));
 const Assets           = lazy(() => import('./pages/Assets'));
 const Training         = lazy(() => import('./pages/Training'));
-const Projects         = lazy(() => import('./pages/Projects'));
 const Benefits         = lazy(() => import('./pages/Benefits'));
 const Onboarding       = lazy(() => import('./pages/Onboarding'));
 const Recruitment      = lazy(() => import('./pages/Recruitment'));
@@ -625,15 +624,6 @@ function AppRoutes() {
           }
         />
 
-        {/* Project Tracker — Managers. */}
-        <Route
-          path="/projects"
-          element={
-            <RoleGuard roles={MANAGER_ROLES}>
-              <Projects />
-            </RoleGuard>
-          }
-        />
 
         {/* Employee Benefits — Managers. */}
         <Route

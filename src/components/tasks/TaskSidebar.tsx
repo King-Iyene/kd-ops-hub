@@ -158,7 +158,7 @@ export function TaskSidebar({
         <SidebarItem icon={BarChart3} label="Dashboard" active={currentView === 'dashboard'} onClick={() => onChangeView('dashboard')} />
       </div>
 
-      {/* ─── Spaces Section ───────────────────────────── */}
+      {/* ─── Folders Section ───────────────────────────── */}
       <div className="flex-1 min-h-0 space-y-0.5">
         <div className="flex items-center justify-between px-2 mb-1.5">
           <button
@@ -166,16 +166,16 @@ export function TaskSidebar({
             className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors"
           >
             {spacesExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            Spaces
+            Folders
           </button>
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-5 w-5" aria-label="Create space" onClick={onCreateSpace}>
+                <Button size="icon" variant="ghost" className="h-5 w-5" aria-label="Create folder" onClick={onCreateSpace}>
                   <Plus className="h-3 w-3" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right">New space</TooltipContent>
+              <TooltipContent side="right">New folder</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -198,23 +198,55 @@ export function TaskSidebar({
 
               return (
                 <div key={space.id}>
-                  <SpaceItem
-                    space={space}
-                    count={spaceTaskCounts.get(space.id) ?? 0}
-                    active={selectedSpace === space.id && !selectedList}
-                    expanded={isExpanded}
-                    hasChildren={hasChildren}
-                    onToggle={() => toggleSpace(space.id)}
-                    onClick={() => { onSelectSpace(space.id); onSelectList(null); ensureTaskView(); }}
-                    onEdit={() => onEditSpace(space)}
-                    onDelete={() => onDeleteSpace(space)}
-                    onManageMembers={onManageMembers ? () => onManageMembers(space) : undefined}
-                    onManageStatuses={onManageStatuses ? () => onManageStatuses(space) : undefined}
-                    onCreateFolder={onCreateFolder ? () => onCreateFolder(space.id) : undefined}
-                    onCreateList={onCreateList ? () => onCreateList(space.id) : undefined}
-                    isFavorite={favoriteSpaceIds?.has(space.id)}
-                    onToggleFavorite={onToggleFavorite ? () => onToggleFavorite(space.id) : undefined}
-                  />
+                  <div className="flex items-center group/folder">
+                    <button
+                      onClick={() => {
+                        if (hasChildren) toggleSpace(space.id);
+                        onSelectSpace(space.id); onSelectList(null); ensureTaskView();
+                      }}
+                      className={cn(
+                        'flex items-center gap-2 flex-1 min-w-0 px-2 py-1.5 rounded-md text-[13px] font-medium transition-all text-left',
+                        selectedSpace === space.id && !selectedList
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+                      )}
+                    >
+                      {hasChildren ? (
+                        isExpanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />
+                      ) : (
+                        <FolderOpen className="h-3.5 w-3.5 shrink-0" style={space.color ? { color: space.color } : undefined} />
+                      )}
+                      <FolderKanban className="h-3.5 w-3.5 shrink-0" style={space.color ? { color: space.color } : undefined} />
+                      <span className="flex-1 truncate">{space.name}</span>
+                      <span className="text-[10px] tabular-nums opacity-50">{spaceTaskCounts.get(space.id) ?? 0}</span>
+                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover/folder:opacity-100 shrink-0" aria-label="Folder options">
+                          <MoreHorizontal className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        {onCreateFolder && (
+                          <DropdownMenuItem onClick={() => onCreateFolder(space.id)}>
+                            <FolderKanban className="h-3.5 w-3.5 mr-2" /> New subfolder
+                          </DropdownMenuItem>
+                        )}
+                        {onCreateList && (
+                          <DropdownMenuItem onClick={() => onCreateList(space.id)}>
+                            <ListTodo className="h-3.5 w-3.5 mr-2" /> New list
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={() => onEditSpace(space)}>
+                          <Pencil className="h-3.5 w-3.5 mr-2" /> Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-destructive" onClick={() => onDeleteSpace(space)}>
+                          <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
 
                   {isExpanded && (
                     <div className="ml-3 pl-2 border-l border-border/40 space-y-0.5 mt-0.5">
@@ -223,7 +255,7 @@ export function TaskSidebar({
                         const folderLists = lists.filter((l) => l.folder_id === folder.id).sort((a, b) => a.sort_order - b.sort_order);
                         return (
                           <div key={folder.id}>
-                            <div className="flex items-center group/folder">
+                            <div className="flex items-center group/subfolder">
                               <button
                                 onClick={() => toggleFolder(folder.id)}
                                 className="flex items-center gap-2 flex-1 min-w-0 px-2 py-1 rounded-md text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
@@ -236,7 +268,7 @@ export function TaskSidebar({
                               {(onRenameFolder || onDeleteFolder || onCreateList) && (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover/folder:opacity-100 shrink-0" aria-label="Folder options">
+                                    <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover/subfolder:opacity-100 shrink-0" aria-label="Subfolder options">
                                       <MoreHorizontal className="h-3 w-3" />
                                     </Button>
                                   </DropdownMenuTrigger>
@@ -302,7 +334,7 @@ export function TaskSidebar({
             {unorganizedCount > 0 && (
               <SidebarItem
                 icon={FolderOpen}
-                label="No Space"
+                label="Unfiled"
                 count={unorganizedCount}
                 active={selectedSpace === '__unassigned__'}
                 onClick={() => {

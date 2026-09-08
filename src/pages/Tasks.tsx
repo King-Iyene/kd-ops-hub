@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Plus, Search, Loader2, ListTodo, Flag,
-  Check, X, Filter, Trash2,
+  Check, X, Filter, Trash2, Target,
   User, ArrowRight, Download, CalendarDays, FileText,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -111,6 +111,7 @@ const Tasks = () => {
     due_date: '',
     priority: 'normal' as Priority,
     status: 'open' as TaskStatus,
+    goal_id: '',
   });
 
   // Detail panel — full modal overlay
@@ -127,6 +128,7 @@ const Tasks = () => {
   const [editingSpace, setEditingSpace] = useState<Space | null>(null);
   const [spaceForm, setSpaceForm] = useState({ name: '', color: '#6366f1', description: '', is_private: false });
   const [savingSpace, setSavingSpace] = useState(false);
+  const [goals, setGoals] = useState<{ id: string; title: string; status: string }[]>([]);
   const [pendingDeleteSpace, setPendingDeleteSpace] = useState<Space | null>(null);
   const [membersSpace, setMembersSpace] = useState<Space | null>(null);
   const [statusManagerSpace, setStatusManagerSpace] = useState<Space | null>(null);
@@ -160,7 +162,7 @@ const Tasks = () => {
     setError(null);
     try {
       const offset = append ? tasks.length : 0;
-      const [topRes, allRes, profilesRes, tagsRes, spacesRes, foldersRes, listsRes, depsRes] = await Promise.all([
+      const [topRes, allRes, profilesRes, tagsRes, spacesRes, foldersRes, listsRes, depsRes, goalsRes] = await Promise.all([
         supabase
           .from('tasks')
           .select('id, title, description, assignee_id, due_date, priority, status, created_by, completed_at, created_at, tags, parent_id, project_id, list_id, sort_order, start_date, time_estimate_minutes, time_spent_minutes, task_type, blocked_reason, goal_id, recurrence_rule, recurrence_next, template_id')
@@ -178,6 +180,7 @@ const Tasks = () => {
         supabase.from('space_folders').select('id, space_id, name, color, sort_order').order('sort_order').limit(5000),
         supabase.from('task_lists').select('id, space_id, folder_id, name, color, sort_order').order('sort_order').limit(5000),
         supabase.from('task_dependencies').select('id, task_id, depends_on_id, dependency_type').limit(20000),
+        supabase.from('goals').select('id, title, status').in('status', ['open', 'in_progress']).order('title'),
       ]);
       if (topRes.error) throw topRes.error;
       const newTasks = (topRes.data as unknown as Task[]) || [];
@@ -204,6 +207,7 @@ const Tasks = () => {
       setFolders((foldersRes.data as SpaceFolder[]) || []);
       setTaskLists((listsRes.data as TaskList[]) || []);
       setDependencies((depsRes.data as TaskDependency[]) || []);
+      setGoals((goalsRes.data as { id: string; title: string; status: string }[]) || []);
     } catch (err: unknown) {
       setError(errorMessage(err));
     } finally {
@@ -412,7 +416,7 @@ const Tasks = () => {
     setSelectedTagIds([]);
     setFormAssignees([]);
     setFormRecurrence(null);
-    setForm({ title: '', description: '', assignee_id: '', due_date: '', priority: 'normal', status: 'open' });
+    setForm({ title: '', description: '', assignee_id: '', due_date: '', priority: 'normal', status: 'open', goal_id: '' });
   };
 
   function openCreate() { reset(); setDialog(true); }
@@ -440,6 +444,7 @@ const Tasks = () => {
         completed_at: form.status === 'complete' ? new Date().toISOString() : null,
         tags: selectedTagIds,
         recurrence_rule: formRecurrence,
+        goal_id: form.goal_id || null,
       };
       if (editing) {
         const { error } = await supabase.from('tasks').update(payload as any).eq('id', editing.id);
@@ -1341,6 +1346,20 @@ const Tasks = () => {
                 </Select>
               </div>
             </div>
+            {goals.length > 0 && (
+              <div className="space-y-1">
+                <Label className="flex items-center gap-1.5"><Target className="h-3.5 w-3.5" /> Goal</Label>
+                <Select value={form.goal_id || 'none'} onValueChange={(v) => setForm({ ...form, goal_id: v === 'none' ? '' : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No goal</SelectItem>
+                    {goals.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {availableTags.length > 0 && (
               <div className="space-y-1">
                 <Label>Tags</Label>
@@ -1380,17 +1399,17 @@ const Tasks = () => {
           </div>
       </ResponsiveDialog>
 
-      {/* ─── Create / Edit Space Dialog ─────────────────────────────── */}
+      {/* ─── Create / Edit Folder Dialog ─────────────────────────────── */}
       <ResponsiveDialog
         open={spaceDialog}
         onOpenChange={(v) => { setSpaceDialog(v); if (!v) setEditingSpace(null); }}
-        title={editingSpace ? 'Edit space' : 'New space'}
+        title={editingSpace ? 'Edit folder' : 'New folder'}
         size="md"
         footer={<>
           <Button variant="outline" onClick={() => setSpaceDialog(false)}>Cancel</Button>
           <Button onClick={saveSpace} disabled={savingSpace}>
             {savingSpace && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {editingSpace ? 'Save' : 'Create space'}
+            {editingSpace ? 'Save' : 'Create folder'}
           </Button>
         </>}
       >
@@ -1425,12 +1444,12 @@ const Tasks = () => {
             </div>
             <div className="space-y-1">
               <Label>Description <span className="text-muted-foreground">(optional)</span></Label>
-              <Input value={spaceForm.description} onChange={(e) => setSpaceForm({ ...spaceForm, description: e.target.value })} placeholder="What is this space for?" />
+              <Input value={spaceForm.description} onChange={(e) => setSpaceForm({ ...spaceForm, description: e.target.value })} placeholder="What is this folder for?" />
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5">
               <div className="space-y-0.5">
-                <Label className="text-sm">Private space</Label>
-                <p className="text-[11px] text-muted-foreground">Only members can see tasks in this space</p>
+                <Label className="text-sm">Private folder</Label>
+                <p className="text-[11px] text-muted-foreground">Only members can see tasks in this folder</p>
               </div>
               <Switch
                 checked={spaceForm.is_private}
@@ -1456,13 +1475,13 @@ const Tasks = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ─── Delete Space Confirmation ──────────────────────────────── */}
+      {/* ─── Delete Folder Confirmation ──────────────────────────────── */}
       <AlertDialog open={!!pendingDeleteSpace} onOpenChange={(v) => { if (!v) setPendingDeleteSpace(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove space?</AlertDialogTitle>
+            <AlertDialogTitle>Remove folder?</AlertDialogTitle>
             <AlertDialogDescription>
-              &quot;{pendingDeleteSpace?.name}&quot; will be removed. Tasks and projects in this space will not be deleted.
+              &quot;{pendingDeleteSpace?.name}&quot; will be removed. Tasks in this folder will not be deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

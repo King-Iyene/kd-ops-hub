@@ -75,7 +75,6 @@ const ITEMS: Item[] = [
   { title: 'Documents',    path: '/documents',   icon: FileText,   roles: APPROVER_ROLES, group: 'workspace' },
   { title: 'Assets',       path: '/assets',      icon: Boxes,      roles: APPROVER_ROLES, group: 'workspace', keywords: 'asset register equipment' },
   { title: 'Reports',      path: '/reports',     icon: BarChart3,  roles: APPROVER_ROLES, group: 'workspace' },
-  { title: 'Projects',     path: '/projects',    icon: FolderKanban, roles: MANAGER_ROLES, group: 'workspace' },
   { title: 'Vendors',      path: '/vendors',     icon: Store,      roles: MANAGER_ROLES,  group: 'workspace', keywords: 'vendor registry supplier' },
   { title: 'Contractors',  path: '/contractors', icon: UserCog,    roles: MANAGER_ROLES,  group: 'workspace' },
   { title: 'Employees',    path: '/employees',   icon: Users,      roles: ['super_admin', 'admin'], group: 'workspace' },
