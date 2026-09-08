@@ -727,7 +727,7 @@ const Transactions = () => {
               <div className="md:hidden p-3 space-y-2">
                 {pagination.slice.map((r) => {
                   const Icon = TYPE_ICON[r.txn_type] || ArrowUpDown;
-                  const recipient = r.account_name || r.description || '—';
+                  const recipient = (r.account_name || r.description || '—').toLowerCase();
                   const f = r.rejection_reason ? friendlyPaystackError(r.rejection_reason) : null;
                   const wasCancelled = r.is_manually_resolved
                     && (r.manual_resolution_method === 'cancelled'
