@@ -357,16 +357,30 @@ const Tasks = () => {
     return { myTasks, overdue, total: tasks.length };
   }, [tasks, profile?.id]);
 
+  const listSpaceMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const l of taskLists) m.set(l.id, l.space_id);
+    return m;
+  }, [taskLists]);
+
   const spaceTaskCounts = useMemo(() => {
     const counts = new Map<string, number>();
+    const counted = new Set<string>();
     for (const t of tasks) {
-      if (!t.project_id) continue;
-      const spaceId = projectSpaceMap.get(t.project_id);
-      if (!spaceId) continue;
-      counts.set(spaceId, (counts.get(spaceId) ?? 0) + 1);
+      if (t.project_id) {
+        const spaceId = projectSpaceMap.get(t.project_id);
+        if (spaceId) { counts.set(spaceId, (counts.get(spaceId) ?? 0) + 1); counted.add(t.id); }
+      }
+    }
+    for (const t of tasks) {
+      if (counted.has(t.id)) continue;
+      if (t.list_id) {
+        const spaceId = listSpaceMap.get(t.list_id);
+        if (spaceId) counts.set(spaceId, (counts.get(spaceId) ?? 0) + 1);
+      }
     }
     return counts;
-  }, [tasks, projectSpaceMap]);
+  }, [tasks, projectSpaceMap, listSpaceMap]);
 
   const listTaskCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -379,10 +393,11 @@ const Tasks = () => {
 
   const unorganizedCount = useMemo(() => {
     return tasks.filter((t) => {
-      if (!t.project_id) return true;
-      return !projectSpaceMap.get(t.project_id);
+      const hasProjectSpace = t.project_id && projectSpaceMap.get(t.project_id);
+      const hasListSpace = t.list_id && listSpaceMap.get(t.list_id);
+      return !hasProjectSpace && !hasListSpace;
     }).length;
-  }, [tasks, projectSpaceMap]);
+  }, [tasks, projectSpaceMap, listSpaceMap]);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -390,10 +405,13 @@ const Tasks = () => {
       if (selectedList) {
         if (t.list_id !== selectedList) return false;
       } else if (selectedSpace === '__unassigned__') {
-        if (t.project_id && projectSpaceMap.get(t.project_id)) return false;
+        const hasProjectSpace = t.project_id && projectSpaceMap.get(t.project_id);
+        const hasListSpace = t.list_id && listSpaceMap.get(t.list_id);
+        if (hasProjectSpace || hasListSpace) return false;
       } else if (selectedSpace) {
-        if (!t.project_id) return false;
-        if (projectSpaceMap.get(t.project_id) !== selectedSpace) return false;
+        const viaProject = t.project_id && projectSpaceMap.get(t.project_id) === selectedSpace;
+        const viaList = t.list_id && listSpaceMap.get(t.list_id) === selectedSpace;
+        if (!viaProject && !viaList) return false;
       }
       if (assigneeFilter !== 'all' && t.assignee_id !== assigneeFilter) return false;
       if (statusFilter !== 'all' && t.status !== statusFilter) return false;
@@ -425,6 +443,26 @@ const Tasks = () => {
     reset();
     setForm((f) => ({ ...f, status }));
     setDialog(true);
+  };
+
+  const resolveListId = async (): Promise<string | null> => {
+    if (selectedList) return selectedList;
+    if (selectedSpace && selectedSpace !== '__unassigned__') {
+      const existing = taskLists.find((l) => l.space_id === selectedSpace);
+      if (existing) return existing.id;
+      const space = spaces.find((s) => s.id === selectedSpace);
+      const { data } = await supabase.from('task_lists').insert({
+        space_id: selectedSpace,
+        name: space?.name || 'Tasks',
+        color: space?.color || '#6366f1',
+        sort_order: 0,
+      }).select('id').single();
+      if (data) {
+        setTaskLists((prev) => [...prev, { id: data.id, space_id: selectedSpace, folder_id: null, name: space?.name || 'Tasks', color: space?.color || '#6366f1', sort_order: 0 } as any]);
+        return data.id;
+      }
+    }
+    return null;
   };
 
   const save = async () => {
@@ -459,10 +497,12 @@ const Tasks = () => {
         toast({ title: 'Task updated' });
       } else {
         const maxSort = tasks.filter((t) => t.status === form.status).length;
+        const listId = await resolveListId();
         const { data: newTask, error } = await supabase.from('tasks').insert({
           ...payload,
           created_by: profile?.id || null,
           sort_order: maxSort,
+          ...(listId ? { list_id: listId } : {}),
         } as any).select('id').single();
         if (error) throw error;
         if (formAssignees.length > 0 && newTask) {
@@ -505,9 +545,11 @@ const Tasks = () => {
 
   const handleQuickCreate = async (title: string, status: TaskStatus) => {
     const maxSort = tasks.filter((t) => t.status === status).length;
+    const listId = await resolveListId();
     const { error } = await supabase.from('tasks').insert({
       title, status, priority: 'normal',
       created_by: profile?.id || null, sort_order: maxSort,
+      ...(listId ? { list_id: listId } : {}),
     });
     if (error) {
       toast({ title: 'Create failed', description: error.message, variant: 'destructive' });
