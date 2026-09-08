@@ -130,7 +130,7 @@ export default function AppLayout() {
           <header
             role="banner"
             aria-label="Site header"
-            className="h-14 flex items-center justify-between border-b border-border/60 bg-card backdrop-blur-sm px-4 sticky top-0 z-20">
+            className="h-14 flex items-center justify-between border-b border-border/50 bg-card/90 backdrop-blur-xl px-4 sticky top-0 z-20 dark:bg-card/70 dark:border-border/30">
             <div className="flex items-center gap-3 min-w-0">
               {/* Hamburger only on tablet+ where the sidebar exists */}
               <SidebarTrigger className="hidden md:inline-flex shrink-0 kd-transition hover:bg-primary/8 hover:text-primary rounded-md" />
@@ -144,7 +144,7 @@ export default function AppLayout() {
                 {effectiveRole && (
                   <>
                     {pageTitle && <span className="hidden sm:inline text-border/60 text-xs select-none">·</span>}
-                    <span className={`hidden sm:inline text-[10.5px] font-bold px-2 py-0.5 rounded-full tracking-wide border ${roleBadgeClass(effectiveRole ?? '')}`}>
+                    <span className={`hidden sm:inline text-[10px] font-bold px-2.5 py-0.5 rounded-full tracking-wider uppercase border ${roleBadgeClass(effectiveRole ?? '')}`}>
                       {roleLabel(effectiveRole ?? '')}
                     </span>
                   </>
@@ -165,7 +165,7 @@ export default function AppLayout() {
               <button
                 type="button"
                 onClick={openCommandPalette}
-                className="hidden md:inline-flex items-center gap-2 h-8 px-2.5 rounded-md border border-border/60 bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted/70 kd-transition text-xs"
+                className="hidden md:inline-flex items-center gap-2 h-8 px-3 rounded-lg border border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:border-border kd-transition text-xs"
                 aria-label="Open command palette"
               >
                 <Search className="h-3.5 w-3.5" />

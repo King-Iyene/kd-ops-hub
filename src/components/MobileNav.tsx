@@ -145,7 +145,7 @@ export function MobileNav() {
     <>
       {/* ── Bottom tab bar ───────────────────────────────────────── */}
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card/95 backdrop-blur-lg border-t border-border/50 safe-bottom"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card/90 backdrop-blur-xl border-t border-border/40 safe-bottom dark:bg-card/70 dark:border-border/25"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
         <div className="flex items-center justify-around h-14 px-1">

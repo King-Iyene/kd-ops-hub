@@ -568,7 +568,14 @@ input[type=number] {
   }
 
   .kd-gradient-mesh {
-    background: hsl(var(--background));
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 0%, hsl(var(--primary) / 0.03) 0%, transparent 70%),
+      hsl(var(--background));
+  }
+  html.dark .kd-gradient-mesh {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 0%, hsl(var(--primary) / 0.06) 0%, transparent 70%),
+      hsl(var(--background));
   }
 
   /* Text gradient */
