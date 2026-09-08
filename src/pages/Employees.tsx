@@ -7,21 +7,18 @@ import {
   Search,
   Pencil,
   Mail,
-  UserPlus,
   AlertTriangle,
   UserX,
   Info,
   Check,
   Upload,
-  Users,
-
-  Building2,
+  ChevronRight,
 } from 'lucide-react';
 import EmployeeCsvImport from '@/components/hr/EmployeeCsvImport';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { AuroraHero } from '@/components/AuroraHero';
-import { StatCard } from '@/components/ui-kit/StatCard';
+
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -539,7 +536,22 @@ const Employees = () => {
               <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
               <InfoHint>Your full staff directory. Manage roles, salaries, leave balances and increment history. Invite new employees and control access levels.</InfoHint>
             </div>
-            <p className="text-muted-foreground text-sm mt-1">{`${totalCount} team members${inviteCount > 0 ? ` · ${inviteCount} invited` : ''}`}</p>
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                {employees.filter(e => e.status === 'active').length} active
+              </span>
+              {inviteCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  {inviteCount} invited
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                {departments.length} depts
+              </span>
+            </div>
           </div>
           <div className="flex gap-2 flex-wrap">
             {isAdmin && (
@@ -561,12 +573,6 @@ const Employees = () => {
           </div>
         </div>
       </AuroraHero>
-
-      <div className="grid grid-cols-3 gap-3 max-w-xl">
-        <StatCard title="Active" value={employees.filter(e => e.status === 'active').length} icon={Users} tone="success" compact />
-        <StatCard title="Invited" value={employees.filter(e => e.status === 'invited').length} icon={UserPlus} tone="warning" compact />
-        <StatCard title="Departments" value={departments.length} icon={Building2} tone="primary" compact />
-      </div>
 
       <EmployeeCsvImport
         open={showCsvImport}
@@ -803,123 +809,38 @@ const Employees = () => {
               </div>
 
               {/* Mobile employees list */}
-              <div className="md:hidden p-3 space-y-2">
-                {employees.map((e) => {
-                  const accent =
-                    e.status === 'active' ? 'bg-emerald-500'
-                    : e.status === 'invited' ? 'bg-amber-500'
-                    : 'bg-muted-foreground';
-                  return (
-                    <MobileCard
-                      key={e.id}
-                      onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)}
-                      onAuxClick={(ev: React.MouseEvent) => { if (ev.button === 1 && e.status !== 'invited') { window.open(`/employees/${e.id}`, '_blank'); ev.preventDefault(); } }}
-                      accentClassName={accent}
-                    >
-                      <MobileCardHeader>
-                        <EmployeeAvatar
-                          photoUrl={e.photo_url ?? null}
-                          name={displayName(e.first_name, e.last_name, e.full_name)}
-                          size={40}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <MobileCardTitle>{displayName(e.first_name, e.last_name, e.full_name)}</MobileCardTitle>
-                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                            <p className="text-[11px] text-muted-foreground capitalize">{roleLabel(e.role)}</p>
-                            {(() => {
-                              const name =
-                                e.department?.name
-                                ?? departments.find((d) => d.id === e.department_id)?.name
-                                ?? null;
-                              if (!name) return null;
-                              return (
-                                <>
-                                  <span className="text-muted-foreground/40 text-[10px]">·</span>
-                                  <span
-                                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
-                                    style={deptBadgeStyle(name)}
-                                  >
-                                    <span className="h-1 w-1 rounded-full" style={deptDotStyle(name)} />
-                                    {name}
-                                  </span>
-                                </>
-                              );
-                            })()}
-                          </div>
-                          {e.tags && e.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              {e.tags.map((tid) => {
-                                const tag = availableTags.find((t) => t.id === tid);
-                                if (!tag) return null;
-                                return (
-                                  <span
-                                    key={tid}
-                                    className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium"
-                                    style={tag.color ? { backgroundColor: `${tag.color}25`, color: tag.color } : undefined}
-                                  >
-                                    {tag.name}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                        <Badge variant="secondary" className={cn('shrink-0 h-5 px-2 text-[10px]', STATUS_BADGE[e.status] || STATUS_BADGE.inactive)}>
-                          {e.status === 'invited' && <Mail className="h-2.5 w-2.5 mr-1" />}
-                          {e.status}
-                        </Badge>
-                      </MobileCardHeader>
-
-                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground px-1 truncate">
-                        <span className="truncate">{e.email}</span>
-                        {e.phone && <><span className="text-muted-foreground/40">·</span><span className="shrink-0">{e.phone}</span></>}
-                      </div>
-
-                      {canEditEmployee(e) && (
-                        <div className="flex items-center justify-end gap-1.5 px-1 pt-1">
-                          {isAdmin && e.status === 'invited' && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 px-2 text-[11px]"
-                              onClick={(evt) => { evt.stopPropagation(); resendInvite(e); }}
-                            >
-                              <Mail className="h-3 w-3 mr-1" /> Resend
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-2 text-[11px]"
-                            onClick={(evt) => { evt.stopPropagation(); openEdit(e); }}
-                          >
-                            <Pencil className="h-3 w-3 mr-1" /> Edit
-                          </Button>
-                          {isAdmin && e.status === 'active' && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 px-2 text-[11px] text-destructive"
-                              onClick={(evt) => { evt.stopPropagation(); toggleStatus(e); }}
-                            >
-                              <UserX className="h-3 w-3" />
-                            </Button>
-                          )}
-                          {isAdmin && e.status === 'inactive' && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 px-2 text-[11px]"
-                              onClick={(evt) => { evt.stopPropagation(); setConfirmReactivate(e); }}
-                            >
-                              Reactivate
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </MobileCard>
-                  );
-                })}
+              {/* Apple-style clean list — hairline dividers, no card chrome */}
+              <div className="md:hidden divide-y divide-border/40">
+                {employees.map((e) => (
+                  <div
+                    key={e.id}
+                    className="flex items-center gap-3 px-4 py-3 active:bg-muted/30 kd-transition cursor-pointer"
+                    onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)}
+                  >
+                    <EmployeeAvatar
+                      photoUrl={e.photo_url ?? null}
+                      name={displayName(e.first_name, e.last_name, e.full_name)}
+                      size={40}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15px] font-medium text-foreground truncate leading-tight">
+                        {displayName(e.first_name, e.last_name, e.full_name)}
+                      </p>
+                      <p className="text-[13px] text-muted-foreground/70 truncate mt-0.5 capitalize">
+                        {roleLabel(e.role)}
+                        {(() => {
+                          const name = e.department?.name ?? departments.find((d) => d.id === e.department_id)?.name ?? null;
+                          return name ? ` · ${name}` : '';
+                        })()}
+                      </p>
+                    </div>
+                    {e.status === 'invited' ? (
+                      <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">Invited</span>
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0" />
+                    )}
+                  </div>
+                ))}
               </div>
 
               <Pagination
