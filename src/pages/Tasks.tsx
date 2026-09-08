@@ -888,7 +888,7 @@ const Tasks = () => {
           listTaskCounts={listTaskCounts}
           onSelectSpace={setSelectedSpace}
           onSelectList={setSelectedList}
-          onChangeView={(v) => { setCurrentView(v); setSelectedTasks(new Set()); }}
+          onChangeView={(v) => { if (v === 'my-tasks') { setCurrentView('list'); setAssigneeFilter(profile?.id || 'all'); } else { setCurrentView(v); } setSelectedTasks(new Set()); }}
           onCreateSpace={openCreateSpace}
           onEditSpace={openEditSpace}
           onDeleteSpace={(s) => setPendingDeleteSpace(s)}
@@ -921,7 +921,7 @@ const Tasks = () => {
             listTaskCounts={listTaskCounts}
             onSelectSpace={(id) => { setSelectedSpace(id); setSidebarOpen(false); }}
             onSelectList={(id) => { setSelectedList(id); setSidebarOpen(false); }}
-            onChangeView={(v) => { setCurrentView(v); setSidebarOpen(false); setSelectedTasks(new Set()); }}
+            onChangeView={(v) => { if (v === 'my-tasks') { setCurrentView('list'); setAssigneeFilter(profile?.id || 'all'); } else { setCurrentView(v); } setSidebarOpen(false); setSelectedTasks(new Set()); }}
             onCreateSpace={openCreateSpace}
             onEditSpace={openEditSpace}
             onDeleteSpace={(s) => setPendingDeleteSpace(s)}
