@@ -401,7 +401,7 @@ function KpiCell({
     neutral: 'text-foreground',
   };
   return (
-    <div className="px-4 py-3">
+    <div className="px-4 py-3 min-w-0 overflow-hidden">
       <div className="flex items-center gap-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
         {icon}
         <span>{label}</span>
@@ -410,7 +410,7 @@ function KpiCell({
       {value === null ? (
         <Skeleton className="h-5 w-20 mt-1.5" />
       ) : (
-        <p className={cn('text-[14px] sm:text-[18px] font-bold tabular-nums font-mono mt-1 leading-tight whitespace-nowrap', valueClass[tone])}>
+        <p className={cn('text-[14px] sm:text-[16px] font-bold tabular-nums font-mono mt-1 leading-tight truncate', valueClass[tone])} title={value}>
           {value}
         </p>
       )}
