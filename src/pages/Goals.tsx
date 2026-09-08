@@ -134,21 +134,26 @@ const currentQuarter = (): string => {
   return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`;
 };
 
+const QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4'];
+
+const yearOptions = (): number[] => {
+  const years: number[] = [];
+  for (let y = 2025; y <= 2040; y++) years.push(y);
+  return years;
+};
+
 const quarterOptions = (): string[] => {
-  const now = new Date();
-  const current = Math.floor(now.getMonth() / 3) + 1;
-  const q = (y: number, n: number) => `${y}-Q${n}`;
-  return [
-    q(now.getFullYear() + 1, 1),
-    q(now.getFullYear(), 4),
-    q(now.getFullYear(), 3),
-    q(now.getFullYear(), 2),
-    q(now.getFullYear(), 1),
-    q(now.getFullYear() - 1, 4),
-  ].filter((val) => {
-    const [y, qn] = val.split('-Q').map(Number);
-    return y !== now.getFullYear() || qn >= current - 2;
-  });
+  const years = yearOptions();
+  const opts: string[] = [];
+  for (const y of years) {
+    for (const q of QUARTERS) opts.push(`${y}-${q}`);
+  }
+  return opts;
+};
+
+const parseQuarter = (q: string): { year: string; quarter: string } => {
+  const parts = q.split('-');
+  return { year: parts[0] || String(new Date().getFullYear()), quarter: parts[1] || 'Q1' };
 };
 
 const Goals = () => {
@@ -545,7 +550,7 @@ const Goals = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All quarters</SelectItem>
-              {quarterOptions().map((q) => (
+              {Array.from(new Set([currentQuarter(), ...goals.map((g) => g.quarter)])).sort().reverse().map((q) => (
                 <SelectItem key={q} value={q}>
                   {q}
                 </SelectItem>
@@ -878,17 +883,31 @@ const Goals = () => {
               <div className="space-y-1">
                 <Label>Quarter</Label>
                 <Select
-                  value={form.quarter}
-                  onValueChange={(v) => setForm({ ...form, quarter: v })}
+                  value={parseQuarter(form.quarter).quarter}
+                  onValueChange={(v) => setForm({ ...form, quarter: `${parseQuarter(form.quarter).year}-${v}` })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {quarterOptions().map((q) => (
-                      <SelectItem key={q} value={q}>
-                        {q}
-                      </SelectItem>
+                    {QUARTERS.map((q) => (
+                      <SelectItem key={q} value={q}>{q}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Year</Label>
+                <Select
+                  value={parseQuarter(form.quarter).year}
+                  onValueChange={(v) => setForm({ ...form, quarter: `${v}-${parseQuarter(form.quarter).quarter}` })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yearOptions().map((y) => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
