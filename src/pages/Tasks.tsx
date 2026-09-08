@@ -3,7 +3,7 @@ import {
   Plus, Search, Loader2, ListTodo, Flag,
   Check, X, Filter, Trash2, Target,
   User, ArrowRight, Download, CalendarDays, FileText,
-  LayoutGrid, List, Table2, GanttChart, Weight, Activity, Timer, BarChart3,
+  LayoutGrid, List, Table2, GanttChart, Weight, BarChart3,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -83,7 +83,7 @@ const Tasks = () => {
   const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
 
   // Sidebar state
-  const [currentView, setCurrentView] = useState<TaskView>('my-tasks');
+  const [currentView, setCurrentView] = useState<TaskView>('list');
   const [selectedSpace, setSelectedSpace] = useState<string | null>(null);
   const [selectedList, setSelectedList] = useState<string | null>(null);
   const [spaces, setSpaces] = useState<Space[]>([]);
@@ -1084,8 +1084,6 @@ const Tasks = () => {
               { key: 'calendar' as const, icon: CalendarDays, label: 'Calendar' },
               { key: 'gantt' as const, icon: GanttChart, label: 'Gantt' },
               { key: 'workload' as const, icon: Weight, label: 'Workload' },
-              { key: 'activity' as const, icon: Activity, label: 'Activity' },
-              { key: 'time-report' as const, icon: Timer, label: 'Time Reports' },
               { key: 'dashboard' as const, icon: BarChart3, label: 'Dashboard' },
             ] as const).map(({ key, icon: VIcon, label }) => (
               <button
