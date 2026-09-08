@@ -355,7 +355,7 @@ const NewPaymentBatch = () => {
           full_name: it.full_name || '',
           bank_name: it.bank_name || '',
           account_number: it.account_number || '',
-          amount_ngn: it.amount_ngn || 0,
+          amount_ngn: it.gross_amount_ngn || it.amount_ngn || 0,
           reference: it.reference || '',
           contractor_id: it.contractor_id || undefined,
           employee_id: it.employee_id || undefined,
