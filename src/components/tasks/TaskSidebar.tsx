@@ -142,22 +142,6 @@ export function TaskSidebar({
         </div>
       )}
 
-      {/* ─── Views Section ────────────────────────────── */}
-      <div className="space-y-0.5 mb-4">
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2 mb-1.5">
-          Views
-        </p>
-        <SidebarItem icon={LayoutGrid} label="Board" active={currentView === 'board'} onClick={() => onChangeView('board')} />
-        <SidebarItem icon={List} label="List" active={currentView === 'list'} onClick={() => onChangeView('list')} />
-        <SidebarItem icon={Table2} label="Table" active={currentView === 'table'} onClick={() => onChangeView('table')} />
-        <SidebarItem icon={CalendarDays} label="Calendar" active={currentView === 'calendar'} onClick={() => onChangeView('calendar')} />
-        <SidebarItem icon={GanttChart} label="Gantt" active={currentView === 'gantt'} onClick={() => onChangeView('gantt')} />
-        <SidebarItem icon={Weight} label="Workload" active={currentView === 'workload'} onClick={() => onChangeView('workload')} />
-        <SidebarItem icon={Activity} label="Activity" active={currentView === 'activity'} onClick={() => onChangeView('activity')} />
-        <SidebarItem icon={Timer} label="Time Reports" active={currentView === 'time-report'} onClick={() => onChangeView('time-report')} />
-        <SidebarItem icon={BarChart3} label="Dashboard" active={currentView === 'dashboard'} onClick={() => onChangeView('dashboard')} />
-      </div>
-
       {/* ─── Folders Section ───────────────────────────── */}
       <div className="flex-1 min-h-0 space-y-0.5">
         <div className="flex items-center justify-between px-2 mb-1.5">
@@ -331,20 +315,6 @@ export function TaskSidebar({
               );
             })}
 
-            {unorganizedCount > 0 && (
-              <SidebarItem
-                icon={FolderOpen}
-                label="Unfiled"
-                count={unorganizedCount}
-                active={selectedSpace === '__unassigned__'}
-                onClick={() => {
-                  onSelectSpace('__unassigned__');
-                  onSelectList(null);
-                  ensureTaskView();
-                }}
-                muted
-              />
-            )}
           </div>
         )}
       </div>
