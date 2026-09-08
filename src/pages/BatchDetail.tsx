@@ -2059,7 +2059,7 @@ const BatchDetail = () => {
                       <div className="flex items-start gap-1.5">
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-medium truncate">{item.full_name || 'Unknown Recipient'}</span>
+                            <span className="font-medium truncate capitalize">{(item.full_name || 'Unknown Recipient').toLowerCase()}</span>
                             {item.failure_reason && (() => {
                               const f = friendlyPaystackError(item.failure_reason);
                               const isOtp = /awaiting otp/i.test(item.failure_reason);
@@ -2344,7 +2344,7 @@ const BatchDetail = () => {
               {filteredItems.map((item) => (
                 <MobileCard key={item.id}>
                   <MobileCardHeader>
-                    <MobileCardTitle>{item.full_name || 'Unknown Recipient'}</MobileCardTitle>
+                    <MobileCardTitle className="capitalize">{(item.full_name || 'Unknown Recipient').toLowerCase()}</MobileCardTitle>
                     <MobileCardMeta className="currency">
                       {canSeeAmounts ? formatNaira(item.amount_ngn || 0) : '--- ---'}
                     </MobileCardMeta>

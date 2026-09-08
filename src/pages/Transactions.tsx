@@ -663,7 +663,7 @@ const Transactions = () => {
                           </td>
                           <td className="px-3 py-2 text-[13px] max-w-[260px]">
                             <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="font-medium truncate">{r.account_name || r.description || '—'}</span>
+                              <span className="font-medium truncate capitalize">{(r.account_name || r.description || '—').toLowerCase()}</span>
                               {f && ledgerStatus === 'failed' && (
                                 <Popover>
                                   <PopoverTrigger asChild>

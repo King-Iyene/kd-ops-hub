@@ -444,19 +444,6 @@ const Payments = () => {
             <PendingPayoutsCard walletBalanceNgn={balance?.available ?? null} />
           )}
 
-          {effectiveRole !== 'operations' && (
-            <Card className="border-border/70">
-              <CardContent className="kd-holographic relative px-4 py-3.5 kd-transition">
-                <div className="relative z-[2]">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Paid this month</p>
-                  <p className="mt-1.5 text-[20px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
-                    {formatNaira(stats.thisMonthAmount)}
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground/80 tabular-nums truncate">Settled — Paystack + Flutterwave</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
       )}
 
