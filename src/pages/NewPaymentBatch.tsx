@@ -23,7 +23,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { useDebounce } from '@/hooks/useDebounce';
 import {
   Loader2, Trash2, ArrowLeft, ArrowRight, Check, Search, Plus, Upload,
-  Users, Banknote, CreditCard, Gift, AlertTriangle, Building2, Wallet, ReceiptText,
+  Users, Banknote, Gift, AlertTriangle, Building2, ReceiptText,
 } from 'lucide-react';
 import { StickyActionBar, StickyActionBarSpacer } from '@/components/ui-kit/StickyActionBar';
 import {
@@ -111,42 +111,28 @@ const BATCH_TYPES: {
     type: 'contractor',
     icon: <Building2 className="h-5 w-5" />,
     label: 'Contractor Payment',
-    desc: 'Pay partners & contractors',
+    desc: 'Partners & vendors',
     color: 'text-blue-600',
   },
   {
     type: 'employee_salary',
     icon: <Banknote className="h-5 w-5" />,
-    label: 'Employee Salary Run',
-    desc: 'Monthly salary disbursement',
+    label: 'Employee Salary',
+    desc: 'Monthly payroll',
     color: 'text-emerald-600',
   },
   {
-    type: 'employee_allowance',
-    icon: <Wallet className="h-5 w-5" />,
-    label: 'Employee Allowance',
-    desc: 'Team allowances, stipends, etc.',
-    color: 'text-teal-600',
-  },
-  {
-    type: 'employee_reimbursement',
-    icon: <ReceiptText className="h-5 w-5" />,
-    label: 'Employee Reimbursement',
-    desc: 'Repair requests, expense refunds',
-    color: 'text-sky-600',
-  },
-  {
     type: 'advance',
-    icon: <CreditCard className="h-5 w-5" />,
+    icon: <ReceiptText className="h-5 w-5" />,
     label: 'Salary Advance',
-    desc: 'Short-term advance payment',
+    desc: 'Advance against salary',
     color: 'text-amber-600',
   },
   {
     type: 'prize',
     icon: <Gift className="h-5 w-5" />,
-    label: 'Bonus / Prize',
-    desc: '13th month, performance, etc.',
+    label: 'Bonus',
+    desc: '13th month, performance',
     color: 'text-purple-600',
   },
 ];
@@ -828,12 +814,8 @@ const NewPaymentBatch = () => {
                           setBatchName(`Salary Run — ${monthLong}`);
                           setPeriod(monthShort);
                           setPaymentDate(next25);
-                        } else if (t.type === 'employee_allowance') {
-                          setBatchName(`Employee Allowance — ${monthLong}`);
-                          setPeriod(monthShort);
-                          setPaymentDate(today);
-                        } else if (t.type === 'employee_reimbursement') {
-                          setBatchName(`Employee Reimbursement — ${monthLong}`);
+                        } else if (t.type === 'contractor') {
+                          setBatchName(`Contractor Payment — ${monthLong}`);
                           setPeriod(monthShort);
                           setPaymentDate(today);
                         } else if (t.type === 'advance') {
@@ -841,11 +823,7 @@ const NewPaymentBatch = () => {
                           setPeriod(monthShort);
                           setPaymentDate(today);
                         } else if (t.type === 'prize') {
-                          setBatchName(`Bonus Run — ${monthLong}`);
-                          setPeriod(monthShort);
-                          setPaymentDate(today);
-                        } else if (t.type === 'contractor') {
-                          setBatchName(`Contractor Payment — ${monthLong}`);
+                          setBatchName(`Bonus — ${monthLong}`);
                           setPeriod(monthShort);
                           setPaymentDate(today);
                         }
