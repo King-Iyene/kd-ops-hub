@@ -343,7 +343,7 @@ const Payments = () => {
 
 
   useEffect(() => { fetchBalance(); }, [fetchBalance]);
-  useEffect(() => { fetchBatches(); fetchStats(); }, [statusFilter, page]);
+  useEffect(() => { fetchBatches(); fetchStats(); }, [statusFilter, page, effectiveRole]);
 
   const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchBatches);
 
@@ -591,7 +591,7 @@ const Payments = () => {
               Previous
             </Button>
             <span className="text-xs text-muted-foreground">Page {page + 1}</span>
-            <Button variant="outline" size="sm" disabled={filtered.length < 1000} onClick={() => setPage(page + 1)}>
+            <Button variant="outline" size="sm" disabled={batches.length < 1000} onClick={() => setPage(page + 1)}>
               Next
             </Button>
           </div>

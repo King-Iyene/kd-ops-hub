@@ -742,7 +742,7 @@ const Employees = () => {
                         {e.phone || <span className="text-muted-foreground/40">—</span>}
                       </TableCell>
                       <TableCell className="text-[13px] text-muted-foreground/70 tabular-nums whitespace-nowrap">
-                        {e.created_at ? new Date(e.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                        {e.created_at ? formatDate(e.created_at) : '—'}
                       </TableCell>
                       <TableCell>
                         <Badge

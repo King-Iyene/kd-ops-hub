@@ -262,7 +262,7 @@ const Transactions = () => {
         (r.batch_name || '').toLowerCase().includes(q)
       );
     });
-  }, [rows, debouncedSearch, typeFilter, categoryFilter, statusFilter, from, to]);
+  }, [roleScopedRows, debouncedSearch, typeFilter, categoryFilter, statusFilter, from, to]);
 
   const pagination = usePagination(filtered, 25);
 
