@@ -22,8 +22,15 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Plus, Search, RefreshCw, ArrowRight, Users,
+  Plus, Search, RefreshCw, ArrowRight, Users, ChevronDown,
 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import { QuickPayDialog } from '@/components/QuickPay';
 import { PaystackBalanceCard } from '@/components/PaystackBalanceCard';
 import { FlutterwaveBalanceCard } from '@/components/FlutterwaveBalanceCard';
@@ -359,7 +366,7 @@ const Payments = () => {
 
   return (
     <div className="space-y-5">
-      {/* ── Header ─────────────────────────────────────────────── */}
+      {/* ── Header bar ─────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
@@ -381,23 +388,51 @@ const Payments = () => {
           </p>
         </div>
 
-        <div className="flex items-start gap-3 flex-wrap justify-end w-full sm:w-auto">
-          {canSeeWallet && <PaystackBalanceCard
-            balance={balance}
-            balanceLoading={balanceLoading}
-            balanceError={balanceError}
-            balanceUpdatedAt={balanceUpdatedAt}
-            balanceHidden={balanceHidden}
-            toggleBalanceHidden={toggleBalanceHidden}
-            fetchBalance={fetchBalance}
-            funding={funding}
-          />}
+        {/* Action buttons — primary New Batch + secondary dropdown */}
+        <div className="flex gap-2 items-center">
+          {canQuickPay && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9">
+                  Actions <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => undefined}>
+                  <QuickPayDialog />
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => setConfirmReconcile(true)}
+                  disabled={reconciling}
+                >
+                  <RefreshCw className={cn('mr-2 h-4 w-4', reconciling && 'animate-spin')} />
+                  Reconcile
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <Button onClick={() => navigate('/payments/new')} className="h-9">
+            <Plus className="mr-2 h-4 w-4" /> New Batch
+          </Button>
+        </div>
+      </div>
 
-          {/* Flutterwave balance card — always visible alongside Paystack so
-              finance can see both wallets at a glance. When Flutterwave is the
-              active provider it appears full-colour with a "● LIVE" pill;
-              otherwise it renders dimmed with "○ Standby" so there's no
-              confusion about which rail is currently paying. */}
+      {/* ── Financial overview ─────────────────────────────────── */}
+      {(canSeeWallet || effectiveRole !== 'operations') && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {canSeeWallet && (
+            <PaystackBalanceCard
+              balance={balance}
+              balanceLoading={balanceLoading}
+              balanceError={balanceError}
+              balanceUpdatedAt={balanceUpdatedAt}
+              balanceHidden={balanceHidden}
+              toggleBalanceHidden={toggleBalanceHidden}
+              fetchBalance={fetchBalance}
+              funding={funding}
+            />
+          )}
+
           {canSeeWallet && (
             <FlutterwaveBalanceCard
               balanceHidden={balanceHidden}
@@ -405,93 +440,56 @@ const Payments = () => {
             />
           )}
 
-          {/* Action buttons — full-width row on mobile so taps are easy */}
-          <div className="flex gap-2 w-full sm:w-auto flex-wrap">
-            {canQuickPay && <QuickPayDialog />}
-            {canQuickPay && (
-              <Button
-                variant="outline"
-                onClick={() => setConfirmReconcile(true)}
-                disabled={reconciling}
-                className="flex-1 sm:flex-initial h-10 sm:h-9"
-                title="Re-check stuck transfers with Paystack"
-              >
-                <RefreshCw className={cn('mr-2 h-4 w-4', reconciling && 'animate-spin')} />
-                Reconcile
-              </Button>
-            )}
-            <Button onClick={() => navigate('/payments/new')} className="flex-1 sm:flex-initial h-10 sm:h-9">
-              <Plus className="mr-2 h-4 w-4" /> New Batch
-            </Button>
-          </div>
-        </div>
-      </div>
+          {canSeeWallet && (
+            <PendingPayoutsCard walletBalanceNgn={balance?.available ?? null} />
+          )}
 
-      {/* Pending payouts overview — answers the daily "how much do
-          we owe right now?" without forcing the operator to open
-          every single batch one by one. Side-by-side with the
-          wallet card on wide screens, stacked on mobile. */}
-      {canSeeWallet && (
-        <PendingPayoutsCard walletBalanceNgn={balance?.available ?? null} />
+          {/* Stat tiles — each in its own card */}
+          {effectiveRole !== 'operations' && [
+            {
+              label: 'Pending approval',
+              value: stats.pendingCount,
+              sub: formatNaira(stats.pendingAmount),
+            },
+            {
+              label: 'In processing',
+              value: stats.processingCount,
+              sub: 'Active transfers',
+              pulse: stats.processingCount > 0,
+            },
+            {
+              label: 'Paid this month',
+              value: formatNaira(stats.thisMonthAmount),
+              sub: 'Settled — Paystack + Flutterwave',
+            },
+          ].map(({ label, value, sub, pulse }) => (
+            <Card key={label} className="border-border/70">
+              <CardContent className="kd-holographic relative px-4 py-3.5 kd-transition">
+                <div className="relative z-[2]">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1.5">
+                    {label}
+                    {pulse && <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-blue-500 animate-pulse" />}
+                  </p>
+                  <p className="mt-1.5 text-[20px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
+                    {value}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground/80 tabular-nums truncate">{sub}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
 
-      {/* ── Stats row ──────────────────────────────────────────────
-          Pure Mercury / Brex / Ramp — matching the Transactions
-          module the operator picked. Hairline tiles, mono counts,
-          local currency glyph (₦), no ISO prefix, no dots on the
-          tile (those are kept on the rows below). Time-of-day
-          holographic hover. Hidden from operators — they only see their own batches. */}
-      {effectiveRole !== 'operations' && <div className="rounded-lg border border-border/70 bg-card grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-border/70 overflow-hidden">
-        {[
-          {
-            label: 'Pending approval',
-            value: stats.pendingCount,
-            sub: formatNaira(stats.pendingAmount),
-          },
-          {
-            label: 'In processing',
-            value: stats.processingCount,
-            sub: 'Active transfers',
-            pulse: stats.processingCount > 0,
-          },
-          {
-            label: 'Paid this month',
-            value: formatNaira(stats.thisMonthAmount),
-            sub: 'Settled — Paystack + Flutterwave',
-          },
-        ].map(({ label, value, sub, pulse }) => (
-          <div key={label} className="kd-holographic relative px-4 py-3.5 kd-transition">
-            <div className="relative z-[2]">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1.5">
-                {label}
-                {pulse && <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-blue-500 animate-pulse" />}
-              </p>
-              <p className="mt-1.5 text-[20px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
-                {value}
-              </p>
-              <p className="mt-1 text-[11px] text-muted-foreground/80 tabular-nums truncate">{sub}</p>
-            </div>
-          </div>
-        ))}
-      </div>}
-
-      {/* ── Filters + list ─────────────────────────────────────── */}
-      <div className="space-y-3" id="batches-list">
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          {/* Tabs scroll horizontally on mobile so they don't wrap into a
-              second row that pushes the table down. Snap to each pill. */}
-          {/* German tabs — uppercase compressed labels, square
-              underline indicator, severe letter-spacing.
-              Sparkasse and Deutsche Bank use this exact pattern. */}
+      {/* ── Batch list ─────────────────────────────────────────── */}
+      <Card className="border-border/70" id="batches-list">
+        {/* Filter bar as card header */}
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between px-4 py-3 border-b border-border/70">
           <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }} className="w-full sm:w-auto">
             <div className="-mx-1 overflow-x-auto kd-mobile-snap-x sm:overflow-visible">
               <TabsList className="h-8 bg-transparent border-b border-border rounded-none inline-flex w-max sm:flex sm:w-auto sm:flex-wrap p-0 gap-0">
                 {[
                   { value: 'all', label: 'All' },
-                  // Virtual multi-status filter covering the entire
-                  // pre-dispatch pipeline (pending_approval,
-                  // pending_second_approval, approved, funded).
-                  // See fetchBatches for the exact status mapping.
                   { value: 'pending', label: 'Awaiting Dispatch' },
                   { value: 'processing', label: 'Processing' },
                   { value: 'processed', label: 'Done' },
@@ -523,127 +521,114 @@ const Payments = () => {
           </div>
         </div>
 
-        {loading ? (
-          <TableSkeleton rows={5} />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            illustration="coin"
-            title={statusFilter === 'all' ? 'No payment batches yet' : `No ${statusLabel(statusFilter)?.toLowerCase() || statusFilter} batches`}
-            description="Create a batch to pay contractors in bulk or use Quick Pay for one-off transfers."
-            action={
-              <Button onClick={() => navigate('/payments/new')}>
-                <Plus className="mr-2 h-4 w-4" /> Create Batch
-              </Button>
-            }
-          />
-        ) : (
-          /* Continental hybrid ledger row:
-               • US base — hairline rows, status rail on the left,
-                 dot+text status (StatusBadge outline variant)
-               • German grafts — column headers, mono nums, ISO
-                 currency code, UPPERCASE compressed status,
-                 right-aligned amount column with NGN prefix
-               • Swiss precision — 0.14em letter-spacing on
-                 column headers, exact pixel rhythm
-               • Swedish warmth — Inter sans for names + body
-                 (default), softer rail (2px), draft rows fade
-                 instead of looking dead. */
-          <div className="rounded-lg border border-border/70 bg-card overflow-hidden">
-            {/* Column header — uppercase compressed, hairline rule. */}
-            <div className="hidden md:grid grid-cols-[12px_1fr_180px_110px_140px_12px] gap-3 items-center px-3 h-8 border-b border-border/70 bg-muted/30">
-              <span />
-              <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Description</p>
-              <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Recipients · Pay date</p>
-              <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Status</p>
-              <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90 text-right">Amount</p>
-              <span />
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="p-4"><TableSkeleton rows={5} /></div>
+          ) : filtered.length === 0 ? (
+            <div className="p-4">
+              <EmptyState
+                illustration="coin"
+                title={statusFilter === 'all' ? 'No payment batches yet' : `No ${statusLabel(statusFilter)?.toLowerCase() || statusFilter} batches`}
+                description="Create a batch to pay contractors in bulk or use Quick Pay for one-off transfers."
+                action={
+                  <Button onClick={() => navigate('/payments/new')}>
+                    <Plus className="mr-2 h-4 w-4" /> Create Batch
+                  </Button>
+                }
+              />
             </div>
-            <div className="divide-y divide-border/50">
-            {filtered.map((batch) => {
-              const typeMeta = batch.batch_type ? BATCH_TYPE_META[batch.batch_type] : null;
-              const isProcessing = batch.status === 'processing' || batch.status === 'partially_processed';
-              const isFailed = batch.status === 'rejected' || batch.status === 'failed';
-              const isPending = batch.status === 'pending_approval';
-              const isProcessed = batch.status === 'processed';
-              const isDraft = batch.status === 'draft';
-              const railColor = isProcessing ? 'bg-blue-600'
-                : isPending ? 'bg-amber-500'
-                : isFailed ? 'bg-red-600'
-                : isProcessed ? 'bg-emerald-600'
-                : isDraft ? 'bg-slate-300'
-                : 'bg-slate-400';
-              const amountColor = isFailed ? 'text-red-700'
-                : isProcessed ? 'text-emerald-700'
-                : 'text-foreground';
-              return (
-                <Link
-                  key={batch.id}
-                  to={`/payments/${batch.id}`}
-                  className={cn(
-                    'group relative md:grid md:grid-cols-[12px_1fr_180px_110px_140px_12px] gap-3 items-center flex flex-wrap px-3 md:h-11 py-2.5 md:py-0 cursor-pointer kd-transition',
-                    'hover:bg-muted/30',
-                    isFailed && 'bg-red-50/20 dark:bg-red-950/10',
-                    isPending && 'bg-amber-50/20 dark:bg-amber-950/10',
-                    isDraft && 'opacity-60',
-                  )}
-                >
-                  {/* Left status rail — 2px wide */}
-                  <span className={cn('absolute left-0 top-0 h-full w-[2px]', railColor, isProcessing && 'animate-pulse')} />
-                  <span />
-
-                  {/* Description (col 2) */}
-                  <div className="min-w-0 flex items-center gap-2">
-                    <p className="font-medium text-[13px] text-foreground truncate">{batch.name}</p>
-                    {typeMeta && (
-                      <span className={cn('hidden lg:inline-flex items-center rounded px-1.5 py-0 text-[9.5px] font-semibold uppercase tracking-[0.06em] shrink-0', typeMeta.bg, typeMeta.text)}>
-                        {typeMeta.label}
-                      </span>
+          ) : (
+            <>
+              {/* Column header */}
+              <div className="hidden md:grid grid-cols-[12px_1fr_180px_110px_140px_12px] gap-3 items-center px-3 h-8 border-b border-border/70 bg-muted/30">
+                <span />
+                <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Description</p>
+                <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Recipients · Pay date</p>
+                <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Status</p>
+                <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90 text-right">Amount</p>
+                <span />
+              </div>
+              <div className="divide-y divide-border/50">
+              {filtered.map((batch) => {
+                const typeMeta = batch.batch_type ? BATCH_TYPE_META[batch.batch_type] : null;
+                const isProcessing = batch.status === 'processing' || batch.status === 'partially_processed';
+                const isFailed = batch.status === 'rejected' || batch.status === 'failed';
+                const isPending = batch.status === 'pending_approval';
+                const isProcessed = batch.status === 'processed';
+                const isDraft = batch.status === 'draft';
+                const railColor = isProcessing ? 'bg-blue-600'
+                  : isPending ? 'bg-amber-500'
+                  : isFailed ? 'bg-red-600'
+                  : isProcessed ? 'bg-emerald-600'
+                  : isDraft ? 'bg-slate-300'
+                  : 'bg-slate-400';
+                const amountColor = isFailed ? 'text-red-700'
+                  : isProcessed ? 'text-emerald-700'
+                  : 'text-foreground';
+                return (
+                  <Link
+                    key={batch.id}
+                    to={`/payments/${batch.id}`}
+                    className={cn(
+                      'group relative md:grid md:grid-cols-[12px_1fr_180px_110px_140px_12px] gap-3 items-center flex flex-wrap px-3 md:h-11 py-2.5 md:py-0 cursor-pointer kd-transition',
+                      'hover:bg-muted/30',
+                      isFailed && 'bg-red-50/20 dark:bg-red-950/10',
+                      isPending && 'bg-amber-50/20 dark:bg-amber-950/10',
+                      isDraft && 'opacity-60',
                     )}
-                  </div>
+                  >
+                    <span className={cn('absolute left-0 top-0 h-full w-[2px]', railColor, isProcessing && 'animate-pulse')} />
+                    <span />
 
-                  {/* Recipients · Pay date (col 3) */}
-                  <p className="hidden md:block text-[11px] text-muted-foreground tabular-nums font-mono tracking-tight">
-                    {batch.beneficiary_count} · {formatDate(batch.payment_date)}
-                  </p>
+                    <div className="min-w-0 flex items-center gap-2">
+                      <p className="font-medium text-[13px] text-foreground truncate">{batch.name}</p>
+                      {typeMeta && (
+                        <span className={cn('hidden lg:inline-flex items-center rounded px-1.5 py-0 text-[9.5px] font-semibold uppercase tracking-[0.06em] shrink-0', typeMeta.bg, typeMeta.text)}>
+                          {typeMeta.label}
+                        </span>
+                      )}
+                    </div>
 
-                  {/* Status (col 4) — outlined badge with breathing dot */}
-                  <div className="hidden md:block">
-                    <StatusBadge status={batch.status} variant="outline" size="sm" />
-                  </div>
-
-                  {/* Amount (col 5) — pure Mercury: ₦ glyph, mono, right-aligned */}
-                  <div className="text-right ml-auto md:ml-0 shrink-0">
-                    <p className={cn('font-mono font-semibold text-[13px] tabular-nums leading-none tracking-tight', amountColor)}>
-                      {formatNaira(batch.total_amount || 0)}
+                    <p className="hidden md:block text-[11px] text-muted-foreground tabular-nums font-mono tracking-tight">
+                      {batch.beneficiary_count} · {formatDate(batch.payment_date)}
                     </p>
-                  </div>
 
-                  {/* Mobile-only secondary line */}
-                  <div className="md:hidden basis-full mt-1 flex items-center gap-2 text-[10.5px] text-muted-foreground tabular-nums font-mono">
-                    <StatusBadge status={batch.status} variant="outline" size="sm" />
-                    <span className="text-muted-foreground/40">·</span>
-                    <span>{batch.beneficiary_count} · {formatDate(batch.payment_date)}</span>
-                  </div>
+                    <div className="hidden md:block">
+                      <StatusBadge status={batch.status} variant="outline" size="sm" />
+                    </div>
 
-                  <ArrowRight className="hidden md:block shrink-0 h-3 w-3 text-muted-foreground/30 group-hover:text-foreground kd-transition" />
-                </Link>
-              );
-            })}
-            </div>
+                    <div className="text-right ml-auto md:ml-0 shrink-0">
+                      <p className={cn('font-mono font-semibold text-[13px] tabular-nums leading-none tracking-tight', amountColor)}>
+                        {formatNaira(batch.total_amount || 0)}
+                      </p>
+                    </div>
+
+                    <div className="md:hidden basis-full mt-1 flex items-center gap-2 text-[10.5px] text-muted-foreground tabular-nums font-mono">
+                      <StatusBadge status={batch.status} variant="outline" size="sm" />
+                      <span className="text-muted-foreground/40">·</span>
+                      <span>{batch.beneficiary_count} · {formatDate(batch.payment_date)}</span>
+                    </div>
+
+                    <ArrowRight className="hidden md:block shrink-0 h-3 w-3 text-muted-foreground/30 group-hover:text-foreground kd-transition" />
+                  </Link>
+                );
+              })}
+              </div>
+            </>
+          )}
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border/70">
+            <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
+              Previous
+            </Button>
+            <span className="text-xs text-muted-foreground">Page {page + 1}</span>
+            <Button variant="outline" size="sm" disabled={filtered.length < 1000} onClick={() => setPage(page + 1)}>
+              Next
+            </Button>
           </div>
-        )}
-
-        {/* Pagination */}
-        <div className="flex items-center justify-between pt-1">
-          <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
-            Previous
-          </Button>
-          <span className="text-xs text-muted-foreground">Page {page + 1}</span>
-          <Button variant="outline" size="sm" disabled={filtered.length < 1000} onClick={() => setPage(page + 1)}>
-            Next
-          </Button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <AlertDialog open={confirmReconcile} onOpenChange={setConfirmReconcile}>
         <AlertDialogContent>

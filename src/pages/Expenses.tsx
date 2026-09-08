@@ -30,6 +30,10 @@ import {
   RotateCcw,
   BanknoteIcon,
   Pencil,
+  Clock,
+  Calculator,
+  Wallet,
+  BarChart3,
 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -107,6 +111,7 @@ import { BankAccountField, type BankAccountValue } from '@/components/BankAccoun
 import { FilePreviewTrigger } from '@/components/FilePreview';
 import { cn } from '@/lib/utils';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
+import { StatCard } from '@/components/ui-kit/StatCard';
 
 const CATEGORIES = EXPENSE_CATEGORY_KEYS;
 
@@ -1127,6 +1132,52 @@ const Expenses = () => {
     rejected: expenses.filter((e) => e.status === 'rejected').length,
   }), [expenses]);
 
+  const expenseStats = useMemo(() => {
+    const pending = expenses.filter(
+      (e) => e.status === 'pending' || e.status === 'pending_second_approval',
+    );
+    const pendingTotal = pending.reduce((s, e) => s + Number(e.amount_ngn || 0), 0);
+
+    const now = new Date();
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const approvedThisMonth = expenses.filter((e) => {
+      if (e.status !== 'approved') return false;
+      const d = new Date(e.date);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === thisMonth;
+    });
+    const approvedThisMonthTotal = approvedThisMonth.reduce(
+      (s, e) => s + Number(e.amount_ngn || 0), 0,
+    );
+
+    const allApproved = expenses.filter((e) => e.status === 'approved');
+    const totalSpent = allApproved.reduce((s, e) => s + Number(e.amount_ngn || 0), 0);
+
+    const avgClaim = expenses.length > 0
+      ? expenses.reduce((s, e) => s + Number(e.amount_ngn || 0), 0) / expenses.length
+      : 0;
+
+    return {
+      pendingCount: pending.length,
+      pendingTotal,
+      approvedMonthCount: approvedThisMonth.length,
+      approvedMonthTotal: approvedThisMonthTotal,
+      totalSpent,
+      avgClaim,
+    };
+  }, [expenses]);
+
+  // Top categories for sidebar summary
+  const topCategories = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const e of expenses.filter((x) => x.status === 'approved')) {
+      map[e.category] = (map[e.category] || 0) + Number(e.amount_ngn || 0);
+    }
+    return Object.entries(map)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([category, amount]) => ({ category, amount }));
+  }, [expenses]);
+
   // -- Trend chart ----------------------------------------------------------
 
   const trendData = useMemo(() => {
@@ -1235,6 +1286,7 @@ const Expenses = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
@@ -1244,14 +1296,19 @@ const Expenses = () => {
           <p className="text-muted-foreground text-sm mt-1">Track and manage expense claims.</p>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
-          <button
-            type="button"
-            onClick={manualRefresh}
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            title="Refresh"
-          >
-            <RefreshCw className="h-3 w-3" /> {lastUpdatedLabel}
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={manualRefresh}
+                className="h-9 w-9 text-muted-foreground"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{lastUpdatedLabel || 'Refresh'}</TooltipContent>
+          </Tooltip>
           {isApprover && (
             <Button
               variant="outline"
@@ -1269,7 +1326,7 @@ const Expenses = () => {
             >
               {bulkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Check className="mr-2 h-4 w-4" />
-              Approve all pending ({pendingCount})
+              Approve all ({pendingCount})
             </Button>
           )}
           {isApprover && canProcessPerm && payableExpenses.length > 0 && (
@@ -1281,7 +1338,7 @@ const Expenses = () => {
             >
               {bulkPaying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <CreditCard className="mr-2 h-4 w-4" />
-              Pay all approved ({payableExpenses.length})
+              Pay all ({payableExpenses.length})
             </Button>
           )}
           <Button onClick={() => setShowForm(true)}>
@@ -1290,34 +1347,102 @@ const Expenses = () => {
         </div>
       </div>
 
-      {/* Trend chart — managers only */}
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Pending"
+          value={expenseStats.pendingCount}
+          subtitle={formatNaira(expenseStats.pendingTotal)}
+          icon={Clock}
+          tone="warning"
+        />
+        <StatCard
+          title="Approved This Month"
+          value={expenseStats.approvedMonthCount}
+          subtitle={formatNaira(expenseStats.approvedMonthTotal)}
+          icon={Check}
+          tone="success"
+        />
+        <StatCard
+          title="Total Spent"
+          value={formatNaira(expenseStats.totalSpent)}
+          subtitle={`${expenses.filter((e) => e.status === 'approved').length} claims`}
+          icon={Wallet}
+          tone="primary"
+        />
+        <StatCard
+          title="Average Claim"
+          value={formatNaira(expenseStats.avgClaim)}
+          subtitle={`${expenses.length} total claims`}
+          icon={Calculator}
+          tone="info"
+        />
+      </div>
+
+      {/* Chart + top categories — managers only */}
       {isApprover && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Approved Spend — Last 6 Months</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={trendData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                <ChartGradients />
-                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
-                <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-                <ChartTooltip
-                  content={<GlassTooltip />}
-                  formatter={(v: number) => formatNaira(v)}
-                  cursor={{ fill: chartTheme.primary, fillOpacity: 0.05 }}
-                />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="fuel" stackId="a" fill="url(#kd-grad-primary)" name="Fuel" {...chartAnim} />
-                <Bar dataKey="transport" stackId="a" fill="url(#kd-grad-cyan)" name="Transport" {...chartAnim} />
-                <Bar dataKey="mileage" stackId="a" fill="url(#kd-grad-gold)" name="Mileage" {...chartAnim} />
-                <Bar dataKey="office_supplies" stackId="a" fill="url(#kd-grad-success)" name="Office" {...chartAnim} />
-                <Bar dataKey="other" stackId="a" fill="url(#kd-grad-violet)" name="Other" {...chartAnim} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Approved Spend — Last 6 Months</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={trendData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                  <ChartGradients />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+                  <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
+                  <ChartTooltip
+                    content={<GlassTooltip />}
+                    formatter={(v: number) => formatNaira(v)}
+                    cursor={{ fill: chartTheme.primary, fillOpacity: 0.05 }}
+                  />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="fuel" stackId="a" fill="url(#kd-grad-primary)" name="Fuel" {...chartAnim} />
+                  <Bar dataKey="transport" stackId="a" fill="url(#kd-grad-cyan)" name="Transport" {...chartAnim} />
+                  <Bar dataKey="mileage" stackId="a" fill="url(#kd-grad-gold)" name="Mileage" {...chartAnim} />
+                  <Bar dataKey="office_supplies" stackId="a" fill="url(#kd-grad-success)" name="Office" {...chartAnim} />
+                  <Bar dataKey="other" stackId="a" fill="url(#kd-grad-violet)" name="Other" {...chartAnim} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                Top Categories
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {topCategories.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No approved expenses yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {topCategories.map(({ category, amount }) => {
+                    const maxAmount = topCategories[0]?.amount || 1;
+                    return (
+                      <div key={category}>
+                        <div className="flex items-center justify-between text-sm mb-1">
+                          <span className="font-medium">{expenseCategoryLabel(category)}</span>
+                          <span className="text-muted-foreground">{formatNaira(amount)}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-primary/70 transition-all"
+                            style={{ width: `${(amount / maxAmount) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {isApprover && unpayableApproved.length > 0 && !bankBannerDismissed && (

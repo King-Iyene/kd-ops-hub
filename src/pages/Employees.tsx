@@ -13,11 +13,15 @@ import {
   Info,
   Check,
   Upload,
+  Users,
+  UserMinus,
+  Building2,
 } from 'lucide-react';
 import EmployeeCsvImport from '@/components/hr/EmployeeCsvImport';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { AuroraHero } from '@/components/AuroraHero';
+import { StatCard } from '@/components/ui-kit/StatCard';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -557,6 +561,13 @@ const Employees = () => {
           </div>
         </div>
       </AuroraHero>
+
+      <div className="kd-stat-grid">
+        <StatCard title="Active Employees" value={employees.filter(e => e.status === 'active').length} icon={Users} subtitle="Currently active" tone="success" />
+        <StatCard title="Invited" value={employees.filter(e => e.status === 'invited').length} icon={UserPlus} subtitle="Pending onboarding" tone="warning" />
+        <StatCard title="Departments" value={new Set(employees.filter(e => e.status === 'active').map(e => e.department).filter(Boolean)).size} icon={Building2} subtitle="Active departments" tone="primary" />
+        <StatCard title="Inactive" value={employees.filter(e => e.status === 'inactive').length} icon={UserMinus} subtitle="Deactivated" tone="danger" />
+      </div>
 
       <EmployeeCsvImport
         open={showCsvImport}

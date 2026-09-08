@@ -861,6 +861,60 @@ const Leave = () => {
         </p>
       )}
 
+      {isManager && (() => {
+        const currentYear = new Date().getFullYear();
+        const allThisYear = teamRequests.filter(
+          (r) => new Date(r.created_at).getFullYear() === currentYear,
+        );
+        const totalRequests = allThisYear.length;
+        const approvedCount = allThisYear.filter((r) => r.status === 'approved').length;
+        const approvedPct = totalRequests > 0 ? Math.round((approvedCount / totalRequests) * 100) : 0;
+        const avgDays = totalRequests > 0
+          ? (allThisYear.reduce((sum, r) => sum + r.days_requested, 0) / totalRequests).toFixed(1)
+          : '0';
+        const typeCounts = allThisYear.reduce<Record<string, number>>((acc, r) => {
+          acc[r.leave_type] = (acc[r.leave_type] || 0) + 1;
+          return acc;
+        }, {});
+        const mostCommonType =
+          Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
+        const typeLabel = LEAVE_TYPES.find((t) => t.value === mostCommonType)?.label || mostCommonType;
+
+        return (
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold tracking-tight">Team Analytics</h2>
+            <div className="kd-stat-grid">
+              <StatCard
+                title="Total Requests"
+                value={totalRequests}
+                subtitle={`${currentYear} to date`}
+                icon={CalendarDays}
+              />
+              <StatCard
+                title="Approved"
+                value={`${approvedPct}%`}
+                subtitle={`${approvedCount} of ${totalRequests} requests`}
+                icon={Check}
+                tone="success"
+              />
+              <StatCard
+                title="Avg Days / Request"
+                value={avgDays}
+                subtitle="Working days"
+                icon={Clock}
+                tone="primary"
+              />
+              <StatCard
+                title="Most Common Type"
+                value={typeLabel}
+                subtitle={`${typeCounts[mostCommonType] || 0} requests`}
+                icon={Info}
+              />
+            </div>
+          </div>
+        );
+      })()}
+
       {tab !== (isManager ? 'team' : 'mine') && (
         <SubPageHeader
           parentTitle="Leave"
@@ -873,16 +927,17 @@ const Leave = () => {
         <TabsList>
           <TabsTrigger value="mine">My Leave</TabsTrigger>
           {isManager && <TabsTrigger value="team">Team Leave</TabsTrigger>}
-          {isManager && <TabsTrigger value="calendar">Calendar</TabsTrigger>}
+          {!isManager && <TabsTrigger value="calendar">Calendar</TabsTrigger>}
         </TabsList>
 
-        {tab === 'calendar' && isManager && (
+        {tab === 'calendar' && !isManager && (
           <div className="mt-4">
             <LeaveCalendar />
           </div>
         )}
 
-        <TabsContent value={tab} className={cn('mt-4', tab === 'calendar' && 'hidden')}>
+        <div className={cn('mt-4', isManager ? 'grid grid-cols-1 lg:grid-cols-12 gap-4' : '')}>
+        <TabsContent value={tab} className={cn(isManager ? 'lg:col-span-8' : '', 'mt-0', tab === 'calendar' && 'hidden')}>
           <Card className="rounded-xl">
             <div className="p-4 border-b border-border/50 flex items-center gap-3 flex-wrap">
               <div className="relative flex-1 min-w-[200px]">
@@ -1140,61 +1195,19 @@ const Leave = () => {
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
 
-      {isManager && (() => {
-        const currentYear = new Date().getFullYear();
-        const allThisYear = teamRequests.filter(
-          (r) => new Date(r.created_at).getFullYear() === currentYear,
-        );
-        const totalRequests = allThisYear.length;
-        const approvedCount = allThisYear.filter((r) => r.status === 'approved').length;
-        const approvedPct = totalRequests > 0 ? Math.round((approvedCount / totalRequests) * 100) : 0;
-        const avgDays = totalRequests > 0
-          ? (allThisYear.reduce((sum, r) => sum + r.days_requested, 0) / totalRequests).toFixed(1)
-          : '0';
-        const typeCounts = allThisYear.reduce<Record<string, number>>((acc, r) => {
-          acc[r.leave_type] = (acc[r.leave_type] || 0) + 1;
-          return acc;
-        }, {});
-        const mostCommonType =
-          Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
-        const typeLabel = LEAVE_TYPES.find((t) => t.value === mostCommonType)?.label || mostCommonType;
-
-        return (
-          <div className="space-y-3">
-            <h2 className="text-lg font-semibold tracking-tight">Leave Analytics</h2>
-            <div className="kd-stat-grid">
-              <StatCard
-                title="Total Requests"
-                value={totalRequests}
-                subtitle={`${currentYear} to date`}
-                icon={CalendarDays}
-              />
-              <StatCard
-                title="Approved"
-                value={`${approvedPct}%`}
-                subtitle={`${approvedCount} of ${totalRequests} requests`}
-                icon={Check}
-                tone="success"
-              />
-              <StatCard
-                title="Avg Days / Request"
-                value={avgDays}
-                subtitle="Working days"
-                icon={Clock}
-                tone="primary"
-              />
-              <StatCard
-                title="Most Common Type"
-                value={typeLabel}
-                subtitle={`${typeCounts[mostCommonType] || 0} requests`}
-                icon={Info}
-              />
-            </div>
+        {isManager && (
+          <div className="lg:col-span-4">
+            <Card className="rounded-xl sticky top-4">
+              <CardContent className="p-4">
+                <h3 className="text-sm font-semibold mb-3">Team Calendar</h3>
+                <LeaveCalendar />
+              </CardContent>
+            </Card>
           </div>
-        );
-      })()}
+        )}
+        </div>
+      </Tabs>
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent>

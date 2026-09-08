@@ -408,49 +408,88 @@ const Transactions = () => {
         }
       />
 
-      {/* Summary strip — pure Mercury / Brex / Ramp:
-          borderless tabs in a hairline-bordered surface, click-to-filter,
-          big mono count, small uppercase label. No status dots
-          (those are German). Holographic hover stays — it's a
-          Mercury Treasury pattern, not a German one. */}
-      <div className={cn(
-        'rounded-lg border border-border/70 bg-card grid sm:divide-x divide-border/70 overflow-hidden print:hidden',
-        isOpsView ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-3',
-      )}>
-        {([
-          { type: 'all' as const, label: 'All transactions', count: roleScopedRows.length },
-          { type: 'transfer' as const, label: 'Transfers',  count: roleScopedRows.filter((r) => r.txn_type === 'transfer').length },
-          // Hide the Quick Pay stat tile for Operations — they never have any.
-          ...(isOpsView ? [] : [{ type: 'quick_pay' as const, label: 'Quick Pay', count: roleScopedRows.filter((r) => r.txn_type === 'quick_pay').length }]),
-        ]).map(({ type, label, count }) => {
-          const isActive = typeFilter === type;
-          return (
-            <button
-              key={type}
-              type="button"
-              onClick={() => {
-                setTypeFilter(type);
-                pagination.reset();
-              }}
-              className={cn(
-                'kd-holographic relative flex flex-col items-start px-4 py-3.5 text-left kd-transition',
-                isActive ? 'bg-primary/[0.04]' : 'hover:bg-muted/30',
-              )}
-            >
-              <div className="relative z-[2]">
-                <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
-                  {label}
-                </span>
-                <span className={cn(
-                  'mt-1.5 text-[20px] font-semibold tabular-nums font-mono leading-none tracking-tight block',
-                  isActive && 'text-primary',
-                )}>
-                  {count.toLocaleString()}
-                </span>
+      {/* Summary strip — two-column layout: type filter tiles + transaction summary card */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 print:hidden">
+        {/* Type filter tiles */}
+        <div className={cn(
+          'lg:col-span-8 rounded-lg border border-border/70 bg-card grid sm:divide-x divide-border/70 overflow-hidden',
+          isOpsView ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-3',
+        )}>
+          {([
+            { type: 'all' as const, label: 'All transactions', count: roleScopedRows.length, total: roleScopedRows.reduce((s, r) => s + (r.amount_ngn || 0), 0) },
+            { type: 'transfer' as const, label: 'Transfers', count: roleScopedRows.filter((r) => r.txn_type === 'transfer').length, total: roleScopedRows.filter((r) => r.txn_type === 'transfer').reduce((s, r) => s + (r.amount_ngn || 0), 0) },
+            ...(isOpsView ? [] : [{ type: 'quick_pay' as const, label: 'Quick Pay', count: roleScopedRows.filter((r) => r.txn_type === 'quick_pay').length, total: roleScopedRows.filter((r) => r.txn_type === 'quick_pay').reduce((s, r) => s + (r.amount_ngn || 0), 0) }]),
+          ]).map(({ type, label, count, total }) => {
+            const isActive = typeFilter === type;
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => {
+                  setTypeFilter(type);
+                  pagination.reset();
+                }}
+                className={cn(
+                  'kd-holographic relative flex flex-col items-start px-4 py-3.5 text-left kd-transition',
+                  isActive ? 'bg-primary/[0.04]' : 'hover:bg-muted/30',
+                )}
+              >
+                <div className="relative z-[2]">
+                  <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
+                    {label}
+                  </span>
+                  <span className={cn(
+                    'mt-1.5 text-[20px] font-semibold tabular-nums font-mono leading-none tracking-tight block',
+                    isActive && 'text-primary',
+                  )}>
+                    {count.toLocaleString()}
+                  </span>
+                  <span className="mt-1 text-[11px] font-mono tabular-nums text-muted-foreground/70 block">
+                    {formatNaira(total)}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Transaction Summary card */}
+        <div className="lg:col-span-4 rounded-lg border border-border/70 bg-card p-4 flex flex-col justify-between">
+          <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
+            Transaction Summary
+          </span>
+          {(() => {
+            const succeededCount = roleScopedRows.filter((r) => (LEDGER_STATUS[r.status] || r.status) === 'succeeded').length;
+            const failedCount = roleScopedRows.filter((r) => (LEDGER_STATUS[r.status] || r.status) === 'failed').length;
+            const pendingCount = roleScopedRows.filter((r) => (LEDGER_STATUS[r.status] || r.status) === 'pending').length;
+            const total = roleScopedRows.length;
+            const successRate = total > 0 ? ((succeededCount / total) * 100).toFixed(1) : '0.0';
+            return (
+              <div className="mt-2 space-y-2 flex-1 flex flex-col justify-center">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[28px] font-semibold font-mono tabular-nums leading-none tracking-tight text-emerald-600 dark:text-emerald-400">
+                    {successRate}%
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">success rate</span>
+                </div>
+                <div className="flex items-center gap-3 text-[11px] tabular-nums">
+                  <span className="flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    <span className="text-muted-foreground">{succeededCount.toLocaleString()} succeeded</span>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                    <span className="text-muted-foreground">{pendingCount.toLocaleString()} pending</span>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
+                    <span className="text-muted-foreground">{failedCount.toLocaleString()} failed</span>
+                  </span>
+                </div>
               </div>
-            </button>
-          );
-        })}
+            );
+          })()}
+        </div>
       </div>
 
       {/* Mercury/Brex/Ramp shell: hairline border on the wrapper,
@@ -526,16 +565,16 @@ const Transactions = () => {
           }
         />
 
-        {/* Filtered totals — slim inline strip */}
-        {hasActiveFilters && (
-          <div className="px-3 py-1.5 border-b border-border/50 bg-muted/20 text-[11px] text-muted-foreground flex items-center gap-3 flex-wrap">
-            <span className="tabular-nums">
-              {filtered.length.toLocaleString()} match{filtered.length !== 1 ? 'es' : ''}
-            </span>
-            <span className="text-muted-foreground/40">·</span>
-            <span className="font-mono font-semibold text-foreground tabular-nums">{formatNaira(totalAmount)} total</span>
-          </div>
-        )}
+        {/* Filtered totals — always-visible slim inline strip */}
+        <div className="px-3 py-1.5 border-b border-border/50 bg-muted/20 text-[11px] text-muted-foreground flex items-center gap-3 flex-wrap">
+          <span className="tabular-nums">
+            {hasActiveFilters
+              ? `${filtered.length.toLocaleString()} match${filtered.length !== 1 ? 'es' : ''}`
+              : `${filtered.length.toLocaleString()} transaction${filtered.length !== 1 ? 's' : ''}`}
+          </span>
+          <span className="text-muted-foreground/40">·</span>
+          <span className="font-mono font-semibold text-foreground tabular-nums">{formatNaira(totalAmount)} total</span>
+        </div>
 
         <div className="p-0">
           {loading ? (

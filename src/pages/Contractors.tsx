@@ -56,6 +56,9 @@ import {
   Trash2,
   Users,
   Bookmark,
+  Activity,
+  Wallet,
+  Unplug,
 } from 'lucide-react';
 import { heyreachDisplayStatus, formatSyncedAt } from '@/lib/heyreach-status';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -73,6 +76,7 @@ import { normLinkedinUrl, namesAreEquivalent } from '@/lib/linkedin';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { cn } from '@/lib/utils';
+import { StatCard } from '@/components/ui-kit/StatCard';
 
 interface Tag {
   id: string;
@@ -384,6 +388,12 @@ const Contractors = () => {
   const [showSaveView, setShowSaveView] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [confirmReactivate, setConfirmReactivate] = useState<Contractor | null>(null);
+
+  // Derived stat: sum of default payroll amounts across all loaded contractors.
+  const defaultPayrollTotal = useMemo(
+    () => contractors.reduce((sum, c) => sum + (c.default_amount_ngn || 0), 0),
+    [contractors],
+  );
 
   // CSV import state
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1479,6 +1489,7 @@ const Contractors = () => {
 
   return (
     <div className="space-y-6">
+      {/* ── Header ── */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -1491,7 +1502,8 @@ const Contractors = () => {
             HeyReach synced {formatSyncedAt(lastSyncAt).toLowerCase()}
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap items-center">
+
+        <div className="flex items-center gap-2 flex-wrap">
           <input
             ref={fileInputRef}
             type="file"
@@ -1499,25 +1511,8 @@ const Contractors = () => {
             className="hidden"
             onChange={handleFilePick}
           />
-          <Button variant="outline" onClick={runHeyReachSync} disabled={syncing}>
-            {syncing
-              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              : <RefreshCw className="mr-2 h-4 w-4" />}
-            Sync HeyReach
-          </Button>
-          {/* Sample + Bank-list reference CSVs share one "Templates" dialog. */}
-          <Button variant="outline" onClick={() => setTemplatesOpen(true)}>
-            <Download className="mr-2 h-4 w-4" /> Templates
-          </Button>
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-            <Upload className="mr-2 h-4 w-4" /> Import
-          </Button>
-          <Button variant="outline" onClick={exportCsv} disabled={exportingCsv}>
-            {exportingCsv
-              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              : <Download className="mr-2 h-4 w-4" />}
-            Export
-          </Button>
+
+          {/* Primary action */}
           <Button
             onClick={() => {
               setEditing(null);
@@ -1526,7 +1521,58 @@ const Contractors = () => {
           >
             <Plus className="mr-2 h-4 w-4" /> Add Contractor
           </Button>
+
+          {/* Secondary actions */}
+          <Button variant="outline" size="sm" onClick={runHeyReachSync} disabled={syncing}>
+            {syncing
+              ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
+            Sync
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setTemplatesOpen(true)}>
+            <Download className="mr-1.5 h-3.5 w-3.5" /> Templates
+          </Button>
+          <div className="flex items-center rounded-md border border-border">
+            <Button variant="ghost" size="sm" className="rounded-r-none border-r border-border" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="mr-1.5 h-3.5 w-3.5" /> Import
+            </Button>
+            <Button variant="ghost" size="sm" className="rounded-l-none" onClick={exportCsv} disabled={exportingCsv}>
+              {exportingCsv
+                ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                : <Download className="mr-1.5 h-3.5 w-3.5" />}
+              Export
+            </Button>
+          </div>
         </div>
+      </div>
+
+      {/* ── Stat cards ── */}
+      <div className="kd-stat-grid">
+        <StatCard
+          title="Total Contractors"
+          value={statusCounts.all}
+          icon={Users}
+          tone="default"
+        />
+        <StatCard
+          title="Active"
+          value={statusCounts.active}
+          icon={Activity}
+          tone="success"
+        />
+        <StatCard
+          title="Default Payroll"
+          value={formatNaira(defaultPayrollTotal)}
+          icon={Wallet}
+          tone="primary"
+        />
+        <StatCard
+          title="Disconnected / Pending"
+          value={(statusCounts.disconnected || 0) + (statusCounts.pending || 0)}
+          subtitle={`${statusCounts.disconnected || 0} disconnected · ${statusCounts.pending || 0} pending`}
+          icon={Unplug}
+          tone="warning"
+        />
       </div>
 
       <Tabs defaultValue="contractors">
