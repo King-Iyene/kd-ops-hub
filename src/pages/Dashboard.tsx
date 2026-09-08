@@ -650,174 +650,138 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* ── 2. Quick Actions + Budget Utilisation ────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader className="pb-3 border-b">
-            <CardTitle className="kd-section-title">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 space-y-2">
-            {[
-              { label: 'Create Payment Batch', icon: Plus, onClick: () => navigate('/payments/new'), variant: 'default' as const, iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
-              { label: 'Approvals Inbox', icon: CheckCircle, onClick: () => navigate('/approvals'), badge: approvalCounts.total, variant: 'outline' as const, iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400' },
-              { label: 'Clients', icon: Building2, onClick: () => navigate('/clients'), variant: 'outline' as const, iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' },
-              { label: 'Subscriptions', icon: CalendarClock, onClick: () => navigate('/subscriptions'), variant: 'outline' as const, iconBg: 'bg-sky-100 dark:bg-sky-900/30', iconColor: 'text-sky-600 dark:text-sky-400' },
-              { label: 'Reports', icon: FileText, onClick: () => navigate('/reports'), variant: 'outline' as const, iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400' },
-              { label: 'Payroll', icon: DollarSign, onClick: () => navigate('/payroll'), variant: 'outline' as const, iconBg: 'bg-rose-100 dark:bg-rose-900/25', iconColor: 'text-rose-600 dark:text-rose-400' },
-            ].map(({ label, icon: Icon, onClick, badge, variant, iconBg, iconColor }) => (
-              <Button
-                key={label}
-                variant={variant}
-                className="w-full justify-start h-10 text-sm gap-3"
-                onClick={onClick}
-              >
-                <span className={cn('h-7 w-7 rounded-lg flex items-center justify-center shrink-0', iconBg)}>
-                  <Icon className={cn('h-3.5 w-3.5', iconColor)} strokeWidth={2} />
-                </span>
-                {label}
-                {badge !== undefined && badge > 0 && (
-                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                    {badge}
-                  </span>
-                )}
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* Budget Utilisation — wider card with donut */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
-            <CardTitle className="kd-section-title">Budget Utilisation</CardTitle>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/budgets')}>
-              View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
-            </Button>
-          </CardHeader>
-          <CardContent className="pt-4">
-            {loading ? (
-              <Skeleton className="h-36 w-full" />
-            ) : totalPlanned === 0 ? (
-              <EmptyState icon={PiggyBank} title="No approved budgets" description="Approve a budget to see utilisation." compact />
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-muted-foreground">Overall spend</span>
-                    <span className="text-sm font-bold">{utilizationPct}%</span>
-                  </div>
-                  <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden mb-4">
-                    <div
-                      className={cn('h-full rounded-full kd-transition', utilizationPct > 90 ? 'bg-rose-500 dark:bg-rose-400' : utilizationPct > 70 ? 'bg-amber-500 dark:bg-amber-400' : 'bg-primary')}
-                      style={{ width: `${Math.min(utilizationPct, 100)}%` }}
-                    />
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { label: 'Planned', value: totalPlanned },
-                      { label: 'Actual', value: totalActual },
-                      { label: 'Remaining', value: remaining },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="rounded-lg bg-muted/60 px-2.5 py-2">
-                        <p className="text-[11px] text-muted-foreground">{label}</p>
-                        <p className="text-xs font-bold currency mt-0.5">{formatNaira(value)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <ResponsiveContainer width="100%" height={160}>
-                  <PieChart>
-                    <ChartGradients />
-                    <Pie
-                      data={donut}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={42}
-                      outerRadius={62}
-                      paddingAngle={2}
-                      stroke="none"
-                      {...chartAnim}
-                    >
-                      {donut.map((_, i) => (
-                        <Cell key={i} fill={i === 0 ? 'url(#kd-grad-donut)' : CHART_COLORS[1]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      content={<GlassTooltip />}
-                      formatter={(v: number) => formatNaira(v)}
-                      cursor={{ fill: 'transparent' }}
-                    />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── 3. Financial Intelligence — finance/admin/super_admin only ── */}
-      {isFinanceRole && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <FinancialHealthCard />
-          <CashBurnCard />
-        </div>
-      )}
-
-      {/* ── 4. Operational monitoring ─────────────────────────────── */}
-      <div className={cn('grid grid-cols-1 gap-4', isFinanceRole ? 'lg:grid-cols-3' : 'lg:grid-cols-2')}>
-        <ComplianceCard />
-
-        {/* Upcoming subscriptions */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
-            <CardTitle className="kd-section-title">Upcoming Renewals</CardTitle>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/subscriptions')}>
-              View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
-            </Button>
-          </CardHeader>
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="p-4 space-y-2">
-                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-              </div>
-            ) : upcoming.length === 0 ? (
-              <EmptyState icon={CalendarClock} title="No renewals in 30 days" description="Upcoming subscription renewals will appear here." compact />
-            ) : (
-              <div className="divide-y divide-border/50">
-                {upcoming.map((s, i) => {
-                  const d = daysUntil(s.next_renewal_date);
-                  const urgent = d !== null && d <= 7;
-                  return (
-                    <div key={s.id} className={cn('flex items-center justify-between px-4 py-3 hover:bg-muted/30 kd-transition', i === 0 && 'pt-4')}>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{s.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {formatDate(s.next_renewal_date)}
-                          {d !== null && d >= 0 ? ` · in ${d}d` : d === null ? '' : ' · overdue'}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0 ml-3">
-                        <p className="text-sm font-semibold currency">{formatNaira(s.amount_ngn)}</p>
-                        <span className={cn('inline-block rounded-full px-2 py-0.5 text-[10px] font-medium mt-0.5', urgent ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-muted text-muted-foreground')}>
-                          {urgent ? 'Soon' : 'Upcoming'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Upcoming payments — finance / admin only */}
-        {isFinanceRole && (
+      {/* ── 2. Main two-column layout ────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* ── Left column: charts & intelligence (8/12) ──────────── */}
+        <div className="lg:col-span-8 space-y-4">
+          {/* Budget Utilisation */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
-              <CardTitle className="kd-section-title">Payments This Week</CardTitle>
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/payments/schedule')}>
-                Schedule <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              <CardTitle className="kd-section-title">Budget Utilisation</CardTitle>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/budgets')}>
+                View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {loading ? (
+                <Skeleton className="h-36 w-full" />
+              ) : totalPlanned === 0 ? (
+                <EmptyState icon={PiggyBank} title="No approved budgets" description="Approve a budget to see utilisation." compact />
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs text-muted-foreground">Overall spend</span>
+                      <span className="text-sm font-bold">{utilizationPct}%</span>
+                    </div>
+                    <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden mb-4">
+                      <div
+                        className={cn('h-full rounded-full kd-transition', utilizationPct > 90 ? 'bg-rose-500 dark:bg-rose-400' : utilizationPct > 70 ? 'bg-amber-500 dark:bg-amber-400' : 'bg-primary')}
+                        style={{ width: `${Math.min(utilizationPct, 100)}%` }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: 'Planned', value: totalPlanned },
+                        { label: 'Actual', value: totalActual },
+                        { label: 'Remaining', value: remaining },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="rounded-lg bg-muted/60 px-2.5 py-2">
+                          <p className="text-[11px] text-muted-foreground">{label}</p>
+                          <p className="text-xs font-bold currency mt-0.5">{formatNaira(value)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <PieChart>
+                      <ChartGradients />
+                      <Pie
+                        data={donut}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={42}
+                        outerRadius={62}
+                        paddingAngle={2}
+                        stroke="none"
+                        {...chartAnim}
+                      >
+                        {donut.map((_, i) => (
+                          <Cell key={i} fill={i === 0 ? 'url(#kd-grad-donut)' : CHART_COLORS[1]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        content={<GlassTooltip />}
+                        formatter={(v: number) => formatNaira(v)}
+                        cursor={{ fill: 'transparent' }}
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Financial Intelligence — finance/admin/super_admin only */}
+          {isFinanceRole && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FinancialHealthCard />
+              <CashBurnCard />
+            </div>
+          )}
+
+          {/* Compliance + Productivity */}
+          <ComplianceCard />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <MyTasksWidget />
+            <MyGoalsWidget />
+          </div>
+        </div>
+
+        {/* ── Right column: actions & lists (4/12) ───────────────── */}
+        <div className="lg:col-span-4 space-y-4">
+          {/* Quick Actions — icon tile grid */}
+          <Card>
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="kd-section-title">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3">
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'New Payment', icon: Plus, onClick: () => navigate('/payments/new'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
+                  { label: 'Approvals', icon: CheckCircle, onClick: () => navigate('/approvals'), badge: approvalCounts.total, iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400' },
+                  { label: 'Clients', icon: Building2, onClick: () => navigate('/clients'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' },
+                  { label: 'Subscriptions', icon: CalendarClock, onClick: () => navigate('/subscriptions'), iconBg: 'bg-sky-100 dark:bg-sky-900/30', iconColor: 'text-sky-600 dark:text-sky-400' },
+                  { label: 'Reports', icon: FileText, onClick: () => navigate('/reports'), iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400' },
+                  { label: 'Payroll', icon: DollarSign, onClick: () => navigate('/payroll'), iconBg: 'bg-rose-100 dark:bg-rose-900/25', iconColor: 'text-rose-600 dark:text-rose-400' },
+                ].map(({ label, icon: Icon, onClick, badge, iconBg, iconColor }) => (
+                  <button
+                    key={label}
+                    onClick={onClick}
+                    className="group relative flex flex-col items-center gap-1.5 rounded-xl p-3 hover:bg-muted/60 kd-transition text-center"
+                  >
+                    <span className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 kd-transition', iconBg)}>
+                      <Icon className={cn('h-4.5 w-4.5', iconColor)} strokeWidth={2} />
+                    </span>
+                    <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground kd-transition leading-tight">{label}</span>
+                    {badge !== undefined && badge > 0 && (
+                      <span className="absolute top-1.5 right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-amber-100 px-1 text-[9px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                        {badge}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Upcoming Renewals */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
+              <CardTitle className="kd-section-title">Upcoming Renewals</CardTitle>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/subscriptions')}>
+                View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </Button>
             </CardHeader>
             <CardContent className="p-0">
@@ -825,39 +789,78 @@ const Dashboard = () => {
                 <div className="p-4 space-y-2">
                   {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
                 </div>
-              ) : upcomingPayments.length === 0 ? (
-                <EmptyState icon={CalendarClock} title="No payments in the next 7 days" description="Scheduled payment batches will appear here." compact />
+              ) : upcoming.length === 0 ? (
+                <EmptyState icon={CalendarClock} title="No renewals in 30 days" description="Upcoming subscription renewals will appear here." compact />
               ) : (
                 <div className="divide-y divide-border/50">
-                  {upcomingPayments.map((p, i) => (
-                    <div key={p.id} className={cn('flex items-center justify-between px-4 py-3 hover:bg-muted/30 kd-transition', i === 0 && 'pt-4')}>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{p.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{formatDate(p.scheduled_date)}</p>
+                  {upcoming.map((s, i) => {
+                    const d = daysUntil(s.next_renewal_date);
+                    const urgent = d !== null && d <= 7;
+                    return (
+                      <div key={s.id} className={cn('flex items-center justify-between px-4 py-3 hover:bg-muted/30 kd-transition', i === 0 && 'pt-4')}>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{s.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {formatDate(s.next_renewal_date)}
+                            {d !== null && d >= 0 ? ` · in ${d}d` : d === null ? '' : ' · overdue'}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0 ml-3">
+                          <p className="text-sm font-semibold currency">{formatNaira(s.amount_ngn)}</p>
+                          <span className={cn('inline-block rounded-full px-2 py-0.5 text-[10px] font-medium mt-0.5', urgent ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-muted text-muted-foreground')}>
+                            {urgent ? 'Soon' : 'Upcoming'}
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-sm font-semibold currency shrink-0 ml-3">{formatNaira(p.total_amount)}</p>
-                    </div>
-                  ))}
-                  <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
-                    <span className="text-xs font-medium text-muted-foreground">Total upcoming</span>
-                    <span className="text-sm font-bold currency">
-                      {formatNaira(upcomingPayments.reduce((s, p) => s + (p.total_amount || 0), 0))}
-                    </span>
-                  </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
           </Card>
-        )}
+
+          {/* Upcoming payments — finance / admin only */}
+          {isFinanceRole && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
+                <CardTitle className="kd-section-title">Payments This Week</CardTitle>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/payments/schedule')}>
+                  Schedule <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                {loading ? (
+                  <div className="p-4 space-y-2">
+                    {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                  </div>
+                ) : upcomingPayments.length === 0 ? (
+                  <EmptyState icon={CalendarClock} title="No payments in the next 7 days" description="Scheduled payment batches will appear here." compact />
+                ) : (
+                  <div className="divide-y divide-border/50">
+                    {upcomingPayments.map((p, i) => (
+                      <div key={p.id} className={cn('flex items-center justify-between px-4 py-3 hover:bg-muted/30 kd-transition', i === 0 && 'pt-4')}>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{p.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{formatDate(p.scheduled_date)}</p>
+                        </div>
+                        <p className="text-sm font-semibold currency shrink-0 ml-3">{formatNaira(p.total_amount)}</p>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
+                      <span className="text-xs font-medium text-muted-foreground">Total upcoming</span>
+                      <span className="text-sm font-bold currency">
+                        {formatNaira(upcomingPayments.reduce((s, p) => s + (p.total_amount || 0), 0))}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
-      {/* ── 5. Productivity ───────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <MyTasksWidget />
-        <MyGoalsWidget />
-      </div>
-
-      {/* ── 6. Audit log — reference data at bottom ───────────────── */}
+      {/* ── 3. Audit log — reference data at bottom ───────────────── */}
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
           <CardTitle className="kd-section-title">Recent Activity</CardTitle>
