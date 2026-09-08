@@ -14,7 +14,7 @@ import {
   Check,
   Upload,
   Users,
-  UserMinus,
+
   Building2,
 } from 'lucide-react';
 import EmployeeCsvImport from '@/components/hr/EmployeeCsvImport';
@@ -125,9 +125,9 @@ const FALLBACK_DEPARTMENTS = [
 ];
 
 const STATUS_BADGE: Record<string, string> = {
-  active: 'bg-success/10 text-success',
-  inactive: 'bg-muted text-muted-foreground',
-  invited: 'bg-accent/15 text-accent-foreground border border-accent/40',
+  active: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20',
+  inactive: 'bg-muted/80 text-muted-foreground border border-border/50',
+  invited: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20',
 };
 
 const Employees = () => {
@@ -562,11 +562,10 @@ const Employees = () => {
         </div>
       </AuroraHero>
 
-      <div className="kd-stat-grid">
-        <StatCard title="Active Employees" value={employees.filter(e => e.status === 'active').length} icon={Users} subtitle="Currently active" tone="success" />
-        <StatCard title="Invited" value={employees.filter(e => e.status === 'invited').length} icon={UserPlus} subtitle="Pending onboarding" tone="warning" />
-        <StatCard title="Departments" value={new Set(employees.filter(e => e.status === 'active').map(e => e.department).filter(Boolean)).size} icon={Building2} subtitle="Active departments" tone="primary" />
-        <StatCard title="Inactive" value={employees.filter(e => e.status === 'inactive').length} icon={UserMinus} subtitle="Deactivated" tone="danger" />
+      <div className="grid grid-cols-3 gap-3 max-w-xl">
+        <StatCard title="Active" value={employees.filter(e => e.status === 'active').length} icon={Users} tone="success" compact />
+        <StatCard title="Invited" value={employees.filter(e => e.status === 'invited').length} icon={UserPlus} tone="warning" compact />
+        <StatCard title="Departments" value={departments.length} icon={Building2} tone="primary" compact />
       </div>
 
       <EmployeeCsvImport
@@ -678,18 +677,18 @@ const Employees = () => {
                 </TableHeader>
                 <TableBody>
                   {employees.map((e) => (
-                    <TableRow key={e.id} className="kd-transition cursor-pointer" onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)} onAuxClick={(ev) => { if (ev.button === 1 && e.status !== 'invited') { window.open(`/employees/${e.id}`, '_blank'); ev.preventDefault(); } }}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-3 min-w-0">
+                    <TableRow key={e.id} className="group kd-transition cursor-pointer hover:bg-primary/[0.03] dark:hover:bg-primary/[0.06]" onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)} onAuxClick={(ev) => { if (ev.button === 1 && e.status !== 'invited') { window.open(`/employees/${e.id}`, '_blank'); ev.preventDefault(); } }}>
+                      <TableCell className="font-medium py-3.5">
+                        <div className="flex items-center gap-3.5 min-w-0">
                           <EmployeeAvatar
                             photoUrl={e.photo_url ?? null}
                             name={displayName(e.first_name, e.last_name, e.full_name)}
                           />
                           <div className="min-w-0">
                             {e.status !== 'invited' ? (
-                              <Link to={`/employees/${e.id}`} className="truncate block hover:underline" onClick={(ev) => ev.preventDefault()}>{displayName(e.first_name, e.last_name, e.full_name)}</Link>
+                              <Link to={`/employees/${e.id}`} className="truncate block font-semibold text-foreground group-hover:text-primary kd-transition" onClick={(ev) => ev.preventDefault()}>{displayName(e.first_name, e.last_name, e.full_name)}</Link>
                             ) : (
-                              <div className="truncate">{displayName(e.first_name, e.last_name, e.full_name)}</div>
+                              <div className="truncate font-semibold text-foreground">{displayName(e.first_name, e.last_name, e.full_name)}</div>
                             )}
                             {e.tags && e.tags.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
@@ -700,7 +699,7 @@ const Employees = () => {
                                     <span
                                       key={tid}
                                       className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
-                                      style={tag.color ? { backgroundColor: `${tag.color}25`, color: tag.color } : undefined}
+                                      style={tag.color ? { backgroundColor: `${tag.color}18`, color: tag.color } : undefined}
                                     >
                                       {tag.name}
                                     </span>
@@ -711,21 +710,21 @@ const Employees = () => {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="capitalize">{roleLabel(e.role)}</TableCell>
+                      <TableCell className="text-[13px] text-muted-foreground capitalize">{roleLabel(e.role)}</TableCell>
                       <TableCell>
                         {(() => {
                           const name =
                             e.department?.name
                             ?? departments.find((d) => d.id === e.department_id)?.name
                             ?? null;
-                          if (!name) return <span className="text-muted-foreground/60">—</span>;
+                          if (!name) return <span className="text-muted-foreground/40">—</span>;
                           return (
                             <span
-                              className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap"
+                              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap"
                               style={deptBadgeStyle(name)}
                             >
                               <span
-                                className="h-1.5 w-1.5 rounded-full"
+                                className="h-1.5 w-1.5 rounded-full shrink-0"
                                 style={deptDotStyle(name)}
                               />
                               {name}
@@ -733,70 +732,63 @@ const Employees = () => {
                           );
                         })()}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-[13px] text-muted-foreground/80">
                         {e.email}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {e.phone || '—'}
+                      <TableCell className="text-[13px] text-muted-foreground/80 tabular-nums">
+                        {e.phone || <span className="text-muted-foreground/40">—</span>}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-[13px] text-muted-foreground/70 tabular-nums">
                         {e.created_at ? formatDate(e.created_at) : '—'}
                       </TableCell>
                       <TableCell>
                         <Badge
                           variant="secondary"
-                          className={STATUS_BADGE[e.status] || STATUS_BADGE.inactive}
+                          className={cn('text-[11px] font-medium capitalize', STATUS_BADGE[e.status] || STATUS_BADGE.inactive)}
                         >
                           {e.status === 'invited' && <Mail className="h-3 w-3 mr-1" />}
                           {e.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          {/* Resend invite is available on every active /
-                              invited employee row — not just `status='invited'`.
-                              The original gate hid this from admins who needed
-                              to re-invite a "lead" who never signed in for the
-                              first time even though their status had been
-                              flipped to active by an unrelated edit. The
-                              underlying call is supabase.auth.signInWithOtp,
-                              which sends a magic link whether the user has
-                              signed in before or not — so admins can use this
-                              as both first-time invite resend and as a
-                              "you're locked out, here's a fresh link" tool. */}
+                        <div className="flex justify-end gap-0.5 opacity-0 group-hover:opacity-100 kd-transition">
                           {isAdmin && e.status !== 'inactive' && (
                             <Button
                               size="sm"
                               variant="ghost"
+                              className="h-8 w-8 p-0 rounded-lg hover:bg-primary/10 hover:text-primary"
                               onClick={(evt) => { evt.stopPropagation(); resendInvite(e); }}
                               title={e.status === 'invited' ? 'Resend invite' : 'Send sign-in link to this user'}
                             >
-                              <Mail className="h-4 w-4" />
+                              <Mail className="h-3.5 w-3.5" />
                             </Button>
                           )}
                           {canEditEmployee(e) && (
                             <Button
                               size="sm"
                               variant="ghost"
+                              className="h-8 w-8 p-0 rounded-lg hover:bg-primary/10 hover:text-primary"
                               onClick={(evt) => { evt.stopPropagation(); openEdit(e); }}
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="h-3.5 w-3.5" />
                             </Button>
                           )}
                           {isAdmin && e.status === 'active' && (
                             <Button
                               size="sm"
                               variant="ghost"
+                              className="h-8 w-8 p-0 rounded-lg hover:bg-destructive/10 hover:text-destructive"
                               onClick={(evt) => { evt.stopPropagation(); toggleStatus(e); }}
                               title="Deactivate"
                             >
-                              <UserX className="h-4 w-4 text-destructive" />
+                              <UserX className="h-3.5 w-3.5" />
                             </Button>
                           )}
                           {isAdmin && e.status === 'inactive' && (
                             <Button
                               size="sm"
                               variant="outline"
+                              className="h-7 text-xs rounded-lg"
                               onClick={(evt) => { evt.stopPropagation(); setConfirmReactivate(e); }}
                             >
                               Reactivate

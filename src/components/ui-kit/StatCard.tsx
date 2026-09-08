@@ -10,6 +10,7 @@ interface Props {
   icon?: LucideIcon;
   tone?: 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'gold' | 'info';
   trend?: { value: number; label?: string };
+  compact?: boolean;
   className?: string;
   onClick?: () => void;
 }
@@ -96,6 +97,7 @@ export function StatCard({
   icon: Icon,
   tone = 'default',
   trend,
+  compact,
   className,
   onClick,
 }: Props) {
@@ -133,27 +135,28 @@ export function StatCard({
         <div className="pointer-events-none absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-200 bg-gradient-to-br from-transparent to-[hsl(var(--primary)/0.04)]" />
       )}
 
-      <div className="relative z-[2] p-4 sm:p-5">
+      <div className={cn('relative z-[2]', compact ? 'p-3' : 'p-4 sm:p-5')}>
         {/* Header row: label + icon */}
-        <div className="flex items-start justify-between gap-2 mb-3">
+        <div className={cn('flex items-start justify-between gap-2', compact ? 'mb-1.5' : 'mb-3')}>
           <div className="flex items-center gap-1.5 min-w-0">
             <span className={cn('h-1.5 w-1.5 rounded-full shrink-0 mt-px', cfg.dot)} />
-            <p className="text-label-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground/80 truncate leading-none pt-px">
+            <p className={cn('font-semibold uppercase tracking-[0.08em] text-muted-foreground/80 truncate leading-none pt-px', compact ? 'text-[10px]' : 'text-label-xs')}>
               {title}
             </p>
           </div>
           {Icon && (
             <div className={cn(
-              'h-9 w-9 rounded-xl flex items-center justify-center shrink-0 -mt-0.5',
+              'rounded-xl flex items-center justify-center shrink-0 -mt-0.5',
+              compact ? 'h-7 w-7 rounded-lg' : 'h-9 w-9',
               cfg.iconBg,
             )}>
-              <Icon className={cn('h-4 w-4', cfg.iconColor)} strokeWidth={2} />
+              <Icon className={cn(compact ? 'h-3.5 w-3.5' : 'h-4 w-4', cfg.iconColor)} strokeWidth={2} />
             </div>
           )}
         </div>
 
         {/* Value — display-weight number */}
-        <div className="kd-stat-number text-stat-md font-extrabold text-foreground leading-none tabular-nums truncate">
+        <div className={cn('kd-stat-number font-extrabold text-foreground leading-none tabular-nums truncate', compact ? 'text-lg' : 'text-stat-md')}>
           {typeof value === 'number' && Number.isFinite(value)
             ? <CountUp value={value} />
             : value}
