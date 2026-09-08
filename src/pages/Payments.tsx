@@ -447,11 +447,6 @@ const Payments = () => {
           {/* Stat tiles — each in its own card */}
           {effectiveRole !== 'operations' && [
             {
-              label: 'Pending approval',
-              value: stats.pendingCount,
-              sub: formatNaira(stats.pendingAmount),
-            },
-            {
               label: 'In processing',
               value: stats.processingCount,
               sub: 'Active transfers',
