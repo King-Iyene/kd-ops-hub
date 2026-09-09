@@ -1189,8 +1189,8 @@ const Tasks = () => {
             </div>
           )}
 
-          {/* Folder Access */}
-          {selectedSpace && (
+          {/* Folder Access — visible only to admins or the folder owner */}
+          {selectedSpace && (profile?.role === 'super_admin' || profile?.role === 'admin' || spaces.find((s) => s.id === selectedSpace)?.owner_id === profile?.id) && (
             <div className="px-4 lg:px-6 py-2 border-b border-border/40">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
