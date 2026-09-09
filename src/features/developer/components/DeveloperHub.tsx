@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Telescope, Zap, BookOpen, Key, Webhook, Terminal } from 'lucide-react';
+import { Telescope, Zap, BookOpen, Key, Webhook, Terminal, Plug, Lightbulb, AlertTriangle, BookMarked } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ApiOverview = lazy(() => import('./ApiOverview'));
@@ -8,6 +8,10 @@ const ApiExplorer = lazy(() => import('./ApiExplorer'));
 const ApiReference = lazy(() => import('./ApiReference'));
 const ApiKeysManager = lazy(() => import('./ApiKeysManager'));
 const WebhooksManager = lazy(() => import('./WebhooksManager'));
+const IntegrationGuides = lazy(() => import('./IntegrationGuides'));
+const Recipes = lazy(() => import('./Recipes'));
+const Troubleshooting = lazy(() => import('./Troubleshooting'));
+const ModuleGuides = lazy(() => import('./ModuleGuides'));
 
 export function DeveloperHub() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -53,6 +57,10 @@ export function DeveloperHub() {
               { value: 'reference', label: 'API Reference', icon: BookOpen },
               { value: 'keys', label: 'API Keys', icon: Key },
               { value: 'webhooks', label: 'Webhooks', icon: Webhook },
+              { value: 'guides', label: 'Connect Tools', icon: Plug },
+              { value: 'recipes', label: 'Recipes', icon: Lightbulb },
+              { value: 'modules', label: 'Module Guides', icon: BookMarked },
+              { value: 'troubleshooting', label: 'Troubleshooting', icon: AlertTriangle },
             ].map((tab) => (
               <TabsTrigger
                 key={tab.value}
@@ -92,6 +100,18 @@ export function DeveloperHub() {
               </TabsContent>
               <TabsContent value="webhooks" className="mt-0">
                 <WebhooksManager />
+              </TabsContent>
+              <TabsContent value="guides" className="mt-0">
+                <IntegrationGuides />
+              </TabsContent>
+              <TabsContent value="recipes" className="mt-0">
+                <Recipes />
+              </TabsContent>
+              <TabsContent value="modules" className="mt-0">
+                <ModuleGuides />
+              </TabsContent>
+              <TabsContent value="troubleshooting" className="mt-0">
+                <Troubleshooting />
               </TabsContent>
             </Suspense>
           </div>
