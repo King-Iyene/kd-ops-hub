@@ -420,7 +420,46 @@ return high.map(emp => ({
       },
     ],
     proTip:
-      'Send a second alert at 20+ days and CC the employee’s line manager.',
+      ‘Send a second alert at 20+ days and CC the employee’s line manager.’,
+  },
+  {
+    id: ‘form-submission-to-google-sheets’,
+    icon: CheckSquare,
+    emoji: ‘📋’,
+    title: ‘Task Form Submissions → Google Sheets’,
+    difficulty: ‘Beginner’,
+    platforms: [‘n8n’, ‘Zapier’, ‘Make’],
+    description:
+      ‘When someone submits a form/report in the task module, automatically log the submission data to a Google Sheet for tracking and analysis.’,
+    steps: [
+      ‘Create a webhook in KDOps listening for task.form_submitted’,
+      ‘n8n/Zapier receives the POST payload with form fields, submitter, and task details’,
+      ‘Map the form fields to Google Sheets columns’,
+      ‘Append a new row to the tracking spreadsheet’,
+      ‘Optionally send a Slack notification to the team channel’,
+    ],
+    code: [
+      {
+        language: ‘javascript’,
+        label: ‘n8n Function — Transform Form Data’,
+        content: `const payload = $input.first().json;
+
+return [{
+  json: {
+    submitted_by: payload.employee_name,
+    submitted_at: payload.created_at,
+    task_title: payload.task_title,
+    form_name: payload.form_name,
+    // Spread all form field values into columns
+    ...payload.form_data,
+    // Add a link back to the task in KDOps
+    kdops_link: \`https://ops.kdsquares.com/tasks/\${payload.task_id}\`
+  }
+}];`,
+      },
+    ],
+    proTip:
+      ‘Use this to build custom reporting dashboards — pipe form submissions to Google Sheets, then connect Google Sheets to Data Studio or Looker for real-time charts.’,
   },
 ];
 
