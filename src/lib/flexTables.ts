@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 export type FlexFieldType =
   | 'text' | 'long_text' | 'number' | 'date' | 'checkbox'
   | 'select' | 'multi_select' | 'person' | 'multi_person' | 'task_link'
-  | 'url' | 'email' | 'phone';
+  | 'url' | 'email' | 'phone' | 'formula';
 
 export const FLEX_FIELD_TYPES: { value: FlexFieldType; label: string }[] = [
   { value: 'text', label: 'Single line text' },
@@ -19,6 +19,7 @@ export const FLEX_FIELD_TYPES: { value: FlexFieldType; label: string }[] = [
   { value: 'url', label: 'URL' },
   { value: 'email', label: 'Email' },
   { value: 'phone', label: 'Phone' },
+  { value: 'formula', label: 'Formula' },
 ];
 
 export interface FlexChoice { id: string; label: string; color: string; }
@@ -26,6 +27,8 @@ export interface FlexFieldOptions {
   choices?: FlexChoice[];
   /** Column-level hide in the grid — independent of any form's own field visibility. */
   hidden?: boolean;
+  /** formula fields only — Airtable-pattern expression, e.g. ROUND({Hours}*{Rate}, 2) */
+  formula?: string;
 }
 
 export interface FlexTable {

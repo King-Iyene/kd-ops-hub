@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Plus, Table2, Trash2, Loader2, MoreHorizontal, EyeOff,
   Type, AlignLeft, Hash, CalendarDays, CheckSquare, ListChecks,
-  User, Users, Link2, AtSign, Phone, Globe, Copy, FileText, Check,
+  User, Users, Link2, AtSign, Phone, Globe, Copy, FileText, Check, Sigma,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { evaluateFormula, isFormulaError, type FormulaValue } from '@/lib/flexFormula';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -36,8 +37,59 @@ import {
 const FIELD_ICONS: Record<FlexFieldType, typeof Type> = {
   text: Type, long_text: AlignLeft, number: Hash, date: CalendarDays, checkbox: CheckSquare,
   select: ListChecks, multi_select: ListChecks, person: User, multi_person: Users,
-  task_link: Link2, url: Globe, email: AtSign, phone: Phone,
+  task_link: Link2, url: Globe, email: AtSign, phone: Phone, formula: Sigma,
 };
+
+/** Flattens a record's other fields to { fieldName: displayValue } for the
+ *  formula engine. Formula fields are deliberately excluded from the map
+ *  (referencing one resolves to null) to avoid needing dependency-ordered
+ *  evaluation or guarding against circular formulas. */
+function buildFormulaScope(
+  record: FlexRecord,
+  allFields: FlexField[],
+  profilesById: Map<string, ProfileLite>,
+  tasksById: Map<string, TaskLite>,
+): Record<string, FormulaValue> {
+  const scope: Record<string, FormulaValue> = {};
+  for (const f of allFields) {
+    if (f.type === 'formula') continue;
+    const v = record.data[f.id];
+    switch (f.type) {
+      case 'checkbox':
+        scope[f.name] = !!v;
+        break;
+      case 'number':
+        scope[f.name] = typeof v === 'number' ? v : v == null ? null : Number(v);
+        break;
+      case 'select': {
+        const choice = f.options.choices?.find((c) => c.id === v);
+        scope[f.name] = choice?.label ?? null;
+        break;
+      }
+      case 'multi_select': {
+        const ids = Array.isArray(v) ? (v as string[]) : [];
+        scope[f.name] = ids.map((id) => f.options.choices?.find((c) => c.id === id)?.label).filter(Boolean).join(', ');
+        break;
+      }
+      case 'person':
+        scope[f.name] = profilesById.get(v as string)?.full_name ?? null;
+        break;
+      case 'multi_person': {
+        const ids = Array.isArray(v) ? (v as string[]) : [];
+        scope[f.name] = ids.map((id) => profilesById.get(id)?.full_name).filter(Boolean).join(', ');
+        break;
+      }
+      case 'task_link': {
+        const ids = Array.isArray(v) ? (v as string[]) : [];
+        scope[f.name] = ids.map((id) => tasksById.get(id)?.title).filter(Boolean).join(', ');
+        break;
+      }
+      default:
+        scope[f.name] = (v as FormulaValue) ?? null;
+    }
+  }
+  return scope;
+}
 
 const CHOICE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#64748b'];
 
@@ -337,6 +389,7 @@ export default function FlexTables() {
         <FieldEditorDialog
           tableId={selectedTable.id}
           field={fieldDialog === 'new' ? null : fieldDialog}
+          allFields={fields}
           nextSortOrder={fields.length}
           onClose={() => setFieldDialog(null)}
           onSaved={(f, isNew) => {
@@ -460,7 +513,7 @@ function GridView({
                 </td>
                 {visibleFields.map((f) => (
                   <td key={f.id} className="px-1 py-1 border-b border-border/60 align-top">
-                    <Cell field={f} value={r.data[f.id]} profilesById={profilesById} tasksById={tasksById} onChange={(v) => onUpdateCell(r, f.id, v)} />
+                    <Cell field={f} value={r.data[f.id]} record={r} allFields={fields} profilesById={profilesById} tasksById={tasksById} onChange={(v) => onUpdateCell(r, f.id, v)} />
                   </td>
                 ))}
                 <td className="border-b border-border/60" />
@@ -477,10 +530,12 @@ function GridView({
 }
 
 function Cell({
-  field, value, profilesById, tasksById, onChange,
+  field, value, record, allFields, profilesById, tasksById, onChange,
 }: {
   field: FlexField;
   value: unknown;
+  record: FlexRecord;
+  allFields: FlexField[];
   profilesById: Map<string, ProfileLite>;
   tasksById: Map<string, TaskLite>;
   onChange: (v: unknown) => void;
@@ -489,6 +544,22 @@ function Cell({
   const [draft, setDraft] = useState(value);
 
   useEffect(() => { setDraft(value); }, [value, open]);
+
+  if (field.type === 'formula') {
+    const scope = buildFormulaScope(record, allFields, profilesById, tasksById);
+    const result = evaluateFormula(field.options.formula || '', scope);
+    return (
+      <div className="px-2 py-1.5 text-xs text-muted-foreground italic">
+        {isFormulaError(result) ? (
+          <span className="text-destructive not-italic">#ERROR</span>
+        ) : result === null || result === undefined || result === '' ? (
+          '—'
+        ) : (
+          String(result)
+        )}
+      </div>
+    );
+  }
 
   const display = () => {
     if (value === undefined || value === null || value === '') return <span className="text-muted-foreground/50">—</span>;
@@ -650,10 +721,11 @@ function Cell({
 // ─── Field editor ────────────────────────────────────────────────────
 
 function FieldEditorDialog({
-  tableId, field, nextSortOrder, onClose, onSaved,
+  tableId, field, allFields, nextSortOrder, onClose, onSaved,
 }: {
   tableId: string;
   field: FlexField | null;
+  allFields: FlexField[];
   nextSortOrder: number;
   onClose: () => void;
   onSaved: (f: FlexField, isNew: boolean) => void;
@@ -662,18 +734,25 @@ function FieldEditorDialog({
   const [name, setName] = useState(field?.name || '');
   const [type, setType] = useState<FlexFieldType>(field?.type || 'text');
   const [choices, setChoices] = useState<FlexChoice[]>(field?.options.choices || []);
+  const [formula, setFormula] = useState(field?.options.formula || '');
   const [saving, setSaving] = useState(false);
 
   const needsChoices = type === 'select' || type === 'multi_select';
+  const isFormula = type === 'formula';
+  const referenceableFields = allFields.filter((f) => f.type !== 'formula' && f.id !== field?.id);
 
   const addChoice = () => {
     setChoices((prev) => [...prev, { id: crypto.randomUUID(), label: '', color: CHOICE_COLORS[prev.length % CHOICE_COLORS.length] }]);
   };
 
+  const formulaPreview = isFormula
+    ? evaluateFormula(formula, Object.fromEntries(referenceableFields.map((f) => [f.name, f.type === 'number' ? 1 : f.type === 'checkbox' ? true : 'sample'])))
+    : null;
+
   const save = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    const options = needsChoices ? { choices: choices.filter((c) => c.label.trim()) } : {};
+    const options = needsChoices ? { choices: choices.filter((c) => c.label.trim()) } : isFormula ? { formula } : {};
     if (field) {
       const { error } = await flexApi.updateField(field.id, { name: name.trim(), type, options });
       setSaving(false);
@@ -718,6 +797,45 @@ function FieldEditorDialog({
                 </div>
               ))}
               <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={addChoice}><Plus className="h-3 w-3" /> Add choice</Button>
+            </div>
+          )}
+
+          {isFormula && (
+            <div className="space-y-2 border-t border-border/40 pt-3">
+              <label className="text-xs font-medium text-muted-foreground">Formula</label>
+              <Textarea
+                rows={3}
+                className="font-mono text-xs"
+                placeholder='e.g. ROUND({Hours} * {Rate}, 2) or IF({Status} = "Done", "✓", "")'
+                value={formula}
+                onChange={(e) => setFormula(e.target.value)}
+              />
+              {referenceableFields.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {referenceableFields.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      className="text-[11px] px-1.5 py-0.5 rounded bg-muted/60 hover:bg-muted text-muted-foreground"
+                      onClick={() => setFormula((prev) => `${prev}{${f.name}}`)}
+                    >
+                      {f.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                Functions: IF, AND, OR, NOT, SUM, MIN, MAX, ROUND, ABS, LEN, UPPER, LOWER, TRIM, CONCATENATE, TODAY, NOW. Use & to join text, + - * / for math.
+              </p>
+              {formula.trim() && (
+                <p className="text-[11px]">
+                  Preview: {isFormulaError(formulaPreview) ? (
+                    <span className="text-destructive">{formulaPreview.error}</span>
+                  ) : (
+                    <span className="text-muted-foreground">{String(formulaPreview ?? '—')}</span>
+                  )}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -800,12 +918,14 @@ function FormBuilderDialog({
   const { toast } = useToast();
   const [name, setName] = useState(form?.name || 'Untitled form');
   const [description, setDescription] = useState(form?.description || '');
+  // Formula fields are computed, not fillable — excluded from forms entirely.
+  const formFields = fields.filter((f) => f.type !== 'formula');
   const [selected, setSelected] = useState<FlexFormField[]>(
-    form?.fields || fields.map((f) => ({ field_id: f.id, required: false, condition: null })),
+    form?.fields || formFields.map((f) => ({ field_id: f.id, required: false, condition: null })),
   );
   const [saving, setSaving] = useState(false);
 
-  const conditionSources = fields.filter((f) => f.type === 'select' || f.type === 'person');
+  const conditionSources = formFields.filter((f) => f.type === 'select' || f.type === 'person');
 
   const toggleField = (fieldId: string, include: boolean) => {
     setSelected((prev) => {
@@ -844,7 +964,7 @@ function FormBuilderDialog({
 
           <div className="space-y-2 border-t border-border/40 pt-3">
             <label className="text-xs font-medium text-muted-foreground">Fields</label>
-            {fields.map((f) => {
+            {formFields.map((f) => {
               const entry = selected.find((x) => x.field_id === f.id);
               const included = !!entry;
               return (
