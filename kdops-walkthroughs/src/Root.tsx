@@ -95,43 +95,43 @@ import { DRAOutroScene } from "./DocsReportsAdmin/DRAOutroScene";
 const FPS = 30;
 
 // Video 1: 4+7+8+8+6+4 = 37s, minus 5 transitions × 0.5s = 34.5s ≈ 1035 frames
-const V1_FRAMES = 1035;
+const V1_FRAMES = 3315;
 
 // Video 2: 4+8+8+8+8+6+4 = 46s, minus 6 transitions × 0.5s = 43s = 1290 frames
-const V2_FRAMES = 1290;
+const V2_FRAMES = 3720;
 
 // Video 3: ManagingEmployees — 4+8+8+8+6+4 = 38s, minus 5 × 0.5s = 35.5s ≈ 1065 frames
-const V3_FRAMES = 1065;
+const V3_FRAMES = 3435;
 
 // Video 5: LeaveRequests — 4+7+8+7+6+4 = 36s, minus 5 × 0.5s = 33.5s ≈ 1005 frames
-const V5_FRAMES = 1005;
+const V5_FRAMES = 2565;
 
 // Video 6: TasksAccountability — 4+8+8+6+4 = 30s, minus 4 × 0.5s = 28s = 840 frames
-const V6_FRAMES = 840;
+const V6_FRAMES = 2430;
 
 // Video 7: PaymentBatches — 4+8+8+8+6+4 = 38s, minus 5 × 0.5s = 35.5s ≈ 1065 frames
-const V7_FRAMES = 1065;
+const V7_FRAMES = 2895;
 
 // Video 4: ContractorDirectory — 4+8+8+6+4 = 30s, minus 4 × 0.5s = 28s = 840 frames
-const V4_FRAMES = 840;
+const V4_FRAMES = 2130;
 
 // Video 8: ExpensesApprovals — 4+8+8+8+6+4 = 38s, minus 5 × 0.5s = 35.5s ≈ 1065 frames
-const V8_FRAMES = 1065;
+const V8_FRAMES = 2715;
 
 // Video 9: PayrollIntelligence — 4+8+8+8+8+6+4 = 46s, minus 6 × 0.5s = 43s = 1290 frames
-const V9_FRAMES = 1290;
+const V9_FRAMES = 3360;
 
 // Video 10: BudgetsSubscriptions — 4+8+8+8+6+4 = 38s, minus 5 × 0.5s = 35.5s ≈ 1065 frames
-const V10_FRAMES = 1065;
+const V10_FRAMES = 2835;
 
 // Video 11: ComplianceCentre — 4+8+8+8+6+4 = 38s, minus 5 × 0.5s = 35.5s ≈ 1065 frames
-const V11_FRAMES = 1065;
+const V11_FRAMES = 2775;
 
 // Video 12: FleetFuel — 4+8+8+8+6+4 = 38s, minus 5 × 0.5s = 35.5s ≈ 1065 frames
-const V12_FRAMES = 1065;
+const V12_FRAMES = 2775;
 
 // Video 13: DocsReportsAdmin — 4+8+8+8+6+4 = 38s, minus 5 × 0.5s = 35.5s ≈ 1065 frames
-const V13_FRAMES = 1065;
+const V13_FRAMES = 2805;
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -147,12 +147,12 @@ export const RemotionRoot: React.FC = () => {
       />
 
       <Folder name="WelcomeToKDOps-Scenes">
-        <Composition id="V1-Intro" component={IntroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V1-Login" component={LoginScene} durationInFrames={7 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V1-Dashboard" component={DashboardScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V1-Sidebar" component={SidebarScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V1-Troubleshooting" component={TroubleshootScene} durationInFrames={6 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V1-Outro" component={OutroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V1-Intro" component={IntroScene} durationInFrames={11 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V1-Login" component={LoginScene} durationInFrames={19 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V1-Dashboard" component={DashboardScene} durationInFrames={28 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V1-Sidebar" component={SidebarScene} durationInFrames={22 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V1-Troubleshooting" component={TroubleshootScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V1-Outro" component={OutroScene} durationInFrames={10 * FPS} fps={FPS} width={1920} height={1080} />
       </Folder>
 
       {/* === Video 2: Dashboard Deep Dive === */}
@@ -166,13 +166,13 @@ export const RemotionRoot: React.FC = () => {
       />
 
       <Folder name="DashboardDeepDive-Scenes">
-        <Composition id="V2-Intro" component={DDIntroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V2-StatCards" component={DDStatCardsScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V2-Finance" component={DDFinanceScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V2-QuickActions" component={DDQuickActionsScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V2-Compliance" component={DDComplianceScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V2-Troubleshooting" component={DDTroubleshootScene} durationInFrames={6 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V2-Outro" component={DDOutroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V2-Intro" component={DDIntroScene} durationInFrames={11 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V2-StatCards" component={DDStatCardsScene} durationInFrames={26 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V2-Finance" component={DDFinanceScene} durationInFrames={23 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V2-QuickActions" component={DDQuickActionsScene} durationInFrames={19 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V2-Compliance" component={DDComplianceScene} durationInFrames={22 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V2-Troubleshooting" component={DDTroubleshootScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V2-Outro" component={DDOutroScene} durationInFrames={10 * FPS} fps={FPS} width={1920} height={1080} />
       </Folder>
 
       {/* === Video 3: Managing Employees === */}
@@ -186,12 +186,12 @@ export const RemotionRoot: React.FC = () => {
       />
 
       <Folder name="ManagingEmployees-Scenes">
-        <Composition id="V3-Intro" component={MEIntroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V3-Directory" component={MEDirectoryScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V3-AddEmployee" component={MEAddEmployeeScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V3-Modules" component={MEModulesScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V3-Troubleshooting" component={METroubleshootScene} durationInFrames={6 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V3-Outro" component={MEOutroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V3-Intro" component={MEIntroScene} durationInFrames={11 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V3-Directory" component={MEDirectoryScene} durationInFrames={21 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V3-AddEmployee" component={MEAddEmployeeScene} durationInFrames={32 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V3-Modules" component={MEModulesScene} durationInFrames={25 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V3-Troubleshooting" component={METroubleshootScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V3-Outro" component={MEOutroScene} durationInFrames={10 * FPS} fps={FPS} width={1920} height={1080} />
       </Folder>
 
       {/* === Video 5: Leave Requests === */}
@@ -205,12 +205,12 @@ export const RemotionRoot: React.FC = () => {
       />
 
       <Folder name="LeaveRequests-Scenes">
-        <Composition id="V5-Intro" component={LRIntroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V5-Balances" component={LRBalancesScene} durationInFrames={7 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V5-Request" component={LRRequestScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V5-Approve" component={LRApproveScene} durationInFrames={7 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V5-Troubleshooting" component={LRTroubleshootScene} durationInFrames={6 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V5-Outro" component={LROutroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V5-Intro" component={LRIntroScene} durationInFrames={11 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V5-Balances" component={LRBalancesScene} durationInFrames={16 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V5-Request" component={LRRequestScene} durationInFrames={18 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V5-Approve" component={LRApproveScene} durationInFrames={16 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V5-Troubleshooting" component={LRTroubleshootScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V5-Outro" component={LROutroScene} durationInFrames={10 * FPS} fps={FPS} width={1920} height={1080} />
       </Folder>
 
       {/* === Video 6: Tasks & Accountability === */}
@@ -224,11 +224,11 @@ export const RemotionRoot: React.FC = () => {
       />
 
       <Folder name="TasksAccountability-Scenes">
-        <Composition id="V6-Intro" component={TAIntroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V6-TaskBoard" component={TATaskBoardScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V6-CreateTask" component={TACreateTaskScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V6-Troubleshooting" component={TATroubleshootScene} durationInFrames={6 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V6-Outro" component={TAOutroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V6-Intro" component={TAIntroScene} durationInFrames={11 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V6-TaskBoard" component={TATaskBoardScene} durationInFrames={22 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V6-CreateTask" component={TACreateTaskScene} durationInFrames={23 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V6-Troubleshooting" component={TATroubleshootScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V6-Outro" component={TAOutroScene} durationInFrames={10 * FPS} fps={FPS} width={1920} height={1080} />
       </Folder>
 
       {/* === Video 7: Payment Batches === */}
@@ -242,12 +242,12 @@ export const RemotionRoot: React.FC = () => {
       />
 
       <Folder name="PaymentBatches-Scenes">
-        <Composition id="V7-Intro" component={PBIntroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V7-BatchOverview" component={PBBatchOverviewScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V7-CreateBatch" component={PBCreateBatchScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V7-BatchApproval" component={PBBatchApprovalScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V7-Troubleshooting" component={PBTroubleshootScene} durationInFrames={6 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V7-Outro" component={PBOutroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V7-Intro" component={PBIntroScene} durationInFrames={11 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V7-BatchOverview" component={PBBatchOverviewScene} durationInFrames={18 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V7-CreateBatch" component={PBCreateBatchScene} durationInFrames={24 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V7-BatchApproval" component={PBBatchApprovalScene} durationInFrames={20 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V7-Troubleshooting" component={PBTroubleshootScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V7-Outro" component={PBOutroScene} durationInFrames={10 * FPS} fps={FPS} width={1920} height={1080} />
       </Folder>
 
       {/* === Video 4: Contractor Directory === */}
@@ -261,11 +261,11 @@ export const RemotionRoot: React.FC = () => {
       />
 
       <Folder name="ContractorDirectory-Scenes">
-        <Composition id="V4-Intro" component={CDIntroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V4-ContractorList" component={CDContractorListScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V4-AddContractor" component={CDAddContractorScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V4-Troubleshooting" component={CDTroubleshootScene} durationInFrames={6 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V4-Outro" component={CDOutroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V4-Intro" component={CDIntroScene} durationInFrames={11 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V4-ContractorList" component={CDContractorListScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V4-AddContractor" component={CDAddContractorScene} durationInFrames={21 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V4-Troubleshooting" component={CDTroubleshootScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V4-Outro" component={CDOutroScene} durationInFrames={10 * FPS} fps={FPS} width={1920} height={1080} />
       </Folder>
 
       {/* === Video 8: Expenses & Approvals === */}
@@ -279,12 +279,12 @@ export const RemotionRoot: React.FC = () => {
       />
 
       <Folder name="ExpensesApprovals-Scenes">
-        <Composition id="V8-Intro" component={EAIntroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V8-ExpenseList" component={EAExpenseListScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V8-SubmitExpense" component={EASubmitExpenseScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V8-ApprovalFlow" component={EAApprovalFlowScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V8-Troubleshooting" component={EATroubleshootScene} durationInFrames={6 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V8-Outro" component={EAOutroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V8-Intro" component={EAIntroScene} durationInFrames={11 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V8-ExpenseList" component={EAExpenseListScene} durationInFrames={16 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V8-SubmitExpense" component={EASubmitExpenseScene} durationInFrames={19 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V8-ApprovalFlow" component={EAApprovalFlowScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V8-Troubleshooting" component={EATroubleshootScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V8-Outro" component={EAOutroScene} durationInFrames={10 * FPS} fps={FPS} width={1920} height={1080} />
       </Folder>
 
       {/* === Video 9: Payroll Intelligence === */}
@@ -298,13 +298,13 @@ export const RemotionRoot: React.FC = () => {
       />
 
       <Folder name="PayrollIntelligence-Scenes">
-        <Composition id="V9-Intro" component={PIIntroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V9-PayrollOverview" component={PIPayrollOverviewScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V9-RunPayroll" component={PIRunPayrollScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V9-PayrollBreakdown" component={PIPayrollBreakdownScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V9-PayrollHistory" component={PIPayrollHistoryScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V9-Troubleshooting" component={PITroubleshootScene} durationInFrames={6 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V9-Outro" component={PIOutroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V9-Intro" component={PIIntroScene} durationInFrames={11 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V9-PayrollOverview" component={PIPayrollOverviewScene} durationInFrames={20 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V9-RunPayroll" component={PIRunPayrollScene} durationInFrames={20 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V9-PayrollBreakdown" component={PIPayrollBreakdownScene} durationInFrames={18 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V9-PayrollHistory" component={PIPayrollHistoryScene} durationInFrames={19 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V9-Troubleshooting" component={PITroubleshootScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V9-Outro" component={PIOutroScene} durationInFrames={10 * FPS} fps={FPS} width={1920} height={1080} />
       </Folder>
 
       {/* === Video 10: Budgets & Subscriptions === */}
@@ -318,12 +318,12 @@ export const RemotionRoot: React.FC = () => {
       />
 
       <Folder name="BudgetsSubscriptions-Scenes">
-        <Composition id="V10-Intro" component={BSIntroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V10-BudgetOverview" component={BSBudgetOverviewScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V10-CreateBudget" component={BSCreateBudgetScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V10-SubscriptionTracker" component={BSSubscriptionTrackerScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V10-Troubleshooting" component={BSTroubleshootScene} durationInFrames={6 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V10-Outro" component={BSOutroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V10-Intro" component={BSIntroScene} durationInFrames={11 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V10-BudgetOverview" component={BSBudgetOverviewScene} durationInFrames={18 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V10-CreateBudget" component={BSCreateBudgetScene} durationInFrames={20 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V10-SubscriptionTracker" component={BSSubscriptionTrackerScene} durationInFrames={19 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V10-Troubleshooting" component={BSTroubleshootScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V10-Outro" component={BSOutroScene} durationInFrames={10 * FPS} fps={FPS} width={1920} height={1080} />
       </Folder>
 
       {/* === Video 11: Compliance Centre === */}
@@ -337,12 +337,12 @@ export const RemotionRoot: React.FC = () => {
       />
 
       <Folder name="ComplianceCentre-Scenes">
-        <Composition id="V11-Intro" component={CCIntroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V11-ComplianceOverview" component={CCComplianceOverviewScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V11-FilingProcess" component={CCFilingProcessScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V11-DocumentUpload" component={CCDocumentUploadScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V11-Troubleshooting" component={CCTroubleshootScene} durationInFrames={6 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V11-Outro" component={CCOutroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V11-Intro" component={CCIntroScene} durationInFrames={11 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V11-ComplianceOverview" component={CCComplianceOverviewScene} durationInFrames={19 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V11-FilingProcess" component={CCFilingProcessScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V11-DocumentUpload" component={CCDocumentUploadScene} durationInFrames={19 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V11-Troubleshooting" component={CCTroubleshootScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V11-Outro" component={CCOutroScene} durationInFrames={10 * FPS} fps={FPS} width={1920} height={1080} />
       </Folder>
 
       {/* === Video 12: Fleet & Fuel === */}
@@ -356,12 +356,12 @@ export const RemotionRoot: React.FC = () => {
       />
 
       <Folder name="FleetFuel-Scenes">
-        <Composition id="V12-Intro" component={FFIntroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V12-FleetOverview" component={FFFleetOverviewScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V12-FuelTracking" component={FFFuelTrackingScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V12-VendorManagement" component={FFVendorManagementScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V12-Troubleshooting" component={FFTroubleshootScene} durationInFrames={6 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V12-Outro" component={FFOutroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V12-Intro" component={FFIntroScene} durationInFrames={11 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V12-FleetOverview" component={FFFleetOverviewScene} durationInFrames={19 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V12-FuelTracking" component={FFFuelTrackingScene} durationInFrames={20 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V12-VendorManagement" component={FFVendorManagementScene} durationInFrames={18 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V12-Troubleshooting" component={FFTroubleshootScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V12-Outro" component={FFOutroScene} durationInFrames={10 * FPS} fps={FPS} width={1920} height={1080} />
       </Folder>
 
       {/* === Video 13: Docs, Reports & Admin === */}
@@ -375,12 +375,12 @@ export const RemotionRoot: React.FC = () => {
       />
 
       <Folder name="DocsReportsAdmin-Scenes">
-        <Composition id="V13-Intro" component={DRAIntroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V13-DocumentsOverview" component={DRADocumentsOverviewScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V13-ReportsModule" component={DRAReportsModuleScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V13-AdminSettings" component={DRAAdminSettingsScene} durationInFrames={8 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V13-Troubleshooting" component={DRATroubleshootScene} durationInFrames={6 * FPS} fps={FPS} width={1920} height={1080} />
-        <Composition id="V13-Outro" component={DRAOutroScene} durationInFrames={4 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V13-Intro" component={DRAIntroScene} durationInFrames={11 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V13-DocumentsOverview" component={DRADocumentsOverviewScene} durationInFrames={21 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V13-ReportsModule" component={DRAReportsModuleScene} durationInFrames={20 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V13-AdminSettings" component={DRAAdminSettingsScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V13-Troubleshooting" component={DRATroubleshootScene} durationInFrames={17 * FPS} fps={FPS} width={1920} height={1080} />
+        <Composition id="V13-Outro" component={DRAOutroScene} durationInFrames={10 * FPS} fps={FPS} width={1920} height={1080} />
       </Folder>
     </>
   );

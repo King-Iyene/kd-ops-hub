@@ -14,37 +14,37 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 120,
+        durationFrames: 300,
         file: "voiceover/09-PayrollIntelligence/intro.mp3"
     },
     {
-        startFrame: 105,
-        durationFrames: 240,
+        startFrame: 285,
+        durationFrames: 600,
         file: "voiceover/09-PayrollIntelligence/overview.mp3"
     },
     {
-        startFrame: 330,
-        durationFrames: 240,
+        startFrame: 870,
+        durationFrames: 600,
         file: "voiceover/09-PayrollIntelligence/run.mp3"
     },
     {
-        startFrame: 555,
-        durationFrames: 240,
+        startFrame: 1455,
+        durationFrames: 540,
         file: "voiceover/09-PayrollIntelligence/breakdown.mp3"
     },
     {
-        startFrame: 780,
-        durationFrames: 240,
+        startFrame: 1980,
+        durationFrames: 570,
         file: "voiceover/09-PayrollIntelligence/history.mp3"
     },
     {
-        startFrame: 1005,
-        durationFrames: 180,
+        startFrame: 2535,
+        durationFrames: 540,
         file: "voiceover/09-PayrollIntelligence/troubleshoot.mp3"
     },
     {
-        startFrame: 1170,
-        durationFrames: 120,
+        startFrame: 3060,
+        durationFrames: 300,
         file: "voiceover/09-PayrollIntelligence/outro.mp3"
     }
 ];
@@ -56,7 +56,7 @@ export const PayrollIntelligence: React.FC = () => {
     <AbsoluteFill>
     <TransitionSeries>
       {/* Scene 1: Intro — 4s */}
-      <TransitionSeries.Sequence durationInFrames={4 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Intro">
         <PIIntroScene />
       </TransitionSeries.Sequence>
 
@@ -66,7 +66,7 @@ export const PayrollIntelligence: React.FC = () => {
       />
 
       {/* Scene 2: Payroll Overview — 8s */}
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="PayrollOverview">
+      <TransitionSeries.Sequence durationInFrames={20 * fps} name="PayrollOverview">
         <PIPayrollOverviewScene />
       </TransitionSeries.Sequence>
 
@@ -76,7 +76,7 @@ export const PayrollIntelligence: React.FC = () => {
       />
 
       {/* Scene 3: Run Payroll — 8s */}
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="RunPayroll">
+      <TransitionSeries.Sequence durationInFrames={20 * fps} name="RunPayroll">
         <PIRunPayrollScene />
       </TransitionSeries.Sequence>
 
@@ -86,7 +86,7 @@ export const PayrollIntelligence: React.FC = () => {
       />
 
       {/* Scene 4: Payroll Breakdown — 8s */}
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="PayrollBreakdown">
+      <TransitionSeries.Sequence durationInFrames={18 * fps} name="PayrollBreakdown">
         <PIPayrollBreakdownScene />
       </TransitionSeries.Sequence>
 
@@ -96,7 +96,7 @@ export const PayrollIntelligence: React.FC = () => {
       />
 
       {/* Scene 5: Payroll History — 8s */}
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="PayrollHistory">
+      <TransitionSeries.Sequence durationInFrames={19 * fps} name="PayrollHistory">
         <PIPayrollHistoryScene />
       </TransitionSeries.Sequence>
 
@@ -106,7 +106,7 @@ export const PayrollIntelligence: React.FC = () => {
       />
 
       {/* Scene 6: Troubleshooting — 6s */}
-      <TransitionSeries.Sequence durationInFrames={6 * fps} name="Troubleshooting">
+      <TransitionSeries.Sequence durationInFrames={18 * fps} name="Troubleshooting">
         <PITroubleshootScene />
       </TransitionSeries.Sequence>
 
@@ -116,7 +116,7 @@ export const PayrollIntelligence: React.FC = () => {
       />
 
       {/* Scene 7: Outro — 4s */}
-      <TransitionSeries.Sequence durationInFrames={4 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Outro">
         <PIOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>

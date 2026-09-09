@@ -13,32 +13,32 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 120,
+        durationFrames: 300,
         file: "voiceover/11-ComplianceCentre/intro.mp3"
     },
     {
-        startFrame: 105,
-        durationFrames: 240,
+        startFrame: 285,
+        durationFrames: 570,
         file: "voiceover/11-ComplianceCentre/overview.mp3"
     },
     {
-        startFrame: 330,
-        durationFrames: 240,
+        startFrame: 840,
+        durationFrames: 510,
         file: "voiceover/11-ComplianceCentre/filing.mp3"
     },
     {
-        startFrame: 555,
-        durationFrames: 240,
+        startFrame: 1335,
+        durationFrames: 570,
         file: "voiceover/11-ComplianceCentre/upload.mp3"
     },
     {
-        startFrame: 780,
-        durationFrames: 180,
+        startFrame: 1890,
+        durationFrames: 570,
         file: "voiceover/11-ComplianceCentre/troubleshoot.mp3"
     },
     {
-        startFrame: 945,
-        durationFrames: 120,
+        startFrame: 2445,
+        durationFrames: 330,
         file: "voiceover/11-ComplianceCentre/outro.mp3"
     }
 ];
@@ -48,27 +48,27 @@ export const ComplianceCentre: React.FC = () => {
   return (
     <AbsoluteFill>
     <TransitionSeries>
-      <TransitionSeries.Sequence durationInFrames={4 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Intro">
         <CCIntroScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="ComplianceOverview">
+      <TransitionSeries.Sequence durationInFrames={19 * fps} name="ComplianceOverview">
         <CCComplianceOverviewScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={slide({ direction: "from-right" })} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="FilingProcess">
+      <TransitionSeries.Sequence durationInFrames={17 * fps} name="FilingProcess">
         <CCFilingProcessScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={slide({ direction: "from-right" })} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="DocumentUpload">
+      <TransitionSeries.Sequence durationInFrames={19 * fps} name="DocumentUpload">
         <CCDocumentUploadScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
-      <TransitionSeries.Sequence durationInFrames={6 * fps} name="Troubleshooting">
+      <TransitionSeries.Sequence durationInFrames={19 * fps} name="Troubleshooting">
         <CCTroubleshootScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
-      <TransitionSeries.Sequence durationInFrames={4 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={11 * fps} name="Outro">
         <CCOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>

@@ -12,27 +12,27 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 120,
+        durationFrames: 270,
         file: "voiceover/06-TasksAccountability/intro.mp3"
     },
     {
-        startFrame: 105,
-        durationFrames: 240,
+        startFrame: 255,
+        durationFrames: 660,
         file: "voiceover/06-TasksAccountability/taskboard.mp3"
     },
     {
-        startFrame: 330,
-        durationFrames: 240,
+        startFrame: 900,
+        durationFrames: 690,
         file: "voiceover/06-TasksAccountability/create.mp3"
     },
     {
-        startFrame: 555,
-        durationFrames: 180,
+        startFrame: 1575,
+        durationFrames: 570,
         file: "voiceover/06-TasksAccountability/troubleshoot.mp3"
     },
     {
-        startFrame: 720,
-        durationFrames: 120,
+        startFrame: 2130,
+        durationFrames: 300,
         file: "voiceover/06-TasksAccountability/outro.mp3"
     }
 ];
@@ -42,23 +42,23 @@ export const TasksAccountability: React.FC = () => {
   return (
     <AbsoluteFill>
     <TransitionSeries>
-      <TransitionSeries.Sequence durationInFrames={4 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={9 * fps} name="Intro">
         <TAIntroScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="TaskBoard">
+      <TransitionSeries.Sequence durationInFrames={22 * fps} name="TaskBoard">
         <TATaskBoardScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={slide({ direction: "from-right" })} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="CreateTask">
+      <TransitionSeries.Sequence durationInFrames={23 * fps} name="CreateTask">
         <TACreateTaskScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
-      <TransitionSeries.Sequence durationInFrames={6 * fps} name="Troubleshooting">
+      <TransitionSeries.Sequence durationInFrames={19 * fps} name="Troubleshooting">
         <TATroubleshootScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
-      <TransitionSeries.Sequence durationInFrames={4 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Outro">
         <TAOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>

@@ -13,32 +13,32 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 120,
+        durationFrames: 330,
         file: "voiceover/08-ExpensesApprovals/intro.mp3"
     },
     {
-        startFrame: 105,
-        durationFrames: 240,
+        startFrame: 315,
+        durationFrames: 480,
         file: "voiceover/08-ExpensesApprovals/list.mp3"
     },
     {
-        startFrame: 330,
-        durationFrames: 240,
+        startFrame: 780,
+        durationFrames: 570,
         file: "voiceover/08-ExpensesApprovals/submit.mp3"
     },
     {
-        startFrame: 555,
-        durationFrames: 240,
+        startFrame: 1335,
+        durationFrames: 510,
         file: "voiceover/08-ExpensesApprovals/approval.mp3"
     },
     {
-        startFrame: 780,
-        durationFrames: 180,
+        startFrame: 1830,
+        durationFrames: 600,
         file: "voiceover/08-ExpensesApprovals/troubleshoot.mp3"
     },
     {
-        startFrame: 945,
-        durationFrames: 120,
+        startFrame: 2415,
+        durationFrames: 300,
         file: "voiceover/08-ExpensesApprovals/outro.mp3"
     }
 ];
@@ -50,7 +50,7 @@ export const ExpensesApprovals: React.FC = () => {
     <AbsoluteFill>
     <TransitionSeries>
       {/* Scene 1: Intro — 4s */}
-      <TransitionSeries.Sequence durationInFrames={4 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={11 * fps} name="Intro">
         <EAIntroScene />
       </TransitionSeries.Sequence>
 
@@ -60,7 +60,7 @@ export const ExpensesApprovals: React.FC = () => {
       />
 
       {/* Scene 2: Expense List — 8s */}
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="ExpenseList">
+      <TransitionSeries.Sequence durationInFrames={16 * fps} name="ExpenseList">
         <EAExpenseListScene />
       </TransitionSeries.Sequence>
 
@@ -70,7 +70,7 @@ export const ExpensesApprovals: React.FC = () => {
       />
 
       {/* Scene 3: Submit Expense — 8s */}
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="SubmitExpense">
+      <TransitionSeries.Sequence durationInFrames={19 * fps} name="SubmitExpense">
         <EASubmitExpenseScene />
       </TransitionSeries.Sequence>
 
@@ -80,7 +80,7 @@ export const ExpensesApprovals: React.FC = () => {
       />
 
       {/* Scene 4: Approval Flow — 8s */}
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="ApprovalFlow">
+      <TransitionSeries.Sequence durationInFrames={17 * fps} name="ApprovalFlow">
         <EAApprovalFlowScene />
       </TransitionSeries.Sequence>
 
@@ -90,7 +90,7 @@ export const ExpensesApprovals: React.FC = () => {
       />
 
       {/* Scene 5: Troubleshooting — 6s */}
-      <TransitionSeries.Sequence durationInFrames={6 * fps} name="Troubleshooting">
+      <TransitionSeries.Sequence durationInFrames={20 * fps} name="Troubleshooting">
         <EATroubleshootScene />
       </TransitionSeries.Sequence>
 
@@ -100,7 +100,7 @@ export const ExpensesApprovals: React.FC = () => {
       />
 
       {/* Scene 6: Outro — 4s */}
-      <TransitionSeries.Sequence durationInFrames={4 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Outro">
         <EAOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>

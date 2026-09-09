@@ -12,27 +12,27 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 120,
+        durationFrames: 270,
         file: "voiceover/04-ContractorDirectory/intro.mp3"
     },
     {
-        startFrame: 105,
-        durationFrames: 240,
+        startFrame: 255,
+        durationFrames: 510,
         file: "voiceover/04-ContractorDirectory/list.mp3"
     },
     {
-        startFrame: 330,
-        durationFrames: 240,
+        startFrame: 750,
+        durationFrames: 630,
         file: "voiceover/04-ContractorDirectory/add.mp3"
     },
     {
-        startFrame: 555,
-        durationFrames: 180,
+        startFrame: 1365,
+        durationFrames: 510,
         file: "voiceover/04-ContractorDirectory/troubleshoot.mp3"
     },
     {
-        startFrame: 720,
-        durationFrames: 120,
+        startFrame: 1860,
+        durationFrames: 270,
         file: "voiceover/04-ContractorDirectory/outro.mp3"
     }
 ];
@@ -43,31 +43,31 @@ export const ContractorDirectory: React.FC = () => {
   return (
     <AbsoluteFill>
     <TransitionSeries>
-      <TransitionSeries.Sequence durationInFrames={4 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={9 * fps} name="Intro">
         <CDIntroScene />
       </TransitionSeries.Sequence>
 
       <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
 
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="ContractorList">
+      <TransitionSeries.Sequence durationInFrames={17 * fps} name="ContractorList">
         <CDContractorListScene />
       </TransitionSeries.Sequence>
 
       <TransitionSeries.Transition presentation={slide({ direction: "from-right" })} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
 
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="AddContractor">
+      <TransitionSeries.Sequence durationInFrames={21 * fps} name="AddContractor">
         <CDAddContractorScene />
       </TransitionSeries.Sequence>
 
       <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
 
-      <TransitionSeries.Sequence durationInFrames={6 * fps} name="Troubleshooting">
+      <TransitionSeries.Sequence durationInFrames={17 * fps} name="Troubleshooting">
         <CDTroubleshootScene />
       </TransitionSeries.Sequence>
 
       <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
 
-      <TransitionSeries.Sequence durationInFrames={4 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={9 * fps} name="Outro">
         <CDOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>

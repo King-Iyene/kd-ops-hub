@@ -13,32 +13,32 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 120,
+        durationFrames: 360,
         file: "voiceover/01-WelcomeToKDOps/intro.mp3"
     },
     {
-        startFrame: 105,
-        durationFrames: 210,
+        startFrame: 345,
+        durationFrames: 570,
         file: "voiceover/01-WelcomeToKDOps/login.mp3"
     },
     {
-        startFrame: 300,
-        durationFrames: 240,
+        startFrame: 900,
+        durationFrames: 840,
         file: "voiceover/01-WelcomeToKDOps/dashboard.mp3"
     },
     {
-        startFrame: 525,
-        durationFrames: 240,
+        startFrame: 1725,
+        durationFrames: 660,
         file: "voiceover/01-WelcomeToKDOps/sidebar.mp3"
     },
     {
-        startFrame: 750,
-        durationFrames: 180,
+        startFrame: 2370,
+        durationFrames: 570,
         file: "voiceover/01-WelcomeToKDOps/troubleshoot.mp3"
     },
     {
-        startFrame: 915,
-        durationFrames: 120,
+        startFrame: 2925,
+        durationFrames: 390,
         file: "voiceover/01-WelcomeToKDOps/outro.mp3"
     }
 ];
@@ -50,7 +50,7 @@ export const WelcomeToKDOps: React.FC = () => {
     <AbsoluteFill>
     <TransitionSeries>
       {/* Scene 1: Intro — 4 seconds */}
-      <TransitionSeries.Sequence durationInFrames={4 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={12 * fps} name="Intro">
         <IntroScene />
       </TransitionSeries.Sequence>
 
@@ -60,7 +60,7 @@ export const WelcomeToKDOps: React.FC = () => {
       />
 
       {/* Scene 2: Login — 7 seconds */}
-      <TransitionSeries.Sequence durationInFrames={7 * fps} name="Login">
+      <TransitionSeries.Sequence durationInFrames={19 * fps} name="Login">
         <LoginScene />
       </TransitionSeries.Sequence>
 
@@ -70,7 +70,7 @@ export const WelcomeToKDOps: React.FC = () => {
       />
 
       {/* Scene 3: Dashboard — 8 seconds */}
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="Dashboard">
+      <TransitionSeries.Sequence durationInFrames={28 * fps} name="Dashboard">
         <DashboardScene />
       </TransitionSeries.Sequence>
 
@@ -80,7 +80,7 @@ export const WelcomeToKDOps: React.FC = () => {
       />
 
       {/* Scene 4: Sidebar Navigation — 8 seconds */}
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="Sidebar">
+      <TransitionSeries.Sequence durationInFrames={22 * fps} name="Sidebar">
         <SidebarScene />
       </TransitionSeries.Sequence>
 
@@ -90,7 +90,7 @@ export const WelcomeToKDOps: React.FC = () => {
       />
 
       {/* Scene 5: Troubleshooting — 6 seconds */}
-      <TransitionSeries.Sequence durationInFrames={6 * fps} name="Troubleshooting">
+      <TransitionSeries.Sequence durationInFrames={19 * fps} name="Troubleshooting">
         <TroubleshootScene />
       </TransitionSeries.Sequence>
 
@@ -100,7 +100,7 @@ export const WelcomeToKDOps: React.FC = () => {
       />
 
       {/* Scene 6: Outro — 4 seconds */}
-      <TransitionSeries.Sequence durationInFrames={4 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={13 * fps} name="Outro">
         <OutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>

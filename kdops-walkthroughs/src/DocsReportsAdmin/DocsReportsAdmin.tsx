@@ -13,32 +13,32 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 120,
+        durationFrames: 330,
         file: "voiceover/13-DocsReportsAdmin/intro.mp3"
     },
     {
-        startFrame: 105,
-        durationFrames: 240,
+        startFrame: 315,
+        durationFrames: 630,
         file: "voiceover/13-DocsReportsAdmin/documents.mp3"
     },
     {
-        startFrame: 330,
-        durationFrames: 240,
+        startFrame: 930,
+        durationFrames: 600,
         file: "voiceover/13-DocsReportsAdmin/reports.mp3"
     },
     {
-        startFrame: 555,
-        durationFrames: 240,
+        startFrame: 1515,
+        durationFrames: 510,
         file: "voiceover/13-DocsReportsAdmin/admin.mp3"
     },
     {
-        startFrame: 780,
-        durationFrames: 180,
+        startFrame: 2010,
+        durationFrames: 510,
         file: "voiceover/13-DocsReportsAdmin/troubleshoot.mp3"
     },
     {
-        startFrame: 945,
-        durationFrames: 120,
+        startFrame: 2505,
+        durationFrames: 300,
         file: "voiceover/13-DocsReportsAdmin/outro.mp3"
     }
 ];
@@ -48,27 +48,27 @@ export const DocsReportsAdmin: React.FC = () => {
   return (
     <AbsoluteFill>
     <TransitionSeries>
-      <TransitionSeries.Sequence durationInFrames={4 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={11 * fps} name="Intro">
         <DRAIntroScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="DocumentsOverview">
+      <TransitionSeries.Sequence durationInFrames={21 * fps} name="DocumentsOverview">
         <DRADocumentsOverviewScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={slide({ direction: "from-right" })} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="ReportsModule">
+      <TransitionSeries.Sequence durationInFrames={20 * fps} name="ReportsModule">
         <DRAReportsModuleScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={slide({ direction: "from-right" })} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
-      <TransitionSeries.Sequence durationInFrames={8 * fps} name="AdminSettings">
+      <TransitionSeries.Sequence durationInFrames={17 * fps} name="AdminSettings">
         <DRAAdminSettingsScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
-      <TransitionSeries.Sequence durationInFrames={6 * fps} name="Troubleshooting">
+      <TransitionSeries.Sequence durationInFrames={17 * fps} name="Troubleshooting">
         <DRATroubleshootScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })} />
-      <TransitionSeries.Sequence durationInFrames={4 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Outro">
         <DRAOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>
