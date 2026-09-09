@@ -137,7 +137,6 @@ const Tasks = () => {
 
   // Folder access members
   const [spaceMembers, setSpaceMembers] = useState<{ user_id: string; role: string }[]>([]);
-  const [loadingMembers, setLoadingMembers] = useState(false);
 
   // Sidebar collapsed on mobile
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -228,14 +227,12 @@ const Tasks = () => {
     if (!selectedSpace) { setSpaceMembers([]); return; }
     let cancelled = false;
     (async () => {
-      setLoadingMembers(true);
       const { data } = await supabase
         .from('space_members')
         .select('user_id, role')
         .eq('space_id', selectedSpace);
       if (!cancelled) {
         setSpaceMembers((data as { user_id: string; role: string }[]) || []);
-        setLoadingMembers(false);
       }
     })();
     return () => { cancelled = true; };
@@ -786,20 +783,6 @@ const Tasks = () => {
     load();
   };
 
-  const toggleMember = async (userId: string) => {
-    if (!selectedSpace) return;
-    const existing = spaceMembers.find((m) => m.user_id === userId);
-    if (existing) {
-      await supabase.from('space_members').delete().eq('space_id', selectedSpace).eq('user_id', userId);
-      setSpaceMembers((prev) => prev.filter((m) => m.user_id !== userId));
-    } else {
-      const { error } = await supabase.from('space_members').insert({
-        space_id: selectedSpace, user_id: userId, role: 'member', added_by: profile?.id || null,
-      });
-      if (!error) setSpaceMembers((prev) => [...prev, { user_id: userId, role: 'member' }]);
-    }
-  };
-
   const toggleAllMembers = async () => {
     if (!selectedSpace) return;
     const allUsers = Array.from(profiles.values());
@@ -1178,7 +1161,7 @@ const Tasks = () => {
           {/* Folder Access — visible only to admins or the folder owner */}
           {selectedSpace && (isAdmin || spaces.find((s) => s.id === selectedSpace)?.owner_id === profile?.id) && (
             <div className="px-4 lg:px-6 py-2 border-b border-border/40">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <Users className="h-3.5 w-3.5" />
                   Folder Access
@@ -1202,42 +1185,6 @@ const Tasks = () => {
                     <UserPlus className="h-3 w-3" /> Manage
                   </Button>
                 </div>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {/* Owner */}
-                {(() => {
-                  const currentSpace = spaces.find((s) => s.id === selectedSpace);
-                  const owner = currentSpace?.owner_id ? profiles.get(currentSpace.owner_id) : null;
-                  if (!owner) return null;
-                  return (
-                    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-amber-500/10 text-amber-600 text-[11px] font-medium">
-                      <div className="h-5 w-5 rounded-full bg-amber-500/20 flex items-center justify-center text-[9px] font-bold">
-                        {(owner.full_name || 'O').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}
-                      </div>
-                      {owner.full_name || owner.email}
-                      <span className="text-[9px] opacity-70">Owner</span>
-                    </div>
-                  );
-                })()}
-                {/* Members */}
-                {spaceMembers.map((m) => {
-                  const p = profiles.get(m.user_id);
-                  if (!p) return null;
-                  return (
-                    <div key={m.user_id} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-primary/5 text-foreground text-[11px] font-medium">
-                      <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold">
-                        {(p.full_name || 'U').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}
-                      </div>
-                      {p.full_name || p.email}
-                      <button onClick={() => toggleMember(m.user_id)} className="ml-0.5 hover:text-destructive transition-colors">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  );
-                })}
-                {spaceMembers.length === 0 && !loadingMembers && (
-                  <span className="text-[11px] text-muted-foreground italic">No members — everyone with access can view</span>
-                )}
               </div>
             </div>
           )}
