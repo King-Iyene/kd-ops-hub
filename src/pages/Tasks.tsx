@@ -72,6 +72,7 @@ import {
 const Tasks = () => {
   usePageTitle('Tasks');
   const { profile } = useAuthStore();
+  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
   const { toast } = useToast();
 
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -127,7 +128,7 @@ const Tasks = () => {
   // Space CRUD
   const [spaceDialog, setSpaceDialog] = useState(false);
   const [editingSpace, setEditingSpace] = useState<Space | null>(null);
-  const [spaceForm, setSpaceForm] = useState({ name: '', color: '#6366f1', description: '', is_private: false });
+  const [spaceForm, setSpaceForm] = useState({ name: '', color: '#6366f1', description: '', is_private: true });
   const [savingSpace, setSavingSpace] = useState(false);
   const [goals, setGoals] = useState<{ id: string; title: string; status: string }[]>([]);
   const [pendingDeleteSpace, setPendingDeleteSpace] = useState<Space | null>(null);
@@ -713,7 +714,7 @@ const Tasks = () => {
 
   const openCreateSpace = () => {
     setEditingSpace(null);
-    setSpaceForm({ name: '', color: '#6366f1', description: '', is_private: false });
+    setSpaceForm({ name: '', color: '#6366f1', description: '', is_private: true });
     setSpaceDialog(true);
   };
 
@@ -949,7 +950,7 @@ const Tasks = () => {
           onSelectSpace={setSelectedSpace}
           onSelectList={setSelectedList}
           onChangeView={(v) => { if (v === 'my-tasks') { setCurrentView('list'); setAssigneeFilter(profile?.id || 'all'); } else { setCurrentView(v); } setSelectedTasks(new Set()); }}
-          onCreateSpace={openCreateSpace}
+          onCreateSpace={isAdmin ? openCreateSpace : undefined}
           onEditSpace={openEditSpace}
           onDeleteSpace={(s) => setPendingDeleteSpace(s)}
           onManageMembers={(s) => setMembersSpace(s)}
@@ -982,7 +983,7 @@ const Tasks = () => {
             onSelectSpace={(id) => { setSelectedSpace(id); setSidebarOpen(false); }}
             onSelectList={(id) => { setSelectedList(id); setSidebarOpen(false); }}
             onChangeView={(v) => { if (v === 'my-tasks') { setCurrentView('list'); setAssigneeFilter(profile?.id || 'all'); } else { setCurrentView(v); } setSidebarOpen(false); setSelectedTasks(new Set()); }}
-            onCreateSpace={openCreateSpace}
+            onCreateSpace={isAdmin ? openCreateSpace : undefined}
             onEditSpace={openEditSpace}
             onDeleteSpace={(s) => setPendingDeleteSpace(s)}
             onManageMembers={(s) => setMembersSpace(s)}
@@ -1176,7 +1177,7 @@ const Tasks = () => {
           )}
 
           {/* Folder Access — visible only to admins or the folder owner */}
-          {selectedSpace && (profile?.role === 'super_admin' || profile?.role === 'admin' || spaces.find((s) => s.id === selectedSpace)?.owner_id === profile?.id) && (
+          {selectedSpace && (isAdmin || spaces.find((s) => s.id === selectedSpace)?.owner_id === profile?.id) && (
             <div className="px-4 lg:px-6 py-2 border-b border-border/40">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">

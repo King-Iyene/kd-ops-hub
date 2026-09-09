@@ -56,7 +56,7 @@ interface TaskSidebarProps {
   onSelectSpace: (spaceId: string | null) => void;
   onSelectList: (listId: string | null) => void;
   onChangeView: (view: TaskView) => void;
-  onCreateSpace: () => void;
+  onCreateSpace?: () => void;
   onEditSpace: (space: Space) => void;
   onDeleteSpace: (space: Space) => void;
   onManageMembers?: (space: Space) => void;
@@ -152,16 +152,18 @@ export function TaskSidebar({
             {spacesExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
             Folders
           </button>
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-5 w-5" aria-label="Create folder" onClick={onCreateSpace}>
-                  <Plus className="h-3 w-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">New folder</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          {onCreateSpace && (
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-5 w-5" aria-label="Create folder" onClick={onCreateSpace}>
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">New folder</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
 
         {spacesExpanded && (
