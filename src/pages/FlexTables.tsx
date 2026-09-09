@@ -3,22 +3,30 @@ import {
   Plus, Table2, Trash2, Loader2, MoreHorizontal, EyeOff, ListFilter,
   Type, AlignLeft, Hash, CalendarDays, CheckSquare, ListChecks,
   User, Users, Link2, AtSign, Phone, Globe, Copy, FileText, Check, Sigma, CheckCircle2, GripVertical,
+  AlertTriangle, TrendingUp,
 } from 'lucide-react';
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip as ChartTooltip, ResponsiveContainer, Legend,
+} from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { formatDate } from '@/lib/format';
 import {
   evaluateFormula, isFormulaError, formatNumericValue, FLEX_NUMBER_FORMATS,
   type FormulaValue, type FlexNumberFormat,
 } from '@/lib/flexFormula';
+import { chartTheme, axisTick, chartAnim, GlassTooltip } from '@/components/ChartKit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -352,7 +360,7 @@ export default function FlexTables() {
   const [records, setRecords] = useState<FlexRecord[]>([]);
   const [forms, setForms] = useState<FlexForm[]>([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [tab, setTab] = useState<'grid' | 'forms'>('grid');
+  const [tab, setTab] = useState<'dashboard' | 'grid' | 'forms'>('dashboard');
 
   const [profiles, setProfiles] = useState<ProfileLite[]>([]);
   const [tasksList, setTasksList] = useState<TaskLite[]>([]);
@@ -373,6 +381,13 @@ export default function FlexTables() {
   }, []);
 
   useEffect(() => { loadTables(); }, [loadTables]);
+
+  // Land on the first table automatically (its Dashboard tab) instead of
+  // an empty "select a table" screen — this is the module's home page now.
+  useEffect(() => {
+    if (!selectedTable && tables.length > 0) setSelectedTable(tables[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tables]);
 
   useEffect(() => {
     (async () => {
@@ -558,6 +573,12 @@ export default function FlexTables() {
           {selectedTable && (
             <div className="shrink-0 flex items-center gap-1 px-4 lg:px-6 py-1.5 border-b border-border/60">
               <button
+                onClick={() => setTab('dashboard')}
+                className={cn('px-3 py-1.5 rounded-md text-xs font-medium transition-colors', tab === 'dashboard' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60')}
+              >
+                Dashboard
+              </button>
+              <button
                 onClick={() => setTab('grid')}
                 className={cn('px-3 py-1.5 rounded-md text-xs font-medium transition-colors', tab === 'grid' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60')}
               >
@@ -581,6 +602,15 @@ export default function FlexTables() {
               )
             ) : loadingDetail ? (
               <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+            ) : tab === 'dashboard' ? (
+              <TableDashboard
+                tables={tables}
+                selectedTable={selectedTable}
+                onSelectTable={setSelectedTable}
+                fields={fields}
+                records={records}
+                profiles={profiles}
+              />
             ) : tab === 'grid' ? (
               <GridView
                 tableId={selectedTable.id}
@@ -685,6 +715,283 @@ export default function FlexTables() {
         />
       )}
     </>
+  );
+}
+
+// ─── Dashboard — the module's landing page ─────────────────────────────
+
+const DASHBOARD_WINDOW_DAYS = 14;
+const toIso = (d: Date) => d.toISOString().slice(0, 10);
+const isBusinessDay = (d: Date) => d.getDay() !== 0 && d.getDay() !== 6;
+
+function TableDashboard({
+  tables, selectedTable, onSelectTable, fields, records, profiles,
+}: {
+  tables: FlexTable[];
+  selectedTable: FlexTable;
+  onSelectTable: (t: FlexTable) => void;
+  fields: FlexField[];
+  records: FlexRecord[];
+  profiles: ProfileLite[];
+}) {
+  const [personFilter, setPersonFilter] = useState('all');
+
+  const personField = fields.find((f) => f.type === 'person');
+  const dateField = fields.find((f) => f.type === 'date');
+  const workedField = fields.find((f) => f.type === 'task_link');
+  const completedField = fields.find((f) => f.type === 'completed_task_link');
+
+  const rows = useMemo(() => {
+    if (!personField || !dateField) return [];
+    return records
+      .map((r) => {
+        const personId = r.data[personField.id] as string | undefined;
+        const dateStr = r.data[dateField.id] as string | undefined;
+        const worked = Array.isArray(r.data[workedField?.id || '']) ? (r.data[workedField!.id] as unknown[]).length : 0;
+        const completed = Array.isArray(r.data[completedField?.id || '']) ? (r.data[completedField!.id] as unknown[]).length : 0;
+        return { id: r.id, personId, dateStr, worked, completed };
+      })
+      .filter((r) => !!r.personId && !!r.dateStr);
+  }, [records, personField, dateField, workedField, completedField]);
+
+  const filteredRows = useMemo(
+    () => (personFilter === 'all' ? rows : rows.filter((r) => r.personId === personFilter)),
+    [rows, personFilter],
+  );
+
+  const today = useMemo(() => new Date(), []);
+  const windowStart = useMemo(() => { const d = new Date(today); d.setDate(d.getDate() - (DASHBOARD_WINDOW_DAYS - 1)); return d; }, [today]);
+  const windowStartIso = toIso(windowStart);
+  const todayIso = toIso(today);
+
+  const windowRows = useMemo(
+    () => filteredRows.filter((r) => r.dateStr! >= windowStartIso && r.dateStr! <= todayIso),
+    [filteredRows, windowStartIso, todayIso],
+  );
+
+  const totalWorked = windowRows.reduce((s, r) => s + r.worked, 0);
+  const totalCompleted = windowRows.reduce((s, r) => s + r.completed, 0);
+  const completionRate = totalWorked === 0 ? 0 : Math.round((totalCompleted / totalWorked) * 100);
+  const activeReporters = new Set(windowRows.map((r) => r.personId)).size;
+
+  // Day-by-day series for the last DASHBOARD_WINDOW_DAYS days.
+  const dailySeries = useMemo(() => {
+    const days: { date: string; label: string; submissions: number; worked: number; completed: number; rate: number | null }[] = [];
+    for (let i = DASHBOARD_WINDOW_DAYS - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const iso = toIso(d);
+      const dayRows = filteredRows.filter((r) => r.dateStr === iso);
+      const worked = dayRows.reduce((s, r) => s + r.worked, 0);
+      const completed = dayRows.reduce((s, r) => s + r.completed, 0);
+      days.push({
+        date: iso,
+        label: formatDate(iso),
+        submissions: dayRows.length,
+        worked,
+        completed,
+        rate: worked === 0 ? null : Math.round((completed / worked) * 100),
+      });
+    }
+    return days;
+  }, [filteredRows, today]);
+
+  // Reporting consistency — one row per person with distinct submission
+  // dates inside the window vs. how many business days actually passed.
+  const businessDaysInWindow = useMemo(() => {
+    let n = 0;
+    for (let i = 0; i < DASHBOARD_WINDOW_DAYS; i++) {
+      const d = new Date(windowStart);
+      d.setDate(d.getDate() + i);
+      if (d <= today && isBusinessDay(d)) n++;
+    }
+    return n;
+  }, [windowStart, today]);
+
+  const consistency = useMemo(() => {
+    if (!personField) return [];
+    return profiles.map((p) => {
+      const personRows = rows.filter((r) => r.personId === p.id);
+      const windowDates = new Set(personRows.filter((r) => r.dateStr! >= windowStartIso && r.dateStr! <= todayIso).map((r) => r.dateStr));
+      const lastSubmission = personRows.reduce<string | null>((max, r) => (!max || r.dateStr! > max ? r.dateStr! : max), null);
+      const pWorked = personRows.filter((r) => r.dateStr! >= windowStartIso).reduce((s, r) => s + r.worked, 0);
+      const pCompleted = personRows.filter((r) => r.dateStr! >= windowStartIso).reduce((s, r) => s + r.completed, 0);
+      const missedDays = Math.max(0, businessDaysInWindow - windowDates.size);
+      return {
+        id: p.id,
+        name: p.full_name,
+        lastSubmission,
+        submissionsInWindow: windowDates.size,
+        missedDays,
+        completionRate: pWorked === 0 ? null : Math.round((pCompleted / pWorked) * 100),
+        consistent: missedDays <= 1,
+      };
+    }).sort((a, b) => b.missedDays - a.missedDays);
+  }, [profiles, rows, personField, windowStartIso, todayIso, businessDaysInWindow]);
+
+  const missingCount = consistency.filter((c) => !c.consistent).length;
+
+  return (
+    <div className="space-y-4">
+      {/* ── Filters: which table, which person ─────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        {tables.length > 1 && (
+          <Select value={selectedTable.id} onValueChange={(v) => { const t = tables.find((x) => x.id === v); if (t) onSelectTable(t); }}>
+            <SelectTrigger className="h-8 w-[200px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {tables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+        <Select value={personFilter} onValueChange={setPersonFilter}>
+          <SelectTrigger className="h-8 w-[200px] text-xs"><SelectValue placeholder="All people" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All people</SelectItem>
+            {profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {!personField || !dateField ? (
+        <EmptyState
+          illustration="radar"
+          title="Add a Person and a Date field"
+          description={'This table needs a Person field and a Date field (e.g. a daily report\'s "Name" and "Report Date") before dashboard stats can be computed.'}
+          tone="primary"
+        />
+      ) : (
+        <>
+          {/* ── Stat cards ─────────────────────────────────────────── */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1.5">Submissions ({DASHBOARD_WINDOW_DAYS}d)</p>
+                <p className="text-2xl font-bold tabular-nums">{windowRows.length}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1.5">Active Reporters</p>
+                <p className="text-2xl font-bold tabular-nums">{activeReporters}<span className="text-sm text-muted-foreground font-normal">/{profiles.length}</span></p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1.5">Task Completion Rate</p>
+                <p className="text-2xl font-bold tabular-nums text-emerald-500">{completionRate}%</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1.5">Missing Reports</p>
+                <p className={cn('text-2xl font-bold tabular-nums', missingCount > 0 ? 'text-red-500' : 'text-emerald-500')}>{missingCount}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ── Charts ─────────────────────────────────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Reports submitted per day</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={dailySeries}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+                    <XAxis dataKey="label" tick={axisTick} />
+                    <YAxis tick={axisTick} allowDecimals={false} />
+                    <ChartTooltip content={<GlassTooltip />} cursor={{ fill: 'transparent' }} />
+                    <Bar dataKey="submissions" name="Submissions" fill={chartTheme.primary} {...chartAnim} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Tasks worked vs. completed per day</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={dailySeries}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+                    <XAxis dataKey="label" tick={axisTick} />
+                    <YAxis tick={axisTick} allowDecimals={false} />
+                    <ChartTooltip content={<GlassTooltip />} cursor={{ fill: 'transparent' }} />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="worked" name="Worked" fill={chartTheme.gold} {...chartAnim} />
+                    <Bar dataKey="completed" name="Completed" fill={chartTheme.success} {...chartAnim} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Completion rate trend</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={dailySeries}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} />
+                    <XAxis dataKey="label" tick={axisTick} />
+                    <YAxis tick={axisTick} domain={[0, 100]} />
+                    <ChartTooltip content={<GlassTooltip formatter={(v: any) => (v == null ? 'No data' : `${v}%`)} />} />
+                    <Line type="monotone" dataKey="rate" name="Completion rate" stroke={chartTheme.primary} strokeWidth={2} connectNulls dot={{ r: 3 }} {...chartAnim} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ── Reporting consistency ──────────────────────────────── */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-muted-foreground" /> Reporting Consistency
+              </CardTitle>
+              <p className="text-[11px] text-muted-foreground">
+                Business days in the last {DASHBOARD_WINDOW_DAYS} days: {businessDaysInWindow}. A person is flagged once they've missed more than one.
+              </p>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              {consistency.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">No people to report on yet.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left">
+                      <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Name</th>
+                      <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Last Submission</th>
+                      <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Submitted ({DASHBOARD_WINDOW_DAYS}d)</th>
+                      <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Missed Days</th>
+                      <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Completion Rate</th>
+                      <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {consistency.map((c) => (
+                      <tr key={c.id} className={cn('border-b border-border/60', !c.consistent && 'bg-red-500/5')}>
+                        <td className="py-2 pr-3">{c.name}</td>
+                        <td className="py-2 pr-3">{c.lastSubmission ? formatDate(c.lastSubmission) : '—'}</td>
+                        <td className="py-2 pr-3">{c.submissionsInWindow}</td>
+                        <td className={cn('py-2 pr-3 font-medium', c.missedDays > 1 && 'text-red-500')}>{c.missedDays}</td>
+                        <td className="py-2 pr-3">{c.completionRate === null ? '—' : `${c.completionRate}%`}</td>
+                        <td className="py-2 pr-3">
+                          <span className={cn(
+                            'inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full',
+                            c.consistent ? 'bg-emerald-500/15 text-emerald-500' : 'bg-red-500/15 text-red-500',
+                          )}
+                          >
+                            {!c.consistent && <AlertTriangle className="h-3 w-3" />}
+                            {c.consistent ? 'Consistent' : 'Needs Attention'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
   );
 }
 
