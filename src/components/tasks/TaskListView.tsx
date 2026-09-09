@@ -35,7 +35,6 @@ interface TaskListViewProps {
   selectedTasks: Set<string>;
   onToggleSelect: (taskId: string) => void;
   onSelectAll: () => void;
-  tableMode?: boolean;
   spaces: Space[];
   folders: SpaceFolder[];
   lists: TaskList[];
@@ -54,9 +53,9 @@ const STATUS_ACCENT: Record<TaskStatus, string> = {
 export function TaskListView({
   tasks, profiles, availableTags, subtaskCounts, commentCounts,
   onTaskClick, onUpdate, selectedTasks, onToggleSelect, onSelectAll,
-  tableMode = false, spaces, folders, lists,
+  spaces, folders, lists,
 }: TaskListViewProps) {
-  const [groupBy, setGroupBy] = useState<GroupBy>(tableMode ? 'none' : 'status');
+  const [groupBy, setGroupBy] = useState<GroupBy>('status');
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 

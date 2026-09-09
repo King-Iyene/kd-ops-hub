@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/tooltip';
 import type { TaskList, SpaceFolder } from '@/lib/task-types';
 
-export type TaskView = 'my-tasks' | 'board' | 'list' | 'table' | 'calendar' | 'gantt' | 'dashboard' | 'workload' | 'activity' | 'time-report';
+export type TaskView = 'my-tasks' | 'board' | 'list' | 'calendar' | 'gantt' | 'dashboard' | 'workload' | 'activity' | 'time-report';
 
 export interface Space {
   id: string;

@@ -3,7 +3,7 @@ import {
   Plus, Search, Loader2, ListTodo, Flag,
   Check, X, Filter, Trash2, Target,
   User, ArrowRight, Download, CalendarDays, FileText,
-  LayoutGrid, List, Table2, GanttChart, Weight, BarChart3, Users, UserPlus,
+  LayoutGrid, List, GanttChart, Weight, BarChart3, Users, UserPlus,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -1129,7 +1129,6 @@ const Tasks = () => {
             {([
               { key: 'board' as const, icon: LayoutGrid, label: 'Board' },
               { key: 'list' as const, icon: List, label: 'List' },
-              { key: 'table' as const, icon: Table2, label: 'Table' },
               { key: 'calendar' as const, icon: CalendarDays, label: 'Calendar' },
               { key: 'gantt' as const, icon: GanttChart, label: 'Gantt' },
               { key: 'workload' as const, icon: Weight, label: 'Workload' },
@@ -1335,7 +1334,7 @@ const Tasks = () => {
               profiles={profiles}
               onTaskClick={(t) => setDetailTask(t)}
             />
-          ) : currentView === 'list' || currentView === 'table' ? (
+          ) : currentView === 'list' ? (
             <TaskListView
               tasks={visible}
               profiles={profiles}
@@ -1347,7 +1346,6 @@ const Tasks = () => {
               selectedTasks={selectedTasks}
               onToggleSelect={toggleSelect}
               onSelectAll={selectAllVisible}
-              tableMode={currentView === 'table'}
               spaces={spaces}
               folders={folders}
               lists={taskLists}
