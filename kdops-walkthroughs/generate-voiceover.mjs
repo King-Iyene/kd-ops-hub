@@ -69,7 +69,7 @@ const VIDEOS = {
   "06-TasksAccountability": {
     scenes: [
       { id: "intro", text: "Tasks and Accountability. Learn how to assign, track, and complete tasks across your team." },
-      { id: "taskboard", text: "Navigate to Operations, then Tasks. The task board shows all tasks organised in columns: To Do, In Progress, Review, and Done. Each task card displays the title, assignee, priority, and due date. Drag tasks between columns to update their status, or click to open full details." },
+      { id: "taskboard", text: "Navigate to Workspace, then Tasks. The task board shows all tasks organised in columns: To Do, In Progress, Review, and Done. Each task card displays the title, assignee, priority, and due date. Drag tasks between columns to update their status, or click to open full details." },
       { id: "create", text: "To create a new task, click New Task at the top of the page. Enter the task title and description, assign it to a team member, set a due date, and choose the priority level. Use the category field to organise tasks by department. Set a realistic due date and assign a clear owner — accountability starts with clarity." },
       { id: "troubleshoot", text: "If you can't assign a task, the employee must have an active status in the system. If tasks aren't appearing, check your filters — a status or assignee filter may be active. If overdue tasks are piling up, set reminders in task settings to get notifications." },
       { id: "outro", text: "Task tracking — sorted! You can now create tasks, assign them to your team, and track progress on the board." },
@@ -119,7 +119,7 @@ const VIDEOS = {
   "11-ComplianceCentre": {
     scenes: [
       { id: "intro", text: "Compliance Centre. Learn how to manage regulatory filings, track compliance status, and upload required documents." },
-      { id: "overview", text: "Navigate to Admin, then Compliance. The compliance overview shows all your regulatory obligations with their filing status, due dates, and completion progress. Items are colour-coded: green for completed, amber for upcoming, and red for overdue." },
+      { id: "overview", text: "Navigate to Finance, then Compliance. The compliance overview shows all your regulatory obligations with their filing status, due dates, and completion progress. Items are colour-coded: green for completed, amber for upcoming, and red for overdue." },
       { id: "filing", text: "To file a compliance item, click on it to open the details. Follow the step-by-step checklist — gather required documents, fill in the filing form, and submit. The system tracks each step so you know exactly where you are in the process." },
       { id: "upload", text: "Many compliance items require supporting documents. Click Upload to attach files — certificates, permits, tax filings, or any required paperwork. Uploaded documents are stored securely and linked to the compliance item for easy reference during audits." },
       { id: "troubleshoot", text: "If a compliance item shows as overdue, prioritise it immediately and check the filing requirements. If you can't upload a document, verify the file format and size. If items aren't appearing, check with your admin that your compliance calendar has been configured." },

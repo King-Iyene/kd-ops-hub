@@ -52,6 +52,42 @@ const VIDEOS = [
   ["DocsReportsAdmin", "DocsReportsAdmin.tsx", "13-DocsReportsAdmin", [
     ["Intro", "intro"], ["DocumentsOverview", "documents"], ["ReportsModule", "reports"], ["AdminSettings", "admin"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
   ]],
+  ["MyPortal", "MyPortal.tsx", "14-MyPortal", [
+    ["Intro", "intro"], ["PortalOverview", "overview"], ["QuickActions", "actions"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["ProfileSetup", "ProfileSetup.tsx", "15-ProfileSetup", [
+    ["Intro", "intro"], ["AccountTab", "account"], ["PayslipsTab", "payslips"], ["SecurityTab", "security"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["SidebarNavigation", "SidebarNavigation.tsx", "16-SidebarNavigation", [
+    ["Intro", "intro"], ["HubOverview", "hubs"], ["FindingModules", "finding"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["ApprovalsInbox", "ApprovalsInbox.tsx", "17-ApprovalsInbox", [
+    ["Intro", "intro"], ["InboxView", "inbox"], ["ApprovingItem", "approving"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["FuelRequests", "FuelRequests.tsx", "18-FuelRequests", [
+    ["Intro", "intro"], ["SubmitRequest", "submit"], ["TrackingStatus", "tracking"], ["BankReminder", "bankreminder"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["TripLogging", "TripLogging.tsx", "19-TripLogging", [
+    ["Intro", "intro"], ["LogTrip", "logging"], ["TripHistory", "history"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["EarnedWages", "EarnedWages.tsx", "20-EarnedWages", [
+    ["Intro", "intro"], ["RequestEWA", "request"], ["TrackEWA", "tracking"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["TransactionHistory", "TransactionHistory.tsx", "21-TransactionHistory", [
+    ["Intro", "intro"], ["SearchTransactions", "search"], ["TransactionDetail", "details"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["CardsManagement", "CardsManagement.tsx", "22-CardsManagement", [
+    ["Intro", "intro"], ["ManageCards", "manage"], ["CardControls", "controls"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["PaymentSchedule", "PaymentSchedule.tsx", "23-PaymentSchedule", [
+    ["Intro", "intro"], ["CreateSchedule", "create"], ["ManageSchedules", "manage"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["PayHubOverview", "PayHubOverview.tsx", "24-PayHubOverview", [
+    ["Intro", "intro"], ["PayDashboard", "dashboard"], ["PayNavigation", "navigation"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["StaffLoans", "StaffLoans.tsx", "25-StaffLoans", [
+    ["Intro", "intro"], ["CreateLoan", "create"], ["TrackLoans", "tracking"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
 ];
 
 const rootUpdates = []; // for Root.tsx frame count updates
@@ -133,6 +169,18 @@ const VAR_MAP = {
   ComplianceCentre: "V11_FRAMES",
   FleetFuel: "V12_FRAMES",
   DocsReportsAdmin: "V13_FRAMES",
+  MyPortal: "V14_FRAMES",
+  ProfileSetup: "V15_FRAMES",
+  SidebarNavigation: "V16_FRAMES",
+  ApprovalsInbox: "V17_FRAMES",
+  FuelRequests: "V18_FRAMES",
+  TripLogging: "V19_FRAMES",
+  EarnedWages: "V20_FRAMES",
+  TransactionHistory: "V21_FRAMES",
+  CardsManagement: "V22_FRAMES",
+  PaymentSchedule: "V23_FRAMES",
+  PayHubOverview: "V24_FRAMES",
+  StaffLoans: "V25_FRAMES",
 };
 
 for (const { folder, totalFrames } of rootUpdates) {
