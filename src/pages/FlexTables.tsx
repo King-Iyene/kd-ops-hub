@@ -720,9 +720,19 @@ export default function FlexTables() {
 
 // ─── Dashboard — the module's landing page ─────────────────────────────
 
-const DASHBOARD_WINDOW_DAYS = 14;
 const toIso = (d: Date) => d.toISOString().slice(0, 10);
 const isBusinessDay = (d: Date) => d.getDay() !== 0 && d.getDay() !== 6;
+const startOfWeek = (d: Date) => {
+  const x = new Date(d);
+  const day = x.getDay();
+  x.setDate(x.getDate() + (day === 0 ? -6 : 1 - day));
+  x.setHours(0, 0, 0, 0);
+  return x;
+};
+const endOfWeek = (d: Date) => { const s = startOfWeek(d); const e = new Date(s); e.setDate(e.getDate() + 6); return e; };
+// A date-range picker can be stretched arbitrarily wide — cap the
+// day-by-day series/business-day count so a huge range can't hang the tab.
+const MAX_DASHBOARD_SPAN_DAYS = 92;
 
 function TableDashboard({
   tables, selectedTable, onSelectTable, fields, records, profiles,
@@ -735,6 +745,9 @@ function TableDashboard({
   profiles: ProfileLite[];
 }) {
   const [personFilter, setPersonFilter] = useState('all');
+  const today = useMemo(() => new Date(), []);
+  const [fromDate, setFromDate] = useState(toIso(startOfWeek(today)));
+  const [toDate, setToDate] = useState(toIso(endOfWeek(today)));
 
   const personField = fields.find((f) => f.type === 'person');
   const dateField = fields.find((f) => f.type === 'date');
@@ -759,14 +772,16 @@ function TableDashboard({
     [rows, personFilter],
   );
 
-  const today = useMemo(() => new Date(), []);
-  const windowStart = useMemo(() => { const d = new Date(today); d.setDate(d.getDate() - (DASHBOARD_WINDOW_DAYS - 1)); return d; }, [today]);
-  const windowStartIso = toIso(windowStart);
-  const todayIso = toIso(today);
+  // The selected date range drives every stat below — capped so a huge
+  // custom range can't force an unbounded day-by-day loop.
+  const spanDays = useMemo(() => {
+    const raw = Math.round((new Date(toDate).getTime() - new Date(fromDate).getTime()) / 86400000) + 1;
+    return Math.min(MAX_DASHBOARD_SPAN_DAYS, Math.max(1, raw));
+  }, [fromDate, toDate]);
 
   const windowRows = useMemo(
-    () => filteredRows.filter((r) => r.dateStr! >= windowStartIso && r.dateStr! <= todayIso),
-    [filteredRows, windowStartIso, todayIso],
+    () => filteredRows.filter((r) => r.dateStr! >= fromDate && r.dateStr! <= toDate),
+    [filteredRows, fromDate, toDate],
   );
 
   const totalWorked = windowRows.reduce((s, r) => s + r.worked, 0);
@@ -774,12 +789,12 @@ function TableDashboard({
   const completionRate = totalWorked === 0 ? 0 : Math.round((totalCompleted / totalWorked) * 100);
   const activeReporters = new Set(windowRows.map((r) => r.personId)).size;
 
-  // Day-by-day series for the last DASHBOARD_WINDOW_DAYS days.
+  // Day-by-day series across the selected range.
   const dailySeries = useMemo(() => {
     const days: { date: string; label: string; submissions: number; worked: number; completed: number; rate: number | null }[] = [];
-    for (let i = DASHBOARD_WINDOW_DAYS - 1; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
+    for (let i = 0; i < spanDays; i++) {
+      const d = new Date(fromDate);
+      d.setDate(d.getDate() + i);
       const iso = toIso(d);
       const dayRows = filteredRows.filter((r) => r.dateStr === iso);
       const worked = dayRows.reduce((s, r) => s + r.worked, 0);
@@ -794,40 +809,40 @@ function TableDashboard({
       });
     }
     return days;
-  }, [filteredRows, today]);
+  }, [filteredRows, fromDate, spanDays]);
 
   // Reporting consistency — one row per person with distinct submission
-  // dates inside the window vs. how many business days actually passed.
-  const businessDaysInWindow = useMemo(() => {
+  // dates inside the range vs. how many business days actually passed.
+  const businessDaysInRange = useMemo(() => {
     let n = 0;
-    for (let i = 0; i < DASHBOARD_WINDOW_DAYS; i++) {
-      const d = new Date(windowStart);
+    for (let i = 0; i < spanDays; i++) {
+      const d = new Date(fromDate);
       d.setDate(d.getDate() + i);
       if (d <= today && isBusinessDay(d)) n++;
     }
     return n;
-  }, [windowStart, today]);
+  }, [fromDate, spanDays, today]);
 
   const consistency = useMemo(() => {
     if (!personField) return [];
     return profiles.map((p) => {
       const personRows = rows.filter((r) => r.personId === p.id);
-      const windowDates = new Set(personRows.filter((r) => r.dateStr! >= windowStartIso && r.dateStr! <= todayIso).map((r) => r.dateStr));
+      const rangeDates = new Set(personRows.filter((r) => r.dateStr! >= fromDate && r.dateStr! <= toDate).map((r) => r.dateStr));
       const lastSubmission = personRows.reduce<string | null>((max, r) => (!max || r.dateStr! > max ? r.dateStr! : max), null);
-      const pWorked = personRows.filter((r) => r.dateStr! >= windowStartIso).reduce((s, r) => s + r.worked, 0);
-      const pCompleted = personRows.filter((r) => r.dateStr! >= windowStartIso).reduce((s, r) => s + r.completed, 0);
-      const missedDays = Math.max(0, businessDaysInWindow - windowDates.size);
+      const pWorked = personRows.filter((r) => r.dateStr! >= fromDate && r.dateStr! <= toDate).reduce((s, r) => s + r.worked, 0);
+      const pCompleted = personRows.filter((r) => r.dateStr! >= fromDate && r.dateStr! <= toDate).reduce((s, r) => s + r.completed, 0);
+      const missedDays = Math.max(0, businessDaysInRange - rangeDates.size);
       return {
         id: p.id,
         name: p.full_name,
         lastSubmission,
-        submissionsInWindow: windowDates.size,
+        submissionsInWindow: rangeDates.size,
         missedDays,
         completionRate: pWorked === 0 ? null : Math.round((pCompleted / pWorked) * 100),
         consistent: missedDays <= 1,
       };
     }).sort((a, b) => b.missedDays - a.missedDays);
-  }, [profiles, rows, personField, windowStartIso, todayIso, businessDaysInWindow]);
+  }, [profiles, rows, personField, fromDate, toDate, businessDaysInRange]);
 
   const missingCount = consistency.filter((c) => !c.consistent).length;
 
@@ -850,6 +865,15 @@ function TableDashboard({
             {profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Input type="date" className="h-8 w-[150px] text-xs" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        <span className="text-xs text-muted-foreground">to</span>
+        <Input type="date" className="h-8 w-[150px] text-xs" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        <Button
+          variant="ghost" size="sm" className="h-8 text-xs"
+          onClick={() => { setFromDate(toIso(startOfWeek(today))); setToDate(toIso(endOfWeek(today))); }}
+        >
+          This week
+        </Button>
       </div>
 
       {!personField || !dateField ? (
@@ -865,7 +889,7 @@ function TableDashboard({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Card>
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground mb-1.5">Submissions ({DASHBOARD_WINDOW_DAYS}d)</p>
+                <p className="text-xs text-muted-foreground mb-1.5">Submissions (period)</p>
                 <p className="text-2xl font-bold tabular-nums">{windowRows.length}</p>
               </CardContent>
             </Card>
@@ -946,7 +970,7 @@ function TableDashboard({
                 <TrendingUp className="h-4 w-4 text-muted-foreground" /> Reporting Consistency
               </CardTitle>
               <p className="text-[11px] text-muted-foreground">
-                Business days in the last {DASHBOARD_WINDOW_DAYS} days: {businessDaysInWindow}. A person is flagged once they've missed more than one.
+                Business days in the selected range: {businessDaysInRange}. A person is flagged once they've missed more than one.
               </p>
             </CardHeader>
             <CardContent className="overflow-x-auto">
@@ -958,7 +982,7 @@ function TableDashboard({
                     <tr className="border-b border-border text-left">
                       <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Name</th>
                       <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Last Submission</th>
-                      <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Submitted ({DASHBOARD_WINDOW_DAYS}d)</th>
+                      <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Submitted (period)</th>
                       <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Missed Days</th>
                       <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Completion Rate</th>
                       <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Status</th>
