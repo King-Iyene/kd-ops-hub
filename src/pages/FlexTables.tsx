@@ -220,6 +220,23 @@ function filterMatches(
 
 const CHOICE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#64748b'];
 
+const NUMERIC_FORMULA_FORMATS = new Set<FlexNumberFormat>(['integer', 'decimal', 'currency_ngn', 'currency_usd', 'percent']);
+
+/** Sample value for a referenced field while live-previewing a formula
+ *  being written. A referenced Formula field whose own output format is
+ *  explicitly numeric (Integer, Decimal, Currency, Percent — anything
+ *  but the ambiguous default "Plain number") is treated as a number here,
+ *  same as a real Number field — matching how it actually resolves at
+ *  runtime via buildFormulaScope, regardless of when that other formula
+ *  was set up. */
+function sampleValueForField(f: FlexField): FormulaValue {
+  if (f.type === 'number') return 1;
+  if (f.type === 'checkbox') return true;
+  if (f.type === 'date') return new Date().toISOString().slice(0, 10);
+  if (f.type === 'formula' && f.options.format && NUMERIC_FORMULA_FORMATS.has(f.options.format)) return 1;
+  return 'sample';
+}
+
 interface ProfileLite { id: string; full_name: string; email: string; }
 interface TaskLite { id: string; title: string; }
 
@@ -1097,10 +1114,7 @@ function FieldEditorDialog({
   };
 
   const formulaPreview = isFormula
-    ? evaluateFormula(formula, Object.fromEntries(referenceableFields.map((f) => [
-        f.name,
-        f.type === 'number' ? 1 : f.type === 'checkbox' ? true : f.type === 'date' ? new Date().toISOString().slice(0, 10) : 'sample',
-      ])))
+    ? evaluateFormula(formula, Object.fromEntries(referenceableFields.map((f) => [f.name, sampleValueForField(f)])))
     : null;
 
   const save = async () => {
