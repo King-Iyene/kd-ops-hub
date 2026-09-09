@@ -3,7 +3,7 @@
 // offboarding, disciplinary process, formal letters, grievances, succession
 // planning, and workforce analytics.
 import { Users } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
 
 export function PeopleOpsSection() {
   return (
@@ -35,6 +35,8 @@ export function PeopleOpsSection() {
           someone's role immediately changes what they can see and do across the rest of KDOps, so treat it with the same care
           as a salary change.
         </Callout>
+        <VideoEmbed src={guideVideoUrl('03-ManagingEmployees.mp4')} title="Managing Employees" caption="Watch: Employee directory, adding new employees with bank details, and managing employee modules" />
+        <VideoEmbed src={guideVideoUrl('04-ContractorDirectory.mp4')} title="Contractor Directory" caption="Watch: Viewing contractors, adding new contractors with payment account details" />
       </ModuleCard>
 
       <ModuleCard
@@ -85,6 +87,7 @@ export function PeopleOpsSection() {
             'As items are completed, check them off — the progress bar updates immediately to reflect how much is done.',
           ]}
         />
+        <VideoEmbed src={guideVideoUrl('05-LeaveRequests.mp4')} title="Leave Requests" caption="Watch: Checking leave balances, requesting leave, and approving leave as a manager" />
       </ModuleCard>
 
       <ModuleCard title="Disciplinary Records" route="/disciplinary" roles={['super_admin', 'admin']}>

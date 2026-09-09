@@ -5,7 +5,7 @@
 // described here (second approver, transfer caps, locks) is a real
 // system behavior, not a suggestion.
 import { Wallet } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout, Screenshot } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, Screenshot, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
 
 export function FinanceOpsSection() {
   return (
@@ -15,6 +15,8 @@ export function FinanceOpsSection() {
         title="Finance"
         blurb="This whole section is Finance / Admin / Operations territory, and most of it moves real money — real bank transfers via Paystack and Flutterwave, not simulated ones. Read it more carefully than the rest of this guide: a misunderstanding here can mean money sent to the wrong account, not just a confusing screen."
       />
+
+      <VideoEmbed src={guideVideoUrl('09-PayrollIntelligence.mp4')} title="Payroll Intelligence" caption="Watch: Running payroll, understanding pay groups, reviewing breakdowns, and payroll history" />
 
       <ModuleCard title="Payments & Payment Batches" route="/payments" roles={['super_admin', 'admin', 'finance', 'operations']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
@@ -58,6 +60,8 @@ export function FinanceOpsSection() {
         </Callout>
       </ModuleCard>
 
+      <VideoEmbed src={guideVideoUrl('07-PaymentBatches.mp4')} title="Payment Batches" caption="Watch: Creating, approving, and processing bulk payments for contractors and employees" />
+
       <ModuleCard title="Transactions" route="/transactions" roles={['super_admin', 'admin', 'finance', 'operations']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
           The full ledger of every payment, fee, and charge that has actually happened — a read-only history, not a place to
@@ -85,6 +89,8 @@ export function FinanceOpsSection() {
           in place; a correction at that point means creating a new payroll run with the corrected figures for the same period.
         </Callout>
       </ModuleCard>
+
+      <VideoEmbed src={guideVideoUrl('08-ExpensesApprovals.mp4')} title="Expenses & Approvals" caption="Watch: Submitting expenses, adding payment account details for reimbursement, and the approval flow" />
 
       <ModuleCard title="Expenses" route="/expenses" roles={['everyone']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
@@ -130,6 +136,8 @@ export function FinanceOpsSection() {
           has a print-ready view plus CSV export for your books.
         </p>
       </ModuleCard>
+
+      <VideoEmbed src={guideVideoUrl('10-BudgetsSubscriptions.mp4')} title="Budgets & Subscriptions" caption="Watch: Creating budgets, tracking spend, and managing recurring subscriptions" />
 
       <ModuleCard title="Budgets" route="/budgets" roles={['super_admin', 'admin', 'finance']}>
         <p className="text-sm text-muted-foreground leading-relaxed">

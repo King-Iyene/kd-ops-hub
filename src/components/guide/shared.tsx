@@ -1,4 +1,5 @@
-import type { ElementType, ReactNode } from 'react';
+import { type ElementType, type ReactNode, useState } from 'react';
+import { Play } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
@@ -110,6 +111,54 @@ export function SectionIntro({ icon: Icon, title, blurb }: { icon: ElementType; 
       </div>
       {blurb && <p className="text-[14px] text-muted-foreground/70 mt-2 max-w-3xl leading-relaxed">{blurb}</p>}
     </div>
+  );
+}
+
+// ── Video embed ─────────────────────────────────────────────────────────
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string)?.trim() ?? '';
+
+export function guideVideoUrl(filename: string) {
+  return `${SUPABASE_URL}/storage/v1/object/public/guide-videos/${filename}`;
+}
+
+export function VideoEmbed({
+  src, title, caption,
+}: { src: string; title: string; caption?: string }) {
+  const [started, setStarted] = useState(false);
+
+  return (
+    <figure className="rounded-xl border border-white/[0.06] overflow-hidden bg-black/20 not-prose">
+      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+        {started ? (
+          <video
+            src={src}
+            title={title}
+            controls
+            autoPlay
+            preload="metadata"
+            playsInline
+            className="absolute inset-0 w-full h-full object-contain bg-black"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setStarted(true)}
+            className="absolute inset-0 w-full h-full bg-gradient-to-br from-card/80 to-black/60 flex flex-col items-center justify-center gap-3 group cursor-pointer"
+          >
+            <div className="w-16 h-16 rounded-full bg-primary/90 flex items-center justify-center shadow-lg group-hover:scale-110 kd-transition">
+              <Play className="h-7 w-7 text-white ml-1" />
+            </div>
+            <span className="text-sm font-medium text-white/80 group-hover:text-white kd-transition">{title}</span>
+          </button>
+        )}
+      </div>
+      {caption && (
+        <figcaption className="text-[11px] text-muted-foreground/60 px-3.5 py-2 border-t border-white/[0.04] flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary/60 shrink-0" />
+          {caption}
+        </figcaption>
+      )}
+    </figure>
   );
 }
 

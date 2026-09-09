@@ -3,7 +3,7 @@
 // finance-facing fixed-asset register and the operations-facing project
 // tracker that both lean on the same underlying data.
 import { Car } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout, Screenshot } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, Screenshot, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
 
 export function FleetOpsSection() {
   return (
@@ -13,6 +13,8 @@ export function FleetOpsSection() {
         title="Fleet & Assets"
         blurb="Everything vehicle- and equipment-related lives here: the vehicle roster and daily fuel/maintenance/inspection workflow the Field Team touches every day, the fixed-asset register Finance depreciates and insures, and the projects operations plans work against. Unlike most of KDOps, Fleet Dashboard itself is open to every role — the Field Team uses it to do their job, Finance and Admin use it to see cost, and Operations manages it end to end."
       />
+
+      <VideoEmbed src={guideVideoUrl('12-FleetFuel.mp4')} title="Fleet & Fuel Management" caption="Watch: Fleet overview, fuel tracking, and vendor management" />
 
       <ModuleCard title="Fleet Dashboard" route="/fleet" roles={['everyone']}>
         <p className="text-sm text-muted-foreground leading-relaxed">

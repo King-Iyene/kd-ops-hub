@@ -3,7 +3,7 @@
 // phone or desktop, understanding the two dashboard variants, and setting
 // up a profile (including notification preferences and 2FA).
 import { LogIn } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout, Screenshot } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, Screenshot, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
 
 export function GettingStartedSection() {
   return (
@@ -13,6 +13,9 @@ export function GettingStartedSection() {
         title="Getting Started"
         blurb="Whatever your role — Finance, Operations, Field Team, or Admin — this is where you start. Everyone logs in the same way, everyone should install KDOps on their phone, and everyone lands on a dashboard shaped for their job. Read this section first; the rest of the guide assumes you've done it."
       />
+
+      <VideoEmbed src={guideVideoUrl('01-WelcomeToKDOps.mp4')} title="Welcome to KDOps" caption="Watch: Logging in, navigating the dashboard, and finding your way around KDOps" />
+      <VideoEmbed src={guideVideoUrl('02-DashboardDeepDive.mp4')} title="Dashboard Deep Dive" caption="Watch: Understanding your dashboard widgets, finance summary, quick actions, and compliance alerts" />
 
       <Screenshot
         src="/guide/guide-desktop.jpg"

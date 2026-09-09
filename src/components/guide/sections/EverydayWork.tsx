@@ -2,7 +2,7 @@
 // normal day, regardless of role: clocking in, tasks, leave, timesheets,
 // documents, messaging, the AI assistant, and the knowledge base behind it.
 import { CalendarCheck2 } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout, Screenshot } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, Screenshot, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
 
 export function EverydayWorkSection() {
   return (
@@ -12,6 +12,8 @@ export function EverydayWorkSection() {
         title="Everyday Work"
         blurb="Modules you'll use regularly — managing your tasks, requesting leave, logging hours, finding files, talking to colleagues, and asking the AI assistant a question instead of hunting through a policy document. Most are available to every role; a few (Attendance admin, Timesheets, Documents) are restricted to managers — those access requirements are noted on each card."
       />
+
+      <VideoEmbed src={guideVideoUrl('06-TasksAccountability.mp4')} title="Tasks & Accountability" caption="Watch: Using the task board, creating tasks, and tracking team accountability" />
 
       <ModuleCard title="Clocking In & Attendance" route="/attendance" roles={['super_admin', 'admin', 'finance', 'operations']}>
         <p className="text-sm text-muted-foreground leading-relaxed">

@@ -5,7 +5,7 @@
 // KDOps behaves — who can approve what, what gets logged, and how
 // money moves at the company level.
 import { ShieldCheck } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
 
 export function AdminToolsSection() {
   return (
@@ -15,6 +15,9 @@ export function AdminToolsSection() {
         title="Admin Tools"
         blurb="Platform-level controls that govern how KDOps behaves: what gets logged, who approves what, how the system is configured, and how company-level money moves. These modules are restricted to super admins (and admins where noted) because a misconfiguration here affects everyone."
       />
+
+      <VideoEmbed src={guideVideoUrl('11-ComplianceCentre.mp4')} title="Compliance Centre" caption="Watch: Compliance overview, filing processes, and document uploads" />
+      <VideoEmbed src={guideVideoUrl('13-DocsReportsAdmin.mp4')} title="Documents, Reports & Admin" caption="Watch: Document management, generating reports, and admin settings" />
 
       <ModuleCard title="Audit Log" route="/audit" roles={['super_admin', 'admin']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
