@@ -257,9 +257,9 @@ function TaskLinkPicker({ token, personId, value, onChange }: {
     return () => { cancelled = true; };
   }, [token, personId]);
 
-  if (!personId) return <p className="text-xs text-muted-foreground italic">Select a name above to see their open tasks.</p>;
+  if (!personId) return <p className="text-xs text-muted-foreground italic">Select a name above to see their tasks due today or later.</p>;
   if (loading) return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
-  if (options.length === 0) return <p className="text-xs text-muted-foreground italic">No open tasks assigned to this person.</p>;
+  if (options.length === 0) return <p className="text-xs text-muted-foreground italic">No tasks due today or later for this person.</p>;
 
   const ids = Array.isArray(value) ? (value as string[]) : [];
   return (

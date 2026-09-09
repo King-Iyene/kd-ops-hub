@@ -6,7 +6,7 @@
 // + - * / (arithmetic), & (string concat), comparisons = <> < <= > >=,
 // parentheses, and functions: IF, AND, OR, NOT, SUM, MIN, MAX, ROUND, ABS,
 // LEN, UPPER, LOWER, TRIM, CONCATENATE, TODAY, NOW, BLANK, MOD, WEEKDAY,
-// DATEADD.
+// DATEADD, COUNT.
 
 export type FormulaValue = string | number | boolean | null;
 
@@ -279,6 +279,14 @@ const FUNCTIONS: Record<string, (args: FormulaValue[]) => FormulaValue> = {
     const d = parseDate(a[0]);
     if (!d) return null;
     return addToDate(d, toNum(a[1]), toStr(a[2])).toISOString().slice(0, 10);
+  },
+  // Counts entries in a multi-value field (Linked Tasks, Multiple select,
+  // Multiple people) — those are flattened to a ", "-joined string in the
+  // formula scope, so counting means counting the non-empty items in it.
+  COUNT: (a) => {
+    const s = toStr(a[0]).trim();
+    if (!s) return 0;
+    return s.split(',').map((x) => x.trim()).filter((x) => x.length > 0).length;
   },
 };
 

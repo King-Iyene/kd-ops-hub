@@ -1143,7 +1143,7 @@ function FieldEditorDialog({
                 </div>
               )}
               <p className="text-[11px] text-muted-foreground">
-                Functions: IF, AND, OR, NOT, SUM, MIN, MAX, ROUND, ABS, LEN, UPPER, LOWER, TRIM, CONCATENATE, TODAY, NOW, MOD, WEEKDAY, DATEADD. Use & to join text, + - * / for math.
+                {'Functions: IF, AND, OR, NOT, SUM, MIN, MAX, ROUND, ABS, LEN, UPPER, LOWER, TRIM, CONCATENATE, TODAY, NOW, MOD, WEEKDAY, DATEADD, COUNT. COUNT({Field}) counts entries in a Linked Tasks / multi-select / multi-person field. Use & to join text, + - * / for math.'}
               </p>
 
               <label className="text-xs font-medium text-muted-foreground block pt-1">Output format</label>
