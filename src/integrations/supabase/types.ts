@@ -17552,6 +17552,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      task_recurrence_next_date: {
+        Args: { p_from: string; p_rule: Json }
+        Returns: string
+      }
       tick_batch_worker: { Args: never; Returns: undefined }
       tick_campaign_scheduler: { Args: never; Returns: undefined }
       tick_fx_rate_sync: { Args: never; Returns: undefined }
