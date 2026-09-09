@@ -163,44 +163,25 @@ export function AdminToolsSection() {
         </Callout>
       </ModuleCard>
 
-      <ModuleCard title="Finance Dashboard" route="/finance" roles={['super_admin']}>
+      <ModuleCard title="Database" route="/database" roles={['super_admin']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          A real-time financial overview of the company's operational spending — total payroll cost, outstanding
-          expenses, payment volumes, and budget utilisation across departments. The dashboard aggregates data
-          from Payments, Expenses, Payroll, and Budgets into one view so the super admin can spot trends
-          (e.g. a department consistently over budget) without opening each module individually.
+          A direct view into the platform's underlying data tables — every Supabase table exposed in a read-friendly
+          interface with search, filter, and export. This is the module developers and super admins use when they need
+          to verify data integrity, check a record that isn't surfaced cleanly in another module, or export a raw
+          dataset for analysis. In the sidebar, find Database under <strong>Admin → Database</strong>.
         </p>
         <StepList
           steps={[
-            'Open Finance from the sidebar — the top-line cards show totals for the current month: payroll disbursed, expenses approved, payments processed, and budget remaining.',
-            'Use the date-range picker to compare periods — month-over-month or year-over-year trends highlight whether costs are growing or stabilising.',
-            'Click into any card to drill down to the underlying records — e.g. clicking the Expenses total opens the Expenses list filtered to that period.',
+            'Open Database from the Admin section of the sidebar.',
+            'Browse the available tables — each one corresponds to a core entity (employees, payments, expenses, vehicles, etc.).',
+            'Use the search and column filters to find specific records.',
+            'Export any filtered view to CSV for external analysis or audit.',
           ]}
         />
-        <Callout tone="tip">
-          The Finance Dashboard is read-only — it doesn't create or approve anything. Use it for the "big picture"
-          before diving into individual modules for action.
-        </Callout>
-      </ModuleCard>
-
-      <ModuleCard title="Assistant Admin" route="/assistant/admin" roles={['super_admin']}>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          The admin panel for the AI Assistant — configure which AI models the chatbot uses, manage the backend
-          provider (Groq for text, Gemini for vision), review conversation analytics (messages per day, top
-          questions, average response time), and moderate the Knowledge Base articles that the Assistant draws
-          its answers from. Changes here affect how the Assistant responds for every user in the company.
-        </p>
-        <StepList
-          steps={[
-            'Open Assistant Admin from the sidebar (under the Assistant menu) to see the current model configuration and usage statistics.',
-            'Review the conversation analytics — daily message volume, most-asked topics, and average response quality help you decide whether to expand the Knowledge Base.',
-            'Update model settings if needed — choose the primary text model and vision model, and adjust parameters like temperature or max tokens.',
-            'Manage the Knowledge Base integration — toggle which article categories the Assistant searches, and review which articles are cited most frequently.',
-          ]}
-        />
-        <Callout tone="warn">
-          Model changes take effect immediately for all users. If you switch to a different model provider,
-          test it with a few questions first — different models may handle your Knowledge Base content differently.
+        <Callout tone="caution">
+          The Database module is read-only in the UI — you cannot edit records here. If you spot incorrect data,
+          fix it through the relevant module (e.g. edit an employee through the Employees Directory, not here).
+          This is an inspection tool, not an editing tool.
         </Callout>
       </ModuleCard>
     </div>

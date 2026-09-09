@@ -18,6 +18,15 @@ export function FinanceOpsSection() {
 
       <VideoEmbed src={guideVideoUrl('09-PayrollIntelligence.mp4')} title="Payroll Intelligence" caption="Watch: Running payroll, understanding pay groups, reviewing breakdowns, and payroll history" />
 
+      <ModuleCard title="Pay Hub" route="/pay-hub" roles={['super_admin', 'admin', 'finance']}>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Your unified command centre for all payment-related activity. Pay Hub connects Payroll, Earned Wages, Staff Loans, and
+          statutory compliance into a single dashboard. Start here to see total payroll cost, pending EWA requests, active loans,
+          and compliance deduction totals — then click through to the specific module you need. Find it in the sidebar under{' '}
+          <strong>Finance → Money Out → Pay Hub</strong>.
+        </p>
+      </ModuleCard>
+
       <ModuleCard title="Payments & Payment Batches" route="/payments" roles={['super_admin', 'admin', 'finance', 'operations']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Payments is how KDOps sends money out — to contractors, vendors, and partners — as real bank transfers processed
@@ -67,6 +76,15 @@ export function FinanceOpsSection() {
           The full ledger of every payment, fee, and charge that has actually happened — a read-only history, not a place to
           initiate anything. It is filterable and exportable, and it is the reconciliation source of truth: when you're
           checking KDOps against your actual bank statement at month end, Transactions is what you check it against.
+        </p>
+      </ModuleCard>
+
+      <ModuleCard title="Payment Schedule" route="/payments/schedule" roles={['super_admin', 'admin', 'finance', 'operations']}>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Set up recurring payments that create draft batches automatically on schedule — rent, insurance, vendor retainers.
+          Each scheduled payment still requires approval before money moves, giving you automation with oversight. Pause, edit,
+          or delete schedules at any time. Find it in the sidebar under{' '}
+          <strong>Finance → Money Out → Payment Schedule</strong>.
         </p>
       </ModuleCard>
 
@@ -153,7 +171,8 @@ export function FinanceOpsSection() {
           The master record for every contractor: bank details and a default payment amount, used to speed up recurring pay
           batches. Each contractor has a dedicated profile with their full payment history, uploaded documents, and an audit
           trail of changes — useful both for day-to-day payouts and for answering "who changed this contractor's bank details,
-          and when" if it's ever asked.
+          and when" if it's ever asked. In the sidebar, find Contractors under{' '}
+          <strong>People & HR → Core HR → Contractors</strong>.
         </p>
       </ModuleCard>
 
@@ -161,7 +180,8 @@ export function FinanceOpsSection() {
         <p className="text-sm text-muted-foreground leading-relaxed">
           P&L, cash flow, and payment history in one place. Operating costs here include the <strong>actual</strong> fees
           Paystack and Flutterwave charged on each transfer — not an estimated rate — so the numbers match what really left the
-          account. Everything is exportable to CSV for board packs or an audit.
+          account. Everything is exportable to CSV for board packs or an audit. In the sidebar, find Reports under{' '}
+          <strong>Workspace → Intelligence → Reports</strong>.
         </p>
       </ModuleCard>
 
@@ -169,8 +189,23 @@ export function FinanceOpsSection() {
         <p className="text-sm text-muted-foreground leading-relaxed">
           A calendar of statutory filings and renewals — tax, pension remittance, licences — so nothing lapses quietly.
           Upcoming due dates surface on the Dashboard automatically as amber alerts once they're within 30 days, without
-          anyone needing to check the Compliance calendar directly to be warned.
+          anyone needing to check the Compliance calendar directly to be warned. In the sidebar, find Compliance under{' '}
+          <strong>Finance → Risk & Controls → Compliance</strong>.
         </p>
+      </ModuleCard>
+
+      <ModuleCard title="Finance Dashboard" route="/finance" roles={['super_admin']}>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          A real-time financial overview of the company's operational spending — total payroll cost, outstanding
+          expenses, payment volumes, and budget utilisation across departments. The dashboard aggregates data
+          from Payments, Expenses, Payroll, and Budgets into one view so the super admin can spot trends
+          (e.g. a department consistently over budget) without opening each module individually. This is the
+          landing page when you click <strong>Finance</strong> in the sidebar.
+        </p>
+        <Callout tone="tip">
+          The Finance Dashboard is read-only — it doesn't create or approve anything. Use it for the "big picture"
+          before diving into individual modules for action.
+        </Callout>
       </ModuleCard>
 
       <ModuleCard title="Cash Flow" route="/cashflow" roles={['super_admin', 'admin', 'finance']}>

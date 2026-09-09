@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 import {
-  Rocket, Shield, BookOpen, HelpCircle, Search, ChevronRight,
+  Rocket, Shield, BookOpen, HelpCircle, Search, ChevronRight, Code2,
 } from 'lucide-react';
 
 import { GettingStartedSection } from '@/components/guide/sections/GettingStarted';
@@ -16,6 +16,7 @@ import { FleetOpsSection } from '@/components/guide/sections/FleetOps';
 import { AdminToolsSection } from '@/components/guide/sections/AdminTools';
 import { CrmOutreachSection } from '@/components/guide/sections/CrmOutreach';
 import { ShiftsSchedulingSection } from '@/components/guide/sections/ShiftsScheduling';
+import { DeveloperIntegrationsSection } from '@/components/guide/sections/DeveloperIntegrations';
 import { FaqSection } from '@/components/guide/sections/Faq';
 
 import { TechOverviewSection } from '@/components/guide/sections/technical/Overview';
@@ -58,6 +59,9 @@ const NAV: NavGroup[] = [
     { id: 'technical/security', label: 'Security Settings' },
     { id: 'technical/files', label: 'Files & Data Retention' },
     { id: 'technical/infra', label: 'Infrastructure & Capacity' },
+  ] },
+  { id: 'developer', group: 'Developer', icon: Code2, items: [
+    { id: 'developer/integrations', label: 'Developer & Integrations' },
   ] },
   { id: 'help', group: 'Help', icon: HelpCircle, items: [
     { id: 'faq', label: 'FAQ & Troubleshooting' },
@@ -187,6 +191,7 @@ function GuideBody() {
             <Route path="technical/security" element={<TechSecuritySection />} />
             <Route path="technical/files" element={<TechFilesSection />} />
             <Route path="technical/infra" element={<TechInfraSection />} />
+            <Route path="developer/integrations" element={<DeveloperIntegrationsSection />} />
             <Route path="faq" element={<FaqSection />} />
             <Route path="*" element={<Navigate to="/guide/getting-started" replace />} />
           </Routes>

@@ -129,16 +129,51 @@ export function EverydayWorkSection() {
         />
       </ModuleCard>
 
+      <ModuleCard title="Goals" route="/goals" roles={['everyone']}>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Goals lets individuals and teams set measurable objectives — quarterly OKRs, annual targets, or project-specific
+          milestones — and track progress against them over time. Each goal has a target value, a current value that updates
+          as work is logged, and a deadline. Goals can be linked to specific tasks so progress rolls up automatically as
+          tasks are completed. Managers see their team's goals in one view for check-ins and performance reviews. In the
+          sidebar, find Goals under <strong>Workspace → Productivity → Goals</strong>.
+        </p>
+      </ModuleCard>
+
+      <ModuleCard title="Tables (Custom Data)" route="/tables" roles={['super_admin', 'admin', 'finance', 'operations']}>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Tables is a flexible spreadsheet-like module for tracking any structured data that doesn't fit neatly into another
+          module — inventory lists, vendor comparisons, project trackers, anything you'd otherwise put in a shared Google
+          Sheet. Create custom columns (text, number, date, select, checkbox), sort and filter rows, and share the table
+          with specific roles. Unlike a spreadsheet, every change is logged and the data lives inside KDOps rather than in
+          a separate tool. In the sidebar, find Tables under <strong>Workspace → Productivity → Tables</strong>.
+        </p>
+      </ModuleCard>
+
       <ModuleCard title="Communications & Messages" route="/communications · /messages" roles={['super_admin', 'admin', 'finance']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          These are two different tools that sound similar. <strong>Messages</strong> is for day-to-day conversation — 1:1 direct
-          messages and group chats, available to everyone, the same way you'd message a colleague on any chat app. <strong>
-          Communications</strong> is a broadcast tool for reaching the whole team or a specific department at once, over email,
+          These are two different tools that sound similar. <strong>Messages</strong> (under <strong>Workspace → Comms →
+          Messages</strong>) is for day-to-day conversation — 1:1 direct messages and group chats, available to everyone, the
+          same way you'd message a colleague on any chat app. <strong>Communications</strong> (under <strong>CRM →
+          Communications</strong>) is a broadcast tool for reaching the whole team or a specific department at once, over email,
           SMS, or WhatsApp (sent via Termii) — because a broadcast to everyone is a much bigger action than a private message,
           Communications is restricted to Finance, Admin, and Super Admin only. If you need to reach one colleague or a small
           group, use Messages; if you're not in one of those three roles, you won't see the option to send a company-wide
           broadcast, and that's by design.
         </p>
+      </ModuleCard>
+
+      <ModuleCard title="Assistant Admin" route="/assistant/admin" roles={['super_admin']}>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          The admin panel for the AI Assistant — configure which AI models the chatbot uses, manage the backend
+          provider (Groq for text, Gemini for vision), review conversation analytics (messages per day, top
+          questions, average response time), and moderate the Knowledge Base articles that the Assistant draws
+          its answers from. Changes here affect how the Assistant responds for every user in the company. In the
+          sidebar, find Assistant Admin under <strong>Workspace → Comms → Assistant</strong>, then click the Admin tab.
+        </p>
+        <Callout tone="warn">
+          Model changes take effect immediately for all users. If you switch to a different model provider,
+          test it with a few questions first — different models may handle your Knowledge Base content differently.
+        </Callout>
       </ModuleCard>
 
       <ModuleCard title="The AI Assistant" route="/assistant" roles={['everyone']}>

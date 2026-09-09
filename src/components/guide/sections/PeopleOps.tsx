@@ -169,12 +169,65 @@ export function PeopleOpsSection() {
         </p>
       </ModuleCard>
 
+      <ModuleCard title="Training" route="/training" roles={['super_admin', 'admin']}>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Training manages the company's learning and development programmes — courses, certifications, and skill-building
+          sessions. Create training events with a title, description, date, and capacity, then assign employees or let them
+          self-enroll. Track completion status and scores per employee, and see at a glance which team members have outstanding
+          mandatory training. In the sidebar, find Training under <strong>People & HR → Talent → Training</strong>.
+        </p>
+      </ModuleCard>
+
+      <ModuleCard title="Performance Reviews" route="/performance" roles={['super_admin', 'admin']}>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Performance runs structured review cycles — set a review period, assign reviewers (manager, self, peers), and collect
+          ratings and written feedback against predefined competencies. Results feed into succession planning and inform
+          compensation decisions. In the sidebar, find Performance under <strong>People & HR → Talent → Performance</strong>.
+        </p>
+      </ModuleCard>
+
+      <ModuleCard title="Benefits" route="/benefits" roles={['super_admin', 'admin', 'finance']}>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Benefits tracks employee benefit packages — health insurance (HMO), pension contributions, and any other
+          company-provided benefits. Each benefit plan has an enrollment period, a cost to the company, and a list of
+          enrolled employees. Employees can see their own enrolled benefits from their profile. In the sidebar, find
+          Benefits under <strong>People & HR → Compensation & Wellbeing → Benefits</strong>.
+        </p>
+      </ModuleCard>
+
+      <ModuleCard title="Placements" route="/placements" roles={['super_admin', 'admin']}>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Placements manages employee assignments to specific roles, departments, or client sites — especially useful for
+          staffing agencies or companies with project-based deployments. Each placement record links an employee to a position,
+          a location, and a date range, with status tracking through the assignment lifecycle. In the sidebar, find Placements
+          under <strong>People & HR → Core HR → Placements</strong>.
+        </p>
+      </ModuleCard>
+
+      <ModuleCard title="Surveys" route="/surveys" roles={['super_admin', 'admin']}>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Surveys lets HR create and distribute internal questionnaires — engagement surveys, pulse checks, exit interviews,
+          or any custom survey. Build questions (multiple choice, rating scale, free text), set a response deadline, and
+          target specific departments or the whole company. Responses can be anonymous. Results are aggregated into charts
+          and exportable summaries. In the sidebar, find Surveys under <strong>People & HR → Policy → Surveys</strong>.
+        </p>
+      </ModuleCard>
+
+      <ModuleCard title="Handbook" route="/handbook" roles={['everyone']}>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          The Handbook is the company's official policy document — employment terms, code of conduct, leave policies, dress code,
+          and any other policies your company maintains. It's published centrally by HR/Admin and readable by every employee.
+          Unlike the Knowledge Base (which is collaborative), the Handbook is an authoritative, curated document that represents
+          the company's official position. In the sidebar, find Handbook under <strong>People & HR → Policy → Handbook</strong>.
+        </p>
+      </ModuleCard>
+
       <ModuleCard title="HR Analytics" route="/hr-analytics" roles={['super_admin', 'admin', 'finance']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
           HR Analytics aggregates workforce metrics for planning and board reporting — headcount trends over time, turnover
           rate, how the workforce is distributed across departments, and leave utilization. It's a read-only, rolled-up view
           built for decisions about staffing and workforce planning, rather than a place to manage individual employee
-          records.
+          records. In the sidebar, find HR Analytics under <strong>Workspace → Intelligence → HR Analytics</strong>.
         </p>
       </ModuleCard>
     </div>

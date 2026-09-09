@@ -80,35 +80,15 @@ export function FleetOpsSection() {
         />
       </ModuleCard>
 
-      <ModuleCard title="Assets" route="/assets" roles={['super_admin', 'admin', 'finance']}>
+      <ModuleCard title="Vendors" route="/vendors" roles={['super_admin', 'admin', 'finance', 'operations']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          The fixed-asset register: IT equipment, motor vehicles, furniture, plant & machinery, buildings, and leasehold
-          improvements, all in one record with a live-calculated book value using either straight-line or reducing-balance
-          depreciation, depending on how each asset is configured.
+          The Vendors module is the master directory for every external supplier the company works with — fuel stations, mechanics,
+          parts suppliers, and any other vendor. Each vendor record holds contact details, bank account information for payments,
+          and a history of every transaction or purchase order tied to them. Vendor records are referenced by the Fleet module's
+          fuel and maintenance workflows, so when you log a fuel purchase or a repair, you pick the vendor from this list rather
+          than typing a name by hand each time. In the sidebar, find Vendors under{' '}
+          <strong>Operations → Operations → Vendors</strong>.
         </p>
-        <StepList
-          steps={[
-            'Nigerian CITA capital allowance rates — both initial and annual — are pre-filled per asset category, so tax treatment is consistent without anyone looking up rates by hand each time.',
-            'An expiring insurance policy triggers an amber badge 30 days out, the same early-warning pattern used elsewhere in KDOps for compliance dates.',
-            'Assets can be assigned to a specific employee and/or department, so "who has this" and "which department carries this cost" are both answerable from the asset record.',
-            'Disposed and written-off assets move out of the active register into their own tracked state rather than being deleted — the depreciation and disposal history stays intact.',
-          ]}
-        />
-      </ModuleCard>
-
-      <ModuleCard title="Projects" route="/projects" roles={['super_admin', 'admin', 'finance', 'operations']}>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Links each project to a client, an owner, and a department, and tracks it through a status workflow of{' '}
-          <strong>planning → active → on_hold → completed / cancelled</strong>, with a priority of <strong>critical, high,
-          normal,</strong> or <strong>low</strong> set independently of status.
-        </p>
-        <StepList
-          steps={[
-            'Milestones are inline and drag-sortable — reorder them by dragging, and mark one complete with a single click, no separate edit screen required.',
-            'Tasks created against a project in the Tasks module are counted automatically and shown on the project record, so project progress and task load are visible together.',
-            'A project that is still active past its own end date is flagged as overdue automatically — nobody has to notice the date has passed and mark it manually.',
-          ]}
-        />
       </ModuleCard>
     </div>
   );
