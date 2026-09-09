@@ -9,6 +9,8 @@ import { PILL_COLORS, VIRTUAL_TYPES } from '../../types';
 import { getFieldTypeIcon } from '../grid/field-icons';
 import { useUpdateView } from '../../hooks/useViews';
 import { useSharedView, useCreateSharedView } from '../../hooks/useSharedViews';
+import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
+import { normalizeUserValue } from '../grid/cell-editors';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 
@@ -61,6 +63,94 @@ function MultiSelectInput({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function PeopleInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: FieldMeta;
+  value: any;
+  onChange: (v: any) => void;
+}) {
+  const { data: users = [], isLoading } = useWorkspaceUsers();
+  const [search, setSearch] = useState('');
+  const allowMultiple = !!field.options?.allowMultiple;
+  const selected = normalizeUserValue(value);
+
+  const filtered = search
+    ? users.filter(
+        (u) =>
+          u.full_name.toLowerCase().includes(search.toLowerCase()) ||
+          u.email.toLowerCase().includes(search.toLowerCase()),
+      )
+    : users;
+
+  const isSelected = (id: string, email: string) =>
+    selected.some((s) => (s.id && id ? s.id === id : s.email === email));
+
+  const toggle = (u: { id: string; email: string; full_name: string }) => {
+    const entry = { id: u.id, email: u.email, name: u.full_name };
+    if (!allowMultiple) {
+      onChange(isSelected(u.id, u.email) ? null : entry);
+      return;
+    }
+    const next = isSelected(u.id, u.email)
+      ? selected.filter((s) => (s.id && u.id ? s.id !== u.id : s.email !== u.email))
+      : [...selected, entry];
+    onChange(next);
+  };
+
+  return (
+    <div>
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search people..."
+        className="w-full border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] rounded-lg px-3 py-2 text-sm bg-white dark:bg-[hsl(220,20%,10%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/25 mb-2"
+      />
+      <div className="max-h-44 overflow-y-auto rounded-lg border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] divide-y divide-[#F1F5F9] dark:divide-[hsl(220,15%,15%)]">
+        {isLoading && <div className="px-3 py-2 text-xs text-[#94A3B8]">Loading people...</div>}
+        {!isLoading && filtered.length === 0 && (
+          <div className="px-3 py-2 text-xs text-[#94A3B8]">No people found</div>
+        )}
+        {filtered.map((u) => {
+          const active = isSelected(u.id, u.email);
+          return (
+            <button
+              key={u.id}
+              type="button"
+              onClick={() => toggle(u)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[#F8FAFC] dark:hover:bg-[hsl(220,18%,12%)]"
+            >
+              <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#6366F1] text-white text-[10px] font-semibold shrink-0">
+                {(u.full_name || u.email).charAt(0).toUpperCase()}
+              </span>
+              <span className="flex flex-col min-w-0 flex-1">
+                <span className="text-xs font-medium text-[#1E293B] dark:text-[hsl(210,20%,88%)] truncate">{u.full_name}</span>
+                <span className="text-[11px] text-[#94A3B8] truncate">{u.email}</span>
+              </span>
+              {active && <Check size={14} className="text-[#2D7FF9] shrink-0" />}
+            </button>
+          );
+        })}
+      </div>
+      {selected.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {selected.map((s, i) => (
+            <span
+              key={s.id || s.email || i}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-[#EEF2FF] dark:bg-[hsl(220,18%,14%)] text-[#4338CA] dark:text-[hsl(230,60%,75%)]"
+            >
+              {s.name || s.email}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -439,6 +529,14 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
             field={f}
             value={Array.isArray(values[f.id]) ? values[f.id] : []}
             onChange={(v) => setValues((prev) => ({ ...prev, [f.id]: v }))}
+          />
+        );
+      case 'User':
+        return (
+          <PeopleInput
+            field={f}
+            value={values[f.id]}
+            onChange={(v) => { setValues((prev) => ({ ...prev, [f.id]: v })); setErrors((p) => { const n = { ...p }; delete n[f.id]; return n; }); }}
           />
         );
       case 'Attachment':

@@ -1119,6 +1119,25 @@ export function TimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   );
 }
 
+export interface UserValue {
+  id?: string;
+  email?: string;
+  name?: string;
+}
+
+/** Normalize a User/People cell value (single object, array, or plain text) to an array. */
+export function normalizeUserValue(value: unknown): UserValue[] {
+  if (value == null || value === '') return [];
+  if (Array.isArray(value)) return value.filter(Boolean) as UserValue[];
+  if (typeof value === 'object') return [value as UserValue];
+  return [{ email: String(value), name: String(value) }];
+}
+
+function sameUser(a: UserValue, b: { id?: string; email?: string }) {
+  if (a.id && b.id) return a.id === b.id;
+  return !!a.email && a.email === b.email;
+}
+
 export function UserCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const { data: users = [], isLoading } = useWorkspaceUsers();
   const [search, setSearch] = useState('');
@@ -1126,9 +1145,8 @@ export function UserCellEditor({ value, field, onCommit, onCancel }: CellEditorP
   const searchRef = useRef<HTMLInputElement>(null);
   const colors = useGridColors();
 
-  const currentValue = typeof value === 'object' && value !== null
-    ? (value as { email?: string }).email || ''
-    : String(value ?? '');
+  const allowMultiple = !!field?.options?.allowMultiple;
+  const [selected, setSelected] = useState<UserValue[]>(() => normalizeUserValue(value));
 
   const filtered = search
     ? users.filter(
@@ -1137,6 +1155,32 @@ export function UserCellEditor({ value, field, onCommit, onCancel }: CellEditorP
           u.email.toLowerCase().includes(search.toLowerCase()),
       )
     : users;
+
+  const commitValue = useCallback(
+    (next: UserValue[]) => {
+      if (next.length === 0) {
+        onCommit(allowMultiple ? [] : null);
+      } else if (allowMultiple) {
+        onCommit(next);
+      } else {
+        onCommit(next[0]);
+      }
+    },
+    [allowMultiple, onCommit],
+  );
+
+  const toggleUser = useCallback(
+    (u: { id: string; email: string; full_name: string }) => {
+      const entry: UserValue = { id: u.id, email: u.email, name: u.full_name };
+      if (!allowMultiple) {
+        commitValue([entry]);
+        return;
+      }
+      const exists = selected.some((s) => sameUser(s, entry));
+      setSelected(exists ? selected.filter((s) => !sameUser(s, entry)) : [...selected, entry]);
+    },
+    [allowMultiple, commitValue, selected],
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -1148,23 +1192,16 @@ export function UserCellEditor({ value, field, onCommit, onCancel }: CellEditorP
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setFocusedIndex((prev) => Math.max(prev - 1, 0));
-      } else if (e.key === 'Enter') {
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
         if (focusedIndex >= 0 && focusedIndex < filtered.length) {
-          const u = filtered[focusedIndex];
-          onCommit({ email: u.email, name: u.full_name });
-        }
-      } else if (e.key === 'Tab') {
-        e.preventDefault();
-        if (focusedIndex >= 0 && focusedIndex < filtered.length) {
-          const u = filtered[focusedIndex];
-          onCommit({ email: u.email, name: u.full_name });
-        } else {
+          toggleUser(filtered[focusedIndex]);
+        } else if (e.key === 'Tab') {
           onCancel();
         }
       }
     },
-    [onCancel, onCommit, filtered, focusedIndex],
+    [onCancel, filtered, focusedIndex, toggleUser],
   );
 
   return (
@@ -1196,7 +1233,7 @@ export function UserCellEditor({ value, field, onCommit, onCancel }: CellEditorP
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search users..."
+            placeholder="Search people..."
             className="w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
             style={{
               border: `1px solid ${colors.border}`,
@@ -1207,17 +1244,17 @@ export function UserCellEditor({ value, field, onCommit, onCancel }: CellEditorP
         <div className="overflow-y-auto py-1" style={{ maxHeight: 200 }}>
           {isLoading && (
             <div className="px-3 py-2 text-xs" style={{ color: colors.muted }}>
-              Loading users...
+              Loading people...
             </div>
           )}
           {!isLoading && filtered.length === 0 && (
             <div className="px-3 py-2 text-xs" style={{ color: colors.muted }}>
-              No users found
+              No people found
             </div>
           )}
           {filtered.map((user, idx) => {
             const isFocused = idx === focusedIndex;
-            const isSelected = currentValue === user.email;
+            const isSelected = selected.some((s) => sameUser(s, { id: user.id, email: user.email }));
             const initial = (user.full_name || user.email).charAt(0).toUpperCase();
             return (
               <button
@@ -1227,7 +1264,7 @@ export function UserCellEditor({ value, field, onCommit, onCancel }: CellEditorP
                   backgroundColor: isFocused ? colors.hoverRow : 'transparent',
                 }}
                 onMouseEnter={() => setFocusedIndex(idx)}
-                onClick={() => onCommit({ email: user.email, name: user.full_name })}
+                onClick={() => toggleUser(user)}
               >
                 <span
                   className="shrink-0 flex items-center justify-center rounded-full text-white"
@@ -1256,7 +1293,7 @@ export function UserCellEditor({ value, field, onCommit, onCancel }: CellEditorP
             );
           })}
         </div>
-        {currentValue && (
+        {selected.length > 0 && (
           <>
             <div style={{ height: 1, backgroundColor: colors.border }} />
             <button
@@ -1264,7 +1301,10 @@ export function UserCellEditor({ value, field, onCommit, onCancel }: CellEditorP
               style={{ color: colors.muted }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-              onClick={() => onCommit(null)}
+              onClick={() => {
+                setSelected([]);
+                commitValue([]);
+              }}
             >
               Clear
             </button>
