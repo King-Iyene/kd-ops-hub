@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import {
   Plus, Table2, Trash2, Loader2, MoreHorizontal, EyeOff, ListFilter,
   Type, AlignLeft, Hash, CalendarDays, CheckSquare, ListChecks,
-  User, Users, Link2, AtSign, Phone, Globe, Copy, FileText, Check, Sigma,
+  User, Users, Link2, AtSign, Phone, Globe, Copy, FileText, Check, Sigma, CheckCircle2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -40,7 +40,7 @@ import {
 const FIELD_ICONS: Record<FlexFieldType, typeof Type> = {
   text: Type, long_text: AlignLeft, number: Hash, date: CalendarDays, checkbox: CheckSquare,
   select: ListChecks, multi_select: ListChecks, person: User, multi_person: Users,
-  task_link: Link2, url: Globe, email: AtSign, phone: Phone, formula: Sigma,
+  task_link: Link2, completed_task_link: CheckCircle2, url: Globe, email: AtSign, phone: Phone, formula: Sigma,
 };
 
 /** Flattens a record's other fields to { fieldName: displayValue } for the
@@ -82,7 +82,7 @@ function buildFormulaScope(
         scope[f.name] = ids.map((id) => profilesById.get(id)?.full_name).filter(Boolean).join(', ');
         break;
       }
-      case 'task_link': {
+      case 'task_link': case 'completed_task_link': {
         const ids = Array.isArray(v) ? (v as string[]) : [];
         scope[f.name] = ids.map((id) => tasksById.get(id)?.title).filter(Boolean).join(', ');
         break;
@@ -130,7 +130,7 @@ function resolveDisplayValue(
       const names = ids.map((id) => profilesById.get(id)?.full_name).filter(Boolean);
       return names.length ? names.join(', ') : '(Empty)';
     }
-    case 'task_link': {
+    case 'task_link': case 'completed_task_link': {
       const ids = Array.isArray(value) ? (value as string[]) : [];
       const titles = ids.map((id) => tasksById.get(id)?.title).filter(Boolean);
       return titles.length ? titles.join(', ') : '(Empty)';
@@ -205,7 +205,7 @@ const MULTI_PICK_OPS: { value: FilterOp; label: string }[] = [
 /** Field types whose "has"/"does not have" checks one item out of a
  *  comma-joined list, rather than an exact match against the whole value. */
 function isMultiValueField(type: FlexFieldType): boolean {
-  return type === 'multi_select' || type === 'multi_person' || type === 'task_link';
+  return type === 'multi_select' || type === 'multi_person' || type === 'task_link' || type === 'completed_task_link';
 }
 
 function operatorsForField(field: FlexField | undefined): { value: FilterOp; label: string }[] {
@@ -214,7 +214,7 @@ function operatorsForField(field: FlexField | undefined): { value: FilterOp; lab
     case 'date': return DATE_OPS;
     case 'checkbox': return CHECKBOX_OPS;
     case 'select': case 'person': return SINGLE_PICK_OPS;
-    case 'multi_select': case 'multi_person': case 'task_link': return MULTI_PICK_OPS;
+    case 'multi_select': case 'multi_person': case 'task_link': case 'completed_task_link': return MULTI_PICK_OPS;
     case 'formula':
       // A formula can produce text or a number, so offer both operator sets.
       return [...TEXT_OPS, ...NUMERIC_OPS.filter((o) => o.value === 'gt' || o.value === 'gte' || o.value === 'lt' || o.value === 'lte')];
@@ -286,7 +286,7 @@ function sampleValueForField(f: FlexField): FormulaValue {
 }
 
 interface ProfileLite { id: string; full_name: string; email: string; }
-interface TaskLite { id: string; title: string; }
+interface TaskLite { id: string; title: string; status: string; completed_at: string | null; }
 
 /** The filter value's input widget, matched to the field's type — a date
  *  picker for Date, a dropdown of real choices/names for Select/Person and
@@ -378,7 +378,7 @@ export default function FlexTables() {
     (async () => {
       const [profRes, taskRes] = await Promise.all([
         supabase.from('profiles_directory').select('id, full_name, email').eq('is_anonymised', false).in('status', ['active', 'invited']).in('role', ['operations', 'admin', 'super_admin']).order('full_name').limit(500),
-        supabase.from('tasks').select('id, title').is('parent_id', null).order('created_at', { ascending: false }).limit(1000),
+        supabase.from('tasks').select('id, title, status, completed_at').is('parent_id', null).order('created_at', { ascending: false }).limit(1000),
       ]);
       setProfiles((profRes.data as ProfileLite[]) || []);
       setTasksList((taskRes.data as TaskLite[]) || []);
@@ -484,6 +484,11 @@ export default function FlexTables() {
 
   const profilesById = useMemo(() => new Map(profiles.map((p) => [p.id, p])), [profiles]);
   const tasksById = useMemo(() => new Map(tasksList.map((t) => [t.id, t])), [tasksList]);
+  // Tasks completed today or later — the picker source for "Completed linked tasks" fields.
+  const completedTasks = useMemo(() => {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    return tasksList.filter((t) => t.status === 'complete' && t.completed_at && t.completed_at.slice(0, 10) >= todayIso);
+  }, [tasksList]);
 
   return (
     <>
@@ -583,6 +588,7 @@ export default function FlexTables() {
                 records={records}
                 profilesById={profilesById}
                 tasksById={tasksById}
+                completedTasks={completedTasks}
                 onAddRow={addRow}
                 onDeleteRow={deleteRow}
                 onUpdateCell={updateCell}
@@ -685,13 +691,14 @@ export default function FlexTables() {
 // ─── Grid ──────────────────────────────────────────────────────────────
 
 function GridView({
-  tableId, fields, records, profilesById, tasksById, onAddRow, onDeleteRow, onUpdateCell, onAddField, onEditField, onDeleteField, onToggleFieldHidden, onReorderFields,
+  tableId, fields, records, profilesById, tasksById, completedTasks, onAddRow, onDeleteRow, onUpdateCell, onAddField, onEditField, onDeleteField, onToggleFieldHidden, onReorderFields,
 }: {
   tableId: string;
   fields: FlexField[];
   records: FlexRecord[];
   profilesById: Map<string, ProfileLite>;
   tasksById: Map<string, TaskLite>;
+  completedTasks: TaskLite[];
   onAddRow: () => void;
   onDeleteRow: (id: string) => void;
   onUpdateCell: (record: FlexRecord, fieldId: string, value: unknown) => void;
@@ -817,7 +824,7 @@ function GridView({
       </td>
       {visibleFields.map((f) => (
         <td key={f.id} className="px-1 py-1 border-r border-b border-border/60 align-top overflow-hidden">
-          <Cell field={f} value={r.data[f.id]} record={r} allFields={fields} profilesById={profilesById} tasksById={tasksById} onChange={(v) => onUpdateCell(r, f.id, v)} />
+          <Cell field={f} value={r.data[f.id]} record={r} allFields={fields} profilesById={profilesById} tasksById={tasksById} completedTasks={completedTasks} onChange={(v) => onUpdateCell(r, f.id, v)} />
         </td>
       ))}
       <td className="border-b border-border/60" />
@@ -998,7 +1005,7 @@ function GridView({
 }
 
 function Cell({
-  field, value, record, allFields, profilesById, tasksById, onChange,
+  field, value, record, allFields, profilesById, tasksById, completedTasks, onChange,
 }: {
   field: FlexField;
   value: unknown;
@@ -1006,6 +1013,7 @@ function Cell({
   allFields: FlexField[];
   profilesById: Map<string, ProfileLite>;
   tasksById: Map<string, TaskLite>;
+  completedTasks: TaskLite[];
   onChange: (v: unknown) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -1055,7 +1063,7 @@ function Cell({
         const ids = Array.isArray(value) ? (value as string[]) : [];
         return <span className="text-xs truncate block">{ids.map((id) => profilesById.get(id)?.full_name).filter(Boolean).join(', ')}</span>;
       }
-      case 'task_link': {
+      case 'task_link': case 'completed_task_link': {
         const ids = Array.isArray(value) ? (value as string[]) : [];
         return (
           <div className="flex items-center gap-1 overflow-hidden whitespace-nowrap">
@@ -1161,9 +1169,9 @@ function Cell({
             })}
           </div>
         )}
-        {field.type === 'task_link' && (
+        {(field.type === 'task_link' || field.type === 'completed_task_link') && (
           <div className="max-h-56 overflow-y-auto space-y-1">
-            {Array.from(tasksById.values()).map((t) => {
+            {(field.type === 'completed_task_link' ? completedTasks : Array.from(tasksById.values())).map((t) => {
               const ids = Array.isArray(draft) ? (draft as string[]) : [];
               const checked = ids.includes(t.id);
               return (
@@ -1177,6 +1185,9 @@ function Cell({
                 </label>
               );
             })}
+            {field.type === 'completed_task_link' && completedTasks.length === 0 && (
+              <p className="text-xs text-muted-foreground px-2 py-1">No tasks completed today or later.</p>
+            )}
           </div>
         )}
       </PopoverContent>

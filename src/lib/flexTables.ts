@@ -4,6 +4,7 @@ import type { FlexNumberFormat } from '@/lib/flexFormula';
 export type FlexFieldType =
   | 'text' | 'long_text' | 'number' | 'date' | 'checkbox'
   | 'select' | 'multi_select' | 'person' | 'multi_person' | 'task_link'
+  | 'completed_task_link'
   | 'url' | 'email' | 'phone' | 'formula';
 
 export const FLEX_FIELD_TYPES: { value: FlexFieldType; label: string }[] = [
@@ -17,6 +18,7 @@ export const FLEX_FIELD_TYPES: { value: FlexFieldType; label: string }[] = [
   { value: 'person', label: 'Person' },
   { value: 'multi_person', label: 'Multiple people' },
   { value: 'task_link', label: 'Linked tasks' },
+  { value: 'completed_task_link', label: 'Completed linked tasks' },
   { value: 'url', label: 'URL' },
   { value: 'email', label: 'Email' },
   { value: 'phone', label: 'Phone' },

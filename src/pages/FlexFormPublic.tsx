@@ -229,6 +229,8 @@ function FieldInput({ field, value, onChange, token, personId, hasPersonFilter }
         return <p className="text-xs text-muted-foreground italic">Linked tasks aren't editable from this form.</p>;
       }
       return <TaskLinkPicker token={token} personId={personId} value={value} onChange={onChange} />;
+    case 'completed_task_link':
+      return <p className="text-xs text-muted-foreground italic">Completed linked tasks aren't editable from this form.</p>;
     default:
       return <Input value={(value as string) || ''} onChange={(e) => onChange(e.target.value)} />;
   }
