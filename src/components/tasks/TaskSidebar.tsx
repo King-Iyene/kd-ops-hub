@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Plus, Layers, FolderOpen, ChevronRight, ChevronDown,
   LayoutGrid, List, BarChart3, User, Table2, Gauge,
@@ -18,7 +17,7 @@ import {
 } from '@/components/ui/tooltip';
 import type { TaskList, SpaceFolder } from '@/lib/task-types';
 
-export type TaskView = 'my-tasks' | 'board' | 'list' | 'calendar' | 'gantt' | 'dashboard' | 'workload' | 'activity' | 'time-report';
+export type TaskView = 'my-tasks' | 'board' | 'list' | 'calendar' | 'gantt' | 'dashboard' | 'workload' | 'activity' | 'time-report' | 'team-dashboard';
 
 export interface Space {
   id: string;
@@ -83,7 +82,6 @@ export function TaskSidebar({
   onRenameList, onDeleteList, favoriteSpaceIds, onToggleFavorite,
   unorganizedCount, showTeamDashboard,
 }: TaskSidebarProps) {
-  const navigate = useNavigate();
   const [spacesExpanded, setSpacesExpanded] = useState(true);
   const [expandedSpaces, setExpandedSpaces] = useState<Set<string>>(new Set());
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -105,7 +103,7 @@ export function TaskSidebar({
   };
 
   const ensureTaskView = () => {
-    if (currentView === 'my-tasks' || currentView === 'dashboard' || currentView === 'workload' || currentView === 'activity' || currentView === 'time-report') onChangeView('board');
+    if (currentView === 'my-tasks' || currentView === 'dashboard' || currentView === 'workload' || currentView === 'activity' || currentView === 'time-report' || currentView === 'team-dashboard') onChangeView('board');
   };
 
   return (
@@ -128,7 +126,8 @@ export function TaskSidebar({
           <SidebarItem
             icon={Gauge}
             label="Team Dashboard"
-            onClick={() => navigate('/tasks/dashboard')}
+            active={currentView === 'team-dashboard'}
+            onClick={() => { onSelectSpace(null); onSelectList(null); onChangeView('team-dashboard'); }}
           />
         )}
       </div>

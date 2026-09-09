@@ -45,6 +45,7 @@ import { TaskSidebar, type TaskView, type Space } from '@/components/tasks/TaskS
 import { MyTasksView } from '@/components/tasks/MyTasksView';
 import { TaskListView } from '@/components/tasks/TaskListView';
 import { TaskDashboard } from '@/components/tasks/TaskDashboard';
+import TaskTeamDashboard from '@/pages/TaskTeamDashboard';
 import { TaskDetailPanel } from '@/components/tasks/TaskDetailPanel';
 import { SpaceMembersDialog } from '@/components/tasks/SpaceMembersDialog';
 import { SpaceStatusManager } from '@/components/tasks/SpaceStatusManager';
@@ -835,6 +836,7 @@ const Tasks = () => {
     if (currentView === 'workload') return 'Workload';
     if (currentView === 'activity') return 'Activity';
     if (currentView === 'time-report') return 'Time Reports';
+    if (currentView === 'team-dashboard') return 'Team Dashboard';
     if (selectedList) {
       const l = taskLists.find((l) => l.id === selectedList);
       return l?.name ?? 'List';
@@ -954,7 +956,7 @@ const Tasks = () => {
               </Button>
               <div className="min-w-0">
                 <h1 className="text-lg font-bold truncate">{viewTitle}</h1>
-                {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && (
+                {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && currentView !== 'team-dashboard' && (
                   <p className="text-xs text-muted-foreground">
                     {visible.length} task{visible.length !== 1 ? 's' : ''}
                   </p>
@@ -963,7 +965,7 @@ const Tasks = () => {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && (
+              {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && currentView !== 'team-dashboard' && (
                 <>
                   <div className="relative hidden sm:block">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -1050,7 +1052,7 @@ const Tasks = () => {
                 </>
               )}
 
-              {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && (
+              {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && currentView !== 'team-dashboard' && (
                 <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden sm:flex" onClick={() => setImportExportDialog(true)}>
                   <Download className="h-3.5 w-3.5" />
                   Import/Export
@@ -1093,7 +1095,7 @@ const Tasks = () => {
           </div>
 
           {/* Saved views */}
-          {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && (
+          {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && currentView !== 'team-dashboard' && (
             <div className="px-4 lg:px-6 pb-1">
               <SavedViewsPanel
                 spaceId={selectedSpace}
@@ -1118,7 +1120,7 @@ const Tasks = () => {
           )}
 
           {/* Active filter pills */}
-          {activeFilters.length > 0 && currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && (
+          {activeFilters.length > 0 && currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && currentView !== 'team-dashboard' && (
             <div className="flex items-center gap-1.5 px-4 lg:px-6 pb-2.5 flex-wrap">
               {activeFilters.map((f) => (
                 <button
@@ -1153,6 +1155,8 @@ const Tasks = () => {
               currentUserId={profile?.id}
               onTaskClick={(t) => setDetailTask(t)}
             />
+          ) : currentView === 'team-dashboard' ? (
+            <TaskTeamDashboard />
           ) : currentView === 'dashboard' ? (
             <TaskDashboard
               tasks={visible}
