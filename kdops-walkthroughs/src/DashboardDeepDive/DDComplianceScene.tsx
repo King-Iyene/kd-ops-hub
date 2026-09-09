@@ -18,11 +18,21 @@ const { fontFamily: monoFamily } = loadMono("normal", {
   subsets: ["latin"],
 });
 
-const FILINGS = [
-  { name: "PAYE", date: "10 Sept 2026, 5:00 am (GMT+1)", desc: "File PAYE return for previous month", due: "in 0d", color: COLORS.red },
-  { name: "Pension", date: "07 Oct 2026, 5:00 am (GMT+1)", desc: "Remit pension contributions for previous month", due: "in 27d", color: COLORS.green },
-  { name: "VAT", date: "21 Sept 2026, 5:00 am (GMT+1)", desc: "File monthly VAT return", due: "in 11d", color: COLORS.orange },
+const BUDGETS = [
+  { label: "Marketing", spent: 320000, total: 500000, color: COLORS.accentBright },
+  { label: "Operations", spent: 480000, total: 600000, color: COLORS.orange },
+  { label: "Software & Tools", spent: 195000, total: 250000, color: COLORS.gold },
+  { label: "Travel", spent: 45000, total: 150000, color: COLORS.green },
 ];
+
+const RENEWALS = [
+  { name: "Google One", amount: "₦40,000", date: "15/10/2026", daysOut: "in 36d", status: "upcoming" },
+  { name: "OpenAI API", amount: "₦20,000", date: "22/10/2026", daysOut: "in 43d", status: "upcoming" },
+  { name: "YouTube Premium", amount: "₦1,800", date: "01/11/2026", daysOut: "in 53d", status: "upcoming" },
+];
+
+const formatNaira = (n: number) =>
+  "₦" + n.toLocaleString("en-NG");
 
 export const DDComplianceScene: React.FC = () => {
   const frame = useCurrentFrame();
@@ -39,42 +49,59 @@ export const DDComplianceScene: React.FC = () => {
       <Interactive.Div
         name="SceneLabel"
         style={{
-          fontSize: 16,
+          fontSize: 14,
           fontFamily: monoFamily,
           color: COLORS.gold,
           letterSpacing: 2,
           textTransform: "uppercase" as const,
-          marginBottom: 8,
+          marginBottom: 6,
           opacity: interpolate(frame, [0, 0.3 * fps], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           }),
         }}
       >
-        Compliance & Tasks
+        Step 4 — Budget & Renewals
       </Interactive.Div>
 
       <Interactive.Div
         name="Title"
         style={{
-          fontSize: 48,
+          fontSize: 36,
           fontWeight: 700,
           color: COLORS.white,
-          marginBottom: 32,
+          marginBottom: 10,
           opacity: interpolate(frame, [0.1 * fps, 0.5 * fps], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           }),
         }}
       >
-        Nigerian Compliance Tracker
+        Where is the money going, and what's coming up?
       </Interactive.Div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 32 }}>
-        {/* Compliance filings */}
+      <Interactive.Div
+        name="Subtitle"
+        style={{
+          fontSize: 18,
+          color: COLORS.textMuted,
+          marginBottom: 28,
+          maxWidth: 700,
+          lineHeight: 1.5,
+          opacity: interpolate(frame, [0.3 * fps, 0.6 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        Budget Utilisation shows how much of each department's budget has been used. Upcoming Renewals warns you about subscriptions that will auto-charge soon.
+      </Interactive.Div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 28 }}>
+        {/* Budget Utilisation */}
         <div>
           <Interactive.Div
-            name="FilingsCard"
+            name="BudgetCard"
             style={{
               background: COLORS.surface,
               borderRadius: 14,
@@ -86,154 +113,176 @@ export const DDComplianceScene: React.FC = () => {
               }),
             }}
           >
-            <div style={{ padding: "20px 24px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontSize: 18, fontWeight: 600, color: COLORS.white, display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ color: COLORS.gold }}>🏛</span> Nigerian Compliance
+            <div style={{ padding: "18px 22px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontSize: 17, fontWeight: 600, color: COLORS.white }}>
+                📊 Budget Utilisation
               </div>
-              <div style={{ fontSize: 13, color: COLORS.accentBright, fontFamily: monoFamily }}>View All →</div>
+              <div style={{ fontSize: 13, color: COLORS.accentBright, fontFamily: monoFamily }}>
+                View all →
+              </div>
             </div>
 
-            {FILINGS.map((f, i) => {
-              const delay = 1 + i * 0.3;
-              return (
-                <div
-                  key={f.name}
-                  style={{
-                    padding: "18px 24px",
-                    borderBottom: i < FILINGS.length - 1 ? `1px solid ${COLORS.border}` : "none",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    opacity: interpolate(frame, [delay * fps, (delay + 0.25) * fps], [0, 1], {
-                      extrapolateLeft: "clamp",
-                      extrapolateRight: "clamp",
-                    }),
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.white, marginBottom: 4 }}>
-                      {f.name} — {f.date}
-                    </div>
-                    <div style={{ fontSize: 13, color: COLORS.textMuted }}>{f.desc}</div>
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontFamily: monoFamily,
-                      color: f.color,
-                      background: `${f.color}22`,
-                      padding: "4px 10px",
-                      borderRadius: 6,
-                      whiteSpace: "nowrap" as const,
-                    }}
-                  >
-                    {f.due}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Tax Clearance */}
-            <div
-              style={{
-                padding: "18px 24px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                opacity: interpolate(frame, [2 * fps, 2.3 * fps], [0, 1], {
+            <div style={{ padding: "18px 22px", display: "flex", flexDirection: "column" as const, gap: 16 }}>
+              {BUDGETS.map((b, i) => {
+                const pct = Math.round((b.spent / b.total) * 100);
+                const delay = 1 + i * 0.25;
+                const barWidth = interpolate(frame, [delay * fps, (delay + 0.5) * fps], [0, pct], {
                   extrapolateLeft: "clamp",
                   extrapolateRight: "clamp",
-                }),
-              }}
-            >
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.white, marginBottom: 4 }}>
-                  Tax Clearance Certificate
-                </div>
-                <div style={{ fontSize: 13, color: COLORS.textMuted }}>Upload your TCC to Documents</div>
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  fontFamily: monoFamily,
-                  color: COLORS.red,
-                  background: `${COLORS.red}22`,
-                  padding: "4px 10px",
-                  borderRadius: 6,
-                }}
-              >
-                Missing
-              </div>
+                });
+                return (
+                  <div
+                    key={b.label}
+                    style={{
+                      opacity: interpolate(frame, [delay * fps, (delay + 0.2) * fps], [0, 1], {
+                        extrapolateLeft: "clamp",
+                        extrapolateRight: "clamp",
+                      }),
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 6 }}>
+                      <span style={{ color: COLORS.white, fontWeight: 600 }}>{b.label}</span>
+                      <span style={{ color: COLORS.textMuted, fontSize: 13 }}>
+                        {formatNaira(b.spent)} / {formatNaira(b.total)}{" "}
+                        <span style={{ color: pct > 80 ? COLORS.orange : COLORS.green, fontWeight: 600 }}>
+                          ({pct}%)
+                        </span>
+                      </span>
+                    </div>
+                    <div style={{ background: COLORS.bg, borderRadius: 4, height: 8 }}>
+                      <div
+                        style={{
+                          background: b.color,
+                          borderRadius: 4,
+                          height: 8,
+                          width: `${barWidth}%`,
+                          transition: "width 0.1s",
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+          </Interactive.Div>
+
+          {/* Budget explanation */}
+          <Interactive.Div
+            name="BudgetExplain"
+            style={{
+              marginTop: 12,
+              fontSize: 13,
+              color: COLORS.textMuted,
+              lineHeight: 1.5,
+              opacity: interpolate(frame, [2.5 * fps, 2.9 * fps], [0, 1], {
+                extrapolateLeft: "clamp",
+                extrapolateRight: "clamp",
+              }),
+            }}
+          >
+            Each bar shows how much of a department's monthly budget has been spent. When a bar turns orange or approaches 100%, it's time to review spending or adjust the budget.
           </Interactive.Div>
         </div>
 
-        {/* Tasks & Goals */}
-        <div style={{ display: "flex", flexDirection: "column" as const, gap: 20 }}>
+        {/* Upcoming Renewals */}
+        <div>
           <Interactive.Div
-            name="TasksCard"
+            name="RenewalsCard"
             style={{
               background: COLORS.surface,
               borderRadius: 14,
-              padding: 24,
               border: `1px solid ${COLORS.border}`,
-              opacity: interpolate(frame, [1.5 * fps, 1.9 * fps], [0, 1], {
+              overflow: "hidden",
+              opacity: interpolate(frame, [1.2 * fps, 1.6 * fps], [0, 1], {
                 extrapolateLeft: "clamp",
                 extrapolateRight: "clamp",
               }),
             }}
           >
-            <div style={{ fontSize: 18, fontWeight: 600, color: COLORS.white, marginBottom: 12 }}>
-              📋 My Tasks
+            <div style={{ padding: "18px 22px", borderBottom: `1px solid ${COLORS.border}` }}>
+              <div style={{ fontSize: 17, fontWeight: 600, color: COLORS.white }}>
+                🔄 Upcoming Renewals
+              </div>
             </div>
-            <div style={{ fontSize: 16, color: COLORS.green }}>
-              ✓ You're all caught up. No open tasks assigned to you.
-            </div>
+
+            {RENEWALS.map((r, i) => (
+              <div
+                key={r.name}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "14px 22px",
+                  borderBottom: i < RENEWALS.length - 1 ? `1px solid ${COLORS.border}` : "none",
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.white }}>{r.name}</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMuted }}>{r.date}</div>
+                </div>
+                <div style={{ textAlign: "right" as const }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.white }}>{r.amount}</div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontFamily: monoFamily,
+                      color: COLORS.orange,
+                      background: `${COLORS.orange}22`,
+                      padding: "2px 8px",
+                      borderRadius: 4,
+                      marginTop: 3,
+                      display: "inline-block",
+                    }}
+                  >
+                    {r.daysOut}
+                  </div>
+                </div>
+              </div>
+            ))}
           </Interactive.Div>
 
+          {/* Renewals explanation */}
           <Interactive.Div
-            name="GoalsCard"
+            name="RenewalsExplain"
             style={{
-              background: COLORS.surface,
-              borderRadius: 14,
-              padding: 24,
-              border: `1px solid ${COLORS.border}`,
-              opacity: interpolate(frame, [1.8 * fps, 2.2 * fps], [0, 1], {
+              marginTop: 12,
+              fontSize: 13,
+              color: COLORS.textMuted,
+              lineHeight: 1.5,
+              fontStyle: "italic",
+              opacity: interpolate(frame, [2 * fps, 2.4 * fps], [0, 1], {
                 extrapolateLeft: "clamp",
                 extrapolateRight: "clamp",
               }),
             }}
           >
-            <div style={{ fontSize: 18, fontWeight: 600, color: COLORS.white, marginBottom: 12 }}>
-              🎯 My Goals This Quarter
-            </div>
-            <div style={{ fontSize: 16, color: COLORS.textMuted }}>
-              No goals assigned for 2026-Q3.
-            </div>
-          </Interactive.Div>
-
-          <Interactive.Div
-            name="PaymentsCard"
-            style={{
-              background: COLORS.surface,
-              borderRadius: 14,
-              padding: 24,
-              border: `1px solid ${COLORS.border}`,
-              opacity: interpolate(frame, [2.1 * fps, 2.5 * fps], [0, 1], {
-                extrapolateLeft: "clamp",
-                extrapolateRight: "clamp",
-              }),
-            }}
-          >
-            <div style={{ fontSize: 18, fontWeight: 600, color: COLORS.white, marginBottom: 12 }}>
-              💳 Payments This Week
-            </div>
-            <div style={{ fontSize: 14, color: COLORS.textMuted }}>
-              No payments in the next 7 days. Scheduled payment batches will appear here.
-            </div>
+            Renewals are pulled automatically from the Subscriptions module. If you see something here you don't recognise, check with your manager before the charge date.
           </Interactive.Div>
         </div>
       </div>
+
+      {/* Callout */}
+      <Interactive.Div
+        name="Callout"
+        style={{
+          background: `${COLORS.accent}22`,
+          borderRadius: 10,
+          padding: "16px 20px",
+          borderLeft: `3px solid ${COLORS.accentBright}`,
+          marginTop: 20,
+          opacity: interpolate(frame, [3 * fps, 3.4 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.accentBright, marginBottom: 4 }}>
+          💡 Keep an eye on upcoming renewals so there are no surprise charges
+        </div>
+        <div style={{ fontSize: 13, color: COLORS.textMuted, lineHeight: 1.5 }}>
+          The dashboard warns you before subscriptions auto-renew. If a tool is no longer needed, cancel it in the Subscriptions module before the renewal date to save money.
+        </div>
+      </Interactive.Div>
     </AbsoluteFill>
   );
 };

@@ -19,18 +19,22 @@ const { fontFamily: monoFamily } = loadMono("normal", {
   subsets: ["latin"],
 });
 
-const FUEL_ENTRIES = [
-  { date: "03 Sep", vehicle: "LG-234-KJA", litres: "45L", amount: "₦38,250", station: "Total Lekki" },
-  { date: "01 Sep", vehicle: "AB-789-SMK", litres: "60L", amount: "₦51,000", station: "NNPC Ikeja" },
-  { date: "28 Aug", vehicle: "KN-012-GHI", litres: "80L", amount: "₦68,000", station: "Mobil Apapa" },
-  { date: "25 Aug", vehicle: "PH-456-XYZ", litres: "50L", amount: "₦42,500", station: "Conoil PH" },
+const FORM_FIELDS = [
+  { label: "Vehicle", value: "Office Toyota Hilux (KD-001AB)", type: "dropdown" },
+  { label: "Fuel Type", value: "PMS (Petrol)", type: "dropdown" },
+  { label: "Amount Requested", value: "₦15,000", type: "input" },
+  { label: "Current Odometer", value: "45,230 km", type: "input" },
+  { label: "Station / Vendor", value: "Total Energies — Lekki", type: "input" },
+  { label: "Receipt", value: "fuel-receipt-sept.jpg", type: "upload" },
 ];
 
-const WEEK_BARS = [
-  { label: "Wk 1", value: 45, amount: "₦38k" },
-  { label: "Wk 2", value: 70, amount: "₦59k" },
-  { label: "Wk 3", value: 85, amount: "₦68k" },
-  { label: "Wk 4", value: 40, amount: "₦35k" },
+const TABS = [
+  "Dashboard",
+  "My Requests",
+  "Fuel",
+  "Trips",
+  "Vehicles",
+  "Maintenance",
 ];
 
 export const FFFuelTrackingScene: React.FC = () => {
@@ -42,178 +46,270 @@ export const FFFuelTrackingScene: React.FC = () => {
       style={{
         background: COLORS.bg,
         fontFamily,
-        padding: "50px 80px",
+        padding: "40px 60px",
       }}
     >
+      {/* Breadcrumb */}
       <Interactive.Div
-        name="SceneLabel"
+        name="Breadcrumb"
         style={{
-          fontSize: 16,
+          fontSize: 14,
           fontFamily: monoFamily,
-          color: COLORS.accentBright,
-          letterSpacing: 2,
-          textTransform: "uppercase" as const,
-          marginBottom: 8,
+          color: COLORS.textMuted,
+          marginBottom: 10,
           opacity: interpolate(frame, [0, 0.3 * fps], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           }),
         }}
       >
-        Fuel Tracking
+        <span style={{ color: COLORS.accentBright }}>Operations</span>
+        <span style={{ margin: "0 8px" }}>{"›"}</span>
+        <span style={{ color: COLORS.accentBright }}>Fleet</span>
+        <span style={{ margin: "0 8px" }}>{"›"}</span>
+        <span style={{ color: COLORS.white }}>My Requests</span>
       </Interactive.Div>
 
+      {/* Title */}
       <Interactive.Div
         name="Title"
         style={{
-          fontSize: 52,
+          fontSize: 36,
           fontWeight: 700,
           color: COLORS.white,
-          marginBottom: 40,
+          marginBottom: 16,
           opacity: interpolate(frame, [0.1 * fps, 0.5 * fps], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           }),
         }}
       >
-        Monthly fuel log
+        Submitting a Fuel Request
       </Interactive.Div>
 
-      <div style={{ display: "flex", gap: 24 }}>
-        {/* Left: fuel entries table */}
-        <div style={{ flex: 1.4 }}>
-          {/* Table header */}
-          <Interactive.Div
-            name="FuelHeader"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "0.8fr 1.2fr 0.6fr 0.8fr 1fr",
-              gap: 8,
-              padding: "14px 20px",
-              borderRadius: 10,
-              background: `${COLORS.accent}33`,
-              marginBottom: 10,
-              opacity: interpolate(frame, [0.5 * fps, 0.8 * fps], [0, 1], {
-                extrapolateLeft: "clamp",
-                extrapolateRight: "clamp",
-              }),
-            }}
-          >
-            {["Date", "Vehicle", "Litres", "Amount", "Station"].map((h) => (
-              <div
-                key={h}
-                style={{
-                  fontSize: 12,
-                  fontFamily: monoFamily,
-                  color: COLORS.accentBright,
-                  letterSpacing: 1,
-                  textTransform: "uppercase" as const,
-                }}
-              >
-                {h}
-              </div>
-            ))}
-          </Interactive.Div>
+      {/* Tab bar with My Requests highlighted */}
+      <Interactive.Div
+        name="TabBar"
+        style={{
+          display: "flex",
+          gap: 0,
+          borderBottom: `2px solid ${COLORS.border}`,
+          marginBottom: 24,
+          opacity: interpolate(frame, [0.4 * fps, 0.7 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        {TABS.map((tab, i) => {
+          const isActive = tab === "My Requests";
+          return (
+            <div
+              key={tab}
+              style={{
+                padding: "10px 20px",
+                fontSize: 14,
+                fontWeight: isActive ? 700 : 400,
+                color: isActive ? COLORS.accentBright : COLORS.textMuted,
+                borderBottom: isActive
+                  ? `2px solid ${COLORS.accentBright}`
+                  : "2px solid transparent",
+                marginBottom: -2,
+              }}
+            >
+              {tab}
+            </div>
+          );
+        })}
+      </Interactive.Div>
 
-          {/* Rows */}
-          {FUEL_ENTRIES.map((entry, i) => {
-            const delay = 0.9 + i * 0.3;
+      {/* Cursor clicking My Requests indicator */}
+      <Interactive.Div
+        name="ClickHint"
+        style={{
+          fontSize: 13,
+          color: COLORS.accentBright,
+          marginBottom: 16,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          opacity: interpolate(frame, [0.7 * fps, 1.0 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        <span style={{ fontSize: 16 }}>👆</span>
+        <span style={{ fontFamily: monoFamily, letterSpacing: 1 }}>
+          Click "My Requests" tab → then "New Fuel Request"
+        </span>
+      </Interactive.Div>
+
+      {/* Fuel request form */}
+      <Interactive.Div
+        name="FormContainer"
+        style={{
+          background: COLORS.surface,
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 14,
+          padding: "28px 32px",
+          marginBottom: 16,
+          opacity: interpolate(frame, [1.0 * fps, 1.4 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        <div
+          style={{
+            fontSize: 18,
+            fontWeight: 700,
+            color: COLORS.white,
+            marginBottom: 24,
+          }}
+        >
+          New Fuel Request
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "16px 28px",
+          }}
+        >
+          {FORM_FIELDS.map((field, i) => {
+            const fieldDelay = 1.4 + i * 0.3;
+            const fillProgress = interpolate(
+              frame,
+              [fieldDelay * fps, (fieldDelay + 0.4) * fps],
+              [0, 1],
+              { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+            );
+
             return (
-              <Interactive.Div
-                key={`${entry.date}-${entry.vehicle}`}
-                name={`FuelRow-${i}`}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "0.8fr 1.2fr 0.6fr 0.8fr 1fr",
-                  gap: 8,
-                  padding: "14px 20px",
-                  borderRadius: 10,
-                  background: COLORS.surface,
-                  border: `1px solid ${COLORS.border}`,
-                  marginBottom: 6,
-                  opacity: interpolate(
-                    frame,
-                    [delay * fps, (delay + 0.3) * fps],
-                    [0, 1],
-                    {
-                      extrapolateLeft: "clamp",
-                      extrapolateRight: "clamp",
-                    }
-                  ),
-                  translate: interpolate(
-                    frame,
-                    [delay * fps, (delay + 0.3) * fps],
-                    ["0px 20px", "0px 0px"],
-                    {
-                      extrapolateLeft: "clamp",
-                      extrapolateRight: "clamp",
-                      easing: Easing.bezier(0.16, 1, 0.3, 1),
-                    }
-                  ),
-                }}
-              >
-                <div style={{ fontSize: 15, color: COLORS.textMuted }}>{entry.date}</div>
-                <div style={{ fontSize: 15, fontFamily: monoFamily, color: COLORS.white }}>{entry.vehicle}</div>
-                <div style={{ fontSize: 15, color: COLORS.white }}>{entry.litres}</div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.gold }}>{entry.amount}</div>
-                <div style={{ fontSize: 15, color: COLORS.textMuted }}>{entry.station}</div>
-              </Interactive.Div>
+              <div key={field.label}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontFamily: monoFamily,
+                    color: COLORS.textMuted,
+                    letterSpacing: 1,
+                    textTransform: "uppercase" as const,
+                    marginBottom: 6,
+                  }}
+                >
+                  {field.label}
+                </div>
+                <div
+                  style={{
+                    background: COLORS.bg,
+                    border: `1px solid ${fillProgress > 0.5 ? COLORS.accentBright : COLORS.border}`,
+                    borderRadius: 8,
+                    padding: "12px 14px",
+                    fontSize: 15,
+                    color: fillProgress > 0.5 ? COLORS.white : COLORS.textMuted,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    transition: "border-color 0.2s",
+                  }}
+                >
+                  <span>
+                    {fillProgress > 0.5 ? field.value : "—"}
+                  </span>
+                  {field.type === "dropdown" && (
+                    <span style={{ fontSize: 10, color: COLORS.textMuted }}>
+                      ▼
+                    </span>
+                  )}
+                  {field.type === "upload" && (
+                    <span style={{ fontSize: 12, color: COLORS.accentBright }}>
+                      📎
+                    </span>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>
 
-        {/* Right: Monthly spend summary */}
+        {/* Submit button */}
         <Interactive.Div
-          name="SpendSummary"
+          name="SubmitBtn"
           style={{
-            flex: 0.6,
-            background: COLORS.surface,
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: 14,
-            padding: 28,
-            opacity: interpolate(frame, [1.2 * fps, 1.6 * fps], [0, 1], {
+            marginTop: 24,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accentBright})`,
+            borderRadius: 10,
+            padding: "14px 32px",
+            fontSize: 16,
+            fontWeight: 700,
+            color: COLORS.bg,
+            opacity: interpolate(frame, [3.4 * fps, 3.8 * fps], [0, 1], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp",
+            }),
+            scale: interpolate(frame, [3.4 * fps, 3.8 * fps], [0.9, 1], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp",
+              easing: Easing.bezier(0.16, 1, 0.3, 1),
+            }),
+          }}
+        >
+          Submit Request
+        </Interactive.Div>
+      </Interactive.Div>
+
+      {/* Callouts */}
+      <div style={{ display: "flex", gap: 14 }}>
+        <Interactive.Div
+          name="Callout1"
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            background: `${COLORS.accentBright}12`,
+            border: `1px solid ${COLORS.accentBright}33`,
+            borderRadius: 10,
+            padding: "12px 16px",
+            opacity: interpolate(frame, [3.8 * fps, 4.2 * fps], [0, 1], {
               extrapolateLeft: "clamp",
               extrapolateRight: "clamp",
             }),
           }}
         >
-          <div style={{ fontSize: 12, fontFamily: monoFamily, color: COLORS.accentBright, letterSpacing: 1.5, marginBottom: 12, textTransform: "uppercase" as const }}>
-            Monthly Total
-          </div>
-          <div style={{ fontSize: 36, fontWeight: 700, color: COLORS.gold, marginBottom: 24 }}>
-            {"₦"}199,750
-          </div>
+          <span style={{ fontSize: 18 }}>💡</span>
+          <span style={{ fontSize: 13, color: COLORS.text, lineHeight: 1.5 }}>
+            Always record the odometer reading — it helps track fuel efficiency
+            and flag anomalies
+          </span>
+        </Interactive.Div>
 
-          {/* Bar chart mock */}
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 16, height: 120 }}>
-            {WEEK_BARS.map((bar, i) => {
-              const barDelay = 1.6 + i * 0.2;
-              const barHeight = interpolate(
-                frame,
-                [barDelay * fps, (barDelay + 0.4) * fps],
-                [0, bar.value],
-                {
-                  extrapolateLeft: "clamp",
-                  extrapolateRight: "clamp",
-                  easing: Easing.bezier(0.16, 1, 0.3, 1),
-                }
-              );
-              return (
-                <div key={bar.label} style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", flex: 1 }}>
-                  <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 4 }}>{bar.amount}</div>
-                  <div
-                    style={{
-                      width: "100%",
-                      height: barHeight,
-                      background: `linear-gradient(180deg, ${COLORS.accentBright}, ${COLORS.accent})`,
-                      borderRadius: 4,
-                    }}
-                  />
-                  <div style={{ fontSize: 11, fontFamily: monoFamily, color: COLORS.textMuted, marginTop: 6 }}>{bar.label}</div>
-                </div>
-              );
-            })}
-          </div>
+        <Interactive.Div
+          name="Callout2"
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            background: `${COLORS.gold}12`,
+            border: `1px solid ${COLORS.gold}33`,
+            borderRadius: 10,
+            padding: "12px 16px",
+            opacity: interpolate(frame, [4.2 * fps, 4.6 * fps], [0, 1], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp",
+            }),
+          }}
+        >
+          <span style={{ fontSize: 18 }}>💡</span>
+          <span style={{ fontSize: 13, color: COLORS.text, lineHeight: 1.5 }}>
+            Attach your fuel receipt for faster approval
+          </span>
         </Interactive.Div>
       </div>
     </AbsoluteFill>

@@ -19,15 +19,16 @@ const { fontFamily: monoFamily } = loadMono("normal", {
   subsets: ["latin"],
 });
 
+const TABS = ["Dashboard", "Runs", "Pay groups", "Setup", "Reports"];
+
 const ROWS = [
-  { month: "August 2024", gross: "₦4,250,000", net: "₦3,060,000", employees: 30, status: "Completed", statusColor: COLORS.green },
-  { month: "July 2024", gross: "₦4,180,000", net: "₦3,009,600", employees: 29, status: "Processing", statusColor: COLORS.orange },
-  { month: "June 2024", gross: "₦4,100,000", net: "₦2,952,000", employees: 28, status: "Completed", statusColor: COLORS.green },
-  { month: "May 2024", gross: "₦3,950,000", net: "₦2,844,000", employees: 27, status: "Completed", statusColor: COLORS.green },
-  { month: "April 2024", gross: "₦3,900,000", net: "₦2,808,000", employees: 27, status: "Completed", statusColor: COLORS.green },
+  { period: "October 2026", group: "KDS Administrative", status: "Completed", statusColor: COLORS.green, amount: "₦3,440,000", employees: 7 },
+  { period: "October 2026", group: "NDI Staffs", status: "Completed", statusColor: COLORS.green, amount: "₦630,000", employees: 7 },
+  { period: "September 2026", group: "KDS Administrative", status: "Completed", statusColor: COLORS.green, amount: "₦3,440,000", employees: 7 },
+  { period: "September 2026", group: "Non-administrative", status: "Processing", statusColor: COLORS.orange, amount: "₦425,000", employees: 6 },
 ];
 
-const COLUMNS = ["Month", "Gross Amount", "Net Amount", "Employees", "Status"];
+const COLUMNS = ["Period & Pay Group", "Status", "Amount", "Employees"];
 
 export const PIPayrollHistoryScene: React.FC = () => {
   const frame = useCurrentFrame();
@@ -38,9 +39,10 @@ export const PIPayrollHistoryScene: React.FC = () => {
       style={{
         background: COLORS.bg,
         fontFamily,
-        padding: "50px 80px",
+        padding: "40px 60px",
       }}
     >
+      {/* Scene label */}
       <Interactive.Div
         name="SceneLabel"
         style={{
@@ -56,16 +58,16 @@ export const PIPayrollHistoryScene: React.FC = () => {
           }),
         }}
       >
-        Payroll History
+        Payroll Runs
       </Interactive.Div>
 
       <Interactive.Div
         name="Title"
         style={{
-          fontSize: 48,
+          fontSize: 42,
           fontWeight: 700,
           color: COLORS.white,
-          marginBottom: 32,
+          marginBottom: 24,
           opacity: interpolate(frame, [0.1 * fps, 0.5 * fps], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
@@ -73,6 +75,36 @@ export const PIPayrollHistoryScene: React.FC = () => {
         }}
       >
         Past payroll runs
+      </Interactive.Div>
+
+      {/* Tabs - showing "Runs" as active */}
+      <Interactive.Div
+        name="Tabs"
+        style={{
+          display: "flex",
+          gap: 0,
+          marginBottom: 24,
+          borderBottom: `1px solid ${COLORS.border}`,
+          opacity: interpolate(frame, [0.3 * fps, 0.6 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        {TABS.map((tab, i) => (
+          <div
+            key={tab}
+            style={{
+              padding: "12px 20px",
+              fontSize: 14,
+              fontWeight: i === 1 ? 700 : 400,
+              color: i === 1 ? COLORS.accentBright : COLORS.textMuted,
+              borderBottom: i === 1 ? `2px solid ${COLORS.accentBright}` : "2px solid transparent",
+            }}
+          >
+            {tab}
+          </div>
+        ))}
       </Interactive.Div>
 
       {/* Table */}
@@ -83,6 +115,7 @@ export const PIPayrollHistoryScene: React.FC = () => {
           borderRadius: 14,
           border: `1px solid ${COLORS.border}`,
           overflow: "hidden",
+          marginBottom: 24,
           opacity: interpolate(frame, [0.5 * fps, 0.9 * fps], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
@@ -93,7 +126,7 @@ export const PIPayrollHistoryScene: React.FC = () => {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1.5fr 1.2fr 1.2fr 0.8fr 1fr",
+            gridTemplateColumns: "2.5fr 1fr 1.2fr 0.8fr",
             padding: "16px 28px",
             background: `${COLORS.accent}33`,
             borderBottom: `1px solid ${COLORS.border}`,
@@ -122,25 +155,26 @@ export const PIPayrollHistoryScene: React.FC = () => {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           });
-          const isHighlighted = Math.floor((frame - 3 * fps) / (1.2 * fps)) % 5 === i && frame > 3 * fps;
+          const isHighlighted = Math.floor((frame - 3 * fps) / (1.2 * fps)) % ROWS.length === i && frame > 3 * fps;
 
           return (
             <Interactive.Div
-              key={row.month}
+              key={`${row.period}-${row.group}`}
               name={`Row-${i}`}
               style={{
                 display: "grid",
-                gridTemplateColumns: "1.5fr 1.2fr 1.2fr 0.8fr 1fr",
+                gridTemplateColumns: "2.5fr 1fr 1.2fr 0.8fr",
                 padding: "18px 28px",
                 borderBottom: i < ROWS.length - 1 ? `1px solid ${COLORS.border}` : "none",
                 background: isHighlighted ? `${COLORS.accentBright}08` : "transparent",
                 opacity: rowOpacity,
+                alignItems: "center",
               }}
             >
-              <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.white }}>{row.month}</div>
-              <div style={{ fontSize: 16, color: COLORS.textMuted, fontFamily: monoFamily }}>{row.gross}</div>
-              <div style={{ fontSize: 16, color: COLORS.textMuted, fontFamily: monoFamily }}>{row.net}</div>
-              <div style={{ fontSize: 16, color: COLORS.textMuted, textAlign: "center" as const }}>{row.employees}</div>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.white }}>{row.period}</div>
+                <div style={{ fontSize: 13, color: COLORS.textMuted }}>{row.group}</div>
+              </div>
               <div>
                 <span
                   style={{
@@ -155,9 +189,32 @@ export const PIPayrollHistoryScene: React.FC = () => {
                   {row.status}
                 </span>
               </div>
+              <div style={{ fontSize: 16, color: COLORS.white, fontFamily: monoFamily }}>{row.amount}</div>
+              <div style={{ fontSize: 16, color: COLORS.textMuted, textAlign: "center" as const }}>{row.employees}</div>
             </Interactive.Div>
           );
         })}
+      </Interactive.Div>
+
+      {/* Callout */}
+      <Interactive.Div
+        name="Callout"
+        style={{
+          background: `${COLORS.accent}22`,
+          borderRadius: 10,
+          padding: "16px 24px",
+          borderLeft: `3px solid ${COLORS.accentBright}`,
+          opacity: interpolate(frame, [2.2 * fps, 2.6 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        <div style={{ fontSize: 15, color: COLORS.textMuted, lineHeight: 1.5 }}>
+          <span style={{ color: COLORS.accentBright, fontWeight: 700 }}>💡 Tip: </span>
+          Click any completed run to download payslips or view the detailed breakdown.
+          You can also export the full history as a CSV from the Reports tab.
+        </div>
       </Interactive.Div>
     </AbsoluteFill>
   );

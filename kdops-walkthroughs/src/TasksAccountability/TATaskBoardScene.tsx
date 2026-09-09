@@ -1,7 +1,6 @@
 import {
   AbsoluteFill,
   Easing,
-  Interactive,
   interpolate,
   useCurrentFrame,
   useVideoConfig,
@@ -22,9 +21,11 @@ const { fontFamily: monoFamily } = loadMono("normal", {
 interface Task {
   title: string;
   assignee: string;
+  initials: string;
   priority: string;
+  priorityColor: string;
   due: string;
-  color: string;
+  done?: boolean;
 }
 
 const COLUMNS: { label: string; color: string; tasks: Task[] }[] = [
@@ -32,24 +33,65 @@ const COLUMNS: { label: string; color: string; tasks: Task[] }[] = [
     label: "To Do",
     color: COLORS.textMuted,
     tasks: [
-      { title: "Update contractor rates", assignee: "Keneth C.", priority: "High", due: "12 Sept", color: "#ef4444" },
-      { title: "Review Q3 expenses", assignee: "Gogo M.", priority: "Medium", due: "15 Sept", color: "#f59e0b" },
+      {
+        title: "Update employee handbook",
+        assignee: "Funke Adeyemi",
+        initials: "FA",
+        priority: "Medium",
+        priorityColor: COLORS.orange,
+        due: "20 Oct",
+      },
+      {
+        title: "Prepare Q4 budget proposal",
+        assignee: "Chioma Okafor",
+        initials: "CO",
+        priority: "High",
+        priorityColor: COLORS.red,
+        due: "25 Oct",
+      },
     ],
   },
   {
     label: "In Progress",
     color: COLORS.accentBright,
     tasks: [
-      { title: "Payroll reconciliation", assignee: "Saviour M.", priority: "High", due: "10 Sept", color: "#ef4444" },
-      { title: "Onboard new hires", assignee: "Princewill J.", priority: "Medium", due: "14 Sept", color: "#f59e0b" },
+      {
+        title: "Process October contractor payments",
+        assignee: "Adebayo Johnson",
+        initials: "AJ",
+        priority: "High",
+        priorityColor: COLORS.red,
+        due: "15 Oct",
+      },
+    ],
+  },
+  {
+    label: "Review",
+    color: COLORS.orange,
+    tasks: [
+      {
+        title: "Fleet maintenance audit report",
+        assignee: "Tunde Bakare",
+        initials: "TB",
+        priority: "Medium",
+        priorityColor: COLORS.orange,
+        due: "12 Oct",
+      },
     ],
   },
   {
     label: "Done",
     color: COLORS.green,
     tasks: [
-      { title: "Submit compliance docs", assignee: "Richard S.", priority: "Low", due: "8 Sept", color: "#22c55e" },
-      { title: "Bank detail updates", assignee: "Sylvester O.", priority: "Low", due: "5 Sept", color: "#22c55e" },
+      {
+        title: "September payroll reconciliation",
+        assignee: "Emeka Nwosu",
+        initials: "EN",
+        priority: "Low",
+        priorityColor: COLORS.green,
+        due: "Completed 5 Oct",
+        done: true,
+      },
     ],
   },
 ];
@@ -58,69 +100,83 @@ export const TATaskBoardScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
+  const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as const };
+
   return (
     <AbsoluteFill
       style={{
         background: COLORS.bg,
         fontFamily,
-        padding: "50px 80px",
+        padding: "48px 64px",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <Interactive.Div
-        name="SceneLabel"
+      {/* Breadcrumb */}
+      <div
         style={{
-          fontSize: 16,
+          fontSize: 13,
           fontFamily: monoFamily,
-          color: COLORS.accentBright,
-          letterSpacing: 2,
-          textTransform: "uppercase" as const,
-          marginBottom: 8,
-          opacity: interpolate(frame, [0, 0.3 * fps], [0, 1], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-          }),
+          color: COLORS.textMuted,
+          marginBottom: 6,
+          opacity: interpolate(frame, [0, 0.3 * fps], [0, 1], clamp),
         }}
       >
-        Task Board
-      </Interactive.Div>
+        Workspace{" "}
+        <span style={{ color: COLORS.border }}>/</span>{" "}
+        <span style={{ color: COLORS.accentBright }}>Tasks</span>
+      </div>
 
-      <Interactive.Div
-        name="Title"
+      {/* Header row */}
+      <div
         style={{
-          fontSize: 48,
-          fontWeight: 700,
-          color: COLORS.white,
-          marginBottom: 32,
-          opacity: interpolate(frame, [0.1 * fps, 0.5 * fps], [0, 1], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-          }),
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 28,
+          opacity: interpolate(frame, [0.1 * fps, 0.5 * fps], [0, 1], clamp),
         }}
       >
-        Track work across your team
-      </Interactive.Div>
+        <div style={{ fontSize: 40, fontWeight: 700, color: COLORS.white }}>
+          Tasks & Accountability
+        </div>
+        <div
+          style={{
+            background: COLORS.accentBright,
+            color: COLORS.bg,
+            fontWeight: 700,
+            fontSize: 14,
+            borderRadius: 8,
+            padding: "10px 22px",
+            cursor: "pointer",
+          }}
+        >
+          + New Task
+        </div>
+      </div>
 
       {/* Kanban columns */}
-      <div style={{ display: "flex", gap: 20, flex: 1 }}>
+      <div style={{ display: "flex", gap: 16, flex: 1, minHeight: 0 }}>
         {COLUMNS.map((col, colIdx) => {
-          const colDelay = 0.5 + colIdx * 0.3;
+          const colDelay = 0.5 + colIdx * 0.25;
           return (
-            <Interactive.Div
+            <div
               key={col.label}
-              name={`Column-${colIdx}`}
               style={{
                 flex: 1,
                 background: COLORS.surface,
                 borderRadius: 14,
-                padding: 16,
+                padding: 14,
                 border: `1px solid ${COLORS.border}`,
                 display: "flex",
-                flexDirection: "column" as const,
-                gap: 12,
-                opacity: interpolate(frame, [colDelay * fps, (colDelay + 0.3) * fps], [0, 1], {
-                  extrapolateLeft: "clamp",
-                  extrapolateRight: "clamp",
-                }),
+                flexDirection: "column",
+                gap: 10,
+                opacity: interpolate(
+                  frame,
+                  [colDelay * fps, (colDelay + 0.3) * fps],
+                  [0, 1],
+                  clamp,
+                ),
               }}
             >
               {/* Column header */}
@@ -129,11 +185,21 @@ export const TATaskBoardScene: React.FC = () => {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  marginBottom: 4,
+                  marginBottom: 2,
                 }}
               >
-                <div style={{ fontSize: 16, fontWeight: 700, color: col.color }}>
-                  {col.label}
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      background: col.color,
+                    }}
+                  />
+                  <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.white }}>
+                    {col.label}
+                  </div>
                 </div>
                 <div
                   style={{
@@ -152,20 +218,19 @@ export const TATaskBoardScene: React.FC = () => {
 
               {/* Task cards */}
               {col.tasks.map((task, taskIdx) => {
-                const cardDelay = colDelay + 0.4 + taskIdx * 0.25;
+                const cardDelay = colDelay + 0.35 + taskIdx * 0.2;
                 const cardOpacity = interpolate(
                   frame,
                   [cardDelay * fps, (cardDelay + 0.3) * fps],
                   [0, 1],
-                  { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+                  clamp,
                 );
                 const cardY = interpolate(
                   frame,
                   [cardDelay * fps, (cardDelay + 0.3) * fps],
                   [16, 0],
                   {
-                    extrapolateLeft: "clamp",
-                    extrapolateRight: "clamp",
+                    ...clamp,
                     easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
                   },
                 );
@@ -182,16 +247,32 @@ export const TATaskBoardScene: React.FC = () => {
                       transform: `translateY(${cardY}px)`,
                     }}
                   >
-                    <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.white, marginBottom: 10 }}>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: task.done ? COLORS.textMuted : COLORS.white,
+                        marginBottom: 10,
+                        textDecoration: task.done ? "line-through" : "none",
+                      }}
+                    >
                       {task.title}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    {/* Assignee */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        marginBottom: 8,
+                      }}
+                    >
                       <div
                         style={{
-                          width: 22,
-                          height: 22,
+                          width: 24,
+                          height: 24,
                           borderRadius: "50%",
-                          background: `${COLORS.accent}66`,
+                          background: `${COLORS.accent}88`,
                           display: "flex",
                           justifyContent: "center",
                           alignItems: "center",
@@ -200,57 +281,61 @@ export const TATaskBoardScene: React.FC = () => {
                           fontWeight: 700,
                         }}
                       >
-                        {task.assignee.charAt(0)}
+                        {task.initials}
                       </div>
-                      <div style={{ fontSize: 13, color: COLORS.textMuted }}>{task.assignee}</div>
+                      <div style={{ fontSize: 12, color: COLORS.textMuted }}>
+                        {task.assignee}
+                      </div>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    {/* Priority + due date */}
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
                       <div
                         style={{
                           fontSize: 11,
                           fontFamily: monoFamily,
                           fontWeight: 700,
-                          color: task.color,
-                          background: `${task.color}1A`,
+                          color: task.priorityColor,
+                          background: `${task.priorityColor}1A`,
                           borderRadius: 6,
                           padding: "2px 8px",
                         }}
                       >
                         {task.priority}
                       </div>
-                      <div style={{ fontSize: 12, color: COLORS.textMuted }}>{task.due}</div>
+                      <div style={{ fontSize: 11, color: COLORS.textMuted }}>
+                        {task.due}
+                      </div>
                     </div>
                   </div>
                 );
               })}
-            </Interactive.Div>
+            </div>
           );
         })}
       </div>
 
       {/* Callout */}
-      <Interactive.Div
-        name="Callout"
+      <div
         style={{
-          position: "absolute",
-          bottom: 50,
-          left: 80,
-          right: 80,
+          marginTop: 20,
           background: `${COLORS.accent}33`,
           borderRadius: 10,
           padding: "14px 24px",
-          fontSize: 16,
+          fontSize: 15,
           color: COLORS.accentBright,
           fontWeight: 500,
-          textAlign: "center" as const,
-          opacity: interpolate(frame, [3.5 * fps, 4 * fps], [0, 1], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-          }),
+          textAlign: "center",
+          opacity: interpolate(frame, [3 * fps, 3.5 * fps], [0, 1], clamp),
         }}
       >
-        Drag and drop tasks between columns to update their status.
-      </Interactive.Div>
+        Drag tasks between columns to update their status -- or click to open the full details
+      </div>
     </AbsoluteFill>
   );
 };

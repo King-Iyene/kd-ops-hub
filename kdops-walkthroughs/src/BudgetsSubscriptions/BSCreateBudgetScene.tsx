@@ -19,12 +19,12 @@ const { fontFamily: monoFamily } = loadMono("normal", {
   subsets: ["latin"],
 });
 
-const STEPS = [
-  { icon: "📝", title: "Name your budget", desc: "Give it a descriptive name" },
-  { icon: "🏢", title: "Select department", desc: "Choose the department this budget covers" },
-  { icon: "💰", title: "Set amount", desc: "Define the total budget amount" },
-  { icon: "📅", title: "Set period", desc: "Monthly, quarterly, or annual" },
-  { icon: "✅", title: "Submit for approval", desc: "Route to finance manager" },
+const FORM_FIELDS = [
+  { label: "Department", value: "Marketing", hint: "Choose which department this budget is for" },
+  { label: "Budget Amount", value: "₦800,000", hint: "Total amount for the period" },
+  { label: "Period", value: "Quarterly", hint: "Monthly, Quarterly, or Annual" },
+  { label: "Category", value: "Advertising & Campaigns", hint: "What will the money be used for" },
+  { label: "Notes", value: "Q4 campaign push — social media ads + influencer partnerships", hint: "Optional details for your finance team" },
 ];
 
 export const BSCreateBudgetScene: React.FC = () => {
@@ -60,25 +60,25 @@ export const BSCreateBudgetScene: React.FC = () => {
       <Interactive.Div
         name="Title"
         style={{
-          fontSize: 48,
+          fontSize: 44,
           fontWeight: 700,
           color: COLORS.white,
-          marginBottom: 16,
+          marginBottom: 8,
           opacity: interpolate(frame, [0.1 * fps, 0.5 * fps], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           }),
         }}
       >
-        5 steps to create a budget
+        Click "+ New Budget" and fill in the form
       </Interactive.Div>
 
       <Interactive.Div
         name="Description"
         style={{
-          fontSize: 20,
+          fontSize: 18,
           color: COLORS.textMuted,
-          marginBottom: 40,
+          marginBottom: 32,
           maxWidth: 700,
           lineHeight: 1.5,
           opacity: interpolate(frame, [0.3 * fps, 0.7 * fps], [0, 1], {
@@ -87,71 +87,84 @@ export const BSCreateBudgetScene: React.FC = () => {
           }),
         }}
       >
-        Setting up a new department budget takes under a minute. Follow these
-        steps to get started.
+        From the Budgets page, click the "+ New Budget" button in the top-right
+        corner. A form will open — fill in each field like this:
       </Interactive.Div>
 
-      <div style={{ display: "flex", flexDirection: "column" as const, gap: 16 }}>
-        {STEPS.map((step, i) => {
-          const delay = 0.8 + i * 0.3;
-          const cardOpacity = interpolate(
+      {/* Mock form */}
+      <Interactive.Div
+        name="FormCard"
+        style={{
+          background: COLORS.surface,
+          borderRadius: 14,
+          padding: "28px 28px 20px",
+          border: `1px solid ${COLORS.border}`,
+          opacity: interpolate(frame, [0.6 * fps, 1 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        {FORM_FIELDS.map((field, i) => {
+          const delay = 1 + i * 0.35;
+          const fieldOpacity = interpolate(
             frame,
             [delay * fps, (delay + 0.3) * fps],
             [0, 1],
             { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
           );
-          const slideX = interpolate(
-            frame,
-            [delay * fps, (delay + 0.3) * fps],
-            [40, 0],
-            { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
-          );
 
           return (
-            <Interactive.Div
-              key={step.title}
-              name={`Step-${i}`}
+            <div
+              key={field.label}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 20,
-                background: COLORS.surface,
-                borderRadius: 12,
-                padding: "20px 24px",
-                border: `1px solid ${COLORS.border}`,
-                opacity: cardOpacity,
-                transform: `translateX(${slideX}px)`,
+                marginBottom: 18,
+                opacity: fieldOpacity,
               }}
             >
+              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted, marginBottom: 6 }}>
+                {field.label}
+              </div>
               <div
                 style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: "50%",
-                  background: `${COLORS.accent}44`,
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: COLORS.accentBright,
-                  fontFamily: monoFamily,
-                  flexShrink: 0,
+                  background: COLORS.bgLight,
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 8,
+                  padding: "12px 16px",
+                  fontSize: 16,
+                  color: COLORS.white,
+                  fontFamily: field.label === "Budget Amount" ? monoFamily : fontFamily,
                 }}
               >
-                {i + 1}
+                {field.value}
               </div>
-              <div style={{ fontSize: 28, flexShrink: 0 }}>{step.icon}</div>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.white, marginBottom: 4 }}>
-                  {step.title}
-                </div>
-                <div style={{ fontSize: 15, color: COLORS.textMuted }}>{step.desc}</div>
+              <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 4, fontStyle: "italic" }}>
+                {field.hint}
               </div>
-            </Interactive.Div>
+            </div>
           );
         })}
-      </div>
+      </Interactive.Div>
+
+      {/* Callout */}
+      <Interactive.Div
+        name="Callout"
+        style={{
+          marginTop: 20,
+          background: `${COLORS.accent}33`,
+          borderRadius: 10,
+          padding: "14px 20px",
+          fontSize: 15,
+          color: COLORS.accentBright,
+          lineHeight: 1.5,
+          opacity: interpolate(frame, [3.2 * fps, 3.6 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        Set realistic budgets based on last quarter's spending patterns.
+      </Interactive.Div>
     </AbsoluteFill>
   );
 };

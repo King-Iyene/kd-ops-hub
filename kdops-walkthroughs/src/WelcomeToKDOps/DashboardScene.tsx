@@ -98,7 +98,7 @@ export const DashboardScene: React.FC = () => {
         Step 2 — Your Dashboard
       </Interactive.Div>
 
-      {/* Header bar mock */}
+      {/* Header bar */}
       <Interactive.Div
         name="HeaderBar"
         style={{
@@ -117,90 +117,24 @@ export const DashboardScene: React.FC = () => {
             OPERATIONS OVERVIEW
           </div>
           <div style={{ fontSize: 48, fontWeight: 700, color: COLORS.white, marginTop: 4 }}>
-            Welcome, King.
+            Good morning!
           </div>
           <div style={{ fontSize: 16, color: COLORS.textMuted }}>
-            Here's the pulse of the system. · Wednesday, 9 September
+            Here's what's happening across the company today.
           </div>
-        </div>
-        <div
-          style={{
-            background: COLORS.gold,
-            borderRadius: 8,
-            padding: "8px 16px",
-            fontSize: 13,
-            fontWeight: 700,
-            color: COLORS.bg,
-            fontFamily: monoFamily,
-          }}
-        >
-          SUPER ADMIN
         </div>
       </Interactive.Div>
 
-      {/* Stat cards row */}
+      {/* Stat cards row — DUMMY data */}
       <div style={{ display: "flex", gap: 16, marginBottom: 32 }}>
-        <StatCard label="Total Employees" value="30" subtitle="Active on payroll" color={COLORS.accentBright} delay={0.8} />
-        <StatCard label="Total Disbursed" value="₦1.34M" subtitle="This month" color={COLORS.green} delay={1.0} />
-        <StatCard label="Pending Approvals" value="5" subtitle="Across all modules" color={COLORS.orange} delay={1.2} />
-        <StatCard label="Fleet Fuel" value="₦0.00" subtitle="This week" color={COLORS.accentBright} delay={1.4} />
+        <StatCard label="Total Employees" value="28" subtitle="Active on payroll" color={COLORS.accentBright} delay={0.8} />
+        <StatCard label="Total Disbursed" value="₦4.85M" subtitle="This month" color={COLORS.green} delay={1.0} />
+        <StatCard label="Pending Approvals" value="3" subtitle="Awaiting review" color={COLORS.orange} delay={1.2} />
+        <StatCard label="Fleet Fuel" value="₦185K" subtitle="This week" color={COLORS.accentBright} delay={1.4} />
       </div>
 
-      {/* Bottom row — Health + Cash Burn + Quick Actions */}
+      {/* Bottom row — Quick Actions + Financial Health */}
       <div style={{ display: "flex", gap: 16 }}>
-        {/* Financial Health */}
-        <Interactive.Div
-          name="HealthCard"
-          style={{
-            flex: 1,
-            background: COLORS.surface,
-            borderRadius: 12,
-            padding: 24,
-            border: `1px solid ${COLORS.border}`,
-            opacity: interpolate(frame, [1.8 * fps, 2.2 * fps], [0, 1], {
-              extrapolateLeft: "clamp",
-              extrapolateRight: "clamp",
-            }),
-          }}
-        >
-          <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.white, marginBottom: 12 }}>
-            🔥 Financial Health
-          </div>
-          <div style={{ fontSize: 56, fontWeight: 700, color: COLORS.red, fontFamily: monoFamily }}>
-            0
-          </div>
-          <div style={{ fontSize: 14, color: COLORS.textMuted }}>out of 100</div>
-          <div style={{ height: 6, background: COLORS.bgLight, borderRadius: 3, marginTop: 12 }}>
-            <div style={{ height: 6, background: COLORS.red, borderRadius: 3, width: "2%" }} />
-          </div>
-        </Interactive.Div>
-
-        {/* Cash Burn */}
-        <Interactive.Div
-          name="CashBurn"
-          style={{
-            flex: 1,
-            background: COLORS.surface,
-            borderRadius: 12,
-            padding: 24,
-            border: `1px solid ${COLORS.border}`,
-            opacity: interpolate(frame, [2.0 * fps, 2.4 * fps], [0, 1], {
-              extrapolateLeft: "clamp",
-              extrapolateRight: "clamp",
-            }),
-          }}
-        >
-          <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.white, marginBottom: 12 }}>
-            🔥 30-Day Cash Burn
-          </div>
-          <div style={{ fontSize: 40, fontWeight: 700, color: COLORS.white, fontFamily: monoFamily }}>
-            ₦7.19M
-          </div>
-          <div style={{ fontSize: 13, color: COLORS.textMuted, marginTop: 4 }}>
-            Approved expenses + processed payments
-          </div>
-        </Interactive.Div>
-
         {/* Quick Actions */}
         <Interactive.Div
           name="QuickActions"
@@ -210,7 +144,7 @@ export const DashboardScene: React.FC = () => {
             borderRadius: 12,
             padding: 24,
             border: `1px solid ${COLORS.border}`,
-            opacity: interpolate(frame, [2.2 * fps, 2.6 * fps], [0, 1], {
+            opacity: interpolate(frame, [1.8 * fps, 2.2 * fps], [0, 1], {
               extrapolateLeft: "clamp",
               extrapolateRight: "clamp",
             }),
@@ -251,9 +185,39 @@ export const DashboardScene: React.FC = () => {
             )}
           </div>
         </Interactive.Div>
+
+        {/* Financial Health */}
+        <Interactive.Div
+          name="HealthCard"
+          style={{
+            flex: 1,
+            background: COLORS.surface,
+            borderRadius: 12,
+            padding: 24,
+            border: `1px solid ${COLORS.border}`,
+            opacity: interpolate(frame, [2.0 * fps, 2.4 * fps], [0, 1], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp",
+            }),
+          }}
+        >
+          <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.white, marginBottom: 12 }}>
+            Financial Health
+          </div>
+          <div style={{ fontSize: 56, fontWeight: 700, color: COLORS.green, fontFamily: monoFamily }}>
+            72
+          </div>
+          <div style={{ fontSize: 14, color: COLORS.textMuted }}>out of 100</div>
+          <div style={{ height: 6, background: COLORS.bgLight, borderRadius: 3, marginTop: 12 }}>
+            <div style={{ height: 6, background: COLORS.green, borderRadius: 3, width: "72%" }} />
+          </div>
+          <div style={{ fontSize: 13, color: COLORS.textMuted, marginTop: 8 }}>
+            Tracks spending, payroll, and budget health
+          </div>
+        </Interactive.Div>
       </div>
 
-      {/* Highlight callout */}
+      {/* Callout */}
       <Interactive.Div
         name="DashboardCallout"
         style={{
@@ -261,11 +225,11 @@ export const DashboardScene: React.FC = () => {
           bottom: 50,
           left: 80,
           right: 80,
-          background: `linear-gradient(90deg, ${COLORS.accent}CC, transparent)`,
+          background: COLORS.gold,
           borderRadius: 10,
           padding: "16px 24px",
-          fontSize: 18,
-          color: COLORS.white,
+          fontSize: 17,
+          color: COLORS.bg,
           fontWeight: 500,
           opacity: interpolate(frame, [3 * fps, 3.5 * fps], [0, 1], {
             extrapolateLeft: "clamp",
@@ -273,7 +237,7 @@ export const DashboardScene: React.FC = () => {
           }),
         }}
       >
-        📌 The dashboard gives you a real-time snapshot of your entire operation — employees, payments, approvals, and financial health at a glance.
+        💡 The dashboard is your home base — it shows everything at a glance
       </Interactive.Div>
     </AbsoluteFill>
   );

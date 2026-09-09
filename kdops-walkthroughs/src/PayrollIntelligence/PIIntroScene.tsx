@@ -46,7 +46,7 @@ export const PIIntroScene: React.FC = () => {
         }}
       />
 
-      {/* Video number badge */}
+      {/* Guide badge */}
       <Interactive.Div
         name="Badge"
         style={{
@@ -62,7 +62,7 @@ export const PIIntroScene: React.FC = () => {
           }),
         }}
       >
-        Video 9 of 13
+        KDOps Platform Guide
       </Interactive.Div>
 
       {/* Icon */}

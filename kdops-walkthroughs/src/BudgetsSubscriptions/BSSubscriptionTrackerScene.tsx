@@ -20,14 +20,14 @@ const { fontFamily: monoFamily } = loadMono("normal", {
 });
 
 const SUBSCRIPTIONS = [
-  { service: "Google Workspace", cost: "₦40,000", renewal: "Mar 15, 2025", status: "Active", statusColor: "#22c55e" },
-  { service: "OpenAI API", cost: "₦20,000", renewal: "Mar 1, 2025", status: "Active", statusColor: "#22c55e" },
-  { service: "Claude AI", cost: "₦138,000", renewal: "Apr 10, 2025", status: "Active", statusColor: "#22c55e" },
-  { service: "Slack Business", cost: "₦55,000", renewal: "Feb 28, 2025", status: "Expiring Soon", statusColor: "#f59e0b" },
-  { service: "Figma Team", cost: "₦32,000", renewal: "Jan 15, 2025", status: "Expired", statusColor: "#ef4444" },
+  { service: "Google Workspace", cost: "₦45,000/mo", renewal: "1 Nov 2026", status: "Active", statusColor: "#22c55e" },
+  { service: "Slack Business+", cost: "₦28,000/mo", renewal: "5 Nov 2026", status: "Active", statusColor: "#22c55e" },
+  { service: "Adobe Creative Cloud", cost: "₦65,000/mo", renewal: "Auto-renew", status: "Auto-renew", statusColor: "#00ECFF" },
+  { service: "Zoom Enterprise", cost: "₦18,000/mo", renewal: "12 Nov 2026", status: "Expiring Soon", statusColor: "#f59e0b" },
+  { service: "Canva Pro", cost: "₦8,500/mo", renewal: "20 Oct 2026", status: "Cancelled", statusColor: "#ef4444" },
 ];
 
-const TOTAL = "₦285,000";
+const TOTAL = "₦164,500/mo";
 
 export const BSSubscriptionTrackerScene: React.FC = () => {
   const frame = useCurrentFrame();
@@ -56,7 +56,7 @@ export const BSSubscriptionTrackerScene: React.FC = () => {
           }),
         }}
       >
-        Subscription Tracker
+        Tracking Subscriptions
       </Interactive.Div>
 
       <Interactive.Div
@@ -89,8 +89,8 @@ export const BSSubscriptionTrackerScene: React.FC = () => {
           }),
         }}
       >
-        Track every recurring cost, see renewal dates, and catch expirations
-        before they disrupt your workflow.
+        Every software subscription your company pays for is listed here.
+        You can see the monthly cost, when it renews, and its current status.
       </Interactive.Div>
 
       {/* Table */}
@@ -121,9 +121,9 @@ export const BSSubscriptionTrackerScene: React.FC = () => {
             textTransform: "uppercase" as const,
           }}
         >
-          <div>Service</div>
-          <div>Monthly Cost</div>
-          <div>Renewal Date</div>
+          <div>Service Name</div>
+          <div>Amount</div>
+          <div>Next Renewal</div>
           <div>Status</div>
         </div>
 
@@ -178,10 +178,10 @@ export const BSSubscriptionTrackerScene: React.FC = () => {
       <Interactive.Div
         name="TotalBar"
         style={{
-          marginTop: 20,
+          marginTop: 16,
           background: `${COLORS.accent}33`,
           borderRadius: 10,
-          padding: "16px 24px",
+          padding: "14px 24px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -191,10 +191,10 @@ export const BSSubscriptionTrackerScene: React.FC = () => {
           }),
         }}
       >
-        <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.accentBright }}>
-          Total Monthly Cost
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.accentBright }}>
+          Review subscriptions monthly — cancel unused ones to save costs.
         </div>
-        <div style={{ fontSize: 28, fontWeight: 700, fontFamily: monoFamily, color: COLORS.white }}>
+        <div style={{ fontSize: 24, fontWeight: 700, fontFamily: monoFamily, color: COLORS.white }}>
           {TOTAL}
         </div>
       </Interactive.Div>

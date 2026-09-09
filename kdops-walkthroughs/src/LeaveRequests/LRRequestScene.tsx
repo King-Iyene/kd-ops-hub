@@ -18,164 +18,205 @@ const { fontFamily: monoFamily } = loadMono("normal", {
   subsets: ["latin"],
 });
 
-const FORM_FIELDS = [
-  { label: "Leave Type", value: "Annual Leave" },
-  { label: "Start Date", value: "8 Oct 2026" },
-  { label: "End Date", value: "12 Oct 2026" },
-  { label: "Duration", value: "5 days" },
-  { label: "Reason", value: "Family vacation" },
-  { label: "Handover To", value: "Saviour M." },
-];
+const LEAVE_TYPES = ["Annual Leave", "Sick Leave", "Compassionate", "Maternity / Paternity", "Study Leave", "Unpaid Leave"];
 
-const STEPS = [
-  { num: "1", title: "Go to Leave → New Request", desc: "Open the Leave section from the sidebar" },
-  { num: "2", title: "Select leave type", desc: "Annual, Sick, Compassionate, or other" },
-  { num: "3", title: "Pick start and end dates", desc: "Calendar shows your remaining balance" },
-  { num: "4", title: "Add reason and submit", desc: "Your manager receives the request for review" },
+const FORM_FIELDS: Array<{
+  label: string;
+  value: string;
+  span?: boolean;
+  type?: "dropdown" | "text" | "computed" | "textarea" | "file";
+  options?: string[];
+}> = [
+  { label: "Leave Type", value: "Annual Leave", type: "dropdown", options: LEAVE_TYPES },
+  { label: "Start Date", value: "20/10/2026", type: "text" },
+  { label: "End Date", value: "22/10/2026", type: "text" },
+  { label: "Duration", value: "3 working days", type: "computed" },
+  { label: "Reason", value: "Family event — travelling to Calabar", span: true, type: "textarea" },
+  { label: "Handover Notes", value: "Funke Adeyemi to cover my tasks", span: true, type: "textarea" },
+  { label: "Attachment (optional)", value: "medical-certificate.pdf", type: "file" },
 ];
 
 export const LRRequestScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
+  const fade = (start: number, dur = 0.4) =>
+    interpolate(frame, [start * fps, (start + dur) * fps], [0, 1], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+
   return (
     <AbsoluteFill
       style={{
         background: COLORS.bg,
         fontFamily,
-        padding: "50px 80px",
+        padding: "40px 70px",
       }}
     >
+      {/* Breadcrumb */}
       <Interactive.Div
-        name="SceneLabel"
+        name="Breadcrumb"
         style={{
-          fontSize: 16,
+          fontSize: 13,
           fontFamily: monoFamily,
-          color: COLORS.green,
-          letterSpacing: 2,
-          textTransform: "uppercase" as const,
-          marginBottom: 8,
-          opacity: interpolate(frame, [0, 0.3 * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+          color: COLORS.textMuted,
+          marginBottom: 6,
+          opacity: fade(0),
         }}
       >
-        Requesting Leave
+        People &amp; HR &nbsp;→&nbsp; Time &amp; Leave &nbsp;→&nbsp; Leave &nbsp;→&nbsp;{" "}
+        <span style={{ color: COLORS.green }}>New Request</span>
       </Interactive.Div>
 
+      {/* Title */}
       <Interactive.Div
         name="Title"
         style={{
-          fontSize: 48,
+          fontSize: 40,
           fontWeight: 700,
           color: COLORS.white,
-          marginBottom: 32,
-          opacity: interpolate(frame, [0.1 * fps, 0.5 * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+          marginBottom: 6,
+          opacity: fade(0.15),
         }}
       >
-        How to request time off
+        Request Leave
       </Interactive.Div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
-        {/* Steps */}
-        <div style={{ display: "flex", flexDirection: "column" as const, gap: 16 }}>
-          {STEPS.map((step, i) => {
-            const delay = 0.5 + i * 0.4;
-            const isActive = Math.floor((frame - 3 * fps) / (1.5 * fps)) % 4 === i && frame > 3 * fps;
+      <Interactive.Div
+        name="Subtitle"
+        style={{
+          fontSize: 16,
+          color: COLORS.textMuted,
+          marginBottom: 28,
+          opacity: fade(0.25),
+        }}
+      >
+        Click <span style={{ color: COLORS.accentBright, fontWeight: 600 }}>+ Request Leave</span> to open this form
+      </Interactive.Div>
+
+      {/* Form card */}
+      <Interactive.Div
+        name="FormCard"
+        style={{
+          background: COLORS.surface,
+          borderRadius: 14,
+          padding: 28,
+          border: `1px solid ${COLORS.border}`,
+          opacity: fade(0.5),
+        }}
+      >
+        <div style={{ fontSize: 20, fontWeight: 600, color: COLORS.white, marginBottom: 22 }}>
+          New Leave Request
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          {FORM_FIELDS.map((field, i) => {
+            const fillDelay = 0.8 + i * 0.35;
+            const fieldFilled = frame > fillDelay * fps;
+            const isComputed = field.type === "computed";
+            const isFile = field.type === "file";
+            const isDropdown = field.type === "dropdown";
+
             return (
-              <Interactive.Div
-                key={step.num}
-                name={`Step-${i}`}
+              <div
+                key={field.label}
                 style={{
-                  display: "flex",
-                  gap: 16,
-                  alignItems: "flex-start",
-                  background: isActive ? `${COLORS.accent}22` : COLORS.surface,
-                  borderRadius: 12,
-                  padding: "18px 20px",
-                  border: `1px solid ${isActive ? COLORS.accentBright : COLORS.border}`,
-                  opacity: interpolate(frame, [delay * fps, (delay + 0.3) * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+                  gridColumn: field.span ? "1 / -1" : undefined,
                 }}
               >
                 <div
                   style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: "50%",
-                    background: isActive ? COLORS.accentBright : COLORS.accent,
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: COLORS.white,
-                    flexShrink: 0,
+                    fontSize: 12,
+                    color: COLORS.textMuted,
+                    marginBottom: 4,
+                    fontFamily: monoFamily,
                   }}
                 >
-                  {step.num}
+                  {field.label}
                 </div>
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: COLORS.white, marginBottom: 4 }}>{step.title}</div>
-                  <div style={{ fontSize: 14, color: COLORS.textMuted }}>{step.desc}</div>
+                <div
+                  style={{
+                    background: isComputed ? `${COLORS.accentBright}12` : COLORS.bg,
+                    border: `1px solid ${fieldFilled ? (isComputed ? COLORS.accentBright : COLORS.accentBright) : COLORS.border}`,
+                    borderRadius: 8,
+                    padding: field.span ? "10px 14px" : "10px 14px",
+                    fontSize: 14,
+                    color: fieldFilled
+                      ? isComputed
+                        ? COLORS.accentBright
+                        : COLORS.white
+                      : COLORS.textMuted,
+                    minHeight: field.span ? 36 : 20,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    fontWeight: isComputed ? 600 : 400,
+                  }}
+                >
+                  <span>{fieldFilled ? field.value : ""}</span>
+                  {isDropdown && (
+                    <span style={{ fontSize: 11, color: COLORS.textMuted }}>▾</span>
+                  )}
+                  {isFile && fieldFilled && (
+                    <span style={{ fontSize: 11, color: COLORS.textMuted }}>📎</span>
+                  )}
                 </div>
-              </Interactive.Div>
+              </div>
             );
           })}
         </div>
 
-        {/* Mock form */}
-        <Interactive.Div
-          name="Form"
+        {/* Submit button */}
+        <div
           style={{
-            background: COLORS.surface,
-            borderRadius: 14,
-            padding: 28,
-            border: `1px solid ${COLORS.border}`,
-            opacity: interpolate(frame, [1.5 * fps, 2 * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+            marginTop: 22,
+            background: frame > 4.5 * fps ? COLORS.green : COLORS.accentBright,
+            borderRadius: 8,
+            padding: "12px 24px",
+            textAlign: "center" as const,
+            fontSize: 16,
+            fontWeight: 700,
+            color: frame > 4.5 * fps ? COLORS.white : COLORS.bg,
+            opacity: fade(3.8),
           }}
         >
-          <div style={{ fontSize: 20, fontWeight: 600, color: COLORS.white, marginBottom: 20 }}>
-            New Leave Request
-          </div>
+          {frame > 4.5 * fps ? "✓ Request Submitted!" : "Submit Request"}
+        </div>
+      </Interactive.Div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            {FORM_FIELDS.map((field, i) => {
-              const fillDelay = 2 + i * 0.3;
-              const fieldFilled = frame > fillDelay * fps;
-              return (
-                <div key={field.label}>
-                  <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 4, fontFamily: monoFamily }}>{field.label}</div>
-                  <div
-                    style={{
-                      background: COLORS.bg,
-                      border: `1px solid ${fieldFilled ? COLORS.accentBright : COLORS.border}`,
-                      borderRadius: 8,
-                      padding: "10px 14px",
-                      fontSize: 14,
-                      color: fieldFilled ? COLORS.white : COLORS.textMuted,
-                      minHeight: 20,
-                    }}
-                  >
-                    {fieldFilled ? field.value : ""}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* Callouts */}
+      <div style={{ display: "flex", gap: 16, marginTop: 16 }}>
+        <Interactive.Div
+          name="CalloutHandover"
+          style={{
+            flex: 1,
+            background: `${COLORS.accentBright}12`,
+            border: `1px solid ${COLORS.accentBright}44`,
+            borderRadius: 10,
+            padding: "10px 16px",
+            fontSize: 13,
+            color: COLORS.accentBright,
+            opacity: fade(4.8),
+          }}
+        >
+          💡 Always add handover notes so your team knows who's covering your responsibilities
+        </Interactive.Div>
 
-          <div
-            style={{
-              marginTop: 20,
-              background: frame > 4.5 * fps ? COLORS.accentBright : COLORS.accent,
-              borderRadius: 8,
-              padding: "12px 24px",
-              textAlign: "center" as const,
-              fontSize: 16,
-              fontWeight: 600,
-              color: COLORS.white,
-              opacity: interpolate(frame, [4 * fps, 4.5 * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
-            }}
-          >
-            {frame > 5 * fps ? "✓ Request Submitted!" : "Submit Request →"}
-          </div>
+        <Interactive.Div
+          name="CalloutMedical"
+          style={{
+            flex: 1,
+            background: `${COLORS.gold}12`,
+            border: `1px solid ${COLORS.gold}44`,
+            borderRadius: 10,
+            padding: "10px 16px",
+            fontSize: 13,
+            color: COLORS.gold,
+            opacity: fade(5.2),
+          }}
+        >
+          💡 For sick leave beyond 2 days, attach a medical certificate
         </Interactive.Div>
       </div>
     </AbsoluteFill>

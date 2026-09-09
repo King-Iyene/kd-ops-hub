@@ -62,7 +62,7 @@ export const TAIntroScene: React.FC = () => {
           }),
         }}
       >
-        Video 6 of 13
+        KDOps Platform Guide
       </Interactive.Div>
 
       {/* Icon */}

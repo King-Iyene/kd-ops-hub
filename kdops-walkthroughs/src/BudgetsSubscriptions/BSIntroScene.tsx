@@ -62,7 +62,7 @@ export const BSIntroScene: React.FC = () => {
           }),
         }}
       >
-        Video 10 of 13
+        KDOps Platform Guide
       </Interactive.Div>
 
       {/* Icon */}

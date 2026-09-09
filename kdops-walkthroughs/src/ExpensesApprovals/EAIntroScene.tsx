@@ -46,7 +46,7 @@ export const EAIntroScene: React.FC = () => {
         }}
       />
 
-      {/* Video number badge */}
+      {/* Platform guide badge */}
       <Interactive.Div
         name="Badge"
         style={{
@@ -62,7 +62,7 @@ export const EAIntroScene: React.FC = () => {
           }),
         }}
       >
-        Video 8 of 13
+        KDOps Platform Guide
       </Interactive.Div>
 
       {/* Icon */}
@@ -118,7 +118,29 @@ export const EAIntroScene: React.FC = () => {
           }),
         }}
       >
-        Track spending, submit receipts, and manage approvals
+        Submit expenses, attach receipts, and track approvals — step by step
+      </Interactive.Div>
+
+      {/* Bank details reminder */}
+      <Interactive.Div
+        name="BankReminder"
+        style={{
+          marginTop: 36,
+          background: `${COLORS.orange}18`,
+          borderRadius: 10,
+          padding: "14px 28px",
+          borderLeft: `3px solid ${COLORS.orange}`,
+          maxWidth: 600,
+          opacity: interpolate(frame, [1.3 * fps, 1.7 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        <div style={{ fontSize: 15, color: COLORS.text, lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 700, color: COLORS.orange }}>Important: </span>
+          Make sure your bank account details are added in your profile so you can receive expense reimbursements.
+        </div>
       </Interactive.Div>
 
       {/* Bottom tag */}

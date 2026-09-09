@@ -19,24 +19,27 @@ const { fontFamily: monoFamily } = loadMono("normal", {
 });
 
 const ACTIONS = [
-  { icon: "➕", label: "New Payment", desc: "Create a new payment batch or one-off payment" },
-  { icon: "✅", label: "Approvals", desc: "Review and approve pending requests" },
-  { icon: "👥", label: "Clients", desc: "View and manage your client directory" },
-  { icon: "🔄", label: "Subscriptions", desc: "Track and manage recurring subscriptions" },
-  { icon: "📄", label: "Reports", desc: "Generate financial and operations reports" },
-  { icon: "💰", label: "Payroll", desc: "Run payroll or view payroll history" },
-];
-
-const RENEWALS = [
-  { name: "Google One", amount: "₦40,000", status: "overdue", date: "18/08/2026" },
-  { name: "OpenAI API Quota", amount: "₦20,000", status: "overdue", date: "20/08/2026" },
-  { name: "YouTube", amount: "₦1,800", status: "overdue", date: "21/08/2026" },
-  { name: "Claude AI", amount: "₦138,000", status: "overdue", date: "23/08/2026" },
+  { icon: "💳", label: "New Payment", desc: "Create a payment batch or one-off transfer", where: "Takes you to Payment Batches" },
+  { icon: "✅", label: "Approvals", desc: "Review pending requests across all modules", where: "Shows all items waiting for your sign-off" },
+  { icon: "❤️", label: "Charity", desc: "Set up or manage charitable donations", where: "Takes you to Charity module" },
+  { icon: "🧾", label: "Expenses", desc: "Submit or review expense claims", where: "Takes you to Expense management" },
+  { icon: "🔄", label: "Subscriptions", desc: "Track recurring service subscriptions", where: "Takes you to Subscriptions list" },
+  { icon: "📊", label: "Reports", desc: "Generate financial and ops reports", where: "Takes you to Report builder" },
+  { icon: "💰", label: "Payroll", desc: "Run payroll or check salary history", where: "Takes you to Payroll module" },
 ];
 
 export const DDQuickActionsScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+
+  // Cycle highlight through actions to simulate clicking
+  const highlightIndex = frame > 3 * fps
+    ? Math.floor((frame - 3 * fps) / (1.5 * fps)) % ACTIONS.length
+    : -1;
+
+  // Show "clicked" demo for New Payment (index 0) and Approvals (index 1)
+  const showNewPaymentDemo = frame > 3.5 * fps && frame < 5.5 * fps;
+  const showApprovalsDemo = frame > 6 * fps && frame < 8 * fps;
 
   return (
     <AbsoluteFill
@@ -49,138 +52,194 @@ export const DDQuickActionsScene: React.FC = () => {
       <Interactive.Div
         name="SceneLabel"
         style={{
-          fontSize: 16,
+          fontSize: 14,
           fontFamily: monoFamily,
           color: COLORS.green,
           letterSpacing: 2,
           textTransform: "uppercase" as const,
-          marginBottom: 8,
+          marginBottom: 6,
           opacity: interpolate(frame, [0, 0.3 * fps], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           }),
         }}
       >
-        Quick Actions & Renewals
+        Step 3 — Quick Actions
       </Interactive.Div>
 
       <Interactive.Div
         name="Title"
         style={{
-          fontSize: 48,
+          fontSize: 36,
           fontWeight: 700,
           color: COLORS.white,
-          marginBottom: 32,
+          marginBottom: 10,
           opacity: interpolate(frame, [0.1 * fps, 0.5 * fps], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           }),
         }}
       >
-        One-click shortcuts & reminders
+        Shortcuts to the tasks you do most
       </Interactive.Div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 32 }}>
-        {/* Quick Actions Grid */}
-        <div>
-          <div style={{ fontSize: 20, fontWeight: 600, color: COLORS.white, marginBottom: 16 }}>
-            Quick Actions
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-            {ACTIONS.map((action, i) => {
-              const delay = 0.6 + i * 0.2;
-              const highlighted = Math.floor((frame - 3 * fps) / (1 * fps)) % 6 === i && frame > 3 * fps;
-              return (
-                <Interactive.Div
-                  key={action.label}
-                  name={`Action-${i}`}
-                  style={{
-                    background: highlighted ? `${COLORS.accent}44` : COLORS.surface,
-                    borderRadius: 12,
-                    padding: "20px 16px",
-                    textAlign: "center" as const,
-                    border: `1px solid ${highlighted ? COLORS.accentBright : COLORS.border}`,
-                    opacity: interpolate(frame, [delay * fps, (delay + 0.25) * fps], [0, 1], {
-                      extrapolateLeft: "clamp",
-                      extrapolateRight: "clamp",
-                    }),
-                  }}
-                >
-                  <div style={{ fontSize: 28, marginBottom: 8 }}>{action.icon}</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.white, marginBottom: 4 }}>
-                    {action.label}
-                  </div>
-                  <div style={{ fontSize: 11, color: COLORS.textMuted, lineHeight: 1.4 }}>
-                    {action.desc}
-                  </div>
-                </Interactive.Div>
-              );
-            })}
-          </div>
-        </div>
+      <Interactive.Div
+        name="Subtitle"
+        style={{
+          fontSize: 18,
+          color: COLORS.textMuted,
+          marginBottom: 28,
+          maxWidth: 650,
+          lineHeight: 1.5,
+          opacity: interpolate(frame, [0.3 * fps, 0.6 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        Instead of navigating through menus, click any Quick Action to jump straight to the module you need.
+      </Interactive.Div>
 
-        {/* Upcoming Renewals */}
+      {/* Quick Actions Grid — matches real KDOps layout */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.white, marginBottom: 14 }}>
+          Quick Actions
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 12 }}>
+          {ACTIONS.map((action, i) => {
+            const delay = 0.6 + i * 0.15;
+            const isHighlighted = highlightIndex === i;
+            return (
+              <Interactive.Div
+                key={action.label}
+                name={`Action-${i}`}
+                style={{
+                  background: isHighlighted ? `${COLORS.accent}55` : COLORS.surface,
+                  borderRadius: 12,
+                  padding: "18px 10px",
+                  textAlign: "center" as const,
+                  border: `2px solid ${isHighlighted ? COLORS.accentBright : COLORS.border}`,
+                  opacity: interpolate(frame, [delay * fps, (delay + 0.2) * fps], [0, 1], {
+                    extrapolateLeft: "clamp",
+                    extrapolateRight: "clamp",
+                  }),
+                  transition: "border-color 0.2s, background 0.2s",
+                }}
+              >
+                <div style={{ fontSize: 26, marginBottom: 6 }}>{action.icon}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.white }}>
+                  {action.label}
+                </div>
+              </Interactive.Div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Click demo panels */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+        {/* New Payment demo */}
         <Interactive.Div
-          name="Renewals"
+          name="NewPaymentDemo"
           style={{
-            opacity: interpolate(frame, [1.5 * fps, 2 * fps], [0, 1], {
+            background: COLORS.surface,
+            borderRadius: 12,
+            padding: "18px 20px",
+            border: `2px solid ${showNewPaymentDemo ? COLORS.accentBright : COLORS.border}`,
+            opacity: interpolate(frame, [3 * fps, 3.4 * fps], [0, 1], {
               extrapolateLeft: "clamp",
               extrapolateRight: "clamp",
             }),
           }}
         >
-          <div style={{ fontSize: 20, fontWeight: 600, color: COLORS.white, marginBottom: 16 }}>
-            Upcoming Renewals
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 20 }}>💳</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.white }}>Click "New Payment"</span>
+            {showNewPaymentDemo && (
+              <span style={{ fontSize: 11, fontFamily: monoFamily, color: COLORS.accentBright, background: `${COLORS.accent}44`, padding: "2px 8px", borderRadius: 4 }}>
+                ACTIVE
+              </span>
+            )}
           </div>
-          <div style={{ background: COLORS.surface, borderRadius: 14, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-            {RENEWALS.map((r, i) => (
-              <div
-                key={r.name}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "16px 20px",
-                  borderBottom: i < RENEWALS.length - 1 ? `1px solid ${COLORS.border}` : "none",
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.white }}>{r.name}</div>
-                  <div style={{ fontSize: 12, color: COLORS.textMuted }}>{r.date} · {r.status}</div>
-                </div>
-                <div style={{ textAlign: "right" as const }}>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.white }}>{r.amount}</div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontFamily: monoFamily,
-                      color: COLORS.orange,
-                      background: `${COLORS.orange}22`,
-                      padding: "2px 8px",
-                      borderRadius: 4,
-                      marginTop: 4,
-                      display: "inline-block",
-                    }}
-                  >
-                    Soon
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div style={{ fontSize: 13, color: COLORS.textMuted, lineHeight: 1.5 }}>
+            Opens the <span style={{ color: COLORS.white, fontWeight: 600 }}>Payment Batches</span> page where you can create a new salary run, vendor payment, or one-off transfer. You'll pick recipients, enter amounts, and submit for approval.
           </div>
+        </Interactive.Div>
 
-          <div
-            style={{
-              marginTop: 12,
-              fontSize: 13,
-              color: COLORS.textMuted,
-              fontStyle: "italic",
-            }}
-          >
-            Renewals are pulled from your Subscriptions module automatically.
+        {/* Approvals demo */}
+        <Interactive.Div
+          name="ApprovalsDemo"
+          style={{
+            background: COLORS.surface,
+            borderRadius: 12,
+            padding: "18px 20px",
+            border: `2px solid ${showApprovalsDemo ? COLORS.accentBright : COLORS.border}`,
+            opacity: interpolate(frame, [3.3 * fps, 3.7 * fps], [0, 1], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp",
+            }),
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 20 }}>✅</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.white }}>Click "Approvals"</span>
+            {showApprovalsDemo && (
+              <span style={{ fontSize: 11, fontFamily: monoFamily, color: COLORS.accentBright, background: `${COLORS.accent}44`, padding: "2px 8px", borderRadius: 4 }}>
+                ACTIVE
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: 13, color: COLORS.textMuted, lineHeight: 1.5 }}>
+            Shows <span style={{ color: COLORS.white, fontWeight: 600 }}>all pending items</span> across every module — expense claims, leave requests, payment batches. If something needs your sign-off, it's here.
           </div>
         </Interactive.Div>
       </div>
+
+      {/* What each action does */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
+        {ACTIONS.slice(2).map((action, i) => {
+          const delay = 4.5 + i * 0.2;
+          return (
+            <div
+              key={action.label}
+              style={{
+                fontSize: 12,
+                color: COLORS.textMuted,
+                lineHeight: 1.4,
+                opacity: interpolate(frame, [delay * fps, (delay + 0.25) * fps], [0, 1], {
+                  extrapolateLeft: "clamp",
+                  extrapolateRight: "clamp",
+                }),
+              }}
+            >
+              <span style={{ fontWeight: 600, color: COLORS.white }}>{action.icon} {action.label}:</span>{" "}
+              {action.desc}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Callout */}
+      <Interactive.Div
+        name="Callout"
+        style={{
+          background: `${COLORS.accent}22`,
+          borderRadius: 10,
+          padding: "16px 20px",
+          borderLeft: `3px solid ${COLORS.accentBright}`,
+          opacity: interpolate(frame, [5.5 * fps, 5.9 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.accentBright, marginBottom: 4 }}>
+          💡 Quick Actions are shortcuts — they take you directly to the most common tasks
+        </div>
+        <div style={{ fontSize: 13, color: COLORS.textMuted, lineHeight: 1.5 }}>
+          No need to search through the sidebar. Each button jumps straight to the right page so you can get things done faster.
+        </div>
+      </Interactive.Div>
     </AbsoluteFill>
   );
 };

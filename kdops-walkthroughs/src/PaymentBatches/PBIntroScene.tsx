@@ -42,7 +42,7 @@ export const PBIntroScene: React.FC = () => {
           opacity: interpolate(frame, [0, 0.4 * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
         }}
       >
-        Video 7 of 13
+        KDOps Platform Guide
       </Interactive.Div>
 
       <Interactive.Div

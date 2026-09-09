@@ -46,7 +46,7 @@ export const FFIntroScene: React.FC = () => {
         }}
       />
 
-      {/* Video number badge */}
+      {/* Platform guide badge */}
       <Interactive.Div
         name="Badge"
         style={{
@@ -62,7 +62,7 @@ export const FFIntroScene: React.FC = () => {
           }),
         }}
       >
-        Video 12 of 13
+        KDOps Platform Guide
       </Interactive.Div>
 
       {/* Icon */}
@@ -118,7 +118,7 @@ export const FFIntroScene: React.FC = () => {
           }),
         }}
       >
-        Track vehicles, fuel spend, and vendor contracts
+        Track vehicles, log fuel requests, and monitor fleet spending
       </Interactive.Div>
 
       {/* Bottom tag */}

@@ -62,7 +62,7 @@ export const CCIntroScene: React.FC = () => {
           }),
         }}
       >
-        Video 11 of 13
+        KDOps Platform Guide
       </Interactive.Div>
 
       {/* Icon */}

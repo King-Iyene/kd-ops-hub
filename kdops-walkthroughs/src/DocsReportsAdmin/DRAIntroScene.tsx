@@ -62,7 +62,7 @@ export const DRAIntroScene: React.FC = () => {
           }),
         }}
       >
-        Video 13 of 13
+        KDOps Platform Guide
       </Interactive.Div>
 
       {/* Icon */}

@@ -20,15 +20,15 @@ const { fontFamily: monoFamily } = loadMono("normal", {
 });
 
 const DEPARTMENTS = [
-  { name: "Engineering", budget: "₦2,500,000", percent: 65, used: "₦1,625,000" },
-  { name: "Marketing", budget: "₦1,200,000", percent: 82, used: "₦984,000" },
-  { name: "Operations", budget: "₦3,000,000", percent: 45, used: "₦1,350,000" },
-  { name: "HR & Admin", budget: "₦800,000", percent: 91, used: "₦728,000" },
+  { name: "Operations", budget: "₦2,500,000", percent: 68, used: "₦1,700,000" },
+  { name: "IT", budget: "₦1,800,000", percent: 45, used: "₦810,000" },
+  { name: "Marketing", budget: "₦800,000", percent: 82, used: "₦656,000" },
+  { name: "HR", budget: "₦600,000", percent: 30, used: "₦180,000" },
 ];
 
 const getBarColor = (percent: number) => {
-  if (percent > 90) return COLORS.red;
-  if (percent >= 70) return COLORS.orange;
+  if (percent >= 80) return COLORS.orange;
+  if (percent >= 60) return COLORS.gold;
   return COLORS.green;
 };
 
@@ -44,6 +44,23 @@ export const BSBudgetOverviewScene: React.FC = () => {
         padding: "50px 80px",
       }}
     >
+      {/* Breadcrumb */}
+      <Interactive.Div
+        name="Breadcrumb"
+        style={{
+          fontSize: 14,
+          fontFamily: monoFamily,
+          color: COLORS.textMuted,
+          marginBottom: 6,
+          opacity: interpolate(frame, [0, 0.3 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        Finance &rarr; Budgets
+      </Interactive.Div>
+
       <Interactive.Div
         name="SceneLabel"
         style={{
@@ -83,7 +100,7 @@ export const BSBudgetOverviewScene: React.FC = () => {
         style={{
           fontSize: 20,
           color: COLORS.textMuted,
-          marginBottom: 40,
+          marginBottom: 36,
           maxWidth: 700,
           lineHeight: 1.5,
           opacity: interpolate(frame, [0.3 * fps, 0.7 * fps], [0, 1], {
@@ -92,8 +109,8 @@ export const BSBudgetOverviewScene: React.FC = () => {
           }),
         }}
       >
-        Monitor spending across every department. Color-coded bars show
-        utilization so you can spot overruns before they happen.
+        Each card shows one department's budget, how much has been spent, and
+        a colour-coded bar so you can spot overruns instantly.
       </Interactive.Div>
 
       {/* 2x2 grid */}
@@ -138,7 +155,7 @@ export const BSBudgetOverviewScene: React.FC = () => {
                   {dept.name}
                 </div>
                 <div style={{ fontSize: 14, fontFamily: monoFamily, color: barColor, fontWeight: 700 }}>
-                  {dept.percent}%
+                  {dept.percent}% used
                 </div>
               </div>
 
@@ -167,12 +184,33 @@ export const BSBudgetOverviewScene: React.FC = () => {
               </div>
 
               <div style={{ fontSize: 13, color: COLORS.textMuted }}>
-                Used: {dept.used} / {dept.budget}
+                Spent: {dept.used} of {dept.budget}
               </div>
             </Interactive.Div>
           );
         })}
       </div>
+
+      {/* Callout */}
+      <Interactive.Div
+        name="Callout"
+        style={{
+          marginTop: 24,
+          background: `${COLORS.accent}33`,
+          borderRadius: 10,
+          padding: "14px 20px",
+          fontSize: 15,
+          color: COLORS.accentBright,
+          lineHeight: 1.5,
+          opacity: interpolate(frame, [2.8 * fps, 3.2 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        Monitor your department budget — when it hits 80%, consider pausing
+        non-essential spending.
+      </Interactive.Div>
     </AbsoluteFill>
   );
 };

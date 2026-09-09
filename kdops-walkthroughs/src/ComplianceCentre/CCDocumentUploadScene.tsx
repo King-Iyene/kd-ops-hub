@@ -18,11 +18,11 @@ const { fontFamily: monoFamily } = loadMono("normal", {
   subsets: ["latin"],
 });
 
-const DOCUMENTS = [
-  "Tax Clearance Certificate",
-  "PAYE Remittance Receipt",
-  "Pension Fund Statement",
-  "VAT Filing Confirmation",
+const CATEGORIES = [
+  { icon: "📜", name: "Tax Certificates", count: "4 files" },
+  { icon: "📊", name: "Audit Reports", count: "2 files" },
+  { icon: "📬", name: "Regulatory Letters", count: "6 files" },
+  { icon: "🪪", name: "Licences", count: "3 files" },
 ];
 
 export const CCDocumentUploadScene: React.FC = () => {
@@ -52,23 +52,42 @@ export const CCDocumentUploadScene: React.FC = () => {
           }),
         }}
       >
-        Document Upload
+        Compliance Documents
       </Interactive.Div>
 
       <Interactive.Div
         name="Title"
         style={{
-          fontSize: 48,
+          fontSize: 44,
           fontWeight: 700,
           color: COLORS.white,
-          marginBottom: 32,
+          marginBottom: 12,
           opacity: interpolate(frame, [0.1 * fps, 0.5 * fps], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           }),
         }}
       >
-        Upload compliance documents
+        Upload and organise compliance documents
+      </Interactive.Div>
+
+      <Interactive.Div
+        name="Description"
+        style={{
+          fontSize: 18,
+          color: COLORS.textMuted,
+          marginBottom: 28,
+          maxWidth: 720,
+          lineHeight: 1.5,
+          opacity: interpolate(frame, [0.3 * fps, 0.7 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        All compliance-related files live here, sorted into categories.
+        Drag and drop files into the upload area, or click "Browse" to pick
+        from your computer.
       </Interactive.Div>
 
       {/* Upload area */}
@@ -78,82 +97,107 @@ export const CCDocumentUploadScene: React.FC = () => {
           background: COLORS.surface,
           border: `2px dashed ${COLORS.border}`,
           borderRadius: 16,
-          padding: "40px 24px",
+          padding: "36px 24px",
           display: "flex",
           flexDirection: "column" as const,
           alignItems: "center",
           justifyContent: "center",
-          marginBottom: 40,
-          opacity: interpolate(frame, [0.4 * fps, 0.8 * fps], [0, 1], {
+          marginBottom: 28,
+          opacity: interpolate(frame, [0.6 * fps, 1 * fps], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           }),
         }}
       >
-        <span style={{ fontSize: 48, marginBottom: 12 }}>📤</span>
+        <span style={{ fontSize: 44, marginBottom: 10 }}>📤</span>
         <div style={{ fontSize: 18, fontWeight: 600, color: COLORS.white, marginBottom: 6 }}>
           Drag & drop files here
         </div>
-        <div style={{ fontSize: 14, color: COLORS.textMuted }}>
-          PDF, JPG, PNG — max 5 MB per file
+        <div style={{ fontSize: 14, color: COLORS.textMuted, marginBottom: 14 }}>
+          PDF, JPG, PNG — max 10 MB per file
+        </div>
+        <div
+          style={{
+            background: COLORS.accentBright,
+            color: COLORS.bg,
+            borderRadius: 8,
+            padding: "10px 24px",
+            fontSize: 14,
+            fontWeight: 700,
+          }}
+        >
+          Browse Files
         </div>
       </Interactive.Div>
 
-      {/* Required documents */}
+      {/* Document categories */}
       <Interactive.Div
-        name="DocsLabel"
+        name="CategoriesLabel"
         style={{
-          fontSize: 18,
+          fontSize: 16,
           fontWeight: 700,
           color: COLORS.white,
-          marginBottom: 16,
-          opacity: interpolate(frame, [1 * fps, 1.4 * fps], [0, 1], {
+          marginBottom: 14,
+          opacity: interpolate(frame, [1.2 * fps, 1.5 * fps], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           }),
         }}
       >
-        Required Documents
+        Document Categories
       </Interactive.Div>
 
-      <div style={{ display: "flex", flexDirection: "column" as const, gap: 12 }}>
-        {DOCUMENTS.map((doc, i) => {
-          const delay = 1.2 + i * 0.25;
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        {CATEGORIES.map((cat, i) => {
+          const delay = 1.4 + i * 0.25;
           return (
             <Interactive.Div
-              key={doc}
-              name={`Doc-${i}`}
+              key={cat.name}
+              name={`Cat-${i}`}
               style={{
+                background: COLORS.surface,
+                borderRadius: 12,
+                padding: "18px 22px",
+                border: `1px solid ${COLORS.border}`,
                 display: "flex",
                 alignItems: "center",
-                gap: 12,
+                gap: 14,
                 opacity: interpolate(frame, [delay * fps, (delay + 0.3) * fps], [0, 1], {
                   extrapolateLeft: "clamp",
                   extrapolateRight: "clamp",
                 }),
               }}
             >
-              <div
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: 4,
-                  border: `2px solid ${COLORS.accentBright}`,
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  fontSize: 13,
-                  color: COLORS.accentBright,
-                  flexShrink: 0,
-                }}
-              >
-                ✓
+              <span style={{ fontSize: 28 }}>{cat.icon}</span>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: COLORS.white }}>{cat.name}</div>
+                <div style={{ fontSize: 13, color: COLORS.textMuted }}>{cat.count}</div>
               </div>
-              <div style={{ fontSize: 17, color: COLORS.white }}>{doc}</div>
             </Interactive.Div>
           );
         })}
       </div>
+
+      {/* Callout */}
+      <Interactive.Div
+        name="Callout"
+        style={{
+          marginTop: 24,
+          background: `${COLORS.accent}33`,
+          borderRadius: 10,
+          padding: "14px 20px",
+          fontSize: 15,
+          color: COLORS.accentBright,
+          lineHeight: 1.5,
+          opacity: interpolate(frame, [3 * fps, 3.4 * fps], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        Upload documents as soon as you receive them — they're safer in KDOps
+        than in email.
+      </Interactive.Div>
     </AbsoluteFill>
   );
 };
