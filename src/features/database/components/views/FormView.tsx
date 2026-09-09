@@ -10,6 +10,8 @@ import { getFieldTypeIcon } from '../grid/field-icons';
 import { useUpdateView } from '../../hooks/useViews';
 import { useSharedView, useCreateSharedView } from '../../hooks/useSharedViews';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
+import { usePlatformTasks } from '../../hooks/usePlatformTasks';
+import { normalizeLinkedTasks } from '../grid/cell-renderers';
 import { normalizeUserValue } from '../grid/cell-editors';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
@@ -147,6 +149,75 @@ function PeopleInput({
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-[#EEF2FF] dark:bg-[hsl(220,18%,14%)] text-[#4338CA] dark:text-[hsl(230,60%,75%)]"
             >
               {s.name || s.email}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LinkedTasksInput({
+  value,
+  onChange,
+}: {
+  value: any;
+  onChange: (v: any) => void;
+}) {
+  const { data: tasks = [], isLoading } = usePlatformTasks();
+  const [search, setSearch] = useState('');
+  const selected = normalizeLinkedTasks(value);
+
+  const filtered = search
+    ? tasks.filter((t) => t.title.toLowerCase().includes(search.toLowerCase()))
+    : tasks;
+
+  const toggle = (t: { id: string; title: string }) => {
+    onChange(
+      selected.some((s) => s.id === t.id)
+        ? selected.filter((s) => s.id !== t.id)
+        : [...selected, { id: t.id, title: t.title }],
+    );
+  };
+
+  return (
+    <div>
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search tasks..."
+        className="w-full border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] rounded-lg px-3 py-2 text-sm bg-white dark:bg-[hsl(220,20%,10%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/25 mb-2"
+      />
+      <div className="max-h-44 overflow-y-auto rounded-lg border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] divide-y divide-[#F1F5F9] dark:divide-[hsl(220,15%,15%)]">
+        {isLoading && <div className="px-3 py-2 text-xs text-[#94A3B8]">Loading tasks...</div>}
+        {!isLoading && filtered.length === 0 && (
+          <div className="px-3 py-2 text-xs text-[#94A3B8]">No tasks found</div>
+        )}
+        {filtered.slice(0, 200).map((t) => {
+          const active = selected.some((s) => s.id === t.id);
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => toggle(t)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[#F8FAFC] dark:hover:bg-[hsl(220,18%,12%)]"
+            >
+              <span className="text-xs text-[#1E293B] dark:text-[hsl(210,20%,88%)] truncate flex-1">{t.title}</span>
+              {t.status && <span className="text-[10px] text-[#94A3B8] shrink-0">{t.status}</span>}
+              {active && <Check size={14} className="text-[#2D7FF9] shrink-0" />}
+            </button>
+          );
+        })}
+      </div>
+      {selected.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {selected.map((s, i) => (
+            <span
+              key={s.id || i}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-[#F1F5F9] dark:bg-[hsl(220,18%,14%)] text-[#334155] dark:text-[hsl(210,20%,80%)]"
+            >
+              {s.title || s.id}
             </span>
           ))}
         </div>
@@ -535,6 +606,13 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
         return (
           <PeopleInput
             field={f}
+            value={values[f.id]}
+            onChange={(v) => { setValues((prev) => ({ ...prev, [f.id]: v })); setErrors((p) => { const n = { ...p }; delete n[f.id]; return n; }); }}
+          />
+        );
+      case 'LinkedTasks':
+        return (
+          <LinkedTasksInput
             value={values[f.id]}
             onChange={(v) => { setValues((prev) => ({ ...prev, [f.id]: v })); setErrors((p) => { const n = { ...p }; delete n[f.id]; return n; }); }}
           />

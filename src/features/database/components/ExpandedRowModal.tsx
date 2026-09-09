@@ -823,6 +823,10 @@ export function ExpandedRowModal({
         const Renderer = getCellRenderer('User');
         return <Renderer value={val} field={field} record={record} rowHeight="medium" />;
       }
+      case 'LinkedTasks': {
+        const Renderer = getCellRenderer('LinkedTasks');
+        return <Renderer value={val} field={field} record={record} rowHeight="medium" />;
+      }
       case 'Links':
         return <LinkCellRenderer value={val} field={field} record={record} rowHeight="medium" />;
       case 'Lookup':

@@ -981,6 +981,51 @@ export const UserCellRenderer = React.memo(function UserCellRenderer({
   );
 });
 
+export interface LinkedTaskValue {
+  id?: string;
+  title?: string;
+}
+
+/** Normalize a Linked Tasks cell value to an array of {id, title}. */
+export function normalizeLinkedTasks(value: unknown): LinkedTaskValue[] {
+  if (value == null || value === '') return [];
+  if (Array.isArray(value)) return value.filter(Boolean) as LinkedTaskValue[];
+  if (typeof value === 'object') return [value as LinkedTaskValue];
+  return [{ id: String(value), title: String(value) }];
+}
+
+export const LinkedTasksCellRenderer = React.memo(function LinkedTasksCellRenderer({
+  value,
+}: CellRendererProps) {
+  const colors = useGridColors();
+  const tasks = normalizeLinkedTasks(value);
+  if (tasks.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1 overflow-hidden">
+      {tasks.slice(0, 3).map((t, i) => (
+        <span
+          key={t.id || i}
+          className="inline-flex items-center px-2 py-0.5 rounded text-xs shrink-0 truncate"
+          style={{
+            maxWidth: 140,
+            backgroundColor: colors.hoverRow,
+            color: colors.text,
+            border: `1px solid ${colors.border}`,
+          }}
+        >
+          {t.title || t.id}
+        </span>
+      ))}
+      {tasks.length > 3 && (
+        <span className="text-[10px] shrink-0" style={{ color: colors.systemText }}>
+          +{tasks.length - 3}
+        </span>
+      )}
+    </div>
+  );
+});
+
 export function getCellRenderer(uiType: string) {
   switch (uiType) {
     case 'SingleLineText':
@@ -1035,6 +1080,8 @@ export function getCellRenderer(uiType: string) {
       return ButtonCellRenderer;
     case 'User':
       return UserCellRenderer;
+    case 'LinkedTasks':
+      return LinkedTasksCellRenderer;
     case 'LastModifiedBy':
       return LastModifiedByCellRenderer;
     case 'ID':

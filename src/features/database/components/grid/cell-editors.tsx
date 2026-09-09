@@ -8,6 +8,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
 import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
+import { usePlatformTasks } from '../../hooks/usePlatformTasks';
+import { normalizeLinkedTasks, type LinkedTaskValue } from './cell-renderers';
 
 /** Strip non-numeric chars, keeping at most one minus (leading) and one dot. */
 function sanitizeNumeric(raw: string): string {
@@ -1315,6 +1317,131 @@ export function UserCellEditor({ value, field, onCommit, onCancel }: CellEditorP
   );
 }
 
+export function LinkedTasksCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+  const { data: tasks = [], isLoading } = usePlatformTasks();
+  const [search, setSearch] = useState('');
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const colors = useGridColors();
+  const [selected, setSelected] = useState<LinkedTaskValue[]>(() => normalizeLinkedTasks(value));
+
+  const filtered = search
+    ? tasks.filter((t) => t.title.toLowerCase().includes(search.toLowerCase()))
+    : tasks;
+
+  const toggle = useCallback((task: { id: string; title: string }) => {
+    setSelected((prev) =>
+      prev.some((s) => s.id === task.id)
+        ? prev.filter((s) => s.id !== task.id)
+        : [...prev, { id: task.id, title: task.title }],
+    );
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCancel();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.min(prev + 1, filtered.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.max(prev - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (focusedIndex >= 0 && focusedIndex < filtered.length) toggle(filtered[focusedIndex]);
+      }
+    },
+    [onCancel, filtered, focusedIndex, toggle],
+  );
+
+  return (
+    <Popover
+      open
+      onOpenChange={(open) => {
+        if (!open) onCommit(selected);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <div className="w-full h-full" />
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={1}
+        className="!w-auto !border-none !p-0 !shadow-none"
+        style={{
+          minWidth: 280,
+          maxHeight: 320,
+          backgroundColor: colors.cellEditorBg,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 8,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+        }}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          setTimeout(() => searchRef.current?.focus(), 0);
+        }}
+      >
+        <div className="px-2 pt-2 pb-1 shrink-0">
+          <input
+            ref={searchRef}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Search tasks..."
+            className="w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
+            style={{ border: `1px solid ${colors.border}`, color: colors.text }}
+          />
+        </div>
+        <div className="overflow-y-auto py-1" style={{ maxHeight: 220 }}>
+          {isLoading && (
+            <div className="px-3 py-2 text-xs" style={{ color: colors.muted }}>Loading tasks...</div>
+          )}
+          {!isLoading && filtered.length === 0 && (
+            <div className="px-3 py-2 text-xs" style={{ color: colors.muted }}>No tasks found</div>
+          )}
+          {filtered.map((task, idx) => {
+            const isFocused = idx === focusedIndex;
+            const isSelected = selected.some((s) => s.id === task.id);
+            return (
+              <button
+                key={task.id}
+                className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors"
+                style={{ backgroundColor: isFocused ? colors.hoverRow : 'transparent' }}
+                onMouseEnter={() => setFocusedIndex(idx)}
+                onClick={() => toggle(task)}
+              >
+                <span className="text-xs truncate flex-1" style={{ color: colors.text }}>
+                  {task.title}
+                </span>
+                {task.status && (
+                  <span className="text-[10px] shrink-0" style={{ color: colors.muted }}>
+                    {task.status}
+                  </span>
+                )}
+                {isSelected && <Check size={14} style={{ color: colors.primary }} />}
+              </button>
+            );
+          })}
+        </div>
+        {selected.length > 0 && (
+          <>
+            <div style={{ height: 1, backgroundColor: colors.border }} />
+            <button
+              className="w-full text-left px-3 py-1.5 text-xs transition-colors shrink-0"
+              style={{ color: colors.muted }}
+              onClick={() => { setSelected([]); onCommit([]); }}
+            >
+              Clear
+            </button>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function getCellEditor(uiType: string) {
   switch (uiType) {
     case 'SingleLineText':
@@ -1361,6 +1488,8 @@ export function getCellEditor(uiType: string) {
       return LongTextCellEditor;
     case 'User':
       return UserCellEditor;
+    case 'LinkedTasks':
+      return LinkedTasksCellEditor;
     case 'Button':
       return null;
     case 'Checkbox':

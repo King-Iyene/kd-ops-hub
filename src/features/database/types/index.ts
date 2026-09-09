@@ -32,7 +32,8 @@ export type UIType =
   | 'JSON'
   | 'Barcode'
   | 'Button'
-  | 'User';
+  | 'User'
+  | 'LinkedTasks';
 
 export interface Workspace {
   id: string;
@@ -254,6 +255,7 @@ export const UI_TYPE_TO_PG_TYPE: Record<string, string> = {
   JSON: 'JSONB',
   Barcode: 'TEXT',
   User: "JSONB DEFAULT '[]'::jsonb",
+  LinkedTasks: "JSONB DEFAULT '[]'::jsonb",
 };
 
 export const VIRTUAL_TYPES: UIType[] = [
@@ -548,4 +550,5 @@ export const OPERATORS_BY_TYPE: Partial<Record<UIType, FilterOperator[]>> = {
   Count: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isEmpty', 'isNotEmpty'],
   Formula: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
   User: ['is', 'isNot', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
+  LinkedTasks: ['contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
 };

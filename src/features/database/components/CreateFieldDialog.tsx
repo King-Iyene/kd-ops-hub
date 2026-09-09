@@ -62,6 +62,7 @@ const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
   { value: 'Count', label: 'Count', group: 'Computed' },
   { value: 'User', label: 'People', group: 'Relations' },
   { value: 'Links', label: 'Links', group: 'Relations' },
+  { value: 'LinkedTasks', label: 'Linked Tasks', group: 'Relations' },
   { value: 'Attachment', label: 'Attachment', group: 'Other' },
   { value: 'JSON', label: 'JSON', group: 'Other' },
   { value: 'Button', label: 'Button', group: 'Other' },
