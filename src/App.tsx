@@ -99,6 +99,7 @@ const DatabasePage      = lazy(() => import('./features/database/pages/DatabaseP
 const SharedViewPage    = lazy(() => import('./features/database/pages/SharedViewPage'));
 const FlexTables        = lazy(() => import('./pages/FlexTables'));
 const FlexFormPublic    = lazy(() => import('./pages/FlexFormPublic'));
+const Developer         = lazy(() => import('./pages/Developer'));
 
 // Kept deliberately conservative on staleTime — this app moves money, and a
 // stale balance shown to an approver is worse than an extra network round
@@ -819,6 +820,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <ApprovalWorkflows />
+            </RoleGuard>
+          }
+        />
+
+        {/* Developer Hub — Admin + Super Admin. */}
+        <Route
+          path="/developer"
+          element={
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
+              <Developer />
             </RoleGuard>
           }
         />
