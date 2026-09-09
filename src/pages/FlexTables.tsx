@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Plus, Table2, Trash2, Loader2, MoreHorizontal,
+  Plus, Table2, Trash2, Loader2, MoreHorizontal, EyeOff,
   Type, AlignLeft, Hash, CalendarDays, CheckSquare, ListChecks,
   User, Users, Link2, AtSign, Phone, Globe, Copy, FileText, Check,
 } from 'lucide-react';
@@ -67,6 +67,8 @@ export default function FlexTables() {
   const [fieldDialog, setFieldDialog] = useState<FlexField | 'new' | null>(null);
   const [formDialog, setFormDialog] = useState<FlexForm | 'new' | null>(null);
   const [pendingDeleteTable, setPendingDeleteTable] = useState<FlexTable | null>(null);
+  const [renamingTable, setRenamingTable] = useState<FlexTable | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   const loadTables = useCallback(async () => {
     setLoadingTables(true);
@@ -115,6 +117,15 @@ export default function FlexTables() {
     if (data) setSelectedTable(data as FlexTable);
   };
 
+  const renameTable = async () => {
+    if (!renamingTable || !renameValue.trim()) return;
+    const { error } = await flexApi.updateTable(renamingTable.id, { name: renameValue.trim() });
+    if (error) { toast({ title: 'Rename failed', description: error.message, variant: 'destructive' }); return; }
+    setTables((prev) => prev.map((t) => (t.id === renamingTable.id ? { ...t, name: renameValue.trim() } : t)));
+    if (selectedTable?.id === renamingTable.id) setSelectedTable((prev) => (prev ? { ...prev, name: renameValue.trim() } : prev));
+    setRenamingTable(null);
+  };
+
   const confirmDeleteTable = async () => {
     if (!pendingDeleteTable) return;
     const { error } = await flexApi.deleteTable(pendingDeleteTable.id);
@@ -150,6 +161,13 @@ export default function FlexTables() {
     setFields((prev) => prev.filter((f) => f.id !== fieldId));
   };
 
+  const toggleFieldHidden = async (field: FlexField) => {
+    const nextOptions = { ...field.options, hidden: !field.options.hidden };
+    const { error } = await flexApi.updateField(field.id, { options: nextOptions });
+    if (error) { toast({ title: 'Failed to update field', description: error.message, variant: 'destructive' }); return; }
+    setFields((prev) => prev.map((f) => (f.id === field.id ? { ...f, options: nextOptions } : f)));
+  };
+
   const profilesById = useMemo(() => new Map(profiles.map((p) => [p.id, p])), [profiles]);
   const tasksById = useMemo(() => new Map(tasksList.map((t) => [t.id, t])), [tasksList]);
 
@@ -182,13 +200,22 @@ export default function FlexTables() {
                     <Table2 className="h-3.5 w-3.5 shrink-0" style={{ color: t.color }} />
                     <span className="flex-1 truncate">{t.name}</span>
                   </button>
-                  <button
-                    className="h-6 w-6 shrink-0 rounded-md opacity-0 group-hover:opacity-100 flex items-center justify-center text-muted-foreground hover:text-destructive"
-                    onClick={(e) => { e.stopPropagation(); setPendingDeleteTable(t); }}
-                    aria-label="Delete table"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="h-6 w-6 shrink-0 rounded-md opacity-0 group-hover:opacity-100 flex items-center justify-center text-muted-foreground hover:text-foreground"
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label="Table options"
+                      >
+                        <MoreHorizontal className="h-3.5 w-3.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenuItem onClick={() => { setRenamingTable(t); setRenameValue(t.name); }}>Rename</DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-destructive" onClick={() => setPendingDeleteTable(t)}>Delete</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               ))}
             </div>
@@ -247,6 +274,7 @@ export default function FlexTables() {
                 onAddField={() => setFieldDialog('new')}
                 onEditField={(f) => setFieldDialog(f)}
                 onDeleteField={deleteField}
+                onToggleFieldHidden={toggleFieldHidden}
               />
             ) : (
               <FormsView
@@ -276,6 +304,18 @@ export default function FlexTables() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setNewTableDialog(false)}>Cancel</Button>
             <Button onClick={createTable} disabled={!newTableName.trim()}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename table */}
+      <Dialog open={!!renamingTable} onOpenChange={(v) => { if (!v) setRenamingTable(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Rename table</DialogTitle></DialogHeader>
+          <Input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') renameTable(); }} autoFocus />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRenamingTable(null)}>Cancel</Button>
+            <Button onClick={renameTable} disabled={!renameValue.trim()}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -328,7 +368,7 @@ export default function FlexTables() {
 // ─── Grid ──────────────────────────────────────────────────────────────
 
 function GridView({
-  fields, records, profilesById, tasksById, onAddRow, onDeleteRow, onUpdateCell, onAddField, onEditField, onDeleteField,
+  fields, records, profilesById, tasksById, onAddRow, onDeleteRow, onUpdateCell, onAddField, onEditField, onDeleteField, onToggleFieldHidden,
 }: {
   fields: FlexField[];
   records: FlexRecord[];
@@ -340,6 +380,7 @@ function GridView({
   onAddField: () => void;
   onEditField: (f: FlexField) => void;
   onDeleteField: (id: string) => void;
+  onToggleFieldHidden: (f: FlexField) => void;
 }) {
   if (fields.length === 0) {
     return (
@@ -350,60 +391,87 @@ function GridView({
     );
   }
 
+  const visibleFields = fields.filter((f) => !f.options.hidden);
+  const hiddenFields = fields.filter((f) => f.options.hidden);
+
   return (
-    <div className="overflow-x-auto border border-border rounded-lg">
-      <table className="w-full text-sm border-collapse">
-        <thead>
-          <tr className="bg-muted/40">
-            <th className="w-8" />
-            {fields.map((f) => {
-              const Icon = FIELD_ICONS[f.type];
-              return (
-                <th key={f.id} className="text-left px-3 py-2 border-b border-border min-w-[160px]">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                      <Icon className="h-3.5 w-3.5" /> {f.name}
-                    </span>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="text-muted-foreground hover:text-foreground"><MoreHorizontal className="h-3.5 w-3.5" /></button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onEditField(f)}>Edit field</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive" onClick={() => onDeleteField(f.id)}>Delete field</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+    <div>
+      {hiddenFields.length > 0 && (
+        <div className="flex justify-end mb-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5">
+                <EyeOff className="h-3.5 w-3.5" /> {hiddenFields.length} hidden field{hiddenFields.length !== 1 ? 's' : ''}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2" align="end">
+              <div className="space-y-1">
+                {hiddenFields.map((f) => (
+                  <div key={f.id} className="flex items-center justify-between px-2 py-1 rounded hover:bg-muted/40">
+                    <span className="text-xs truncate">{f.name}</span>
+                    <button className="text-[11px] text-primary hover:underline shrink-0" onClick={() => onToggleFieldHidden(f)}>Show</button>
                   </div>
-                </th>
-              );
-            })}
-            <th className="w-10 px-2">
-              <button onClick={onAddField} className="text-muted-foreground hover:text-foreground" aria-label="Add field"><Plus className="h-4 w-4" /></button>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {records.map((r) => (
-            <tr key={r.id} className="group hover:bg-muted/20">
-              <td className="px-2 text-center border-b border-border/60">
-                <button onClick={() => onDeleteRow(r.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive" aria-label="Delete row">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </td>
-              {fields.map((f) => (
-                <td key={f.id} className="px-1 py-1 border-b border-border/60 align-top">
-                  <Cell field={f} value={r.data[f.id]} profilesById={profilesById} tasksById={tasksById} onChange={(v) => onUpdateCell(r, f.id, v)} />
-                </td>
-              ))}
-              <td className="border-b border-border/60" />
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+      <div className="overflow-x-auto border border-border rounded-lg">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="bg-muted/40">
+              <th className="w-8" />
+              {visibleFields.map((f) => {
+                const Icon = FIELD_ICONS[f.type];
+                return (
+                  <th key={f.id} className="text-left px-3 py-2 border-b border-border min-w-[160px]">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <Icon className="h-3.5 w-3.5" /> {f.name}
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="text-muted-foreground hover:text-foreground"><MoreHorizontal className="h-3.5 w-3.5" /></button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => onEditField(f)}>Edit field</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onToggleFieldHidden(f)}>Hide field</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-destructive" onClick={() => onDeleteField(f.id)}>Delete field</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </th>
+                );
+              })}
+              <th className="w-10 px-2">
+                <button onClick={onAddField} className="text-muted-foreground hover:text-foreground" aria-label="Add field"><Plus className="h-4 w-4" /></button>
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <button onClick={onAddRow} className="flex items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 w-full transition-colors">
-        <Plus className="h-3.5 w-3.5" /> Add row
-      </button>
+          </thead>
+          <tbody>
+            {records.map((r) => (
+              <tr key={r.id} className="group hover:bg-muted/20">
+                <td className="px-2 text-center border-b border-border/60">
+                  <button onClick={() => onDeleteRow(r.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive" aria-label="Delete row">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </td>
+                {visibleFields.map((f) => (
+                  <td key={f.id} className="px-1 py-1 border-b border-border/60 align-top">
+                    <Cell field={f} value={r.data[f.id]} profilesById={profilesById} tasksById={tasksById} onChange={(v) => onUpdateCell(r, f.id, v)} />
+                  </td>
+                ))}
+                <td className="border-b border-border/60" />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <button onClick={onAddRow} className="flex items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 w-full transition-colors">
+          <Plus className="h-3.5 w-3.5" /> Add row
+        </button>
+      </div>
     </div>
   );
 }
@@ -828,6 +896,24 @@ function FormBuilderDialog({
                           </SelectContent>
                         </Select>
                       )}
+                    </div>
+                  )}
+
+                  {included && f.type === 'task_link' && (
+                    <div className="flex items-center gap-2 pl-6">
+                      <span className="text-[11px] text-muted-foreground shrink-0">Only show tasks assigned to</span>
+                      <Select
+                        value={entry!.filterByPersonField || '__none__'}
+                        onValueChange={(v) => updateEntry(f.id, { filterByPersonField: v === '__none__' ? null : v })}
+                      >
+                        <SelectTrigger className="h-7 text-xs flex-1"><SelectValue placeholder="Whole list" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">No filter</SelectItem>
+                          {fields.filter((s) => s.type === 'person').map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                 </div>

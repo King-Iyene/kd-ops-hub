@@ -124,7 +124,14 @@ export default function FlexFormPublic() {
                 <label className="text-sm font-medium mb-1.5 block">
                   {field.name}{entry.required && <span className="text-destructive"> *</span>}
                 </label>
-                <FieldInput field={field} value={values[field.id]} onChange={(v) => setValue(field.id, v)} />
+                <FieldInput
+                  field={field}
+                  value={values[field.id]}
+                  onChange={(v) => setValue(field.id, v)}
+                  token={token!}
+                  hasPersonFilter={!!entry.filterByPersonField}
+                  personId={entry.filterByPersonField ? (values[entry.filterByPersonField] as string | undefined) : undefined}
+                />
               </div>
             );
           })}
@@ -140,7 +147,14 @@ export default function FlexFormPublic() {
   );
 }
 
-function FieldInput({ field, value, onChange }: { field: PublicField; value: unknown; onChange: (v: unknown) => void }) {
+function FieldInput({ field, value, onChange, token, personId, hasPersonFilter }: {
+  field: PublicField;
+  value: unknown;
+  onChange: (v: unknown) => void;
+  token: string;
+  personId?: string;
+  hasPersonFilter: boolean;
+}) {
   switch (field.type) {
     case 'long_text':
       return <Textarea rows={4} value={(value as string) || ''} onChange={(e) => onChange(e.target.value)} />;
@@ -201,8 +215,51 @@ function FieldInput({ field, value, onChange }: { field: PublicField; value: unk
       );
     }
     case 'task_link':
-      return <p className="text-xs text-muted-foreground italic">Linked tasks aren't editable from this form.</p>;
+      if (!hasPersonFilter) {
+        return <p className="text-xs text-muted-foreground italic">Linked tasks aren't editable from this form.</p>;
+      }
+      return <TaskLinkPicker token={token} personId={personId} value={value} onChange={onChange} />;
     default:
       return <Input value={(value as string) || ''} onChange={(e) => onChange(e.target.value)} />;
   }
+}
+
+function TaskLinkPicker({ token, personId, value, onChange }: {
+  token: string;
+  personId?: string;
+  value: unknown;
+  onChange: (v: unknown) => void;
+}) {
+  const [options, setOptions] = useState<{ id: string; title: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!personId) { setOptions([]); return; }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const { data } = await flexApi.getFormTasks(token, personId);
+      if (!cancelled) {
+        setOptions((data as { id: string; title: string }[]) || []);
+        setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [token, personId]);
+
+  if (!personId) return <p className="text-xs text-muted-foreground italic">Select a name above to see their open tasks.</p>;
+  if (loading) return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
+  if (options.length === 0) return <p className="text-xs text-muted-foreground italic">No open tasks assigned to this person.</p>;
+
+  const ids = Array.isArray(value) ? (value as string[]) : [];
+  return (
+    <div className="space-y-1.5 border border-border rounded-md p-2.5 max-h-48 overflow-y-auto">
+      {options.map((t) => (
+        <label key={t.id} className="flex items-center gap-2 cursor-pointer">
+          <Checkbox checked={ids.includes(t.id)} onCheckedChange={(v) => onChange(v ? [...ids, t.id] : ids.filter((i) => i !== t.id))} />
+          <span className="text-sm">{t.title}</span>
+        </label>
+      ))}
+    </div>
+  );
 }

@@ -22,7 +22,11 @@ export const FLEX_FIELD_TYPES: { value: FlexFieldType; label: string }[] = [
 ];
 
 export interface FlexChoice { id: string; label: string; color: string; }
-export interface FlexFieldOptions { choices?: FlexChoice[]; }
+export interface FlexFieldOptions {
+  choices?: FlexChoice[];
+  /** Column-level hide in the grid — independent of any form's own field visibility. */
+  hidden?: boolean;
+}
 
 export interface FlexTable {
   id: string;
@@ -55,7 +59,15 @@ export interface FlexRecord {
 }
 
 export interface FlexFormFieldCondition { field_id: string; value: string; }
-export interface FlexFormField { field_id: string; required: boolean; condition: FlexFormFieldCondition | null; }
+export interface FlexFormField {
+  field_id: string;
+  required: boolean;
+  /** "Hide this field in this form" — independent of the grid's own hidden flag. */
+  condition: FlexFormFieldCondition | null;
+  /** For task_link fields: restrict the picker to tasks assigned to whichever
+   *  person is selected in this person-type field, excluding completed tasks. */
+  filterByPersonField?: string | null;
+}
 
 export interface FlexForm {
   id: string;
@@ -116,4 +128,6 @@ export const flexApi = {
   getPublicForm: (shareToken: string) => db.rpc('get_flex_form', { p_share_token: shareToken }),
   submitPublicForm: (shareToken: string, data: Record<string, unknown>) =>
     db.rpc('submit_flex_form', { p_share_token: shareToken, p_data: data }),
+  getFormTasks: (shareToken: string, personId: string) =>
+    db.rpc('get_flex_form_tasks', { p_share_token: shareToken, p_assignee_id: personId }),
 };
