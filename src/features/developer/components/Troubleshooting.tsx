@@ -571,7 +571,7 @@ const CHECKLIST_ITEMS = [
 
 /* ─── Main Component ─── */
 
-export default function Troubleshooting() {
+export default function Troubleshooting({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
   const [openItems, setOpenItems] = useState<Set<string>>(new Set());
@@ -807,27 +807,27 @@ export default function Troubleshooting() {
           </div>
           <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">Check these resources:</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 transition-colors text-left">
+            <button onClick={() => onNavigate?.('reference')} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 transition-colors text-left">
               <Code2 size={14} className="text-blue-500" />
               <span className="text-sm text-zinc-700 dark:text-zinc-300">API Reference</span>
               <ExternalLink size={10} className="ml-auto text-zinc-400" />
             </button>
-            <button className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 transition-colors text-left">
+            <button onClick={() => onNavigate?.('explorer')} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 transition-colors text-left">
               <Terminal size={14} className="text-emerald-500" />
               <span className="text-sm text-zinc-700 dark:text-zinc-300">API Explorer</span>
               <ExternalLink size={10} className="ml-auto text-zinc-400" />
             </button>
-            <button className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 transition-colors text-left">
+            <button onClick={() => onNavigate?.('guides')} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 transition-colors text-left">
               <Zap size={14} className="text-amber-500" />
               <span className="text-sm text-zinc-700 dark:text-zinc-300">Integration Guides</span>
               <ExternalLink size={10} className="ml-auto text-zinc-400" />
             </button>
             <a
-              href="mailto:support@kdsquares.com"
+              href="mailto:code@kdsquares.com"
               className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 transition-colors text-left"
             >
               <HelpCircle size={14} className="text-purple-500" />
-              <span className="text-sm text-zinc-700 dark:text-zinc-300">Contact support@kdsquares.com</span>
+              <span className="text-sm text-zinc-700 dark:text-zinc-300">Contact code@kdsquares.com</span>
               <ExternalLink size={10} className="ml-auto text-zinc-400" />
             </a>
           </div>

@@ -111,7 +111,7 @@ export function DeveloperHub() {
                 <ModuleGuides />
               </TabsContent>
               <TabsContent value="troubleshooting" className="mt-0">
-                <Troubleshooting />
+                <Troubleshooting onNavigate={setActiveTab} />
               </TabsContent>
             </Suspense>
           </div>
