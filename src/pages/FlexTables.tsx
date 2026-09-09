@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Plus, Table2, Trash2, Loader2, MoreHorizontal, EyeOff,
+  Plus, Table2, Trash2, Loader2, MoreHorizontal, EyeOff, ListFilter,
   Type, AlignLeft, Hash, CalendarDays, CheckSquare, ListChecks,
   User, Users, Link2, AtSign, Phone, Globe, Copy, FileText, Check, Sigma,
 } from 'lucide-react';
@@ -92,6 +92,95 @@ function buildFormulaScope(
     }
   }
   return scope;
+}
+
+/** Resolves any field's raw stored value to a plain display string, used
+ *  for grouping and filtering (both need a comparable, human-readable key
+ *  regardless of the field's underlying shape). */
+function resolveDisplayValue(
+  field: FlexField,
+  value: unknown,
+  profilesById: Map<string, ProfileLite>,
+  tasksById: Map<string, TaskLite>,
+): string {
+  if (value === undefined || value === null || value === '') return '(Empty)';
+  switch (field.type) {
+    case 'checkbox':
+      return value ? 'Checked' : 'Unchecked';
+    case 'select':
+      return field.options.choices?.find((c) => c.id === value)?.label || '(Empty)';
+    case 'multi_select': {
+      const ids = Array.isArray(value) ? (value as string[]) : [];
+      const labels = ids.map((id) => field.options.choices?.find((c) => c.id === id)?.label).filter(Boolean);
+      return labels.length ? labels.join(', ') : '(Empty)';
+    }
+    case 'person':
+      return profilesById.get(value as string)?.full_name || '(Empty)';
+    case 'multi_person': {
+      const ids = Array.isArray(value) ? (value as string[]) : [];
+      const names = ids.map((id) => profilesById.get(id)?.full_name).filter(Boolean);
+      return names.length ? names.join(', ') : '(Empty)';
+    }
+    case 'task_link': {
+      const ids = Array.isArray(value) ? (value as string[]) : [];
+      const titles = ids.map((id) => tasksById.get(id)?.title).filter(Boolean);
+      return titles.length ? titles.join(', ') : '(Empty)';
+    }
+    default:
+      return String(value);
+  }
+}
+
+type FilterOp = 'contains' | 'not_contains' | 'is' | 'is_not' | 'is_empty' | 'is_not_empty' | 'gt' | 'lt' | 'gte' | 'lte';
+
+interface FlexFilter { id: string; fieldId: string; operator: FilterOp; value: string; }
+
+function operatorsForField(field: FlexField | undefined): { value: FilterOp; label: string }[] {
+  if (field?.type === 'number') {
+    return [
+      { value: 'is', label: '=' }, { value: 'is_not', label: '≠' },
+      { value: 'gt', label: '>' }, { value: 'gte', label: '≥' },
+      { value: 'lt', label: '<' }, { value: 'lte', label: '≤' },
+      { value: 'is_empty', label: 'is empty' }, { value: 'is_not_empty', label: 'is not empty' },
+    ];
+  }
+  return [
+    { value: 'contains', label: 'contains' },
+    { value: 'not_contains', label: 'does not contain' },
+    { value: 'is', label: 'is' },
+    { value: 'is_not', label: 'is not' },
+    { value: 'is_empty', label: 'is empty' },
+    { value: 'is_not_empty', label: 'is not empty' },
+  ];
+}
+
+function filterMatches(
+  field: FlexField,
+  rawValue: unknown,
+  filter: FlexFilter,
+  profilesById: Map<string, ProfileLite>,
+  tasksById: Map<string, TaskLite>,
+): boolean {
+  const display = resolveDisplayValue(field, rawValue, profilesById, tasksById);
+  const isEmpty = display === '(Empty)';
+  switch (filter.operator) {
+    case 'is_empty': return isEmpty;
+    case 'is_not_empty': return !isEmpty;
+    case 'contains': return display.toLowerCase().includes(filter.value.toLowerCase());
+    case 'not_contains': return !display.toLowerCase().includes(filter.value.toLowerCase());
+    case 'is': return display.toLowerCase() === filter.value.toLowerCase();
+    case 'is_not': return display.toLowerCase() !== filter.value.toLowerCase();
+    case 'gt': case 'lt': case 'gte': case 'lte': {
+      const n = typeof rawValue === 'number' ? rawValue : parseFloat(String(rawValue));
+      const target = parseFloat(filter.value);
+      if (isNaN(n) || isNaN(target)) return false;
+      if (filter.operator === 'gt') return n > target;
+      if (filter.operator === 'lt') return n < target;
+      if (filter.operator === 'gte') return n >= target;
+      return n <= target;
+    }
+    default: return true;
+  }
 }
 
 const CHOICE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#64748b'];
@@ -216,6 +305,25 @@ export default function FlexTables() {
     setFields((prev) => prev.filter((f) => f.id !== fieldId));
   };
 
+  const reorderFields = async (draggedId: string, targetId: string) => {
+    if (draggedId === targetId) return;
+    const visible = fields.filter((f) => !f.options.hidden);
+    const hidden = fields.filter((f) => f.options.hidden);
+    const fromIdx = visible.findIndex((f) => f.id === draggedId);
+    const toIdx = visible.findIndex((f) => f.id === targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const reordered = [...visible];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    const combined = [...reordered, ...hidden].map((f, i) => ({ ...f, sort_order: i }));
+    setFields(combined);
+    await Promise.all(
+      combined
+        .filter((f, i) => fields.find((x) => x.id === f.id)?.sort_order !== i)
+        .map((f) => flexApi.updateField(f.id, { sort_order: f.sort_order })),
+    );
+  };
+
   const toggleFieldHidden = async (field: FlexField) => {
     const nextOptions = { ...field.options, hidden: !field.options.hidden };
     const { error } = await flexApi.updateField(field.id, { options: nextOptions });
@@ -330,6 +438,7 @@ export default function FlexTables() {
                 onEditField={(f) => setFieldDialog(f)}
                 onDeleteField={deleteField}
                 onToggleFieldHidden={toggleFieldHidden}
+                onReorderFields={reorderFields}
               />
             ) : (
               <FormsView
@@ -424,7 +533,7 @@ export default function FlexTables() {
 // ─── Grid ──────────────────────────────────────────────────────────────
 
 function GridView({
-  fields, records, profilesById, tasksById, onAddRow, onDeleteRow, onUpdateCell, onAddField, onEditField, onDeleteField, onToggleFieldHidden,
+  fields, records, profilesById, tasksById, onAddRow, onDeleteRow, onUpdateCell, onAddField, onEditField, onDeleteField, onToggleFieldHidden, onReorderFields,
 }: {
   fields: FlexField[];
   records: FlexRecord[];
@@ -437,11 +546,17 @@ function GridView({
   onEditField: (f: FlexField) => void;
   onDeleteField: (id: string) => void;
   onToggleFieldHidden: (f: FlexField) => void;
+  onReorderFields: (draggedId: string, targetId: string) => void;
 }) {
   const DEFAULT_COL_WIDTH = 160;
   const MIN_COL_WIDTH = 90;
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const resizingRef = useRef<{ fieldId: string; startX: number; startWidth: number } | null>(null);
+  const [dragFieldId, setDragFieldId] = useState<string | null>(null);
+  const [groupByField, setGroupByField] = useState<string>('__none__');
+  const [subGroupByField, setSubGroupByField] = useState<string>('__none__');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [filters, setFilters] = useState<FlexFilter[]>([]);
 
   const startResize = useCallback((fieldId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -463,6 +578,52 @@ function GridView({
     window.addEventListener('mouseup', onUp);
   }, [colWidths]);
 
+  const visibleFields = fields.filter((f) => !f.options.hidden);
+  const hiddenFields = fields.filter((f) => f.options.hidden);
+  const groupableFields = visibleFields.filter((f) => f.type !== 'formula');
+  const groupByFieldObj = groupableFields.find((f) => f.id === groupByField) || null;
+  const subGroupByFieldObj = groupByFieldObj ? groupableFields.filter((f) => f.id !== groupByField).find((f) => f.id === subGroupByField) || null : null;
+
+  const filteredRecords = useMemo(() => {
+    if (filters.length === 0) return records;
+    return records.filter((r) => filters.every((f) => {
+      const field = fields.find((x) => x.id === f.fieldId);
+      if (!field) return true;
+      return filterMatches(field, r.data[f.fieldId], f, profilesById, tasksById);
+    }));
+  }, [records, filters, fields, profilesById, tasksById]);
+
+  const groupedRows = useMemo(() => {
+    if (!groupByFieldObj) return null;
+    const groups = new Map<string, { key: string; records: FlexRecord[]; subgroups: Map<string, FlexRecord[]> | null }>();
+    for (const r of filteredRecords) {
+      const key = resolveDisplayValue(groupByFieldObj, r.data[groupByFieldObj.id], profilesById, tasksById);
+      if (!groups.has(key)) groups.set(key, { key, records: [], subgroups: subGroupByFieldObj ? new Map() : null });
+      const g = groups.get(key)!;
+      g.records.push(r);
+      if (subGroupByFieldObj) {
+        const subKey = resolveDisplayValue(subGroupByFieldObj, r.data[subGroupByFieldObj.id], profilesById, tasksById);
+        if (!g.subgroups!.has(subKey)) g.subgroups!.set(subKey, []);
+        g.subgroups!.get(subKey)!.push(r);
+      }
+    }
+    return Array.from(groups.values()).sort((a, b) => a.key.localeCompare(b.key));
+  }, [filteredRecords, groupByFieldObj, subGroupByFieldObj, profilesById, tasksById]);
+
+  const toggleGroup = (key: string) => setCollapsedGroups((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
+  const addFilter = () => {
+    const first = fields[0];
+    if (!first) return;
+    setFilters((prev) => [...prev, { id: crypto.randomUUID(), fieldId: first.id, operator: operatorsForField(first)[0].value, value: '' }]);
+  };
+  const updateFilter = (id: string, patch: Partial<FlexFilter>) => setFilters((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  const removeFilter = (id: string) => setFilters((prev) => prev.filter((f) => f.id !== id));
+
   if (fields.length === 0) {
     return (
       <div className="text-center py-12">
@@ -472,13 +633,84 @@ function GridView({
     );
   }
 
-  const visibleFields = fields.filter((f) => !f.options.hidden);
-  const hiddenFields = fields.filter((f) => f.options.hidden);
+  const colSpan = visibleFields.length + 2;
+
+  const renderRow = (r: FlexRecord) => (
+    <tr key={r.id} className="group hover:bg-muted/20">
+      <td className="px-2 text-center border-b border-border/60">
+        <button onClick={() => onDeleteRow(r.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive" aria-label="Delete row">
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </td>
+      {visibleFields.map((f) => (
+        <td key={f.id} className="px-1 py-1 border-b border-border/60 align-top overflow-hidden">
+          <Cell field={f} value={r.data[f.id]} record={r} allFields={fields} profilesById={profilesById} tasksById={tasksById} onChange={(v) => onUpdateCell(r, f.id, v)} />
+        </td>
+      ))}
+      <td className="border-b border-border/60" />
+    </tr>
+  );
 
   return (
     <div>
-      {hiddenFields.length > 0 && (
-        <div className="flex justify-end mb-2">
+      <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={groupByField} onValueChange={(v) => { setGroupByField(v); setSubGroupByField('__none__'); }}>
+            <SelectTrigger className="h-7 w-[150px] text-xs"><SelectValue placeholder="Group by" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">No grouping</SelectItem>
+              {groupableFields.map((f) => <SelectItem key={f.id} value={f.id}>Group by {f.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          {groupByFieldObj && (
+            <Select value={subGroupByField} onValueChange={setSubGroupByField}>
+              <SelectTrigger className="h-7 w-[150px] text-xs"><SelectValue placeholder="Then by" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">No subgroup</SelectItem>
+                {groupableFields.filter((f) => f.id !== groupByField).map((f) => <SelectItem key={f.id} value={f.id}>Then by {f.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5">
+                <ListFilter className="h-3.5 w-3.5" /> Filter{filters.length > 0 ? ` (${filters.length})` : ''}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[420px] p-3" align="start">
+              <div className="space-y-2">
+                {filters.length === 0 && <p className="text-xs text-muted-foreground">No filters — showing all rows.</p>}
+                {filters.map((f) => {
+                  const field = fields.find((x) => x.id === f.fieldId);
+                  const ops = operatorsForField(field);
+                  const needsValue = f.operator !== 'is_empty' && f.operator !== 'is_not_empty';
+                  return (
+                    <div key={f.id} className="flex items-center gap-1.5">
+                      <Select value={f.fieldId} onValueChange={(v) => updateFilter(f.id, { fieldId: v, operator: operatorsForField(fields.find((x) => x.id === v))[0].value })}>
+                        <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {fields.filter((x) => x.type !== 'formula').map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Select value={f.operator} onValueChange={(v) => updateFilter(f.id, { operator: v as FilterOp })}>
+                        <SelectTrigger className="h-7 text-xs w-[130px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {ops.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      {needsValue && (
+                        <Input className="h-7 text-xs flex-1" value={f.value} onChange={(e) => updateFilter(f.id, { value: e.target.value })} placeholder="value" />
+                      )}
+                      <button onClick={() => removeFilter(f.id)} className="text-muted-foreground hover:text-destructive shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
+                    </div>
+                  );
+                })}
+                <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={addFilter}><Plus className="h-3 w-3" /> Add filter</Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+        {hiddenFields.length > 0 && (
           <Popover>
             <PopoverTrigger asChild>
               <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5">
@@ -496,8 +728,8 @@ function GridView({
               </div>
             </PopoverContent>
           </Popover>
-        </div>
-      )}
+        )}
+      </div>
       <div className="overflow-x-auto border border-border rounded-lg">
         <table className="w-full text-sm border-collapse" style={{ tableLayout: 'fixed' }}>
           <thead>
@@ -508,7 +740,12 @@ function GridView({
                 return (
                   <th
                     key={f.id}
-                    className="relative text-left px-3 py-2 border-b border-border"
+                    draggable
+                    onDragStart={() => setDragFieldId(f.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => { e.preventDefault(); if (dragFieldId) onReorderFields(dragFieldId, f.id); setDragFieldId(null); }}
+                    onDragEnd={() => setDragFieldId(null)}
+                    className={cn('relative text-left px-3 py-2 border-b border-border cursor-move', dragFieldId === f.id && 'opacity-40')}
                     style={{ width: colWidths[f.id] ?? DEFAULT_COL_WIDTH }}
                   >
                     <div className="flex items-center justify-between gap-1 min-w-0">
@@ -531,6 +768,7 @@ function GridView({
                     <div
                       className="absolute top-0 right-0 h-full w-2 cursor-col-resize hover:bg-primary/30 active:bg-primary/40"
                       onMouseDown={(e) => startResize(f.id, e)}
+                      draggable={false}
                     />
                   </th>
                 );
@@ -541,21 +779,36 @@ function GridView({
             </tr>
           </thead>
           <tbody>
-            {records.map((r) => (
-              <tr key={r.id} className="group hover:bg-muted/20">
-                <td className="px-2 text-center border-b border-border/60">
-                  <button onClick={() => onDeleteRow(r.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive" aria-label="Delete row">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </td>
-                {visibleFields.map((f) => (
-                  <td key={f.id} className="px-1 py-1 border-b border-border/60 align-top overflow-hidden">
-                    <Cell field={f} value={r.data[f.id]} record={r} allFields={fields} profilesById={profilesById} tasksById={tasksById} onChange={(v) => onUpdateCell(r, f.id, v)} />
-                  </td>
-                ))}
-                <td className="border-b border-border/60" />
-              </tr>
-            ))}
+            {groupedRows ? (
+              groupedRows.map((g) => (
+                <Fragment key={g.key}>
+                  <tr className="bg-muted/30">
+                    <td colSpan={colSpan} className="px-3 py-1.5 text-xs font-semibold cursor-pointer" onClick={() => toggleGroup(g.key)}>
+                      {collapsedGroups.has(g.key) ? '▸' : '▾'} {groupByFieldObj!.name}: {g.key} ({g.records.length})
+                    </td>
+                  </tr>
+                  {!collapsedGroups.has(g.key) && (
+                    g.subgroups
+                      ? Array.from(g.subgroups.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([subKey, subRecords]) => {
+                        const subGroupKey = `${g.key}::${subKey}`;
+                        return (
+                          <Fragment key={subGroupKey}>
+                            <tr className="bg-muted/15">
+                              <td colSpan={colSpan} className="px-3 py-1 pl-6 text-[11px] font-medium text-muted-foreground cursor-pointer" onClick={() => toggleGroup(subGroupKey)}>
+                                {collapsedGroups.has(subGroupKey) ? '▸' : '▾'} {subGroupByFieldObj?.name}: {subKey} ({subRecords.length})
+                              </td>
+                            </tr>
+                            {!collapsedGroups.has(subGroupKey) && subRecords.map(renderRow)}
+                          </Fragment>
+                        );
+                      })
+                      : g.records.map(renderRow)
+                  )}
+                </Fragment>
+              ))
+            ) : (
+              filteredRecords.map(renderRow)
+            )}
           </tbody>
         </table>
         <button onClick={onAddRow} className="flex items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 w-full transition-colors">
@@ -586,7 +839,7 @@ function Cell({
     const scope = buildFormulaScope(record, allFields, profilesById, tasksById);
     const result = evaluateFormula(field.options.formula || '', scope);
     return (
-      <div className="px-2 py-1.5 text-xs text-muted-foreground italic">
+      <div className="px-2 py-1.5 text-xs text-muted-foreground italic truncate whitespace-nowrap overflow-hidden">
         {isFormulaError(result) ? (
           <span className="text-destructive not-italic" title={result.error}>#ERROR</span>
         ) : (
@@ -608,35 +861,35 @@ function Cell({
       case 'multi_select': {
         const ids = Array.isArray(value) ? (value as string[]) : [];
         return (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex items-center gap-1 overflow-hidden whitespace-nowrap">
             {ids.map((id) => {
               const c = field.options.choices?.find((ch) => ch.id === id);
-              return c ? <Badge key={id} style={{ backgroundColor: `${c.color}22`, color: c.color }} className="border-0">{c.label}</Badge> : null;
+              return c ? <Badge key={id} style={{ backgroundColor: `${c.color}22`, color: c.color }} className="border-0 shrink-0">{c.label}</Badge> : null;
             })}
           </div>
         );
       }
       case 'person': {
         const p = profilesById.get(value as string);
-        return p ? <span className="text-xs">{p.full_name}</span> : null;
+        return p ? <span className="text-xs truncate block">{p.full_name}</span> : null;
       }
       case 'multi_person': {
         const ids = Array.isArray(value) ? (value as string[]) : [];
-        return <span className="text-xs">{ids.map((id) => profilesById.get(id)?.full_name).filter(Boolean).join(', ')}</span>;
+        return <span className="text-xs truncate block">{ids.map((id) => profilesById.get(id)?.full_name).filter(Boolean).join(', ')}</span>;
       }
       case 'task_link': {
         const ids = Array.isArray(value) ? (value as string[]) : [];
         return (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex items-center gap-1 overflow-hidden whitespace-nowrap">
             {ids.map((id) => {
               const t = tasksById.get(id);
-              return t ? <Badge key={id} variant="secondary" className="max-w-[140px] truncate">{t.title}</Badge> : null;
+              return t ? <Badge key={id} variant="secondary" className="max-w-[140px] truncate shrink-0">{t.title}</Badge> : null;
             })}
           </div>
         );
       }
       default:
-        return <span className="text-xs whitespace-pre-wrap">{String(value)}</span>;
+        return <span className="text-xs truncate block">{String(value)}</span>;
     }
   };
 
@@ -665,7 +918,7 @@ function Cell({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button className="w-full text-left px-2 py-1.5 rounded hover:bg-muted/40 min-h-[32px]">{display()}</button>
+        <button className="w-full text-left px-2 py-1.5 rounded hover:bg-muted/40 min-h-[32px] overflow-hidden whitespace-nowrap block">{display()}</button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-3" align="start">
         {field.type === 'long_text' && (
