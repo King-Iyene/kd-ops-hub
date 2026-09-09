@@ -142,7 +142,7 @@ export const ALL_NAV: NavItem[] = [
   // Workspace
   { title: 'Tasks',            url: '/tasks',             icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Goals',            url: '/goals',             icon: Target,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
-  { title: 'Tables',           url: '/data',              icon: Table2,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Tables',           url: '/flex-tables',       icon: Table2,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Knowledge',        url: '/knowledge',         icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Documents',        url: '/documents',         icon: FileText,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Reports',          url: '/reports',           icon: BarChart3,       roles: ['super_admin', 'admin', 'finance'], permission: 'reports.view' },

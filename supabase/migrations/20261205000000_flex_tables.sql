@@ -95,7 +95,20 @@ BEGIN
     'table', json_build_object('id', t.id, 'name', t.name),
     'fields', COALESCE((
       SELECT json_agg(json_build_object(
-        'id', fl.id, 'name', fl.name, 'type', fl.type, 'options', fl.options
+        'id', fl.id, 'name', fl.name, 'type', fl.type,
+        -- Person/multi-person fields need a name list to render a picker
+        -- whose values line up with the ids the form's conditions were
+        -- built against. Only id + full_name are exposed — no email,
+        -- phone, or other profile data reaches the public form.
+        'options', CASE
+          WHEN fl.type IN ('person', 'multi_person') THEN
+            fl.options || jsonb_build_object('people', (
+              SELECT COALESCE(json_agg(json_build_object('id', pd.id, 'full_name', pd.full_name) ORDER BY pd.full_name), '[]'::json)
+              FROM public.profiles_directory pd
+              WHERE pd.is_anonymised = false AND pd.status IN ('active', 'invited')
+            ))
+          ELSE fl.options
+        END
       ) ORDER BY fl.sort_order)
       FROM public.flex_fields fl WHERE fl.table_id = f.table_id
     ), '[]'::json)
