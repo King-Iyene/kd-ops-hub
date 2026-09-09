@@ -13476,6 +13476,7 @@ export type Database = {
           project_id: string | null
           recurrence_next: string | null
           recurrence_rule: Json | null
+          recurrence_spawned: boolean
           sort_order: number
           start_date: string | null
           status: string
@@ -13504,6 +13505,7 @@ export type Database = {
           project_id?: string | null
           recurrence_next?: string | null
           recurrence_rule?: Json | null
+          recurrence_spawned?: boolean
           sort_order?: number
           start_date?: string | null
           status?: string
@@ -13532,6 +13534,7 @@ export type Database = {
           project_id?: string | null
           recurrence_next?: string | null
           recurrence_rule?: Json | null
+          recurrence_spawned?: boolean
           sort_order?: number
           start_date?: string | null
           status?: string
@@ -16893,6 +16896,7 @@ export type Database = {
         Returns: undefined
       }
       process_recurring_schedules: { Args: never; Returns: undefined }
+      process_task_recurrence_creation: { Args: never; Returns: undefined }
       purge_archived_payment_batches: {
         Args: { p_retention_days?: number }
         Returns: number
