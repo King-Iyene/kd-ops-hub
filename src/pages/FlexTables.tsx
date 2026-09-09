@@ -810,13 +810,13 @@ function GridView({
 
   const renderRow = (r: FlexRecord) => (
     <tr key={r.id} className="group hover:bg-muted/20">
-      <td className="px-2 text-center border-b border-border/60">
+      <td className="px-2 text-center border-r border-b border-border/60">
         <button onClick={() => onDeleteRow(r.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive" aria-label="Delete row">
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </td>
       {visibleFields.map((f) => (
-        <td key={f.id} className="px-1 py-1 border-b border-border/60 align-top overflow-hidden">
+        <td key={f.id} className="px-1 py-1 border-r border-b border-border/60 align-top overflow-hidden">
           <Cell field={f} value={r.data[f.id]} record={r} allFields={fields} profilesById={profilesById} tasksById={tasksById} onChange={(v) => onUpdateCell(r, f.id, v)} />
         </td>
       ))}
@@ -912,7 +912,7 @@ function GridView({
         <table className="w-full text-sm border-collapse" style={{ tableLayout: 'fixed' }}>
           <thead>
             <tr className="bg-muted/40">
-              <th className="w-8" />
+              <th className="w-8 border-r border-b border-border" />
               {visibleFields.map((f) => {
                 const Icon = FIELD_ICONS[f.type];
                 return (
@@ -923,7 +923,7 @@ function GridView({
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => { e.preventDefault(); if (dragFieldId) onReorderFields(dragFieldId, f.id); setDragFieldId(null); }}
                     onDragEnd={() => setDragFieldId(null)}
-                    className={cn('relative text-left px-3 py-2 border-b border-border cursor-move', dragFieldId === f.id && 'opacity-40')}
+                    className={cn('relative text-left px-3 py-2 border-r border-b border-border cursor-move', dragFieldId === f.id && 'opacity-40')}
                     style={{ width: colWidths[f.id] ?? DEFAULT_COL_WIDTH }}
                   >
                     <div className="flex items-center justify-between gap-1 min-w-0">
@@ -951,7 +951,7 @@ function GridView({
                   </th>
                 );
               })}
-              <th className="w-10 px-2">
+              <th className="w-10 px-2 border-b border-border">
                 <button onClick={onAddField} className="text-muted-foreground hover:text-foreground" aria-label="Add field"><Plus className="h-4 w-4" /></button>
               </th>
             </tr>
