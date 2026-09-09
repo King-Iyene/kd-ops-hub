@@ -1,13 +1,14 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import {
   CheckCircle2, MessageSquare, ChevronDown, ChevronUp,
-  ChevronRight, Square, CheckSquare, Minus, ArrowUpDown, MoreHorizontal,
+  ChevronRight, Square, CheckSquare, Minus, ArrowUpDown, MoreHorizontal, UserCog,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { formatDate, daysUntil } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -38,6 +39,8 @@ interface TaskListViewProps {
   spaces: Space[];
   folders: SpaceFolder[];
   lists: TaskList[];
+  canManageAccess?: boolean;
+  onManageAccess?: () => void;
 }
 
 const STATUS_ORDER: TaskStatus[] = ['open', 'in_progress', 'blocked', 'complete'];
@@ -53,7 +56,7 @@ const STATUS_ACCENT: Record<TaskStatus, string> = {
 export function TaskListView({
   tasks, profiles, availableTags, subtaskCounts, commentCounts,
   onTaskClick, onUpdate, selectedTasks, onToggleSelect, onSelectAll,
-  spaces, folders, lists,
+  spaces, folders, lists, canManageAccess, onManageAccess,
 }: TaskListViewProps) {
   const [groupBy, setGroupBy] = useState<GroupBy>('status');
   const [sortField, setSortField] = useState<SortField>('created_at');
@@ -163,6 +166,11 @@ export function TaskListView({
           </span>
         </div>
         <div className="flex items-center gap-2">
+          {canManageAccess && onManageAccess && (
+            <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={onManageAccess}>
+              <UserCog className="h-3.5 w-3.5" /> Manage Access
+            </Button>
+          )}
           <Select value={showCompleted ? 'show' : 'hide'} onValueChange={(v) => setShowCompleted(v === 'show')}>
             <SelectTrigger className="h-7 w-[136px] text-xs">
               <SelectValue />

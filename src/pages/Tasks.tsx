@@ -3,7 +3,7 @@ import {
   Plus, Search, Loader2, ListTodo, Flag,
   Check, X, Filter, Trash2, Target,
   User, ArrowRight, Download, CalendarDays, FileText,
-  LayoutGrid, List, GanttChart, Weight, BarChart3, Users, UserPlus,
+  LayoutGrid, List, GanttChart, Weight, BarChart3,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -135,9 +135,6 @@ const Tasks = () => {
   const [membersSpace, setMembersSpace] = useState<Space | null>(null);
   const [statusManagerSpace, setStatusManagerSpace] = useState<Space | null>(null);
 
-  // Folder access members
-  const [spaceMembers, setSpaceMembers] = useState<{ user_id: string; role: string }[]>([]);
-
   // Sidebar collapsed on mobile
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -221,22 +218,6 @@ const Tasks = () => {
   }, [tasks.length, PAGE_SIZE]);
 
   useEffect(() => { load(); }, [load]);
-
-  // Load space members when a folder is selected
-  useEffect(() => {
-    if (!selectedSpace) { setSpaceMembers([]); return; }
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from('space_members')
-        .select('user_id, role')
-        .eq('space_id', selectedSpace);
-      if (!cancelled) {
-        setSpaceMembers((data as { user_id: string; role: string }[]) || []);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [selectedSpace]);
 
   // Realtime subscription — auto-refresh when any task changes
   useEffect(() => {
@@ -783,30 +764,6 @@ const Tasks = () => {
     load();
   };
 
-  const toggleAllMembers = async () => {
-    if (!selectedSpace) return;
-    const allUsers = Array.from(profiles.values());
-    const currentSpace = spaces.find((s) => s.id === selectedSpace);
-    const nonOwnerUsers = allUsers.filter((p) => p.id !== currentSpace?.owner_id);
-    const allAdded = nonOwnerUsers.every((p) => spaceMembers.some((m) => m.user_id === p.id));
-    if (allAdded) {
-      await supabase.from('space_members').delete().eq('space_id', selectedSpace);
-      setSpaceMembers([]);
-      toast({ title: 'All members removed' });
-    } else {
-      const toAdd = nonOwnerUsers.filter((p) => !spaceMembers.some((m) => m.user_id === p.id));
-      if (toAdd.length > 0) {
-        const { error } = await supabase.from('space_members').insert(
-          toAdd.map((p) => ({ space_id: selectedSpace, user_id: p.id, role: 'member' as const, added_by: profile?.id || null })),
-        );
-        if (!error) {
-          setSpaceMembers((prev) => [...prev, ...toAdd.map((p) => ({ user_id: p.id, role: 'member' }))]);
-        }
-      }
-      toast({ title: 'All members added' });
-    }
-  };
-
   // ─── Folder / List CRUD ──────────────────────────────────────────────
 
   const handleCreateFolder = async (spaceId: string) => {
@@ -1158,37 +1115,6 @@ const Tasks = () => {
             </div>
           )}
 
-          {/* Folder Access — visible only to admins or the folder owner */}
-          {selectedSpace && (isAdmin || spaces.find((s) => s.id === selectedSpace)?.owner_id === profile?.id) && (
-            <div className="px-4 lg:px-6 py-2 border-b border-border/40">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <Users className="h-3.5 w-3.5" />
-                  Folder Access
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-muted-foreground">Add all</span>
-                  <Switch
-                    checked={(() => {
-                      const allUsers = Array.from(profiles.values());
-                      const currentSpace = spaces.find((s) => s.id === selectedSpace);
-                      const nonOwner = allUsers.filter((p) => p.id !== currentSpace?.owner_id);
-                      return nonOwner.length > 0 && nonOwner.every((p) => spaceMembers.some((m) => m.user_id === p.id));
-                    })()}
-                    onCheckedChange={toggleAllMembers}
-                    className="scale-75"
-                  />
-                  <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 px-2" onClick={() => {
-                    const sp = spaces.find((s) => s.id === selectedSpace);
-                    if (sp) setMembersSpace(sp);
-                  }}>
-                    <UserPlus className="h-3 w-3" /> Manage
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Active filter pills */}
           {activeFilters.length > 0 && currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && (
             <div className="flex items-center gap-1.5 px-4 lg:px-6 pb-2.5 flex-wrap">
@@ -1296,6 +1222,11 @@ const Tasks = () => {
               spaces={spaces}
               folders={folders}
               lists={taskLists}
+              canManageAccess={!!selectedSpace && (isAdmin || spaces.find((s) => s.id === selectedSpace)?.owner_id === profile?.id)}
+              onManageAccess={() => {
+                const sp = spaces.find((s) => s.id === selectedSpace);
+                if (sp) setMembersSpace(sp);
+              }}
             />
           ) : null}
 
