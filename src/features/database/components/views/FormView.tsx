@@ -22,6 +22,10 @@ interface FormViewProps {
   isLoading: boolean;
   view?: ViewMeta;
   isPublic?: boolean;
+  /** Share token of the public form, used to fetch picker options as anon. */
+  publicToken?: string;
+  /** Password entered for a password-protected shared form, if any. */
+  publicPassword?: string;
 }
 
 function getPillColor(colorName: string) {
@@ -73,12 +77,16 @@ function PeopleInput({
   field,
   value,
   onChange,
+  publicToken,
+  publicPassword,
 }: {
   field: FieldMeta;
   value: any;
   onChange: (v: any) => void;
+  publicToken?: string;
+  publicPassword?: string;
 }) {
-  const { data: users = [], isLoading } = useWorkspaceUsers();
+  const { data: users = [], isLoading } = useWorkspaceUsers(publicToken, publicPassword);
   const [search, setSearch] = useState('');
   const allowMultiple = !!field.options?.allowMultiple;
   const selected = normalizeUserValue(value);
@@ -160,11 +168,15 @@ function PeopleInput({
 function LinkedTasksInput({
   value,
   onChange,
+  publicToken,
+  publicPassword,
 }: {
   value: any;
   onChange: (v: any) => void;
+  publicToken?: string;
+  publicPassword?: string;
 }) {
-  const { data: tasks = [], isLoading } = usePlatformTasks();
+  const { data: tasks = [], isLoading } = usePlatformTasks(publicToken, publicPassword);
   const [search, setSearch] = useState('');
   const selected = normalizeLinkedTasks(value);
 
@@ -372,7 +384,7 @@ function conditionMatches(answer: any, target: string): boolean {
   return String(answer).trim().toLowerCase() === wanted;
 }
 
-export default function FormView({ fields, onAddRow, isLoading, view, isPublic }: FormViewProps) {
+export default function FormView({ fields, onAddRow, isLoading, view, isPublic, publicToken, publicPassword }: FormViewProps) {
   const updateView = useUpdateView();
   const formConfig: FormConfig = view?.form_config ?? {};
   const fieldConfigs = formConfig.field_configs ?? {};
@@ -647,6 +659,8 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
         return (
           <PeopleInput
             field={f}
+            publicToken={publicToken}
+            publicPassword={publicPassword}
             value={values[f.id]}
             onChange={(v) => { setValues((prev) => ({ ...prev, [f.id]: v })); setErrors((p) => { const n = { ...p }; delete n[f.id]; return n; }); }}
           />
@@ -654,6 +668,8 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
       case 'LinkedTasks':
         return (
           <LinkedTasksInput
+            publicToken={publicToken}
+            publicPassword={publicPassword}
             value={values[f.id]}
             onChange={(v) => { setValues((prev) => ({ ...prev, [f.id]: v })); setErrors((p) => { const n = { ...p }; delete n[f.id]; return n; }); }}
           />

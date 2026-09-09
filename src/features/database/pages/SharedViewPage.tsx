@@ -179,6 +179,8 @@ export default function SharedViewPage() {
           isLoading={addRowMutation.isPending}
           view={view}
           isPublic
+          publicToken={token}
+          publicPassword={passwordVerified ? password : undefined}
         />
       </div>
     );
