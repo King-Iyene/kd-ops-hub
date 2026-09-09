@@ -183,6 +183,9 @@ const Dashboard = () => {
   // and activity only, never anyone else's or company-wide totals.
   const isPersonal = profile?.role === 'field_staff' || profile?.role === 'operations';
   const isFinanceRole = ['admin', 'finance', 'super_admin'].includes(profile?.role || '');
+  // Activity (audit log — actions across other people's work) is visible
+  // only to super_admin/admin, on either dashboard variant.
+  const isAdminRole = profile?.role === 'super_admin' || profile?.role === 'admin';
   const approvalCounts = useApprovalStore((s) => s.counts);
   const refreshApprovals = useApprovalStore((s) => s.refresh);
 
@@ -205,7 +208,6 @@ const Dashboard = () => {
     pendingFuel: 0,
   });
   const [personalLoading, setPersonalLoading] = useState(false);
-  const [myActivity, setMyActivity] = useState<AuditLogRow[]>([]);
 
   // ── Expiry alerts (documents + compliance filings due within 30 days) ───────
   const [expiringDocs, setExpiringDocs] = useState<{ id: string; title: string; expires_at: string }[]>([]);
@@ -235,8 +237,7 @@ const Dashboard = () => {
         supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('assignee_id', profile.id).neq('status', 'complete'),
         supabase.from('fuel_requests').select('id', { count: 'exact', head: true }).eq('driver_id', profile.id).eq('status', 'pending'),
         supabase.from('leave_policies').select('default_days').eq('code', 'annual').eq('active', true).maybeSingle(),
-        supabase.from('audit_logs').select('id, action_type, description, performed_by_name, created_at').eq('performed_by', profile.id).order('created_at', { ascending: false }).limit(10),
-      ]).then(([expRes, leaveRes, taskRes, fuelRes, policyRes, activityRes]) => {
+      ]).then(([expRes, leaveRes, taskRes, fuelRes, policyRes]) => {
         const policyQuota = (policyRes.data as any)?.default_days ?? 21;
         const quota = (leaveRes.data as any)?.annual_quota ?? policyQuota;
         const used = (leaveRes.data as any)?.annual_used ?? 0;
@@ -246,7 +247,6 @@ const Dashboard = () => {
           assignedTasks: taskRes.count ?? 0,
           pendingFuel: fuelRes.count ?? 0,
         });
-        setMyActivity((activityRes.data as AuditLogRow[]) || []);
       }).catch((err) => console.error('[KDOps] personal KPI load failed:', err))
         .finally(() => setPersonalLoading(false));
     };
@@ -483,13 +483,35 @@ const Dashboard = () => {
   }
 
   if (isPersonal) {
+    const isOperations = profile?.role === 'operations';
+    // Quick links tailored to what each role actually has access to and
+    // uses day to day — Goals and other admin-only modules are deliberately
+    // left off since those roles have no route to them at all.
+    const quickLinks = isOperations
+      ? [
+          { label: 'Payments', icon: Layers, onClick: () => navigate('/payments'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
+          { label: 'Fleet', icon: Truck, onClick: () => navigate('/fleet'), iconBg: 'bg-sky-100 dark:bg-sky-900/30', iconColor: 'text-sky-600 dark:text-sky-400' },
+          { label: 'Clients', icon: Building2, onClick: () => navigate('/clients'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' },
+          { label: 'Timesheets', icon: CalendarClock, onClick: () => navigate('/timesheets'), iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400' },
+          { label: 'Leave', icon: CalendarDays, onClick: () => navigate('/leave'), iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Handbook', icon: FileText, onClick: () => navigate('/handbook'), iconBg: 'bg-rose-100 dark:bg-rose-900/25', iconColor: 'text-rose-600 dark:text-rose-400' },
+        ]
+      : [
+          { label: 'Fleet', icon: Truck, onClick: () => navigate('/fleet'), iconBg: 'bg-sky-100 dark:bg-sky-900/30', iconColor: 'text-sky-600 dark:text-sky-400' },
+          { label: 'Expenses', icon: Receipt, onClick: () => navigate('/expenses'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
+          { label: 'Leave', icon: CalendarDays, onClick: () => navigate('/leave'), iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Tasks', icon: CheckCircle, onClick: () => navigate('/tasks'), iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400' },
+          { label: 'Handbook', icon: FileText, onClick: () => navigate('/handbook'), iconBg: 'bg-rose-100 dark:bg-rose-900/25', iconColor: 'text-rose-600 dark:text-rose-400' },
+          { label: 'Knowledge', icon: BookOpen, onClick: () => navigate('/knowledge'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' },
+        ];
+
     return (
       <div className="space-y-4">
         {/* Greeting */}
         <AuroraHero className="p-5 sm:p-6" pattern="grid">
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="h-4 w-4 text-muted-foreground" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Personal Overview</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">My Overview</span>
           </div>
           <h1 className="kd-display text-3xl sm:text-4xl font-bold">{greeting}, {firstName}.</h1>
           <p className="text-sm text-muted-foreground mt-1.5">{todSubtitle[tod]}</p>
@@ -505,54 +527,37 @@ const Dashboard = () => {
           <StatCard title="Fuel Requests" value={personalLoading ? '—' : personalKPIs.pendingFuel} icon={Fuel} subtitle="Pending requests" tone="warning" onClick={() => navigate('/fleet')} />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <MyTasksWidget />
-          <MyGoalsWidget />
-        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div className="lg:col-span-8">
+            <MyTasksWidget />
+          </div>
 
-        {/* My Recent Activity — scoped to this user's own actions only,
-            never the company-wide audit log. */}
-        <Card className="overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
-            <CardTitle className="kd-section-title">My Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {personalLoading ? (
-              <div className="p-4 space-y-4">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full kd-skeleton shrink-0" />
-                    <div className="flex-1 space-y-1.5">
-                      <div className="h-3 w-36 kd-skeleton rounded" />
-                      <div className="h-2.5 w-56 kd-skeleton rounded" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : myActivity.length === 0 ? (
-              <EmptyState icon={Inbox} title="No recent activity" description="Your actions across the app will appear here." compact />
-            ) : (
-              <div className="divide-y divide-border/50">
-                {myActivity.map((item, i) => {
-                  const Icon = ICONS[item.action_type] || FileText;
-                  const toneCls = ACTION_TONE[item.action_type] ?? toneClass(toneFor(item.action_type));
-                  return (
-                    <div key={item.id} className={cn('flex items-start gap-3 px-4 py-3 hover:bg-muted/30 kd-transition', i === 0 && 'pt-4')}>
-                      <div className={cn('h-7 w-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5', toneCls)}>
-                        <Icon className="h-3.5 w-3.5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium leading-snug">{prettyType(item.action_type)}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{item.description}</p>
-                        <p className="text-[11px] text-muted-foreground/50 mt-1">{item.created_at ? formatDateTime(item.created_at) : ''}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          {/* Quick Links — scoped to modules this role actually has access
+              to; no company-wide data, just shortcuts to their own work. */}
+          <div className="lg:col-span-4">
+            <Card>
+              <CardHeader className="pb-3 border-b">
+                <CardTitle className="kd-section-title">Quick Links</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                <div className="grid grid-cols-3 gap-2">
+                  {quickLinks.map(({ label, icon: Icon, onClick, iconBg, iconColor }) => (
+                    <button
+                      key={label}
+                      onClick={onClick}
+                      className="group relative flex flex-col items-center gap-1.5 rounded-xl p-3 hover:bg-muted/60 kd-transition text-center"
+                    >
+                      <span className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 kd-transition', iconBg)}>
+                        <Icon className={cn('h-4.5 w-4.5', iconColor)} strokeWidth={2} />
+                      </span>
+                      <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground kd-transition leading-tight">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     );
   }
@@ -911,7 +916,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ── 3. Audit log — reference data at bottom ───────────────── */}
+      {/* ── 3. Audit log — super_admin/admin only ─────────────────── */}
+      {isAdminRole && (
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
           <CardTitle className="kd-section-title">Recent Activity</CardTitle>
@@ -965,6 +971,7 @@ const Dashboard = () => {
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 };
