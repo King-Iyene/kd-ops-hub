@@ -60,8 +60,9 @@ const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
   { value: 'Lookup', label: 'Lookup', group: 'Computed' },
   { value: 'Rollup', label: 'Rollup', group: 'Computed' },
   { value: 'Count', label: 'Count', group: 'Computed' },
-  { value: 'User', label: 'User', group: 'Relations' },
+  { value: 'User', label: 'People', group: 'Relations' },
   { value: 'Links', label: 'Links', group: 'Relations' },
+  { value: 'LinkedTasks', label: 'Linked Tasks', group: 'Relations' },
   { value: 'Attachment', label: 'Attachment', group: 'Other' },
   { value: 'JSON', label: 'JSON', group: 'Other' },
   { value: 'Button', label: 'Button', group: 'Other' },
@@ -878,7 +879,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                   onChange={(e) => setAllowMultiple(e.target.checked)}
                   className="rounded border-gray-300"
                 />
-                <span className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Allow multiple users</span>
+                <span className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Allow multiple people</span>
               </label>
             </div>
           )}

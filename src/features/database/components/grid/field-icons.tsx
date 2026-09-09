@@ -4,7 +4,7 @@ import {
   Percent, Barcode, Users, MousePointerClick,
   Search, ListOrdered, UserPlus, UserCog, LucideIcon,
   Sigma, CornerRightDown, Tags, CircleDot,
-  ListChecks, Braces, TableProperties, Radical,
+  ListChecks, Braces, TableProperties, Radical, ListTodo,
 } from 'lucide-react';
 import type { UIType } from '@/features/database/types';
 
@@ -43,6 +43,7 @@ const iconMap: Record<UIType, LucideIcon> = {
   Barcode: Barcode,
   User: Users,
   Button: MousePointerClick,
+  LinkedTasks: ListTodo,
 };
 
 export function getFieldTypeIcon(uiType: UIType): LucideIcon {

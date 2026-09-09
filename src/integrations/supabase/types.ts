@@ -886,6 +886,7 @@ export type Database = {
           flutterwave_reference: string | null
           flutterwave_transfer_id: string | null
           full_name: string
+          gross_amount_ngn: number | null
           id: string
           is_manually_resolved: boolean
           item_type: string | null
@@ -906,6 +907,8 @@ export type Database = {
           source_usd_minor: number | null
           status: string
           updated_at: string | null
+          wht_amount_ngn: number | null
+          wht_rate: number | null
         }
         Insert: {
           account_name?: string | null
@@ -925,6 +928,7 @@ export type Database = {
           flutterwave_reference?: string | null
           flutterwave_transfer_id?: string | null
           full_name: string
+          gross_amount_ngn?: number | null
           id?: string
           is_manually_resolved?: boolean
           item_type?: string | null
@@ -945,6 +949,8 @@ export type Database = {
           source_usd_minor?: number | null
           status?: string
           updated_at?: string | null
+          wht_amount_ngn?: number | null
+          wht_rate?: number | null
         }
         Update: {
           account_name?: string | null
@@ -964,6 +970,7 @@ export type Database = {
           flutterwave_reference?: string | null
           flutterwave_transfer_id?: string | null
           full_name?: string
+          gross_amount_ngn?: number | null
           id?: string
           is_manually_resolved?: boolean
           item_type?: string | null
@@ -984,6 +991,8 @@ export type Database = {
           source_usd_minor?: number | null
           status?: string
           updated_at?: string | null
+          wht_amount_ngn?: number | null
+          wht_rate?: number | null
         }
         Relationships: [
           {
@@ -2636,9 +2645,12 @@ export type Database = {
           paystack_recipient_code: string | null
           phone: string | null
           recipient_code_created_at: string | null
+          service_type: string | null
           status: string
           tags: string[] | null
+          tin: string | null
           whatsapp_phone: string | null
+          wht_rate: number | null
         }
         Insert: {
           account_name?: string | null
@@ -2678,9 +2690,12 @@ export type Database = {
           paystack_recipient_code?: string | null
           phone?: string | null
           recipient_code_created_at?: string | null
+          service_type?: string | null
           status?: string
           tags?: string[] | null
+          tin?: string | null
           whatsapp_phone?: string | null
+          wht_rate?: number | null
         }
         Update: {
           account_name?: string | null
@@ -2720,9 +2735,12 @@ export type Database = {
           paystack_recipient_code?: string | null
           phone?: string | null
           recipient_code_created_at?: string | null
+          service_type?: string | null
           status?: string
           tags?: string[] | null
+          tin?: string | null
           whatsapp_phone?: string | null
+          wht_rate?: number | null
         }
         Relationships: []
       }
@@ -5190,6 +5208,156 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      flex_fields: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          options: Json
+          sort_order: number
+          table_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          options?: Json
+          sort_order?: number
+          table_id: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          options?: Json
+          sort_order?: number
+          table_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flex_fields_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "flex_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flex_forms: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          fields: Json
+          id: string
+          is_enabled: boolean
+          name: string
+          share_token: string
+          table_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          fields?: Json
+          id?: string
+          is_enabled?: boolean
+          name: string
+          share_token?: string
+          table_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          fields?: Json
+          id?: string
+          is_enabled?: boolean
+          name?: string
+          share_token?: string
+          table_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flex_forms_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "flex_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flex_records: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: Json
+          id: string
+          table_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          id?: string
+          table_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          id?: string
+          table_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flex_records_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "flex_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flex_tables: {
+        Row: {
+          color: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          icon: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          icon?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          icon?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       fuel_level_logs: {
         Row: {
@@ -16402,6 +16570,11 @@ export type Database = {
           role: string
         }[]
       }
+      get_flex_form: { Args: { p_share_token: string }; Returns: Json }
+      get_flex_form_tasks: {
+        Args: { p_assignee_id: string; p_share_token: string }
+        Returns: Json
+      }
       get_my_role: { Args: never; Returns: string }
       get_outstanding_ewa_for_period: {
         Args: { p_employee_id: string; p_period: string }
@@ -17267,6 +17440,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      soft_delete_space: { Args: { space_id: string }; Returns: undefined }
       start_batch_processing: {
         Args: { p_batch_id: string }
         Returns: {
@@ -17317,6 +17491,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      submit_flex_form: {
+        Args: { p_data: Json; p_share_token: string }
+        Returns: boolean
       }
       sweep_deferred_offboarding_wipes: { Args: never; Returns: number }
       sync_batch_status_from_items: {

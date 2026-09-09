@@ -4,11 +4,15 @@ import {
   Settings2, Share2, ExternalLink, Copy, Check, Palette, Type,
   Upload, Paperclip, X, FileText,
 } from 'lucide-react';
-import type { FieldMeta, ViewMeta, FormConfig, FormFieldConfig } from '../../types';
+import type { FieldMeta, ViewMeta, FormConfig, FormFieldConfig, FormFieldCondition } from '../../types';
 import { PILL_COLORS, VIRTUAL_TYPES } from '../../types';
 import { getFieldTypeIcon } from '../grid/field-icons';
 import { useUpdateView } from '../../hooks/useViews';
 import { useSharedView, useCreateSharedView } from '../../hooks/useSharedViews';
+import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
+import { usePlatformTasks } from '../../hooks/usePlatformTasks';
+import { normalizeLinkedTasks } from '../grid/cell-renderers';
+import { normalizeUserValue } from '../grid/cell-editors';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 
@@ -18,6 +22,10 @@ interface FormViewProps {
   isLoading: boolean;
   view?: ViewMeta;
   isPublic?: boolean;
+  /** Share token of the public form, used to fetch picker options as anon. */
+  publicToken?: string;
+  /** Password entered for a password-protected shared form, if any. */
+  publicPassword?: string;
 }
 
 function getPillColor(colorName: string) {
@@ -61,6 +69,171 @@ function MultiSelectInput({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function PeopleInput({
+  field,
+  value,
+  onChange,
+  publicToken,
+  publicPassword,
+}: {
+  field: FieldMeta;
+  value: any;
+  onChange: (v: any) => void;
+  publicToken?: string;
+  publicPassword?: string;
+}) {
+  const { data: users = [], isLoading } = useWorkspaceUsers(publicToken, publicPassword);
+  const [search, setSearch] = useState('');
+  const allowMultiple = !!field.options?.allowMultiple;
+  const selected = normalizeUserValue(value);
+
+  const filtered = search
+    ? users.filter(
+        (u) =>
+          u.full_name.toLowerCase().includes(search.toLowerCase()) ||
+          u.email.toLowerCase().includes(search.toLowerCase()),
+      )
+    : users;
+
+  const isSelected = (id: string, email: string) =>
+    selected.some((s) => (s.id && id ? s.id === id : s.email === email));
+
+  const toggle = (u: { id: string; email: string; full_name: string }) => {
+    const entry = { id: u.id, email: u.email, name: u.full_name };
+    if (!allowMultiple) {
+      onChange(isSelected(u.id, u.email) ? null : entry);
+      return;
+    }
+    const next = isSelected(u.id, u.email)
+      ? selected.filter((s) => (s.id && u.id ? s.id !== u.id : s.email !== u.email))
+      : [...selected, entry];
+    onChange(next);
+  };
+
+  return (
+    <div>
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search people..."
+        className="w-full border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] rounded-lg px-3 py-2 text-sm bg-white dark:bg-[hsl(220,20%,10%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/25 mb-2"
+      />
+      <div className="max-h-44 overflow-y-auto rounded-lg border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] divide-y divide-[#F1F5F9] dark:divide-[hsl(220,15%,15%)]">
+        {isLoading && <div className="px-3 py-2 text-xs text-[#94A3B8]">Loading people...</div>}
+        {!isLoading && filtered.length === 0 && (
+          <div className="px-3 py-2 text-xs text-[#94A3B8]">No people found</div>
+        )}
+        {filtered.map((u) => {
+          const active = isSelected(u.id, u.email);
+          return (
+            <button
+              key={u.id}
+              type="button"
+              onClick={() => toggle(u)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[#F8FAFC] dark:hover:bg-[hsl(220,18%,12%)]"
+            >
+              <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#6366F1] text-white text-[10px] font-semibold shrink-0">
+                {(u.full_name || u.email).charAt(0).toUpperCase()}
+              </span>
+              <span className="flex flex-col min-w-0 flex-1">
+                <span className="text-xs font-medium text-[#1E293B] dark:text-[hsl(210,20%,88%)] truncate">{u.full_name}</span>
+                <span className="text-[11px] text-[#94A3B8] truncate">{u.email}</span>
+              </span>
+              {active && <Check size={14} className="text-[#2D7FF9] shrink-0" />}
+            </button>
+          );
+        })}
+      </div>
+      {selected.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {selected.map((s, i) => (
+            <span
+              key={s.id || s.email || i}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-[#EEF2FF] dark:bg-[hsl(220,18%,14%)] text-[#4338CA] dark:text-[hsl(230,60%,75%)]"
+            >
+              {s.name || s.email}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LinkedTasksInput({
+  value,
+  onChange,
+  publicToken,
+  publicPassword,
+}: {
+  value: any;
+  onChange: (v: any) => void;
+  publicToken?: string;
+  publicPassword?: string;
+}) {
+  const { data: tasks = [], isLoading } = usePlatformTasks(publicToken, publicPassword);
+  const [search, setSearch] = useState('');
+  const selected = normalizeLinkedTasks(value);
+
+  const filtered = search
+    ? tasks.filter((t) => t.title.toLowerCase().includes(search.toLowerCase()))
+    : tasks;
+
+  const toggle = (t: { id: string; title: string }) => {
+    onChange(
+      selected.some((s) => s.id === t.id)
+        ? selected.filter((s) => s.id !== t.id)
+        : [...selected, { id: t.id, title: t.title }],
+    );
+  };
+
+  return (
+    <div>
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search tasks..."
+        className="w-full border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] rounded-lg px-3 py-2 text-sm bg-white dark:bg-[hsl(220,20%,10%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/25 mb-2"
+      />
+      <div className="max-h-44 overflow-y-auto rounded-lg border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] divide-y divide-[#F1F5F9] dark:divide-[hsl(220,15%,15%)]">
+        {isLoading && <div className="px-3 py-2 text-xs text-[#94A3B8]">Loading tasks...</div>}
+        {!isLoading && filtered.length === 0 && (
+          <div className="px-3 py-2 text-xs text-[#94A3B8]">No tasks found</div>
+        )}
+        {filtered.slice(0, 200).map((t) => {
+          const active = selected.some((s) => s.id === t.id);
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => toggle(t)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[#F8FAFC] dark:hover:bg-[hsl(220,18%,12%)]"
+            >
+              <span className="text-xs text-[#1E293B] dark:text-[hsl(210,20%,88%)] truncate flex-1">{t.title}</span>
+              {t.status && <span className="text-[10px] text-[#94A3B8] shrink-0">{t.status}</span>}
+              {active && <Check size={14} className="text-[#2D7FF9] shrink-0" />}
+            </button>
+          );
+        })}
+      </div>
+      {selected.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {selected.map((s, i) => (
+            <span
+              key={s.id || i}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-[#F1F5F9] dark:bg-[hsl(220,18%,14%)] text-[#334155] dark:text-[hsl(210,20%,80%)]"
+            >
+              {s.title || s.id}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -185,7 +358,33 @@ const COVER_COLORS = [
   { name: 'Rose', value: 'linear-gradient(135deg, #FDA4AF 0%, #FB7185 100%)' },
 ];
 
-export default function FormView({ fields, onAddRow, isLoading, view, isPublic }: FormViewProps) {
+/**
+ * Compare an answer against a condition's target value. Values coming out of
+ * form inputs can be strings, numbers, booleans or arrays (multi-select,
+ * People, Linked Tasks), so compare loosely on string form and treat an array
+ * as "contains".
+ */
+function conditionMatches(answer: any, target: string): boolean {
+  const wanted = (target ?? '').trim().toLowerCase();
+  if (answer == null) return wanted === '';
+  if (Array.isArray(answer)) {
+    return answer.some((a) =>
+      String(typeof a === 'object' && a !== null ? (a.title ?? a.name ?? a.email ?? '') : a)
+        .trim()
+        .toLowerCase() === wanted,
+    );
+  }
+  if (typeof answer === 'boolean') {
+    return wanted === String(answer) || (answer ? wanted === 'yes' : wanted === 'no');
+  }
+  if (typeof answer === 'object') {
+    const a: any = answer;
+    return String(a.title ?? a.name ?? a.email ?? '').trim().toLowerCase() === wanted;
+  }
+  return String(answer).trim().toLowerCase() === wanted;
+}
+
+export default function FormView({ fields, onAddRow, isLoading, view, isPublic, publicToken, publicPassword }: FormViewProps) {
   const updateView = useUpdateView();
   const formConfig: FormConfig = view?.form_config ?? {};
   const fieldConfigs = formConfig.field_configs ?? {};
@@ -246,6 +445,21 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
     [fieldConfigs, saveConfig],
   );
 
+  /** A field with an unmet condition is hidden: not shown, not required, not submitted. */
+  const isConditionMet = useCallback(
+    (f: FieldMeta) => {
+      const cond = fieldConfigs[f.id]?.condition;
+      if (!cond || !cond.field_id) return true;
+      return conditionMatches(values[cond.field_id], cond.value ?? '');
+    },
+    [fieldConfigs, values],
+  );
+
+  const activeFields = useMemo(
+    () => visibleFields.filter((f) => isConditionMet(f)),
+    [visibleFields, isConditionMet],
+  );
+
   const isFieldRequired = useCallback(
     (f: FieldMeta) => fieldConfigs[f.id]?.required ?? f.is_required,
     [fieldConfigs],
@@ -254,7 +468,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
-    for (const f of visibleFields) {
+    for (const f of activeFields) {
       if (isFieldRequired(f)) {
         const v = values[f.id];
         if (v === undefined || v === '' || v === null || (Array.isArray(v) && v.length === 0)) {
@@ -268,7 +482,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
     }
     const record: Record<string, any> = {};
     const numericTypes = new Set(['Number', 'Decimal', 'Currency', 'Percent', 'Duration']);
-    for (const f of visibleFields) {
+    for (const f of activeFields) {
       const v = values[f.id];
       if (v !== undefined && v !== '') {
         record[f.pg_column_name] = numericTypes.has(f.ui_type) ? Number(v) : v;
@@ -439,6 +653,25 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
             field={f}
             value={Array.isArray(values[f.id]) ? values[f.id] : []}
             onChange={(v) => setValues((prev) => ({ ...prev, [f.id]: v }))}
+          />
+        );
+      case 'User':
+        return (
+          <PeopleInput
+            field={f}
+            publicToken={publicToken}
+            publicPassword={publicPassword}
+            value={values[f.id]}
+            onChange={(v) => { setValues((prev) => ({ ...prev, [f.id]: v })); setErrors((p) => { const n = { ...p }; delete n[f.id]; return n; }); }}
+          />
+        );
+      case 'LinkedTasks':
+        return (
+          <LinkedTasksInput
+            publicToken={publicToken}
+            publicPassword={publicPassword}
+            value={values[f.id]}
+            onChange={(v) => { setValues((prev) => ({ ...prev, [f.id]: v })); setErrors((p) => { const n = { ...p }; delete n[f.id]; return n; }); }}
           />
         );
       case 'Attachment':
@@ -632,6 +865,49 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
                     className="w-full text-xs px-2 py-1.5 rounded border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-[#2D7FF9] text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
                   />
                 </div>
+                <div>
+                  <label className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider mb-1 block">Show only if</label>
+                  <select
+                    value={fieldConfigs[selectedField.id]?.condition?.field_id ?? ''}
+                    onChange={(e) => {
+                      const fieldId = e.target.value;
+                      const next: FormFieldCondition | null = fieldId
+                        ? { field_id: fieldId, value: fieldConfigs[selectedField.id]?.condition?.value ?? '' }
+                        : null;
+                      updateFieldConfig(selectedField.id, { condition: next });
+                    }}
+                    className="w-full text-xs px-2 py-1.5 rounded border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-[#2D7FF9] text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
+                  >
+                    <option value="">Always show</option>
+                    {allEditableFields
+                      .filter((cf) => cf.id !== selectedField.id)
+                      .map((cf) => (
+                        <option key={cf.id} value={cf.id}>{cf.name}</option>
+                      ))}
+                  </select>
+                  {fieldConfigs[selectedField.id]?.condition?.field_id && (
+                    <div className="mt-1.5 flex items-center gap-1.5">
+                      <span className="text-[10px] text-[#94A3B8] shrink-0">equals</span>
+                      <input
+                        type="text"
+                        value={fieldConfigs[selectedField.id]?.condition?.value ?? ''}
+                        onChange={(e) =>
+                          updateFieldConfig(selectedField.id, {
+                            condition: {
+                              field_id: fieldConfigs[selectedField.id]!.condition!.field_id,
+                              value: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="value"
+                        className="flex-1 text-xs px-2 py-1.5 rounded border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-[#2D7FF9] text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
+                      />
+                    </div>
+                  )}
+                  <p className="text-[10px] text-[#94A3B8] mt-1">
+                    Hidden fields are never required and are not submitted.
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -718,7 +994,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
 
             {/* Fields */}
             <div className="space-y-0">
-              {visibleFields.map((f) => {
+              {activeFields.map((f) => {
                 const Icon = getFieldTypeIcon(f.ui_type);
                 const req = isFieldRequired(f);
                 const fc = fieldConfigs[f.id] ?? {};

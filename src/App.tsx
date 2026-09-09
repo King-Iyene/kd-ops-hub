@@ -97,6 +97,8 @@ const MyDashboard       = lazy(() => import('./pages/MyDashboard'));
 const ApprovalWorkflows = lazy(() => import('./pages/ApprovalWorkflows'));
 const DatabasePage      = lazy(() => import('./features/database/pages/DatabasePage'));
 const SharedViewPage    = lazy(() => import('./features/database/pages/SharedViewPage'));
+const FlexTables        = lazy(() => import('./pages/FlexTables'));
+const FlexFormPublic    = lazy(() => import('./pages/FlexFormPublic'));
 
 // Kept deliberately conservative on staleTime — this app moves money, and a
 // stale balance shown to an approver is worse than an extra network round
@@ -210,12 +212,24 @@ function AppRoutes() {
         }
       />
 
-      {/* Database Platform — full-screen app shell, no KDOps sidebar. Super admin only. */}
+      {/* Tables form — public, no auth required. Separate from the /shared
+          (Database/nc_meta) share links — this is the standalone Tables
+          module's own share token. */}
+      <Route
+        path="/t/f/:token"
+        element={
+          <ErrorBoundary>
+            <FlexFormPublic />
+          </ErrorBoundary>
+        }
+      />
+
+      {/* Database Platform — full-screen app shell, no KDOps sidebar. */}
       <Route
         path="/data"
         element={
           <AuthGuard>
-            <RoleGuard roles={['super_admin']}>
+            <RoleGuard roles={ALL_AUTH_ROLES}>
               <ErrorBoundary>
                 <DatabasePage />
               </ErrorBoundary>
@@ -223,11 +237,12 @@ function AppRoutes() {
           </AuthGuard>
         }
       />
+
       <Route
         path="/data/:baseId"
         element={
           <AuthGuard>
-            <RoleGuard roles={['super_admin']}>
+            <RoleGuard roles={ALL_AUTH_ROLES}>
               <ErrorBoundary>
                 <DatabasePage />
               </ErrorBoundary>
@@ -239,7 +254,7 @@ function AppRoutes() {
         path="/data/:baseId/:tableId"
         element={
           <AuthGuard>
-            <RoleGuard roles={['super_admin']}>
+            <RoleGuard roles={ALL_AUTH_ROLES}>
               <ErrorBoundary>
                 <DatabasePage />
               </ErrorBoundary>
@@ -251,7 +266,7 @@ function AppRoutes() {
         path="/data/:baseId/:tableId/:viewId"
         element={
           <AuthGuard>
-            <RoleGuard roles={['super_admin']}>
+            <RoleGuard roles={ALL_AUTH_ROLES}>
               <ErrorBoundary>
                 <DatabasePage />
               </ErrorBoundary>
@@ -559,6 +574,19 @@ function AppRoutes() {
           element={
             <RoleGuard roles={ALL_AUTH_ROLES}>
               <Tasks />
+            </RoleGuard>
+          }
+        />
+
+        {/* Tables — standalone Airtable-style module, third item after Tasks
+            and Goals in the Productivity nav. Deliberately separate from the
+            Database/nc_meta feature (own schema, own UI) — but behaves
+            exactly like Tasks/Goals: a normal in-app page inside AppLayout. */}
+        <Route
+          path="/flex-tables"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <FlexTables />
             </RoleGuard>
           }
         />

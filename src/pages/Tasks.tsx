@@ -3,7 +3,7 @@ import {
   Plus, Search, Loader2, ListTodo, Flag,
   Check, X, Filter, Trash2, Target,
   User, ArrowRight, Download, CalendarDays, FileText,
-  LayoutGrid, List, Table2, GanttChart, Weight, BarChart3, Users, UserPlus,
+  LayoutGrid, List, GanttChart, Weight, BarChart3,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -72,6 +72,7 @@ import {
 const Tasks = () => {
   usePageTitle('Tasks');
   const { profile } = useAuthStore();
+  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
   const { toast } = useToast();
 
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -127,16 +128,12 @@ const Tasks = () => {
   // Space CRUD
   const [spaceDialog, setSpaceDialog] = useState(false);
   const [editingSpace, setEditingSpace] = useState<Space | null>(null);
-  const [spaceForm, setSpaceForm] = useState({ name: '', color: '#6366f1', description: '', is_private: false });
+  const [spaceForm, setSpaceForm] = useState({ name: '', color: '#6366f1', description: '', is_private: true });
   const [savingSpace, setSavingSpace] = useState(false);
   const [goals, setGoals] = useState<{ id: string; title: string; status: string }[]>([]);
   const [pendingDeleteSpace, setPendingDeleteSpace] = useState<Space | null>(null);
   const [membersSpace, setMembersSpace] = useState<Space | null>(null);
   const [statusManagerSpace, setStatusManagerSpace] = useState<Space | null>(null);
-
-  // Folder access members
-  const [spaceMembers, setSpaceMembers] = useState<{ user_id: string; role: string }[]>([]);
-  const [loadingMembers, setLoadingMembers] = useState(false);
 
   // Sidebar collapsed on mobile
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -221,24 +218,6 @@ const Tasks = () => {
   }, [tasks.length, PAGE_SIZE]);
 
   useEffect(() => { load(); }, [load]);
-
-  // Load space members when a folder is selected
-  useEffect(() => {
-    if (!selectedSpace) { setSpaceMembers([]); return; }
-    let cancelled = false;
-    (async () => {
-      setLoadingMembers(true);
-      const { data } = await supabase
-        .from('space_members')
-        .select('user_id, role')
-        .eq('space_id', selectedSpace);
-      if (!cancelled) {
-        setSpaceMembers((data as { user_id: string; role: string }[]) || []);
-        setLoadingMembers(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [selectedSpace]);
 
   // Realtime subscription — auto-refresh when any task changes
   useEffect(() => {
@@ -713,7 +692,7 @@ const Tasks = () => {
 
   const openCreateSpace = () => {
     setEditingSpace(null);
-    setSpaceForm({ name: '', color: '#6366f1', description: '', is_private: false });
+    setSpaceForm({ name: '', color: '#6366f1', description: '', is_private: true });
     setSpaceDialog(true);
   };
 
@@ -783,44 +762,6 @@ const Tasks = () => {
     toast({ title: 'Folder removed' });
     if (selectedSpace === pendingDeleteSpace.id) setSelectedSpace(null);
     load();
-  };
-
-  const toggleMember = async (userId: string) => {
-    if (!selectedSpace) return;
-    const existing = spaceMembers.find((m) => m.user_id === userId);
-    if (existing) {
-      await supabase.from('space_members').delete().eq('space_id', selectedSpace).eq('user_id', userId);
-      setSpaceMembers((prev) => prev.filter((m) => m.user_id !== userId));
-    } else {
-      const { error } = await supabase.from('space_members').insert({
-        space_id: selectedSpace, user_id: userId, role: 'member', added_by: profile?.id || null,
-      });
-      if (!error) setSpaceMembers((prev) => [...prev, { user_id: userId, role: 'member' }]);
-    }
-  };
-
-  const toggleAllMembers = async () => {
-    if (!selectedSpace) return;
-    const allUsers = Array.from(profiles.values());
-    const currentSpace = spaces.find((s) => s.id === selectedSpace);
-    const nonOwnerUsers = allUsers.filter((p) => p.id !== currentSpace?.owner_id);
-    const allAdded = nonOwnerUsers.every((p) => spaceMembers.some((m) => m.user_id === p.id));
-    if (allAdded) {
-      await supabase.from('space_members').delete().eq('space_id', selectedSpace);
-      setSpaceMembers([]);
-      toast({ title: 'All members removed' });
-    } else {
-      const toAdd = nonOwnerUsers.filter((p) => !spaceMembers.some((m) => m.user_id === p.id));
-      if (toAdd.length > 0) {
-        const { error } = await supabase.from('space_members').insert(
-          toAdd.map((p) => ({ space_id: selectedSpace, user_id: p.id, role: 'member' as const, added_by: profile?.id || null })),
-        );
-        if (!error) {
-          setSpaceMembers((prev) => [...prev, ...toAdd.map((p) => ({ user_id: p.id, role: 'member' }))]);
-        }
-      }
-      toast({ title: 'All members added' });
-    }
   };
 
   // ─── Folder / List CRUD ──────────────────────────────────────────────
@@ -949,7 +890,7 @@ const Tasks = () => {
           onSelectSpace={setSelectedSpace}
           onSelectList={setSelectedList}
           onChangeView={(v) => { if (v === 'my-tasks') { setCurrentView('list'); setAssigneeFilter(profile?.id || 'all'); } else { setCurrentView(v); } setSelectedTasks(new Set()); }}
-          onCreateSpace={openCreateSpace}
+          onCreateSpace={isAdmin ? openCreateSpace : undefined}
           onEditSpace={openEditSpace}
           onDeleteSpace={(s) => setPendingDeleteSpace(s)}
           onManageMembers={(s) => setMembersSpace(s)}
@@ -982,7 +923,7 @@ const Tasks = () => {
             onSelectSpace={(id) => { setSelectedSpace(id); setSidebarOpen(false); }}
             onSelectList={(id) => { setSelectedList(id); setSidebarOpen(false); }}
             onChangeView={(v) => { if (v === 'my-tasks') { setCurrentView('list'); setAssigneeFilter(profile?.id || 'all'); } else { setCurrentView(v); } setSidebarOpen(false); setSelectedTasks(new Set()); }}
-            onCreateSpace={openCreateSpace}
+            onCreateSpace={isAdmin ? openCreateSpace : undefined}
             onEditSpace={openEditSpace}
             onDeleteSpace={(s) => setPendingDeleteSpace(s)}
             onManageMembers={(s) => setMembersSpace(s)}
@@ -1108,24 +1049,10 @@ const Tasks = () => {
               )}
 
               {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && (
-                <>
-                  <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden sm:flex" onClick={() => setTemplatesDialog(true)}>
-                    <ListTodo className="h-3.5 w-3.5" />
-                    Templates
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden sm:flex" onClick={() => setImportExportDialog(true)}>
-                    <Download className="h-3.5 w-3.5" />
-                    Import/Export
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden lg:flex" onClick={() => setFormBuilderDialog(true)}>
-                    <FileText className="h-3.5 w-3.5" />
-                    Forms
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden lg:flex" onClick={() => setCalendarDialog(true)}>
-                    <CalendarDays className="h-3.5 w-3.5" />
-                    Calendar Sync
-                  </Button>
-                </>
+                <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden sm:flex" onClick={() => setImportExportDialog(true)}>
+                  <Download className="h-3.5 w-3.5" />
+                  Import/Export
+                </Button>
               )}
 
               {selectedSpace && (
@@ -1142,7 +1069,6 @@ const Tasks = () => {
             {([
               { key: 'board' as const, icon: LayoutGrid, label: 'Board' },
               { key: 'list' as const, icon: List, label: 'List' },
-              { key: 'table' as const, icon: Table2, label: 'Table' },
               { key: 'calendar' as const, icon: CalendarDays, label: 'Calendar' },
               { key: 'gantt' as const, icon: GanttChart, label: 'Gantt' },
               { key: 'workload' as const, icon: Weight, label: 'Workload' },
@@ -1186,73 +1112,6 @@ const Tasks = () => {
                   if (v.filters.search) setSearch(v.filters.search);
                 }}
               />
-            </div>
-          )}
-
-          {/* Folder Access */}
-          {selectedSpace && (
-            <div className="px-4 lg:px-6 py-2 border-b border-border/40">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <Users className="h-3.5 w-3.5" />
-                  Folder Access
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-muted-foreground">Add all</span>
-                  <Switch
-                    checked={(() => {
-                      const allUsers = Array.from(profiles.values());
-                      const currentSpace = spaces.find((s) => s.id === selectedSpace);
-                      const nonOwner = allUsers.filter((p) => p.id !== currentSpace?.owner_id);
-                      return nonOwner.length > 0 && nonOwner.every((p) => spaceMembers.some((m) => m.user_id === p.id));
-                    })()}
-                    onCheckedChange={toggleAllMembers}
-                    className="scale-75"
-                  />
-                  <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 px-2" onClick={() => {
-                    const sp = spaces.find((s) => s.id === selectedSpace);
-                    if (sp) setMembersSpace(sp);
-                  }}>
-                    <UserPlus className="h-3 w-3" /> Manage
-                  </Button>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {/* Owner */}
-                {(() => {
-                  const currentSpace = spaces.find((s) => s.id === selectedSpace);
-                  const owner = currentSpace?.owner_id ? profiles.get(currentSpace.owner_id) : null;
-                  if (!owner) return null;
-                  return (
-                    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-amber-500/10 text-amber-600 text-[11px] font-medium">
-                      <div className="h-5 w-5 rounded-full bg-amber-500/20 flex items-center justify-center text-[9px] font-bold">
-                        {(owner.full_name || 'O').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}
-                      </div>
-                      {owner.full_name || owner.email}
-                      <span className="text-[9px] opacity-70">Owner</span>
-                    </div>
-                  );
-                })()}
-                {/* Members */}
-                {spaceMembers.map((m) => {
-                  const p = profiles.get(m.user_id);
-                  if (!p) return null;
-                  return (
-                    <div key={m.user_id} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-primary/5 text-foreground text-[11px] font-medium">
-                      <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold">
-                        {(p.full_name || 'U').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}
-                      </div>
-                      {p.full_name || p.email}
-                      <button onClick={() => toggleMember(m.user_id)} className="ml-0.5 hover:text-destructive transition-colors">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  );
-                })}
-                {spaceMembers.length === 0 && !loadingMembers && (
-                  <span className="text-[11px] text-muted-foreground italic">No members — everyone with access can view</span>
-                )}
-              </div>
             </div>
           )}
 
@@ -1348,7 +1207,7 @@ const Tasks = () => {
               profiles={profiles}
               onTaskClick={(t) => setDetailTask(t)}
             />
-          ) : currentView === 'list' || currentView === 'table' ? (
+          ) : currentView === 'list' ? (
             <TaskListView
               tasks={visible}
               profiles={profiles}
@@ -1360,10 +1219,14 @@ const Tasks = () => {
               selectedTasks={selectedTasks}
               onToggleSelect={toggleSelect}
               onSelectAll={selectAllVisible}
-              tableMode={currentView === 'table'}
               spaces={spaces}
               folders={folders}
               lists={taskLists}
+              canManageAccess={!!selectedSpace && (isAdmin || spaces.find((s) => s.id === selectedSpace)?.owner_id === profile?.id)}
+              onManageAccess={() => {
+                const sp = spaces.find((s) => s.id === selectedSpace);
+                if (sp) setMembersSpace(sp);
+              }}
             />
           ) : null}
 

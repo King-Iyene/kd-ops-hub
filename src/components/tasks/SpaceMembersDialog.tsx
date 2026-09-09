@@ -13,6 +13,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import type { ProfileRow } from '@/lib/task-types';
 import type { Space, SpaceMember } from './TaskSidebar';
@@ -41,6 +42,7 @@ export function SpaceMembersDialog({ space, open, onClose, profiles }: SpaceMemb
   const [addingUser, setAddingUser] = useState<string>('');
   const [addingRole, setAddingRole] = useState<MemberRole>('member');
   const [saving, setSaving] = useState(false);
+  const [togglingAll, setTogglingAll] = useState(false);
 
   const loadMembers = useCallback(async () => {
     setLoading(true);
@@ -111,6 +113,35 @@ export function SpaceMembersDialog({ space, open, onClose, profiles }: SpaceMemb
   };
 
   const isOwner = space.owner_id === profile?.id;
+  const canManage = isOwner || profile?.role === 'admin' || profile?.role === 'super_admin';
+
+  const nonOwnerProfiles = Array.from(profiles.values()).filter((p) => p.id !== space.owner_id);
+  const allAdded = nonOwnerProfiles.length > 0 && nonOwnerProfiles.every((p) => members.some((m) => m.user_id === p.id));
+
+  const toggleAllMembers = async () => {
+    setTogglingAll(true);
+    try {
+      if (allAdded) {
+        const { error } = await supabase.from('space_members').delete().eq('space_id', space.id);
+        if (error) throw error;
+        toast({ title: 'All members removed' });
+      } else {
+        const toAdd = nonOwnerProfiles.filter((p) => !members.some((m) => m.user_id === p.id));
+        if (toAdd.length > 0) {
+          const { error } = await supabase.from('space_members').insert(
+            toAdd.map((p) => ({ space_id: space.id, user_id: p.id, role: 'member', added_by: profile?.id || null })),
+          );
+          if (error) throw error;
+        }
+        toast({ title: 'All members added' });
+      }
+      await loadMembers();
+    } catch (err: unknown) {
+      toast({ title: 'Failed to update members', description: errorMessage(err), variant: 'destructive' });
+    } finally {
+      setTogglingAll(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -123,6 +154,17 @@ export function SpaceMembersDialog({ space, open, onClose, profiles }: SpaceMemb
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Add all toggle */}
+          {canManage && (
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs text-muted-foreground">Add everyone to this folder</span>
+              <div className="flex items-center gap-2">
+                {togglingAll && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                <Switch checked={allAdded} onCheckedChange={toggleAllMembers} disabled={togglingAll} />
+              </div>
+            </div>
+          )}
+
           {/* Owner row */}
           {space.owner_id && (
             <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-muted/40">
@@ -161,7 +203,7 @@ export function SpaceMembersDialog({ space, open, onClose, profiles }: SpaceMemb
                       <p className="text-sm font-medium truncate">{p?.full_name || 'Unknown'}</p>
                       <p className="text-[11px] text-muted-foreground">{p?.email}</p>
                     </div>
-                    {isOwner ? (
+                    {canManage ? (
                       <div className="flex items-center gap-1.5">
                         <Select value={m.role} onValueChange={(v) => updateRole(m.user_id, v as MemberRole)}>
                           <SelectTrigger className="h-7 w-[100px] text-xs">
@@ -196,7 +238,7 @@ export function SpaceMembersDialog({ space, open, onClose, profiles }: SpaceMemb
           )}
 
           {/* Add member form */}
-          {isOwner && nonMembers.length > 0 && (
+          {canManage && nonMembers.length > 0 && (
             <div className="flex items-end gap-2 pt-2 border-t border-border/40">
               <div className="flex-1 space-y-1">
                 <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Add member</label>

@@ -32,7 +32,8 @@ export type UIType =
   | 'JSON'
   | 'Barcode'
   | 'Button'
-  | 'User';
+  | 'User'
+  | 'LinkedTasks';
 
 export interface Workspace {
   id: string;
@@ -148,10 +149,21 @@ export interface ViewMeta {
   updated_at: string;
 }
 
+/**
+ * Optional single-condition visibility rule for a field on a form:
+ * only show this field when field `field_id` equals `value`.
+ * v1 is deliberately one condition — no AND/OR chains.
+ */
+export interface FormFieldCondition {
+  field_id: string;
+  value: string;
+}
+
 export interface FormFieldConfig {
   required?: boolean;
   hidden?: boolean;
   description?: string;
+  condition?: FormFieldCondition | null;
 }
 
 export interface FormConfig {
@@ -254,6 +266,7 @@ export const UI_TYPE_TO_PG_TYPE: Record<string, string> = {
   JSON: 'JSONB',
   Barcode: 'TEXT',
   User: "JSONB DEFAULT '[]'::jsonb",
+  LinkedTasks: "JSONB DEFAULT '[]'::jsonb",
 };
 
 export const VIRTUAL_TYPES: UIType[] = [
@@ -548,4 +561,5 @@ export const OPERATORS_BY_TYPE: Partial<Record<UIType, FilterOperator[]>> = {
   Count: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isEmpty', 'isNotEmpty'],
   Formula: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
   User: ['is', 'isNot', 'contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
+  LinkedTasks: ['contains', 'doesNotContain', 'isEmpty', 'isNotEmpty'],
 };

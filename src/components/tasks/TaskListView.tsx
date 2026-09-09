@@ -1,13 +1,14 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import {
   CheckCircle2, MessageSquare, ChevronDown, ChevronUp,
-  ChevronRight, Square, CheckSquare, Minus, ArrowUpDown, MoreHorizontal,
+  ChevronRight, Square, CheckSquare, Minus, ArrowUpDown, MoreHorizontal, UserCog,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { formatDate, daysUntil } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -35,10 +36,11 @@ interface TaskListViewProps {
   selectedTasks: Set<string>;
   onToggleSelect: (taskId: string) => void;
   onSelectAll: () => void;
-  tableMode?: boolean;
   spaces: Space[];
   folders: SpaceFolder[];
   lists: TaskList[];
+  canManageAccess?: boolean;
+  onManageAccess?: () => void;
 }
 
 const STATUS_ORDER: TaskStatus[] = ['open', 'in_progress', 'blocked', 'complete'];
@@ -54,11 +56,12 @@ const STATUS_ACCENT: Record<TaskStatus, string> = {
 export function TaskListView({
   tasks, profiles, availableTags, subtaskCounts, commentCounts,
   onTaskClick, onUpdate, selectedTasks, onToggleSelect, onSelectAll,
-  tableMode = false, spaces, folders, lists,
+  spaces, folders, lists, canManageAccess, onManageAccess,
 }: TaskListViewProps) {
-  const [groupBy, setGroupBy] = useState<GroupBy>(tableMode ? 'none' : 'status');
+  const [groupBy, setGroupBy] = useState<GroupBy>('status');
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -69,8 +72,13 @@ export function TaskListView({
     }
   };
 
+  const visibleTasks = useMemo(
+    () => (showCompleted ? tasks : tasks.filter((t) => t.status !== 'complete')),
+    [tasks, showCompleted],
+  );
+
   const sortedTasks = useMemo(() => {
-    const sorted = [...tasks].sort((a, b) => {
+    const sorted = [...visibleTasks].sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
         case 'title': cmp = a.title.localeCompare(b.title); break;
@@ -93,7 +101,7 @@ export function TaskListView({
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return sorted;
-  }, [tasks, sortField, sortDir, profiles]);
+  }, [visibleTasks, sortField, sortDir, profiles]);
 
   const groups = useMemo(() => {
     if (groupBy === 'none') {
@@ -143,8 +151,8 @@ export function TaskListView({
     }));
   }, [sortedTasks, groupBy, profiles]);
 
-  const allSelected = tasks.length > 0 && selectedTasks.size === tasks.length;
-  const someSelected = selectedTasks.size > 0 && selectedTasks.size < tasks.length;
+  const allSelected = visibleTasks.length > 0 && selectedTasks.size === visibleTasks.length;
+  const someSelected = selectedTasks.size > 0 && selectedTasks.size < visibleTasks.length;
 
   return (
     <div className="space-y-1">
@@ -154,10 +162,24 @@ export function TaskListView({
             {allSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : someSelected ? <Minus className="h-4 w-4" /> : <Square className="h-4 w-4" />}
           </button>
           <span className="text-xs text-muted-foreground">
-            {selectedTasks.size > 0 ? `${selectedTasks.size} selected` : `${tasks.length} task${tasks.length !== 1 ? 's' : ''}`}
+            {selectedTasks.size > 0 ? `${selectedTasks.size} selected` : `${visibleTasks.length} task${visibleTasks.length !== 1 ? 's' : ''}`}
           </span>
         </div>
         <div className="flex items-center gap-2">
+          {canManageAccess && onManageAccess && (
+            <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={onManageAccess}>
+              <UserCog className="h-3.5 w-3.5" /> Manage Access
+            </Button>
+          )}
+          <Select value={showCompleted ? 'show' : 'hide'} onValueChange={(v) => setShowCompleted(v === 'show')}>
+            <SelectTrigger className="h-7 w-[136px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="hide">Hide Completed</SelectItem>
+              <SelectItem value="show">Show Completed</SelectItem>
+            </SelectContent>
+          </Select>
           <span className="text-xs text-muted-foreground">Group by</span>
           <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
             <SelectTrigger className="h-7 w-[120px] text-xs">
@@ -173,7 +195,7 @@ export function TaskListView({
         </div>
       </div>
 
-      {groups.length === 0 || tasks.length === 0 ? (
+      {groups.length === 0 || visibleTasks.length === 0 ? (
         <EmptyState
           illustration="radar"
           title="No tasks to display"
