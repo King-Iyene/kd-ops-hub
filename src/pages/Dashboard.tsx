@@ -31,6 +31,9 @@ import {
   RefreshCw,
   Building2,
   Bell,
+  Layers,
+  Truck,
+  BookOpen,
 } from 'lucide-react';
 import {
   PieChart,
