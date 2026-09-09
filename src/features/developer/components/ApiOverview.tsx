@@ -26,6 +26,7 @@ import {
   Layers,
   Radio,
   Clock,
+  AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -264,6 +265,19 @@ export default function ApiOverview({
           ))}
         </div>
       </section>
+
+      {/* Bank Details Warning */}
+      <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-300/50 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-900/10">
+        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+        <div>
+          <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-1">Bank Details Required for Disbursements</h3>
+          <p className="text-sm text-amber-700 dark:text-amber-400/80 leading-relaxed">
+            Any API operation involving payments — payroll, fuel requests, payment batches, expense reimbursements — requires the recipient to have valid bank details on file
+            (<strong>bank_name</strong>, <strong>account_number</strong>, <strong>account_name</strong>). Without these, the payment will be created but <strong>cannot be processed</strong>.
+            Always ensure employees and contractors have their bank details set before triggering disbursements via the API.
+          </p>
+        </div>
+      </div>
 
       {/* Available Modules */}
       <section>
