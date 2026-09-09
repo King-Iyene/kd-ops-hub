@@ -5209,6 +5209,156 @@ export type Database = {
           },
         ]
       }
+      flex_fields: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          options: Json
+          sort_order: number
+          table_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          options?: Json
+          sort_order?: number
+          table_id: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          options?: Json
+          sort_order?: number
+          table_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flex_fields_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "flex_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flex_forms: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          fields: Json
+          id: string
+          is_enabled: boolean
+          name: string
+          share_token: string
+          table_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          fields?: Json
+          id?: string
+          is_enabled?: boolean
+          name: string
+          share_token?: string
+          table_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          fields?: Json
+          id?: string
+          is_enabled?: boolean
+          name?: string
+          share_token?: string
+          table_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flex_forms_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "flex_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flex_records: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: Json
+          id: string
+          table_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          id?: string
+          table_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          id?: string
+          table_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flex_records_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "flex_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flex_tables: {
+        Row: {
+          color: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          icon: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          icon?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          icon?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fuel_level_logs: {
         Row: {
           amount_litres: number
@@ -16420,6 +16570,7 @@ export type Database = {
           role: string
         }[]
       }
+      get_flex_form: { Args: { p_share_token: string }; Returns: Json }
       get_my_role: { Args: never; Returns: string }
       get_outstanding_ewa_for_period: {
         Args: { p_employee_id: string; p_period: string }
@@ -17336,6 +17487,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      submit_flex_form: {
+        Args: { p_data: Json; p_share_token: string }
+        Returns: boolean
       }
       sweep_deferred_offboarding_wipes: { Args: never; Returns: number }
       sync_batch_status_from_items: {
