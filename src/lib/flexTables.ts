@@ -138,4 +138,6 @@ export const flexApi = {
     db.rpc('submit_flex_form', { p_share_token: shareToken, p_data: data }),
   getFormTasks: (shareToken: string, personId: string) =>
     db.rpc('get_flex_form_tasks', { p_share_token: shareToken, p_assignee_id: personId }),
+  getFormCompletedTasks: (shareToken: string, personId: string) =>
+    db.rpc('get_flex_form_completed_tasks', { p_share_token: shareToken, p_assignee_id: personId }),
 };

@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import {
   Plus, Table2, Trash2, Loader2, MoreHorizontal, EyeOff, ListFilter,
   Type, AlignLeft, Hash, CalendarDays, CheckSquare, ListChecks,
-  User, Users, Link2, AtSign, Phone, Globe, Copy, FileText, Check, Sigma, CheckCircle2,
+  User, Users, Link2, AtSign, Phone, Globe, Copy, FileText, Check, Sigma, CheckCircle2, GripVertical,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -1425,8 +1425,19 @@ function FormBuilderDialog({
     form?.fields || formFields.map((f) => ({ field_id: f.id, required: false, condition: null })),
   );
   const [saving, setSaving] = useState(false);
+  const [dragFieldId, setDragFieldId] = useState<string | null>(null);
 
   const conditionSources = formFields.filter((f) => f.type === 'select' || f.type === 'person');
+
+  // Questions render in the order they appear in `selected` (which is also
+  // the order the public form fills them in) — included fields first, then
+  // not-yet-included ones in their table order, so every field stays
+  // reachable via the checkbox above.
+  const orderedFormFields = useMemo(() => {
+    const included = selected.map((e) => formFields.find((f) => f.id === e.field_id)).filter((f): f is FlexField => !!f);
+    const rest = formFields.filter((f) => !selected.some((e) => e.field_id === f.id));
+    return [...included, ...rest];
+  }, [selected, formFields]);
 
   const toggleField = (fieldId: string, include: boolean) => {
     setSelected((prev) => {
@@ -1437,6 +1448,19 @@ function FormBuilderDialog({
 
   const updateEntry = (fieldId: string, patch: Partial<FlexFormField>) => {
     setSelected((prev) => prev.map((x) => (x.field_id === fieldId ? { ...x, ...patch } : x)));
+  };
+
+  const reorderQuestion = (draggedId: string, targetId: string) => {
+    if (draggedId === targetId) return;
+    setSelected((prev) => {
+      const fromIdx = prev.findIndex((x) => x.field_id === draggedId);
+      const toIdx = prev.findIndex((x) => x.field_id === targetId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
   };
 
   const save = async () => {
@@ -1465,12 +1489,25 @@ function FormBuilderDialog({
 
           <div className="space-y-2 border-t border-border/40 pt-3">
             <label className="text-xs font-medium text-muted-foreground">Fields</label>
-            {formFields.map((f) => {
+            {orderedFormFields.map((f) => {
               const entry = selected.find((x) => x.field_id === f.id);
               const included = !!entry;
               return (
-                <div key={f.id} className="border border-border/50 rounded-lg p-2.5 space-y-2">
+                <div
+                  key={f.id}
+                  draggable={included}
+                  onDragStart={() => included && setDragFieldId(f.id)}
+                  onDragOver={(e) => { if (included) e.preventDefault(); }}
+                  onDrop={(e) => { e.preventDefault(); if (included && dragFieldId) reorderQuestion(dragFieldId, f.id); setDragFieldId(null); }}
+                  onDragEnd={() => setDragFieldId(null)}
+                  className={cn(
+                    'border border-border/50 rounded-lg p-2.5 space-y-2',
+                    included && 'cursor-move',
+                    dragFieldId === f.id && 'opacity-40',
+                  )}
+                >
                   <label className="flex items-center gap-2 cursor-pointer">
+                    {included && <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />}
                     <Checkbox checked={included} onCheckedChange={(v) => toggleField(f.id, !!v)} />
                     <span className="text-sm flex-1">{f.name}</span>
                     {included && (
@@ -1520,7 +1557,7 @@ function FormBuilderDialog({
                     </div>
                   )}
 
-                  {included && f.type === 'task_link' && (
+                  {included && (f.type === 'task_link' || f.type === 'completed_task_link') && (
                     <div className="flex items-center gap-2 pl-6">
                       <span className="text-[11px] text-muted-foreground shrink-0">Only show tasks assigned to</span>
                       <Select

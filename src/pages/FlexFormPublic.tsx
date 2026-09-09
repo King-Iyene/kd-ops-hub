@@ -128,7 +128,7 @@ export default function FlexFormPublic() {
           {visibleEntries.map((entry) => {
             const field = fieldsById.get(entry.field_id);
             if (!field) return null;
-            const personFieldId = entry.filterByPersonField || (field.type === 'task_link' ? defaultPersonFieldId : undefined);
+            const personFieldId = entry.filterByPersonField || ((field.type === 'task_link' || field.type === 'completed_task_link') ? defaultPersonFieldId : undefined);
             return (
               <div key={field.id}>
                 <label className="text-sm font-medium mb-1.5 block">
@@ -230,7 +230,10 @@ function FieldInput({ field, value, onChange, token, personId, hasPersonFilter }
       }
       return <TaskLinkPicker token={token} personId={personId} value={value} onChange={onChange} />;
     case 'completed_task_link':
-      return <p className="text-xs text-muted-foreground italic">Completed linked tasks aren't editable from this form.</p>;
+      if (!hasPersonFilter) {
+        return <p className="text-xs text-muted-foreground italic">Completed linked tasks aren't editable from this form.</p>;
+      }
+      return <CompletedTaskLinkPicker token={token} personId={personId} value={value} onChange={onChange} />;
     default:
       return <Input value={(value as string) || ''} onChange={(e) => onChange(e.target.value)} />;
   }
@@ -262,6 +265,46 @@ function TaskLinkPicker({ token, personId, value, onChange }: {
   if (!personId) return <p className="text-xs text-muted-foreground italic">Select your name in the dropdown above to see your tasks due today or later.</p>;
   if (loading) return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
   if (options.length === 0) return <p className="text-xs text-muted-foreground italic">No tasks due today or later for you.</p>;
+
+  const ids = Array.isArray(value) ? (value as string[]) : [];
+  return (
+    <div className="space-y-1.5 border border-border rounded-md p-2.5 max-h-48 overflow-y-auto">
+      {options.map((t) => (
+        <label key={t.id} className="flex items-center gap-2 cursor-pointer">
+          <Checkbox checked={ids.includes(t.id)} onCheckedChange={(v) => onChange(v ? [...ids, t.id] : ids.filter((i) => i !== t.id))} />
+          <span className="text-sm">{t.title}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function CompletedTaskLinkPicker({ token, personId, value, onChange }: {
+  token: string;
+  personId?: string;
+  value: unknown;
+  onChange: (v: unknown) => void;
+}) {
+  const [options, setOptions] = useState<{ id: string; title: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!personId) { setOptions([]); return; }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const { data } = await flexApi.getFormCompletedTasks(token, personId);
+      if (!cancelled) {
+        setOptions((data as { id: string; title: string }[]) || []);
+        setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [token, personId]);
+
+  if (!personId) return <p className="text-xs text-muted-foreground italic">Select your name in the dropdown above to see your completed tasks from today forward.</p>;
+  if (loading) return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
+  if (options.length === 0) return <p className="text-xs text-muted-foreground italic">No tasks completed today or later for you.</p>;
 
   const ids = Array.isArray(value) ? (value as string[]) : [];
   return (
