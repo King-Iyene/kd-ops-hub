@@ -16571,6 +16571,10 @@ export type Database = {
         }[]
       }
       get_flex_form: { Args: { p_share_token: string }; Returns: Json }
+      get_flex_form_completed_tasks: {
+        Args: { p_assignee_id: string; p_share_token: string }
+        Returns: Json
+      }
       get_flex_form_tasks: {
         Args: { p_assignee_id: string; p_share_token: string }
         Returns: Json
