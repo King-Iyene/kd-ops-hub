@@ -585,7 +585,7 @@ function AppRoutes() {
         <Route
           path="/flex-tables"
           element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <FlexTables />
             </RoleGuard>
           }
@@ -837,7 +837,7 @@ function AppRoutes() {
         <Route
           path="/goals"
           element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <Goals />
             </RoleGuard>
           }
