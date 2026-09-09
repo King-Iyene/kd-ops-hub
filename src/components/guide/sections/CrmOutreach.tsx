@@ -1,5 +1,5 @@
 import { Users2 } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
 
 export function CrmOutreachSection() {
   return (
@@ -9,6 +9,9 @@ export function CrmOutreachSection() {
         title="CRM & Outreach"
         blurb="Manage your external relationships — clients who pay you, contacts you work with, vendors you pay, placement contracts, referral tracking, and shareable public links for recruiting and onboarding."
       />
+
+      <VideoEmbed src={guideVideoUrl('36-ClientsManagement.mp4')} title="Clients Management" caption="Watch: Adding clients, viewing client profiles, linking projects and invoices" />
+      <VideoEmbed src={guideVideoUrl('37-InvoicingClients.mp4')} title="Invoicing Clients" caption="Watch: Creating invoices, applying VAT, tracking payments, and sending reminders" />
 
       <ModuleCard title="Clients" route="/clients" roles={['super_admin', 'admin', 'finance', 'operations']}>
         <p className="text-sm text-muted-foreground leading-relaxed">

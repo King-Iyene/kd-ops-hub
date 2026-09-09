@@ -14,6 +14,14 @@ export function PeopleOpsSection() {
         blurb="This section is HR/Admin territory — it covers the full employee lifecycle from the moment a role is opened to the moment someone exits the company: the master employee record, hiring, onboarding and offboarding, formal disciplinary process, HR letters, grievances, succession planning, and workforce analytics. Most modules here are restricted to Admin and Super Admin because they touch sensitive personal, financial, or legal information."
       />
 
+      <VideoEmbed src={guideVideoUrl('03-ManagingEmployees.mp4')} title="Managing Employees" caption="Watch: The employee directory, adding employees, and the employee profile modules" />
+      <VideoEmbed src={guideVideoUrl('26-RecruitmentPipeline.mp4')} title="Recruitment Pipeline" caption="Watch: Creating job openings, managing candidates through stages, and extending offers" />
+      <VideoEmbed src={guideVideoUrl('27-OnboardingOffboarding.mp4')} title="Onboarding & Offboarding" caption="Watch: Setting up joining and exit checklists, assigning tasks, and tracking progress" />
+      <VideoEmbed src={guideVideoUrl('28-DisciplinaryProcess.mp4')} title="Disciplinary Process" caption="Watch: Creating records, employee responses, acknowledgements, and expungement" />
+      <VideoEmbed src={guideVideoUrl('29-HRLettersModule.mp4')} title="HR Letters" caption="Watch: Generating letters from templates, collecting e-signatures, and storing signed documents" />
+      <VideoEmbed src={guideVideoUrl('30-GrievanceManagement.mp4')} title="Grievance Management" caption="Watch: Filing grievances (including anonymously), tracking resolution, and HR follow-up" />
+      <VideoEmbed src={guideVideoUrl('31-SuccessionPlanning.mp4')} title="Succession Planning" caption="Watch: Identifying critical roles, assigning succession candidates, and development plans" />
+
       <ModuleCard title="Employees Directory" route="/employees" roles={['super_admin', 'admin']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
           The Employees Directory is the master record for every person at the company — role, department, employment status,

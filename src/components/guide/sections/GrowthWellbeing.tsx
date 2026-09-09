@@ -2,7 +2,7 @@
 // culture: goals, performance reviews, training, the handbook, benefits,
 // surveys, and referrals. Knowledge Base is documented in its own section.
 import { GraduationCap } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
 
 export function GrowthWellbeingSection() {
   return (
@@ -12,6 +12,11 @@ export function GrowthWellbeingSection() {
         title="Growth & Wellbeing"
         blurb="These are the modules that look after you rather than the money or the fleet — setting goals, getting reviewed fairly, building skills, knowing the rules, keeping your benefits current, having a voice, and getting rewarded for bringing in good people. Most of them are open to everyone; a few are run by managers on your behalf."
       />
+
+      <VideoEmbed src={guideVideoUrl('32-GoalsSetting.mp4')} title="Goals & OKRs" caption="Watch: Creating goals, setting key results, tracking progress, and linking goals to tasks" />
+      <VideoEmbed src={guideVideoUrl('33-PerformanceReviews.mp4')} title="Performance Reviews" caption="Watch: Setting up review cycles, rating competencies, and the acknowledgement process" />
+      <VideoEmbed src={guideVideoUrl('34-SurveysModule.mp4')} title="Surveys" caption="Watch: Creating surveys, anonymous responses, and analysing results" />
+      <VideoEmbed src={guideVideoUrl('35-BenefitsEnrollment.mp4')} title="Benefits Enrollment" caption="Watch: Enrolling employees in HMO, pension, and other benefits, and tracking status" />
 
       <ModuleCard title="Goals" route="/goals" roles={['everyone']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
