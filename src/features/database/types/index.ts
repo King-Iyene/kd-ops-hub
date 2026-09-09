@@ -149,10 +149,21 @@ export interface ViewMeta {
   updated_at: string;
 }
 
+/**
+ * Optional single-condition visibility rule for a field on a form:
+ * only show this field when field `field_id` equals `value`.
+ * v1 is deliberately one condition — no AND/OR chains.
+ */
+export interface FormFieldCondition {
+  field_id: string;
+  value: string;
+}
+
 export interface FormFieldConfig {
   required?: boolean;
   hidden?: boolean;
   description?: string;
+  condition?: FormFieldCondition | null;
 }
 
 export interface FormConfig {

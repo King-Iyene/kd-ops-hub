@@ -4,7 +4,7 @@ import {
   Settings2, Share2, ExternalLink, Copy, Check, Palette, Type,
   Upload, Paperclip, X, FileText,
 } from 'lucide-react';
-import type { FieldMeta, ViewMeta, FormConfig, FormFieldConfig } from '../../types';
+import type { FieldMeta, ViewMeta, FormConfig, FormFieldConfig, FormFieldCondition } from '../../types';
 import { PILL_COLORS, VIRTUAL_TYPES } from '../../types';
 import { getFieldTypeIcon } from '../grid/field-icons';
 import { useUpdateView } from '../../hooks/useViews';
@@ -346,6 +346,32 @@ const COVER_COLORS = [
   { name: 'Rose', value: 'linear-gradient(135deg, #FDA4AF 0%, #FB7185 100%)' },
 ];
 
+/**
+ * Compare an answer against a condition's target value. Values coming out of
+ * form inputs can be strings, numbers, booleans or arrays (multi-select,
+ * People, Linked Tasks), so compare loosely on string form and treat an array
+ * as "contains".
+ */
+function conditionMatches(answer: any, target: string): boolean {
+  const wanted = (target ?? '').trim().toLowerCase();
+  if (answer == null) return wanted === '';
+  if (Array.isArray(answer)) {
+    return answer.some((a) =>
+      String(typeof a === 'object' && a !== null ? (a.title ?? a.name ?? a.email ?? '') : a)
+        .trim()
+        .toLowerCase() === wanted,
+    );
+  }
+  if (typeof answer === 'boolean') {
+    return wanted === String(answer) || (answer ? wanted === 'yes' : wanted === 'no');
+  }
+  if (typeof answer === 'object') {
+    const a: any = answer;
+    return String(a.title ?? a.name ?? a.email ?? '').trim().toLowerCase() === wanted;
+  }
+  return String(answer).trim().toLowerCase() === wanted;
+}
+
 export default function FormView({ fields, onAddRow, isLoading, view, isPublic }: FormViewProps) {
   const updateView = useUpdateView();
   const formConfig: FormConfig = view?.form_config ?? {};
@@ -407,6 +433,21 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
     [fieldConfigs, saveConfig],
   );
 
+  /** A field with an unmet condition is hidden: not shown, not required, not submitted. */
+  const isConditionMet = useCallback(
+    (f: FieldMeta) => {
+      const cond = fieldConfigs[f.id]?.condition;
+      if (!cond || !cond.field_id) return true;
+      return conditionMatches(values[cond.field_id], cond.value ?? '');
+    },
+    [fieldConfigs, values],
+  );
+
+  const activeFields = useMemo(
+    () => visibleFields.filter((f) => isConditionMet(f)),
+    [visibleFields, isConditionMet],
+  );
+
   const isFieldRequired = useCallback(
     (f: FieldMeta) => fieldConfigs[f.id]?.required ?? f.is_required,
     [fieldConfigs],
@@ -415,7 +456,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
-    for (const f of visibleFields) {
+    for (const f of activeFields) {
       if (isFieldRequired(f)) {
         const v = values[f.id];
         if (v === undefined || v === '' || v === null || (Array.isArray(v) && v.length === 0)) {
@@ -429,7 +470,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
     }
     const record: Record<string, any> = {};
     const numericTypes = new Set(['Number', 'Decimal', 'Currency', 'Percent', 'Duration']);
-    for (const f of visibleFields) {
+    for (const f of activeFields) {
       const v = values[f.id];
       if (v !== undefined && v !== '') {
         record[f.pg_column_name] = numericTypes.has(f.ui_type) ? Number(v) : v;
@@ -808,6 +849,49 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
                     className="w-full text-xs px-2 py-1.5 rounded border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-[#2D7FF9] text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
                   />
                 </div>
+                <div>
+                  <label className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider mb-1 block">Show only if</label>
+                  <select
+                    value={fieldConfigs[selectedField.id]?.condition?.field_id ?? ''}
+                    onChange={(e) => {
+                      const fieldId = e.target.value;
+                      const next: FormFieldCondition | null = fieldId
+                        ? { field_id: fieldId, value: fieldConfigs[selectedField.id]?.condition?.value ?? '' }
+                        : null;
+                      updateFieldConfig(selectedField.id, { condition: next });
+                    }}
+                    className="w-full text-xs px-2 py-1.5 rounded border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-[#2D7FF9] text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
+                  >
+                    <option value="">Always show</option>
+                    {allEditableFields
+                      .filter((cf) => cf.id !== selectedField.id)
+                      .map((cf) => (
+                        <option key={cf.id} value={cf.id}>{cf.name}</option>
+                      ))}
+                  </select>
+                  {fieldConfigs[selectedField.id]?.condition?.field_id && (
+                    <div className="mt-1.5 flex items-center gap-1.5">
+                      <span className="text-[10px] text-[#94A3B8] shrink-0">equals</span>
+                      <input
+                        type="text"
+                        value={fieldConfigs[selectedField.id]?.condition?.value ?? ''}
+                        onChange={(e) =>
+                          updateFieldConfig(selectedField.id, {
+                            condition: {
+                              field_id: fieldConfigs[selectedField.id]!.condition!.field_id,
+                              value: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="value"
+                        className="flex-1 text-xs px-2 py-1.5 rounded border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-[#2D7FF9] text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
+                      />
+                    </div>
+                  )}
+                  <p className="text-[10px] text-[#94A3B8] mt-1">
+                    Hidden fields are never required and are not submitted.
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -894,7 +978,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic }
 
             {/* Fields */}
             <div className="space-y-0">
-              {visibleFields.map((f) => {
+              {activeFields.map((f) => {
                 const Icon = getFieldTypeIcon(f.ui_type);
                 const req = isFieldRequired(f);
                 const fc = fieldConfigs[f.id] ?? {};
