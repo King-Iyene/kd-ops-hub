@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import type { FlexNumberFormat } from '@/lib/flexFormula';
 
 export type FlexFieldType =
   | 'text' | 'long_text' | 'number' | 'date' | 'checkbox'
@@ -29,6 +30,8 @@ export interface FlexFieldOptions {
   hidden?: boolean;
   /** formula fields only — Airtable-pattern expression, e.g. ROUND({Hours}*{Rate}, 2) */
   formula?: string;
+  /** formula fields only — how to display a numeric result. */
+  format?: FlexNumberFormat;
 }
 
 export interface FlexTable {

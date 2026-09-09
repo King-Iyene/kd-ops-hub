@@ -9,7 +9,10 @@ import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { evaluateFormula, isFormulaError, type FormulaValue } from '@/lib/flexFormula';
+import {
+  evaluateFormula, isFormulaError, formatNumericValue, FLEX_NUMBER_FORMATS,
+  type FormulaValue, type FlexNumberFormat,
+} from '@/lib/flexFormula';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -551,11 +554,9 @@ function Cell({
     return (
       <div className="px-2 py-1.5 text-xs text-muted-foreground italic">
         {isFormulaError(result) ? (
-          <span className="text-destructive not-italic">#ERROR</span>
-        ) : result === null || result === undefined || result === '' ? (
-          '—'
+          <span className="text-destructive not-italic" title={result.error}>#ERROR</span>
         ) : (
-          String(result)
+          formatNumericValue(result, field.options.format)
         )}
       </div>
     );
@@ -735,6 +736,7 @@ function FieldEditorDialog({
   const [type, setType] = useState<FlexFieldType>(field?.type || 'text');
   const [choices, setChoices] = useState<FlexChoice[]>(field?.options.choices || []);
   const [formula, setFormula] = useState(field?.options.formula || '');
+  const [format, setFormat] = useState<FlexNumberFormat>(field?.options.format || 'number');
   const [saving, setSaving] = useState(false);
 
   const needsChoices = type === 'select' || type === 'multi_select';
@@ -752,7 +754,7 @@ function FieldEditorDialog({
   const save = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    const options = needsChoices ? { choices: choices.filter((c) => c.label.trim()) } : isFormula ? { formula } : {};
+    const options = needsChoices ? { choices: choices.filter((c) => c.label.trim()) } : isFormula ? { formula, format } : {};
     if (field) {
       const { error } = await flexApi.updateField(field.id, { name: name.trim(), type, options });
       setSaving(false);
@@ -827,12 +829,21 @@ function FieldEditorDialog({
               <p className="text-[11px] text-muted-foreground">
                 Functions: IF, AND, OR, NOT, SUM, MIN, MAX, ROUND, ABS, LEN, UPPER, LOWER, TRIM, CONCATENATE, TODAY, NOW. Use & to join text, + - * / for math.
               </p>
+
+              <label className="text-xs font-medium text-muted-foreground block pt-1">Output format</label>
+              <Select value={format} onValueChange={(v) => setFormat(v as FlexNumberFormat)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {FLEX_NUMBER_FORMATS.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+
               {formula.trim() && (
                 <p className="text-[11px]">
                   Preview: {isFormulaError(formulaPreview) ? (
                     <span className="text-destructive">{formulaPreview.error}</span>
                   ) : (
-                    <span className="text-muted-foreground">{String(formulaPreview ?? '—')}</span>
+                    <span className="text-muted-foreground">{formatNumericValue(formulaPreview, format)}</span>
                   )}
                 </p>
               )}

@@ -9,6 +9,37 @@
 
 export type FormulaValue = string | number | boolean | null;
 
+export type FlexNumberFormat = 'number' | 'integer' | 'decimal' | 'currency_ngn' | 'currency_usd' | 'percent';
+
+export const FLEX_NUMBER_FORMATS: { value: FlexNumberFormat; label: string }[] = [
+  { value: 'number', label: 'Plain number' },
+  { value: 'integer', label: 'Integer' },
+  { value: 'decimal', label: 'Decimal (2 places)' },
+  { value: 'currency_ngn', label: 'Currency — Naira (₦)' },
+  { value: 'currency_usd', label: 'Currency — US Dollar ($)' },
+  { value: 'percent', label: 'Percent' },
+];
+
+/** Formats a computed formula value for display. Non-numeric results
+ *  (e.g. CONCATENATE/IF returning text) pass through unchanged regardless
+ *  of the chosen format — formatting only applies when the value actually
+ *  parses as a number. */
+export function formatNumericValue(value: FormulaValue, format?: FlexNumberFormat): string {
+  if (value === null || value === undefined || value === '') return '—';
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (!format || format === 'number') return String(value);
+  const n = typeof value === 'number' ? value : parseFloat(String(value));
+  if (isNaN(n)) return String(value);
+  switch (format) {
+    case 'integer': return Math.round(n).toLocaleString('en-NG');
+    case 'decimal': return n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    case 'currency_ngn': return `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    case 'currency_usd': return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    case 'percent': return `${(n * 100).toLocaleString('en-NG', { maximumFractionDigits: 2 })}%`;
+    default: return String(value);
+  }
+}
+
 type TokenType = 'number' | 'string' | 'field' | 'ident' | 'op' | 'lparen' | 'rparen' | 'comma' | 'eof';
 interface Token { type: TokenType; value: string; }
 
@@ -158,9 +189,14 @@ class Parser {
 function toNum(v: FormulaValue): number {
   if (typeof v === 'number') return v;
   if (typeof v === 'boolean') return v ? 1 : 0;
-  if (v === null || v === undefined) return 0;
+  if (v === null || v === undefined || v === '') return 0;
   const n = parseFloat(String(v));
-  return isNaN(n) ? 0 : n;
+  // A blank field is 0 (standard spreadsheet behavior), but a field that
+  // holds real non-numeric text — e.g. a Linked Tasks or Select field used
+  // by mistake in a math expression — must surface as an error rather than
+  // silently computing 0, or a wrong formula looks like a correct one.
+  if (isNaN(n)) throw new Error(`"${v}" is not a number`);
+  return n;
 }
 
 function toStr(v: FormulaValue): string {
