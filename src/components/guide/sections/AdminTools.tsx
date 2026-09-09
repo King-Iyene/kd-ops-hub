@@ -18,6 +18,7 @@ export function AdminToolsSection() {
 
       <VideoEmbed src={guideVideoUrl('11-ComplianceCentre.mp4')} title="Compliance Centre" caption="Watch: Compliance overview, filing processes, and document uploads" />
       <VideoEmbed src={guideVideoUrl('13-DocsReportsAdmin.mp4')} title="Documents, Reports & Admin" caption="Watch: Document management, generating reports, and admin settings" />
+      <VideoEmbed src={guideVideoUrl('21-ApprovalsInbox.mp4')} title="Approvals Inbox" caption="Watch: Reviewing pending approvals, approving or rejecting requests, and the approval chain" />
 
       <ModuleCard title="Audit Log" route="/audit" roles={['super_admin', 'admin']}>
         <p className="text-sm text-muted-foreground leading-relaxed">

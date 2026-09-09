@@ -16,6 +16,9 @@ export function GettingStartedSection() {
 
       <VideoEmbed src={guideVideoUrl('01-WelcomeToKDOps.mp4')} title="Welcome to KDOps" caption="Watch: Logging in, navigating the dashboard, and finding your way around KDOps" />
       <VideoEmbed src={guideVideoUrl('02-DashboardDeepDive.mp4')} title="Dashboard Deep Dive" caption="Watch: Understanding your dashboard widgets, finance summary, quick actions, and compliance alerts" />
+      <VideoEmbed src={guideVideoUrl('14-MyPortal.mp4')} title="My Portal" caption="Watch: Your personal dashboard — leave balances, payslips, tasks, and quick actions all in one place" />
+      <VideoEmbed src={guideVideoUrl('15-ProfileSetup.mp4')} title="Profile Setup" caption="Watch: Setting up your profile, uploading a photo, updating bank details, and enabling 2FA" />
+      <VideoEmbed src={guideVideoUrl('16-SidebarNavigation.mp4')} title="Sidebar Navigation" caption="Watch: Understanding the sidebar structure — hubs, groups, and how to find any module" />
 
       <Screenshot
         src="/guide/guide-desktop.jpg"

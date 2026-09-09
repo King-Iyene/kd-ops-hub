@@ -17,6 +17,14 @@ export function FinanceOpsSection() {
       />
 
       <VideoEmbed src={guideVideoUrl('09-PayrollIntelligence.mp4')} title="Payroll Intelligence" caption="Watch: Running payroll, understanding pay groups, reviewing breakdowns, and payroll history" />
+      <VideoEmbed src={guideVideoUrl('07-PaymentBatches.mp4')} title="Payment Batches" caption="Watch: Creating payment batches, adding recipients, and the approval workflow" />
+      <VideoEmbed src={guideVideoUrl('17-TransactionHistory.mp4')} title="Transaction History" caption="Watch: Viewing all transactions, filtering by date and type, and exporting records" />
+      <VideoEmbed src={guideVideoUrl('20-CardsManagement.mp4')} title="Virtual Cards" caption="Watch: Creating virtual cards, setting limits, and tracking card spend" />
+      <VideoEmbed src={guideVideoUrl('22-EarnedWages.mp4')} title="Earned Wage Access" caption="Watch: Requesting an advance, approval flow, and how it affects your next payslip" />
+      <VideoEmbed src={guideVideoUrl('23-PaymentSchedule.mp4')} title="Payment Schedules" caption="Watch: Setting up recurring payments, managing schedules, and the approval trigger" />
+      <VideoEmbed src={guideVideoUrl('24-PayHubOverview.mp4')} title="Pay Hub Overview" caption="Watch: Your unified command centre for payroll, EWA, staff loans, and compliance" />
+      <VideoEmbed src={guideVideoUrl('25-StaffLoans.mp4')} title="Staff Loans" caption="Watch: Creating loans, tracking repayments, and how deductions tie into payroll" />
+      <VideoEmbed src={guideVideoUrl('10-BudgetsSubscriptions.mp4')} title="Budgets & Subscriptions" caption="Watch: Setting up budgets, tracking spend vs. allocation, and managing recurring subscriptions" />
 
       <ModuleCard title="Pay Hub" route="/pay-hub" roles={['super_admin', 'admin', 'finance']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
