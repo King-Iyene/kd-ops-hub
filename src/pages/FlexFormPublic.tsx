@@ -72,6 +72,10 @@ export default function FlexFormPublic() {
   const submit = async () => {
     if (!token || !payload) return;
     for (const entry of visibleEntries) {
+      // A field the form references but that no longer exists on the table
+      // (deleted after being added to the form) never renders, so there's
+      // nothing the user could fill in — don't block on it.
+      if (!fieldsById.get(entry.field_id)) continue;
       if (entry.required && !linkFieldsEmpty[entry.field_id]) {
         const v = values[entry.field_id];
         const empty = v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
