@@ -12,27 +12,27 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 300,
+        durationFrames: 780,
         file: "voiceover/37-InvoicingClients/intro.mp3"
     },
     {
-        startFrame: 285,
-        durationFrames: 600,
-        file: "voiceover/37-InvoicingClients/create.mp3"
+        startFrame: 765,
+        durationFrames: 1890,
+        file: "voiceover/37-InvoicingClients/CreateInvoice.mp3"
     },
     {
-        startFrame: 870,
-        durationFrames: 600,
-        file: "voiceover/37-InvoicingClients/payments.mp3"
+        startFrame: 2640,
+        durationFrames: 1620,
+        file: "voiceover/37-InvoicingClients/TrackPayments.mp3"
     },
     {
-        startFrame: 1455,
-        durationFrames: 450,
+        startFrame: 4245,
+        durationFrames: 1050,
         file: "voiceover/37-InvoicingClients/troubleshoot.mp3"
     },
     {
-        startFrame: 1890,
-        durationFrames: 300,
+        startFrame: 5280,
+        durationFrames: 600,
         file: "voiceover/37-InvoicingClients/outro.mp3"
     }
 ];
@@ -43,7 +43,7 @@ export const InvoicingClients: React.FC = () => {
   return (
     <AbsoluteFill>
     <TransitionSeries>
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={26 * fps} name="Intro">
         <ICIntroScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -51,7 +51,7 @@ export const InvoicingClients: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="CreateInvoice">
+      <TransitionSeries.Sequence durationInFrames={63 * fps} name="CreateInvoice">
         <ICCreateInvoiceScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -59,7 +59,7 @@ export const InvoicingClients: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="TrackPayments">
+      <TransitionSeries.Sequence durationInFrames={54 * fps} name="TrackPayments">
         <ICTrackPaymentsScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -67,7 +67,7 @@ export const InvoicingClients: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={15 * fps} name="Troubleshooting">
+      <TransitionSeries.Sequence durationInFrames={35 * fps} name="Troubleshooting">
         <ICTroubleshootScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -75,7 +75,7 @@ export const InvoicingClients: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={20 * fps} name="Outro">
         <ICOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>

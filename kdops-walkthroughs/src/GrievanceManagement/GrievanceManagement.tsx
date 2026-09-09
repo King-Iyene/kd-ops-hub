@@ -12,27 +12,27 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 300,
+        durationFrames: 780,
         file: "voiceover/30-GrievanceManagement/intro.mp3"
     },
     {
-        startFrame: 285,
-        durationFrames: 600,
-        file: "voiceover/30-GrievanceManagement/file.mp3"
+        startFrame: 765,
+        durationFrames: 1500,
+        file: "voiceover/30-GrievanceManagement/FileGrievance.mp3"
     },
     {
-        startFrame: 870,
-        durationFrames: 600,
-        file: "voiceover/30-GrievanceManagement/resolution.mp3"
+        startFrame: 2250,
+        durationFrames: 1290,
+        file: "voiceover/30-GrievanceManagement/TrackResolution.mp3"
     },
     {
-        startFrame: 1455,
-        durationFrames: 450,
+        startFrame: 3525,
+        durationFrames: 990,
         file: "voiceover/30-GrievanceManagement/troubleshoot.mp3"
     },
     {
-        startFrame: 1890,
-        durationFrames: 300,
+        startFrame: 4500,
+        durationFrames: 570,
         file: "voiceover/30-GrievanceManagement/outro.mp3"
     }
 ];
@@ -43,7 +43,7 @@ export const GrievanceManagement: React.FC = () => {
   return (
     <AbsoluteFill>
     <TransitionSeries>
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={26 * fps} name="Intro">
         <GMIntroScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -51,7 +51,7 @@ export const GrievanceManagement: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="FileGrievance">
+      <TransitionSeries.Sequence durationInFrames={50 * fps} name="FileGrievance">
         <GMFileGrievanceScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -59,7 +59,7 @@ export const GrievanceManagement: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="TrackResolution">
+      <TransitionSeries.Sequence durationInFrames={43 * fps} name="TrackResolution">
         <GMTrackResolutionScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -67,7 +67,7 @@ export const GrievanceManagement: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={15 * fps} name="Troubleshooting">
+      <TransitionSeries.Sequence durationInFrames={33 * fps} name="Troubleshooting">
         <GMTroubleshootScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -75,7 +75,7 @@ export const GrievanceManagement: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={19 * fps} name="Outro">
         <GMOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>

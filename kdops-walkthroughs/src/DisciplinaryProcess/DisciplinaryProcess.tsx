@@ -13,32 +13,32 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 300,
+        durationFrames: 810,
         file: "voiceover/28-DisciplinaryProcess/intro.mp3"
     },
     {
-        startFrame: 285,
-        durationFrames: 600,
-        file: "voiceover/28-DisciplinaryProcess/create.mp3"
+        startFrame: 795,
+        durationFrames: 1530,
+        file: "voiceover/28-DisciplinaryProcess/CreateRecord.mp3"
     },
     {
-        startFrame: 870,
-        durationFrames: 600,
-        file: "voiceover/28-DisciplinaryProcess/response.mp3"
+        startFrame: 2310,
+        durationFrames: 1260,
+        file: "voiceover/28-DisciplinaryProcess/ResponseThread.mp3"
     },
     {
-        startFrame: 1455,
-        durationFrames: 600,
-        file: "voiceover/28-DisciplinaryProcess/acknowledge.mp3"
+        startFrame: 3555,
+        durationFrames: 1380,
+        file: "voiceover/28-DisciplinaryProcess/AcknowledgeExpunge.mp3"
     },
     {
-        startFrame: 2040,
-        durationFrames: 450,
+        startFrame: 4920,
+        durationFrames: 990,
         file: "voiceover/28-DisciplinaryProcess/troubleshoot.mp3"
     },
     {
-        startFrame: 2475,
-        durationFrames: 300,
+        startFrame: 5895,
+        durationFrames: 600,
         file: "voiceover/28-DisciplinaryProcess/outro.mp3"
     }
 ];
@@ -49,7 +49,7 @@ export const DisciplinaryProcess: React.FC = () => {
   return (
     <AbsoluteFill>
     <TransitionSeries>
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={27 * fps} name="Intro">
         <DPIntroScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -57,7 +57,7 @@ export const DisciplinaryProcess: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="CreateRecord">
+      <TransitionSeries.Sequence durationInFrames={51 * fps} name="CreateRecord">
         <DPCreateRecordScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -65,7 +65,7 @@ export const DisciplinaryProcess: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="ResponseThread">
+      <TransitionSeries.Sequence durationInFrames={42 * fps} name="ResponseThread">
         <DPResponseThreadScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -73,7 +73,7 @@ export const DisciplinaryProcess: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="AcknowledgeExpunge">
+      <TransitionSeries.Sequence durationInFrames={46 * fps} name="AcknowledgeExpunge">
         <DPAcknowledgeExpungeScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -81,7 +81,7 @@ export const DisciplinaryProcess: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={15 * fps} name="Troubleshooting">
+      <TransitionSeries.Sequence durationInFrames={33 * fps} name="Troubleshooting">
         <DPTroubleshootScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -89,7 +89,7 @@ export const DisciplinaryProcess: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={20 * fps} name="Outro">
         <DPOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>

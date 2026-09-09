@@ -12,27 +12,27 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 300,
+        durationFrames: 780,
         file: "voiceover/32-GoalsSetting/intro.mp3"
     },
     {
-        startFrame: 285,
-        durationFrames: 600,
-        file: "voiceover/32-GoalsSetting/create.mp3"
+        startFrame: 765,
+        durationFrames: 1650,
+        file: "voiceover/32-GoalsSetting/CreateGoal.mp3"
     },
     {
-        startFrame: 870,
-        durationFrames: 600,
-        file: "voiceover/32-GoalsSetting/progress.mp3"
+        startFrame: 2400,
+        durationFrames: 1440,
+        file: "voiceover/32-GoalsSetting/TrackProgress.mp3"
     },
     {
-        startFrame: 1455,
-        durationFrames: 450,
+        startFrame: 3825,
+        durationFrames: 930,
         file: "voiceover/32-GoalsSetting/troubleshoot.mp3"
     },
     {
-        startFrame: 1890,
-        durationFrames: 300,
+        startFrame: 4740,
+        durationFrames: 600,
         file: "voiceover/32-GoalsSetting/outro.mp3"
     }
 ];
@@ -43,7 +43,7 @@ export const GoalsSetting: React.FC = () => {
   return (
     <AbsoluteFill>
     <TransitionSeries>
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={26 * fps} name="Intro">
         <GSIntroScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -51,7 +51,7 @@ export const GoalsSetting: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="CreateGoal">
+      <TransitionSeries.Sequence durationInFrames={55 * fps} name="CreateGoal">
         <GSCreateGoalScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -59,7 +59,7 @@ export const GoalsSetting: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="TrackProgress">
+      <TransitionSeries.Sequence durationInFrames={48 * fps} name="TrackProgress">
         <GSTrackProgressScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -67,7 +67,7 @@ export const GoalsSetting: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={15 * fps} name="Troubleshooting">
+      <TransitionSeries.Sequence durationInFrames={31 * fps} name="Troubleshooting">
         <GSTroubleshootScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -75,7 +75,7 @@ export const GoalsSetting: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={20 * fps} name="Outro">
         <GSOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>

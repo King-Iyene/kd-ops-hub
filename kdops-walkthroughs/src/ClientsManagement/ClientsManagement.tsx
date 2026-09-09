@@ -12,27 +12,27 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 300,
+        durationFrames: 480,
         file: "voiceover/36-ClientsManagement/intro.mp3"
     },
     {
-        startFrame: 285,
-        durationFrames: 600,
-        file: "voiceover/36-ClientsManagement/add.mp3"
+        startFrame: 465,
+        durationFrames: 450,
+        file: "voiceover/36-ClientsManagement/AddClient.mp3"
     },
     {
-        startFrame: 870,
-        durationFrames: 600,
-        file: "voiceover/36-ClientsManagement/profile.mp3"
+        startFrame: 900,
+        durationFrames: 510,
+        file: "voiceover/36-ClientsManagement/ClientProfile.mp3"
     },
     {
-        startFrame: 1455,
+        startFrame: 1395,
         durationFrames: 450,
         file: "voiceover/36-ClientsManagement/troubleshoot.mp3"
     },
     {
-        startFrame: 1890,
-        durationFrames: 300,
+        startFrame: 1830,
+        durationFrames: 420,
         file: "voiceover/36-ClientsManagement/outro.mp3"
     }
 ];
@@ -43,7 +43,7 @@ export const ClientsManagement: React.FC = () => {
   return (
     <AbsoluteFill>
     <TransitionSeries>
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={16 * fps} name="Intro">
         <CMIntroScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -51,7 +51,7 @@ export const ClientsManagement: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="AddClient">
+      <TransitionSeries.Sequence durationInFrames={15 * fps} name="AddClient">
         <CLMAddClientScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -59,7 +59,7 @@ export const ClientsManagement: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="ClientProfile">
+      <TransitionSeries.Sequence durationInFrames={17 * fps} name="ClientProfile">
         <CLMClientProfileScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -75,7 +75,7 @@ export const ClientsManagement: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={14 * fps} name="Outro">
         <CMOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>

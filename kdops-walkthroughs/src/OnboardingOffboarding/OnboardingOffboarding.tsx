@@ -13,32 +13,32 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 300,
+        durationFrames: 750,
         file: "voiceover/27-OnboardingOffboarding/intro.mp3"
     },
     {
-        startFrame: 285,
-        durationFrames: 600,
-        file: "voiceover/27-OnboardingOffboarding/joining.mp3"
+        startFrame: 735,
+        durationFrames: 1470,
+        file: "voiceover/27-OnboardingOffboarding/JoiningChecklist.mp3"
     },
     {
-        startFrame: 870,
-        durationFrames: 600,
-        file: "voiceover/27-OnboardingOffboarding/exit.mp3"
+        startFrame: 2190,
+        durationFrames: 1350,
+        file: "voiceover/27-OnboardingOffboarding/ExitChecklist.mp3"
     },
     {
-        startFrame: 1455,
-        durationFrames: 600,
-        file: "voiceover/27-OnboardingOffboarding/progress.mp3"
+        startFrame: 3525,
+        durationFrames: 1140,
+        file: "voiceover/27-OnboardingOffboarding/TrackProgress.mp3"
     },
     {
-        startFrame: 2040,
-        durationFrames: 450,
+        startFrame: 4650,
+        durationFrames: 930,
         file: "voiceover/27-OnboardingOffboarding/troubleshoot.mp3"
     },
     {
-        startFrame: 2475,
-        durationFrames: 300,
+        startFrame: 5565,
+        durationFrames: 570,
         file: "voiceover/27-OnboardingOffboarding/outro.mp3"
     }
 ];
@@ -49,7 +49,7 @@ export const OnboardingOffboarding: React.FC = () => {
   return (
     <AbsoluteFill>
     <TransitionSeries>
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={25 * fps} name="Intro">
         <OOIntroScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -57,7 +57,7 @@ export const OnboardingOffboarding: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="JoiningChecklist">
+      <TransitionSeries.Sequence durationInFrames={49 * fps} name="JoiningChecklist">
         <OOJoiningChecklistScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -65,7 +65,7 @@ export const OnboardingOffboarding: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="ExitChecklist">
+      <TransitionSeries.Sequence durationInFrames={45 * fps} name="ExitChecklist">
         <OOExitChecklistScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -73,7 +73,7 @@ export const OnboardingOffboarding: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="TrackProgress">
+      <TransitionSeries.Sequence durationInFrames={38 * fps} name="TrackProgress">
         <OOTrackProgressScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -81,7 +81,7 @@ export const OnboardingOffboarding: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={15 * fps} name="Troubleshooting">
+      <TransitionSeries.Sequence durationInFrames={31 * fps} name="Troubleshooting">
         <OOTroubleshootScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -89,7 +89,7 @@ export const OnboardingOffboarding: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={19 * fps} name="Outro">
         <OOOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>

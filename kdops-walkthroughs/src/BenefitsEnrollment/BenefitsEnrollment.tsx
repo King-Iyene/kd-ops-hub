@@ -12,27 +12,27 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 300,
+        durationFrames: 780,
         file: "voiceover/35-BenefitsEnrollment/intro.mp3"
     },
     {
-        startFrame: 285,
-        durationFrames: 600,
-        file: "voiceover/35-BenefitsEnrollment/enroll.mp3"
+        startFrame: 765,
+        durationFrames: 570,
+        file: "voiceover/35-BenefitsEnrollment/EnrollBenefit.mp3"
     },
     {
-        startFrame: 870,
-        durationFrames: 600,
-        file: "voiceover/35-BenefitsEnrollment/track.mp3"
+        startFrame: 1320,
+        durationFrames: 480,
+        file: "voiceover/35-BenefitsEnrollment/TrackEnrollments.mp3"
     },
     {
-        startFrame: 1455,
-        durationFrames: 450,
+        startFrame: 1785,
+        durationFrames: 510,
         file: "voiceover/35-BenefitsEnrollment/troubleshoot.mp3"
     },
     {
-        startFrame: 1890,
-        durationFrames: 300,
+        startFrame: 2280,
+        durationFrames: 420,
         file: "voiceover/35-BenefitsEnrollment/outro.mp3"
     }
 ];
@@ -43,7 +43,7 @@ export const BenefitsEnrollment: React.FC = () => {
   return (
     <AbsoluteFill>
     <TransitionSeries>
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={26 * fps} name="Intro">
         <BEIntroScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -51,7 +51,7 @@ export const BenefitsEnrollment: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="EnrollBenefit">
+      <TransitionSeries.Sequence durationInFrames={19 * fps} name="EnrollBenefit">
         <BEEnrollBenefitScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -59,7 +59,7 @@ export const BenefitsEnrollment: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="TrackEnrollments">
+      <TransitionSeries.Sequence durationInFrames={16 * fps} name="TrackEnrollments">
         <BETrackEnrollmentsScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -67,7 +67,7 @@ export const BenefitsEnrollment: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={15 * fps} name="Troubleshooting">
+      <TransitionSeries.Sequence durationInFrames={17 * fps} name="Troubleshooting">
         <BETroubleshootScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -75,7 +75,7 @@ export const BenefitsEnrollment: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={14 * fps} name="Outro">
         <BEOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>

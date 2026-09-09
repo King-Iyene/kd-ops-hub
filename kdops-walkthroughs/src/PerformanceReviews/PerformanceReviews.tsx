@@ -13,32 +13,32 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 300,
+        durationFrames: 690,
         file: "voiceover/33-PerformanceReviews/intro.mp3"
     },
     {
-        startFrame: 285,
-        durationFrames: 600,
-        file: "voiceover/33-PerformanceReviews/cycle.mp3"
+        startFrame: 675,
+        durationFrames: 1500,
+        file: "voiceover/33-PerformanceReviews/CreateCycle.mp3"
     },
     {
-        startFrame: 870,
-        durationFrames: 600,
-        file: "voiceover/33-PerformanceReviews/rate.mp3"
+        startFrame: 2160,
+        durationFrames: 1500,
+        file: "voiceover/33-PerformanceReviews/RateCompetencies.mp3"
     },
     {
-        startFrame: 1455,
-        durationFrames: 600,
-        file: "voiceover/33-PerformanceReviews/acknowledge.mp3"
+        startFrame: 3645,
+        durationFrames: 1260,
+        file: "voiceover/33-PerformanceReviews/AcknowledgeReview.mp3"
     },
     {
-        startFrame: 2040,
-        durationFrames: 450,
+        startFrame: 4890,
+        durationFrames: 990,
         file: "voiceover/33-PerformanceReviews/troubleshoot.mp3"
     },
     {
-        startFrame: 2475,
-        durationFrames: 300,
+        startFrame: 5865,
+        durationFrames: 600,
         file: "voiceover/33-PerformanceReviews/outro.mp3"
     }
 ];
@@ -49,7 +49,7 @@ export const PerformanceReviews: React.FC = () => {
   return (
     <AbsoluteFill>
     <TransitionSeries>
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={23 * fps} name="Intro">
         <PRIntroScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -57,7 +57,7 @@ export const PerformanceReviews: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="CreateCycle">
+      <TransitionSeries.Sequence durationInFrames={50 * fps} name="CreateCycle">
         <PRCreateCycleScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -65,7 +65,7 @@ export const PerformanceReviews: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="RateCompetencies">
+      <TransitionSeries.Sequence durationInFrames={50 * fps} name="RateCompetencies">
         <PRRateCompetenciesScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -73,7 +73,7 @@ export const PerformanceReviews: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="AcknowledgeReview">
+      <TransitionSeries.Sequence durationInFrames={42 * fps} name="AcknowledgeReview">
         <PRAcknowledgeReviewScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -81,7 +81,7 @@ export const PerformanceReviews: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={15 * fps} name="Troubleshooting">
+      <TransitionSeries.Sequence durationInFrames={33 * fps} name="Troubleshooting">
         <PRTroubleshootScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -89,7 +89,7 @@ export const PerformanceReviews: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={20 * fps} name="Outro">
         <PROutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>

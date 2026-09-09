@@ -12,27 +12,27 @@ import { VoiceoverTrack } from "../shared/VoiceoverTrack";
 const voSegments = [
     {
         startFrame: 0,
-        durationFrames: 300,
+        durationFrames: 750,
         file: "voiceover/29-HRLettersModule/intro.mp3"
     },
     {
-        startFrame: 285,
-        durationFrames: 600,
-        file: "voiceover/29-HRLettersModule/create.mp3"
+        startFrame: 735,
+        durationFrames: 1440,
+        file: "voiceover/29-HRLettersModule/CreateLetter.mp3"
     },
     {
-        startFrame: 870,
-        durationFrames: 600,
-        file: "voiceover/29-HRLettersModule/signature.mp3"
+        startFrame: 2160,
+        durationFrames: 1230,
+        file: "voiceover/29-HRLettersModule/ESignature.mp3"
     },
     {
-        startFrame: 1455,
-        durationFrames: 450,
+        startFrame: 3375,
+        durationFrames: 960,
         file: "voiceover/29-HRLettersModule/troubleshoot.mp3"
     },
     {
-        startFrame: 1890,
-        durationFrames: 300,
+        startFrame: 4320,
+        durationFrames: 570,
         file: "voiceover/29-HRLettersModule/outro.mp3"
     }
 ];
@@ -43,7 +43,7 @@ export const HRLettersModule: React.FC = () => {
   return (
     <AbsoluteFill>
     <TransitionSeries>
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Intro">
+      <TransitionSeries.Sequence durationInFrames={25 * fps} name="Intro">
         <HRLIntroScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -51,7 +51,7 @@ export const HRLettersModule: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="CreateLetter">
+      <TransitionSeries.Sequence durationInFrames={48 * fps} name="CreateLetter">
         <HLCreateLetterScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -59,7 +59,7 @@ export const HRLettersModule: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={20 * fps} name="ESignature">
+      <TransitionSeries.Sequence durationInFrames={41 * fps} name="ESignature">
         <HLESignatureScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -67,7 +67,7 @@ export const HRLettersModule: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={15 * fps} name="Troubleshooting">
+      <TransitionSeries.Sequence durationInFrames={32 * fps} name="Troubleshooting">
         <HRLTroubleshootScene />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -75,7 +75,7 @@ export const HRLettersModule: React.FC = () => {
         timing={linearTiming({ durationInFrames: Math.round(0.5 * fps) })}
       />
 
-      <TransitionSeries.Sequence durationInFrames={10 * fps} name="Outro">
+      <TransitionSeries.Sequence durationInFrames={19 * fps} name="Outro">
         <HRLOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>
