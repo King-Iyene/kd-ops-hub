@@ -1,0 +1,640 @@
+<title>KDOps Video Plan</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap">
+<style>
+  :root {
+    --bg: #FAFAF8;
+    --surface: #FFFFFF;
+    --surface-alt: #F0EFEC;
+    --border: #E2E0DA;
+    --text: #1A1A18;
+    --text-muted: #6B6960;
+    --accent: #006994;
+    --accent-light: #E6F2F7;
+    --gold: #D6AC50;
+    --gold-light: #FBF6EC;
+    --cyan: #00ECFF;
+    --green: #22c55e;
+    --green-light: #ECFDF5;
+    --red: #ef4444;
+    --red-light: #FEF2F2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121210;
+      --surface: #1C1C19;
+      --surface-alt: #252522;
+      --border: #333330;
+      --text: #EAEAE6;
+      --text-muted: #9B9A92;
+      --accent: #4DB8D9;
+      --accent-light: #162A33;
+      --gold: #E0BE6A;
+      --gold-light: #2A2518;
+      --cyan: #00D4E6;
+      --green: #4ade80;
+      --green-light: #14261A;
+      --red: #f87171;
+      --red-light: #2A1616;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121210;
+    --surface: #1C1C19;
+    --surface-alt: #252522;
+    --border: #333330;
+    --text: #EAEAE6;
+    --text-muted: #9B9A92;
+    --accent: #4DB8D9;
+    --accent-light: #162A33;
+    --gold: #E0BE6A;
+    --gold-light: #2A2518;
+    --cyan: #00D4E6;
+    --green: #4ade80;
+    --green-light: #14261A;
+    --red: #f87171;
+    --red-light: #2A1616;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    line-height: 1.6;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 4rem;
+  }
+
+  .mono { font-family: 'Space Mono', monospace; }
+
+  .header {
+    margin-bottom: 3rem;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 2rem;
+  }
+  .header .eyebrow {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+  }
+  .header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.15;
+    margin: 0 0 0.75rem;
+    text-wrap: balance;
+  }
+  .header p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    max-width: 60ch;
+    margin: 0;
+  }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    margin-bottom: 3rem;
+  }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1rem;
+    text-align: center;
+  }
+  .stat-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 0.35rem;
+  }
+  .stat-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+
+  .phase {
+    margin-bottom: 2.5rem;
+  }
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+  .phase-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--surface);
+    background: var(--accent);
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .phase-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+
+  .video-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .video-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    align-items: start;
+    transition: border-color 0.15s;
+  }
+  .video-card:hover {
+    border-color: var(--accent);
+  }
+
+  .video-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.3rem;
+  }
+  .video-desc {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin-bottom: 0.6rem;
+    max-width: 55ch;
+  }
+  .video-scenes {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.7;
+  }
+  .video-scenes strong {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .video-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
+  .badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    white-space: nowrap;
+    font-weight: 700;
+  }
+  .badge-duration {
+    background: var(--accent-light);
+    color: var(--accent);
+  }
+  .badge-priority-high {
+    background: var(--gold-light);
+    color: var(--gold);
+  }
+  .badge-priority-med {
+    background: var(--green-light);
+    color: var(--green);
+  }
+  .badge-audience {
+    background: var(--surface-alt);
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  .route-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--accent);
+    background: var(--accent-light);
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+  }
+
+  .section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 2.5rem 0;
+  }
+
+  .tooling {
+    background: var(--surface-alt);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+  }
+  .tooling h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 1rem;
+  }
+  .tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+  }
+  .tool-item {
+    font-size: 0.82rem;
+  }
+  .tool-item strong {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.15rem;
+  }
+  .tool-item span {
+    color: var(--text-muted);
+  }
+
+  .notes {
+    margin-top: 2rem;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    border-left: 3px solid var(--gold);
+    padding-left: 1rem;
+  }
+  .notes strong { color: var(--text); }
+
+  .troubleshoot {
+    margin-top: 0.6rem;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: var(--text-muted);
+    border-top: 1px dashed var(--border);
+    padding-top: 0.5rem;
+  }
+  .troubleshoot strong {
+    color: var(--red);
+    font-weight: 600;
+  }
+  .troubleshoot .fix {
+    color: var(--green);
+    font-weight: 500;
+  }
+</style>
+
+<div class="header">
+  <div class="eyebrow">KDOps Hub · Remotion Video Series</div>
+  <h1>Walkthrough Video Production Plan</h1>
+  <p>Module-by-module SOP videos for the KD Squares operations platform. Each video is a standalone Remotion composition rendered as MP4, covering one feature area with branded transitions and text callouts.</p>
+</div>
+
+<div class="stats-row">
+  <div class="stat">
+    <div class="stat-value">13</div>
+    <div class="stat-label">Videos</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">4</div>
+    <div class="stat-label">Phases</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">~44</div>
+    <div class="stat-label">Minutes Total</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">16</div>
+    <div class="stat-label">Pages Covered</div>
+  </div>
+</div>
+
+<!-- PHASE 1 -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">1</div>
+    <div class="phase-title">Onboarding &amp; Core Navigation</div>
+  </div>
+  <div class="video-list">
+
+    <div class="video-card">
+      <div>
+        <div class="video-title">Welcome to KDOps</div>
+        <div class="video-desc">First-time user experience — from login to orientation on the dashboard and sidebar.</div>
+        <div class="video-scenes">
+          <strong>Scenes:</strong> Login screen → enter credentials → dashboard loads → tour the sidebar items → explain role-based visibility → profile dropdown → notification bell → sign out<br>
+          <strong>Routes:</strong> <span class="route-tag">/login</span> <span class="route-tag">/</span> <span class="route-tag">/profile</span>
+        </div>
+        <div class="troubleshoot">
+          <strong>Troubleshooting:</strong> Can't log in? → Use "Forgot Password" to reset via email. <span class="fix">Still stuck?</span> → Contact your admin to resend the invite link. · Seeing "Unauthorized" page? → Your role may not have access to that section — ask admin to check your role assignment. · Notification bell not loading? → Refresh the page; if persistent, clear browser cache.
+        </div>
+      </div>
+      <div class="video-meta">
+        <span class="badge badge-duration">~3.5 min</span>
+        <span class="badge badge-priority-high">Start here</span>
+        <span class="badge badge-audience">All roles</span>
+      </div>
+    </div>
+
+    <div class="video-card">
+      <div>
+        <div class="video-title">Dashboard Command Centre</div>
+        <div class="video-desc">Reading the operational pulse — health score, cash burn, tasks, compliance deadlines, and quick actions.</div>
+        <div class="video-scenes">
+          <strong>Scenes:</strong> Health score card breakdown → cash burn + runway → my tasks widget → stat cards row → recent activity feed → compliance card → upcoming subscriptions → budget utilisation donut chart → quick action buttons<br>
+          <strong>Routes:</strong> <span class="route-tag">/dashboard</span>
+        </div>
+        <div class="troubleshoot">
+          <strong>Troubleshooting:</strong> Health score showing 0 or unexpected value? → Check if compliance filings, documents, and budgets have been set up — the score draws from all modules. · Stat cards showing ₦0? → No approved expenses or processed payments this month yet. · "Complete your setup" wizard won't dismiss? → Finish all 3 setup steps first, or click the ✕ to hide it.
+        </div>
+      </div>
+      <div class="video-meta">
+        <span class="badge badge-duration">~4.5 min</span>
+        <span class="badge badge-priority-high">Start here</span>
+        <span class="badge badge-audience">Managers</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- PHASE 2 -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">2</div>
+    <div class="phase-title">People &amp; Team Management</div>
+  </div>
+  <div class="video-list">
+
+    <div class="video-card">
+      <div>
+        <div class="video-title">Managing Employees</div>
+        <div class="video-desc">Add, edit, and manage your team — roles, contact info, and the employee directory.</div>
+        <div class="video-scenes">
+          <strong>Scenes:</strong> Employee list overview → search → add new employee (name, email, phone, role) → role badges explained → edit employee → status changes<br>
+          <strong>Routes:</strong> <span class="route-tag">/employees</span>
+        </div>
+        <div class="troubleshoot">
+          <strong>Troubleshooting:</strong> New employee can't log in after being added? → They need a separate invite email — adding to the directory doesn't create their auth account. <span class="fix">Ask admin to send invite.</span> · Wrong role assigned? → Edit the employee and change their role; they'll see updated sidebar on next login. · Employee not appearing in assignee dropdowns? → Check their status is active, not deactivated.
+        </div>
+      </div>
+      <div class="video-meta">
+        <span class="badge badge-duration">~3 min</span>
+        <span class="badge badge-priority-high">Core</span>
+        <span class="badge badge-audience">Admin / Ops</span>
+      </div>
+    </div>
+
+    <div class="video-card">
+      <div>
+        <div class="video-title">Contractor Directory</div>
+        <div class="video-desc">Managing external partners — bank verification, bulk CSV import, and payroll-ready records.</div>
+        <div class="video-scenes">
+          <strong>Scenes:</strong> Contractor list → add contractor (name, bank, account number) → Paystack bank verification flow → bulk CSV import with validation → CSV export → deactivate/reactivate<br>
+          <strong>Routes:</strong> <span class="route-tag">/contractors</span>
+        </div>
+        <div class="troubleshoot">
+          <strong>Troubleshooting:</strong> Bank verification failing? → Double-check account number (10 digits) and ensure the correct bank is selected. <span class="fix">Paystack may be temporarily down</span> — try again in a few minutes. · CSV import rejecting rows? → Check the template format: full_name, bank_name, account_number, default_amount columns required. Remove blank rows. · Contractor not appearing in payment batch? → Ensure their status is "active", not deactivated.
+        </div>
+      </div>
+      <div class="video-meta">
+        <span class="badge badge-duration">~3.5 min</span>
+        <span class="badge badge-priority-high">Core</span>
+        <span class="badge badge-audience">Managers</span>
+      </div>
+    </div>
+
+    <div class="video-card">
+      <div>
+        <div class="video-title">Leave Requests</div>
+        <div class="video-desc">Requesting and approving time off — annual, sick, and other leave types.</div>
+        <div class="video-scenes">
+          <strong>Scenes:</strong> Leave overview + balance cards → submit a request (type, dates, reason) → manager approves/rejects → status tracking → search and filter<br>
+          <strong>Routes:</strong> <span class="route-tag">/leave</span>
+        </div>
+        <div class="troubleshoot">
+          <strong>Troubleshooting:</strong> Leave request stuck on "pending"? → It needs manager/admin approval — check with your manager. · Can't select dates? → Ensure start date is before end date, and both are in the future. · Balance not updating after approval? → Refresh the page; balances recalculate on page load.
+        </div>
+      </div>
+      <div class="video-meta">
+        <span class="badge badge-duration">~2.5 min</span>
+        <span class="badge badge-priority-med">Standard</span>
+        <span class="badge badge-audience">All roles</span>
+      </div>
+    </div>
+
+    <div class="video-card">
+      <div>
+        <div class="video-title">Tasks &amp; Accountability</div>
+        <div class="video-desc">Creating tasks, assigning team members, tracking progress, and the comment thread.</div>
+        <div class="video-scenes">
+          <strong>Scenes:</strong> Task board overview (stats: my/open/overdue/completed) → create task (title, assignee, due date, priority) → scope filter (mine vs all team) → mark complete → open task detail → comment thread → priority and status badges<br>
+          <strong>Routes:</strong> <span class="route-tag">/tasks</span>
+        </div>
+        <div class="troubleshoot">
+          <strong>Troubleshooting:</strong> Task not showing up for assignee? → They must have a manager role (admin, finance, operations) to see the Tasks page. · Overdue count wrong? → Tasks with past due dates and status other than "complete" count as overdue — mark completed tasks done. · Comments not saving? → Check your internet connection and refresh.
+        </div>
+      </div>
+      <div class="video-meta">
+        <span class="badge badge-duration">~3.5 min</span>
+        <span class="badge badge-priority-high">Core</span>
+        <span class="badge badge-audience">Managers</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- PHASE 3 -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">3</div>
+    <div class="phase-title">Financial Operations</div>
+  </div>
+  <div class="video-list">
+
+    <div class="video-card">
+      <div>
+        <div class="video-title">Payment Batches — End to End</div>
+        <div class="video-desc">The full payment lifecycle: draft a batch, select contractors, verify banks, submit, approve, fund, and process.</div>
+        <div class="video-scenes">
+          <strong>Scenes:</strong> Payment list → "New Batch" → Step 1: batch details → Step 2: select contractors + add one-off beneficiary with Paystack verification → Step 3: review summary → save draft vs submit → batch detail page → approval flow → confirm funded → process payments → per-item status → CSV export → printable receipt<br>
+          <strong>Routes:</strong> <span class="route-tag">/payments</span> <span class="route-tag">/payments/new</span> <span class="route-tag">/payments/:id</span>
+        </div>
+        <div class="troubleshoot">
+          <strong>Troubleshooting:</strong> Can't submit batch for approval? → Batch must have at least one beneficiary with a verified bank account. · One-off beneficiary bank verification timing out? → <span class="fix">Paystack API may be slow</span> — wait 10 seconds, then retry. · Payment stuck on "Processing"? → Individual items may have failed — check per-item status and use "Retry failed" button. · "Reject" not available? → Only super_admin, admin, and finance roles can approve/reject. · Receipt not printing? → Ensure pop-up blocker isn't blocking the new tab.
+        </div>
+      </div>
+      <div class="video-meta">
+        <span class="badge badge-duration">~6 min</span>
+        <span class="badge badge-priority-high">Core</span>
+        <span class="badge badge-audience">Finance</span>
+      </div>
+    </div>
+
+    <div class="video-card">
+      <div>
+        <div class="video-title">Expenses &amp; Approvals</div>
+        <div class="video-desc">Submitting expenses, category breakdown, bulk approval, and the unified approvals inbox.</div>
+        <div class="video-scenes">
+          <strong>Scenes:</strong> Expenses overview + stat chart → submit expense (category, amount, description) → expense appears in Approvals inbox → approve/reject single → bulk approve with checkboxes → CSV export<br>
+          <strong>Routes:</strong> <span class="route-tag">/expenses</span> <span class="route-tag">/approvals</span>
+        </div>
+        <div class="troubleshoot">
+          <strong>Troubleshooting:</strong> Expense not appearing in Approvals inbox? → Make sure it was submitted, not saved as draft. · Bulk approve button greyed out? → Select at least one item using the checkboxes. · CSV export empty? → Check your filters — you may have a status filter hiding results.
+        </div>
+      </div>
+      <div class="video-meta">
+        <span class="badge badge-duration">~4 min</span>
+        <span class="badge badge-priority-high">Core</span>
+        <span class="badge badge-audience">All / Finance</span>
+      </div>
+    </div>
+
+    <div class="video-card">
+      <div>
+        <div class="video-title">Payroll Intelligence</div>
+        <div class="video-desc">Monthly payroll drafting — auto-pulling expenses and payments, PAYE/Pension estimates, and the burn trend.</div>
+        <div class="video-scenes">
+          <strong>Scenes:</strong> Payroll stats (total burn, PAYE, pension) → burn trend bar chart → draft payroll for a month → review auto-computed figures → submit → approve → mark paid → CSV export → printable report<br>
+          <strong>Routes:</strong> <span class="route-tag">/payroll</span>
+        </div>
+        <div class="troubleshoot">
+          <strong>Troubleshooting:</strong> "Draft payroll" showing ₦0? → No approved expenses or processed payment batches for that month yet — approve pending items first. · PAYE/Pension estimates seem wrong? → Estimates use fixed rates (PAYE 8%, Pension 8%, NHF 2.5%) — adjust manually if your company uses different rates. · Can't submit payroll? → Must be in "Draft" status first. · Printable report blank? → <span class="fix">Allow pop-ups</span> in your browser for ops.kdsquares.com.
+        </div>
+      </div>
+      <div class="video-meta">
+        <span class="badge badge-duration">~4 min</span>
+        <span class="badge badge-priority-high">Core</span>
+        <span class="badge badge-audience">Finance</span>
+      </div>
+    </div>
+
+    <div class="video-card">
+      <div>
+        <div class="video-title">Budgets &amp; Subscriptions</div>
+        <div class="video-desc">Budget planning with approval workflow, plus recurring subscription tracking and renewal alerts.</div>
+        <div class="video-scenes">
+          <strong>Scenes:</strong> Budget list → create budget → approval workflow → lock/unlock → Subscriptions page → stat cards → add subscription (vendor, category, cycle, renewal date) → mark renewed → renewal notification alerts → CSV export<br>
+          <strong>Routes:</strong> <span class="route-tag">/budgets</span> <span class="route-tag">/subscriptions</span>
+        </div>
+        <div class="troubleshoot">
+          <strong>Troubleshooting:</strong> Budget locked and can't edit? → Only super_admin can unlock budgets. · Subscription renewal not advancing? → Click "Mark renewed" — it auto-advances the next renewal date by one billing cycle. · Renewal alerts not showing? → Notifications are generated at 7/3/1 day marks — check the notification bell.
+        </div>
+      </div>
+      <div class="video-meta">
+        <span class="badge badge-duration">~3.5 min</span>
+        <span class="badge badge-priority-med">Standard</span>
+        <span class="badge badge-audience">Finance</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- PHASE 4 -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">4</div>
+    <div class="phase-title">Operations &amp; Compliance</div>
+  </div>
+  <div class="video-list">
+
+    <div class="video-card">
+      <div>
+        <div class="video-title">Compliance Centre</div>
+        <div class="video-desc">Nigerian statutory deadlines — PAYE, Pension, VAT, WHT — tracking, filing, and the calendar export.</div>
+        <div class="video-scenes">
+          <strong>Scenes:</strong> Compliance overview (overdue/due/upcoming/filed stats) → filing table with countdown badges → add new filing → auto-computed due dates → mark as filed → CSV calendar export<br>
+          <strong>Routes:</strong> <span class="route-tag">/compliance</span>
+        </div>
+        <div class="troubleshoot">
+          <strong>Troubleshooting:</strong> Filings not auto-populating? → The system seeds last 3 months of monthly filings on first visit — if already visited with empty data, add filings manually. · Due date seems wrong? → Nigerian statutory due dates are auto-computed (e.g., PAYE by 10th of following month) — verify against FIRS/PenCom rules. · "Mark filed" not saving? → <span class="fix">Check your internet connection</span> and try again.
+        </div>
+      </div>
+      <div class="video-meta">
+        <span class="badge badge-duration">~3 min</span>
+        <span class="badge badge-priority-high">Core</span>
+        <span class="badge badge-audience">Finance</span>
+      </div>
+    </div>
+
+    <div class="video-card">
+      <div>
+        <div class="video-title">Fleet &amp; Fuel Management</div>
+        <div class="video-desc">Fuel requests, trip logging, and the approval flow for field operations.</div>
+        <div class="video-scenes">
+          <strong>Scenes:</strong> Fleet page → Fuel Requests tab → submit fuel request (station, amount, litres, odometer, reason) → approval flow → Trip Logs tab → log a trip (start/end, distance, purpose)<br>
+          <strong>Routes:</strong> <span class="route-tag">/fleet</span>
+        </div>
+        <div class="troubleshoot">
+          <strong>Troubleshooting:</strong> Fuel request not appearing for approval? → Only admin/finance can approve fuel requests — field staff and drivers can only submit. · Odometer reading rejected? → Must be a number greater than the last recorded reading for that vehicle. · Trip log missing? → Check you're on the "Trip Logs" tab, not "Fuel Requests".
+        </div>
+      </div>
+      <div class="video-meta">
+        <span class="badge badge-duration">~2.5 min</span>
+        <span class="badge badge-priority-med">Standard</span>
+        <span class="badge badge-audience">Ops / Field</span>
+      </div>
+    </div>
+
+    <div class="video-card">
+      <div>
+        <div class="video-title">Documents, Reports &amp; Settings</div>
+        <div class="video-desc">File management, analytics dashboards, and super admin configuration.</div>
+        <div class="video-scenes">
+          <strong>Scenes:</strong> Documents page → upload file → role-based visibility → expiration tracking → Reports page → date range picker → chart tabs (payments, expenses, fleet, contractors, budgets) → CSV export → Settings page → company info → integrations (Airtable)<br>
+          <strong>Routes:</strong> <span class="route-tag">/documents</span> <span class="route-tag">/reports</span> <span class="route-tag">/settings</span>
+        </div>
+        <div class="troubleshoot">
+          <strong>Troubleshooting:</strong> Document upload failing? → Check file size and ensure Supabase Storage isn't full. · Can't see a document? → It may be restricted to certain roles via "visible_to_roles" — ask admin. · Reports charts empty? → Adjust the date range — default is start of year to today. · Settings page not accessible? → <span class="fix">Only super_admin can access Settings.</span> · Airtable integration "Test Connection" failing? → Verify API key and Base ID are correct.
+        </div>
+      </div>
+      <div class="video-meta">
+        <span class="badge badge-duration">~3.5 min</span>
+        <span class="badge badge-priority-med">Standard</span>
+        <span class="badge badge-audience">Admin</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<hr class="section-divider">
+
+<div class="tooling">
+  <h3>Production Tooling</h3>
+  <div class="tool-grid">
+    <div class="tool-item">
+      <strong>Remotion</strong>
+      <span>React-to-MP4 engine. Each video is a composition in the kdops-walkthroughs project.</span>
+    </div>
+    <div class="tool-item">
+      <strong>Screenshots</strong>
+      <span>Captured from the live KDOps app via the browser pane, used as scene backgrounds.</span>
+    </div>
+    <div class="tool-item">
+      <strong>KD Brand</strong>
+      <span>Accent #006994, cyan #00ECFF, gold #D6AC50. Logo badge on intros/outros.</span>
+    </div>
+    <div class="tool-item">
+      <strong>Output</strong>
+      <span>1920×1080 MP4 at 30fps. Each video standalone, no external dependencies.</span>
+    </div>
+  </div>
+</div>
+
+<div class="notes">
+  <strong>Production order:</strong> Phase 1 first (onboarding videos set the tone), then Phase 3 (financial ops are the core value prop), then Phase 2 and 4 in parallel. Each video gets its own Remotion composition file in <span class="mono">src/</span> of the kdops-walkthroughs project, rendered independently.
+</div>
