@@ -886,6 +886,7 @@ export type Database = {
           flutterwave_reference: string | null
           flutterwave_transfer_id: string | null
           full_name: string
+          gross_amount_ngn: number | null
           id: string
           is_manually_resolved: boolean
           item_type: string | null
@@ -906,6 +907,8 @@ export type Database = {
           source_usd_minor: number | null
           status: string
           updated_at: string | null
+          wht_amount_ngn: number | null
+          wht_rate: number | null
         }
         Insert: {
           account_name?: string | null
@@ -925,6 +928,7 @@ export type Database = {
           flutterwave_reference?: string | null
           flutterwave_transfer_id?: string | null
           full_name: string
+          gross_amount_ngn?: number | null
           id?: string
           is_manually_resolved?: boolean
           item_type?: string | null
@@ -945,6 +949,8 @@ export type Database = {
           source_usd_minor?: number | null
           status?: string
           updated_at?: string | null
+          wht_amount_ngn?: number | null
+          wht_rate?: number | null
         }
         Update: {
           account_name?: string | null
@@ -964,6 +970,7 @@ export type Database = {
           flutterwave_reference?: string | null
           flutterwave_transfer_id?: string | null
           full_name?: string
+          gross_amount_ngn?: number | null
           id?: string
           is_manually_resolved?: boolean
           item_type?: string | null
@@ -984,6 +991,8 @@ export type Database = {
           source_usd_minor?: number | null
           status?: string
           updated_at?: string | null
+          wht_amount_ngn?: number | null
+          wht_rate?: number | null
         }
         Relationships: [
           {
@@ -2636,9 +2645,12 @@ export type Database = {
           paystack_recipient_code: string | null
           phone: string | null
           recipient_code_created_at: string | null
+          service_type: string | null
           status: string
           tags: string[] | null
+          tin: string | null
           whatsapp_phone: string | null
+          wht_rate: number | null
         }
         Insert: {
           account_name?: string | null
@@ -2678,9 +2690,12 @@ export type Database = {
           paystack_recipient_code?: string | null
           phone?: string | null
           recipient_code_created_at?: string | null
+          service_type?: string | null
           status?: string
           tags?: string[] | null
+          tin?: string | null
           whatsapp_phone?: string | null
+          wht_rate?: number | null
         }
         Update: {
           account_name?: string | null
@@ -2720,9 +2735,12 @@ export type Database = {
           paystack_recipient_code?: string | null
           phone?: string | null
           recipient_code_created_at?: string | null
+          service_type?: string | null
           status?: string
           tags?: string[] | null
+          tin?: string | null
           whatsapp_phone?: string | null
+          wht_rate?: number | null
         }
         Relationships: []
       }
@@ -17267,6 +17285,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      soft_delete_space: { Args: { space_id: string }; Returns: undefined }
       start_batch_processing: {
         Args: { p_batch_id: string }
         Returns: {
