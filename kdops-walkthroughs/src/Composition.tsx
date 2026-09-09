@@ -6,6 +6,10 @@ const calculateMetadata: CalculateMetadataFunction<Props> = () => {
   return {};
 };
 
+export const MyComponent: React.FC<Props> = () => {
+  return null;
+};
+
 export const MyComposition = () => {
   return (
     <Composition
@@ -18,8 +22,4 @@ export const MyComposition = () => {
       calculateMetadata={calculateMetadata}
     />
   );
-};
-
-export const MyComponent: React.FC<Props> = () => {
-  return null;
 };

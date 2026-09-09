@@ -297,7 +297,7 @@ export default function WebhooksManager() {
   function toggleExpandGroup(module: string) {
     setExpandedGroups((prev) => {
       const next = new Set(prev);
-      next.has(module) ? next.delete(module) : next.add(module);
+      if (next.has(module)) next.delete(module); else next.add(module);
       return next;
     });
   }

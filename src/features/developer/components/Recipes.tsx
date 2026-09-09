@@ -420,28 +420,28 @@ return high.map(emp => ({
       },
     ],
     proTip:
-      ‘Send a second alert at 20+ days and CC the employee’s line manager.’,
+      "Send a second alert at 20+ days and CC the employee's line manager.",
   },
   {
-    id: ‘form-submission-to-google-sheets’,
+    id: 'form-submission-to-google-sheets',
     icon: CheckSquare,
-    emoji: ‘📋’,
-    title: ‘Task Form Submissions → Google Sheets’,
-    difficulty: ‘Beginner’,
-    platforms: [‘n8n’, ‘Zapier’, ‘Make’],
+    emoji: '📋',
+    title: 'Task Form Submissions → Google Sheets',
+    difficulty: 'Beginner',
+    platforms: ['n8n', 'Zapier', 'Make'],
     description:
-      ‘When someone submits a form/report in the task module, automatically log the submission data to a Google Sheet for tracking and analysis.’,
+      'When someone submits a form/report in the task module, automatically log the submission data to a Google Sheet for tracking and analysis.',
     steps: [
-      ‘Create a webhook in KDOps listening for task.form_submitted’,
-      ‘n8n/Zapier receives the POST payload with form fields, submitter, and task details’,
-      ‘Map the form fields to Google Sheets columns’,
-      ‘Append a new row to the tracking spreadsheet’,
-      ‘Optionally send a Slack notification to the team channel’,
+      'Create a webhook in KDOps listening for task.form_submitted',
+      'n8n/Zapier receives the POST payload with form fields, submitter, and task details',
+      'Map the form fields to Google Sheets columns',
+      'Append a new row to the tracking spreadsheet',
+      'Optionally send a Slack notification to the team channel',
     ],
     code: [
       {
-        language: ‘javascript’,
-        label: ‘n8n Function — Transform Form Data’,
+        language: 'javascript',
+        label: 'n8n Function — Transform Form Data',
         content: `const payload = $input.first().json;
 
 return [{
@@ -459,7 +459,7 @@ return [{
       },
     ],
     proTip:
-      ‘Use this to build custom reporting dashboards — pipe form submissions to Google Sheets, then connect Google Sheets to Data Studio or Looker for real-time charts.’,
+      'Use this to build custom reporting dashboards — pipe form submissions to Google Sheets, then connect Google Sheets to Data Studio or Looker for real-time charts.',
   },
 ];
 
