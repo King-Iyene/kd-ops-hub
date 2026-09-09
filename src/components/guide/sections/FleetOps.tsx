@@ -80,16 +80,12 @@ export function FleetOpsSection() {
         />
       </ModuleCard>
 
-      <ModuleCard title="Vendors" route="/vendors" roles={['super_admin', 'admin', 'finance', 'operations']}>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          The Vendors module is the master directory for every external supplier the company works with — fuel stations, mechanics,
-          parts suppliers, and any other vendor. Each vendor record holds contact details, bank account information for payments,
-          and a history of every transaction or purchase order tied to them. Vendor records are referenced by the Fleet module's
-          fuel and maintenance workflows, so when you log a fuel purchase or a repair, you pick the vendor from this list rather
-          than typing a name by hand each time. In the sidebar, find Vendors under{' '}
-          <strong>Operations → Operations → Vendors</strong>.
-        </p>
-      </ModuleCard>
+      <Callout tone="tip">
+        <strong>Vendors</strong> (fuel stations, mechanics, parts suppliers) are managed in the{' '}
+        <strong>CRM & Outreach</strong> section of this guide. Fleet references vendor records when logging fuel purchases
+        and repairs. <strong>Assets</strong> (the fixed-asset register for equipment, vehicles, and property) is documented
+        in the <strong>Finance</strong> section — find it under <strong>Finance → Money In → Assets</strong> in the sidebar.
+      </Callout>
     </div>
   );
 }

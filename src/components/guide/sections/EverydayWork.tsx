@@ -129,26 +129,6 @@ export function EverydayWorkSection() {
         />
       </ModuleCard>
 
-      <ModuleCard title="Goals" route="/goals" roles={['everyone']}>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Goals lets individuals and teams set measurable objectives — quarterly OKRs, annual targets, or project-specific
-          milestones — and track progress against them over time. Each goal has a target value, a current value that updates
-          as work is logged, and a deadline. Goals can be linked to specific tasks so progress rolls up automatically as
-          tasks are completed. Managers see their team's goals in one view for check-ins and performance reviews. In the
-          sidebar, find Goals under <strong>Workspace → Productivity → Goals</strong>.
-        </p>
-      </ModuleCard>
-
-      <ModuleCard title="Tables (Custom Data)" route="/tables" roles={['super_admin', 'admin', 'finance', 'operations']}>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Tables is a flexible spreadsheet-like module for tracking any structured data that doesn't fit neatly into another
-          module — inventory lists, vendor comparisons, project trackers, anything you'd otherwise put in a shared Google
-          Sheet. Create custom columns (text, number, date, select, checkbox), sort and filter rows, and share the table
-          with specific roles. Unlike a spreadsheet, every change is logged and the data lives inside KDOps rather than in
-          a separate tool. In the sidebar, find Tables under <strong>Workspace → Productivity → Tables</strong>.
-        </p>
-      </ModuleCard>
-
       <ModuleCard title="Communications & Messages" route="/communications · /messages" roles={['super_admin', 'admin', 'finance']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
           These are two different tools that sound similar. <strong>Messages</strong> (under <strong>Workspace → Comms →

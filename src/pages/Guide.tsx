@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import {
   Rocket, Shield, BookOpen, HelpCircle, Search, ChevronRight, Code2,
 } from 'lucide-react';
@@ -207,9 +208,15 @@ export default function Guide() {
     <div className="space-y-6 max-w-[1400px] mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Platform Guide</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">KDOps Platform Guide</h1>
+          <Badge variant="outline" className="text-[10px] font-medium bg-primary/10 text-primary border-primary/20">
+            {NAV.reduce((sum, g) => sum + g.items.length, 0)} sections
+          </Badge>
+        </div>
         <p className="text-sm text-muted-foreground/70 mt-1">
-          Step-by-step walkthroughs for every part of KDOps. Pick a topic from the sidebar to get started.
+          Step-by-step walkthroughs, video tutorials, and detailed documentation for every module in KDOps — from
+          first login to developer integrations. Pick a topic from the sidebar, or search to jump straight to what you need.
         </p>
       </div>
       <GuideBody />

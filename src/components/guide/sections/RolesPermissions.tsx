@@ -76,6 +76,8 @@ const FULL_MATRIX: { a: string; b: string; c: string }[] = [
   { a: '/principal-disbursements', b: 'Principal Disbursements', c: 'Super Admin only' },
   { a: '/assistant/admin', b: 'Assistant Admin', c: 'Super Admin only' },
   { a: '/placements', b: 'Placements', c: 'Super Admin only' },
+  { a: '/data', b: 'Database Browser', c: 'Super Admin only' },
+  { a: '/tables', b: 'Tables (Custom Data)', c: 'Super Admin, Admin, Finance, Operations' },
 ];
 
 export function RolesPermissionsSection() {

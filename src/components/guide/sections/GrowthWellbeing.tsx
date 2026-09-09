@@ -15,6 +15,7 @@ export function GrowthWellbeingSection() {
 
       <ModuleCard title="Goals" route="/goals" roles={['everyone']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
+          In the sidebar, find Goals under <strong>Workspace → Productivity → Goals</strong>.
           Goals is where quarterly objectives live, for yourself or, if you manage people, for your team. Every goal carries a
           visible progress bar so it's obvious at a glance whether it's on track, and the point of the module is to connect the
           tasks you're doing day to day with the bigger thing they're supposed to add up to — a goal that never moves is a signal
@@ -32,6 +33,7 @@ export function GrowthWellbeingSection() {
 
       <ModuleCard title="Performance Reviews" route="/performance" roles={['super_admin', 'admin', 'finance', 'operations']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
+          In the sidebar, find Performance under <strong>People & HR → Talent → Performance</strong>.
           Performance runs structured review cycles — annual, mid-year, quarterly, or probation — and each cycle contains
           individual reviews of one of three kinds: manager review, self-assessment, or peer review. Every review scores the
           same five competencies — Delivery, Communication, Teamwork, Initiative, and Leadership — on a 1–5 scale, and the
@@ -57,6 +59,7 @@ export function GrowthWellbeingSection() {
 
       <ModuleCard title="Training & Certifications" route="/training" roles={['super_admin', 'admin', 'finance', 'operations']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
+          In the sidebar, find Training under <strong>People & HR → Talent → Training</strong>.
           Training keeps a record of every course and certification completed per employee. Certifications with an expiry
           date — a driver's license class, a safety certificate, a professional qualification — are tracked automatically:
           once the expiry date passes, the record flags <strong>Expired</strong> on its own, and an amber badge appears 30 days out
@@ -80,6 +83,7 @@ export function GrowthWellbeingSection() {
 
       <ModuleCard title="Employee Handbook" route="/handbook" roles={['everyone']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
+          In the sidebar, find Handbook under <strong>People & HR → Policy → Handbook</strong>.
           The Handbook is the official policy document — code of conduct, leave policy, disciplinary process, and everything
           else that governs how KDOps runs as a workplace. Some policies require a formal, timestamped acknowledgment rather
           than just being available to read; when one of those is pending for you, a prompt appears on your dashboard until
@@ -97,6 +101,7 @@ export function GrowthWellbeingSection() {
 
       <ModuleCard title="Benefits" route="/benefits" roles={['super_admin', 'admin', 'finance', 'operations']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
+          In the sidebar, find Benefits under <strong>People & HR → Compensation & Wellbeing → Benefits</strong>.
           Benefits records what each employee is enrolled in — HMO / health insurance, Pension (with the PFA name and the
           employee's RSA PIN), Group Life cover, and any other voluntary benefit the company offers. Each enrollment stores
           the provider, the policy number, the premium amount and how often it's billed (monthly, quarterly, or annually),
@@ -116,6 +121,7 @@ export function GrowthWellbeingSection() {
 
       <ModuleCard title="Surveys" route="/surveys" roles={['super_admin', 'admin', 'finance', 'operations']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
+          In the sidebar, find Surveys under <strong>People & HR → Policy → Surveys</strong>.
           Surveys is how the company runs pulse checks and feedback rounds. Some surveys are marked <strong>anonymous</strong> —
           when a survey carries that flag, your individual responses are not linked back to you anywhere in the system, not
           even for an admin looking at the raw results. That's a real technical guarantee, not just a promise, so it's worth
