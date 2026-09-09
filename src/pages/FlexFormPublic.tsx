@@ -54,6 +54,15 @@ export default function FlexFormPublic() {
     return payload.form.fields.filter((entry) => conditionMatches(entry.condition, values));
   }, [payload, values]);
 
+  // If a Linked Tasks field wasn't explicitly configured with a person
+  // field to filter by, fall back to the first person field present on
+  // the form — covers forms saved before that per-field setting existed.
+  const defaultPersonFieldId = useMemo(() => {
+    if (!payload) return undefined;
+    const entry = payload.form.fields.find((e) => fieldsById.get(e.field_id)?.type === 'person');
+    return entry?.field_id;
+  }, [payload, fieldsById]);
+
   const setValue = (fieldId: string, v: unknown) => setValues((prev) => ({ ...prev, [fieldId]: v }));
 
   const submit = async () => {
@@ -119,6 +128,7 @@ export default function FlexFormPublic() {
           {visibleEntries.map((entry) => {
             const field = fieldsById.get(entry.field_id);
             if (!field) return null;
+            const personFieldId = entry.filterByPersonField || (field.type === 'task_link' ? defaultPersonFieldId : undefined);
             return (
               <div key={field.id}>
                 <label className="text-sm font-medium mb-1.5 block">
@@ -129,8 +139,8 @@ export default function FlexFormPublic() {
                   value={values[field.id]}
                   onChange={(v) => setValue(field.id, v)}
                   token={token!}
-                  hasPersonFilter={!!entry.filterByPersonField}
-                  personId={entry.filterByPersonField ? (values[entry.filterByPersonField] as string | undefined) : undefined}
+                  hasPersonFilter={!!personFieldId}
+                  personId={personFieldId ? (values[personFieldId] as string | undefined) : undefined}
                 />
               </div>
             );
