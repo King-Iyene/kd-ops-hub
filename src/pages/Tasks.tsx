@@ -1108,24 +1108,10 @@ const Tasks = () => {
               )}
 
               {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && (
-                <>
-                  <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden sm:flex" onClick={() => setTemplatesDialog(true)}>
-                    <ListTodo className="h-3.5 w-3.5" />
-                    Templates
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden sm:flex" onClick={() => setImportExportDialog(true)}>
-                    <Download className="h-3.5 w-3.5" />
-                    Import/Export
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden lg:flex" onClick={() => setFormBuilderDialog(true)}>
-                    <FileText className="h-3.5 w-3.5" />
-                    Forms
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden lg:flex" onClick={() => setCalendarDialog(true)}>
-                    <CalendarDays className="h-3.5 w-3.5" />
-                    Calendar Sync
-                  </Button>
-                </>
+                <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden sm:flex" onClick={() => setImportExportDialog(true)}>
+                  <Download className="h-3.5 w-3.5" />
+                  Import/Export
+                </Button>
               )}
 
               {selectedSpace && (
