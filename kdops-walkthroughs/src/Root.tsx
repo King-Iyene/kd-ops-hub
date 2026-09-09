@@ -103,6 +103,18 @@ import { CardsManagement } from "./CardsManagement/CardsManagement";
 import { PaymentSchedule } from "./PaymentSchedule/PaymentSchedule";
 import { PayHubOverview } from "./PayHubOverview/PayHubOverview";
 import { StaffLoans } from "./StaffLoans/StaffLoans";
+import { RecruitmentPipeline } from "./RecruitmentPipeline/RecruitmentPipeline";
+import { OnboardingOffboarding } from "./OnboardingOffboarding/OnboardingOffboarding";
+import { DisciplinaryProcess } from "./DisciplinaryProcess/DisciplinaryProcess";
+import { HRLettersModule } from "./HRLettersModule/HRLettersModule";
+import { GrievanceManagement } from "./GrievanceManagement/GrievanceManagement";
+import { SuccessionPlanning } from "./SuccessionPlanning/SuccessionPlanning";
+import { GoalsSetting } from "./GoalsSetting/GoalsSetting";
+import { PerformanceReviews } from "./PerformanceReviews/PerformanceReviews";
+import { SurveysModule } from "./SurveysModule/SurveysModule";
+import { BenefitsEnrollment } from "./BenefitsEnrollment/BenefitsEnrollment";
+import { ClientsManagement } from "./ClientsManagement/ClientsManagement";
+import { InvoicingClients } from "./InvoicingClients/InvoicingClients";
 
 const FPS = 30;
 
@@ -158,6 +170,20 @@ const V22_FRAMES = 3750;
 const V23_FRAMES = 3570;
 const V24_FRAMES = 3330;
 const V25_FRAMES = 4020;
+
+// Batch 3 videos (26-37)
+const V26_FRAMES = 2085;
+const V27_FRAMES = 2085;
+const V28_FRAMES = 2085;
+const V29_FRAMES = 2085;
+const V30_FRAMES = 2085;
+const V31_FRAMES = 2085;
+const V32_FRAMES = 2085;
+const V33_FRAMES = 2085;
+const V34_FRAMES = 2085;
+const V35_FRAMES = 2085;
+const V36_FRAMES = 2085;
+const V37_FRAMES = 2085;
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -422,6 +448,20 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="PaymentSchedule" component={PaymentSchedule} durationInFrames={V23_FRAMES} fps={FPS} width={1920} height={1080} />
       <Composition id="PayHubOverview" component={PayHubOverview} durationInFrames={V24_FRAMES} fps={FPS} width={1920} height={1080} />
       <Composition id="StaffLoans" component={StaffLoans} durationInFrames={V25_FRAMES} fps={FPS} width={1920} height={1080} />
+
+      {/* === Batch 3: Videos 26-37 === */}
+      <Composition id="RecruitmentPipeline" component={RecruitmentPipeline} durationInFrames={V26_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="OnboardingOffboarding" component={OnboardingOffboarding} durationInFrames={V27_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="DisciplinaryProcess" component={DisciplinaryProcess} durationInFrames={V28_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="HRLettersModule" component={HRLettersModule} durationInFrames={V29_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="GrievanceManagement" component={GrievanceManagement} durationInFrames={V30_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="SuccessionPlanning" component={SuccessionPlanning} durationInFrames={V31_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="GoalsSetting" component={GoalsSetting} durationInFrames={V32_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="PerformanceReviews" component={PerformanceReviews} durationInFrames={V33_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="SurveysModule" component={SurveysModule} durationInFrames={V34_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="BenefitsEnrollment" component={BenefitsEnrollment} durationInFrames={V35_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="ClientsManagement" component={ClientsManagement} durationInFrames={V36_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="InvoicingClients" component={InvoicingClients} durationInFrames={V37_FRAMES} fps={FPS} width={1920} height={1080} />
     </>
   );
 };
