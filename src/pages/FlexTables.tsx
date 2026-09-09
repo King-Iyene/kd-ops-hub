@@ -91,6 +91,15 @@ function buildFormulaScope(
         scope[f.name] = (v as FormulaValue) ?? null;
     }
   }
+
+  // Second pass: formula fields can reference each other one level deep —
+  // evaluated against the raw-field scope above only (never against each
+  // other's results), so there's no possibility of a circular dependency.
+  for (const f of allFields) {
+    if (f.type !== 'formula') continue;
+    const result = evaluateFormula(f.options.formula || '', scope);
+    scope[f.name] = isFormulaError(result) ? null : result;
+  }
   return scope;
 }
 
@@ -453,6 +462,7 @@ export default function FlexTables() {
               <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
             ) : tab === 'grid' ? (
               <GridView
+                tableId={selectedTable.id}
                 fields={fields}
                 records={records}
                 profilesById={profilesById}
@@ -559,8 +569,9 @@ export default function FlexTables() {
 // ─── Grid ──────────────────────────────────────────────────────────────
 
 function GridView({
-  fields, records, profilesById, tasksById, onAddRow, onDeleteRow, onUpdateCell, onAddField, onEditField, onDeleteField, onToggleFieldHidden, onReorderFields,
+  tableId, fields, records, profilesById, tasksById, onAddRow, onDeleteRow, onUpdateCell, onAddField, onEditField, onDeleteField, onToggleFieldHidden, onReorderFields,
 }: {
+  tableId: string;
   fields: FlexField[];
   records: FlexRecord[];
   profilesById: Map<string, ProfileLite>;
@@ -583,6 +594,26 @@ function GridView({
   const [subGroupByField, setSubGroupByField] = useState<string>('__none__');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<FlexFilter[]>([]);
+
+  // Grouping is remembered per table (survives switching to Forms and back,
+  // and page reloads) until the user explicitly changes it.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`flex_group_${tableId}`);
+      const parsed = raw ? JSON.parse(raw) : null;
+      setGroupByField(parsed?.groupByField || '__none__');
+      setSubGroupByField(parsed?.subGroupByField || '__none__');
+    } catch {
+      setGroupByField('__none__');
+      setSubGroupByField('__none__');
+    }
+  }, [tableId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`flex_group_${tableId}`, JSON.stringify({ groupByField, subGroupByField }));
+    } catch { /* best-effort persistence only */ }
+  }, [tableId, groupByField, subGroupByField]);
 
   const startResize = useCallback((fieldId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -1051,10 +1082,15 @@ function FieldEditorDialog({
   const [formula, setFormula] = useState(field?.options.formula || '');
   const [format, setFormat] = useState<FlexNumberFormat>(field?.options.format || 'number');
   const [saving, setSaving] = useState(false);
+  const [showAllRefs, setShowAllRefs] = useState(false);
 
   const needsChoices = type === 'select' || type === 'multi_select';
   const isFormula = type === 'formula';
-  const referenceableFields = allFields.filter((f) => f.type !== 'formula' && f.id !== field?.id);
+  // Every other field is selectable — including other formula fields
+  // (buildFormulaScope resolves those one level deep, so this stays safe).
+  const referenceableFields = allFields.filter((f) => f.id !== field?.id);
+  const REFS_PREVIEW_COUNT = 8;
+  const visibleRefs = showAllRefs ? referenceableFields : referenceableFields.slice(0, REFS_PREVIEW_COUNT);
 
   const addChoice = () => {
     setChoices((prev) => [...prev, { id: crypto.randomUUID(), label: '', color: CHOICE_COLORS[prev.length % CHOICE_COLORS.length] }]);
@@ -1129,8 +1165,8 @@ function FieldEditorDialog({
                 onChange={(e) => setFormula(e.target.value)}
               />
               {referenceableFields.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {referenceableFields.map((f) => (
+                <div className="flex flex-wrap gap-1 items-center">
+                  {visibleRefs.map((f) => (
                     <button
                       key={f.id}
                       type="button"
@@ -1140,6 +1176,15 @@ function FieldEditorDialog({
                       {f.name}
                     </button>
                   ))}
+                  {referenceableFields.length > REFS_PREVIEW_COUNT && (
+                    <button
+                      type="button"
+                      className="text-[11px] px-1.5 py-0.5 text-primary hover:underline"
+                      onClick={() => setShowAllRefs((v) => !v)}
+                    >
+                      {showAllRefs ? 'Show less' : `Show ${referenceableFields.length - REFS_PREVIEW_COUNT} more`}
+                    </button>
+                  )}
                 </div>
               )}
               <p className="text-[11px] text-muted-foreground">
