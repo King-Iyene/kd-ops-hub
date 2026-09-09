@@ -44,6 +44,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const PLATFORM_WORKSPACE_ID = '00000000-0000-0000-0000-000000000000';
+
 /* ------------------------------------------------------------------ */
 /*  Scope definitions                                                  */
 /* ------------------------------------------------------------------ */
@@ -253,7 +255,7 @@ export default function ApiKeysManager() {
         .schema('nc_meta')
         .from('api_keys')
         .select('id, name, key_prefix, scopes, created_at, last_used_at, expires_at')
-        .eq('workspace_id', 'platform')
+        .eq('workspace_id', PLATFORM_WORKSPACE_ID)
         .is('revoked_at', null)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -282,7 +284,7 @@ export default function ApiKeysManager() {
         .schema('nc_meta')
         .from('api_keys')
         .insert({
-          workspace_id: 'platform',
+          workspace_id: PLATFORM_WORKSPACE_ID,
           name: keyName.trim(),
           key_hash: hash,
           key_prefix: prefix,
