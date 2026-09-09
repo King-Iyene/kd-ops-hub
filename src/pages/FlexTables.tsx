@@ -377,7 +377,7 @@ export default function FlexTables() {
   useEffect(() => {
     (async () => {
       const [profRes, taskRes] = await Promise.all([
-        supabase.from('profiles_directory').select('id, full_name, email').eq('is_anonymised', false).in('status', ['active', 'invited']).order('full_name').limit(500),
+        supabase.from('profiles_directory').select('id, full_name, email').eq('is_anonymised', false).in('status', ['active', 'invited']).in('role', ['operations', 'admin', 'super_admin']).order('full_name').limit(500),
         supabase.from('tasks').select('id, title').is('parent_id', null).order('created_at', { ascending: false }).limit(1000),
       ]);
       setProfiles((profRes.data as ProfileLite[]) || []);
