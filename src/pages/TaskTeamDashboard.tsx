@@ -123,6 +123,33 @@ function StatCard({ label, value, current, previous, tone }: {
   );
 }
 
+/** Delta shown in percentage POINTS, for cards whose value is itself a rate
+ *  (e.g. completion rate) — a ratio-of-ratios delta would be misleading. */
+function PointDeltaBadge({ current, previous }: { current: number; previous: number }) {
+  const diff = current - previous;
+  const up = diff >= 0;
+  return (
+    <span className={cn('inline-flex items-center gap-0.5 text-[11px] font-medium', up ? 'text-emerald-500' : 'text-red-500')}>
+      {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+      {Math.abs(diff)}pt
+    </span>
+  );
+}
+
+function CompletionRateCard({ current, previous }: { current: number; previous: number }) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <p className="text-xs text-muted-foreground mb-1.5">Task Completion Rate</p>
+        <div className="flex items-end justify-between">
+          <span className="text-2xl font-bold tabular-nums text-emerald-500">{current}%</span>
+          <PointDeltaBadge current={current} previous={previous} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SortHeader({ label, field, sortField, sortDir, onSort }: {
   label: string; field: string; sortField: string; sortDir: 'asc' | 'desc'; onSort: (f: string) => void;
 }) {
@@ -195,14 +222,19 @@ export default function TaskTeamDashboard() {
     [tasks, assigneeFilter, prevRange],
   );
 
-  const stat = (list: TaskRow[]) => ({
-    total: list.length,
-    completed: list.filter((t) => t.status === 'complete').length,
-    overdue: list.filter((t) => t.status !== 'complete' && t.due_date && t.due_date < todayIso).length,
-    blocked: list.filter((t) => t.status === 'blocked').length,
-    inProgress: list.filter((t) => t.status === 'in_progress').length,
-    unassigned: list.filter((t) => !t.assignee_id).length,
-  });
+  const stat = (list: TaskRow[]) => {
+    const total = list.length;
+    const completed = list.filter((t) => t.status === 'complete').length;
+    return {
+      total,
+      completed,
+      overdue: list.filter((t) => t.status !== 'complete' && t.due_date && t.due_date < todayIso).length,
+      blocked: list.filter((t) => t.status === 'blocked').length,
+      inProgress: list.filter((t) => t.status === 'in_progress').length,
+      unassigned: list.filter((t) => !t.assignee_id).length,
+      rate: total === 0 ? 0 : Math.round((completed / total) * 100),
+    };
+  };
   const cur = useMemo(() => stat(baseFiltered), [baseFiltered, todayIso]);
   const prev = useMemo(() => stat(prevFiltered), [prevFiltered, todayIso]);
 
@@ -380,9 +412,10 @@ export default function TaskTeamDashboard() {
       </div>
 
       {/* Row 1 — Headline stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
         <StatCard label="Total Tasks in Period" value={cur.total} current={cur.total} previous={prev.total} />
         <StatCard label="Total Completed" value={cur.completed} current={cur.completed} previous={prev.completed} tone="text-emerald-500" />
+        <CompletionRateCard current={cur.rate} previous={prev.rate} />
         <StatCard label="Total Overdue" value={cur.overdue} current={cur.overdue} previous={prev.overdue} tone="text-red-500" />
         <StatCard label="Total Blocked" value={cur.blocked} current={cur.blocked} previous={prev.blocked} tone="text-amber-500" />
         <StatCard label="Total In Progress" value={cur.inProgress} current={cur.inProgress} previous={prev.inProgress} tone="text-primary" />

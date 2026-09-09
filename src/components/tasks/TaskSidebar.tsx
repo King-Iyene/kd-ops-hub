@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus, Layers, FolderOpen, ChevronRight, ChevronDown,
-  LayoutGrid, List, BarChart3, User, Table2,
+  LayoutGrid, List, BarChart3, User, Table2, Gauge,
   MoreHorizontal, Pencil, Trash2,
   Lock, Users, FolderKanban, ListTodo, Palette, Star, CalendarDays, GanttChart,
   Activity, Weight, Timer,
@@ -70,6 +71,7 @@ interface TaskSidebarProps {
   favoriteSpaceIds?: Set<string>;
   onToggleFavorite?: (spaceId: string) => void;
   unorganizedCount: number;
+  showTeamDashboard?: boolean;
 }
 
 export function TaskSidebar({
@@ -79,8 +81,9 @@ export function TaskSidebar({
   onEditSpace, onDeleteSpace, onManageMembers, onManageStatuses,
   onCreateFolder, onCreateList, onRenameFolder, onDeleteFolder,
   onRenameList, onDeleteList, favoriteSpaceIds, onToggleFavorite,
-  unorganizedCount,
+  unorganizedCount, showTeamDashboard,
 }: TaskSidebarProps) {
+  const navigate = useNavigate();
   const [spacesExpanded, setSpacesExpanded] = useState(true);
   const [expandedSpaces, setExpandedSpaces] = useState<Set<string>>(new Set());
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -121,6 +124,13 @@ export function TaskSidebar({
             </span>
           ) : undefined}
         />
+        {showTeamDashboard && (
+          <SidebarItem
+            icon={Gauge}
+            label="Team Dashboard"
+            onClick={() => navigate('/tasks/dashboard')}
+          />
+        )}
       </div>
 
       {/* ─── Favorites Section ─────────────────────────── */}

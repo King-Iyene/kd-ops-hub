@@ -904,6 +904,7 @@ const Tasks = () => {
           favoriteSpaceIds={favoriteSpaceIds}
           onToggleFavorite={toggleFavoriteSpace}
           unorganizedCount={unorganizedCount}
+          showTeamDashboard={isAdmin}
         />
       </div>
 
@@ -937,6 +938,7 @@ const Tasks = () => {
             favoriteSpaceIds={favoriteSpaceIds}
             onToggleFavorite={toggleFavoriteSpace}
             unorganizedCount={unorganizedCount}
+            showTeamDashboard={isAdmin}
           />
         </SheetContent>
       </Sheet>
