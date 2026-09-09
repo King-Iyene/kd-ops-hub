@@ -9,6 +9,10 @@
 -- one person's open (non-complete) assigned tasks — never the full
 -- task list — so the field can actually be filled in on a shared form.
 
+-- Postgres won't let CREATE OR REPLACE change a function's return type
+-- (json -> jsonb), so drop the old signature first.
+DROP FUNCTION IF EXISTS public.get_flex_form(text);
+
 CREATE OR REPLACE FUNCTION public.get_flex_form(p_share_token text)
 RETURNS jsonb
 LANGUAGE plpgsql
