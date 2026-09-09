@@ -238,22 +238,6 @@ function AppRoutes() {
         }
       />
 
-      {/* Tables — standalone Airtable-style module, third item after Tasks
-          and Goals in the Productivity nav. Deliberately separate from the
-          Database/nc_meta feature above: own schema (flex_*), own UI, opens
-          as a right-docked panel over whatever page the user came from. */}
-      <Route
-        path="/flex-tables"
-        element={
-          <AuthGuard>
-            <RoleGuard roles={ALL_AUTH_ROLES}>
-              <ErrorBoundary>
-                <FlexTables />
-              </ErrorBoundary>
-            </RoleGuard>
-          </AuthGuard>
-        }
-      />
       <Route
         path="/data/:baseId"
         element={
@@ -590,6 +574,19 @@ function AppRoutes() {
           element={
             <RoleGuard roles={ALL_AUTH_ROLES}>
               <Tasks />
+            </RoleGuard>
+          }
+        />
+
+        {/* Tables — standalone Airtable-style module, third item after Tasks
+            and Goals in the Productivity nav. Deliberately separate from the
+            Database/nc_meta feature (own schema, own UI) — but behaves
+            exactly like Tasks/Goals: a normal in-app page inside AppLayout. */}
+        <Route
+          path="/flex-tables"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <FlexTables />
             </RoleGuard>
           }
         />

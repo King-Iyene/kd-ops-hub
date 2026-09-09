@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
-  X, Plus, Table2, ChevronLeft, Trash2, Loader2, MoreHorizontal,
+  Plus, Table2, Trash2, Loader2, MoreHorizontal,
   Type, AlignLeft, Hash, CalendarDays, CheckSquare, ListChecks,
   User, Users, Link2, AtSign, Phone, Globe, Copy, FileText, Check,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -45,7 +45,7 @@ interface ProfileLite { id: string; full_name: string; email: string; }
 interface TaskLite { id: string; title: string; }
 
 export default function FlexTables() {
-  const navigate = useNavigate();
+  usePageTitle('Tables');
   const { profile } = useAuthStore();
   const { toast } = useToast();
 
@@ -105,8 +105,6 @@ export default function FlexTables() {
     if (selectedTable) loadTableDetail(selectedTable.id);
   }, [selectedTable, loadTableDetail]);
 
-  const close = () => navigate(-1);
-
   const createTable = async () => {
     if (!newTableName.trim()) return;
     const { data, error } = await flexApi.createTable({ name: newTableName.trim(), created_by: profile?.id || null });
@@ -157,122 +155,116 @@ export default function FlexTables() {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/50" onClick={close} />
-      <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[94vw] lg:w-[82vw] xl:w-[72vw] bg-background border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
-        {/* Header */}
-        <div className="shrink-0 flex items-center justify-between px-4 lg:px-6 h-14 border-b border-border">
-          <div className="flex items-center gap-2 min-w-0">
-            {selectedTable ? (
-              <>
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setSelectedTable(null)}>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Table2 className="h-4 w-4 shrink-0" style={{ color: selectedTable.color }} />
-                <span className="font-semibold truncate">{selectedTable.name}</span>
-              </>
-            ) : (
-              <>
-                <Table2 className="h-4 w-4" />
-                <span className="font-semibold">Tables</span>
-              </>
-            )}
+      <div className="flex h-[calc(100dvh-theme(spacing.14)-theme(spacing.8)-3.5rem-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-theme(spacing.14)-theme(spacing.8))] -m-4 md:-m-5 lg:-m-6">
+        {/* ─── Module Sidebar — list of tables ───────────────────────── */}
+        <div className="hidden md:flex flex-col w-[220px] lg:w-[240px] shrink-0 border-r border-border/60 bg-card/50 p-3 overflow-y-auto">
+          <div className="flex items-center justify-between px-1 mb-2">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Tables</span>
+            <Button size="icon" variant="ghost" className="h-5 w-5" aria-label="New table" onClick={() => setNewTableDialog(true)}>
+              <Plus className="h-3 w-3" />
+            </Button>
           </div>
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={close} aria-label="Close">
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6">
-          {!selectedTable ? (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm text-muted-foreground">Build custom tables with your own fields — separate from Tasks and Goals.</p>
-                <Button size="sm" className="gap-1.5" onClick={() => setNewTableDialog(true)}>
-                  <Plus className="h-3.5 w-3.5" /> New table
-                </Button>
-              </div>
-              {loadingTables ? (
-                <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-              ) : tables.length === 0 ? (
-                <EmptyState illustration="radar" title="No tables yet" description="Create your first table to start collecting structured data." tone="primary" />
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {tables.map((t) => (
-                    <div
-                      key={t.id}
-                      className="group relative border border-border rounded-xl p-4 hover:border-primary/40 hover:bg-muted/30 transition-colors cursor-pointer"
-                      onClick={() => setSelectedTable(t)}
-                    >
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <div className="h-7 w-7 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: `${t.color}22` }}>
-                          <Table2 className="h-3.5 w-3.5" style={{ color: t.color }} />
-                        </div>
-                        <span className="font-medium truncate">{t.name}</span>
-                      </div>
-                      {t.description && <p className="text-xs text-muted-foreground line-clamp-2">{t.description}</p>}
-                      <button
-                        className="absolute top-2 right-2 h-6 w-6 rounded-md opacity-0 group-hover:opacity-100 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        onClick={(e) => { e.stopPropagation(); setPendingDeleteTable(t); }}
-                        aria-label="Delete table"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+          {loadingTables ? (
+            <div className="flex justify-center py-6"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+          ) : tables.length === 0 ? (
+            <p className="text-xs text-muted-foreground px-1">No tables yet.</p>
           ) : (
-            <div>
-              <div className="flex items-center gap-1 mb-4 border-b border-border">
-                <button
-                  onClick={() => setTab('grid')}
-                  className={cn('px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors', tab === 'grid' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground')}
-                >
-                  Grid
-                </button>
-                <button
-                  onClick={() => setTab('forms')}
-                  className={cn('px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors', tab === 'forms' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground')}
-                >
-                  Forms{forms.length > 0 ? ` (${forms.length})` : ''}
-                </button>
-              </div>
-
-              {loadingDetail ? (
-                <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-              ) : tab === 'grid' ? (
-                <GridView
-                  fields={fields}
-                  records={records}
-                  profilesById={profilesById}
-                  tasksById={tasksById}
-                  onAddRow={addRow}
-                  onDeleteRow={deleteRow}
-                  onUpdateCell={updateCell}
-                  onAddField={() => setFieldDialog('new')}
-                  onEditField={(f) => setFieldDialog(f)}
-                  onDeleteField={deleteField}
-                />
-              ) : (
-                <FormsView
-                  forms={forms}
-                  fields={fields}
-                  onCreateForm={() => setFormDialog('new')}
-                  onEditForm={(f) => setFormDialog(f)}
-                  onToggleForm={async (f) => {
-                    const { error } = await flexApi.updateForm(f.id, { is_enabled: !f.is_enabled });
-                    if (!error) setForms((prev) => prev.map((x) => (x.id === f.id ? { ...x, is_enabled: !x.is_enabled } : x)));
-                  }}
-                  onDeleteForm={async (f) => {
-                    const { error } = await flexApi.deleteForm(f.id);
-                    if (!error) setForms((prev) => prev.filter((x) => x.id !== f.id));
-                  }}
-                />
-              )}
+            <div className="space-y-0.5">
+              {tables.map((t) => (
+                <div key={t.id} className="group flex items-center">
+                  <button
+                    onClick={() => setSelectedTable(t)}
+                    className={cn(
+                      'flex items-center gap-2 flex-1 min-w-0 px-2 py-1.5 rounded-md text-[13px] font-medium transition-all text-left',
+                      selectedTable?.id === t.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+                    )}
+                  >
+                    <Table2 className="h-3.5 w-3.5 shrink-0" style={{ color: t.color }} />
+                    <span className="flex-1 truncate">{t.name}</span>
+                  </button>
+                  <button
+                    className="h-6 w-6 shrink-0 rounded-md opacity-0 group-hover:opacity-100 flex items-center justify-center text-muted-foreground hover:text-destructive"
+                    onClick={(e) => { e.stopPropagation(); setPendingDeleteTable(t); }}
+                    aria-label="Delete table"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
+        </div>
+
+        {/* ─── Main content ───────────────────────────────────────────── */}
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+          <div className="shrink-0 flex items-center justify-between px-4 lg:px-6 py-3 border-b border-border/60">
+            <div className="flex items-center gap-2 min-w-0">
+              <Table2 className="h-4 w-4 shrink-0" style={selectedTable ? { color: selectedTable.color } : undefined} />
+              <h1 className="font-semibold truncate">{selectedTable ? selectedTable.name : 'Tables'}</h1>
+            </div>
+            {!selectedTable && (
+              <Button size="sm" className="gap-1.5" onClick={() => setNewTableDialog(true)}>
+                <Plus className="h-3.5 w-3.5" /> New table
+              </Button>
+            )}
+          </div>
+
+          {selectedTable && (
+            <div className="shrink-0 flex items-center gap-1 px-4 lg:px-6 py-1.5 border-b border-border/60">
+              <button
+                onClick={() => setTab('grid')}
+                className={cn('px-3 py-1.5 rounded-md text-xs font-medium transition-colors', tab === 'grid' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60')}
+              >
+                Grid
+              </button>
+              <button
+                onClick={() => setTab('forms')}
+                className={cn('px-3 py-1.5 rounded-md text-xs font-medium transition-colors', tab === 'forms' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60')}
+              >
+                Forms{forms.length > 0 ? ` (${forms.length})` : ''}
+              </button>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+            {!selectedTable ? (
+              tables.length === 0 && !loadingTables ? (
+                <EmptyState illustration="radar" title="No tables yet" description="Create your first table to start collecting structured data — separate from Tasks and Goals." tone="primary" />
+              ) : (
+                <p className="text-sm text-muted-foreground">Select a table from the left, or create a new one.</p>
+              )
+            ) : loadingDetail ? (
+              <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+            ) : tab === 'grid' ? (
+              <GridView
+                fields={fields}
+                records={records}
+                profilesById={profilesById}
+                tasksById={tasksById}
+                onAddRow={addRow}
+                onDeleteRow={deleteRow}
+                onUpdateCell={updateCell}
+                onAddField={() => setFieldDialog('new')}
+                onEditField={(f) => setFieldDialog(f)}
+                onDeleteField={deleteField}
+              />
+            ) : (
+              <FormsView
+                forms={forms}
+                fields={fields}
+                onCreateForm={() => setFormDialog('new')}
+                onEditForm={(f) => setFormDialog(f)}
+                onToggleForm={async (f) => {
+                  const { error } = await flexApi.updateForm(f.id, { is_enabled: !f.is_enabled });
+                  if (!error) setForms((prev) => prev.map((x) => (x.id === f.id ? { ...x, is_enabled: !x.is_enabled } : x)));
+                }}
+                onDeleteForm={async (f) => {
+                  const { error } = await flexApi.deleteForm(f.id);
+                  if (!error) setForms((prev) => prev.filter((x) => x.id !== f.id));
+                }}
+              />
+            )}
+          </div>
         </div>
       </div>
 
