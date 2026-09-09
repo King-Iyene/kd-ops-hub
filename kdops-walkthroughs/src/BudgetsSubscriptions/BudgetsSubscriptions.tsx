@@ -1,18 +1,53 @@
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
-import { useVideoConfig } from "remotion";
+import { useVideoConfig, AbsoluteFill } from "remotion";
 import { BSIntroScene } from "./BSIntroScene";
 import { BSBudgetOverviewScene } from "./BSBudgetOverviewScene";
 import { BSCreateBudgetScene } from "./BSCreateBudgetScene";
 import { BSSubscriptionTrackerScene } from "./BSSubscriptionTrackerScene";
 import { BSTroubleshootScene } from "./BSTroubleshootScene";
 import { BSOutroScene } from "./BSOutroScene";
+import { VoiceoverTrack } from "../shared/VoiceoverTrack";
+
+const voSegments = [
+    {
+        startFrame: 0,
+        durationFrames: 120,
+        file: "voiceover/10-BudgetsSubscriptions/intro.mp3"
+    },
+    {
+        startFrame: 105,
+        durationFrames: 240,
+        file: "voiceover/10-BudgetsSubscriptions/overview.mp3"
+    },
+    {
+        startFrame: 330,
+        durationFrames: 240,
+        file: "voiceover/10-BudgetsSubscriptions/create.mp3"
+    },
+    {
+        startFrame: 555,
+        durationFrames: 240,
+        file: "voiceover/10-BudgetsSubscriptions/subscriptions.mp3"
+    },
+    {
+        startFrame: 780,
+        durationFrames: 180,
+        file: "voiceover/10-BudgetsSubscriptions/troubleshoot.mp3"
+    },
+    {
+        startFrame: 945,
+        durationFrames: 120,
+        file: "voiceover/10-BudgetsSubscriptions/outro.mp3"
+    }
+];
 
 export const BudgetsSubscriptions: React.FC = () => {
   const { fps } = useVideoConfig();
 
   return (
+    <AbsoluteFill>
     <TransitionSeries>
       {/* Scene 1: Intro — 4s */}
       <TransitionSeries.Sequence durationInFrames={4 * fps} name="Intro">
@@ -69,5 +104,7 @@ export const BudgetsSubscriptions: React.FC = () => {
         <BSOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>
+  <VoiceoverTrack segments={voSegments} />
+  </AbsoluteFill>
   );
 };

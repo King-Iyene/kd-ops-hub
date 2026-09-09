@@ -206,7 +206,7 @@ export const SidebarScene: React.FC = () => {
                     overflow: "hidden",
                     maxHeight: interpolate(
                       frame,
-                      [highlightIndex === 3 ? frame : 2 * fps + 3 * 0.8 * fps, 2 * fps + 3 * 0.8 * fps + 0.4 * fps],
+                      [Math.min(highlightIndex === 3 ? frame : 2 * fps + 3 * 0.8 * fps, 2 * fps + 3 * 0.8 * fps + 0.4 * fps - 1), 2 * fps + 3 * 0.8 * fps + 0.4 * fps],
                       [0, FINANCE_SUBS.length * 32],
                       { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
                     ),

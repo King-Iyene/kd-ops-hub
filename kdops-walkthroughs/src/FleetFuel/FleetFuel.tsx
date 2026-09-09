@@ -1,17 +1,52 @@
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
-import { useVideoConfig } from "remotion";
+import { useVideoConfig, AbsoluteFill } from "remotion";
 import { FFIntroScene } from "./FFIntroScene";
 import { FFFleetOverviewScene } from "./FFFleetOverviewScene";
 import { FFFuelTrackingScene } from "./FFFuelTrackingScene";
 import { FFVendorManagementScene } from "./FFVendorManagementScene";
 import { FFTroubleshootScene } from "./FFTroubleshootScene";
 import { FFOutroScene } from "./FFOutroScene";
+import { VoiceoverTrack } from "../shared/VoiceoverTrack";
+
+const voSegments = [
+    {
+        startFrame: 0,
+        durationFrames: 120,
+        file: "voiceover/12-FleetFuel/intro.mp3"
+    },
+    {
+        startFrame: 105,
+        durationFrames: 240,
+        file: "voiceover/12-FleetFuel/fleet.mp3"
+    },
+    {
+        startFrame: 330,
+        durationFrames: 240,
+        file: "voiceover/12-FleetFuel/fuel.mp3"
+    },
+    {
+        startFrame: 555,
+        durationFrames: 240,
+        file: "voiceover/12-FleetFuel/vendor.mp3"
+    },
+    {
+        startFrame: 780,
+        durationFrames: 180,
+        file: "voiceover/12-FleetFuel/troubleshoot.mp3"
+    },
+    {
+        startFrame: 945,
+        durationFrames: 120,
+        file: "voiceover/12-FleetFuel/outro.mp3"
+    }
+];
 
 export const FleetFuel: React.FC = () => {
   const { fps } = useVideoConfig();
   return (
+    <AbsoluteFill>
     <TransitionSeries>
       <TransitionSeries.Sequence durationInFrames={4 * fps} name="Intro">
         <FFIntroScene />
@@ -37,5 +72,7 @@ export const FleetFuel: React.FC = () => {
         <FFOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>
+  <VoiceoverTrack segments={voSegments} />
+  </AbsoluteFill>
   );
 };

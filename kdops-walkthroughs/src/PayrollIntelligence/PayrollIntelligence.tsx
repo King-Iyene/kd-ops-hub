@@ -1,7 +1,7 @@
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
-import { useVideoConfig } from "remotion";
+import { useVideoConfig, AbsoluteFill } from "remotion";
 import { PIIntroScene } from "./PIIntroScene";
 import { PIPayrollOverviewScene } from "./PIPayrollOverviewScene";
 import { PIRunPayrollScene } from "./PIRunPayrollScene";
@@ -9,11 +9,51 @@ import { PIPayrollBreakdownScene } from "./PIPayrollBreakdownScene";
 import { PIPayrollHistoryScene } from "./PIPayrollHistoryScene";
 import { PITroubleshootScene } from "./PITroubleshootScene";
 import { PIOutroScene } from "./PIOutroScene";
+import { VoiceoverTrack } from "../shared/VoiceoverTrack";
+
+const voSegments = [
+    {
+        startFrame: 0,
+        durationFrames: 120,
+        file: "voiceover/09-PayrollIntelligence/intro.mp3"
+    },
+    {
+        startFrame: 105,
+        durationFrames: 240,
+        file: "voiceover/09-PayrollIntelligence/overview.mp3"
+    },
+    {
+        startFrame: 330,
+        durationFrames: 240,
+        file: "voiceover/09-PayrollIntelligence/run.mp3"
+    },
+    {
+        startFrame: 555,
+        durationFrames: 240,
+        file: "voiceover/09-PayrollIntelligence/breakdown.mp3"
+    },
+    {
+        startFrame: 780,
+        durationFrames: 240,
+        file: "voiceover/09-PayrollIntelligence/history.mp3"
+    },
+    {
+        startFrame: 1005,
+        durationFrames: 180,
+        file: "voiceover/09-PayrollIntelligence/troubleshoot.mp3"
+    },
+    {
+        startFrame: 1170,
+        durationFrames: 120,
+        file: "voiceover/09-PayrollIntelligence/outro.mp3"
+    }
+];
 
 export const PayrollIntelligence: React.FC = () => {
   const { fps } = useVideoConfig();
 
   return (
+    <AbsoluteFill>
     <TransitionSeries>
       {/* Scene 1: Intro — 4s */}
       <TransitionSeries.Sequence durationInFrames={4 * fps} name="Intro">
@@ -80,5 +120,7 @@ export const PayrollIntelligence: React.FC = () => {
         <PIOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>
+  <VoiceoverTrack segments={voSegments} />
+  </AbsoluteFill>
   );
 };

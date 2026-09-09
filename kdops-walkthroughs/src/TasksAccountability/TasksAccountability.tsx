@@ -1,16 +1,46 @@
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
-import { useVideoConfig } from "remotion";
+import { useVideoConfig, AbsoluteFill } from "remotion";
 import { TAIntroScene } from "./TAIntroScene";
 import { TATaskBoardScene } from "./TATaskBoardScene";
 import { TACreateTaskScene } from "./TACreateTaskScene";
 import { TATroubleshootScene } from "./TATroubleshootScene";
 import { TAOutroScene } from "./TAOutroScene";
+import { VoiceoverTrack } from "../shared/VoiceoverTrack";
+
+const voSegments = [
+    {
+        startFrame: 0,
+        durationFrames: 120,
+        file: "voiceover/06-TasksAccountability/intro.mp3"
+    },
+    {
+        startFrame: 105,
+        durationFrames: 240,
+        file: "voiceover/06-TasksAccountability/taskboard.mp3"
+    },
+    {
+        startFrame: 330,
+        durationFrames: 240,
+        file: "voiceover/06-TasksAccountability/create.mp3"
+    },
+    {
+        startFrame: 555,
+        durationFrames: 180,
+        file: "voiceover/06-TasksAccountability/troubleshoot.mp3"
+    },
+    {
+        startFrame: 720,
+        durationFrames: 120,
+        file: "voiceover/06-TasksAccountability/outro.mp3"
+    }
+];
 
 export const TasksAccountability: React.FC = () => {
   const { fps } = useVideoConfig();
   return (
+    <AbsoluteFill>
     <TransitionSeries>
       <TransitionSeries.Sequence durationInFrames={4 * fps} name="Intro">
         <TAIntroScene />
@@ -32,5 +62,7 @@ export const TasksAccountability: React.FC = () => {
         <TAOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>
+  <VoiceoverTrack segments={voSegments} />
+  </AbsoluteFill>
   );
 };

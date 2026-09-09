@@ -1,18 +1,53 @@
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
-import { useVideoConfig } from "remotion";
+import { useVideoConfig, AbsoluteFill } from "remotion";
 import { PBIntroScene } from "./PBIntroScene";
 import { PBBatchOverviewScene } from "./PBBatchOverviewScene";
 import { PBCreateBatchScene } from "./PBCreateBatchScene";
 import { PBBatchApprovalScene } from "./PBBatchApprovalScene";
 import { PBTroubleshootScene } from "./PBTroubleshootScene";
 import { PBOutroScene } from "./PBOutroScene";
+import { VoiceoverTrack } from "../shared/VoiceoverTrack";
+
+const voSegments = [
+    {
+        startFrame: 0,
+        durationFrames: 120,
+        file: "voiceover/07-PaymentBatches/intro.mp3"
+    },
+    {
+        startFrame: 105,
+        durationFrames: 240,
+        file: "voiceover/07-PaymentBatches/overview.mp3"
+    },
+    {
+        startFrame: 330,
+        durationFrames: 240,
+        file: "voiceover/07-PaymentBatches/create.mp3"
+    },
+    {
+        startFrame: 555,
+        durationFrames: 240,
+        file: "voiceover/07-PaymentBatches/approval.mp3"
+    },
+    {
+        startFrame: 780,
+        durationFrames: 180,
+        file: "voiceover/07-PaymentBatches/troubleshoot.mp3"
+    },
+    {
+        startFrame: 945,
+        durationFrames: 120,
+        file: "voiceover/07-PaymentBatches/outro.mp3"
+    }
+];
 
 export const PaymentBatches: React.FC = () => {
   const { fps } = useVideoConfig();
 
   return (
+    <AbsoluteFill>
     <TransitionSeries>
       <TransitionSeries.Sequence durationInFrames={4 * fps} name="Intro">
         <PBIntroScene />
@@ -48,5 +83,7 @@ export const PaymentBatches: React.FC = () => {
         <PBOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>
+  <VoiceoverTrack segments={voSegments} />
+  </AbsoluteFill>
   );
 };

@@ -14,8 +14,8 @@ const { fontFamily } = loadFont("normal", { weights: ["400", "500", "700"], subs
 const { fontFamily: monoFamily } = loadMono("normal", { weights: ["400", "700"], subsets: ["latin"] });
 
 export const makeIntroScene = (opts: {
-  videoNum: number;
-  totalVideos: number;
+  videoNum?: number;
+  totalVideos?: number;
   icon: string;
   title: string;
   subtitle: string;
@@ -28,7 +28,7 @@ export const makeIntroScene = (opts: {
       <AbsoluteFill style={{ background: `radial-gradient(ellipse at 50% 40%, ${COLORS.bgLight} 0%, ${COLORS.bg} 70%)`, display: "flex", flexDirection: "column" as const, justifyContent: "center", alignItems: "center", fontFamily }}>
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg, ${COLORS.accent}, ${COLORS.accentBright}, ${COLORS.gold})` }} />
         <Interactive.Div name="Badge" style={{ fontSize: 14, fontFamily: monoFamily, color: COLORS.accentBright, letterSpacing: 3, textTransform: "uppercase" as const, marginBottom: 24, opacity: interpolate(frame, [0, 0.4 * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }}>
-          Video {opts.videoNum} of {opts.totalVideos}
+          KDOps Platform Guide
         </Interactive.Div>
         <Interactive.Div name="Icon" style={{ width: 90, height: 90, borderRadius: 20, background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accentBright})`, display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 32, scale: interpolate(frame, [0.2 * fps, 0.7 * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.spring({ damping: 200 }) }) }}>
           <span style={{ fontSize: 44 }}>{opts.icon}</span>

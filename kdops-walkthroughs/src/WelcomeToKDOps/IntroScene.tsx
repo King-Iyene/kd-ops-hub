@@ -162,7 +162,7 @@ export const IntroScene: React.FC = () => {
           }),
         }}
       >
-        Getting Started Guide
+        KDOps Platform Guide
       </Interactive.Div>
     </AbsoluteFill>
   );

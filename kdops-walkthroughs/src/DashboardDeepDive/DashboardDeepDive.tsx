@@ -1,7 +1,7 @@
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
-import { useVideoConfig } from "remotion";
+import { useVideoConfig, AbsoluteFill } from "remotion";
 import { DDIntroScene } from "./DDIntroScene";
 import { DDStatCardsScene } from "./DDStatCardsScene";
 import { DDFinanceScene } from "./DDFinanceScene";
@@ -9,11 +9,51 @@ import { DDQuickActionsScene } from "./DDQuickActionsScene";
 import { DDComplianceScene } from "./DDComplianceScene";
 import { DDTroubleshootScene } from "./DDTroubleshootScene";
 import { DDOutroScene } from "./DDOutroScene";
+import { VoiceoverTrack } from "../shared/VoiceoverTrack";
+
+const voSegments = [
+    {
+        startFrame: 0,
+        durationFrames: 120,
+        file: "voiceover/02-DashboardDeepDive/intro.mp3"
+    },
+    {
+        startFrame: 105,
+        durationFrames: 240,
+        file: "voiceover/02-DashboardDeepDive/stat-cards.mp3"
+    },
+    {
+        startFrame: 330,
+        durationFrames: 240,
+        file: "voiceover/02-DashboardDeepDive/finance.mp3"
+    },
+    {
+        startFrame: 555,
+        durationFrames: 240,
+        file: "voiceover/02-DashboardDeepDive/quick-actions.mp3"
+    },
+    {
+        startFrame: 780,
+        durationFrames: 240,
+        file: "voiceover/02-DashboardDeepDive/compliance.mp3"
+    },
+    {
+        startFrame: 1005,
+        durationFrames: 180,
+        file: "voiceover/02-DashboardDeepDive/troubleshoot.mp3"
+    },
+    {
+        startFrame: 1170,
+        durationFrames: 120,
+        file: "voiceover/02-DashboardDeepDive/outro.mp3"
+    }
+];
 
 export const DashboardDeepDive: React.FC = () => {
   const { fps } = useVideoConfig();
 
   return (
+    <AbsoluteFill>
     <TransitionSeries>
       {/* Scene 1: Intro — 4s */}
       <TransitionSeries.Sequence durationInFrames={4 * fps} name="Intro">
@@ -80,5 +120,7 @@ export const DashboardDeepDive: React.FC = () => {
         <DDOutroScene />
       </TransitionSeries.Sequence>
     </TransitionSeries>
+  <VoiceoverTrack segments={voSegments} />
+  </AbsoluteFill>
   );
 };
