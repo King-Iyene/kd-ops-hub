@@ -296,6 +296,141 @@ function sampleValueForField(f: FlexField): FormulaValue {
 interface ProfileLite { id: string; full_name: string; email: string; }
 interface TaskLite { id: string; title: string; status: string; completed_at: string | null; }
 
+// ─── Column summaries (Airtable-style footer/group totals) ─────────────
+
+type SummaryType =
+  | 'none' | 'filled' | 'empty' | 'percent_filled' | 'percent_empty'
+  | 'unique' | 'percent_unique' | 'sum' | 'average' | 'min' | 'max' | 'range';
+
+const SUMMARY_LABELS: Record<SummaryType, string> = {
+  none: 'None', filled: 'Filled', empty: 'Empty',
+  percent_filled: 'Percent Filled', percent_empty: 'Percent Empty',
+  unique: 'Unique', percent_unique: 'Percent Unique',
+  sum: 'Sum', average: 'Average', min: 'Min', max: 'Max', range: 'Range',
+};
+
+const GENERIC_SUMMARY_TYPES: SummaryType[] = ['none', 'filled', 'empty', 'percent_filled', 'percent_empty', 'unique', 'percent_unique'];
+const NUMERIC_SUMMARY_TYPES: SummaryType[] = [...GENERIC_SUMMARY_TYPES, 'sum', 'average', 'min', 'max', 'range'];
+
+function fieldSupportsNumericSummary(field: FlexField): boolean {
+  return field.type === 'number' || (field.type === 'formula' && !!field.options.format && NUMERIC_FORMULA_FORMATS.has(field.options.format));
+}
+
+function summaryOptionsForField(field: FlexField): SummaryType[] {
+  return fieldSupportsNumericSummary(field) ? NUMERIC_SUMMARY_TYPES : GENERIC_SUMMARY_TYPES;
+}
+
+function numericValueForField(
+  field: FlexField,
+  record: FlexRecord,
+  allFields: FlexField[],
+  profilesById: Map<string, ProfileLite>,
+  tasksById: Map<string, TaskLite>,
+): number | null {
+  if (field.type === 'number') {
+    const v = record.data[field.id];
+    if (typeof v === 'number') return v;
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return isNaN(n) ? null : n;
+  }
+  if (field.type === 'formula' && field.options.format && NUMERIC_FORMULA_FORMATS.has(field.options.format)) {
+    const scope = buildFormulaScope(record, allFields, profilesById, tasksById);
+    const result = evaluateFormula(field.options.formula || '', scope);
+    if (isFormulaError(result)) return null;
+    const n = Number(result);
+    return isNaN(n) ? null : n;
+  }
+  return null;
+}
+
+function formatSummaryNumber(n: number, field: FlexField): string {
+  if (field.type === 'formula' && field.options.format) return formatNumericValue(n, field.options.format);
+  return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
+
+/** Computes one field's column summary across a set of records — the
+ *  same function used for the grand-total footer and for each group's
+ *  subtotal, just with a different record list. */
+function computeFieldSummary(
+  field: FlexField,
+  recordsForSummary: FlexRecord[],
+  type: SummaryType,
+  allFields: FlexField[],
+  profilesById: Map<string, ProfileLite>,
+  tasksById: Map<string, TaskLite>,
+): string {
+  const total = recordsForSummary.length;
+  if (type === 'none' || total === 0) return '';
+
+  if (GENERIC_SUMMARY_TYPES.includes(type)) {
+    const values = recordsForSummary.map((r) => getFieldDisplayValue(field, r, allFields, profilesById, tasksById));
+    const filled = values.filter((v) => v !== '(Empty)');
+    switch (type) {
+      case 'filled': return String(filled.length);
+      case 'empty': return String(total - filled.length);
+      case 'percent_filled': return `${Math.round((filled.length / total) * 100)}%`;
+      case 'percent_empty': return `${Math.round(((total - filled.length) / total) * 100)}%`;
+      case 'unique': return String(new Set(filled).size);
+      case 'percent_unique': return `${Math.round((new Set(filled).size / total) * 100)}%`;
+      default: return '';
+    }
+  }
+
+  const nums = recordsForSummary
+    .map((r) => numericValueForField(field, r, allFields, profilesById, tasksById))
+    .filter((n): n is number => n !== null);
+  if (nums.length === 0) return '—';
+  switch (type) {
+    case 'sum': return formatSummaryNumber(nums.reduce((a, b) => a + b, 0), field);
+    case 'average': return formatSummaryNumber(nums.reduce((a, b) => a + b, 0) / nums.length, field);
+    case 'min': return formatSummaryNumber(Math.min(...nums), field);
+    case 'max': return formatSummaryNumber(Math.max(...nums), field);
+    case 'range': return formatSummaryNumber(Math.max(...nums) - Math.min(...nums), field);
+    default: return '';
+  }
+}
+
+/** One column-summary footer cell — click to pick which function
+ *  (Sum/Average/Filled/Unique/...) this column reports, Airtable-style. */
+function SummaryCell({
+  field, records: recordsForSummary, type, allFields, profilesById, tasksById, onChangeType, compact,
+}: {
+  field: FlexField;
+  records: FlexRecord[];
+  type: SummaryType;
+  allFields: FlexField[];
+  profilesById: Map<string, ProfileLite>;
+  tasksById: Map<string, TaskLite>;
+  onChangeType: (t: SummaryType) => void;
+  compact?: boolean;
+}) {
+  const value = computeFieldSummary(field, recordsForSummary, type, allFields, profilesById, tasksById);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className={cn(
+            'w-full text-left px-2 truncate text-[11px] hover:bg-muted/50 rounded',
+            compact ? 'py-0.5' : 'py-1',
+            type === 'none' ? 'text-muted-foreground/40 hover:text-muted-foreground' : 'text-muted-foreground font-medium',
+          )}
+        >
+          {type === 'none' ? 'Summarize' : `${SUMMARY_LABELS[type]} ${value}`}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-40">
+        {summaryOptionsForField(field).map((opt) => (
+          <DropdownMenuItem key={opt} onClick={() => onChangeType(opt)}>
+            {opt === type && <Check className="h-3.5 w-3.5 mr-2" />}
+            <span className={opt === type ? '' : 'ml-[22px]'}>{SUMMARY_LABELS[opt]}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 /** The filter value's input widget, matched to the field's type — a date
  *  picker for Date, a dropdown of real choices/names for Select/Person and
  *  their multi- variants, Yes/No for Checkbox, and free text otherwise. */
@@ -1048,6 +1183,7 @@ function GridView({
   const [subGroupByField, setSubGroupByField] = useState<string>('__none__');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<FlexFilter[]>([]);
+  const [summaryByField, setSummaryByField] = useState<Record<string, SummaryType>>({});
 
   // Grouping is remembered per table (survives switching to Forms and back,
   // and page reloads) until the user explicitly changes it.
@@ -1068,6 +1204,27 @@ function GridView({
       localStorage.setItem(`flex_group_${tableId}`, JSON.stringify({ groupByField, subGroupByField }));
     } catch { /* best-effort persistence only */ }
   }, [tableId, groupByField, subGroupByField]);
+
+  // Column summaries (Airtable's "Sum/Average/..." footer) are remembered
+  // per table too — the same choice applies to the grand-total footer and
+  // to every group's subtotal.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`flex_summary_${tableId}`);
+      setSummaryByField(raw ? JSON.parse(raw) : {});
+    } catch {
+      setSummaryByField({});
+    }
+  }, [tableId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`flex_summary_${tableId}`, JSON.stringify(summaryByField));
+    } catch { /* best-effort persistence only */ }
+  }, [tableId, summaryByField]);
+
+  const setFieldSummaryType = (fieldId: string, type: SummaryType) =>
+    setSummaryByField((prev) => ({ ...prev, [fieldId]: type }));
 
   const startResize = useCallback((fieldId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -1145,6 +1302,27 @@ function GridView({
   }
 
   const colSpan = visibleFields.length + 2;
+
+  const renderSummaryRow = (recordsForRow: FlexRecord[], key: string, tone: 'grand' | 'group') => (
+    <tr key={key} className={tone === 'grand' ? 'bg-muted/20 border-t-2 border-border' : 'bg-muted/10'}>
+      <td className={cn('border-r border-border/60', tone === 'grand' ? 'border-b' : '')} />
+      {visibleFields.map((f) => (
+        <td key={f.id} className={cn('border-r border-border/60 px-0', tone === 'grand' ? 'border-b' : '')}>
+          <SummaryCell
+            field={f}
+            records={recordsForRow}
+            type={summaryByField[f.id] || 'none'}
+            allFields={fields}
+            profilesById={profilesById}
+            tasksById={tasksById}
+            onChangeType={(t) => setFieldSummaryType(f.id, t)}
+            compact={tone === 'group'}
+          />
+        </td>
+      ))}
+      <td className={tone === 'grand' ? 'border-b border-border/60' : ''} />
+    </tr>
+  );
 
   const renderRow = (r: FlexRecord) => (
     <tr key={r.id} className="group hover:bg-muted/20">
@@ -1303,6 +1481,7 @@ function GridView({
                       {collapsedGroups.has(g.key) ? '▸' : '▾'} {groupByFieldObj!.name}: {g.key} ({g.records.length})
                     </td>
                   </tr>
+                  {!collapsedGroups.has(g.key) && Object.values(summaryByField).some((t) => t !== 'none') && renderSummaryRow(g.records, `${g.key}-summary`, 'group')}
                   {!collapsedGroups.has(g.key) && (
                     g.subgroups
                       ? Array.from(g.subgroups.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([subKey, subRecords]) => {
@@ -1314,6 +1493,7 @@ function GridView({
                                 {collapsedGroups.has(subGroupKey) ? '▸' : '▾'} {subGroupByFieldObj?.name}: {subKey} ({subRecords.length})
                               </td>
                             </tr>
+                            {!collapsedGroups.has(subGroupKey) && Object.values(summaryByField).some((t) => t !== 'none') && renderSummaryRow(subRecords, `${subGroupKey}-summary`, 'group')}
                             {!collapsedGroups.has(subGroupKey) && subRecords.map(renderRow)}
                           </Fragment>
                         );
@@ -1326,6 +1506,9 @@ function GridView({
               filteredRecords.map(renderRow)
             )}
           </tbody>
+          <tfoot>
+            {renderSummaryRow(filteredRecords, 'grand-total-summary', 'grand')}
+          </tfoot>
         </table>
         <button onClick={onAddRow} className="flex items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 w-full transition-colors">
           <Plus className="h-3.5 w-3.5" /> Add row
