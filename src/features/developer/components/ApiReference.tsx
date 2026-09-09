@@ -1353,7 +1353,7 @@ const MODULES: Module[] = [
         description: 'Create a webhook subscription.',
         bodyFields: [
           { name: 'url', type: 'string', required: true, description: 'HTTPS endpoint to receive events' },
-          { name: 'events', type: 'array', required: true, description: 'Event types to subscribe to' },
+          { name: 'events', type: 'array', required: true, description: 'Event types to subscribe to (e.g. employee.created, task.form_submitted, payment.completed)' },
           { name: 'secret', type: 'string', required: false, description: 'Signing secret for payload verification' },
         ],
         exampleRequest: `curl -X POST ${BASE}/webhooks \\
@@ -1380,10 +1380,10 @@ const MODULES: Module[] = [
         exampleRequest: `curl -X PATCH ${BASE}/webhooks/wh_d4e5f6 \\
   -H "Authorization: Bearer kdops_live_abc123..." \\
   -H "Content-Type: application/json" \\
-  -d '{"events": ["employee.created", "task.created"]}'`,
+  -d '{"events": ["employee.created", "task.created", "task.form_submitted"]}'`,
         exampleResponse: JSON.stringify({
           id: 'wh_d4e5f6',
-          events: ['employee.created', 'task.created'],
+          events: ['employee.created', 'task.created', 'task.form_submitted'],
           updated_at: '2026-09-09T16:00:00Z',
         }, null, 2),
       },
