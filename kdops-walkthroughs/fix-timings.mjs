@@ -88,6 +88,42 @@ const VIDEOS = [
   ["StaffLoans", "StaffLoans.tsx", "25-StaffLoans", [
     ["Intro", "intro"], ["CreateLoan", "create"], ["TrackLoans", "tracking"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
   ]],
+  ["RecruitmentPipeline", "RecruitmentPipeline.tsx", "26-RecruitmentPipeline", [
+    ["Intro", "intro"], ["CreateOpening", "CreateOpening"], ["ManageCandidates", "ManageCandidates"], ["ExtendOffer", "ExtendOffer"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["OnboardingOffboarding", "OnboardingOffboarding.tsx", "27-OnboardingOffboarding", [
+    ["Intro", "intro"], ["JoiningChecklist", "JoiningChecklist"], ["ExitChecklist", "ExitChecklist"], ["TrackProgress", "TrackProgress"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["DisciplinaryProcess", "DisciplinaryProcess.tsx", "28-DisciplinaryProcess", [
+    ["Intro", "intro"], ["CreateRecord", "CreateRecord"], ["ResponseThread", "ResponseThread"], ["AcknowledgeExpunge", "AcknowledgeExpunge"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["HRLettersModule", "HRLettersModule.tsx", "29-HRLettersModule", [
+    ["Intro", "intro"], ["CreateLetter", "CreateLetter"], ["ESignature", "ESignature"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["GrievanceManagement", "GrievanceManagement.tsx", "30-GrievanceManagement", [
+    ["Intro", "intro"], ["FileGrievance", "FileGrievance"], ["TrackResolution", "TrackResolution"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["SuccessionPlanning", "SuccessionPlanning.tsx", "31-SuccessionPlanning", [
+    ["Intro", "intro"], ["IdentifyRoles", "IdentifyRoles"], ["AssignCandidates", "AssignCandidates"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["GoalsSetting", "GoalsSetting.tsx", "32-GoalsSetting", [
+    ["Intro", "intro"], ["CreateGoal", "CreateGoal"], ["TrackProgress", "TrackProgress"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["PerformanceReviews", "PerformanceReviews.tsx", "33-PerformanceReviews", [
+    ["Intro", "intro"], ["CreateCycle", "CreateCycle"], ["RateCompetencies", "RateCompetencies"], ["AcknowledgeReview", "AcknowledgeReview"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["SurveysModule", "SurveysModule.tsx", "34-SurveysModule", [
+    ["Intro", "intro"], ["CreateSurvey", "CreateSurvey"], ["RespondToSurvey", "RespondToSurvey"], ["ViewResults", "ViewResults"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["BenefitsEnrollment", "BenefitsEnrollment.tsx", "35-BenefitsEnrollment", [
+    ["Intro", "intro"], ["EnrollBenefit", "EnrollBenefit"], ["TrackEnrollments", "TrackEnrollments"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["ClientsManagement", "ClientsManagement.tsx", "36-ClientsManagement", [
+    ["Intro", "intro"], ["AddClient", "AddClient"], ["ClientProfile", "ClientProfile"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
+  ["InvoicingClients", "InvoicingClients.tsx", "37-InvoicingClients", [
+    ["Intro", "intro"], ["CreateInvoice", "CreateInvoice"], ["TrackPayments", "TrackPayments"], ["Troubleshooting", "troubleshoot"], ["Outro", "outro"],
+  ]],
 ];
 
 const rootUpdates = []; // for Root.tsx frame count updates
@@ -181,6 +217,18 @@ const VAR_MAP = {
   PaymentSchedule: "V23_FRAMES",
   PayHubOverview: "V24_FRAMES",
   StaffLoans: "V25_FRAMES",
+  RecruitmentPipeline: "V26_FRAMES",
+  OnboardingOffboarding: "V27_FRAMES",
+  DisciplinaryProcess: "V28_FRAMES",
+  HRLettersModule: "V29_FRAMES",
+  GrievanceManagement: "V30_FRAMES",
+  SuccessionPlanning: "V31_FRAMES",
+  GoalsSetting: "V32_FRAMES",
+  PerformanceReviews: "V33_FRAMES",
+  SurveysModule: "V34_FRAMES",
+  BenefitsEnrollment: "V35_FRAMES",
+  ClientsManagement: "V36_FRAMES",
+  InvoicingClients: "V37_FRAMES",
 };
 
 for (const { folder, totalFrames } of rootUpdates) {
