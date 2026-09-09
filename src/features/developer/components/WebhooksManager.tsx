@@ -42,18 +42,18 @@ import { cn } from '@/lib/utils';
 // ---------------------------------------------------------------------------
 
 const EVENT_GROUPS: { module: string; color: string; events: string[] }[] = [
-  { module: 'Employees', color: 'bg-blue-500/15 text-blue-400 border-blue-500/30', events: ['employee.created', 'employee.updated', 'employee.deleted'] },
-  { module: 'Contractors', color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30', events: ['contractor.created', 'contractor.updated'] },
-  { module: 'Tasks', color: 'bg-violet-500/15 text-violet-400 border-violet-500/30', events: ['task.created', 'task.updated', 'task.completed', 'task.deleted'] },
-  { module: 'Leave', color: 'bg-amber-500/15 text-amber-400 border-amber-500/30', events: ['leave.requested', 'leave.approved', 'leave.rejected'] },
-  { module: 'Expenses', color: 'bg-orange-500/15 text-orange-400 border-orange-500/30', events: ['expense.submitted', 'expense.approved', 'expense.rejected'] },
-  { module: 'Payroll', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', events: ['payroll.run_completed', 'payroll.slip_generated'] },
-  { module: 'Fleet', color: 'bg-rose-500/15 text-rose-400 border-rose-500/30', events: ['fuel_request.created', 'fuel_request.approved', 'trip.logged'] },
-  { module: 'Invoices', color: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30', events: ['invoice.created', 'invoice.paid', 'invoice.overdue'] },
-  { module: 'Clients', color: 'bg-teal-500/15 text-teal-400 border-teal-500/30', events: ['client.created', 'client.updated'] },
-  { module: 'Recruitment', color: 'bg-pink-500/15 text-pink-400 border-pink-500/30', events: ['applicant.created', 'applicant.stage_changed', 'applicant.hired'] },
-  { module: 'Payments', color: 'bg-green-500/15 text-green-400 border-green-500/30', events: ['payment.completed', 'payment.failed'] },
-  { module: 'Database', color: 'bg-slate-500/15 text-slate-400 border-slate-500/30', events: ['record.created', 'record.updated', 'record.deleted'] },
+  { module: 'Employees', color: 'bg-blue-500/15 text-blue-400 border-blue-500/30', events: ['employee.created', 'employee.updated', 'employee.deleted', 'employee.suspended', 'employee.reactivated'] },
+  { module: 'Contractors', color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30', events: ['contractor.created', 'contractor.updated', 'contractor.deleted', 'contractor.contract_expired'] },
+  { module: 'Tasks', color: 'bg-violet-500/15 text-violet-400 border-violet-500/30', events: ['task.created', 'task.updated', 'task.completed', 'task.deleted', 'task.assigned', 'task.overdue', 'task.form_submitted', 'task.comment_added'] },
+  { module: 'Leave', color: 'bg-amber-500/15 text-amber-400 border-amber-500/30', events: ['leave.requested', 'leave.approved', 'leave.rejected', 'leave.cancelled'] },
+  { module: 'Expenses', color: 'bg-orange-500/15 text-orange-400 border-orange-500/30', events: ['expense.submitted', 'expense.approved', 'expense.rejected', 'expense.reimbursed'] },
+  { module: 'Payroll', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', events: ['payroll.run_completed', 'payroll.slip_generated', 'payroll.run_started', 'payroll.payment_sent'] },
+  { module: 'Fleet', color: 'bg-rose-500/15 text-rose-400 border-rose-500/30', events: ['fuel_request.created', 'fuel_request.approved', 'fuel_request.rejected', 'trip.logged', 'trip.completed', 'vehicle.added', 'vehicle.maintenance_due'] },
+  { module: 'Invoices', color: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30', events: ['invoice.created', 'invoice.sent', 'invoice.paid', 'invoice.overdue', 'invoice.cancelled'] },
+  { module: 'Clients', color: 'bg-teal-500/15 text-teal-400 border-teal-500/30', events: ['client.created', 'client.updated', 'client.deleted', 'client.contract_renewed'] },
+  { module: 'Recruitment', color: 'bg-pink-500/15 text-pink-400 border-pink-500/30', events: ['applicant.created', 'applicant.stage_changed', 'applicant.hired', 'applicant.rejected', 'opening.created', 'opening.closed'] },
+  { module: 'Payments', color: 'bg-green-500/15 text-green-400 border-green-500/30', events: ['payment.completed', 'payment.failed', 'payment.pending', 'batch.created', 'batch.approved', 'batch.processed'] },
+  { module: 'Database', color: 'bg-slate-500/15 text-slate-400 border-slate-500/30', events: ['record.created', 'record.updated', 'record.deleted', 'record.bulk_created'] },
 ];
 
 const ALL_EVENTS = EVENT_GROUPS.flatMap((g) => g.events);
