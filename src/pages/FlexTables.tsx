@@ -782,7 +782,10 @@ function FieldEditorDialog({
   };
 
   const formulaPreview = isFormula
-    ? evaluateFormula(formula, Object.fromEntries(referenceableFields.map((f) => [f.name, f.type === 'number' ? 1 : f.type === 'checkbox' ? true : 'sample'])))
+    ? evaluateFormula(formula, Object.fromEntries(referenceableFields.map((f) => [
+        f.name,
+        f.type === 'number' ? 1 : f.type === 'checkbox' ? true : f.type === 'date' ? new Date().toISOString().slice(0, 10) : 'sample',
+      ])))
     : null;
 
   const save = async () => {
@@ -861,7 +864,7 @@ function FieldEditorDialog({
                 </div>
               )}
               <p className="text-[11px] text-muted-foreground">
-                Functions: IF, AND, OR, NOT, SUM, MIN, MAX, ROUND, ABS, LEN, UPPER, LOWER, TRIM, CONCATENATE, TODAY, NOW. Use & to join text, + - * / for math.
+                Functions: IF, AND, OR, NOT, SUM, MIN, MAX, ROUND, ABS, LEN, UPPER, LOWER, TRIM, CONCATENATE, TODAY, NOW, MOD, WEEKDAY, DATEADD. Use & to join text, + - * / for math.
               </p>
 
               <label className="text-xs font-medium text-muted-foreground block pt-1">Output format</label>

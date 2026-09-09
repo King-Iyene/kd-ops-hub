@@ -5,7 +5,8 @@
 // Syntax supported: {Field Name} references, numbers, 'strings'/"strings",
 // + - * / (arithmetic), & (string concat), comparisons = <> < <= > >=,
 // parentheses, and functions: IF, AND, OR, NOT, SUM, MIN, MAX, ROUND, ABS,
-// LEN, UPPER, LOWER, TRIM, CONCATENATE, TODAY, NOW, BLANK.
+// LEN, UPPER, LOWER, TRIM, CONCATENATE, TODAY, NOW, BLANK, MOD, WEEKDAY,
+// DATEADD.
 
 export type FormulaValue = string | number | boolean | null;
 
@@ -212,6 +213,32 @@ function isTruthy(v: FormulaValue): boolean {
   return String(v).length > 0;
 }
 
+function parseDate(v: FormulaValue): Date | null {
+  if (v === null || v === undefined || v === '') return null;
+  const d = new Date(String(v));
+  if (isNaN(d.getTime())) throw new Error(`"${v}" is not a valid date`);
+  return d;
+}
+
+const WEEKDAY_START: Record<string, number> = {
+  sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+};
+
+function addToDate(date: Date, amount: number, unit: string): Date {
+  const d = new Date(date.getTime());
+  switch (unit.toLowerCase().replace(/s$/, '')) {
+    case 'day': d.setUTCDate(d.getUTCDate() + amount); break;
+    case 'week': d.setUTCDate(d.getUTCDate() + amount * 7); break;
+    case 'month': d.setUTCMonth(d.getUTCMonth() + amount); break;
+    case 'year': d.setUTCFullYear(d.getUTCFullYear() + amount); break;
+    case 'hour': d.setUTCHours(d.getUTCHours() + amount); break;
+    case 'minute': d.setUTCMinutes(d.getUTCMinutes() + amount); break;
+    case 'second': d.setUTCSeconds(d.getUTCSeconds() + amount); break;
+    default: throw new Error(`Unknown DATEADD unit "${unit}"`);
+  }
+  return d;
+}
+
 const FUNCTIONS: Record<string, (args: FormulaValue[]) => FormulaValue> = {
   IF: (a) => (isTruthy(a[0]) ? a[1] ?? null : a[2] ?? null),
   AND: (a) => a.every(isTruthy),
@@ -234,6 +261,25 @@ const FUNCTIONS: Record<string, (args: FormulaValue[]) => FormulaValue> = {
   TODAY: () => new Date().toISOString().slice(0, 10),
   NOW: () => new Date().toISOString(),
   BLANK: () => null,
+  MOD: (a) => {
+    const divisor = toNum(a[1]);
+    if (divisor === 0) throw new Error('MOD by zero');
+    const value = toNum(a[0]);
+    return ((value % divisor) + divisor) % divisor;
+  },
+  WEEKDAY: (a) => {
+    const d = parseDate(a[0]);
+    if (!d) return null;
+    const startName = a[1] !== undefined ? toStr(a[1]).toLowerCase() : 'sunday';
+    const start = WEEKDAY_START[startName];
+    if (start === undefined) throw new Error(`Unknown WEEKDAY start day "${a[1]}"`);
+    return (d.getUTCDay() - start + 7) % 7;
+  },
+  DATEADD: (a) => {
+    const d = parseDate(a[0]);
+    if (!d) return null;
+    return addToDate(d, toNum(a[1]), toStr(a[2])).toISOString().slice(0, 10);
+  },
 };
 
 function evaluate(node: Node, fields: Record<string, FormulaValue>): FormulaValue {
