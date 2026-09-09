@@ -32,6 +32,10 @@ export default function FlexFormPublic() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Task-link fields with zero available tasks (nothing assigned/completed
+  // for the selected person) can't be filled in no matter what — required
+  // or not, they submit as empty and count as nothing.
+  const [linkFieldsEmpty, setLinkFieldsEmpty] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!token) return;
@@ -68,7 +72,7 @@ export default function FlexFormPublic() {
   const submit = async () => {
     if (!token || !payload) return;
     for (const entry of visibleEntries) {
-      if (entry.required) {
+      if (entry.required && !linkFieldsEmpty[entry.field_id]) {
         const v = values[entry.field_id];
         const empty = v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
         if (empty) {
@@ -141,6 +145,7 @@ export default function FlexFormPublic() {
                   token={token!}
                   hasPersonFilter={!!personFieldId}
                   personId={personFieldId ? (values[personFieldId] as string | undefined) : undefined}
+                  onNoOptions={(empty) => setLinkFieldsEmpty((prev) => (prev[field.id] === empty ? prev : { ...prev, [field.id]: empty }))}
                 />
               </div>
             );
@@ -157,13 +162,14 @@ export default function FlexFormPublic() {
   );
 }
 
-function FieldInput({ field, value, onChange, token, personId, hasPersonFilter }: {
+function FieldInput({ field, value, onChange, token, personId, hasPersonFilter, onNoOptions }: {
   field: PublicField;
   value: unknown;
   onChange: (v: unknown) => void;
   token: string;
   personId?: string;
   hasPersonFilter: boolean;
+  onNoOptions: (empty: boolean) => void;
 }) {
   switch (field.type) {
     case 'long_text':
@@ -226,45 +232,58 @@ function FieldInput({ field, value, onChange, token, personId, hasPersonFilter }
     }
     case 'task_link':
       if (!hasPersonFilter) {
-        return <p className="text-xs text-muted-foreground italic">Linked tasks aren't editable from this form.</p>;
+        return <NoOptionsNotice onNoOptions={onNoOptions} text="Linked tasks aren't editable from this form." />;
       }
-      return <TaskLinkPicker token={token} personId={personId} value={value} onChange={onChange} />;
+      return <TaskLinkPicker token={token} personId={personId} value={value} onChange={onChange} onNoOptions={onNoOptions} />;
     case 'completed_task_link':
       if (!hasPersonFilter) {
-        return <p className="text-xs text-muted-foreground italic">Completed linked tasks aren't editable from this form.</p>;
+        return <NoOptionsNotice onNoOptions={onNoOptions} text="Completed linked tasks aren't editable from this form." />;
       }
-      return <CompletedTaskLinkPicker token={token} personId={personId} value={value} onChange={onChange} />;
+      return <CompletedTaskLinkPicker token={token} personId={personId} value={value} onChange={onChange} onNoOptions={onNoOptions} />;
     default:
       return <Input value={(value as string) || ''} onChange={(e) => onChange(e.target.value)} />;
   }
 }
 
-function TaskLinkPicker({ token, personId, value, onChange }: {
+/** Reports fields that can never be filled in (not editable from this
+ *  form, or nothing to pick from) as "no options" so a Required check
+ *  doesn't block submission on something the user has no way to satisfy —
+ *  it just submits as empty. */
+function NoOptionsNotice({ onNoOptions, text }: { onNoOptions: (empty: boolean) => void; text: string }) {
+  useEffect(() => { onNoOptions(true); }, [onNoOptions]);
+  return <p className="text-xs text-muted-foreground italic">{text}</p>;
+}
+
+function TaskLinkPicker({ token, personId, value, onChange, onNoOptions }: {
   token: string;
   personId?: string;
   value: unknown;
   onChange: (v: unknown) => void;
+  onNoOptions: (empty: boolean) => void;
 }) {
   const [options, setOptions] = useState<{ id: string; title: string }[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!personId) { setOptions([]); return; }
+    if (!personId) { setOptions([]); onNoOptions(false); return; }
     let cancelled = false;
     (async () => {
       setLoading(true);
       const { data } = await flexApi.getFormTasks(token, personId);
       if (!cancelled) {
-        setOptions((data as { id: string; title: string }[]) || []);
+        const list = (data as { id: string; title: string }[]) || [];
+        setOptions(list);
         setLoading(false);
+        onNoOptions(list.length === 0);
       }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, personId]);
 
   if (!personId) return <p className="text-xs text-muted-foreground italic">Select your name in the dropdown above to see your tasks due today or later.</p>;
   if (loading) return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
-  if (options.length === 0) return <p className="text-xs text-muted-foreground italic">No tasks due today or later for you.</p>;
+  if (options.length === 0) return <p className="text-xs text-muted-foreground italic">No tasks due today or later for you — you can still submit; this will count as none.</p>;
 
   const ids = Array.isArray(value) ? (value as string[]) : [];
   return (
@@ -279,32 +298,36 @@ function TaskLinkPicker({ token, personId, value, onChange }: {
   );
 }
 
-function CompletedTaskLinkPicker({ token, personId, value, onChange }: {
+function CompletedTaskLinkPicker({ token, personId, value, onChange, onNoOptions }: {
   token: string;
   personId?: string;
   value: unknown;
   onChange: (v: unknown) => void;
+  onNoOptions: (empty: boolean) => void;
 }) {
   const [options, setOptions] = useState<{ id: string; title: string }[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!personId) { setOptions([]); return; }
+    if (!personId) { setOptions([]); onNoOptions(false); return; }
     let cancelled = false;
     (async () => {
       setLoading(true);
       const { data } = await flexApi.getFormCompletedTasks(token, personId);
       if (!cancelled) {
-        setOptions((data as { id: string; title: string }[]) || []);
+        const list = (data as { id: string; title: string }[]) || [];
+        setOptions(list);
         setLoading(false);
+        onNoOptions(list.length === 0);
       }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, personId]);
 
   if (!personId) return <p className="text-xs text-muted-foreground italic">Select your name in the dropdown above to see your completed tasks from today forward.</p>;
   if (loading) return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
-  if (options.length === 0) return <p className="text-xs text-muted-foreground italic">No tasks completed today or later for you.</p>;
+  if (options.length === 0) return <p className="text-xs text-muted-foreground italic">No tasks completed today or later for you — you can still submit; this will count as none.</p>;
 
   const ids = Array.isArray(value) ? (value as string[]) : [];
   return (
