@@ -181,11 +181,45 @@ const NUMERIC_OPS: { value: FilterOp; label: string }[] = [
   { value: 'is_empty', label: 'is empty' }, { value: 'is_not_empty', label: 'is not empty' },
 ];
 
+const DATE_OPS: { value: FilterOp; label: string }[] = [
+  { value: 'is', label: 'is on' }, { value: 'is_not', label: 'is not on' },
+  { value: 'gt', label: 'is after' }, { value: 'gte', label: 'is on or after' },
+  { value: 'lt', label: 'is before' }, { value: 'lte', label: 'is on or before' },
+  { value: 'is_empty', label: 'is empty' }, { value: 'is_not_empty', label: 'is not empty' },
+];
+
+const CHECKBOX_OPS: { value: FilterOp; label: string }[] = [
+  { value: 'is', label: 'is' },
+];
+
+const SINGLE_PICK_OPS: { value: FilterOp; label: string }[] = [
+  { value: 'is', label: 'is' }, { value: 'is_not', label: 'is not' },
+  { value: 'is_empty', label: 'is empty' }, { value: 'is_not_empty', label: 'is not empty' },
+];
+
+const MULTI_PICK_OPS: { value: FilterOp; label: string }[] = [
+  { value: 'is', label: 'has' }, { value: 'is_not', label: 'does not have' },
+  { value: 'is_empty', label: 'is empty' }, { value: 'is_not_empty', label: 'is not empty' },
+];
+
+/** Field types whose "has"/"does not have" checks one item out of a
+ *  comma-joined list, rather than an exact match against the whole value. */
+function isMultiValueField(type: FlexFieldType): boolean {
+  return type === 'multi_select' || type === 'multi_person' || type === 'task_link';
+}
+
 function operatorsForField(field: FlexField | undefined): { value: FilterOp; label: string }[] {
-  if (field?.type === 'number') return NUMERIC_OPS;
-  // A formula can produce text or a number, so offer both operator sets.
-  if (field?.type === 'formula') return [...TEXT_OPS, ...NUMERIC_OPS.filter((o) => o.value === 'gt' || o.value === 'gte' || o.value === 'lt' || o.value === 'lte')];
-  return TEXT_OPS;
+  switch (field?.type) {
+    case 'number': return NUMERIC_OPS;
+    case 'date': return DATE_OPS;
+    case 'checkbox': return CHECKBOX_OPS;
+    case 'select': case 'person': return SINGLE_PICK_OPS;
+    case 'multi_select': case 'multi_person': case 'task_link': return MULTI_PICK_OPS;
+    case 'formula':
+      // A formula can produce text or a number, so offer both operator sets.
+      return [...TEXT_OPS, ...NUMERIC_OPS.filter((o) => o.value === 'gt' || o.value === 'gte' || o.value === 'lt' || o.value === 'lte')];
+    default: return TEXT_OPS;
+  }
 }
 
 function filterMatches(
@@ -198,14 +232,28 @@ function filterMatches(
 ): boolean {
   const display = getFieldDisplayValue(field, record, allFields, profilesById, tasksById);
   const isEmpty = display === '(Empty)';
+  const multi = isMultiValueField(field.type);
   switch (filter.operator) {
     case 'is_empty': return isEmpty;
     case 'is_not_empty': return !isEmpty;
     case 'contains': return display.toLowerCase().includes(filter.value.toLowerCase());
     case 'not_contains': return !display.toLowerCase().includes(filter.value.toLowerCase());
-    case 'is': return display.toLowerCase() === filter.value.toLowerCase();
-    case 'is_not': return display.toLowerCase() !== filter.value.toLowerCase();
+    case 'is':
+      if (multi) return display.toLowerCase().split(', ').includes(filter.value.toLowerCase());
+      return display.toLowerCase() === filter.value.toLowerCase();
+    case 'is_not':
+      if (multi) return !display.toLowerCase().split(', ').includes(filter.value.toLowerCase());
+      return display.toLowerCase() !== filter.value.toLowerCase();
     case 'gt': case 'lt': case 'gte': case 'lte': {
+      // Dates are stored/displayed as ISO YYYY-MM-DD, which sorts correctly
+      // as plain strings — no need for real Date parsing.
+      if (field.type === 'date') {
+        if (isEmpty || !filter.value) return false;
+        if (filter.operator === 'gt') return display > filter.value;
+        if (filter.operator === 'lt') return display < filter.value;
+        if (filter.operator === 'gte') return display >= filter.value;
+        return display <= filter.value;
+      }
       const n = parseFloat(display);
       const target = parseFloat(filter.value);
       if (isNaN(n) || isNaN(target)) return false;
@@ -239,6 +287,57 @@ function sampleValueForField(f: FlexField): FormulaValue {
 
 interface ProfileLite { id: string; full_name: string; email: string; }
 interface TaskLite { id: string; title: string; }
+
+/** The filter value's input widget, matched to the field's type — a date
+ *  picker for Date, a dropdown of real choices/names for Select/Person and
+ *  their multi- variants, Yes/No for Checkbox, and free text otherwise. */
+function FilterValueInput({
+  field, value, profilesById, onChange,
+}: {
+  field: FlexField;
+  value: string;
+  profilesById: Map<string, ProfileLite>;
+  onChange: (v: string) => void;
+}) {
+  switch (field.type) {
+    case 'date':
+      return <Input type="date" className="h-7 text-xs flex-1" value={value} onChange={(e) => onChange(e.target.value)} />;
+    case 'number':
+      return <Input type="number" className="h-7 text-xs flex-1" value={value} onChange={(e) => onChange(e.target.value)} placeholder="value" />;
+    case 'checkbox':
+      return (
+        <Select value={value || undefined} onValueChange={onChange}>
+          <SelectTrigger className="h-7 text-xs flex-1"><SelectValue placeholder="value" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Checked">Checked</SelectItem>
+            <SelectItem value="Unchecked">Unchecked</SelectItem>
+          </SelectContent>
+        </Select>
+      );
+    case 'select':
+    case 'multi_select':
+      return (
+        <Select value={value || undefined} onValueChange={onChange}>
+          <SelectTrigger className="h-7 text-xs flex-1"><SelectValue placeholder="value" /></SelectTrigger>
+          <SelectContent>
+            {(field.options.choices || []).map((c) => <SelectItem key={c.id} value={c.label}>{c.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      );
+    case 'person':
+    case 'multi_person':
+      return (
+        <Select value={value || undefined} onValueChange={onChange}>
+          <SelectTrigger className="h-7 text-xs flex-1"><SelectValue placeholder="value" /></SelectTrigger>
+          <SelectContent>
+            {Array.from(profilesById.values()).map((p) => <SelectItem key={p.id} value={p.full_name}>{p.full_name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      );
+    default:
+      return <Input className="h-7 text-xs flex-1" value={value} onChange={(e) => onChange(e.target.value)} placeholder="value" />;
+  }
+}
 
 export default function FlexTables() {
   usePageTitle('Tables');
@@ -760,7 +859,7 @@ function GridView({
                   const needsValue = f.operator !== 'is_empty' && f.operator !== 'is_not_empty';
                   return (
                     <div key={f.id} className="flex items-center gap-1.5">
-                      <Select value={f.fieldId} onValueChange={(v) => updateFilter(f.id, { fieldId: v, operator: operatorsForField(fields.find((x) => x.id === v))[0].value })}>
+                      <Select value={f.fieldId} onValueChange={(v) => updateFilter(f.id, { fieldId: v, operator: operatorsForField(fields.find((x) => x.id === v))[0].value, value: '' })}>
                         <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {fields.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}
@@ -772,8 +871,13 @@ function GridView({
                           {ops.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      {needsValue && (
-                        <Input className="h-7 text-xs flex-1" value={f.value} onChange={(e) => updateFilter(f.id, { value: e.target.value })} placeholder="value" />
+                      {needsValue && field && (
+                        <FilterValueInput
+                          field={field}
+                          value={f.value}
+                          profilesById={profilesById}
+                          onChange={(v) => updateFilter(f.id, { value: v })}
+                        />
                       )}
                       <button onClick={() => removeFilter(f.id)} className="text-muted-foreground hover:text-destructive shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
