@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Plus, Table2, Trash2, Loader2, MoreHorizontal, EyeOff,
   Type, AlignLeft, Hash, CalendarDays, CheckSquare, ListChecks,
@@ -438,6 +438,31 @@ function GridView({
   onDeleteField: (id: string) => void;
   onToggleFieldHidden: (f: FlexField) => void;
 }) {
+  const DEFAULT_COL_WIDTH = 160;
+  const MIN_COL_WIDTH = 90;
+  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+  const resizingRef = useRef<{ fieldId: string; startX: number; startWidth: number } | null>(null);
+
+  const startResize = useCallback((fieldId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startWidth = colWidths[fieldId] ?? DEFAULT_COL_WIDTH;
+    resizingRef.current = { fieldId, startX: e.clientX, startWidth };
+    const onMove = (ev: MouseEvent) => {
+      const r = resizingRef.current;
+      if (!r) return;
+      const next = Math.max(MIN_COL_WIDTH, r.startWidth + (ev.clientX - r.startX));
+      setColWidths((prev) => ({ ...prev, [r.fieldId]: next }));
+    };
+    const onUp = () => {
+      resizingRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [colWidths]);
+
   if (fields.length === 0) {
     return (
       <div className="text-center py-12">
@@ -474,21 +499,26 @@ function GridView({
         </div>
       )}
       <div className="overflow-x-auto border border-border rounded-lg">
-        <table className="w-full text-sm border-collapse">
+        <table className="w-full text-sm border-collapse" style={{ tableLayout: 'fixed' }}>
           <thead>
             <tr className="bg-muted/40">
               <th className="w-8" />
               {visibleFields.map((f) => {
                 const Icon = FIELD_ICONS[f.type];
                 return (
-                  <th key={f.id} className="text-left px-3 py-2 border-b border-border min-w-[160px]">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                        <Icon className="h-3.5 w-3.5" /> {f.name}
+                  <th
+                    key={f.id}
+                    className="relative text-left px-3 py-2 border-b border-border"
+                    style={{ width: colWidths[f.id] ?? DEFAULT_COL_WIDTH }}
+                  >
+                    <div className="flex items-center justify-between gap-1 min-w-0">
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground min-w-0 overflow-hidden">
+                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{f.name}</span>
                       </span>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button className="text-muted-foreground hover:text-foreground"><MoreHorizontal className="h-3.5 w-3.5" /></button>
+                          <button className="text-muted-foreground hover:text-foreground shrink-0"><MoreHorizontal className="h-3.5 w-3.5" /></button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => onEditField(f)}>Edit field</DropdownMenuItem>
@@ -498,6 +528,10 @@ function GridView({
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
+                    <div
+                      className="absolute top-0 right-0 h-full w-2 cursor-col-resize hover:bg-primary/30 active:bg-primary/40"
+                      onMouseDown={(e) => startResize(f.id, e)}
+                    />
                   </th>
                 );
               })}
@@ -515,7 +549,7 @@ function GridView({
                   </button>
                 </td>
                 {visibleFields.map((f) => (
-                  <td key={f.id} className="px-1 py-1 border-b border-border/60 align-top">
+                  <td key={f.id} className="px-1 py-1 border-b border-border/60 align-top overflow-hidden">
                     <Cell field={f} value={r.data[f.id]} record={r} allFields={fields} profilesById={profilesById} tasksById={tasksById} onChange={(v) => onUpdateCell(r, f.id, v)} />
                   </td>
                 ))}
