@@ -115,6 +115,19 @@ import { SurveysModule } from "./SurveysModule/SurveysModule";
 import { BenefitsEnrollment } from "./BenefitsEnrollment/BenefitsEnrollment";
 import { ClientsManagement } from "./ClientsManagement/ClientsManagement";
 import { InvoicingClients } from "./InvoicingClients/InvoicingClients";
+import { CustomDatabase } from "./CustomDatabase/CustomDatabase";
+import { FinanceDashboard } from "./FinanceDashboard/FinanceDashboard";
+import { CashflowManagement } from "./CashflowManagement/CashflowManagement";
+import { HRAnalytics } from "./HRAnalytics/HRAnalytics";
+import { VendorManagement } from "./VendorManagement/VendorManagement";
+import { AssetManagement } from "./AssetManagement/AssetManagement";
+import { TrainingModule } from "./TrainingModule/TrainingModule";
+import { AttendanceTracking } from "./AttendanceTracking/AttendanceTracking";
+import { ShiftManagement } from "./ShiftManagement/ShiftManagement";
+import { TimesheetModule } from "./TimesheetModule/TimesheetModule";
+import { EmployeeHandbook } from "./EmployeeHandbook/EmployeeHandbook";
+import { ApprovalWorkflows } from "./ApprovalWorkflows/ApprovalWorkflows";
+import { AuditLog } from "./AuditLog/AuditLog";
 
 const FPS = 30;
 
@@ -184,6 +197,21 @@ const V34_FRAMES = 6705;
 const V35_FRAMES = 2700;
 const V36_FRAMES = 2250;
 const V37_FRAMES = 5880;
+
+// Batch 4 videos (38-50) — all 5 scenes: 16+15+15+15+14=75s, 4 transitions=2s → 73s = 2190 frames
+const V38_FRAMES = 2190;
+const V39_FRAMES = 2190;
+const V40_FRAMES = 2190;
+const V41_FRAMES = 2190;
+const V42_FRAMES = 2190;
+const V43_FRAMES = 2190;
+const V44_FRAMES = 2190;
+const V45_FRAMES = 2190;
+const V46_FRAMES = 2190;
+const V47_FRAMES = 2190;
+const V48_FRAMES = 2190;
+const V49_FRAMES = 2190;
+const V50_FRAMES = 2190;
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -462,6 +490,21 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="BenefitsEnrollment" component={BenefitsEnrollment} durationInFrames={V35_FRAMES} fps={FPS} width={1920} height={1080} />
       <Composition id="ClientsManagement" component={ClientsManagement} durationInFrames={V36_FRAMES} fps={FPS} width={1920} height={1080} />
       <Composition id="InvoicingClients" component={InvoicingClients} durationInFrames={V37_FRAMES} fps={FPS} width={1920} height={1080} />
+
+      {/* === Batch 4: Videos 38-50 === */}
+      <Composition id="CustomDatabase" component={CustomDatabase} durationInFrames={V38_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="FinanceDashboard" component={FinanceDashboard} durationInFrames={V39_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="CashflowManagement" component={CashflowManagement} durationInFrames={V40_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="HRAnalytics" component={HRAnalytics} durationInFrames={V41_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="VendorManagement" component={VendorManagement} durationInFrames={V42_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="AssetManagement" component={AssetManagement} durationInFrames={V43_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="TrainingModule" component={TrainingModule} durationInFrames={V44_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="AttendanceTracking" component={AttendanceTracking} durationInFrames={V45_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="ShiftManagement" component={ShiftManagement} durationInFrames={V46_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="TimesheetModule" component={TimesheetModule} durationInFrames={V47_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="EmployeeHandbook" component={EmployeeHandbook} durationInFrames={V48_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="ApprovalWorkflows" component={ApprovalWorkflows} durationInFrames={V49_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="AuditLog" component={AuditLog} durationInFrames={V50_FRAMES} fps={FPS} width={1920} height={1080} />
     </>
   );
 };

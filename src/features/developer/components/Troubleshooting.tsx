@@ -451,6 +451,19 @@ const SECTIONS: TroubleshootingSection[] = [
         ),
       },
       {
+        question: '"Invalid input syntax for type uuid" when creating webhooks or API keys',
+        answer: (
+          <div className="space-y-2">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">This error occurs when the system tries to store a string value (like <code className="px-1 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">'platform'</code>) in a UUID-type column.</p>
+            <ul className="space-y-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+              <li className="flex gap-2"><span className="text-emerald-500 mt-0.5"><CheckCircle2 size={14} /></span><strong>Fix:</strong> Use a valid UUID value — the platform sentinel UUID is <code className="px-1 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">00000000-0000-0000-0000-000000000000</code></li>
+              <li className="flex gap-2"><span className="text-emerald-500 mt-0.5"><CheckCircle2 size={14} /></span>This applies to <code className="px-1 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">base_id</code> in webhooks and <code className="px-1 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">workspace_id</code> in API keys</li>
+              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>If you see 400 errors on Supabase realtime channels, this is likely the same root cause</li>
+            </ul>
+          </div>
+        ),
+      },
+      {
         question: 'Webhook signature verification',
         answer: (
           <div className="space-y-3">
