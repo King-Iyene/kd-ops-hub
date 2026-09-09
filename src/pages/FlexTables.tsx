@@ -131,37 +131,63 @@ function resolveDisplayValue(
   }
 }
 
+/** Same as resolveDisplayValue, but also handles Formula fields — which
+ *  have no value of their own in record.data and must be computed from
+ *  the rest of the record instead. Used by grouping and filtering so
+ *  formula columns work exactly like any other field there. */
+function getFieldDisplayValue(
+  field: FlexField,
+  record: FlexRecord,
+  allFields: FlexField[],
+  profilesById: Map<string, ProfileLite>,
+  tasksById: Map<string, TaskLite>,
+): string {
+  if (field.type === 'formula') {
+    const scope = buildFormulaScope(record, allFields, profilesById, tasksById);
+    const result = evaluateFormula(field.options.formula || '', scope);
+    if (isFormulaError(result)) return '(Error)';
+    if (result === null || result === undefined || result === '') return '(Empty)';
+    return String(result);
+  }
+  return resolveDisplayValue(field, record.data[field.id], profilesById, tasksById);
+}
+
 type FilterOp = 'contains' | 'not_contains' | 'is' | 'is_not' | 'is_empty' | 'is_not_empty' | 'gt' | 'lt' | 'gte' | 'lte';
 
 interface FlexFilter { id: string; fieldId: string; operator: FilterOp; value: string; }
 
+const TEXT_OPS: { value: FilterOp; label: string }[] = [
+  { value: 'contains', label: 'contains' },
+  { value: 'not_contains', label: 'does not contain' },
+  { value: 'is', label: 'is' },
+  { value: 'is_not', label: 'is not' },
+  { value: 'is_empty', label: 'is empty' },
+  { value: 'is_not_empty', label: 'is not empty' },
+];
+
+const NUMERIC_OPS: { value: FilterOp; label: string }[] = [
+  { value: 'is', label: '=' }, { value: 'is_not', label: '≠' },
+  { value: 'gt', label: '>' }, { value: 'gte', label: '≥' },
+  { value: 'lt', label: '<' }, { value: 'lte', label: '≤' },
+  { value: 'is_empty', label: 'is empty' }, { value: 'is_not_empty', label: 'is not empty' },
+];
+
 function operatorsForField(field: FlexField | undefined): { value: FilterOp; label: string }[] {
-  if (field?.type === 'number') {
-    return [
-      { value: 'is', label: '=' }, { value: 'is_not', label: '≠' },
-      { value: 'gt', label: '>' }, { value: 'gte', label: '≥' },
-      { value: 'lt', label: '<' }, { value: 'lte', label: '≤' },
-      { value: 'is_empty', label: 'is empty' }, { value: 'is_not_empty', label: 'is not empty' },
-    ];
-  }
-  return [
-    { value: 'contains', label: 'contains' },
-    { value: 'not_contains', label: 'does not contain' },
-    { value: 'is', label: 'is' },
-    { value: 'is_not', label: 'is not' },
-    { value: 'is_empty', label: 'is empty' },
-    { value: 'is_not_empty', label: 'is not empty' },
-  ];
+  if (field?.type === 'number') return NUMERIC_OPS;
+  // A formula can produce text or a number, so offer both operator sets.
+  if (field?.type === 'formula') return [...TEXT_OPS, ...NUMERIC_OPS.filter((o) => o.value === 'gt' || o.value === 'gte' || o.value === 'lt' || o.value === 'lte')];
+  return TEXT_OPS;
 }
 
 function filterMatches(
   field: FlexField,
-  rawValue: unknown,
+  record: FlexRecord,
+  allFields: FlexField[],
   filter: FlexFilter,
   profilesById: Map<string, ProfileLite>,
   tasksById: Map<string, TaskLite>,
 ): boolean {
-  const display = resolveDisplayValue(field, rawValue, profilesById, tasksById);
+  const display = getFieldDisplayValue(field, record, allFields, profilesById, tasksById);
   const isEmpty = display === '(Empty)';
   switch (filter.operator) {
     case 'is_empty': return isEmpty;
@@ -171,7 +197,7 @@ function filterMatches(
     case 'is': return display.toLowerCase() === filter.value.toLowerCase();
     case 'is_not': return display.toLowerCase() !== filter.value.toLowerCase();
     case 'gt': case 'lt': case 'gte': case 'lte': {
-      const n = typeof rawValue === 'number' ? rawValue : parseFloat(String(rawValue));
+      const n = parseFloat(display);
       const target = parseFloat(filter.value);
       if (isNaN(n) || isNaN(target)) return false;
       if (filter.operator === 'gt') return n > target;
@@ -580,7 +606,7 @@ function GridView({
 
   const visibleFields = fields.filter((f) => !f.options.hidden);
   const hiddenFields = fields.filter((f) => f.options.hidden);
-  const groupableFields = visibleFields.filter((f) => f.type !== 'formula');
+  const groupableFields = visibleFields;
   const groupByFieldObj = groupableFields.find((f) => f.id === groupByField) || null;
   const subGroupByFieldObj = groupByFieldObj ? groupableFields.filter((f) => f.id !== groupByField).find((f) => f.id === subGroupByField) || null : null;
 
@@ -589,7 +615,7 @@ function GridView({
     return records.filter((r) => filters.every((f) => {
       const field = fields.find((x) => x.id === f.fieldId);
       if (!field) return true;
-      return filterMatches(field, r.data[f.fieldId], f, profilesById, tasksById);
+      return filterMatches(field, r, fields, f, profilesById, tasksById);
     }));
   }, [records, filters, fields, profilesById, tasksById]);
 
@@ -597,18 +623,18 @@ function GridView({
     if (!groupByFieldObj) return null;
     const groups = new Map<string, { key: string; records: FlexRecord[]; subgroups: Map<string, FlexRecord[]> | null }>();
     for (const r of filteredRecords) {
-      const key = resolveDisplayValue(groupByFieldObj, r.data[groupByFieldObj.id], profilesById, tasksById);
+      const key = getFieldDisplayValue(groupByFieldObj, r, fields, profilesById, tasksById);
       if (!groups.has(key)) groups.set(key, { key, records: [], subgroups: subGroupByFieldObj ? new Map() : null });
       const g = groups.get(key)!;
       g.records.push(r);
       if (subGroupByFieldObj) {
-        const subKey = resolveDisplayValue(subGroupByFieldObj, r.data[subGroupByFieldObj.id], profilesById, tasksById);
+        const subKey = getFieldDisplayValue(subGroupByFieldObj, r, fields, profilesById, tasksById);
         if (!g.subgroups!.has(subKey)) g.subgroups!.set(subKey, []);
         g.subgroups!.get(subKey)!.push(r);
       }
     }
     return Array.from(groups.values()).sort((a, b) => a.key.localeCompare(b.key));
-  }, [filteredRecords, groupByFieldObj, subGroupByFieldObj, profilesById, tasksById]);
+  }, [filteredRecords, groupByFieldObj, subGroupByFieldObj, profilesById, tasksById, fields]);
 
   const toggleGroup = (key: string) => setCollapsedGroups((prev) => {
     const next = new Set(prev);
@@ -659,7 +685,7 @@ function GridView({
             <SelectTrigger className="h-7 w-[150px] text-xs"><SelectValue placeholder="Group by" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">No grouping</SelectItem>
-              {groupableFields.map((f) => <SelectItem key={f.id} value={f.id}>Group by {f.name}</SelectItem>)}
+              {groupableFields.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
             </SelectContent>
           </Select>
           {groupByFieldObj && (
@@ -667,7 +693,7 @@ function GridView({
               <SelectTrigger className="h-7 w-[150px] text-xs"><SelectValue placeholder="Then by" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">No subgroup</SelectItem>
-                {groupableFields.filter((f) => f.id !== groupByField).map((f) => <SelectItem key={f.id} value={f.id}>Then by {f.name}</SelectItem>)}
+                {groupableFields.filter((f) => f.id !== groupByField).map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
               </SelectContent>
             </Select>
           )}
@@ -689,7 +715,7 @@ function GridView({
                       <Select value={f.fieldId} onValueChange={(v) => updateFilter(f.id, { fieldId: v, operator: operatorsForField(fields.find((x) => x.id === v))[0].value })}>
                         <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {fields.filter((x) => x.type !== 'formula').map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}
+                          {fields.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                       <Select value={f.operator} onValueChange={(v) => updateFilter(f.id, { operator: v as FilterOp })}>
