@@ -70,6 +70,7 @@ import {
   GitBranch,
   LayoutPanelTop,
   Database,
+  Table2,
 } from 'lucide-react';
 import type { Role } from '@/lib/roles';
 
@@ -141,6 +142,7 @@ export const ALL_NAV: NavItem[] = [
   // Workspace
   { title: 'Tasks',            url: '/tasks',             icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Goals',            url: '/goals',             icon: Target,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Tables',           url: '/data',              icon: Table2,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Knowledge',        url: '/knowledge',         icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Documents',        url: '/documents',         icon: FileText,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Reports',          url: '/reports',           icon: BarChart3,       roles: ['super_admin', 'admin', 'finance'], permission: 'reports.view' },
@@ -180,7 +182,7 @@ export const NAV_GROUPS = [
   { key: 'compWell',   label: 'Compensation & Wellbeing', titles: ['Benefits', 'Staff Loans'] },
   { key: 'policy',     label: 'Policy & Compliance',  titles: ['Disciplinary', 'Grievances', 'Surveys', 'HR Letters', 'Handbook'] },
   { key: 'operations', label: 'Operations',          titles: ['Fleet', 'Vendors'] },
-  { key: 'productivity', label: 'Productivity',       titles: ['Tasks', 'Goals'] },
+  { key: 'productivity', label: 'Productivity',       titles: ['Tasks', 'Goals', 'Tables'] },
   { key: 'comms',      label: 'Communication',        titles: ['Assistant', 'Messages'] },
   { key: 'intel',      label: 'Intelligence',         titles: ['Reports', 'HR Analytics', 'Knowledge', 'Documents'] },
   { key: 'crm',        label: 'CRM',                 titles: ['Clients', 'Contacts', 'Referrals', 'Public Links', 'Communications'] },

@@ -210,12 +210,12 @@ function AppRoutes() {
         }
       />
 
-      {/* Database Platform — full-screen app shell, no KDOps sidebar. Super admin only. */}
+      {/* Database Platform — full-screen app shell, no KDOps sidebar. Available to all signed-in roles ("Tables" in Productivity nav). */}
       <Route
         path="/data"
         element={
           <AuthGuard>
-            <RoleGuard roles={['super_admin']}>
+            <RoleGuard roles={ALL_AUTH_ROLES}>
               <ErrorBoundary>
                 <DatabasePage />
               </ErrorBoundary>
@@ -227,7 +227,7 @@ function AppRoutes() {
         path="/data/:baseId"
         element={
           <AuthGuard>
-            <RoleGuard roles={['super_admin']}>
+            <RoleGuard roles={ALL_AUTH_ROLES}>
               <ErrorBoundary>
                 <DatabasePage />
               </ErrorBoundary>
@@ -239,7 +239,7 @@ function AppRoutes() {
         path="/data/:baseId/:tableId"
         element={
           <AuthGuard>
-            <RoleGuard roles={['super_admin']}>
+            <RoleGuard roles={ALL_AUTH_ROLES}>
               <ErrorBoundary>
                 <DatabasePage />
               </ErrorBoundary>
@@ -251,7 +251,7 @@ function AppRoutes() {
         path="/data/:baseId/:tableId/:viewId"
         element={
           <AuthGuard>
-            <RoleGuard roles={['super_admin']}>
+            <RoleGuard roles={ALL_AUTH_ROLES}>
               <ErrorBoundary>
                 <DatabasePage />
               </ErrorBoundary>
