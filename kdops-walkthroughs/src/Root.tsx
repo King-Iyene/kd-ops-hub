@@ -153,6 +153,32 @@ import { TaxCompliance } from "./TaxCompliance/TaxCompliance";
 import { EmployeeSelfService } from "./EmployeeSelfService/EmployeeSelfService";
 import { WorkflowAutomation } from "./WorkflowAutomation/WorkflowAutomation";
 import { DataImportExport } from "./DataImportExport/DataImportExport";
+import { MultiCurrencyPayments } from "./MultiCurrencyPayments/MultiCurrencyPayments";
+import { EmployeeExitProcess } from "./EmployeeExitProcess/EmployeeExitProcess";
+import { CompanyPolicies } from "./CompanyPolicies/CompanyPolicies";
+import { TeamManagement } from "./TeamManagement/TeamManagement";
+import { ProjectTracking } from "./ProjectTracking/ProjectTracking";
+import { InventoryModule } from "./InventoryModule/InventoryModule";
+import { ProcurementModule } from "./ProcurementModule/ProcurementModule";
+import { MeetingScheduler } from "./MeetingScheduler/MeetingScheduler";
+import { EmployeeRecognition } from "./EmployeeRecognition/EmployeeRecognition";
+import { HealthSafety } from "./HealthSafety/HealthSafety";
+import { TravelManagement } from "./TravelManagement/TravelManagement";
+import { LoanManagement } from "./LoanManagement/LoanManagement";
+import { PensionModule } from "./PensionModule/PensionModule";
+import { InsuranceModule } from "./InsuranceModule/InsuranceModule";
+import { GratuityModule } from "./GratuityModule/GratuityModule";
+import { EmployeeWellness } from "./EmployeeWellness/EmployeeWellness";
+import { VehicleTracking } from "./VehicleTracking/VehicleTracking";
+import { VisitorManagement } from "./VisitorManagement/VisitorManagement";
+import { AssetDepreciation } from "./AssetDepreciation/AssetDepreciation";
+import { BankReconciliation } from "./BankReconciliation/BankReconciliation";
+import { EmployeeDirectory } from "./EmployeeDirectory/EmployeeDirectory";
+import { APIIntegrations } from "./APIIntegrations/APIIntegrations";
+import { MobileAppGuide } from "./MobileAppGuide/MobileAppGuide";
+import { RolePermissions } from "./RolePermissions/RolePermissions";
+import { BackupRecovery } from "./BackupRecovery/BackupRecovery";
+import { GettingStarted } from "./GettingStarted/GettingStarted";
 
 const FPS = 30;
 
@@ -264,6 +290,34 @@ const V72_FRAMES = 2190;
 const V73_FRAMES = 2190;
 const V74_FRAMES = 2190;
 const V75_FRAMES = 2190;
+
+// Batch 6 videos (76-101) — same structure: 2190 frames each
+const V76_FRAMES = 2190;
+const V77_FRAMES = 2190;
+const V78_FRAMES = 2190;
+const V79_FRAMES = 2190;
+const V80_FRAMES = 2190;
+const V81_FRAMES = 2190;
+const V82_FRAMES = 2190;
+const V83_FRAMES = 2190;
+const V84_FRAMES = 2190;
+const V85_FRAMES = 2190;
+const V86_FRAMES = 2190;
+const V87_FRAMES = 2190;
+const V88_FRAMES = 2190;
+const V89_FRAMES = 2190;
+const V90_FRAMES = 2190;
+const V91_FRAMES = 2190;
+const V92_FRAMES = 2190;
+const V93_FRAMES = 2190;
+const V94_FRAMES = 2190;
+const V95_FRAMES = 2190;
+const V96_FRAMES = 2190;
+const V97_FRAMES = 2190;
+const V98_FRAMES = 2190;
+const V99_FRAMES = 2190;
+const V100_FRAMES = 2190;
+const V101_FRAMES = 2190;
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -586,6 +640,36 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="EmployeeSelfService" component={EmployeeSelfService} durationInFrames={V73_FRAMES} fps={FPS} width={1920} height={1080} />
       <Composition id="WorkflowAutomation" component={WorkflowAutomation} durationInFrames={V74_FRAMES} fps={FPS} width={1920} height={1080} />
       <Composition id="DataImportExport" component={DataImportExport} durationInFrames={V75_FRAMES} fps={FPS} width={1920} height={1080} />
+
+      {/* === Batch 6a: Videos 76-88 === */}
+      <Composition id="MultiCurrencyPayments" component={MultiCurrencyPayments} durationInFrames={V76_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="EmployeeExitProcess" component={EmployeeExitProcess} durationInFrames={V77_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="CompanyPolicies" component={CompanyPolicies} durationInFrames={V78_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="TeamManagement" component={TeamManagement} durationInFrames={V79_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="ProjectTracking" component={ProjectTracking} durationInFrames={V80_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="InventoryModule" component={InventoryModule} durationInFrames={V81_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="ProcurementModule" component={ProcurementModule} durationInFrames={V82_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="MeetingScheduler" component={MeetingScheduler} durationInFrames={V83_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="EmployeeRecognition" component={EmployeeRecognition} durationInFrames={V84_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="HealthSafety" component={HealthSafety} durationInFrames={V85_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="TravelManagement" component={TravelManagement} durationInFrames={V86_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="LoanManagement" component={LoanManagement} durationInFrames={V87_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="PensionModule" component={PensionModule} durationInFrames={V88_FRAMES} fps={FPS} width={1920} height={1080} />
+
+      {/* === Batch 6b: Videos 89-101 === */}
+      <Composition id="InsuranceModule" component={InsuranceModule} durationInFrames={V89_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="GratuityModule" component={GratuityModule} durationInFrames={V90_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="EmployeeWellness" component={EmployeeWellness} durationInFrames={V91_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="VehicleTracking" component={VehicleTracking} durationInFrames={V92_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="VisitorManagement" component={VisitorManagement} durationInFrames={V93_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="AssetDepreciation" component={AssetDepreciation} durationInFrames={V94_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="BankReconciliation" component={BankReconciliation} durationInFrames={V95_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="EmployeeDirectory" component={EmployeeDirectory} durationInFrames={V96_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="APIIntegrations" component={APIIntegrations} durationInFrames={V97_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="MobileAppGuide" component={MobileAppGuide} durationInFrames={V98_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="RolePermissions" component={RolePermissions} durationInFrames={V99_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="BackupRecovery" component={BackupRecovery} durationInFrames={V100_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="GettingStarted" component={GettingStarted} durationInFrames={V101_FRAMES} fps={FPS} width={1920} height={1080} />
     </>
   );
 };
