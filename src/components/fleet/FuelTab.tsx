@@ -345,25 +345,6 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
     setMyOpenRepairs((openRepairs as any) || []);
   }, [profile?.id]);
 
-  const [allOpenRepairs, setAllOpenRepairs] = useState<Array<{
-    id: string; description: string | null; amount_ngn: number; created_at: string;
-    submitted_by: string; vehicle_id: string | null;
-  }>>([]);
-  useEffect(() => {
-    if (!isAdmin) return;
-    void (async () => {
-      const { data } = await supabase
-        .from('expenses')
-        .select('id, description, amount_ngn, created_at, submitted_by, vehicle_id')
-        .eq('category', 'repair')
-        .eq('is_reimbursement', false)
-        .not('vehicle_id', 'is', null)
-        .is('receipt_url', null)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: true });
-      setAllOpenRepairs((data as any) || []);
-    })();
-  }, [isAdmin, fuelRequests]);
 
   // Post-payment receipt upload for repairs
   const [uploadingRepairReceiptFor, setUploadingRepairReceiptFor] = useState<{
@@ -1949,37 +1930,6 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
         </Button>
       </div>
 
-      {isAdmin && allOpenRepairs.length > 0 && (
-        <div className="space-y-2">
-          {allOpenRepairs.map((r) => {
-            const emp = staff.find((s) => s.id === r.submitted_by);
-            const days = Math.floor((Date.now() - new Date(r.created_at).getTime()) / 86_400_000);
-            return (
-              <div
-                key={r.id}
-                className="flex items-start gap-3 rounded-md border px-4 py-3 border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-950/30 dark:text-red-200"
-              >
-                <Wrench className="h-5 w-5 mt-0.5 shrink-0 text-red-600" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm">
-                    Repair receipt needed — {r.description || 'Repair'} — {formatNaira(r.amount_ngn || 0)}
-                  </p>
-                  <p className="text-xs mt-0.5">
-                    {emp?.full_name || 'Unknown'} · Submitted {formatDate(r.created_at)}{days > 0 ? ` (${days} day${days === 1 ? '' : 's'} ago)` : ''}
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  className="shrink-0 text-white bg-red-600 hover:bg-red-700"
-                  onClick={() => setUploadingRepairReceiptFor(r as any)}
-                >
-                  <Upload className="h-3.5 w-3.5 mr-1.5" /> Attach Receipt
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       <Card>
         <CardHeader>
