@@ -332,14 +332,10 @@ export default function StaffLoans() {
       return;
     }
 
-    const loan = loans.find(l => l.id === repaymentLoanId);
-    if (loan) {
-      const newOutstanding = Math.max(0, loan.outstanding_ngn - amount);
-      const updates: { outstanding_ngn: number; status?: LoanStatus } = { outstanding_ngn: newOutstanding };
-      if (newOutstanding === 0) updates.status = 'fully_paid';
-      else if (loan.status === 'approved') updates.status = 'active';
-      await supabase.from('staff_loans').update(updates).eq('id', repaymentLoanId);
-    }
+    await supabase.rpc('record_loan_repayment', {
+      p_loan_id: repaymentLoanId,
+      p_amount: amount,
+    });
 
     setSubmitting(false);
     toast({ title: 'Repayment recorded' });

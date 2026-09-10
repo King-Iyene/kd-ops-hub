@@ -697,27 +697,26 @@ const Payroll = () => {
         payroll_segment_id: segmentId,
         run_options: runOptions,
       };
-      let existingQuery = supabase.from('payroll_runs').select('id').eq('period', form.period);
-      existingQuery = segmentId ? existingQuery.eq('payroll_segment_id', segmentId) : existingQuery.is('payroll_segment_id', null);
-      const { data: existingRun } = await existingQuery.maybeSingle();
-      const { error } = existingRun
-        ? await supabase.from('payroll_runs').update(runPayload).eq('id', existingRun.id)
-        : await supabase.from('payroll_runs').insert(runPayload);
-
-      // Extended columns — best-effort; silently ignored if DB migration not run.
-      let extUpdate = supabase.from('payroll_runs').update({
-        period_type: form.period_type,
-        employee_count: empCount,
-        employer_pension_ngn: employerPension,
-        bonuses_json: form.bonuses.length > 0 ? form.bonuses : null,
-        allowances_json: totalAllowances > 0
+      const { data: upsertedId, error } = await supabase.rpc('upsert_payroll_draft', {
+        p_period: form.period,
+        p_segment_id: segmentId,
+        p_total_contractor_ngn: totalContractor,
+        p_total_employee_ngn: totalEmployee,
+        p_total_expenses_ngn: totalExpenses,
+        p_paye_ngn: paye,
+        p_pension_ngn: pension,
+        p_nhf_ngn: nhf,
+        p_employer_pension_ngn: employerPension,
+        p_total_burn_ngn: burn,
+        p_created_by: profile?.id || null,
+        p_run_options: runOptions,
+        p_period_type: form.period_type,
+        p_employee_count: empCount,
+        p_bonuses_json: form.bonuses.length > 0 ? form.bonuses : null,
+        p_allowances_json: totalAllowances > 0
           ? { housing_pct: form.housing_allowance_pct, transport_per_emp: form.transport_per_emp, meal_per_emp: form.meal_per_emp, total: totalAllowances }
           : null,
-        payroll_segment_id: segmentId,
-      } as any).eq('period', form.period);
-      if (segmentId) extUpdate = extUpdate.eq('payroll_segment_id', segmentId);
-      else extUpdate = extUpdate.is('payroll_segment_id', null);
-      await extUpdate;
+      });
       if (error) throw error;
       await logAudit(
         'payroll_created',
@@ -791,6 +790,20 @@ const Payroll = () => {
         toast({ title: 'Recall failed', description: `Could not clear generated payslips: ${delErr.message}`, variant: 'destructive' });
         return;
       }
+      // Clean up compliance filings that were auto-populated on approval
+      // but haven't been filed yet (filed_at IS NULL). Already-filed rows
+      // represent real obligations and must stay intact.
+      await supabase
+        .from('compliance_filings')
+        .delete()
+        .eq('payroll_run_id', run.id)
+        .is('filed_at', null);
+      // Remove pending tax remittance rows — actual remittances (remitted/confirmed) stay.
+      await supabase
+        .from('tax_remittances')
+        .delete()
+        .eq('payroll_run_id', run.id)
+        .eq('status', 'pending');
     }
     const { error } = await supabase
       .from('payroll_runs')

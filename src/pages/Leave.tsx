@@ -479,65 +479,28 @@ const Leave = () => {
 
   // -- Approve / reject -----------------------------------------------------
 
-  const updateBalanceFor = async (req: LeaveRequest) => {
-    // Increment the relevant counter for the requesting employee in the year
-    // their leave starts.
+  const updateBalanceFor = async (req: LeaveRequest, accrualCap?: number) => {
     const year = new Date(req.start_date).getFullYear();
-    const { data: existing } = await supabase
-      .from('leave_balances')
-      .select('*')
-      .eq('employee_id', req.employee_id)
-      .eq('year', year)
-      .maybeSingle();
-    const base = (existing as LeaveBalance) || {
-      employee_id: req.employee_id,
-      year,
-      // Matches the leave_balances DB default and the rest of the app. Finance
-      // can raise/lower it per employee in the balance row.
-      annual_quota: defaultAnnualQuota,
-      annual_used: 0,
-      sick_used: 0,
-      unpaid_used: 0,
-      maternity_used: 0,
-      paternity_used: 0,
-      compassionate_used: 0,
-      study_used: 0,
-      carryover_days: 0,
-    };
-    const updates = { ...base };
-    if (req.leave_type === 'annual') updates.annual_used += req.days_requested;
-    if (req.leave_type === 'sick') updates.sick_used += req.days_requested;
-    if (req.leave_type === 'unpaid') updates.unpaid_used += req.days_requested;
-    if (req.leave_type === 'maternity') updates.maternity_used = (updates.maternity_used || 0) + req.days_requested;
-    if (req.leave_type === 'paternity') updates.paternity_used = (updates.paternity_used || 0) + req.days_requested;
-    if (req.leave_type === 'compassionate') updates.compassionate_used = (updates.compassionate_used || 0) + req.days_requested;
-    if (req.leave_type === 'study') updates.study_used = (updates.study_used || 0) + req.days_requested;
-    await supabase
-      .from('leave_balances')
-      .upsert(updates, { onConflict: 'employee_id,year' });
+    const { data: ok, error } = await supabase.rpc('deduct_leave_balance', {
+      p_employee_id: req.employee_id,
+      p_year: year,
+      p_leave_type: req.leave_type,
+      p_days: req.days_requested,
+      p_accrued_cap: accrualCap ?? null,
+    });
+    if (error) throw error;
+    if (ok === false) throw new Error('Would exceed earned leave allowance');
   };
 
   const restoreBalanceFor = async (req: LeaveRequest) => {
     const year = new Date(req.start_date).getFullYear();
-    const { data: existing } = await supabase
-      .from('leave_balances')
-      .select('*')
-      .eq('employee_id', req.employee_id)
-      .eq('year', year)
-      .maybeSingle();
-    if (existing) {
-      const updates = { ...(existing as LeaveBalance) };
-      if (req.leave_type === 'annual') updates.annual_used = Math.max(0, updates.annual_used - req.days_requested);
-      if (req.leave_type === 'sick') updates.sick_used = Math.max(0, updates.sick_used - req.days_requested);
-      if (req.leave_type === 'unpaid') updates.unpaid_used = Math.max(0, updates.unpaid_used - req.days_requested);
-      if (req.leave_type === 'maternity') updates.maternity_used = Math.max(0, (updates.maternity_used || 0) - req.days_requested);
-      if (req.leave_type === 'paternity') updates.paternity_used = Math.max(0, (updates.paternity_used || 0) - req.days_requested);
-      if (req.leave_type === 'compassionate') updates.compassionate_used = Math.max(0, (updates.compassionate_used || 0) - req.days_requested);
-      if (req.leave_type === 'study') updates.study_used = Math.max(0, (updates.study_used || 0) - req.days_requested);
-      await supabase
-        .from('leave_balances')
-        .upsert(updates, { onConflict: 'employee_id,year' });
-    }
+    const { error } = await supabase.rpc('restore_leave_balance', {
+      p_employee_id: req.employee_id,
+      p_year: year,
+      p_leave_type: req.leave_type,
+      p_days: req.days_requested,
+    });
+    if (error) throw error;
   };
 
   /**
@@ -559,27 +522,7 @@ const Leave = () => {
         .eq('id', req.id);
       if (error) throw error;
 
-      // Restore the days back into the balance
-      const year = new Date(req.start_date).getFullYear();
-      const { data: existing } = await supabase
-        .from('leave_balances')
-        .select('*')
-        .eq('employee_id', req.employee_id)
-        .eq('year', year)
-        .maybeSingle();
-      if (existing) {
-        const updates = { ...(existing as LeaveBalance) };
-        if (req.leave_type === 'annual') updates.annual_used = Math.max(0, updates.annual_used - req.days_requested);
-        if (req.leave_type === 'sick') updates.sick_used = Math.max(0, updates.sick_used - req.days_requested);
-        if (req.leave_type === 'unpaid') updates.unpaid_used = Math.max(0, updates.unpaid_used - req.days_requested);
-        if (req.leave_type === 'maternity') updates.maternity_used = Math.max(0, (updates.maternity_used || 0) - req.days_requested);
-        if (req.leave_type === 'paternity') updates.paternity_used = Math.max(0, (updates.paternity_used || 0) - req.days_requested);
-        if (req.leave_type === 'compassionate') updates.compassionate_used = Math.max(0, (updates.compassionate_used || 0) - req.days_requested);
-        if (req.leave_type === 'study') updates.study_used = Math.max(0, (updates.study_used || 0) - req.days_requested);
-        await supabase
-          .from('leave_balances')
-          .upsert(updates, { onConflict: 'employee_id,year' });
-      }
+      await restoreBalanceFor(req);
 
       await logAudit(
         'leave_reverted',
@@ -608,32 +551,20 @@ const Leave = () => {
       toast({ title: 'Not authorized', variant: 'destructive' });
       return;
     }
-    // Re-check the balance at APPROVAL time, not just at submission. Without
-    // this, an employee can stack several pending annual-leave requests that
-    // each pass the submit-time check, then a manager approves them all and
-    // push annual_used past what's been earned. Annual is the only capped type,
-    // and the cap is days EARNED to date (monthly accrual), not the full quota.
+    // Compute accrual cap for annual leave (passed to the atomic RPC so the
+    // balance check + deduction happen in one transaction).
+    let accrualCap: number | undefined;
     if (req.leave_type === 'annual') {
       const year = new Date(req.start_date).getFullYear();
       const { data: bal } = await supabase
         .from('leave_balances')
-        .select('annual_quota, annual_used')
+        .select('annual_quota')
         .eq('employee_id', req.employee_id)
         .eq('year', year)
         .maybeSingle();
       const quota = (bal as any)?.annual_quota ?? defaultAnnualQuota;
-      const used = (bal as any)?.annual_used ?? 0;
       const empStart = profiles.get(req.employee_id)?.start_date ?? null;
-      const accrued = accruedAnnualDays(quota, year, empStart);
-      if (used + req.days_requested > accrued) {
-        const who = profiles.get(req.employee_id)?.full_name || 'this employee';
-        toast({
-          title: 'Would exceed earned leave',
-          description: `This request is ${req.days_requested} day${req.days_requested === 1 ? '' : 's'}, but ${who} has earned only ${Math.max(0, accrued - used)} of ${quota} days so far this year (leave accrues monthly). Reject it or adjust the employee's quota first.`,
-          variant: 'destructive',
-        });
-        return;
-      }
+      accrualCap = accruedAnnualDays(quota, year, empStart);
     }
     setActioning(req.id);
     try {
@@ -649,7 +580,20 @@ const Leave = () => {
         fetchAll();
         return;
       }
-      await updateBalanceFor(req);
+      try {
+        await updateBalanceFor(req, accrualCap);
+      } catch (balErr: unknown) {
+        // Atomic cap check failed — revert the approval
+        await supabase.from('leave_requests').update({ status: 'pending', reviewed_by: null }).eq('id', req.id);
+        const who = profiles.get(req.employee_id)?.full_name || 'this employee';
+        toast({
+          title: 'Would exceed earned leave',
+          description: `${who} does not have enough accrued leave for this request. Reject it or adjust the employee's quota first.`,
+          variant: 'destructive',
+        });
+        fetchAll();
+        return;
+      }
       await logAudit(
         'leave_approved',
         `Leave approved for ${profiles.get(req.employee_id)?.full_name || req.employee_id} (${req.days_requested} days)`,
