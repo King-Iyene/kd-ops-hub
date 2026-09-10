@@ -92,6 +92,7 @@ import { StatCard } from '@/components/ui-kit/StatCard';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { usePagination } from '@/hooks/usePagination';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 
 type LeaveType = 'annual' | 'sick' | 'unpaid' | 'maternity' | 'paternity' | 'compassionate' | 'study';
 type LeaveStatus = 'pending' | 'approved' | 'rejected';
@@ -266,6 +267,8 @@ const Leave = () => {
     is_half_day: false,
   });
 
+  const fieldErrors = useFieldErrors<'dates' | 'reason' | 'balance'>();
+
   const [showReject, setShowReject] = useState<LeaveRequest | null>(null);
   const [pendingRevert, setPendingRevert] = useState<LeaveRequest | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -366,38 +369,36 @@ const Leave = () => {
   // -- Submit ---------------------------------------------------------------
 
   const submitRequest = async () => {
+    fieldErrors.clearAll();
+    let hasValidationError = false;
+
     const isHalfDay = form.is_half_day && form.start_date === form.end_date;
     const days = requestedDays(form.start_date, form.end_date, holidays, isHalfDay);
     if (days <= 0) {
-      toast({
-        title:
-          form.end_date < form.start_date
-            ? 'End date must be on/after start date'
-            : 'No working days in that range',
-        description:
-          form.end_date < form.start_date
-            ? undefined
-            : 'The selected dates fall entirely on weekends or public holidays.',
-        variant: 'destructive',
-      });
-      return;
+      fieldErrors.setError(
+        'dates',
+        form.end_date < form.start_date
+          ? 'End date must be on or after start date.'
+          : 'The selected dates fall entirely on weekends or public holidays.',
+      );
+      hasValidationError = true;
     }
     if (!form.reason.trim()) {
-      toast({ title: 'Reason is required', description: 'Please enter a reason for your leave request.', variant: 'destructive' });
-      return;
+      fieldErrors.setError('reason', 'Please enter a reason for your leave request.');
+      hasValidationError = true;
     }
-    if (form.leave_type === 'annual' && balance) {
+    if (!hasValidationError && form.leave_type === 'annual' && balance) {
       const myStart = profiles.get(profile?.id || '')?.start_date ?? null;
       const accrued = accruedAnnualDays(balance.annual_quota, balance.year, myStart);
       if (balance.annual_used + days > accrued) {
-        toast({
-          title: 'Not enough annual leave earned yet',
-          description: `You've earned ${Math.max(0, accrued - balance.annual_used)} of ${balance.annual_quota} days so far this year (leave accrues monthly).`,
-          variant: 'destructive',
-        });
-        return;
+        fieldErrors.setError(
+          'balance',
+          `You've earned ${Math.max(0, accrued - balance.annual_used)} of ${balance.annual_quota} days so far this year (leave accrues monthly).`,
+        );
+        hasValidationError = true;
       }
     }
+    if (hasValidationError) return;
     setSubmitting(true);
     try {
       const { error } = await supabase.from('leave_requests').insert({
@@ -456,6 +457,7 @@ const Leave = () => {
       }
       toast({ title: 'Leave request submitted' });
       dispatchPlatformWebhook('leave.requested', { employee_id: profile?.id, leave_type: form.leave_type, start_date: form.start_date, end_date: form.end_date, days_requested: days });
+      fieldErrors.clearAll();
       setShowForm(false);
       setForm({
         leave_type: 'annual',
@@ -1191,7 +1193,7 @@ const Leave = () => {
         </div>
       </Tabs>
 
-      <Dialog open={showForm} onOpenChange={setShowForm}>
+      <Dialog open={showForm} onOpenChange={(v) => { if (!v) fieldErrors.clearAll(); setShowForm(v); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Request Leave</DialogTitle>
@@ -1201,9 +1203,10 @@ const Leave = () => {
               <Label>Leave type</Label>
               <Select
                 value={form.leave_type}
-                onValueChange={(v) =>
-                  setForm({ ...form, leave_type: v as LeaveType })
-                }
+                onValueChange={(v) => {
+                  fieldErrors.clearError('balance');
+                  setForm({ ...form, leave_type: v as LeaveType });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -1220,23 +1223,28 @@ const Leave = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Start date</Label>
-                <Input
-                  type="date"
-                  value={form.start_date}
-                  onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-                />
+            <div className="space-y-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Start date</Label>
+                  <Input
+                    type="date"
+                    value={form.start_date}
+                    aria-invalid={!!fieldErrors.errors.dates}
+                    onChange={(e) => { fieldErrors.clearError('dates'); setForm({ ...form, start_date: e.target.value }); }}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>End date</Label>
+                  <Input
+                    type="date"
+                    value={form.end_date}
+                    aria-invalid={!!fieldErrors.errors.dates}
+                    onChange={(e) => { fieldErrors.clearError('dates'); setForm({ ...form, end_date: e.target.value }); }}
+                  />
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label>End date</Label>
-                <Input
-                  type="date"
-                  value={form.end_date}
-                  onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-                />
-              </div>
+              <FieldError message={fieldErrors.errors.dates} />
             </div>
             <div className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
               <div>
@@ -1258,24 +1266,29 @@ const Leave = () => {
               <Label>Reason <span className="text-destructive">*</span></Label>
               <Textarea
                 value={form.reason}
-                onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                aria-invalid={!!fieldErrors.errors.reason}
+                onChange={(e) => { fieldErrors.clearError('reason'); setForm({ ...form, reason: e.target.value }); }}
                 placeholder="Family event, medical, etc."
               />
+              <FieldError message={fieldErrors.errors.reason} />
             </div>
-            <div className="text-sm text-muted-foreground">
-              Working days requested:{' '}
-              <span className="font-semibold text-foreground">
-                {requestedDays(form.start_date, form.end_date, holidays, form.is_half_day && form.start_date === form.end_date)}
-              </span>
-              {form.leave_type === 'annual' && balance && (
-                <>
-                  {' '}
-                  · Earned annual balance available:{' '}
-                  <span className="font-semibold text-foreground">
-                    {annualLeft} days
-                  </span>
-                </>
-              )}
+            <div className="space-y-1">
+              <div className="text-sm text-muted-foreground">
+                Working days requested:{' '}
+                <span className="font-semibold text-foreground">
+                  {requestedDays(form.start_date, form.end_date, holidays, form.is_half_day && form.start_date === form.end_date)}
+                </span>
+                {form.leave_type === 'annual' && balance && (
+                  <>
+                    {' '}
+                    · Earned annual balance available:{' '}
+                    <span className="font-semibold text-foreground">
+                      {annualLeft} days
+                    </span>
+                  </>
+                )}
+              </div>
+              <FieldError message={fieldErrors.errors.balance} />
             </div>
           </div>
           <DialogFooter>

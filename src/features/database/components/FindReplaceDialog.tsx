@@ -109,7 +109,7 @@ export function FindReplaceDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onHighlightCell?.(null); onOpenChange(o); }}>
-      <DialogContent className="sm:max-w-[440px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <Search size={16} className="text-[#2D7FF9]" />

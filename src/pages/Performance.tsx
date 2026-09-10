@@ -809,7 +809,7 @@ export default function Performance() {
 
       {/* Add / edit review dialog */}
       <Dialog open={reviewDialog} onOpenChange={setReviewDialog}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingReview ? 'Edit Review' : 'Add Review'}</DialogTitle>
             <DialogDescription>Rate the employee on each competency (1 = needs improvement, 5 = exceptional).</DialogDescription>

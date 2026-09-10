@@ -698,7 +698,7 @@ export default function WebhooksManager() {
 
       {/* ---------- Test Dialog ---------- */}
       <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Play className="h-5 w-5" /> Test Webhook

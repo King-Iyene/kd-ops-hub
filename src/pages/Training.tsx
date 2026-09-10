@@ -462,7 +462,7 @@ export default function Training() {
 
       {/* Create / Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Record' : 'Add Training / Certification'}</DialogTitle>
             <DialogDescription>Set expiry date for certifications to receive renewal alerts.</DialogDescription>

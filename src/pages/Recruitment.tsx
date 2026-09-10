@@ -644,7 +644,7 @@ export default function Recruitment() {
 
       {/* Opening dialog */}
       <Dialog open={openingDialog} onOpenChange={setOpeningDialog}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingOpening ? 'Edit Job Opening' : 'New Job Opening'}</DialogTitle>
             <DialogDescription>Define the role, requirements, and hiring details</DialogDescription>
@@ -735,7 +735,7 @@ export default function Recruitment() {
 
       {/* Applicant dialog */}
       <Dialog open={applicantDialog} onOpenChange={setApplicantDialog}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingApplicant ? 'Edit Applicant' : 'Add Applicant'}</DialogTitle>
             <DialogDescription>Applicant details and pipeline stage</DialogDescription>

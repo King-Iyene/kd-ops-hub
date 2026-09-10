@@ -684,7 +684,7 @@ export default function Projects() {
 
       {/* ─── Create / Edit Project Dialog ──────────────────────────── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Project' : 'New Project'}</DialogTitle>
             <DialogDescription>Organize work with milestones and link tasks to track progress.</DialogDescription>

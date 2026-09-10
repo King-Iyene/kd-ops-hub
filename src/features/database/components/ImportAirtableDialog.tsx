@@ -1063,7 +1063,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         onOpenChange(v);
       }}
     >
-      <DialogContent className="sm:max-w-[560px]">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <Download size={18} className="text-[#2D7FF9]" />

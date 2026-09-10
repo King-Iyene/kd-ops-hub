@@ -145,7 +145,7 @@ export function SpaceMembersDialog({ space, open, onClose, profiles }: SpaceMemb
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <div className="h-3 w-3 rounded" style={{ backgroundColor: space.color }} />

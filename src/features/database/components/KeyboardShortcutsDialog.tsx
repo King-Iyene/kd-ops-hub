@@ -94,7 +94,7 @@ function Kbd({ children }: { children: string }) {
 export function KeyboardShortcutsDialog({ open, onOpenChange }: KeyboardShortcutsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <Keyboard size={16} className="text-[#2D7FF9]" />

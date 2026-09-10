@@ -340,7 +340,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
       </div>
 
       <Dialog open={!!editVehicle} onOpenChange={(open) => { if (!open) setEditVehicle(null); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0">
+        <DialogContent className="max-h-[90vh] flex flex-col gap-0 p-0">
           <DialogHeader className="shrink-0 px-6 pt-5 pb-4 border-b">
             <DialogTitle>Vehicle Lifecycle — {editVehicle?.plate_number}</DialogTitle>
           </DialogHeader>

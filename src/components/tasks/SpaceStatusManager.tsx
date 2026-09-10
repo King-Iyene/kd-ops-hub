@@ -119,7 +119,7 @@ export function SpaceStatusManager({ spaceId, spaceName, open, onClose }: SpaceS
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Manage Statuses — {spaceName}</DialogTitle>
         </DialogHeader>

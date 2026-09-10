@@ -18,6 +18,7 @@ import {
 import EmployeeCsvImport from '@/components/hr/EmployeeCsvImport';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 import { AuroraHero } from '@/components/AuroraHero';
 
 import { supabase } from '@/lib/supabase';
@@ -167,6 +168,7 @@ const Employees = () => {
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const { data: departments = [] } = useDepartments();
+  const { errors: fieldErrors, setError: setFieldError, clearError: clearFieldError, clearAll: clearFieldErrors, hasErrors: hasFieldErrors } = useFieldErrors<'first_name' | 'email' | 'role'>();
 
   const isSuperAdmin = profile?.role === 'super_admin';
   const isAdmin = profile?.role === 'admin' || isSuperAdmin;
@@ -299,14 +301,24 @@ const Employees = () => {
   // No service-role key, no self-registration.
   const inviteEmployee = async () => {
     const fullName = `${form.first_name} ${form.last_name}`.trim();
-    if (!fullName || !form.email.trim()) {
-      toast({ title: 'Name and email are required', variant: 'destructive' });
-      return;
+    let valid = true;
+    clearFieldErrors();
+    if (!form.first_name.trim()) {
+      setFieldError('first_name', 'First name is required');
+      valid = false;
+    }
+    if (!form.email.trim()) {
+      setFieldError('email', 'Email is required');
+      valid = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setFieldError('email', 'Enter a valid email address');
+      valid = false;
     }
     if (form.role === 'super_admin' && !isSuperAdmin) {
-      toast({ title: 'Only a Super Admin can assign the Super Admin role', variant: 'destructive' });
-      return;
+      setFieldError('role', 'Only a Super Admin can assign the Super Admin role');
+      valid = false;
     }
+    if (!valid) return;
     setSubmitting(true);
     try {
       // Step 1 — record the invite (idempotent upsert by email).
@@ -366,6 +378,7 @@ const Employees = () => {
         profile,
       );
       dispatchPlatformWebhook('employee.created', { email: form.email.trim(), full_name: fullName, role: form.role });
+      clearFieldErrors();
       setShowForm(false);
       resetForm();
       fetchEmployees();
@@ -420,11 +433,17 @@ const Employees = () => {
   const saveEdit = async () => {
     if (!editing) return;
     const editFullName = `${form.first_name} ${form.last_name}`.trim();
-    if (!editFullName) return;
-    if (form.role === 'super_admin' && !isSuperAdmin) {
-      toast({ title: 'Only a Super Admin can assign the Super Admin role', variant: 'destructive' });
-      return;
+    let valid = true;
+    clearFieldErrors();
+    if (!form.first_name.trim()) {
+      setFieldError('first_name', 'First name is required');
+      valid = false;
     }
+    if (form.role === 'super_admin' && !isSuperAdmin) {
+      setFieldError('role', 'Only a Super Admin can assign the Super Admin role');
+      valid = false;
+    }
+    if (!valid) return;
     const allowRoleChange = canChangeRole(editing);
     if (!allowRoleChange && form.role !== editing.role) {
       form.role = editing.role as Role;
@@ -473,6 +492,7 @@ const Employees = () => {
         );
       }
       toast({ title: roleChanged ? `Role changed to ${roleLabel(form.role)}` : 'Employee updated' });
+      clearFieldErrors();
       setShowForm(false);
       setEditing(null);
       resetForm();
@@ -864,6 +884,7 @@ const Employees = () => {
           if (!v) {
             setEditing(null);
             resetForm();
+            clearFieldErrors();
           }
         }}
       >
@@ -884,9 +905,11 @@ const Employees = () => {
                 <Label>First Name</Label>
                 <Input
                   value={form.first_name}
-                  onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                  onChange={(e) => { setForm({ ...form, first_name: e.target.value }); clearFieldError('first_name'); }}
                   placeholder="e.g. Ada"
+                  aria-invalid={!!fieldErrors.first_name}
                 />
+                <FieldError message={fieldErrors.first_name} />
               </div>
               <div className="space-y-1">
                 <Label>Last Name</Label>
@@ -901,9 +924,11 @@ const Employees = () => {
                 <Input
                   type="email"
                   value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  onChange={(e) => { setForm({ ...form, email: e.target.value }); clearFieldError('email'); }}
                   placeholder="teammate@kdsquares.com"
+                  aria-invalid={!!fieldErrors.email}
                 />
+                <FieldError message={fieldErrors.email} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -919,10 +944,10 @@ const Employees = () => {
                 <Label>Role</Label>
                 <Select
                   value={form.role}
-                  onValueChange={(v) => setForm({ ...form, role: v as Role })}
+                  onValueChange={(v) => { setForm({ ...form, role: v as Role }); clearFieldError('role'); }}
                   disabled={!canChangeRole(editing)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-invalid={!!fieldErrors.role}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -933,6 +958,7 @@ const Employees = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                <FieldError message={fieldErrors.role} />
                 {!canChangeRole(editing) && (
                   <p className="text-xs text-muted-foreground">
                     {!isAdmin ? 'Only admins can change roles.' : 'Admin accounts cannot change a Super Admin\'s role.'}
@@ -1057,6 +1083,7 @@ const Employees = () => {
                 setShowForm(false);
                 setEditing(null);
                 resetForm();
+                clearFieldErrors();
               }}
             >
               Cancel

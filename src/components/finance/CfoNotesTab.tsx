@@ -284,7 +284,7 @@ export default function CfoNotesTab() {
 
       {/* Create/Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <StickyNote className="h-4 w-4 text-primary" />

@@ -376,7 +376,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!importing) onOpenChange(v); }}>
-      <DialogContent className="sm:max-w-[720px] max-h-[85vh] flex flex-col">
+      <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-[#374151] dark:text-[hsl(200,25%,88%)]">Import CSV</DialogTitle>
         </DialogHeader>

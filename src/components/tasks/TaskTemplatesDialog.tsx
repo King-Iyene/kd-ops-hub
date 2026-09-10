@@ -71,7 +71,7 @@ export function TaskTemplatesDialog({ open, onClose, currentTask, onApplyTemplat
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-4 w-4" /> Task Templates

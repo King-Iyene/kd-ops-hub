@@ -826,7 +826,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
       )}
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Work Order</DialogTitle>
           </DialogHeader>

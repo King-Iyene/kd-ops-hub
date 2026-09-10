@@ -635,7 +635,7 @@ export function IntegrationsDialog({ open, onOpenChange, tableId, baseId }: Inte
   return (
     <>
       <Dialog open={open && !subDialog} onOpenChange={(o) => { if (!o) { setTab('overview'); } onOpenChange(o); }}>
-        <DialogContent className="sm:max-w-[740px] max-h-[88vh] p-0 gap-0 overflow-hidden">
+        <DialogContent className="sm:max-w-3xl max-h-[88vh] p-0 gap-0 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200 dark:border-zinc-700/80">
             <div className="flex items-center gap-2">

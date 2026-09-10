@@ -141,7 +141,7 @@ export function VehicleInspectionForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0">
+      <DialogContent className="max-h-[90vh] flex flex-col gap-0 p-0">
         <DialogHeader className="shrink-0 px-6 pt-5 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">

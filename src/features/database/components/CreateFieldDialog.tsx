@@ -495,7 +495,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) resetForm(); onOpenChange(isOpen); }}>
-      <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Add Field</DialogTitle>
         </DialogHeader>

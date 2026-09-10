@@ -113,6 +113,7 @@ import { FilePreviewTrigger } from '@/components/FilePreview';
 import { cn } from '@/lib/utils';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { StatCard } from '@/components/ui-kit/StatCard';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 
 const CATEGORIES = EXPENSE_CATEGORY_KEYS;
 
@@ -238,6 +239,8 @@ const Expenses = () => {
   const [showBankSection, setShowBankSection] = useState(false);
   const [bankBannerDismissed, setBankBannerDismissed] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  type ExpenseField = 'category' | 'amount_ngn' | 'mileage_km' | 'rate_per_km_ngn' | 'description' | 'receipt';
+  const { errors: fieldErrors, setError: setFieldError, clearError: clearFieldError, clearAll: clearFieldErrors, hasErrors: hasFieldErrors } = useFieldErrors<ExpenseField>();
   const [confirmPayment, setConfirmPayment] = useState<Expense | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [bulkApproveConfirm, setBulkApproveConfirm] = useState<{ count: number; total: number } | null>(null);
@@ -510,9 +513,12 @@ const Expenses = () => {
 
   const submitExpense = async () => {
     if (submitting) return;
+    clearFieldErrors();
+
+    let valid = true;
     if (!form.category) {
-      toast({ title: 'Pick a category', variant: 'destructive' });
-      return;
+      setFieldError('category', 'Pick a category');
+      valid = false;
     }
 
     let amount = parseFloat(form.amount_ngn) || 0;
@@ -523,23 +529,30 @@ const Expenses = () => {
       mileageKm = parseFloat(form.mileage_km);
       ratePerKm = parseFloat(form.rate_per_km_ngn);
       if (!Number.isFinite(mileageKm) || mileageKm <= 0) {
-        toast({ title: 'Enter the kilometres driven', variant: 'destructive' });
-        return;
+        setFieldError('mileage_km', 'Enter the kilometres driven');
+        valid = false;
       }
       if (!Number.isFinite(ratePerKm) || ratePerKm <= 0) {
-        toast({ title: 'Enter a valid ₦/km rate', variant: 'destructive' });
-        return;
+        setFieldError('rate_per_km_ngn', 'Enter a valid rate per km');
+        valid = false;
       }
-      amount = mileageAmount(mileageKm, ratePerKm);
+      if (valid) amount = mileageAmount(mileageKm!, ratePerKm!);
     } else if (amount <= 0) {
-      toast({ title: 'Enter a valid amount', variant: 'destructive' });
-      return;
+      setFieldError('amount_ngn', 'Enter a valid amount');
+      valid = false;
     }
 
     if (!form.description.trim()) {
-      toast({ title: 'Description is required', variant: 'destructive' });
-      return;
+      setFieldError('description', 'Description is required');
+      valid = false;
     }
+
+    if (form.category === 'repair' && isReimbursement && amount > 10000 && !receiptFile) {
+      setFieldError('receipt', 'Vehicle repair claims over ₦10,000 must include a receipt');
+      valid = false;
+    }
+
+    if (!valid) return;
 
     const blocker = findLockingBudget(form.category, form.date);
     if (blocker) {
@@ -565,15 +578,6 @@ const Expenses = () => {
           `It will be submitted but flagged for higher scrutiny. Continue?`,
       });
       if (!ok) return;
-    }
-
-    if (form.category === 'repair' && isReimbursement && amount > 10000 && !receiptFile) {
-      toast({
-        title: 'Receipt required',
-        description: 'Vehicle repair claims over ₦10,000 must include a receipt.',
-        variant: 'destructive',
-      });
-      return;
     }
 
     if (submitting) return;
@@ -657,6 +661,7 @@ const Expenses = () => {
         toast({ title: 'Expense submitted' });
         dispatchPlatformWebhook('expense.submitted', { ...payload, submitted_by: profile?.id, status: 'pending' });
       }
+      clearFieldErrors();
       setShowForm(false);
       setEditingExpense(null);
       setForm({
@@ -2056,7 +2061,7 @@ const Expenses = () => {
 
       <ResponsiveDialog
         open={showForm}
-        onOpenChange={(v) => { setShowForm(v); if (!v) { setReceiptFile(null); setEditingExpense(null); } }}
+        onOpenChange={(v) => { setShowForm(v); if (!v) { setReceiptFile(null); setEditingExpense(null); clearFieldErrors(); } }}
         title={editingExpense ? 'Edit Expense' : 'New Expense Claim'}
         footer={
           <>
@@ -2078,9 +2083,9 @@ const Expenses = () => {
               <Label>Category</Label>
               <Select
                 value={form.category}
-                onValueChange={(v) => setForm({ ...form, category: v })}
+                onValueChange={(v) => { setForm({ ...form, category: v }); clearFieldError('category'); }}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={!!fieldErrors.category}>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2091,6 +2096,7 @@ const Expenses = () => {
                   ))}
                 </SelectContent>
               </Select>
+              <FieldError message={fieldErrors.category} />
             </div>
             <div className="space-y-1">
               <Label>Payment type</Label>
@@ -2132,10 +2138,13 @@ const Expenses = () => {
                     type="number"
                     min="0"
                     value={form.mileage_km}
-                    onChange={(e) =>
-                      setForm({ ...form, mileage_km: e.target.value })
-                    }
+                    aria-invalid={!!fieldErrors.mileage_km}
+                    onChange={(e) => {
+                      setForm({ ...form, mileage_km: e.target.value });
+                      clearFieldError('mileage_km');
+                    }}
                   />
+                  <FieldError message={fieldErrors.mileage_km} />
                 </div>
                 <div className="space-y-1">
                   <Label>Rate (₦/km)</Label>
@@ -2143,10 +2152,13 @@ const Expenses = () => {
                     type="number"
                     min="0"
                     value={form.rate_per_km_ngn}
-                    onChange={(e) =>
-                      setForm({ ...form, rate_per_km_ngn: e.target.value })
-                    }
+                    aria-invalid={!!fieldErrors.rate_per_km_ngn}
+                    onChange={(e) => {
+                      setForm({ ...form, rate_per_km_ngn: e.target.value });
+                      clearFieldError('rate_per_km_ngn');
+                    }}
                   />
+                  <FieldError message={fieldErrors.rate_per_km_ngn} />
                 </div>
                 <div className="col-span-2 text-xs text-muted-foreground">
                   Calculated amount:{' '}
@@ -2163,10 +2175,13 @@ const Expenses = () => {
                     type="number"
                     min="0"
                     value={form.amount_ngn}
-                    onChange={(e) =>
-                      setForm({ ...form, amount_ngn: e.target.value })
-                    }
+                    aria-invalid={!!fieldErrors.amount_ngn}
+                    onChange={(e) => {
+                      setForm({ ...form, amount_ngn: e.target.value });
+                      clearFieldError('amount_ngn');
+                    }}
                   />
+                  <FieldError message={fieldErrors.amount_ngn} />
                 </div>
                 <div className="space-y-1">
                   <Label>Date</Label>
@@ -2196,11 +2211,14 @@ const Expenses = () => {
               <Label>Description <span className="text-destructive">*</span></Label>
               <Textarea
                 value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
+                aria-invalid={!!fieldErrors.description}
+                onChange={(e) => {
+                  setForm({ ...form, description: e.target.value });
+                  clearFieldError('description');
+                }}
                 placeholder="What was the expense for?"
               />
+              <FieldError message={fieldErrors.description} />
             </div>
 
             <div className="space-y-1">
@@ -2217,6 +2235,7 @@ const Expenses = () => {
                   if (result.date) setForm((f) => ({ ...f, date: result.date! }));
                   if (result.description) setForm((f) => ({ ...f, description: f.description || result.description! }));
                   setReceiptFile(file);
+                  clearFieldError('receipt');
                 }}
               />
               {receiptFile ? (
@@ -2251,11 +2270,13 @@ const Expenses = () => {
                           return;
                         }
                         setReceiptFile(f);
+                        clearFieldError('receipt');
                       }}
                     />
                   </label>
                 </>
               )}
+              <FieldError message={fieldErrors.receipt} />
             </div>
 
             {lockingBudget && (

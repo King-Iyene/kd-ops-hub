@@ -8,6 +8,7 @@ import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { formatNaira } from '@/lib/format';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -153,6 +154,8 @@ export default function StaffLoans() {
   const [repaymentLoanId, setRepaymentLoanId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const loanErrors = useFieldErrors<'employee_id' | 'principal_ngn' | 'tenure_months' | 'monthly_deduction_ngn'>();
+
   const [newLoan, setNewLoan] = useState({
     employee_id: '',
     loan_type: 'salary_advance' as LoanType,
@@ -231,10 +234,13 @@ export default function StaffLoans() {
   }, [loans]);
 
   const handleCreateLoan = async () => {
-    if (!newLoan.employee_id || !newLoan.principal_ngn || !newLoan.tenure_months || !newLoan.monthly_deduction_ngn) {
-      toast({ title: 'Missing fields', description: 'Please fill all required fields.', variant: 'destructive' });
-      return;
-    }
+    loanErrors.clearAll();
+    let valid = true;
+    if (!newLoan.employee_id) { loanErrors.setError('employee_id', 'Select an employee'); valid = false; }
+    if (!newLoan.principal_ngn || parseInt(newLoan.principal_ngn, 10) <= 0) { loanErrors.setError('principal_ngn', 'Enter a valid amount'); valid = false; }
+    if (!newLoan.tenure_months || parseInt(newLoan.tenure_months, 10) <= 0) { loanErrors.setError('tenure_months', 'Enter loan duration'); valid = false; }
+    if (!newLoan.monthly_deduction_ngn || parseInt(newLoan.monthly_deduction_ngn, 10) <= 0) { loanErrors.setError('monthly_deduction_ngn', 'Enter monthly deduction'); valid = false; }
+    if (!valid) return;
     setSubmitting(true);
     const { error } = await supabase.from('staff_loans').insert({
       employee_id: newLoan.employee_id,
@@ -253,6 +259,7 @@ export default function StaffLoans() {
     } else {
       toast({ title: 'Loan created' });
       setCreateOpen(false);
+      loanErrors.clearAll();
       setNewLoan({ employee_id: '', loan_type: 'salary_advance', principal_ngn: '', interest_rate_pct: '0', tenure_months: '', monthly_deduction_ngn: '', repayment_method: 'manual', purpose: '' });
       fetchLoans();
     }
@@ -505,16 +512,17 @@ export default function StaffLoans() {
             <DialogDescription>Create a new loan for an employee.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
-            <div className="grid gap-2">
+            <div className="grid gap-1">
               <Label>Employee</Label>
-              <Select value={newLoan.employee_id} onValueChange={v => setNewLoan(p => ({ ...p, employee_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+              <Select value={newLoan.employee_id} onValueChange={v => { setNewLoan(p => ({ ...p, employee_id: v })); loanErrors.clearError('employee_id'); }}>
+                <SelectTrigger aria-invalid={!!loanErrors.errors.employee_id}><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
                   {employees.map(e => (
                     <SelectItem key={e.id} value={e.id}>{e.full_name ?? e.id}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <FieldError message={loanErrors.errors.employee_id} />
             </div>
             <div className="grid gap-2">
               <Label>Loan Type</Label>
@@ -528,23 +536,26 @@ export default function StaffLoans() {
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
+              <div className="grid gap-1">
                 <Label>Principal (NGN)</Label>
-                <Input type="number" min="1" value={newLoan.principal_ngn} onChange={e => setNewLoan(p => ({ ...p, principal_ngn: e.target.value }))} />
+                <Input type="number" min="1" aria-invalid={!!loanErrors.errors.principal_ngn} value={newLoan.principal_ngn} onChange={e => { setNewLoan(p => ({ ...p, principal_ngn: e.target.value })); loanErrors.clearError('principal_ngn'); }} />
+                <FieldError message={loanErrors.errors.principal_ngn} />
               </div>
-              <div className="grid gap-2">
+              <div className="grid gap-1">
                 <Label>Interest Rate (%)</Label>
                 <Input type="number" min="0" step="0.01" value={newLoan.interest_rate_pct} onChange={e => setNewLoan(p => ({ ...p, interest_rate_pct: e.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
+              <div className="grid gap-1">
                 <Label>Tenure (months)</Label>
-                <Input type="number" min="1" value={newLoan.tenure_months} onChange={e => setNewLoan(p => ({ ...p, tenure_months: e.target.value }))} />
+                <Input type="number" min="1" aria-invalid={!!loanErrors.errors.tenure_months} value={newLoan.tenure_months} onChange={e => { setNewLoan(p => ({ ...p, tenure_months: e.target.value })); loanErrors.clearError('tenure_months'); }} />
+                <FieldError message={loanErrors.errors.tenure_months} />
               </div>
-              <div className="grid gap-2">
+              <div className="grid gap-1">
                 <Label>Monthly Deduction (NGN)</Label>
-                <Input type="number" min="1" value={newLoan.monthly_deduction_ngn} onChange={e => setNewLoan(p => ({ ...p, monthly_deduction_ngn: e.target.value }))} />
+                <Input type="number" min="1" aria-invalid={!!loanErrors.errors.monthly_deduction_ngn} value={newLoan.monthly_deduction_ngn} onChange={e => { setNewLoan(p => ({ ...p, monthly_deduction_ngn: e.target.value })); loanErrors.clearError('monthly_deduction_ngn'); }} />
+                <FieldError message={loanErrors.errors.monthly_deduction_ngn} />
               </div>
             </div>
             <div className="grid gap-2">

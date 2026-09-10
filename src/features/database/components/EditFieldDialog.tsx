@@ -404,7 +404,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Edit Field</DialogTitle>
         </DialogHeader>

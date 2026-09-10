@@ -547,7 +547,7 @@ export default function Surveys() {
       </Tabs>
 
       <Dialog open={surveyDialogOpen} onOpenChange={setSurveyDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingSurvey ? 'Edit Survey' : 'Create Survey'}</DialogTitle>
             <DialogDescription>

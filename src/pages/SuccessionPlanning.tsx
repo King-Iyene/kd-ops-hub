@@ -502,7 +502,7 @@ export default function SuccessionPlanning() {
 
       {/* Plan detail dialog */}
       <Dialog open={detailDialog} onOpenChange={setDetailDialog}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           {selectedPlan && (() => {
             const planCandidates = candidatesFor(selectedPlan.id);
             return (

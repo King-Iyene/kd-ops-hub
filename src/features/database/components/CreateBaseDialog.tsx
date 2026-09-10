@@ -123,7 +123,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
   if (template && creating) {
     return (
       <Dialog open={open} onOpenChange={(v) => { if (!v) { resetForm(); onOpenChange(v); } }}>
-        <DialogContent className="sm:max-w-[360px]">
+        <DialogContent className="sm:max-w-sm">
           <div className="flex flex-col items-center gap-4 py-8">
             <Loader2 className="h-8 w-8 animate-spin text-[#2D7FF9]" />
             <div className="text-center">
@@ -147,7 +147,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
         onOpenChange(v);
       }}
     >
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold">Create Base</DialogTitle>
         </DialogHeader>

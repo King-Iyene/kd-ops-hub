@@ -90,7 +90,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <Share2 size={16} className="text-[#2D7FF9]" />

@@ -169,7 +169,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[780px] p-0 gap-0 overflow-hidden">
+      <DialogContent className="sm:max-w-3xl p-0 gap-0 overflow-hidden">
         <div className="flex h-[520px]">
           {/* Left sidebar */}
           <div className="w-[240px] shrink-0 border-r border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] flex flex-col bg-[#FAFAFA] dark:bg-[hsl(200,30%,8%)]">

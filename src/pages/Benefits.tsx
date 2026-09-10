@@ -379,7 +379,7 @@ export default function Benefits() {
 
       {/* Add / Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Benefit' : 'Add Employee Benefit'}</DialogTitle>
             <DialogDescription>HMO, pension, group life or other benefit</DialogDescription>

@@ -127,7 +127,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
         onOpenChange(v);
       }}
     >
-      <DialogContent className="sm:max-w-[540px]">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <Upload size={16} className="text-[#2D7FF9]" />

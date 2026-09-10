@@ -1319,7 +1319,7 @@ const Subscriptions = () => {
 
       {/* ════════════ Create / Edit dialog ════════════ */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {editing ? 'Edit Subscription' : 'New Subscription'}

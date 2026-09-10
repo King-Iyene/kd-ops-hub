@@ -341,7 +341,7 @@ export default function HrLetters() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Letter' : 'New HR Letter'}</DialogTitle>
             <DialogDescription>Create or update an employee letter</DialogDescription>

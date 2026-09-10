@@ -915,7 +915,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
 
       {/* ─── Members management dialog ─────────────────────────────── */}
       <Dialog open={membersDialogOpen} onOpenChange={(v) => { if (!v) setMembersDialogOpen(false); }}>
-        <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+        <DialogContent className="max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {membersGroup?.name} — Members
@@ -1894,7 +1894,7 @@ export function PayrollSchedules() {
 
       {/* ── Create / Edit dialog ────────────────────────────────────────────── */}
       <Dialog open={dialogOpen} onOpenChange={(v) => { if (!v) setDialogOpen(false); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit pay schedule' : 'New pay schedule'}</DialogTitle>
           </DialogHeader>

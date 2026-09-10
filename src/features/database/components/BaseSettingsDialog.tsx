@@ -106,7 +106,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Base Settings</DialogTitle>
         </DialogHeader>

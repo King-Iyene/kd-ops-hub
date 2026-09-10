@@ -230,7 +230,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px]">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <Replace size={16} className="text-[#2D7FF9]" />

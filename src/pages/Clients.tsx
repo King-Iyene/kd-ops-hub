@@ -490,7 +490,7 @@ const Clients = () => {
 
       {/* Add / Edit Dialog */}
       <Dialog open={dialog} onOpenChange={(v) => { if (!v) setDialog(false); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit client' : 'Add client'}</DialogTitle>
           </DialogHeader>

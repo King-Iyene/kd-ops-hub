@@ -81,7 +81,7 @@ export function CreateLinkDialog({ open, onOpenChange }: CreateLinkDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Link to Another Table</DialogTitle>
         </DialogHeader>

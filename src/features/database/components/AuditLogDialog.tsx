@@ -154,7 +154,7 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[640px] max-h-[85vh] flex flex-col p-0 gap-0">
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0">
         {/* Header */}
         <DialogHeader className="px-4 pt-4 pb-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] shrink-0">
           <DialogTitle className="text-base font-semibold flex items-center gap-2">

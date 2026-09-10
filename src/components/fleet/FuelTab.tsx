@@ -2397,7 +2397,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       const isOverBudget = !!(weekBudget && weekBudget.total > 0 && requested > weekBudget.remaining);
       return (
         <Dialog open={showFuelForm} onOpenChange={(v) => { setShowFuelForm(v); if (!v) { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); setFuelVehicleId(''); setWeekBudget(null); setFuelDoc(null); setFuelIsReimbursement(true); } }}>
-          <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0">
+          <DialogContent className="max-h-[90vh] flex flex-col gap-0 p-0">
 
             {/* Pinned header */}
             <DialogHeader className="shrink-0 px-6 pt-5 pb-4 border-b">
@@ -2918,7 +2918,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
         setRepairMaintenanceItemId('');
       }
     }}>
-      <DialogContent className="max-w-lg p-0 max-h-[90vh] flex flex-col gap-0">
+      <DialogContent className="p-0 max-h-[90vh] flex flex-col gap-0">
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b shrink-0">
           <div className="flex items-center gap-3">

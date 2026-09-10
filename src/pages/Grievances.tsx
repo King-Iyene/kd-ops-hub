@@ -351,7 +351,7 @@ export default function Grievances() {
 
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Report a Grievance</DialogTitle>
             <DialogDescription>All submissions are treated confidentially. You may report anonymously.</DialogDescription>

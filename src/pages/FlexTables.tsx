@@ -2336,7 +2336,7 @@ function FormBuilderDialog({
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>{form ? 'Edit form' : 'New form'}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <Input placeholder="Form name" value={name} onChange={(e) => setName(e.target.value)} />
