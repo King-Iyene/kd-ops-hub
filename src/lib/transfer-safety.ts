@@ -8,6 +8,7 @@
 // any place that ignored this would surface as a runtime error anyway.
 
 import { supabase } from '@/lib/supabase';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { requestStepUp } from '@/hooks/use-step-up';
 
 export const SETTINGS_SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
@@ -383,7 +384,9 @@ export async function approveExpense(
     p_idempotency_key: idempotencyKey ?? null,
   });
   if (error) throw error;
-  return (Array.isArray(data) ? data[0] : data) as ExpenseRow;
+  const result = (Array.isArray(data) ? data[0] : data) as ExpenseRow;
+  dispatchPlatformWebhook('expense.approved', { id: expenseId, ...result });
+  return result;
 }
 
 export async function confirmSecondExpenseApproval(
@@ -411,7 +414,9 @@ export async function rejectExpense(
     p_step_up_token: stepUpToken,
   });
   if (error) throw error;
-  return (Array.isArray(data) ? data[0] : data) as ExpenseRow;
+  const result = (Array.isArray(data) ? data[0] : data) as ExpenseRow;
+  dispatchPlatformWebhook('expense.rejected', { id: expenseId, reason, ...result });
+  return result;
 }
 
 // ──────────────────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useFeatureAccess } from '@/hooks/usePermission';
@@ -731,6 +732,7 @@ const NewPaymentBatch = () => {
       );
 
       toast({ title: submit ? 'Batch submitted for approval' : isEditMode ? 'Draft updated' : 'Batch saved as draft' });
+      if (!isEditMode) dispatchPlatformWebhook('batch.created', { name: batchName, total_amount: totalAmount, beneficiary_count: items.length, status: submit ? 'pending_approval' : 'draft' });
       navigate(isEditMode ? `/payments/${editId}` : '/payments');
     } catch (err: unknown) {
       toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });

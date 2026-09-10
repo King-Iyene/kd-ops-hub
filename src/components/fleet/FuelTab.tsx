@@ -10,6 +10,7 @@ import { validateFile } from '@/lib/file-validation';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles, notifyChannels } from '@/lib/notify';
 import { notifyAnomalyToAdmins } from '@/lib/notify-events';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
 import { FilePreviewTrigger, FilePreviewDialog } from '@/components/FilePreview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -630,6 +631,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
         await closeMaintenanceItemFromRepair(repairMaintenanceItemId, insertedExpense.id, receiptUrl, odometerNum);
       }
       await logAudit('repair_request_submitted', `Repair (${repairIsReimbursement ? 'reimbursement' : 'company charge'}): ${repairForm.description} (${formatNaira(amount)})`, profile);
+      dispatchPlatformWebhook('expense.submitted', { id: insertedExpense?.id, category: 'repair', amount_ngn: amount, description: repairForm.description, status: 'pending' });
       if (flags.length > 0) {
         const repairSeverity = scoreAnomalySeverity(flags.map((f) => f.type));
         const repairFlagSummary = flags.map((f) => f.reason).join('; ');
@@ -1076,6 +1078,10 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
         body: `${formatNaira(parseFloat(fuelForm.amount_ngn) || 0)} at ${fuelForm.station_name}${asException ? ' — OVER BUDGET' : ''}`,
       });
       toast({ title: 'Fuel request submitted' });
+      dispatchPlatformWebhook('fuel_request.created', {
+        id: inserted?.id, driver_id: fuelForm.employee_id, station_name: fuelForm.station_name,
+        amount_ngn: parseFloat(fuelForm.amount_ngn) || 0, status: asException ? 'budget_blocked' : 'pending',
+      });
       setShowFuelForm(false);
       setFuelForm({
         employee_id: profile?.id || '',
@@ -1203,6 +1209,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       `Fuel request for ${request.employee_name} approved (${formatNaira(request.amount_ngn || 0)})`,
       profile,
     );
+    dispatchPlatformWebhook('fuel_request.approved', { id: request.id, employee_name: request.employee_name, amount_ngn: request.amount_ngn, status: 'approved' });
     if ((request as any).driver_id || request.employee_id) {
       await notifyUser({
         userId: (request as any).driver_id || request.employee_id,
@@ -1780,6 +1787,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       auditDescription: `Fuel request for ${r.employee_name} rejected (${formatNaira(r.amount_ngn || 0)}): ${fuelRejectReason.trim()}`,
     });
     toast({ title: 'Fuel request rejected' });
+    dispatchPlatformWebhook('fuel_request.rejected', { id: r.id, employee_name: r.employee_name, amount_ngn: r.amount_ngn, reason: fuelRejectReason.trim(), status: 'rejected' });
     setRejectingFuel(null);
     setFuelRejectReason('');
     onRefresh();

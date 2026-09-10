@@ -71,15 +71,19 @@ Deno.serve(async (req) => {
     return json({ error: 'Invalid or expired session' }, 401, req);
   }
 
-  const { data: baseRow, error: baseError } = await userClient
-    .schema('nc_meta')
-    .from('bases')
-    .select('id')
-    .eq('id', baseId)
-    .maybeSingle();
+  // Platform-wide webhooks use the nil-UUID sentinel — skip per-base access check
+  const PLATFORM_BASE_ID = '00000000-0000-0000-0000-000000000000';
+  if (baseId !== PLATFORM_BASE_ID) {
+    const { data: baseRow, error: baseError } = await userClient
+      .schema('nc_meta')
+      .from('bases')
+      .select('id')
+      .eq('id', baseId)
+      .maybeSingle();
 
-  if (baseError || !baseRow) {
-    return json({ error: 'Base not found or access denied' }, 403, req);
+    if (baseError || !baseRow) {
+      return json({ error: 'Base not found or access denied' }, 403, req);
+    }
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);

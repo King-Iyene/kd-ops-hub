@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCompanySettings } from '@/queries';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import {
   BarChart,
   Bar,
@@ -654,6 +655,7 @@ const Expenses = () => {
           body: `${form.category.replace(/_/g, ' ')} — ${formatNaira(amount)}`,
         });
         toast({ title: 'Expense submitted' });
+        dispatchPlatformWebhook('expense.submitted', { ...payload, submitted_by: profile?.id, status: 'pending' });
       }
       setShowForm(false);
       setEditingExpense(null);

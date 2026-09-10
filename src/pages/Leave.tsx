@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import {
   Plus,
   Search,
@@ -454,6 +455,7 @@ const Leave = () => {
         });
       }
       toast({ title: 'Leave request submitted' });
+      dispatchPlatformWebhook('leave.requested', { employee_id: profile?.id, leave_type: form.leave_type, start_date: form.start_date, end_date: form.end_date, days_requested: days });
       setShowForm(false);
       setForm({
         leave_type: 'annual',
@@ -623,6 +625,7 @@ const Leave = () => {
         `Leave approved for ${profiles.get(req.employee_id)?.full_name || req.employee_id} (${req.days_requested} days)`,
         profile,
       );
+      dispatchPlatformWebhook('leave.approved', { id: req.id, employee_id: req.employee_id, leave_type: req.leave_type, days_requested: req.days_requested, status: 'approved' });
       await notifyUser({
         userId: req.employee_id,
         type: 'leave_approved',
@@ -711,6 +714,7 @@ const Leave = () => {
         });
       }
       toast({ title: 'Leave rejected' });
+      dispatchPlatformWebhook('leave.rejected', { id: showReject.id, employee_id: showReject.employee_id, leave_type: showReject.leave_type, reason: rejectReason.trim(), status: 'rejected' });
       setShowReject(null);
       setRejectReason('');
       fetchAll();

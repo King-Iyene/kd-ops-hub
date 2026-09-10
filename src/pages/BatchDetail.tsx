@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -491,6 +492,9 @@ const BatchDetail = () => {
         `Batch "${batch?.name}" approved (${amountTxt}, ${items.length} beneficiaries)`,
         profile,
       );
+      if (result?.status === 'approved') {
+        dispatchPlatformWebhook('batch.approved', { id, name: batch?.name, total_amount: batch?.total_amount, beneficiary_count: items.length, status: 'approved' });
+      }
       if (batch?.created_by && result?.status === 'approved') {
         await notifyUser({
           userId: batch.created_by,

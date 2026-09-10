@@ -210,14 +210,20 @@ interface FieldMeta {
   is_hidden: boolean;
 }
 
+const PLATFORM_WORKSPACE_ID = '00000000-0000-0000-0000-000000000000';
+
 async function resolveBase(pool: Pool, workspaceId: string, baseIdOrSlug: string) {
   const conn = await pool.connect();
   try {
     const isUuid = UUID_RE.test(baseIdOrSlug);
+    // Platform-wide API keys (nil-UUID workspace) can access any base
+    const wsClause = workspaceId === PLATFORM_WORKSPACE_ID ? '' : 'workspace_id = $1 AND ';
+    const params = workspaceId === PLATFORM_WORKSPACE_ID ? [baseIdOrSlug] : [workspaceId, baseIdOrSlug];
+    const paramIdx = workspaceId === PLATFORM_WORKSPACE_ID ? '$1' : '$2';
     const { rows } = await conn.queryObject<{ id: string; name: string; schema_name: string; slug: string }>(
       `SELECT id, name, schema_name, slug FROM nc_meta.bases
-       WHERE workspace_id = $1 AND ${isUuid ? 'id' : 'slug'} = $2`,
-      [workspaceId, baseIdOrSlug],
+       WHERE ${wsClause}${isUuid ? 'id' : 'slug'} = ${paramIdx}`,
+      params,
     );
     return rows[0] ?? null;
   } finally {

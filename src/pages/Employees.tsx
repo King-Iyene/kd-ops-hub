@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { displayName } from '@/lib/name';
 import {
   Loader2,
@@ -363,6 +364,7 @@ const Employees = () => {
         `Invited ${fullName} (${form.email}) as ${roleLabel(form.role)}`,
         profile,
       );
+      dispatchPlatformWebhook('employee.created', { email: form.email.trim(), full_name: fullName, role: form.role });
       setShowForm(false);
       resetForm();
       fetchEmployees();

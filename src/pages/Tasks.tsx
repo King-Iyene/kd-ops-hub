@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import {
   Plus, Search, Loader2, ListTodo, Flag,
   Check, X, Filter, Trash2, Target,
@@ -518,6 +519,7 @@ const Tasks = () => {
           );
         }
         await logAudit('task_created', `Task "${payload.title}" created`, profile);
+        dispatchPlatformWebhook('task.created', { id: newTask?.id, title: payload.title, status: form.status, assignee_id: payload.assignee_id });
         if (payload.assignee_id && payload.assignee_id !== profile?.id) {
           void notifyUser({
             userId: payload.assignee_id,
@@ -577,7 +579,12 @@ const Tasks = () => {
       return;
     }
     const task = tasks.find((t) => t.id === taskId);
-    if (task) await logAudit('task_updated', `Task "${task.title}" moved to ${newStatus}`, profile);
+    if (task) {
+      await logAudit('task_updated', `Task "${task.title}" moved to ${newStatus}`, profile);
+      if (newStatus === 'complete') {
+        dispatchPlatformWebhook('task.completed', { id: taskId, title: task.title, status: 'complete' });
+      }
+    }
   };
 
   const handleFieldChange = async (taskId: string, field: string, value: any) => {
