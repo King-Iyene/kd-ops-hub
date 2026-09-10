@@ -189,7 +189,7 @@ export default function SharedViewPage() {
   return (
     <div className="h-screen flex flex-col bg-[#FAFAFA] dark:bg-[hsl(200,30%,6%)]">
       <header className="flex items-center h-11 px-4 bg-white dark:bg-[hsl(200,30%,8%)] border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] shrink-0">
-        <span className="text-[14px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
+        <span className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
           {view?.name ?? 'Shared View'}
         </span>
       </header>

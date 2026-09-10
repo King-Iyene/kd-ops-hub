@@ -173,7 +173,7 @@ export function NotificationsPanel() {
                       <Icon size={13} style={{ color: ICON_COLORS[n.type] }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] text-[#374151] dark:text-[hsl(200,25%,85%)] leading-snug">
+                      <p className="text-xs text-[#374151] dark:text-[hsl(200,25%,85%)] leading-snug">
                         {n.message}
                       </p>
                       <span className="text-[10px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] mt-0.5 block">

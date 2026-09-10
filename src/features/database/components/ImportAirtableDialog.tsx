@@ -1086,7 +1086,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               </a>
             </p>
             <div className="rounded-lg border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/10 px-3 py-2.5">
-              <p className="text-[12px] text-amber-700 dark:text-amber-400 leading-relaxed">
+              <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
                 <strong>Required scopes:</strong> <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded text-[11px]">data.records:read</code> and <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded text-[11px]">schema.bases:read</code> for the bases you want to import.
               </p>
             </div>
@@ -1245,10 +1245,10 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             <div className="flex items-center gap-3">
               <Loader2 size={24} className="animate-spin text-[#2D7FF9] shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-[14px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
+                <p className="text-sm font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
                   {progress.tableName}
                 </p>
-                <p className="text-[12px] text-[#9AA2AF]">
+                <p className="text-xs text-[#9AA2AF]">
                   Table {progress.tableIndex} of {progress.tableCount}
                   {progress.phase === 'schema' && ' · Creating schema...'}
                   {progress.phase === 'fetching' && ` · Fetching records... ${formatNumber(progress.recordsFetched)}`}
@@ -1290,7 +1290,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
             {progress.errors.length > 0 && (
               <div className="rounded-lg border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/10 px-3 py-2 space-y-1">
-                <div className="flex items-center gap-1.5 text-[12px] font-medium text-amber-700 dark:text-amber-400">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
                   <AlertTriangle size={12} /> {progress.errors.length} warning{progress.errors.length !== 1 ? 's' : ''}
                 </div>
                 {progress.errors.slice(-3).map((err, i) => (
@@ -1320,16 +1320,16 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             <div className="mx-auto w-12 h-12 rounded-full bg-green-100 dark:bg-green-500/10 flex items-center justify-center">
               <CheckCircle2 size={24} className="text-green-600 dark:text-green-400" />
             </div>
-            <p className="text-[14px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
+            <p className="text-sm font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
               Import complete!
             </p>
-            <p className="text-[12px] text-[#9AA2AF]">
+            <p className="text-xs text-[#9AA2AF]">
               Imported {importedCount} table{importedCount !== 1 ? 's' : ''}
               {importedRecordCount > 0 && ` with ${formatNumber(importedRecordCount)} records`} from Airtable.
             </p>
             {progress.errors.length > 0 && (
               <div className="text-left rounded-lg border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/10 px-3 py-2 space-y-1 max-h-32 overflow-y-auto">
-                <div className="flex items-center gap-1.5 text-[12px] font-medium text-amber-700 dark:text-amber-400">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
                   <AlertTriangle size={12} /> Some records had issues
                 </div>
                 {progress.errors.map((err, i) => (

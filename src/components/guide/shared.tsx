@@ -109,7 +109,7 @@ export function SectionIntro({ icon: Icon, title, blurb }: { icon: ElementType; 
         </div>
         <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
       </div>
-      {blurb && <p className="text-[14px] text-muted-foreground/70 mt-2 max-w-3xl leading-relaxed">{blurb}</p>}
+      {blurb && <p className="text-sm text-muted-foreground/70 mt-2 max-w-3xl leading-relaxed">{blurb}</p>}
     </div>
   );
 }

@@ -405,23 +405,23 @@ export default function Surveys() {
                       </td>
                       <td className="p-3">
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Manage questions" onClick={() => openManageQuestions(s.id)}>
+                          <Button variant="ghost" size="icon-sm" aria-label="Manage questions" onClick={() => openManageQuestions(s.id)}>
                             <ClipboardList className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Edit" onClick={() => openEditSurvey(s)}>
+                          <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => openEditSurvey(s)}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
                           {s.status === 'draft' && (
-                            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => updateStatus(s.id, 'active')}>
+                            <Button variant="ghost" size="xs" onClick={() => updateStatus(s.id, 'active')}>
                               Activate
                             </Button>
                           )}
                           {s.status === 'active' && (
-                            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => updateStatus(s.id, 'closed')}>
+                            <Button variant="ghost" size="xs" onClick={() => updateStatus(s.id, 'closed')}>
                               Close
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Delete" onClick={() => deleteSurvey(s.id)}>
+                          <Button variant="ghost" size="icon-sm" className="text-destructive" aria-label="Delete" onClick={() => deleteSurvey(s.id)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -657,8 +657,8 @@ export default function Surveys() {
                       </div>
                       <Button
                         variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive shrink-0"
+                        size="icon-sm"
+                        className="text-destructive shrink-0"
                         aria-label="Remove question"
                         onClick={() => deleteQuestion(q.id)}
                       >

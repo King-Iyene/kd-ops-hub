@@ -430,7 +430,7 @@ export function TableTabBar() {
                 }}
               >
                 <Eye size={12} />
-                {table.icon && <span className="text-[12px]">{table.icon}</span>}
+                {table.icon && <span className="text-xs">{table.icon}</span>}
                 <span className="truncate">{table.name}</span>
               </DropdownMenuItem>
             ))}

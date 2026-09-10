@@ -348,9 +348,9 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
                   ) : (
                     <span className="h-3 w-3 shrink-0" />
                   )}
-                  <span className="text-[12px] truncate">{b.name}</span>
+                  <span className="text-xs truncate">{b.name}</span>
                   <StatusBadge status={b.status} size="sm" />
-                  <span className="text-[12px] font-mono font-semibold tabular-nums">
+                  <span className="text-xs font-mono font-semibold tabular-nums">
                     {formatNaira(b.total_amount)}
                   </span>
                 </Link>
@@ -410,7 +410,7 @@ function KpiCell({
       {value === null ? (
         <Skeleton className="h-5 w-20 mt-1.5" />
       ) : (
-        <p className={cn('text-[14px] sm:text-[16px] font-bold tabular-nums font-mono mt-1 leading-tight truncate', valueClass[tone])} title={value}>
+        <p className={cn('text-sm sm:text-[16px] font-bold tabular-nums font-mono mt-1 leading-tight truncate', valueClass[tone])} title={value}>
           {value}
         </p>
       )}

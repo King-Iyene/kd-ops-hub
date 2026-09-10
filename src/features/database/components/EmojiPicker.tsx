@@ -76,7 +76,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
           <Search size={12} className="text-[#9AA2AF] shrink-0" />
           <input
             ref={inputRef}
-            className="flex-1 bg-transparent text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none placeholder-[#9AA2AF]"
+            className="flex-1 bg-transparent text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none placeholder-[#9AA2AF]"
             placeholder="Search emoji..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}

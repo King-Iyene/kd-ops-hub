@@ -387,10 +387,10 @@ export default function Training() {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-1 justify-end">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Edit" onClick={() => openEdit(r)}>
+                        <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => openEdit(r)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Delete" onClick={() => setDeleteTarget(r)}>
+                        <Button variant="ghost" size="icon-sm" className="text-destructive" aria-label="Delete" onClick={() => setDeleteTarget(r)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>

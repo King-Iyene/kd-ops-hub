@@ -280,7 +280,7 @@ export function PayrollDashboardTab({
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium truncate">{p.name}</p>
-                    <p className="text-[10.5px] text-muted-foreground truncate capitalize">{p.role || '—'}</p>
+                    <p className="text-2xs text-muted-foreground truncate capitalize">{p.role || '—'}</p>
                   </div>
                   <p className="text-xs font-semibold tabular-nums shrink-0">{formatNaira(p.amount)}</p>
                 </div>
@@ -312,7 +312,7 @@ function StatTile({
         <div className="min-w-0">
           <p className="text-[11px] text-muted-foreground font-medium leading-tight">{label}</p>
           <p className="text-lg font-bold tabular-nums leading-tight mt-0.5">{value}</p>
-          {hint && <p className="text-[10.5px] text-muted-foreground mt-0.5">{hint}</p>}
+          {hint && <p className="text-2xs text-muted-foreground mt-0.5">{hint}</p>}
         </div>
       </CardContent>
     </Card>

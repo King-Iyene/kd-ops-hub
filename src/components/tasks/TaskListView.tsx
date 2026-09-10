@@ -167,7 +167,7 @@ export function TaskListView({
         </div>
         <div className="flex items-center gap-2">
           {canManageAccess && onManageAccess && (
-            <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={onManageAccess}>
+            <Button size="xs" variant="outline" className="gap-1.5" onClick={onManageAccess}>
               <UserCog className="h-3.5 w-3.5" /> Manage Access
             </Button>
           )}

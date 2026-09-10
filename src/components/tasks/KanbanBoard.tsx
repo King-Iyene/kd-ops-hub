@@ -365,11 +365,11 @@ function QuickAddFooter({ status, onQuickCreate }: { status: TaskStatus; onQuick
             disabled={creating}
           />
           <div className="flex gap-1.5">
-            <Button size="sm" className="h-7 text-xs flex-1" disabled={creating || !title.trim()} onClick={create}>
+            <Button size="xs" className="flex-1" disabled={creating || !title.trim()} onClick={create}>
               {creating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
               Add
             </Button>
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setOpen(false); setTitle(''); }}>
+            <Button size="xs" variant="ghost" onClick={() => { setOpen(false); setTitle(''); }}>
               Cancel
             </Button>
           </div>

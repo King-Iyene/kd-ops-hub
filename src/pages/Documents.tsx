@@ -866,7 +866,7 @@ const Documents = () => {
           {/* Breadcrumb */}
           {folderPath.length > 0 && (
             <div className="flex items-center gap-1 text-sm flex-wrap">
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={goToRoot}>
+              <Button variant="ghost" size="xs" onClick={goToRoot}>
                 <FolderOpen className="h-3 w-3 mr-1" /> All Documents
               </Button>
               {folderPath.map((fp, i) => (

@@ -574,10 +574,10 @@ export function TaskFormBuilder({
 
                       {/* Delete */}
                       <Button
-                        size="icon"
+                        size="icon-sm"
                         variant="ghost"
                         aria-label="Remove field"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        className="text-muted-foreground hover:text-destructive"
                         onClick={() => removeField(field.id)}
                         disabled={fields.length <= 1}
                       >

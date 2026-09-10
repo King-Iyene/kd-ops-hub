@@ -1143,7 +1143,7 @@ const ContractorProfile = () => {
                           {d.status}
                         </span>
                         {d.status === 'active' && (
-                          <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground shrink-0"
+                          <Button size="xs" variant="ghost" className="text-muted-foreground shrink-0"
                             onClick={() => deactivateDeduction(d.id)}>
                             Pause
                           </Button>

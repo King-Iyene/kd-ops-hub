@@ -176,7 +176,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
               <ScanSearch size={16} className="text-amber-600 dark:text-amber-400" />
             </div>
             <div>
-              <h2 className="text-[14px] font-semibold text-zinc-800 dark:text-zinc-100">Duplicate Detection</h2>
+              <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Duplicate Detection</h2>
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Find potential duplicate rows by fuzzy text matching</p>
             </div>
           </div>
@@ -199,7 +199,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
                 onChange={e => { setThreshold(+e.target.value); setScanned(false); }}
                 className="flex-1 h-1.5 accent-amber-500"
               />
-              <span className="text-[12px] font-mono text-zinc-600 dark:text-zinc-300 w-10 text-right">{Math.round(threshold * 100)}%</span>
+              <span className="text-xs font-mono text-zinc-600 dark:text-zinc-300 w-10 text-right">{Math.round(threshold * 100)}%</span>
             </div>
             <p className="text-[10px] text-zinc-400 mt-0.5">Higher = stricter matching (exact duplicates). Lower = catches similar entries.</p>
           </div>
@@ -228,7 +228,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
 
           <Button
             size="sm"
-            className="w-full h-8 text-[12px] font-medium bg-amber-500 hover:bg-amber-600 text-white"
+            className="w-full h-8 text-xs font-medium bg-amber-500 hover:bg-amber-600 text-white"
             onClick={runScan}
             disabled={scanning}
           >
@@ -245,7 +245,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
           {!scanned && !scanning && (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <ScanSearch size={32} className="text-zinc-300 dark:text-zinc-600 mb-2" />
-              <p className="text-[12px] text-zinc-400">Configure settings above and click scan</p>
+              <p className="text-xs text-zinc-400">Configure settings above and click scan</p>
             </div>
           )}
 
@@ -261,7 +261,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
             <>
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle size={14} className="text-amber-500" />
-                <span className="text-[12px] text-zinc-600 dark:text-zinc-300">
+                <span className="text-xs text-zinc-600 dark:text-zinc-300">
                   Found <strong className="text-amber-600 dark:text-amber-400">{totalDuplicates}</strong> potential duplicate{totalDuplicates !== 1 ? 's' : ''} in <strong>{groups.length}</strong> group{groups.length !== 1 ? 's' : ''}
                 </span>
               </div>

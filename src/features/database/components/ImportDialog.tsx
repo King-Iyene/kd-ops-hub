@@ -168,13 +168,13 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
               <p className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)]">
                 <span className="font-medium">{fileName}</span> — {rows.length} rows
               </p>
-              <Button variant="ghost" size="sm" className="text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]" onClick={reset}>
+              <Button variant="ghost" size="sm" className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]" onClick={reset}>
                 Change file
               </Button>
             </div>
 
             <div className="border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg max-h-[300px] overflow-y-auto">
-              <table className="w-full text-[12px]">
+              <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-[#F9F9FA] dark:bg-[hsl(200,25%,12%)] border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
                     <th className="text-left px-3 py-2 font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">CSV Column</th>
@@ -188,7 +188,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
                       <td className="px-3 py-2 text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium">{h}</td>
                       <td className="px-3 py-2">
                         <select
-                          className="w-full border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-2 py-1 text-[12px] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                          className="w-full border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-2 py-1 text-xs bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
                           value={mapping.get(i)?.id ?? ''}
                           onChange={(e) => updateMapping(i, e.target.value)}
                         >
@@ -251,8 +251,8 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
             <div className="mx-auto w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
               <Check size={20} className="text-green-600" />
             </div>
-            <p className="text-[14px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Import complete</p>
-            <p className="text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+            <p className="text-sm font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Import complete</p>
+            <p className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
               {importedCount} rows imported successfully
               {errorCount > 0 && (
                 <span className="text-red-500 ml-1">

@@ -253,7 +253,7 @@ export function TaskSidebar({
                             <div className="flex items-center group/subfolder">
                               <button
                                 onClick={() => toggleFolder(folder.id)}
-                                className="flex items-center gap-2 flex-1 min-w-0 px-2 py-1 rounded-md text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                                className="flex items-center gap-2 flex-1 min-w-0 px-2 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                               >
                                 {isFolderExpanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
                                 <FolderKanban className="h-3 w-3 shrink-0" style={folder.color ? { color: folder.color } : undefined} />
@@ -378,7 +378,7 @@ function ListItem({ list, count, active, onClick, onRename, onDelete }: {
       <button
         onClick={onClick}
         className={cn(
-          'flex items-center gap-2 flex-1 min-w-0 px-2 py-1 rounded-md text-[12px] font-medium transition-all text-left',
+          'flex items-center gap-2 flex-1 min-w-0 px-2 py-1 rounded-md text-xs font-medium transition-all text-left',
           active
             ? 'bg-primary/10 text-primary'
             : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',

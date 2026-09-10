@@ -519,14 +519,14 @@ const Transactions = () => {
             </div>
           }
           trailing={hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-[12px]">
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs">
               <X className="h-3 w-3 mr-1" /> Clear
             </Button>
           )}
           filters={
             <>
               <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); pagination.reset(); }}>
-                <SelectTrigger className="w-full sm:w-[140px] h-8 text-[12px] bg-transparent border-border/60" data-mobile-filter-row>
+                <SelectTrigger className="w-full sm:w-[140px] h-8 text-xs bg-transparent border-border/60" data-mobile-filter-row>
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -537,7 +537,7 @@ const Transactions = () => {
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); pagination.reset(); }}>
-                <SelectTrigger className="w-full sm:w-[120px] h-8 text-[12px] bg-transparent border-border/60" data-mobile-filter-row>
+                <SelectTrigger className="w-full sm:w-[120px] h-8 text-xs bg-transparent border-border/60" data-mobile-filter-row>
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -551,14 +551,14 @@ const Transactions = () => {
                 type="date"
                 value={from}
                 onChange={(e) => { setFrom(e.target.value); pagination.reset(); }}
-                className="w-[calc(50%-4px)] sm:w-[130px] h-8 text-[12px] bg-transparent border-border/60"
+                className="w-[calc(50%-4px)] sm:w-[130px] h-8 text-xs bg-transparent border-border/60"
                 data-mobile-filter-row
               />
               <Input
                 type="date"
                 value={to}
                 onChange={(e) => { setTo(e.target.value); pagination.reset(); }}
-                className="w-[calc(50%-4px)] sm:w-[130px] h-8 text-[12px] bg-transparent border-border/60"
+                className="w-[calc(50%-4px)] sm:w-[130px] h-8 text-xs bg-transparent border-border/60"
                 data-mobile-filter-row
               />
             </>
@@ -655,7 +655,7 @@ const Transactions = () => {
                           )}
                           onClick={() => handleRowClick(r)}
                         >
-                          <td className="px-3 py-2 text-[12px] text-muted-foreground tabular-nums whitespace-nowrap">
+                          <td className="px-3 py-2 text-xs text-muted-foreground tabular-nums whitespace-nowrap">
                             <span className="font-mono">{formatDate(r.created_at)}</span>
                           </td>
                           <td className="px-3 py-2 text-[13px] max-w-[260px]">
@@ -686,7 +686,7 @@ const Transactions = () => {
                               )}
                             </div>
                             {r.bank_name && (
-                              <p className="text-[10.5px] text-muted-foreground/70 truncate font-mono tracking-tight">
+                              <p className="text-2xs text-muted-foreground/70 truncate font-mono tracking-tight">
                                 {r.bank_name} · {r.account_number || '—'}
                               </p>
                             )}

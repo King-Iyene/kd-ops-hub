@@ -1009,7 +1009,7 @@ const NewPaymentBatch = () => {
                       subtitle. */}
                   <div className="border rounded-lg max-h-80 overflow-y-auto bg-card divide-y divide-border/40">
                     {filteredEmployees.length === 0 ? (
-                      <div className="text-center text-muted-foreground text-[12px] py-6">
+                      <div className="text-center text-muted-foreground text-xs py-6">
                         No employees match your search.
                       </div>
                     ) : (
@@ -1036,11 +1036,11 @@ const NewPaymentBatch = () => {
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="text-[12.5px] font-medium truncate">{name}</span>
                                 {hasBank ? (
-                                  <span className="hidden sm:inline text-[10.5px] text-muted-foreground/80 font-mono tracking-tight truncate">
+                                  <span className="hidden sm:inline text-2xs text-muted-foreground/80 font-mono tracking-tight truncate">
                                     {e.bank_name} · {e.bank_account_number || '—'}
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 text-[10.5px] text-amber-600 shrink-0">
+                                  <span className="inline-flex items-center gap-1 text-2xs text-amber-600 shrink-0">
                                     <AlertTriangle className="h-2.5 w-2.5" /> No bank
                                   </span>
                                 )}
@@ -1051,7 +1051,7 @@ const NewPaymentBatch = () => {
                                 </span>
                               )}
                             </div>
-                            <span className="text-[12px] font-mono font-semibold tabular-nums shrink-0 text-muted-foreground">
+                            <span className="text-xs font-mono font-semibold tabular-nums shrink-0 text-muted-foreground">
                               {e.salary_ngn ? formatNaira(e.salary_ngn) : '—'}
                             </span>
                           </label>
@@ -1098,7 +1098,7 @@ const NewPaymentBatch = () => {
                       from Wise / Mercury batch composer. */}
                   <div className="border rounded-lg max-h-80 overflow-y-auto bg-card divide-y divide-border/40">
                     {filteredContractors.length === 0 ? (
-                      <div className="text-center text-muted-foreground text-[12px] py-6">
+                      <div className="text-center text-muted-foreground text-xs py-6">
                         No contractors match your search.
                       </div>
                     ) : (
@@ -1136,7 +1136,7 @@ const NewPaymentBatch = () => {
                                   </span>
                                 )}
                                 {c.bank_name && (
-                                  <span className="hidden sm:inline text-[10.5px] text-muted-foreground/80 font-mono tracking-tight truncate">
+                                  <span className="hidden sm:inline text-2xs text-muted-foreground/80 font-mono tracking-tight truncate">
                                     {c.bank_name} · {c.account_number || '—'}
                                   </span>
                                 )}
@@ -1147,7 +1147,7 @@ const NewPaymentBatch = () => {
                                 </span>
                               )}
                             </div>
-                            <span className="text-[12px] font-mono font-semibold tabular-nums shrink-0 text-muted-foreground">
+                            <span className="text-xs font-mono font-semibold tabular-nums shrink-0 text-muted-foreground">
                               {formatNaira(c.default_amount_ngn || 0)}
                             </span>
                           </label>
@@ -1192,7 +1192,7 @@ const NewPaymentBatch = () => {
               {/* Amount entry mode — same amount for everyone, or per-row. */}
               {items.length > 0 && (
                 <div className="flex flex-wrap items-center gap-3 pt-3">
-                  <div className="inline-flex rounded-lg border border-border/70 p-0.5 text-[12px] font-medium">
+                  <div className="inline-flex rounded-lg border border-border/70 p-0.5 text-xs font-medium">
                     {(['different', 'same'] as const).map((mode) => (
                       <button
                         key={mode}
@@ -1236,7 +1236,7 @@ const NewPaymentBatch = () => {
             </CardHeader>
             <CardContent className="p-0">
               {items.length === 0 ? (
-                <p className="text-[12px] text-muted-foreground text-center py-8">
+                <p className="text-xs text-muted-foreground text-center py-8">
                   No beneficiaries selected yet.
                 </p>
               ) : (
@@ -1258,7 +1258,7 @@ const NewPaymentBatch = () => {
                             <td className="px-3 py-1.5 max-w-[280px]">
                               <div className="text-[12.5px] font-medium truncate">{item.full_name || 'Unknown'}</div>
                               {item.bank_name && (
-                                <div className="text-[10.5px] text-muted-foreground/80 font-mono tracking-tight truncate">
+                                <div className="text-2xs text-muted-foreground/80 font-mono tracking-tight truncate">
                                   {item.bank_name} · {item.account_number || '—'}
                                 </div>
                               )}
@@ -1268,7 +1268,7 @@ const NewPaymentBatch = () => {
                                 type="number"
                                 min={0}
                                 className={cn(
-                                  'w-28 h-7 text-right text-[12px] font-mono tabular-nums disabled:opacity-60',
+                                  'w-28 h-7 text-right text-xs font-mono tabular-nums disabled:opacity-60',
                                   !(Number(item.amount_ngn) > 0) && 'border-destructive focus-visible:ring-destructive',
                                 )}
                                 value={item.amount_ngn}

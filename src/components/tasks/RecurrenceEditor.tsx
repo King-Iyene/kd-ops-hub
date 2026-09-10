@@ -136,9 +136,9 @@ export function RecurrenceEditor({ value, onChange }: RecurrenceEditorProps) {
         </div>
 
         <div className="flex gap-2">
-          <Button size="sm" className="flex-1 h-7 text-xs" onClick={apply}>Apply</Button>
+          <Button size="xs" className="flex-1" onClick={apply}>Apply</Button>
           {value && (
-            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={clear}>Remove</Button>
+            <Button size="xs" variant="outline" onClick={clear}>Remove</Button>
           )}
         </div>
       </PopoverContent>

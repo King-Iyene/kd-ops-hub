@@ -599,8 +599,7 @@ export default function WebhooksManager() {
                     <Button
                       type="button"
                       variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
+                      size="icon-sm"
                       onClick={() => setShowSecret((s) => !s)}
                     >
                       {showSecret ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
@@ -609,8 +608,7 @@ export default function WebhooksManager() {
                       <Button
                         type="button"
                         variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
+                        size="icon-sm"
                         onClick={copySecret}
                       >
                         {copiedSecret ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}

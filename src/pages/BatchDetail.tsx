@@ -2134,7 +2134,7 @@ const BatchDetail = () => {
                         subscript. Both monospace, both small, the
                         paystack ref is hex so it's worth shrinking. */}
                     <TableCell className="py-2.5 align-top">
-                      <div className="font-mono text-[12px] truncate max-w-[160px]" title={item.reference || '—'}>
+                      <div className="font-mono text-xs truncate max-w-[160px]" title={item.reference || '—'}>
                         {item.reference || '—'}
                       </div>
                       {(item.paystack_reference || item.flutterwave_reference) && (
@@ -2176,7 +2176,7 @@ const BatchDetail = () => {
                             if (ageHours <= STUCK_THRESHOLD_HOURS) {
                               return (
                                 <span
-                                  className="text-[10.5px] text-muted-foreground inline-flex items-center gap-1"
+                                  className="text-2xs text-muted-foreground inline-flex items-center gap-1"
                                   title={`In flight ${Math.round(ageHours * 60)}m — escape hatch unlocks after 1h`}
                                 >
                                   <Loader2 className="h-3 w-3 animate-spin" />

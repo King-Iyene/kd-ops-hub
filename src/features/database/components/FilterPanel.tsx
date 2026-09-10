@@ -174,7 +174,7 @@ export function FilterPanel({ fields, filters, onFiltersChange }: FilterPanelPro
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 text-xs text-[#6A7184] gap-1">
+        <Button variant="ghost" size="xs" className="text-[#6A7184] gap-1">
           <FilterIcon size={14} />
           Filter
           {activeCount > 0 && (
@@ -272,8 +272,8 @@ export function FilterPanel({ fields, filters, onFiltersChange }: FilterPanelPro
                 {/* Delete */}
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 text-[#9AA2AF] hover:text-red-500 shrink-0"
+                  size="icon-sm"
+                  className="text-[#9AA2AF] hover:text-red-500 shrink-0"
                   onClick={() => removeFilter(filter.id)}
                 >
                   <X size={14} />

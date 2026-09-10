@@ -70,13 +70,13 @@ export function TaskCalendarView({ tasks, profiles, onTaskClick }: TaskCalendarV
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-3 border-b">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="h-7 w-7" aria-label="Previous month" onClick={prev}>
+          <Button variant="outline" size="icon-sm" aria-label="Previous month" onClick={prev}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" className="h-7 w-7" aria-label="Next month" onClick={next}>
+          <Button variant="outline" size="icon-sm" aria-label="Next month" onClick={next}>
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={today}>Today</Button>
+          <Button variant="ghost" size="xs" onClick={today}>Today</Button>
         </div>
         <h3 className="text-sm font-semibold">
           {MONTH_NAMES[month]} {year}

@@ -1578,7 +1578,7 @@ function GridView({
         <div className="flex items-center gap-2 flex-wrap">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5">
+              <Button size="xs" variant="outline" className="gap-1.5">
                 <ListFilter className="h-3.5 w-3.5" /> {activeView ? activeView.name : 'All records'}
               </Button>
             </DropdownMenuTrigger>
@@ -1642,7 +1642,7 @@ function GridView({
           )}
           <Popover>
             <PopoverTrigger asChild>
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5">
+              <Button size="xs" variant="outline" className="gap-1.5">
                 <ListFilter className="h-3.5 w-3.5" /> Filter{filters.length > 0 ? ` (${filters.length})` : ''}
               </Button>
             </PopoverTrigger>
@@ -1680,12 +1680,12 @@ function GridView({
                     </div>
                   );
                 })}
-                <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={addFilter}><Plus className="h-3 w-3" /> Add filter</Button>
+                <Button size="xs" variant="ghost" className="gap-1" onClick={addFilter}><Plus className="h-3 w-3" /> Add filter</Button>
               </div>
             </PopoverContent>
           </Popover>
           {filters.length > 0 && (
-            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5 text-primary" onClick={() => { setSaveViewName(''); setSaveViewDialog(true); }}>
+            <Button size="xs" variant="ghost" className="gap-1.5 text-primary" onClick={() => { setSaveViewName(''); setSaveViewDialog(true); }}>
               <Plus className="h-3.5 w-3.5" /> Save as view
             </Button>
           )}
@@ -1693,7 +1693,7 @@ function GridView({
         {hiddenFields.length > 0 && (
           <Popover>
             <PopoverTrigger asChild>
-              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5">
+              <Button size="xs" variant="ghost" className="gap-1.5">
                 <EyeOff className="h-3.5 w-3.5" /> {hiddenFields.length} hidden field{hiddenFields.length !== 1 ? 's' : ''}
               </Button>
             </PopoverTrigger>
@@ -2134,7 +2134,7 @@ function FieldEditorDialog({
                   </button>
                 </div>
               ))}
-              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={addChoice}><Plus className="h-3 w-3" /> Add choice</Button>
+              <Button size="xs" variant="ghost" className="gap-1" onClick={addChoice}><Plus className="h-3 w-3" /> Add choice</Button>
             </div>
           )}
 
@@ -2246,9 +2246,9 @@ function FormsView({
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <Switch checked={f.is_enabled} onCheckedChange={() => onToggleForm(f)} className="scale-90" />
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyLink(f.share_token)} aria-label="Copy link"><Copy className="h-3.5 w-3.5" /></Button>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => onEditForm(f)}>Edit</Button>
-                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => onDeleteForm(f)} aria-label="Delete form"><Trash2 className="h-3.5 w-3.5" /></Button>
+                <Button size="icon-sm" variant="ghost" onClick={() => copyLink(f.share_token)} aria-label="Copy link"><Copy className="h-3.5 w-3.5" /></Button>
+                <Button size="xs" variant="ghost" onClick={() => onEditForm(f)}>Edit</Button>
+                <Button size="icon-sm" variant="ghost" className="text-destructive" onClick={() => onDeleteForm(f)} aria-label="Delete form"><Trash2 className="h-3.5 w-3.5" /></Button>
               </div>
             </div>
           ))}

@@ -627,10 +627,10 @@ export default function Projects() {
                           </td>
                           <td className="py-3 px-4 text-right">
                             <div className="flex justify-end gap-1">
-                              <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Edit" onClick={() => openEdit(project)}>
+                              <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => openEdit(project)}>
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Delete" onClick={() => setDeleteTarget(project)}>
+                              <Button variant="ghost" size="icon-sm" className="text-destructive" aria-label="Delete" onClick={() => setDeleteTarget(project)}>
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
@@ -910,7 +910,7 @@ function ProjectCard({
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-              <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100 shrink-0" aria-label="More options">
+              <Button size="icon-sm" variant="ghost" className="opacity-0 group-hover:opacity-100 shrink-0" aria-label="More options">
                 <MoreHorizontal className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
@@ -1158,7 +1158,7 @@ function ProjectDetailPanel({
               value={msProjectId === project.id ? msDueDate : ''}
               onFocus={() => setMsProjectId(project.id)}
               onChange={e => { setMsProjectId(project.id); setMsDueDate(e.target.value); }} />
-            <Button size="sm" className="h-7 text-xs shrink-0" disabled={savingMs || msProjectId !== project.id || !msTitle.trim()} onClick={addMilestone}>
+            <Button size="xs" className="shrink-0" disabled={savingMs || msProjectId !== project.id || !msTitle.trim()} onClick={addMilestone}>
               <Plus className="h-3 w-3 mr-1" />Add
             </Button>
           </div>

@@ -224,10 +224,10 @@ export function SpaceStatusManager({ spaceId, spaceName, open, onClose }: SpaceS
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" className="h-7 text-xs" onClick={addStatus} disabled={!newName.trim()}>
+                <Button size="xs" onClick={addStatus} disabled={!newName.trim()}>
                   Add Status
                 </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setAddingNew(false)}>
+                <Button size="xs" variant="ghost" onClick={() => setAddingNew(false)}>
                   Cancel
                 </Button>
               </div>

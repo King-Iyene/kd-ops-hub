@@ -536,11 +536,11 @@ export function TaskDetailPanel({
                     autoFocus
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" className="h-7 text-xs" onClick={async () => {
+                    <Button size="xs" onClick={async () => {
                       await updateField('description', descDraft || null);
                       setEditingDescription(false);
                     }}>Save</Button>
-                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingDescription(false)}>Cancel</Button>
+                    <Button size="xs" variant="ghost" onClick={() => setEditingDescription(false)}>Cancel</Button>
                   </div>
                 </div>
               ) : task.description ? (
@@ -662,7 +662,7 @@ export function TaskDetailPanel({
                     onKeyDown={(e) => { if (e.key === 'Enter' && newChecklistGroup.trim()) setAddingGroup(false); if (e.key === 'Escape') { setAddingGroup(false); setNewChecklistGroup('Checklist'); } }}
                     autoFocus
                   />
-                  <Button size="sm" className="h-7 text-xs" onClick={() => setAddingGroup(false)} disabled={!newChecklistGroup.trim()}>OK</Button>
+                  <Button size="xs" onClick={() => setAddingGroup(false)} disabled={!newChecklistGroup.trim()}>OK</Button>
                 </div>
               )}
               {(() => {
@@ -750,7 +750,7 @@ export function TaskDetailPanel({
                       minRows={2}
                     />
                     <div className="flex justify-end">
-                      <Button size="sm" onClick={addComment} disabled={posting || !newComment.trim()} className="h-7 text-xs">
+                      <Button size="xs" onClick={addComment} disabled={posting || !newComment.trim()}>
                         {posting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Send className="h-3 w-3 mr-1" />}
                         Comment
                       </Button>
@@ -987,11 +987,11 @@ export function TaskDetailPanel({
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   {timerRunning ? (
-                    <Button size="sm" variant="destructive" className="h-7 text-xs flex-1" onClick={stopTimer}>
+                    <Button size="xs" variant="destructive" className="flex-1" onClick={stopTimer}>
                       <Square className="h-3 w-3 mr-1 fill-current" /> Stop
                     </Button>
                   ) : (
-                    <Button size="sm" variant="outline" className="h-7 text-xs flex-1" onClick={startTimer}>
+                    <Button size="xs" variant="outline" className="flex-1" onClick={startTimer}>
                       <Play className="h-3 w-3 mr-1" /> Start timer
                     </Button>
                   )}
@@ -1046,7 +1046,7 @@ export function TaskDetailPanel({
 
             {/* Dependencies quick add */}
             <MetaField label="Dependencies">
-              <Button size="sm" variant="outline" className="h-7 text-xs w-full" onClick={() => setShowDepAdd(!showDepAdd)}>
+              <Button size="xs" variant="outline" className="w-full" onClick={() => setShowDepAdd(!showDepAdd)}>
                 <Link2 className="h-3 w-3 mr-1" /> Add dependency
               </Button>
               {showDepAdd && (
@@ -1068,7 +1068,7 @@ export function TaskDetailPanel({
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button size="sm" className="h-7 text-xs w-full" disabled={!depTaskId} onClick={addDependency}>
+                  <Button size="xs" className="w-full" disabled={!depTaskId} onClick={addDependency}>
                     Add
                   </Button>
                 </div>

@@ -199,7 +199,7 @@ export function BulkActionsBar({
 
       {!allSelected && (
         <button
-          className="text-[12px] font-medium whitespace-nowrap hover:underline"
+          className="text-xs font-medium whitespace-nowrap hover:underline"
           style={{ color: 'var(--bulk-bar-accent)' }}
           onClick={onSelectAll}
         >
@@ -215,7 +215,7 @@ export function BulkActionsBar({
 
       {/* Copy */}
       <button
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
         style={{ color: 'var(--bulk-bar-text)' }}
         onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bulk-bar-hover)')}
         onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
@@ -227,7 +227,7 @@ export function BulkActionsBar({
 
       {/* Export CSV */}
       <button
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
         style={{ color: 'var(--bulk-bar-text)' }}
         onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bulk-bar-hover)')}
         onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
@@ -240,7 +240,7 @@ export function BulkActionsBar({
       {/* Update field */}
       <div className="relative" ref={updateRef}>
         <button
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
           style={{ color: 'var(--bulk-bar-text)' }}
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bulk-bar-hover)')}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
@@ -413,7 +413,7 @@ export function BulkActionsBar({
                 })()}
 
                 <button
-                  className="w-full py-1.5 rounded-md text-[12px] font-medium text-white transition-colors"
+                  className="w-full py-1.5 rounded-md text-xs font-medium text-white transition-colors"
                   style={{ backgroundColor: 'var(--bulk-bar-accent)' }}
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bulk-bar-accent-hover)')}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--bulk-bar-accent)')}
@@ -437,7 +437,7 @@ export function BulkActionsBar({
       <div className="relative">
         {!showDeleteConfirm ? (
           <button
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
             style={{ color: 'var(--bulk-bar-danger)' }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bulk-bar-hover)')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
@@ -448,7 +448,7 @@ export function BulkActionsBar({
           </button>
         ) : (
           <div className="flex items-center gap-1.5">
-            <span className="text-[12px]" style={{ color: 'var(--bulk-bar-danger)' }}>
+            <span className="text-xs" style={{ color: 'var(--bulk-bar-danger)' }}>
               Delete {count}?
             </span>
             <button

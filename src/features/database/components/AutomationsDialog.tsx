@@ -313,13 +313,13 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
 
             <div className="flex-1 overflow-y-auto py-1">
               {isLoading && (
-                <p className="text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] px-3 py-4 text-center">Loading...</p>
+                <p className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] px-3 py-4 text-center">Loading...</p>
               )}
 
               {!isLoading && automations.length === 0 && (
                 <div className="px-3 py-8 text-center">
                   <Zap size={28} className="mx-auto mb-2 text-[#D1D5DB] dark:text-[hsl(200,25%,25%)]" />
-                  <p className="text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">No automations yet</p>
+                  <p className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">No automations yet</p>
                   <p className="text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] mt-1">Create one to automate workflows.</p>
                 </div>
               )}
@@ -339,7 +339,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                     }}
                     onClick={() => selectAutomation(a)}
                   >
-                    <p className="text-[12px] font-medium truncate text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                    <p className="text-xs font-medium truncate text-[#374151] dark:text-[hsl(200,25%,88%)]">
                       {a.name}
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">
@@ -463,7 +463,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                           {ACTION_TYPES.map(({ type, label, icon: Icon }) => (
                             <button
                               key={type}
-                              className="w-full text-left px-3 py-1.5 text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2"
+                              className="w-full text-left px-3 py-1.5 text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2"
                               onClick={() => addAction(type)}
                             >
                               <Icon size={13} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]" /> {label}
@@ -476,7 +476,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
 
                   {draft.actions.length === 0 && (
                     <div className="py-4 text-center rounded-lg border border-dashed border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
-                      <p className="text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">No actions configured</p>
+                      <p className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">No actions configured</p>
                     </div>
                   )}
 
@@ -489,7 +489,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                           <div className="flex items-center gap-2 mb-2">
                             <GripVertical size={12} className="text-[#D1D5DB] dark:text-[hsl(200,25%,25%)] shrink-0" />
                             <Icon size={13} className="text-[#2D7FF9] shrink-0" />
-                            <span className="text-[12px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                            <span className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
                               {idx + 1}. {meta?.label ?? action.type}
                             </span>
                             <button
@@ -515,7 +515,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                 <div className="flex items-center gap-2 pt-2 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
                   <Button
                     size="sm"
-                    className="h-8 px-4 text-[12px]"
+                    className="h-8 px-4 text-xs"
                     style={{ backgroundColor: '#2D7FF9' }}
                     onClick={handleSave}
                   >
@@ -524,7 +524,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 px-3 text-[12px] text-[#991B1B] dark:text-[#FCA5A5] border-[#FEE2E2] dark:border-[hsl(0,40%,18%)] hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)]"
+                    className="h-8 px-3 text-xs text-[#991B1B] dark:text-[#FCA5A5] border-[#FEE2E2] dark:border-[hsl(0,40%,18%)] hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)]"
                     onClick={handleDelete}
                   >
                     <Trash2 size={12} className="mr-1" /> Delete

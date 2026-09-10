@@ -49,7 +49,7 @@ export default function SecurityTab({ settings, patch, approverMfaStatus, export
             />
             <div className="space-y-0.5 min-w-0">
               <p className="text-sm font-medium">Require 2FA for all users</p>
-              <p className="text-[12px] text-muted-foreground leading-snug">
+              <p className="text-xs text-muted-foreground leading-snug">
                 When ON, every signed-in user without an enrolled authenticator factor sees a
                 non-dismissible banner pointing them to <span className="font-mono">/profile</span> to set up 2FA.
                 Users can still navigate the app while they enrol — once they enable an authenticator,
@@ -76,7 +76,7 @@ export default function SecurityTab({ settings, patch, approverMfaStatus, export
             />
             <div className="space-y-0.5 min-w-0">
               <p className="text-sm font-medium">Require password + 2FA re-verification to approve or reject</p>
-              <p className="text-[12px] text-muted-foreground leading-snug">
+              <p className="text-xs text-muted-foreground leading-snug">
                 When ON, approving/rejecting a payment batch or expense prompts for a fresh
                 password and authenticator code immediately before the action — on top of
                 normal sign-in. Off by default; a stolen session alone isn't enough to move
@@ -86,14 +86,14 @@ export default function SecurityTab({ settings, patch, approverMfaStatus, export
           </label>
           {approverMfaStatus && (
             approverMfaStatus.enrolled < approverMfaStatus.total ? (
-              <p className="text-[12px] flex items-start gap-1.5 text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-md px-2.5 py-1.5">
+              <p className="text-xs flex items-start gap-1.5 text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-md px-2.5 py-1.5">
                 <ShieldAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 Only {approverMfaStatus.enrolled} of {approverMfaStatus.total} approvers
                 (admin/operations/super_admin) have 2FA enrolled. Turning this on blocks the
                 rest from approving anything until they set it up in Profile → Security.
               </p>
             ) : (
-              <p className="text-[12px] flex items-start gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded-md px-2.5 py-1.5">
+              <p className="text-xs flex items-start gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded-md px-2.5 py-1.5">
                 <ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 All {approverMfaStatus.total} approvers have 2FA enrolled — safe to turn on.
               </p>

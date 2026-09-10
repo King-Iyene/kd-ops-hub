@@ -1458,7 +1458,7 @@ function EndpointCard({ endpoint, moduleId }: { endpoint: Endpoint; moduleId: st
                   <TableBody>
                     {fields.map((f) => (
                       <TableRow key={f.name} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
-                        <TableCell className="text-[12px] font-mono text-zinc-700 dark:text-zinc-300 py-2">{f.name}</TableCell>
+                        <TableCell className="text-xs font-mono text-zinc-700 dark:text-zinc-300 py-2">{f.name}</TableCell>
                         <TableCell className="text-[11px] text-zinc-500 dark:text-zinc-400 py-2">{f.type}</TableCell>
                         <TableCell className="py-2">
                           {f.required ? (

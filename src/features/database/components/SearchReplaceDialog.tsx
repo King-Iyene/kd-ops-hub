@@ -218,7 +218,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
       type="button"
       onClick={onClick}
       title={title}
-      className={`w-7 h-7 flex items-center justify-center rounded text-[12px] transition-colors ${
+      className={`w-7 h-7 flex items-center justify-center rounded text-xs transition-colors ${
         active
           ? 'bg-[#2D7FF9]/10 text-[#2D7FF9] dark:bg-[#2D7FF9]/20'
           : 'text-[#9AA2AF] hover:text-[#6A7184] hover:bg-gray-100 dark:hover:bg-white/5 dark:hover:text-[hsl(200,25%,70%)]'
@@ -289,7 +289,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
             <Button
               size="sm"
               variant="outline"
-              className="h-9 text-[12px] shrink-0"
+              className="h-9 text-xs shrink-0"
               onClick={handleReplaceCurrent}
               disabled={matches.length === 0 || !searchText}
               title="Replace current match"
@@ -299,7 +299,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
             <Button
               size="sm"
               style={{ backgroundColor: '#2D7FF9' }}
-              className="text-white h-9 text-[12px] shrink-0"
+              className="text-white h-9 text-xs shrink-0"
               onClick={handleReplaceAll}
               disabled={matches.length === 0 || !searchText}
             >
@@ -324,7 +324,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
               ))}
             </select>
 
-            <span className="ml-auto text-[12px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] tabular-nums">
+            <span className="ml-auto text-xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] tabular-nums">
               {searchText
                 ? matches.length > 0
                   ? `${currentMatchIndex + 1} of ${matches.length} match${matches.length !== 1 ? 'es' : ''}`
@@ -364,7 +364,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
                   >
                     <div className="flex-1 min-w-0">
                       <span className="text-[10px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] mr-2">{m.fieldName}</span>
-                      <span className="text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                      <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)]">
                         {prefix}
                         <mark className={`px-0.5 rounded ${isActive ? 'bg-[#2D7FF9]/20 dark:bg-[#2D7FF9]/30' : 'bg-yellow-200 dark:bg-yellow-700/50'} dark:text-[hsl(200,25%,88%)]`}>
                           {matched}

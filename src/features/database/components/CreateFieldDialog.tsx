@@ -111,7 +111,7 @@ function SortableOption({ choice, onRemove, onColorChange, isEditing, editValue,
       {isEditing ? (
         <input
           autoFocus
-          className="flex-1 min-w-0 px-2.5 py-0.5 rounded-full text-[12px] font-medium border border-[#2D7FF9] outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
+          className="flex-1 min-w-0 px-2.5 py-0.5 rounded-full text-xs font-medium border border-[#2D7FF9] outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
           value={editValue}
           onChange={(e) => onEditChange(e.target.value)}
           onKeyDown={(e) => {
@@ -127,7 +127,7 @@ function SortableOption({ choice, onRemove, onColorChange, isEditing, editValue,
         />
       ) : (
         <span
-          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-medium flex-1 min-w-0 truncate select-pill cursor-default"
+          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium flex-1 min-w-0 truncate select-pill cursor-default"
           style={{
             '--pill-bg': sc.bg, '--pill-text': sc.text,
             '--pill-dark-bg': sc.darkBg, '--pill-dark-text': sc.darkText,
@@ -546,7 +546,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                     }
                   }}
                   placeholder="Search field types..."
-                  className="w-full bg-transparent text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] outline-none"
+                  className="w-full bg-transparent text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] outline-none"
                 />
                 {typeSearch && (
                   <button type="button" onClick={() => setTypeSearch('')} className="text-[#9AA2AF] hover:text-[#374151]">

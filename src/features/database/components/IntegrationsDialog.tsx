@@ -105,7 +105,7 @@ function OverviewTab({ baseId, onSubDialog, onSwitchTab }: { baseId: string | nu
           </div>
           <div className="flex-1">
             <h3 className="text-[15px] font-bold text-zinc-800 dark:text-zinc-100">Connect Your Tools</h3>
-            <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-1.5 leading-relaxed">
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1.5 leading-relaxed">
               KDOps has a full <strong>Airtable-compatible REST API</strong>. Connect n8n, Zapier, Make, or any tool
               that speaks HTTP. Fields are <strong className="text-blue-600 dark:text-blue-400">auto-created</strong> when you send new data — no setup needed.
             </p>
@@ -134,7 +134,7 @@ function OverviewTab({ baseId, onSubDialog, onSwitchTab }: { baseId: string | nu
             <button key={step} onClick={action} className="w-full flex items-start gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/80 dark:border-zinc-700/50 hover:border-blue-300 dark:hover:border-blue-700 transition-colors text-left group">
               <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-[11px] font-bold shrink-0 mt-0.5">{step}</span>
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">{title}</p>
+                <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{title}</p>
                 <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">{desc}</p>
               </div>
               <ChevronRight size={14} className="text-zinc-300 dark:text-zinc-600 group-hover:text-blue-500 transition-colors shrink-0 mt-1" />
@@ -179,7 +179,7 @@ function OverviewTab({ baseId, onSubDialog, onSwitchTab }: { baseId: string | nu
                 <card.icon size={18} style={{ color: card.color }} />
               </div>
               <div>
-                <p className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">{card.title}</p>
+                <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{card.title}</p>
                 <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">{card.desc}</p>
               </div>
               <ArrowRight size={11} className="text-zinc-300 dark:text-zinc-600 group-hover:text-blue-500 transition-colors" />
@@ -593,7 +593,7 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
           <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-zinc-700/40">
             <span className="flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold shrink-0 mt-0.5" style={{ backgroundColor: active.color }}>{i + 1}</span>
             <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">{step.title}</p>
+              <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{step.title}</p>
               <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">{step.detail}</div>
             </div>
           </div>

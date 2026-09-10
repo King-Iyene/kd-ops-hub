@@ -609,7 +609,7 @@ const Employees = () => {
             filters={
               <>
                 <Select value={roleFilter} onValueChange={(v) => { setRoleFilter(v as any); setPage(0); }}>
-                  <SelectTrigger className="w-[140px] h-8 text-[12px] bg-transparent border-border/60" data-mobile-filter-row>
+                  <SelectTrigger className="w-[140px] h-8 text-xs bg-transparent border-border/60" data-mobile-filter-row>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -622,7 +622,7 @@ const Employees = () => {
                   </SelectContent>
                 </Select>
                 <Select value={deptFilter} onValueChange={(v) => { setDeptFilter(v as any); setPage(0); }}>
-                  <SelectTrigger className="w-[170px] h-8 text-[12px] bg-transparent border-border/60" data-mobile-filter-row>
+                  <SelectTrigger className="w-[170px] h-8 text-xs bg-transparent border-border/60" data-mobile-filter-row>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -635,7 +635,7 @@ const Employees = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <label className="flex items-center gap-2 cursor-pointer select-none text-[12px] text-muted-foreground">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-muted-foreground">
                   <Switch
                     checked={showInactive}
                     onCheckedChange={(v) => { setShowInactive(v); setPage(0); }}

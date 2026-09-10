@@ -1472,14 +1472,14 @@ const Contractors = () => {
                 );
               })}
             </div>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setAdvDraft((d) => [...d, newAdvRule()])}>
+            <Button variant="ghost" size="xs" onClick={() => setAdvDraft((d) => [...d, newAdvRule()])}>
               <Plus className="mr-1.5 h-3.5 w-3.5" /> Add condition
             </Button>
             <div className="flex items-center justify-between pt-2 border-t border-border/60">
               <button type="button" onClick={clearAdvFilters} className="text-xs text-muted-foreground hover:text-foreground">
                 Clear
               </button>
-              <Button size="sm" className="h-7 text-xs" onClick={applyAdvFilters}>Apply</Button>
+              <Button size="xs" onClick={applyAdvFilters}>Apply</Button>
             </div>
           </PopoverContent>
         </Popover>
@@ -2044,13 +2044,13 @@ const Contractors = () => {
                           <TableCell className="font-medium">
                             {r.full_name || '—'}
                             {nameDiffers && (
-                              <div className="text-[10.5px] text-amber-700 dark:text-amber-400 mt-0.5">
+                              <div className="text-2xs text-amber-700 dark:text-amber-400 mt-0.5">
                                 Paystack: <span className="font-mono">{r.paystack_name}</span>
                               </div>
                             )}
                           </TableCell>
                           <TableCell>{r.bank_name || '—'}</TableCell>
-                          <TableCell className="font-mono text-[12px]">{r.account_number || '—'}</TableCell>
+                          <TableCell className="font-mono text-xs">{r.account_number || '—'}</TableCell>
                           <TableCell className="text-right currency">
                             {formatNaira(r.default_amount_ngn || 0)}
                           </TableCell>
@@ -2088,7 +2088,7 @@ const Contractors = () => {
                                 <Badge variant="outline" className="border-destructive/40 text-destructive bg-destructive/5">
                                   <XCircle className="h-3 w-3 mr-1" /> Not verified — blocked
                                 </Badge>
-                                <label className="flex items-center gap-1.5 text-[10.5px] cursor-pointer">
+                                <label className="flex items-center gap-1.5 text-2xs cursor-pointer">
                                   <Checkbox
                                     checked={!!r.forcedImport}
                                     onCheckedChange={(v) => {

@@ -292,7 +292,7 @@ const SummaryRow = React.memo(function SummaryRow({
                   {SUMMARY_OPTIONS.filter((opt) => !opt.numericOnly || isNumeric).map((opt) => (
                     <button
                       key={opt.value}
-                      className="w-full text-left px-3 py-1.5 text-[12px] flex items-center justify-between"
+                      className="w-full text-left px-3 py-1.5 text-xs flex items-center justify-between"
                       style={{ color: colors.text }}
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}

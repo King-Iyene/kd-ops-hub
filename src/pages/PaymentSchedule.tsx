@@ -567,7 +567,7 @@ export default function PaymentSchedule() {
               <div key={group}>
                 <div
                   className={cn(
-                    'text-[10.5px] font-semibold uppercase tracking-[0.1em] px-1 pb-1.5',
+                    'text-2xs font-semibold uppercase tracking-[0.1em] px-1 pb-1.5',
                     group === 'Overdue'
                       ? 'text-red-600'
                       : 'text-muted-foreground/80',
@@ -606,7 +606,7 @@ export default function PaymentSchedule() {
                             {formatDate(item.dueDate)}
                           </span>
                         </div>
-                        <span className="md:hidden text-[10.5px] text-muted-foreground/70 tabular-nums shrink-0">
+                        <span className="md:hidden text-2xs text-muted-foreground/70 tabular-nums shrink-0">
                           {formatDate(item.dueDate)}
                         </span>
                         <span className={cn(
@@ -658,11 +658,11 @@ export default function PaymentSchedule() {
                   {recurringSchedules.map((s) => (
                     <tr key={s.id} className="hover:bg-muted/30 kd-transition">
                       <td className="px-3 py-2 text-[13px] font-medium">{s.batch_name}</td>
-                      <td className="px-3 py-2 text-[12px] capitalize text-muted-foreground">{s.frequency}</td>
-                      <td className="px-3 py-2 text-[12px] font-mono tabular-nums text-muted-foreground">
+                      <td className="px-3 py-2 text-xs capitalize text-muted-foreground">{s.frequency}</td>
+                      <td className="px-3 py-2 text-xs font-mono tabular-nums text-muted-foreground">
                         {s.next_run_date ? formatDate(s.next_run_date) : <span className="text-muted-foreground/30">—</span>}
                       </td>
-                      <td className="px-3 py-2 text-[12px] font-mono tabular-nums text-muted-foreground">
+                      <td className="px-3 py-2 text-xs font-mono tabular-nums text-muted-foreground">
                         {s.last_run_date ? formatDate(s.last_run_date) : <span className="text-muted-foreground/30">—</span>}
                       </td>
                       <td className="px-3 py-2">
@@ -670,17 +670,17 @@ export default function PaymentSchedule() {
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center justify-end gap-0.5">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Edit" onClick={() => openEdit(s)}>
+                          <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => openEdit(s)}>
                             <Pencil className="h-3 w-3" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={s.status === 'active' ? 'Pause' : 'Resume'} onClick={() => togglePause(s)}>
+                          <Button variant="ghost" size="icon-sm" aria-label={s.status === 'active' ? 'Pause' : 'Resume'} onClick={() => togglePause(s)}>
                             {s.status === 'active' ? (
                               <PauseCircle className="h-3 w-3" />
                             ) : (
                               <PlayCircle className="h-3 w-3 text-emerald-600" />
                             )}
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" aria-label="Delete" onClick={() => setConfirmDelete(s)}>
+                          <Button variant="ghost" size="icon-sm" className="text-destructive hover:text-destructive" aria-label="Delete" onClick={() => setConfirmDelete(s)}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>

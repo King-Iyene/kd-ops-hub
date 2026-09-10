@@ -191,7 +191,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
               {webhooks.length === 0 && !isNew && (
                 <div className="px-3 py-8 text-center">
                   <Webhook size={28} className="mx-auto mb-2 text-[#D1D5DB] dark:text-[hsl(200,25%,30%)]" />
-                  <p className="text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">No webhooks yet</p>
+                  <p className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">No webhooks yet</p>
                   <p className="text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] mt-1">Click + to create one</p>
                 </div>
               )}
@@ -207,7 +207,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                 >
                   <div className="flex-1 min-w-0">
                     <p
-                      className={`text-[12px] font-medium truncate ${
+                      className={`text-xs font-medium truncate ${
                         wh.is_active ? 'text-[#374151] dark:text-[hsl(200,25%,88%)]' : 'text-[#9CA3AF] dark:text-[hsl(200,25%,50%)]'
                       }`}
                     >
@@ -248,7 +248,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
             ) : (
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-[14px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                  <h3 className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
                     {isNew ? 'New Webhook' : 'Edit Webhook'}
                   </h3>
                   {!isNew && selectedId && (
@@ -326,7 +326,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                   <div className="mt-1 space-y-1.5">
                     {Object.entries(headers).map(([k, v]) => (
                       <div key={k} className="flex items-center gap-2">
-                        <span className="flex-1 text-[12px] font-mono px-2 py-1 rounded bg-[#F4F4F5] dark:bg-[hsl(200,25%,14%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
+                        <span className="flex-1 text-xs font-mono px-2 py-1 rounded bg-[#F4F4F5] dark:bg-[hsl(200,25%,14%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
                           {k}: {v}
                         </span>
                         <button
@@ -339,14 +339,14 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                     ))}
                     <div className="flex gap-2">
                       <Input
-                        className="flex-1 h-7 text-[12px]"
+                        className="flex-1 h-7 text-xs"
                         placeholder="Header name"
                         value={headerKey}
                         onChange={(e) => setHeaderKey(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddHeader()}
                       />
                       <Input
-                        className="flex-1 h-7 text-[12px]"
+                        className="flex-1 h-7 text-xs"
                         placeholder="Value"
                         value={headerValue}
                         onChange={(e) => setHeaderValue(e.target.value)}
@@ -374,7 +374,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                 {/* Test result */}
                 {testResult && (
                   <div
-                    className={`px-3 py-2 rounded-md text-[12px] font-medium ${
+                    className={`px-3 py-2 rounded-md text-xs font-medium ${
                       testResult.ok
                         ? 'bg-[#D1FAE5] text-[#065F46] dark:bg-[hsl(150,30%,15%)] dark:text-[hsl(150,50%,70%)]'
                         : 'bg-[#FEE2E2] text-[#991B1B] dark:bg-[hsl(0,30%,15%)] dark:text-[hsl(0,50%,70%)]'
@@ -388,7 +388,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                 <div className="flex items-center gap-2 pt-2">
                   <Button
                     size="sm"
-                    className="h-8 px-4 text-[12px] gap-1.5"
+                    className="h-8 px-4 text-xs gap-1.5"
                     style={{ backgroundColor: '#2D7FF9' }}
                     onClick={handleSave}
                     disabled={!name.trim() || !url.trim() || events.length === 0 || createWebhook.isPending || updateWebhook.isPending}
@@ -398,7 +398,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 px-3 text-[12px] gap-1.5"
+                    className="h-8 px-3 text-xs gap-1.5"
                     onClick={handleTest}
                     disabled={!url.trim() || testing}
                   >

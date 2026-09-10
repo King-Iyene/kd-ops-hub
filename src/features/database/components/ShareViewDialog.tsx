@@ -122,17 +122,17 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
             <>
               {/* Shareable link */}
               <div>
-                <label className="text-[12px] font-medium text-[#4A5268] dark:text-[hsl(200,25%,70%)] mb-1.5 block">
+                <label className="text-xs font-medium text-[#4A5268] dark:text-[hsl(200,25%,70%)] mb-1.5 block">
                   Shareable link
                 </label>
                 <div className="flex gap-2">
-                  <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] truncate">
+                  <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] truncate">
                     <Link2 size={12} className="shrink-0" />
                     <span className="truncate">{shareUrl}</span>
                   </div>
                   <Button
                     size="sm"
-                    className="h-8 px-3 text-[12px] gap-1.5"
+                    className="h-8 px-3 text-xs gap-1.5"
                     style={{ backgroundColor: '#2D7FF9' }}
                     onClick={handleCopy}
                   >
@@ -144,7 +144,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
 
               {/* Password protection */}
               <div>
-                <label className="text-[12px] font-medium text-[#4A5268] dark:text-[hsl(200,25%,70%)] mb-1.5 block">
+                <label className="text-xs font-medium text-[#4A5268] dark:text-[hsl(200,25%,70%)] mb-1.5 block">
                   Password protection (optional)
                 </label>
                 <div className="flex gap-2">
@@ -154,7 +154,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={sharedView.is_password_protected ? '(password set)' : 'Set a password'}
-                      className="w-full px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#6A7184] dark:placeholder:text-[hsl(200,20%,40%)] pr-8"
+                      className="w-full px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#6A7184] dark:placeholder:text-[hsl(200,20%,40%)] pr-8"
                     />
                     <button
                       onClick={() => setShowPassword(!showPassword)}
@@ -166,7 +166,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 px-3 text-[12px]"
+                    className="h-8 px-3 text-xs"
                     onClick={handleSetPassword}
                     disabled={setSharedPassword.isPending}
                   >
@@ -201,7 +201,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
 
               {/* Embed code */}
               <div>
-                <label className="text-[12px] font-medium text-[#4A5268] dark:text-[hsl(200,25%,70%)] mb-1.5 block">
+                <label className="text-xs font-medium text-[#4A5268] dark:text-[hsl(200,25%,70%)] mb-1.5 block">
                   Embed code
                 </label>
                 <div className="flex gap-2">
@@ -212,7 +212,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 px-3 text-[12px] gap-1.5"
+                    className="h-8 px-3 text-xs gap-1.5"
                     onClick={() => {
                       navigator.clipboard.writeText(`<iframe src="${shareUrl}" width="100%" height="600" frameborder="0"></iframe>`).catch(() => { /* clipboard unavailable */ });
                       setCopiedEmbed(true);
@@ -230,7 +230,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 px-3 text-[12px] text-red-600 hover:text-red-700 hover:bg-red-50 gap-1.5"
+                  className="h-8 px-3 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 gap-1.5"
                   onClick={handleDelete}
                   disabled={deleteShared.isPending}
                 >

@@ -63,7 +63,7 @@ function BaseCard({ base, onSelect }: { base: Base; onSelect: () => void }) {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] group-hover:text-[#2D7FF9] truncate">
+          <p className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] group-hover:text-[#2D7FF9] truncate">
             {base.name}
           </p>
         </div>

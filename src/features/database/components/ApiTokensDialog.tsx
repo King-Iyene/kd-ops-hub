@@ -87,7 +87,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
             <div className="p-3 rounded-lg bg-[#FEF3C7] dark:bg-[hsl(45,40%,12%)] border border-[#F59E0B]/40 space-y-2">
               <div className="flex items-start gap-2">
                 <AlertTriangle size={14} className="text-[#92400E] dark:text-[#F59E0B] mt-0.5 shrink-0" />
-                <p className="text-[12px] text-[#92400E] dark:text-[#F59E0B] font-medium">
+                <p className="text-xs text-[#92400E] dark:text-[#F59E0B] font-medium">
                   Copy your API key now. You will not be able to see it again.
                 </p>
               </div>
@@ -97,7 +97,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                 </code>
                 <Button
                   size="sm"
-                  className="h-8 px-3 text-[12px] gap-1.5 shrink-0"
+                  className="h-8 px-3 text-xs gap-1.5 shrink-0"
                   style={{ backgroundColor: '#2D7FF9' }}
                   onClick={() => handleCopy(revealedKey)}
                 >
@@ -110,7 +110,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
 
           <div className="space-y-1">
             {(keys ?? []).length === 0 && !showCreate && (
-              <p className="text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] text-center py-4">
+              <p className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] text-center py-4">
                 No API keys yet. Create one to get started.
               </p>
             )}
@@ -174,7 +174,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
           {showCreate ? (
             <div className="space-y-3 p-3 rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
               <div>
-                <label className="text-[12px] font-medium text-[#4A5268] dark:text-[hsl(200,25%,70%)] mb-1 block">
+                <label className="text-xs font-medium text-[#4A5268] dark:text-[hsl(200,25%,70%)] mb-1 block">
                   Key name
                 </label>
                 <input
@@ -182,17 +182,17 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. n8n integration"
-                  className="w-full px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#6A7184] dark:placeholder:text-[hsl(200,20%,40%)]"
+                  className="w-full px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#6A7184] dark:placeholder:text-[hsl(200,20%,40%)]"
                   onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
                 />
               </div>
               <div>
-                <label className="text-[12px] font-medium text-[#4A5268] dark:text-[hsl(200,25%,70%)] mb-1.5 block">
+                <label className="text-xs font-medium text-[#4A5268] dark:text-[hsl(200,25%,70%)] mb-1.5 block">
                   Scopes
                 </label>
                 <div className="flex gap-3">
                   {SCOPE_OPTIONS.map((s) => (
-                    <label key={s} className="flex items-center gap-1.5 text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] cursor-pointer">
+                    <label key={s} className="flex items-center gap-1.5 text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] cursor-pointer">
                       <input
                         type="checkbox"
                         checked={scopes.has(s)}
@@ -205,12 +205,12 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                 </div>
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="ghost" size="sm" className="h-8 px-3 text-[12px]" onClick={() => setShowCreate(false)}>
+                <Button variant="ghost" size="sm" className="h-8 px-3 text-xs" onClick={() => setShowCreate(false)}>
                   Cancel
                 </Button>
                 <Button
                   size="sm"
-                  className="h-8 px-3 text-[12px]"
+                  className="h-8 px-3 text-xs"
                   style={{ backgroundColor: '#2D7FF9' }}
                   onClick={handleCreate}
                   disabled={!name.trim() || scopes.size === 0 || createKey.isPending}
@@ -223,7 +223,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
             <Button
               variant="outline"
               size="sm"
-              className="h-8 px-3 text-[12px] gap-1.5 w-full"
+              className="h-8 px-3 text-xs gap-1.5 w-full"
               onClick={() => setShowCreate(true)}
             >
               <Plus size={13} />

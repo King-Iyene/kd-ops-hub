@@ -54,7 +54,7 @@ export function GroupPanel({ fields, groups, onGroupsChange }: GroupPanelProps) 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1">
+        <Button variant="ghost" size="xs" className="text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1">
           <GroupIcon size={14} />
           Group
           {activeCount > 0 && (
@@ -108,8 +108,8 @@ export function GroupPanel({ fields, groups, onGroupsChange }: GroupPanelProps) 
 
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 text-[#9AA2AF] hover:text-red-500 shrink-0"
+                  size="icon-sm"
+                  className="text-[#9AA2AF] hover:text-red-500 shrink-0"
                   onClick={() => removeGroup(idx)}
                 >
                   <X size={14} />

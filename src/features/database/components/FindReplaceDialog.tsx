@@ -153,7 +153,7 @@ export function FindReplaceDialog({
           </div>
 
           <button
-            className="text-[12px] text-[#2D7FF9] hover:underline"
+            className="text-xs text-[#2D7FF9] hover:underline"
             onClick={() => setShowReplace(!showReplace)}
           >
             {showReplace ? 'Hide replace' : 'Show replace'}
@@ -173,7 +173,7 @@ export function FindReplaceDialog({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-[12px] h-8"
+                  className="text-xs h-8"
                   onClick={replaceOne}
                   disabled={matches.length === 0}
                 >
@@ -182,7 +182,7 @@ export function FindReplaceDialog({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-[12px] h-8"
+                  className="text-xs h-8"
                   onClick={replaceAll}
                   disabled={matches.length === 0}
                 >

@@ -377,7 +377,7 @@ export function AppSidebar() {
             </div>
             <div className="min-w-0">
               <p className="text-[13px] font-semibold text-sidebar-primary leading-none tracking-tight">KDOps</p>
-              <p className="text-[10.5px] text-sidebar-foreground/45 mt-0.5 tracking-tight">Operations</p>
+              <p className="text-2xs text-sidebar-foreground/45 mt-0.5 tracking-tight">Operations</p>
             </div>
           </div>
         ) : (
@@ -405,7 +405,7 @@ export function AppSidebar() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search modules…"
-                    className="w-full h-8 pl-8 pr-7 rounded-lg bg-white/[0.06] border border-white/[0.06] text-[12px] text-sidebar-foreground placeholder:text-sidebar-foreground/30 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--sidebar-ring)/0.5)] focus:bg-white/[0.08] kd-transition"
+                    className="w-full h-8 pl-8 pr-7 rounded-lg bg-white/[0.06] border border-white/[0.06] text-xs text-sidebar-foreground placeholder:text-sidebar-foreground/30 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--sidebar-ring)/0.5)] focus:bg-white/[0.08] kd-transition"
                   />
                   {searchQuery && (
                     <button
@@ -425,7 +425,7 @@ export function AppSidebar() {
                 {searchResults.length > 0 ? (
                   searchResults.map(renderNavItem)
                 ) : (
-                  <p className="px-2 py-3 text-[12px] text-sidebar-foreground/40 text-center">
+                  <p className="px-2 py-3 text-xs text-sidebar-foreground/40 text-center">
                     No modules match "{searchQuery}"
                   </p>
                 )}
@@ -494,7 +494,7 @@ export function AppSidebar() {
                             <ChevronRight className="h-3 w-3 text-sidebar-foreground/20 group-hover/hub:text-sidebar-foreground/40 transition-all duration-200 ease-out group-hover/hub:translate-x-0.5" />
                           </div>
                         </div>
-                        <p className="text-[10.5px] text-sidebar-foreground/35 mt-0.5 leading-none truncate group-hover/hub:text-sidebar-foreground/45 kd-transition">
+                        <p className="text-2xs text-sidebar-foreground/35 mt-0.5 leading-none truncate group-hover/hub:text-sidebar-foreground/45 kd-transition">
                           {hub.description}
                         </p>
                       </div>

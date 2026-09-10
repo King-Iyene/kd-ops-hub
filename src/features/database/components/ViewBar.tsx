@@ -84,7 +84,7 @@ function SortableViewTab({
       <div ref={setNodeRef} style={style} className="flex items-center gap-1">
         <input
           ref={renameRef}
-          className="h-6 w-28 px-1.5 text-[12px] border border-[#2D7FF9] rounded outline-none"
+          className="h-6 w-28 px-1.5 text-xs border border-[#2D7FF9] rounded outline-none"
           value={renameText}
           onChange={(e) => setRenameText(e.target.value)}
           onBlur={() => onRename(view.id)}
@@ -104,7 +104,7 @@ function SortableViewTab({
       {...listeners}
       onClick={onSelect}
       onContextMenu={onContextMenu}
-      className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[12px] font-medium whitespace-nowrap transition-colors"
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors"
       style={{
         ...style,
         color: isActive ? '#2D7FF9' : '#6A7184',
@@ -249,7 +249,7 @@ export function ViewBar() {
         <div className="relative" ref={addBtnRef}>
           <button
             onClick={() => setAddMenuOpen(!addMenuOpen)}
-            className="flex items-center gap-1 px-2 py-1 rounded text-[12px] hover:bg-gray-100 whitespace-nowrap transition-colors"
+            className="flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-gray-100 whitespace-nowrap transition-colors"
             style={{ color: '#999999' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = '#333333')}
             onMouseLeave={(e) => (e.currentTarget.style.color = '#999999')}
@@ -275,7 +275,7 @@ export function ViewBar() {
               return (
                 <button
                   key={opt.type}
-                  className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
                   onClick={() => handleAddView(opt.type)}
                 >
                   <Icon size={13} className="text-[#9AA2AF]" />
@@ -296,7 +296,7 @@ export function ViewBar() {
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             <button
-              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={() => {
                 const view = sorted.find((v) => v.id === contextMenu.viewId);
                 if (view) {
@@ -309,7 +309,7 @@ export function ViewBar() {
               <Pencil size={12} className="text-[#9AA2AF]" /> Rename
             </button>
             <button
-              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={() => {
                 if (!activeTableId) return;
                 const view = sorted.find((v) => v.id === contextMenu.viewId);
@@ -333,7 +333,7 @@ export function ViewBar() {
               <Copy size={12} className="text-[#9AA2AF]" /> Duplicate
             </button>
             <button
-              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={() => {
                 if (!activeTableId) return;
                 const view = sorted.find((v) => v.id === contextMenu.viewId);
@@ -354,7 +354,7 @@ export function ViewBar() {
             </button>
             <div className="h-px bg-[#E5E5E5] my-0.5" />
             <button
-              className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-red-50 flex items-center gap-2 text-red-500"
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50 flex items-center gap-2 text-red-500"
               onClick={() => {
                 if (!activeTableId) return;
                 const view = sorted.find((v) => v.id === contextMenu.viewId);

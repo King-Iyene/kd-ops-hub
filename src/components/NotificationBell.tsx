@@ -385,7 +385,7 @@ export function NotificationBell() {
                                 </span>
                               </div>
                               {n.body && (
-                                <p className="text-[12px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug">
+                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-snug">
                                   {n.body}
                                 </p>
                               )}

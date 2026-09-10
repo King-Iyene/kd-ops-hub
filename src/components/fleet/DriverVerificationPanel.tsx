@@ -373,7 +373,7 @@ export function DriverVerificationPanel() {
                         <TableCell><OverallBadge status={overall} /></TableCell>
                         {isAdmin && (
                           <TableCell>
-                            <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => openEditDialog(driver)}>
+                            <Button size="icon-sm" variant="ghost" aria-label="Edit" onClick={() => openEditDialog(driver)}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
                           </TableCell>

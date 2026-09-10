@@ -459,7 +459,7 @@ export default function Timesheets() {
                               )}
                             </CardTitle>
                             {activeTimesheet.status === 'draft' && (
-                              <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => openAddEntry(dayDate)}>
+                              <Button variant="ghost" size="xs" className="gap-1" onClick={() => openAddEntry(dayDate)}>
                                 <Plus className="h-3 w-3" /> Add
                               </Button>
                             )}

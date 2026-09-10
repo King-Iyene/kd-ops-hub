@@ -274,7 +274,7 @@ export const BeneficiaryCsvImport = ({ open, onOpenChange, onImport }: Props) =>
               <span className="text-muted-foreground text-xs">
                 {validRows.length} valid, {invalidRows.length} invalid of {rows.length} total
               </span>
-              <Button size="sm" variant="outline" className="ml-auto h-7 text-xs" onClick={() => { setFileName(null); setRows([]); }}>
+              <Button size="xs" variant="outline" className="ml-auto" onClick={() => { setFileName(null); setRows([]); }}>
                 Choose a different file
               </Button>
             </div>

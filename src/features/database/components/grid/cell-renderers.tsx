@@ -720,7 +720,7 @@ export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({
   if (value == null || value === '') return null;
   if (typeof value === 'string' && (value.startsWith('#ERROR') || value.startsWith('ERROR') || value.startsWith('!ERROR'))) {
     return (
-      <span className="truncate font-medium text-[12px]" style={{ color: '#EF4444' }}>
+      <span className="truncate font-medium text-xs" style={{ color: '#EF4444' }}>
         #ERROR
       </span>
     );

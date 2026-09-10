@@ -268,7 +268,7 @@ export const PayrollRunsTab = ({
               {value}
             </p>
             <p className="mt-1.5 text-[11px] text-muted-foreground truncate">{label}</p>
-            <p className="mt-0.5 text-[10.5px] text-muted-foreground/70 tabular-nums truncate">{sub}</p>
+            <p className="mt-0.5 text-2xs text-muted-foreground/70 tabular-nums truncate">{sub}</p>
           </div>
         ))}
       </div>
@@ -655,7 +655,7 @@ function RunDetailDrawer({
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           <div>
-            <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
+            <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
               <Users2 className="h-3 w-3" /> Who gets paid
             </div>
             <div className="text-sm font-medium">{segmentName}</div>
@@ -664,7 +664,7 @@ function RunDetailDrawer({
           </div>
 
           <div>
-            <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Bonuses &amp; adjustments</div>
+            <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Bonuses &amp; adjustments</div>
             {bonusTotal > 0 ? (
               <div className="text-sm"><span className="font-medium">Company-wide:</span> {formatNaira(bonusTotal)}</div>
             ) : (
@@ -678,7 +678,7 @@ function RunDetailDrawer({
           </div>
 
           <div>
-            <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Money ledger</div>
+            <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Money ledger</div>
             <div className="rounded-md border border-border/60 overflow-hidden text-sm">
               <div className="flex justify-between px-2.5 py-1.5"><span>Gross pay</span><span className="tabular-nums">{formatNaira(r.total_employee_ngn)}</span></div>
               <div className="flex justify-between px-2.5 py-1.5 text-xs text-muted-foreground border-t border-border/50"><span>PAYE (tax)</span><span className="tabular-nums">− {formatNaira(r.paye_ngn)}</span></div>
@@ -699,7 +699,7 @@ function RunDetailDrawer({
 
           {(r.status === 'approved' || r.status === 'processing' || r.status === 'paid') && (
             <div>
-              <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
+              <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
                 <Landmark className="h-3 w-3" /> Statutory deadlines once paid
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 rounded-md border border-border/60 bg-muted/20 px-3 py-2.5">
@@ -719,7 +719,7 @@ function RunDetailDrawer({
           )}
 
           <div>
-            <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
+            <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
               <History className="h-3 w-3" /> Activity
             </div>
             <div className="space-y-1.5 text-xs">

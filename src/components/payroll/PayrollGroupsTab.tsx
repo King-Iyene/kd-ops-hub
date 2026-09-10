@@ -230,7 +230,7 @@ function AllowanceChip({ label, value, color }: { label: string; value: number; 
   if (value <= 0) return null;
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-medium"
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium"
       style={{ backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)`, color }}
     >
       {label} · {formatNaira(value)}

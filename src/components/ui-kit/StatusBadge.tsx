@@ -111,9 +111,9 @@ export function StatusBadge({
         'inline-flex items-center gap-1.5 font-medium',
         variant === 'fill'
           ? cn('rounded-full capitalize', config.bg, config.text,
-              size === 'sm' ? 'px-2 py-0 text-[10px] leading-5' : 'px-2.5 py-0.5 text-[11px] leading-5')
+              size === 'sm' ? 'px-2 py-0 text-[10px] leading-5 min-h-[22px]' : 'px-2.5 py-0.5 text-[11px] leading-5 min-h-[24px]')
           : cn('rounded-none uppercase tracking-[0.08em]', config.text,
-              size === 'sm' ? 'text-[10px] leading-5' : 'text-[10.5px] leading-5'),
+              size === 'sm' ? 'text-[10px] leading-5' : 'text-xs leading-5'),
         className,
       )}
     >

@@ -678,8 +678,8 @@ export default function TaskTeamDashboard() {
             <div className="flex items-center justify-between pt-3 text-xs text-muted-foreground">
               <span>Page {page} of {totalPages} ({detailRows.length} tasks)</span>
               <div className="flex gap-1.5">
-                <Button size="sm" variant="outline" className="h-7 text-xs" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-                <Button size="sm" variant="outline" className="h-7 text-xs" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+                <Button size="xs" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
+                <Button size="xs" variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
               </div>
             </div>
           )}

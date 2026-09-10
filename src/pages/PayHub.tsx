@@ -134,19 +134,19 @@ export default function PayHub() {
           <div className="flex-1 flex gap-0 border-l border-white/20 pl-6 flex-wrap">
             <div className="flex-1 min-w-[90px] text-center">
               <div className="font-bold currency">{formatNaira(stats.latestRun?.total_burn_ngn || 0)}</div>
-              <div className="text-[10.5px] opacity-75 mt-0.5">Salary ({stats.latestRun?.period ? formatDate(`${stats.latestRun.period}-01`) : '—'})</div>
+              <div className="text-2xs opacity-75 mt-0.5">Salary ({stats.latestRun?.period ? formatDate(`${stats.latestRun.period}-01`) : '—'})</div>
             </div>
             <div className="flex-1 min-w-[90px] text-center">
               <div className="font-bold currency">{formatNaira(stats.ewaPendingNgn)}</div>
-              <div className="text-[10.5px] opacity-75 mt-0.5">EWA pending</div>
+              <div className="text-2xs opacity-75 mt-0.5">EWA pending</div>
             </div>
             <div className="flex-1 min-w-[90px] text-center">
               <div className="font-bold currency">{formatNaira(stats.advancePendingNgn)}</div>
-              <div className="text-[10.5px] opacity-75 mt-0.5">Advances pending</div>
+              <div className="text-2xs opacity-75 mt-0.5">Advances pending</div>
             </div>
             <div className="flex-1 min-w-[90px] text-center">
               <div className="font-bold currency">{formatNaira(stats.staffLoanActiveOutstandingNgn)}</div>
-              <div className="text-[10.5px] opacity-75 mt-0.5">Staff loans outstanding</div>
+              <div className="text-2xs opacity-75 mt-0.5">Staff loans outstanding</div>
             </div>
           </div>
         </div>

@@ -61,7 +61,7 @@ export default function EarningsTab({ earnings, canFinance, onShowEarningDialog,
                       </TableCell>
                       <TableCell>
                         {e.status === 'active' && (
-                          <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
+                          <Button size="xs" variant="ghost" className="text-muted-foreground"
                             onClick={() => onDeactivateEarning(e.id)}>
                             Pause
                           </Button>

@@ -325,7 +325,7 @@ export default function Anomalies() {
                 <div className="flex items-center gap-2 text-sm">
                   <span className="font-semibold tabular-nums">{selectedIds.size}</span>
                   <span className="text-muted-foreground">selected</span>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={clearSelection}>
+                  <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={clearSelection}>
                     Clear
                   </Button>
                 </div>

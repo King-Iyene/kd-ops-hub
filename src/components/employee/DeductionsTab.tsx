@@ -64,7 +64,7 @@ export default function DeductionsTab({ deductions, canFinance, onShowDeductionD
                       </TableCell>
                       <TableCell>
                         {d.status === 'active' && (
-                          <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
+                          <Button size="xs" variant="ghost" className="text-muted-foreground"
                             onClick={() => onDeactivateDeduction(d.id)}>
                             Pause
                           </Button>

@@ -566,7 +566,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
                           <div className="flex items-center gap-0.5">
                             {r.batch_items && r.batch_items.length > 0 && (
                               <Button
-                                variant="ghost" size="icon" className="h-7 w-7" aria-label="Receipt"
+                                variant="ghost" size="icon-sm" aria-label="Receipt"
                                 onClick={(e) => { e.stopPropagation(); setReceiptRow(r); }}
                               >
                                 <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
@@ -574,7 +574,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
                             )}
                             {r.status !== 'draft' && (
                               <Button
-                                variant="ghost" size="icon" className="h-7 w-7" aria-label="Make recurring monthly"
+                                variant="ghost" size="icon-sm" aria-label="Make recurring monthly"
                                 onClick={(e) => { e.stopPropagation(); setRecurRow(r); }}
                               >
                                 <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1041,10 +1041,10 @@ function RecurringSchedulesCard({ profile, toast }: { profile: any; toast: Retur
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <Badge variant={s.status === 'active' ? 'secondary' : 'outline'} className="text-[10px]">{s.status}</Badge>
-              <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={s.status === 'paused' ? 'Resume' : 'Pause'} onClick={() => togglePause(s)}>
+              <Button variant="ghost" size="icon-sm" aria-label={s.status === 'paused' ? 'Resume' : 'Pause'} onClick={() => togglePause(s)}>
                 {s.status === 'paused' ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" aria-label="Delete" onClick={() => remove(s)}>
+              <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-destructive" aria-label="Delete" onClick={() => remove(s)}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -1362,8 +1362,8 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                   )}
                   <Button
                     variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    size="icon-sm"
+                    className="text-muted-foreground hover:text-destructive"
                     title="Discard"
                     onClick={async () => {
                       try {
@@ -1401,7 +1401,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                 <div className="flex items-center gap-1 shrink-0">
                   <Badge variant={s.status === 'active' ? 'secondary' : 'outline'} className="text-[10px]">{s.status}</Badge>
                   <Button
-                    variant="ghost" size="icon" className="h-7 w-7"
+                    variant="ghost" size="icon-sm"
                     aria-label={s.status === 'paused' ? 'Resume' : 'Pause'}
                     onClick={async () => {
                       try {
@@ -1417,7 +1417,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                     {s.status === 'paused' ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
                   </Button>
                   <Button
-                    variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" aria-label="Delete"
+                    variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-destructive" aria-label="Delete"
                     onClick={async () => {
                       try {
                         await deletePersonalRecurringSchedule(s.id);
@@ -1548,7 +1548,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                         <TableCell>
                           {r.status !== 'pending' && (
                             <Button
-                              variant="ghost" size="icon" className="h-7 w-7" aria-label="Receipt"
+                              variant="ghost" size="icon-sm" aria-label="Receipt"
                               onClick={(e) => { e.stopPropagation(); setReceiptRow(r); }}
                             >
                               <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1904,14 +1904,14 @@ function PersonalTransferBeneficiariesDialog({
             </div>
             <div className="flex items-center gap-0.5 shrink-0">
               <Button
-                variant="ghost" size="icon"
-                className="text-muted-foreground hover:text-foreground h-7 w-7"
+                variant="ghost" size="icon-sm"
+                className="text-muted-foreground hover:text-foreground"
                 title="Rename"
                 onClick={() => { setEditingId(b.id); setEditLabel(b.label); }}
               >
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-7 w-7" aria-label="Delete" onClick={() => remove(b)}>
+              <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-destructive" aria-label="Delete" onClick={() => remove(b)}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>

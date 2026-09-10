@@ -660,7 +660,7 @@ export const PayrollDialogs = ({
                     real compliance obligations; naming the dates here means
                     HR isn't the one who has to remember them from memory. */}
                 <div className="rounded-lg border border-border/60 bg-muted/20 px-3.5 py-3">
-                  <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground mb-2">
+                  <p className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
                     Statutory deadlines once this is paid
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -699,7 +699,7 @@ export const PayrollDialogs = ({
                       {s.description && <p className="text-xs text-muted-foreground truncate">{s.description}</p>}
                     </div>
                     {s.name !== 'All Staff' && (
-                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => deleteSegment(s.id, s.name)} aria-label={`Remove ${s.name}`}>
+                      <Button size="icon-sm" variant="ghost" className="shrink-0" onClick={() => deleteSegment(s.id, s.name)} aria-label={`Remove ${s.name}`}>
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button>
                     )}
@@ -895,7 +895,7 @@ export const PayrollDialogs = ({
                       <span className={cn('tabular-nums font-semibold', a.kind === 'deduction' ? 'text-destructive' : 'text-success')}>
                         {a.kind === 'deduction' ? '−' : '+'}{formatNaira(Number(a.amount_ngn))}
                       </span>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeAdjustment(a.id)} aria-label="Remove adjustment">
+                      <Button size="icon-sm" variant="ghost" onClick={() => removeAdjustment(a.id)} aria-label="Remove adjustment">
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>

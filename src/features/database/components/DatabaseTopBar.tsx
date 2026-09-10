@@ -78,11 +78,11 @@ export function DatabaseTopBar() {
           </Button>
           <div className="flex items-center gap-1.5 ml-1">
             {activeBase ? (
-              <span className="text-[14px] font-semibold text-white">
+              <span className="text-sm font-semibold text-white">
                 {activeBase.name}
               </span>
             ) : (
-              <span className="text-[14px] font-semibold text-white">
+              <span className="text-sm font-semibold text-white">
                 Bases
               </span>
             )}
@@ -93,7 +93,7 @@ export function DatabaseTopBar() {
           {activeBaseId && (
             <Button
               size="sm"
-              className="h-7 px-3 text-[12px] font-medium gap-1.5 rounded-full bg-white/20 text-white border border-white/25 hover:bg-white/30 shadow-sm"
+              className="h-7 px-3 text-xs font-medium gap-1.5 rounded-full bg-white/20 text-white border border-white/25 hover:bg-white/30 shadow-sm"
               onClick={() => setShareOpen(true)}
             >
               <Share2 size={13} /> Share
@@ -129,14 +129,14 @@ export function DatabaseTopBar() {
               </div>
             </div>
             <div>
-              <label className="text-[12px] font-medium text-[#4A5268] dark:text-[hsl(200,20%,55%)] mb-1.5 block">Copy link</label>
+              <label className="text-xs font-medium text-[#4A5268] dark:text-[hsl(200,20%,55%)] mb-1.5 block">Copy link</label>
               <div className="flex gap-2">
-                <div className="flex-1 px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] text-[12px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] truncate">
+                <div className="flex-1 px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] truncate">
                   {typeof window !== 'undefined' ? window.location.href : ''}
                 </div>
                 <Button
                   size="sm"
-                  className="h-8 px-3 text-[12px] gap-1.5"
+                  className="h-8 px-3 text-xs gap-1.5"
                   style={{ backgroundColor: '#2D7FF9' }}
                   onClick={handleCopyLink}
                 >
@@ -146,7 +146,7 @@ export function DatabaseTopBar() {
               </div>
             </div>
             <div className="border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] pt-3">
-              <p className="text-[12px] font-medium text-[#4A5268] dark:text-[hsl(200,20%,55%)] mb-2">People with access</p>
+              <p className="text-xs font-medium text-[#4A5268] dark:text-[hsl(200,20%,55%)] mb-2">People with access</p>
               <div className="flex items-center gap-2 py-1.5">
                 <AvatarBubble
                   photoUrl={profile?.photo_url ?? null}

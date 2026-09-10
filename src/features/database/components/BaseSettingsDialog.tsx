@@ -526,7 +526,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(200,30%,8%)] p-3 space-y-1">
-        <p className="text-[12px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] flex items-center gap-1.5">
+        <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] flex items-center gap-1.5">
           <Webhook size={13} className="text-[#2D7FF9]" /> Webhooks
         </p>
         <p className="text-[11px] text-[#9AA2AF]">
@@ -668,7 +668,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
       </div>
 
       <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(200,30%,8%)] p-3 space-y-2">
-        <p className="text-[12px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Webhook Payload</p>
+        <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Webhook Payload</p>
         <pre className="text-[10px] font-mono bg-white dark:bg-[hsl(200,30%,10%)] border rounded p-2 overflow-x-auto whitespace-pre text-[#374151] dark:text-[hsl(200,25%,88%)]">{`{
   "event": "record.created",
   "timestamp": "2026-09-05T12:00:00Z",
@@ -780,12 +780,12 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(200,30%,8%)] p-3 space-y-2">
-        <p className="text-[12px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">API Base URL</p>
+        <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">API Base URL</p>
         <div className="flex items-center gap-2">
           <code className="flex-1 text-[11px] bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-2 py-1.5 font-mono text-[#374151] dark:text-[hsl(200,25%,88%)] select-all overflow-x-auto">
             {apiBaseUrl}
           </code>
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" onClick={() => handleCopy(apiBaseUrl)}>
+          <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => handleCopy(apiBaseUrl)}>
             <Copy size={12} />
           </Button>
         </div>
@@ -796,17 +796,17 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
 
       {createdKey && (
         <div className="rounded-lg border border-green-200 dark:border-green-800/40 bg-green-50 dark:bg-green-900/10 p-3 space-y-2">
-          <p className="text-[12px] font-medium text-green-700 dark:text-green-400">
+          <p className="text-xs font-medium text-green-700 dark:text-green-400">
             API key created — copy it now, you won't see it again
           </p>
           <div className="flex items-center gap-2">
             <code className="flex-1 text-[11px] font-mono bg-white dark:bg-[hsl(200,30%,10%)] border rounded px-2 py-1.5 overflow-x-auto">
               {showKey ? createdKey : createdKey.substring(0, 12) + '•'.repeat(30)}
             </code>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" onClick={() => setShowKey(!showKey)}>
+            <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => setShowKey(!showKey)}>
               {showKey ? <EyeOff size={12} /> : <Eye size={12} />}
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" onClick={() => handleCopy(createdKey)}>
+            <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => handleCopy(createdKey)}>
               <Copy size={12} />
             </Button>
           </div>
@@ -872,7 +872,7 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
       </div>
 
       <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(200,30%,8%)] p-3 space-y-2">
-        <p className="text-[12px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Quick Start</p>
+        <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Quick Start</p>
         <pre className="text-[10px] font-mono bg-white dark:bg-[hsl(200,30%,10%)] border rounded p-2 overflow-x-auto whitespace-pre text-[#374151] dark:text-[hsl(200,25%,88%)]">{`# List records
 curl "${apiBaseUrl}/bases/${baseSchemaName}/tables/TABLE_SLUG/records" \\
   -H "Authorization: Bearer kdops_YOUR_KEY"

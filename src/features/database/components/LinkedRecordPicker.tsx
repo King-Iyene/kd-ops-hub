@@ -140,7 +140,7 @@ export function LinkedRecordPicker({
         {search.trim() && primaryField && (
           <button
             type="button"
-            className="w-full text-left px-2.5 py-1.5 flex items-center gap-2 text-[12px] text-[#2D7FF9] hover:bg-[#2D7FF9]/5 rounded-md transition-colors"
+            className="w-full text-left px-2.5 py-1.5 flex items-center gap-2 text-xs text-[#2D7FF9] hover:bg-[#2D7FF9]/5 rounded-md transition-colors"
             onClick={handleCreateAndLink}
             disabled={isCreating}
           >

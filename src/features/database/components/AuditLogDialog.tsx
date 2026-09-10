@@ -60,7 +60,7 @@ function ChangeDiff({ changes }: { changes: Record<string, { old: any; new: any 
   if (entries.length === 0) return null;
 
   return (
-    <div className="mt-2 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] overflow-hidden text-[12px]">
+    <div className="mt-2 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] overflow-hidden text-xs">
       {entries.map(([field, { old: oldVal, new: newVal }]) => (
         <div
           key={field}
@@ -118,7 +118,7 @@ function EntryRow({ entry }: { entry: AuditLogEntry }) {
             {formatTimestamp(entry.created_at)}
           </span>
         </div>
-        <p className="text-[12px] text-[#6A7184] dark:text-[hsl(200,25%,60%)] mt-0.5 truncate">
+        <p className="text-xs text-[#6A7184] dark:text-[hsl(200,25%,60%)] mt-0.5 truncate">
           {entry.description ?? entry.action}
         </p>
         {entry.action === 'UPDATE' && entry.old_value && entry.new_value && (
@@ -171,14 +171,14 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
               placeholder="Search actions..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-              className="h-8 pl-8 text-[12px] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]"
+              className="h-8 pl-8 text-xs border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]"
             />
           </div>
           <Select
             value={actionFilter}
             onValueChange={(v) => { setActionFilter(v as ActionType | 'ALL'); setPage(0); }}
           >
-            <SelectTrigger className="h-8 w-[160px] text-[12px] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
+            <SelectTrigger className="h-8 w-[160px] text-xs border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
               <Filter size={12} className="mr-1 text-[#6A7184] dark:text-[hsl(200,25%,60%)]" />
               <SelectValue />
             </SelectTrigger>
@@ -203,10 +203,10 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
               <div className="h-12 w-12 rounded-full bg-[#F4F4F5] dark:bg-[hsl(200,30%,14%)] flex items-center justify-center mb-3">
                 <History size={24} className="text-[#6A7184] dark:text-[hsl(200,25%,50%)]" />
               </div>
-              <p className="text-[14px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
+              <p className="text-sm font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
                 No audit entries
               </p>
-              <p className="text-[12px] text-[#6A7184] dark:text-[hsl(200,25%,60%)] mt-1">
+              <p className="text-xs text-[#6A7184] dark:text-[hsl(200,25%,60%)] mt-1">
                 {search || actionFilter !== 'ALL'
                   ? 'Try adjusting your filters.'
                   : 'Actions performed on this base will appear here.'}
@@ -223,7 +223,7 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-[12px] text-[#6A7184] dark:text-[hsl(200,25%,60%)]"
+              className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,25%,60%)]"
               disabled={page === 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
             >
@@ -233,7 +233,7 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-[12px] text-[#6A7184] dark:text-[hsl(200,25%,60%)]"
+              className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,25%,60%)]"
               disabled={!hasMore}
               onClick={() => setPage((p) => p + 1)}
             >

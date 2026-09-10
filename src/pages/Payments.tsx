@@ -493,7 +493,7 @@ const Payments = () => {
                   <TabsTrigger
                     key={value}
                     value={value}
-                    className="text-[10.5px] font-semibold uppercase tracking-[0.14em] px-3 h-8 rounded-none shrink-0 border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                    className="text-2xs font-semibold uppercase tracking-[0.14em] px-3 h-8 rounded-none shrink-0 border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
                   >
                     {label}
                   </TabsTrigger>
@@ -507,7 +507,7 @@ const Payments = () => {
               placeholder="Search…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-8 text-[12px] rounded-md font-mono"
+              className="pl-9 h-8 text-xs rounded-md font-mono"
             />
           </div>
         </div>
@@ -594,7 +594,7 @@ const Payments = () => {
                       </p>
                     </div>
 
-                    <div className="md:hidden basis-full mt-1 flex items-center gap-2 text-[10.5px] text-muted-foreground tabular-nums font-mono">
+                    <div className="md:hidden basis-full mt-1 flex items-center gap-2 text-2xs text-muted-foreground tabular-nums font-mono">
                       <StatusBadge status={batch.status} variant="outline" size="sm" />
                       <span className="text-muted-foreground/40">·</span>
                       <span>{batch.beneficiary_count} · {formatDate(batch.payment_date)}</span>

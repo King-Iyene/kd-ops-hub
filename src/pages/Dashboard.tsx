@@ -717,7 +717,7 @@ const Dashboard = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
               <CardTitle className="kd-section-title">Budget Utilisation</CardTitle>
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/budgets')}>
+              <Button variant="ghost" size="xs" onClick={() => navigate('/budgets')}>
                 View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </Button>
             </CardHeader>
@@ -839,7 +839,7 @@ const Dashboard = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
               <CardTitle className="kd-section-title">Upcoming Renewals</CardTitle>
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/subscriptions')}>
+              <Button variant="ghost" size="xs" onClick={() => navigate('/subscriptions')}>
                 View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </Button>
             </CardHeader>
@@ -883,7 +883,7 @@ const Dashboard = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
                 <CardTitle className="kd-section-title">Payments This Week</CardTitle>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/payments/schedule')}>
+                <Button variant="ghost" size="xs" onClick={() => navigate('/payments/schedule')}>
                   Schedule <ArrowRight className="ml-1 h-3.5 w-3.5" />
                 </Button>
               </CardHeader>
@@ -924,7 +924,7 @@ const Dashboard = () => {
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
           <CardTitle className="kd-section-title">Recent Activity</CardTitle>
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/audit')}>
+          <Button variant="ghost" size="xs" onClick={() => navigate('/audit')}>
             Full audit log <ArrowRight className="ml-1 h-3.5 w-3.5" />
           </Button>
         </CardHeader>

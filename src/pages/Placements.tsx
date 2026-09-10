@@ -977,7 +977,7 @@ function Placements() {
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {stats.overdueCount} payment{stats.overdueCount !== 1 ? 's' : ''} overdue. Review in the Payment Tracker tab.
                     </p>
-                    <Button variant="ghost" size="sm" className="mt-2 h-7 text-xs text-red-600" onClick={() => { setActiveTab('payments'); setPayFilterStatus('overdue'); }}>
+                    <Button variant="ghost" size="xs" className="mt-2 text-red-600" onClick={() => { setActiveTab('payments'); setPayFilterStatus('overdue'); }}>
                       View Overdue <ArrowUpRight className="h-3 w-3 ml-1" />
                     </Button>
                   </div>
@@ -1448,7 +1448,7 @@ function Placements() {
                                 <CheckCircle2 className="h-3.5 w-3.5" /> Paid
                               </button>
                             ) : isAdmin ? (
-                              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => toggleClientPaid(pp.id, true)}>
+                              <Button variant="ghost" size="xs" onClick={() => toggleClientPaid(pp.id, true)}>
                                 Mark Paid
                               </Button>
                             ) : (
@@ -1465,7 +1465,7 @@ function Placements() {
                                 <CheckCircle2 className="h-3.5 w-3.5" /> Paid
                               </button>
                             ) : isAdmin ? (
-                              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => toggleOperatorPaid(pp.id, true)}>
+                              <Button variant="ghost" size="xs" onClick={() => toggleOperatorPaid(pp.id, true)}>
                                 Mark Paid
                               </Button>
                             ) : (
@@ -1641,7 +1641,7 @@ function Placements() {
             <div className="rounded-lg border border-border/70 bg-card p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold">FX Rate Trend (from payments)</h3>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={fetchFxRate}>
+                <Button variant="ghost" size="xs" onClick={fetchFxRate}>
                   <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loadingFxRate ? 'animate-spin' : ''}`} /> Refresh
                 </Button>
               </div>
@@ -2271,7 +2271,7 @@ function Placements() {
                                   <CheckCircle2 className="h-3.5 w-3.5" /> Paid
                                 </button>
                               ) : isAdmin ? (
-                                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => toggleClientPaid(pp.id, true)}>
+                                <Button variant="ghost" size="xs" onClick={() => toggleClientPaid(pp.id, true)}>
                                   Mark Paid
                                 </Button>
                               ) : (
@@ -2288,7 +2288,7 @@ function Placements() {
                                   <CheckCircle2 className="h-3.5 w-3.5" /> Paid
                                 </button>
                               ) : isAdmin ? (
-                                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => toggleOperatorPaid(pp.id, true)}>
+                                <Button variant="ghost" size="xs" onClick={() => toggleOperatorPaid(pp.id, true)}>
                                   Mark Paid
                                 </Button>
                               ) : (

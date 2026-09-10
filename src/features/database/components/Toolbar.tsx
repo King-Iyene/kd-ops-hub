@@ -545,7 +545,7 @@ function SaveFilterAsViewDialog({
           type="text"
           autoFocus
           placeholder="View name"
-          className="w-full px-2 py-1.5 text-[12px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] focus:border-[#2D7FF9] mb-3"
+          className="w-full px-2 py-1.5 text-xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] focus:border-[#2D7FF9] mb-3"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
@@ -831,7 +831,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
               checked={!hiddenFieldIds.has(f.id)}
               onChange={() => toggleHiddenField(f.id)}
             />
-            <span className="text-[12px] text-[#374151] dark:text-[hsl(200,25%,88%)] truncate flex-1">{f.name}</span>
+            <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] truncate flex-1">{f.name}</span>
             <button
               className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-white/10 disabled:opacity-20"
               disabled={!searchTerm && i === 0}
@@ -1166,7 +1166,7 @@ export function Toolbar() {
                   {ROW_HEIGHT_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
-                      className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center justify-between text-zinc-700 dark:text-zinc-200"
+                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center justify-between text-zinc-700 dark:text-zinc-200"
                       onClick={() => { setRowHeight(opt.value); setMoreOpen(false); }}
                     >
                       <span className="flex items-center gap-2">
@@ -1179,14 +1179,14 @@ export function Toolbar() {
                   <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
                   {/* Undo / Redo */}
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200 disabled:opacity-30"
+                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200 disabled:opacity-30"
                     disabled={stack.length === 0}
                     onClick={() => { undo(); setMoreOpen(false); }}
                   >
                     <Undo2 size={14} className="text-zinc-400 dark:text-zinc-500" /> Undo
                   </button>
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200 disabled:opacity-30"
+                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200 disabled:opacity-30"
                     disabled={redoStack.length === 0}
                     onClick={() => { redo(); setMoreOpen(false); }}
                   >
@@ -1195,7 +1195,7 @@ export function Toolbar() {
                   <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
                   {/* Import / Export */}
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
+                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
                     onClick={() => {
                       if (fieldsData && recordsData?.records) {
                         exportToCsv(fieldsData, recordsData.records, tableName);
@@ -1206,7 +1206,7 @@ export function Toolbar() {
                     <Download size={14} className="text-zinc-400 dark:text-zinc-500" /> Download CSV
                   </button>
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
+                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
                     onClick={() => {
                       if (fieldsData && recordsData?.records) {
                         const visible = fieldsData.filter((f: FieldMeta) => !f.is_system && f.ui_type !== 'ID');
@@ -1229,7 +1229,7 @@ export function Toolbar() {
                     <Download size={14} className="text-zinc-400 dark:text-zinc-500" /> Download JSON
                   </button>
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
+                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
                     onClick={() => {
                       setImportCsvOpen(true);
                       setMoreOpen(false);
@@ -1239,7 +1239,7 @@ export function Toolbar() {
                   </button>
                   <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
+                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
                     onClick={() => {
                       window.dispatchEvent(new CustomEvent('kdops:print'));
                       setMoreOpen(false);
@@ -1249,7 +1249,7 @@ export function Toolbar() {
                   </button>
                   <div className="h-px bg-zinc-100 dark:bg-zinc-700/50 my-1" />
                   <button
-                    className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
+                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
                     onClick={() => {
                       setDuplicateDetOpen(true);
                       setMoreOpen(false);

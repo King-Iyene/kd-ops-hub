@@ -118,7 +118,7 @@ function Callout({ type, children }: { type: 'tip' | 'warning' | 'info'; childre
   };
   const s = styles[type];
   return (
-    <div className={cn('rounded-lg border px-3 py-2.5 text-[12px] leading-relaxed', s.border, s.bg)}>
+    <div className={cn('rounded-lg border px-3 py-2.5 text-xs leading-relaxed', s.border, s.bg)}>
       <div className="flex items-start gap-2">
         {s.icon}
         <div>
@@ -480,7 +480,7 @@ function N8nGuide({ mod, color }: { mod: ModuleDef; color: string }) {
   return (
     <div className="space-y-4">
       <SectionTitle>Prerequisites</SectionTitle>
-      <ul className="space-y-1.5 text-[12px] text-zinc-600 dark:text-zinc-400 ml-4">
+      <ul className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400 ml-4">
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> An n8n instance running (self-hosted or n8n Cloud)</li>
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A KDOps API key with the <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{mod.id}:read</code> and <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{mod.id}:write</code> scopes</li>
       </ul>
@@ -492,7 +492,7 @@ function N8nGuide({ mod, color }: { mod: ModuleDef; color: string }) {
       <div className="space-y-4">
         <div className="flex items-start gap-3">
           <StepNumber n={1} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Open your n8n instance</strong> and click the <strong>"+ New Workflow"</strong> button in the top-right corner.
             Give it a descriptive name, e.g., <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">KDOps {mod.name} Sync</code>.
           </div>
@@ -500,7 +500,7 @@ function N8nGuide({ mod, color }: { mod: ModuleDef; color: string }) {
 
         <div className="flex items-start gap-3">
           <StepNumber n={2} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Add a trigger node.</strong> Click the <strong>"+"</strong> button on the canvas. Choose your trigger:
             <ul className="mt-1.5 ml-4 space-y-1 list-disc text-zinc-500 dark:text-zinc-400">
               <li><strong>Schedule Trigger</strong> &mdash; runs on a timer (e.g., every 5 minutes)</li>
@@ -512,14 +512,14 @@ function N8nGuide({ mod, color }: { mod: ModuleDef; color: string }) {
 
         <div className="flex items-start gap-3">
           <StepNumber n={3} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Add an HTTP Request node.</strong> Click <strong>"+"</strong> after the trigger. Search for <strong>"HTTP Request"</strong> in the node palette and click it to add it.
           </div>
         </div>
 
         <div className="flex items-start gap-3">
           <StepNumber n={4} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Configure the HTTP Request node:</strong>
             <div className="mt-2 space-y-2">
               <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
@@ -554,7 +554,7 @@ function N8nGuide({ mod, color }: { mod: ModuleDef; color: string }) {
 
         <div className="flex items-start gap-3">
           <StepNumber n={5} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>For POST/PATCH requests</strong> &mdash; set the body:
             <ul className="mt-1.5 ml-4 space-y-1 list-disc text-zinc-500 dark:text-zinc-400">
               <li>Under <strong>"Body Content Type"</strong>, select <strong>"JSON"</strong></li>
@@ -569,14 +569,14 @@ function N8nGuide({ mod, color }: { mod: ModuleDef; color: string }) {
 
       <div className="flex items-start gap-3">
         <StepNumber n={6} color={color} />
-        <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+        <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
           <strong>Test the node.</strong> Click the <strong>"Test step"</strong> button at the top of the HTTP Request node. If configured correctly, you'll see a green checkmark and the API response on the right panel.
         </div>
       </div>
 
       <div className="flex items-start gap-3">
         <StepNumber n={7} color={color} />
-        <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+        <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
           <strong>Activate the workflow.</strong> Toggle the <strong>"Active"</strong> switch in the top-right corner. Your workflow is now live and will run on the schedule or when triggered.
         </div>
       </div>
@@ -589,31 +589,31 @@ function N8nGuide({ mod, color }: { mod: ModuleDef; color: string }) {
       <div className="space-y-3">
         <div className="flex items-start gap-3">
           <StepNumber n={1} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             In your n8n workflow, add a <strong>"Webhook"</strong> trigger node (search for "Webhook" in the node palette).
           </div>
         </div>
         <div className="flex items-start gap-3">
           <StepNumber n={2} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             Set HTTP Method to <strong>POST</strong>. n8n will display a <strong>webhook URL</strong> &mdash; copy it.
           </div>
         </div>
         <div className="flex items-start gap-3">
           <StepNumber n={3} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             Go to the KDOps Developer Hub &rarr; <strong>Webhooks</strong> tab &rarr; click <strong>"Add Webhook"</strong>.
           </div>
         </div>
         <div className="flex items-start gap-3">
           <StepNumber n={4} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             Paste the n8n webhook URL. Select the events you want to receive (e.g., <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{mod.id.replace(/s$/, '')}.created</code>, <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{mod.id.replace(/s$/, '')}.updated</code>).
           </div>
         </div>
         <div className="flex items-start gap-3">
           <StepNumber n={5} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             Click <strong>"Save"</strong>. Now whenever that event fires in KDOps, n8n receives it instantly.
           </div>
         </div>
@@ -630,7 +630,7 @@ function ZapierGuide({ mod, color }: { mod: ModuleDef; color: string }) {
   return (
     <div className="space-y-4">
       <SectionTitle>Prerequisites</SectionTitle>
-      <ul className="space-y-1.5 text-[12px] text-zinc-600 dark:text-zinc-400 ml-4">
+      <ul className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400 ml-4">
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A Zapier account (free or paid)</li>
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A KDOps API key with appropriate scopes</li>
       </ul>
@@ -643,14 +643,14 @@ function ZapierGuide({ mod, color }: { mod: ModuleDef; color: string }) {
       <div className="space-y-4">
         <div className="flex items-start gap-3">
           <StepNumber n={1} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Log in to Zapier</strong> and click <strong>"+ Create"</strong> &rarr; <strong>"Zaps"</strong> from the left sidebar.
           </div>
         </div>
 
         <div className="flex items-start gap-3">
           <StepNumber n={2} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Choose your Trigger.</strong> This is what starts the Zap. Common triggers:
             <ul className="mt-1.5 ml-4 space-y-1 list-disc text-zinc-500 dark:text-zinc-400">
               <li><strong>Google Sheets</strong> &rarr; "New Spreadsheet Row" (sync sheet data to KDOps)</li>
@@ -664,14 +664,14 @@ function ZapierGuide({ mod, color }: { mod: ModuleDef; color: string }) {
 
         <div className="flex items-start gap-3">
           <StepNumber n={3} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Add an Action step.</strong> Click the <strong>"+"</strong> below your trigger. Search for <strong>"Webhooks by Zapier"</strong> and select it. Choose <strong>"Custom Request"</strong> as the action event.
           </div>
         </div>
 
         <div className="flex items-start gap-3">
           <StepNumber n={4} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Configure the Custom Request:</strong>
             <div className="mt-2 space-y-2">
               <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
@@ -707,7 +707,7 @@ function ZapierGuide({ mod, color }: { mod: ModuleDef; color: string }) {
 
         <div className="flex items-start gap-3">
           <StepNumber n={5} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Paste the JSON body</strong> into the "Data" field. Replace the <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{'{{field}}'}</code> placeholders by clicking each one and mapping it to your trigger's data from the dropdown.
           </div>
         </div>
@@ -718,13 +718,13 @@ function ZapierGuide({ mod, color }: { mod: ModuleDef; color: string }) {
       <div className="space-y-3">
         <div className="flex items-start gap-3">
           <StepNumber n={6} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Test the action.</strong> Click <strong>"Test step"</strong>. Zapier will make a real API call. Check that you see a success response.
           </div>
         </div>
         <div className="flex items-start gap-3">
           <StepNumber n={7} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Publish the Zap.</strong> Click <strong>"Publish"</strong> in the top-right corner. Your Zap is now live.
           </div>
         </div>
@@ -738,19 +738,19 @@ function ZapierGuide({ mod, color }: { mod: ModuleDef; color: string }) {
       <div className="space-y-3">
         <div className="flex items-start gap-3">
           <StepNumber n={1} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             Create a new Zap. For the trigger, search <strong>"Webhooks by Zapier"</strong> &rarr; <strong>"Catch Hook"</strong>.
           </div>
         </div>
         <div className="flex items-start gap-3">
           <StepNumber n={2} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             Zapier gives you a <strong>webhook URL</strong> (like <code className="text-[10px] font-mono px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">https://hooks.zapier.com/hooks/catch/...</code>). Copy it.
           </div>
         </div>
         <div className="flex items-start gap-3">
           <StepNumber n={3} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             In the KDOps Developer Hub, go to <strong>Webhooks</strong> tab &rarr; <strong>"Add Webhook"</strong> &rarr; paste the Zapier URL &rarr; select your events &rarr; <strong>"Save"</strong>.
           </div>
         </div>
@@ -767,7 +767,7 @@ function MakeGuide({ mod, color }: { mod: ModuleDef; color: string }) {
   return (
     <div className="space-y-4">
       <SectionTitle>Prerequisites</SectionTitle>
-      <ul className="space-y-1.5 text-[12px] text-zinc-600 dark:text-zinc-400 ml-4">
+      <ul className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400 ml-4">
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A Make account (free or paid)</li>
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A KDOps API key with appropriate scopes</li>
       </ul>
@@ -776,25 +776,25 @@ function MakeGuide({ mod, color }: { mod: ModuleDef; color: string }) {
       <div className="space-y-4">
         <div className="flex items-start gap-3">
           <StepNumber n={1} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Log in to Make</strong> and click <strong>"Create a new scenario"</strong> from the dashboard.
           </div>
         </div>
         <div className="flex items-start gap-3">
           <StepNumber n={2} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Add a trigger module.</strong> Click the <strong>"+"</strong> in the center of the canvas. Choose your trigger app (e.g., Google Sheets, Webhook, Schedule). Configure it and click <strong>"OK"</strong>.
           </div>
         </div>
         <div className="flex items-start gap-3">
           <StepNumber n={3} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Add an HTTP module.</strong> Click the <strong>"+"</strong> after the trigger. Search for <strong>"HTTP"</strong> &rarr; choose <strong>"Make a request"</strong>.
           </div>
         </div>
         <div className="flex items-start gap-3">
           <StepNumber n={4} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Configure the HTTP module:</strong>
             <div className="mt-2 space-y-2">
               <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
@@ -833,7 +833,7 @@ function MakeGuide({ mod, color }: { mod: ModuleDef; color: string }) {
         </div>
         <div className="flex items-start gap-3">
           <StepNumber n={5} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Paste the JSON body</strong> into the "Request content" field. Replace <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{'{{1.fieldName}}'}</code> placeholders by clicking and choosing from the variable picker. The <code className="font-mono">1</code> refers to module #1 (your trigger).
           </div>
         </div>
@@ -844,13 +844,13 @@ function MakeGuide({ mod, color }: { mod: ModuleDef; color: string }) {
       <div className="space-y-3">
         <div className="flex items-start gap-3">
           <StepNumber n={6} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Run once to test.</strong> Click <strong>"Run once"</strong> at the bottom-left. Make will execute the scenario and show results on each module.
           </div>
         </div>
         <div className="flex items-start gap-3">
           <StepNumber n={7} color={color} />
-          <div className="text-[12px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Set the schedule.</strong> Click the clock icon on the trigger module. Set your schedule (e.g., every 15 minutes, or "Immediately" for webhooks). Then toggle the scenario <strong>ON</strong>.
           </div>
         </div>
@@ -870,7 +870,7 @@ function PythonGuide({ mod }: { mod: ModuleDef }) {
   return (
     <div className="space-y-4">
       <SectionTitle>Prerequisites</SectionTitle>
-      <ul className="space-y-1.5 text-[12px] text-zinc-600 dark:text-zinc-400 ml-4">
+      <ul className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400 ml-4">
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> Python 3.7 or later installed</li>
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">requests</code> library installed (<code className="font-mono text-[10px]">pip install requests</code>)</li>
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A KDOps API key</li>
@@ -895,7 +895,7 @@ function NodeGuide({ mod }: { mod: ModuleDef }) {
   return (
     <div className="space-y-4">
       <SectionTitle>Prerequisites</SectionTitle>
-      <ul className="space-y-1.5 text-[12px] text-zinc-600 dark:text-zinc-400 ml-4">
+      <ul className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400 ml-4">
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> Node.js 18+ (for built-in <code className="text-[11px] font-mono">fetch</code>)</li>
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A KDOps API key</li>
       </ul>
@@ -921,7 +921,7 @@ function CurlGuide({ mod }: { mod: ModuleDef }) {
   return (
     <div className="space-y-4">
       <SectionTitle>Prerequisites</SectionTitle>
-      <ul className="space-y-1.5 text-[12px] text-zinc-600 dark:text-zinc-400 ml-4">
+      <ul className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400 ml-4">
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> cURL installed (pre-installed on macOS, Linux, and Windows 10+)</li>
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A terminal/command prompt</li>
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A KDOps API key</li>
@@ -948,7 +948,7 @@ function PhpGuide({ mod }: { mod: ModuleDef }) {
   return (
     <div className="space-y-4">
       <SectionTitle>Prerequisites</SectionTitle>
-      <ul className="space-y-1.5 text-[12px] text-zinc-600 dark:text-zinc-400 ml-4">
+      <ul className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400 ml-4">
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> PHP 7.4+ with the cURL extension enabled</li>
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A KDOps API key</li>
       </ul>
@@ -1111,7 +1111,7 @@ export default function IntegrationGuides() {
               key={p.id}
               onClick={() => setPlatform(p.id)}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all border',
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border',
                 platform === p.id
                   ? 'text-white shadow-sm'
                   : 'text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 bg-white dark:bg-zinc-900',
@@ -1136,7 +1136,7 @@ export default function IntegrationGuides() {
               key={m.id}
               onClick={() => setModule(m.id)}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all border',
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border',
                 module === m.id
                   ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                   : 'text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 bg-white dark:bg-zinc-900',

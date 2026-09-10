@@ -78,7 +78,7 @@ export function SortPanel({ fields, sorts, onSortsChange }: SortPanelProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1">
+        <Button variant="ghost" size="xs" className="text-[#6A7184] dark:text-[hsl(200,20%,55%)] gap-1">
           <ArrowUpDown size={14} />
           Sort
           {activeCount > 0 && (
@@ -136,8 +136,8 @@ export function SortPanel({ fields, sorts, onSortsChange }: SortPanelProps) {
                 {/* Delete */}
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 text-[#9AA2AF] hover:text-red-500 shrink-0"
+                  size="icon-sm"
+                  className="text-[#9AA2AF] hover:text-red-500 shrink-0"
                   onClick={() => removeSort(idx)}
                 >
                   <X size={14} />
