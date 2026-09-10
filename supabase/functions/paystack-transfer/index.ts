@@ -94,10 +94,18 @@ async function writeTransferAudit(serviceClient: any, row: AuditRow) {
 // flutterwave-transfer/index.ts. Reads company_settings.paystack_mode
 // ('test' | 'live', default 'live') and picks the matching env var.
 // Falls back to the legacy single PAYSTACK_SECRET_KEY for backward compat.
+// Per-request cache only — do NOT cache across requests because a
+// provider-switch (test↔live) changes the mode in company_settings and
+// the cached secret from the old mode would silently persist until the
+// isolate recycles.
 let _cachedPaystackSecret: string | null = null;
+let _cachedPaystackSecretTs = 0;
+const SECRET_CACHE_TTL_MS = 30_000; // 30s — covers retries within one request
 
 async function getPaystackSecret(serviceClient?: any): Promise<string> {
-  if (_cachedPaystackSecret) return _cachedPaystackSecret;
+  if (_cachedPaystackSecret && (Date.now() - _cachedPaystackSecretTs) < SECRET_CACHE_TTL_MS) {
+    return _cachedPaystackSecret;
+  }
 
   const svc = serviceClient ?? createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -149,6 +157,7 @@ async function getPaystackSecret(serviceClient?: any): Promise<string> {
   }
 
   _cachedPaystackSecret = secret;
+  _cachedPaystackSecretTs = Date.now();
   return secret;
 }
 

@@ -15,13 +15,16 @@ export function constantTimeEquals(
   expected: string | null | undefined,
 ): boolean {
   if (!provided || !expected) return false;
-  if (provided.length !== expected.length) return false;
   const enc = new TextEncoder();
   const a = enc.encode(provided);
   const b = enc.encode(expected);
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a[i] ^ b[i];
+  // Always iterate over the expected length so the loop duration doesn't
+  // leak the expected secret's length. XOR with 0xFF when provided is
+  // shorter so mismatched lengths still traverse the full expected array.
+  const lenDiff = a.length ^ b.length;
+  let diff = lenDiff;
+  for (let i = 0; i < b.length; i++) {
+    diff |= (i < a.length ? a[i] : 0xFF) ^ b[i];
   }
   return diff === 0;
 }

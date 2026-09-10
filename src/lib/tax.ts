@@ -162,6 +162,11 @@ export interface PayslipInput {
    *  above the statutory 8%. PRA 2014 s.4(3). Applied on top of the mandatory
    *  8% and deducted pre-tax like the mandatory pension contribution. */
   voluntaryPensionPct?: number;
+  /** One-off or recurring taxable earnings (bonuses, overtime, etc.) that
+   *  inflate the PAYE chargeable income but are NOT part of the pension/NHF
+   *  base under PRA 2014. Passed separately so legacy (non-components)
+   *  employees don't have pension/NHF over-deducted on bonus months. */
+  additionalTaxableMonthlyNgn?: number;
 }
 
 export interface PayslipBreakdown {
@@ -303,9 +308,13 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
 
   const lifeAssuranceMonthlyNgn = Math.max(0, (input.annualLifeAssuranceNgn || 0) / 12);
 
+  // Additional taxable earnings (bonuses, overtime) inflate PAYE base only,
+  // never pension/NHF — PRA 2014 limits pension to basic+housing+transport.
+  const additionalTaxable = Math.max(0, input.additionalTaxableMonthlyNgn || 0);
+
   const chargeableMonthlyNgn = Math.max(
     0,
-    payableGrossMonthlyNgn
+    payableGrossMonthlyNgn + additionalTaxable
       - pensionEmployeeMonthlyNgn
       - voluntaryPensionMonthlyNgn
       - nhfMonthlyNgn

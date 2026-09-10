@@ -110,11 +110,19 @@ async function writeTransferAudit(serviceClient: any, row: AuditRow) {
 //   Reads company_settings.flutterwave_mode (default 'test') and picks the
 //   matching Supabase secret. Cached per-invocation to avoid a second DB hit.
 // ─────────────────────────────────────────────────────────────────────────
+// Per-request cache only — do NOT cache across requests because a
+// provider-switch (test↔live) changes the mode in company_settings and
+// the cached secret from the old mode would silently persist until the
+// isolate recycles.
 let _cachedSecret: string | null = null;
 let _cachedMode: "test" | "live" | null = null;
+let _cachedSecretTs = 0;
+const SECRET_CACHE_TTL_MS = 30_000; // 30s — covers retries within one request
 
 async function getFlutterwaveSecret(serviceClient: any): Promise<string> {
-  if (_cachedSecret) return _cachedSecret;
+  if (_cachedSecret && (Date.now() - _cachedSecretTs) < SECRET_CACHE_TTL_MS) {
+    return _cachedSecret;
+  }
 
   const { data } = await serviceClient
     .from("company_settings")
@@ -150,6 +158,7 @@ async function getFlutterwaveSecret(serviceClient: any): Promise<string> {
   }
 
   _cachedSecret = secret;
+  _cachedSecretTs = Date.now();
   return secret;
 }
 

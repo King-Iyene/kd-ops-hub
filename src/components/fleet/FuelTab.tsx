@@ -2259,7 +2259,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
 
                   <div className="flex items-center gap-3 text-xs">
                     {r.status === 'budget_blocked'
-                      ? <Badge variant="outline" className="border-red-300 text-red-700 bg-red-50">Over Budget</Badge>
+                      ? <Badge variant="outline" className="border-red-300 text-red-700 bg-red-50 dark:bg-red-950/20 dark:text-red-400">Over Budget</Badge>
                       : <StatusBadge status={displayFuelStatus(r)} />}
                     <span className="text-muted-foreground tabular-nums ml-auto">
                       {r.litres_est ? `${r.litres_est} L` : ''}
@@ -2926,7 +2926,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
               <Wrench className="h-5 w-5 text-orange-600 dark:text-orange-400" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold kd-display leading-none">Vehicle Repair / Maintenance</h2>
+              <DialogTitle className="text-lg font-semibold kd-display leading-none">Vehicle Repair / Maintenance</DialogTitle>
               <p className="text-xs text-muted-foreground mt-0.5">Submit a repair or maintenance cost for reimbursement or direct payment.</p>
             </div>
           </div>

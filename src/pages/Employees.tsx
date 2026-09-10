@@ -757,7 +757,7 @@ const Employees = () => {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-0.5 opacity-0 group-hover:opacity-100 kd-transition">
+                        <div className="flex justify-end gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 kd-transition">
                           {isAdmin && e.status !== 'inactive' && (
                             <Button
                               size="sm"

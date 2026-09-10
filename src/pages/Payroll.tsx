@@ -36,6 +36,8 @@ import {
   PENSION_EMPLOYEE_RATE as PENSION_RATE,
   PENSION_EMPLOYER_RATE as EMPLOYER_PENSION_RATE,
   NHF_RATE,
+  NHIS_EMPLOYEE_RATE,
+  NHIS_EMPLOYER_RATE,
   NSITF_RATE,
   computePayslip,
 } from '@/lib/tax';
@@ -601,10 +603,22 @@ const Payroll = () => {
       // NSITF is legally required for firms with 5+ staff.
       const includeNsitf = (companySettings as any)?.nsitf_enabled !== false;
       const nsitfCharge = includeNsitf ? totalEmployee * NSITF_RATE : 0;
+      // NHIS (NHIA Act 2022 s.26): 5% employee + 10% employer on basic salary.
+      // Must be included in burn so the draft cost shown to approvers is accurate.
+      const companyNhisOn = companySettings?.nhis_enabled === true;
+      const nhisEmployee = companyNhisOn
+        ? filteredEmployees.reduce(
+            (s: number, r: any) => s + (r.nhis_enabled === true ? nhfBaseFor(r) * NHIS_EMPLOYEE_RATE : 0), 0)
+        : 0;
+      const nhisEmployer = companyNhisOn
+        ? filteredEmployees.reduce(
+            (s: number, r: any) => s + (r.nhis_enabled === true ? nhfBaseFor(r) * NHIS_EMPLOYER_RATE : 0), 0)
+        : 0;
 
       const burn =
         totalContractor + totalEmployee + totalExpenses +
         paye + pension + nhf + employerPension + nsitfCharge +
+        nhisEmployee + nhisEmployer +
         bonusTotal + totalAllowances - totalDeductions - totalAdvanceRepayments;
 
       // Find-or-create, NOT .upsert() — the real unique constraints here are
@@ -803,7 +817,7 @@ const Payroll = () => {
         .select('id, full_name, salary_ngn, bank_name, bank_account_number, department_id, employee_category, employment_type, pay_group_id, tax_id, pension_pin, nhf_number, pension_enabled')
         .eq('status', 'active')
         .neq('role', 'driver')
-        .limit(500);
+        .limit(2000);
       if (error) throw error;
 
       const runSegmentRules = await fetchSegmentRules(run.payroll_segment_id);
@@ -1010,7 +1024,7 @@ const Payroll = () => {
         .eq('status', 'active')
         .neq('role', 'driver')
         .gt('salary_ngn', 0)
-        .limit(500);
+        .limit(2000);
       if (fetchErr) throw fetchErr;
 
       // Apply the same payroll segment filter that was used when this run was
@@ -1271,9 +1285,10 @@ const Payroll = () => {
             }
           }
 
-          const payeBase   = empGross + taxableEarningsAdd + recurTaxable;
+          const taxableEarningsExtra = taxableEarningsAdd + recurTaxable;
           const empBreak   = computePayslip({
-            grossMonthlyNgn: payeBase,
+            grossMonthlyNgn: empGross,
+            additionalTaxableMonthlyNgn: taxableEarningsExtra,
             pensionEnabled: companySettings?.pension_enabled !== false && e.pension_enabled !== false,
             payeEnabled: companySettings?.paye_enabled !== false,
             nhfEnabled: companySettings?.nhf_enabled === true && e.nhf_enabled === true,
@@ -1547,7 +1562,8 @@ const Payroll = () => {
               period: monthLabel(run.period),
               grossFormatted: formatNaira(empGrossTotal),
               deductionsFormatted: formatNaira(
-                empPaye + empPension + empNhf + empUnpaidLeaveDeduction +
+                empPaye + empPension + empAvc + empNhf + empNhis + empDevLevy +
+                empUnpaidLeaveDeduction +
                 empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal,
               ),
               netFormatted: formatNaira(empNet),
@@ -1794,11 +1810,15 @@ const Payroll = () => {
     // idempotent via payroll_runs.deductions_settled_at.
     const { error: settleError } = await supabase.rpc('settle_payroll_run_deductions', { p_run_id: run.id });
     if (settleError) {
+      // Revert to approved so the run isn't stuck as 'paid' with unsettled balances.
+      await supabase.from('payroll_runs').update({ status: 'approved' }).eq('id', run.id);
       toast({
-        title: 'Marked paid, but settlement failed',
-        description: `${settleError.message} — deduction/advance/loan balances were not updated. Retry from the database or contact an admin.`,
+        title: 'Settlement failed — reverted to Approved',
+        description: `${settleError.message} — deduction/advance/loan balances were not updated. The run has been reverted so you can retry.`,
         variant: 'destructive',
       });
+      load();
+      return;
     }
 
     await logAudit(

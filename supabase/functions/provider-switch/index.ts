@@ -52,6 +52,7 @@ async function probeFlutterwave(mode: "test" | "live"): Promise<{ ok: boolean; b
   try {
     const res = await fetch(`${FLUTTERWAVE_BASE}/balances/NGN`, {
       headers: { Authorization: `Bearer ${secret}` },
+      signal: AbortSignal.timeout(20_000),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok || body?.status === "error") {
@@ -81,6 +82,7 @@ async function probePaystackWith(secret: string): Promise<{ ok: boolean; balance
   try {
     const res = await fetch(`${PAYSTACK_BASE}/balance`, {
       headers: { Authorization: `Bearer ${secret}` },
+      signal: AbortSignal.timeout(20_000),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok || body?.status === false) {

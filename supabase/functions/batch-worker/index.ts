@@ -1297,17 +1297,27 @@ async function fwDispatchChunkBulk(
   if (sendable.length === 0) return { dispatched: 0, failed: preFail };
 
   // Pre-write refs so a lost bulk response is recoverable.
+  // Track per-item write success — items whose DB pre-write fails must NOT
+  // enter the bulk call (same pattern as the Paystack dispatchChunkBulk).
   for (const it of sendable) it._ref = generateFwRef(it.id);
-  await Promise.all(sendable.map((it) =>
-    svc.from("batch_items").update({
+  const refWriteResults = await Promise.all(sendable.map(async (it) => {
+    const { error } = await svc.from("batch_items").update({
       flutterwave_reference: it._ref,
       status: "pending",
       failure_reason: null,
-    }).eq("id", it.id),
-  ));
+    }).eq("id", it.id);
+    if (error) {
+      console.warn(`[batch-worker/fw] ref pre-write failed for item ${it.id}: ${error.message}`);
+      it._ref = null;
+    }
+    return !error;
+  }));
+  const bulkSendable = sendable.filter((_, i) => refWriteResults[i]);
+  const refWriteFails = sendable.length - bulkSendable.length;
+  if (bulkSendable.length === 0) return { dispatched: 0, failed: preFail + refWriteFails };
 
   const title = narration.slice(0, 100);
-  const bulk_data = sendable.map((it) => ({
+  const bulk_data = bulkSendable.map((it) => ({
     bank_code: it._bank_code,
     account_number: String(it.account_number).replace(/\D/g, ""),
     amount: Number(it.amount_ngn),
@@ -1322,8 +1332,8 @@ async function fwDispatchChunkBulk(
   } catch (err) {
     // Refs already written — reconciliation will resolve each via /transfers.
     const reason = (err as Error)?.message || "Flutterwave bulk-transfers call failed";
-    console.error(`[batch-worker/fw] bulk failed (${sendable.length} items): ${reason}`);
-    return { dispatched: 0, failed: preFail, error: reason };
+    console.error(`[batch-worker/fw] bulk failed (${bulkSendable.length} items): ${reason}`);
+    return { dispatched: 0, failed: preFail + refWriteFails, error: reason };
   }
 
   // Flutterwave returns a single batch id; per-recipient statuses come by
@@ -1333,14 +1343,14 @@ async function fwDispatchChunkBulk(
   // succeeded/failed/reversed asynchronously.
   const batchIdFw = String(bulkData?.id ?? "");
   if (batchIdFw) {
-    await Promise.all(sendable.map((it) =>
+    await Promise.all(bulkSendable.map((it) =>
       svc.from("batch_items")
         .update({ flutterwave_transfer_id: batchIdFw })
         .eq("id", it.id),
     ));
   }
 
-  return { dispatched: sendable.length, failed: preFail };
+  return { dispatched: bulkSendable.length, failed: preFail + refWriteFails };
 }
 
 // ─────────────────────────────────────────────────────────────────────────

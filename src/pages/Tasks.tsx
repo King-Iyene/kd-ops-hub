@@ -1242,7 +1242,7 @@ const Tasks = () => {
           {hasMore && !loading && currentView !== 'dashboard' && (
             <div className="flex justify-center py-4">
               <Button variant="outline" size="sm" onClick={() => load(true)} className="text-xs gap-1.5">
-                <Loader2 className="h-3 w-3" /> Load more tasks
+                <ArrowRight className="h-3 w-3 rotate-90" /> Load more tasks
               </Button>
             </div>
           )}
