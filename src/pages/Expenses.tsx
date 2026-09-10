@@ -566,7 +566,7 @@ const Expenses = () => {
       if (!ok) return;
     }
 
-    if (form.category === 'repair' && amount > 10000 && !receiptFile) {
+    if (form.category === 'repair' && isReimbursement && amount > 10000 && !receiptFile) {
       toast({
         title: 'Receipt required',
         description: 'Vehicle repair claims over ₦10,000 must include a receipt.',
@@ -2202,7 +2202,12 @@ const Expenses = () => {
             </div>
 
             <div className="space-y-1">
-              <Label>Receipt (Optional)</Label>
+              <Label>
+                Receipt
+                {form.category === 'repair' && isReimbursement && Number(form.amount_ngn) > 10000
+                  ? ' (Required for reimbursements over ₦10,000)'
+                  : ' (Optional)'}
+              </Label>
               <OcrReceiptScanner
                 className="mb-1"
                 onExtracted={(result: OcrResult, file: File) => {
