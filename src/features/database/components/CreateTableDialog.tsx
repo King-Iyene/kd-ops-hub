@@ -70,7 +70,7 @@ export function CreateTableDialog({ open, onOpenChange }: CreateTableDialogProps
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
             />
           </div>
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>

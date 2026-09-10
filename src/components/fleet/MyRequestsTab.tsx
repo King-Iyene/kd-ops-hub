@@ -167,7 +167,7 @@ export function MyRequestsTab({
             key={r.id}
             className="flex items-start gap-3 rounded-md border px-4 py-3 border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-950/30 dark:text-red-200"
           >
-            <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-red-600" />
+            <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-destructive" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm">Payment sent for {r.station_name} — {formatNaira(r.amount_ngn || 0)}</p>
               <p className="text-xs mt-0.5">
@@ -194,7 +194,7 @@ export function MyRequestsTab({
             key={r.id}
             className="flex items-start gap-3 rounded-md border px-4 py-3 border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-950/30 dark:text-red-200"
           >
-            <Wrench className="h-5 w-5 mt-0.5 shrink-0 text-red-600" />
+            <Wrench className="h-5 w-5 mt-0.5 shrink-0 text-destructive" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm">Repair receipt needed — {r.description || 'Repair'} — {formatNaira(r.amount_ngn || 0)}</p>
               <p className="text-xs mt-0.5">

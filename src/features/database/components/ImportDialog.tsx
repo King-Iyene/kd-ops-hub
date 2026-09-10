@@ -249,13 +249,13 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
         {step === 'done' && (
           <div className="space-y-4 pt-4 pb-2 text-center">
             <div className="mx-auto w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <Check size={20} className="text-green-600" />
+              <Check size={20} className="text-success" />
             </div>
             <p className="text-sm font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Import complete</p>
             <p className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
               {importedCount} rows imported successfully
               {errorCount > 0 && (
-                <span className="text-red-500 ml-1">
+                <span className="text-destructive ml-1">
                   <AlertCircle size={12} className="inline -mt-0.5" /> {errorCount} errors
                 </span>
               )}

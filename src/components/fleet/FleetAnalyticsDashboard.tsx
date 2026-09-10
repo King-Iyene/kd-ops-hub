@@ -55,7 +55,7 @@ export function KpiCard({
         {value === null ? (
           <div className="h-7 w-28 bg-muted animate-pulse rounded mt-1" />
         ) : (
-          <div className={`kd-stat-number text-xl font-bold tracking-tight ${warn ? 'text-red-600' : ''}`}>{value}</div>
+          <div className={`kd-stat-number text-xl font-bold tracking-tight ${warn ? 'text-destructive' : ''}`}>{value}</div>
         )}
         {subtext && value !== null && (
           <div className="text-2xs text-muted-foreground mt-0.5">{subtext}</div>
@@ -346,9 +346,9 @@ function FleetAnalyticsDashboard({
                       <TableCell className="text-right">
                         {s.budget_used_pct != null ? (
                           <span className={
-                            s.budget_used_pct > 90 ? 'text-red-600 font-semibold' :
+                            s.budget_used_pct > 90 ? 'text-destructive font-semibold' :
                             s.budget_used_pct > 70 ? 'text-amber-600' :
-                            'text-green-600'
+                            'text-success'
                           }>
                             {Math.round(s.budget_used_pct)}%
                           </span>

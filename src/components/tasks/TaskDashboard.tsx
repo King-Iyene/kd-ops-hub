@@ -57,10 +57,10 @@ export function TaskDashboard({ tasks, allTasks, profiles, currentUserId, onTask
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard icon={CheckCircle2} label="Completed this week" value={completedThisWeek.length}
           trend={weekTrend !== 0 ? `${weekTrend > 0 ? '+' : ''}${weekTrend}% vs last week` : undefined}
-          trendUp={weekTrend > 0} color="text-emerald-600" />
+          trendUp={weekTrend > 0} color="text-success" />
         <KpiCard icon={Target} label="Completion rate" value={`${completionRate}%`} color="text-blue-600" />
         <KpiCard icon={AlertTriangle} label="Overdue" value={overdueTasks.length}
-          sub={overdueTasks.length > 0 ? 'Needs attention' : 'All on track'} color="text-red-600" />
+          sub={overdueTasks.length > 0 ? 'Needs attention' : 'All on track'} color="text-destructive" />
         <KpiCard icon={TrendingUp} label="Created this week" value={createdThisWeek.length} color="text-violet-600" />
       </div>
 
@@ -126,7 +126,7 @@ export function TaskDashboard({ tasks, allTasks, profiles, currentUserId, onTask
           <CardContent>
             <div className="space-y-3">
               {([
-                { key: 'critical', label: 'Critical', color: 'bg-red-500', text: 'text-red-600' },
+                { key: 'critical', label: 'Critical', color: 'bg-red-500', text: 'text-destructive' },
                 { key: 'high', label: 'High', color: 'bg-orange-400', text: 'text-orange-600' },
                 { key: 'normal', label: 'Normal', color: 'bg-blue-400', text: 'text-blue-600' },
                 { key: 'low', label: 'Low', color: 'bg-slate-300 dark:bg-slate-600', text: 'text-muted-foreground' },
@@ -226,7 +226,7 @@ function KpiCard({ icon: Icon, label, value, trend, trendUp, sub, color }: {
             <p className="text-xs text-muted-foreground font-medium">{label}</p>
             <p className={cn('text-3xl font-bold mt-1 tabular-nums', color)}>{value}</p>
             {trend && (
-              <p className={cn('text-2xs mt-1 flex items-center gap-0.5', trendUp ? 'text-emerald-600' : 'text-red-500')}>
+              <p className={cn('text-2xs mt-1 flex items-center gap-0.5', trendUp ? 'text-success' : 'text-destructive')}>
                 <ArrowUpRight className={cn('h-3 w-3', !trendUp && 'rotate-90')} /> {trend}
               </p>
             )}

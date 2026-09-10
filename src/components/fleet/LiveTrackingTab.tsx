@@ -397,7 +397,7 @@ export function LiveTrackingTab() {
                     <div className="grid grid-cols-3 gap-1 text-xs pt-1">
                       <div>
                         <p className="text-3xs text-muted-foreground uppercase tracking-wide">Speed</p>
-                        <p className={cn('font-mono font-semibold', row.speeding ? 'text-red-600' : 'text-foreground')}>
+                        <p className={cn('font-mono font-semibold', row.speeding ? 'text-destructive' : 'text-foreground')}>
                           {row.last?.speed_kmh != null ? `${Math.round(row.last.speed_kmh)}` : '—'}<span className="text-3xs font-normal text-muted-foreground ml-0.5">km/h</span>
                         </p>
                       </div>

@@ -224,10 +224,10 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Annual Depreciation</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-500" />
+            <TrendingDown className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600 currency">{totalDepreciation > 0 ? formatNaira(totalDepreciation) : '—'}</div>
+            <div className="text-2xl font-bold text-destructive currency">{totalDepreciation > 0 ? formatNaira(totalDepreciation) : '—'}</div>
             <p className="text-xs text-muted-foreground">Per year across fleet</p>
           </CardContent>
         </Card>

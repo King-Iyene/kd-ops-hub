@@ -188,7 +188,7 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
             <CardContent className="p-3">
               <div className="flex items-center gap-1.5 mb-1">
                 <div className="h-5 w-5 rounded-md bg-red-500/10 flex items-center justify-center">
-                  <ArrowDownRight className="h-3 w-3 text-red-500" />
+                  <ArrowDownRight className="h-3 w-3 text-destructive" />
                 </div>
                 <p className="text-xs text-muted-foreground font-medium">YTD Deductions</p>
               </div>
@@ -248,7 +248,7 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
                         <span>Gross {formatNgn(slip.gross_ngn)}</span>
                         {Number(slip.paye_ngn) > 0 && (
                           <span className="flex items-center gap-0.5">
-                            <ArrowDownRight className="h-3 w-3 text-red-500" />
+                            <ArrowDownRight className="h-3 w-3 text-destructive" />
                             PAYE {formatNgn(slip.paye_ngn)}
                           </span>
                         )}

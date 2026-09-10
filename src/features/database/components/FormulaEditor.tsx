@@ -269,8 +269,8 @@ export function FormulaEditor({ value, onChange, fields, error, sampleRecords: s
         </div>
       )}
 
-      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-      {!error && value.trim() && <p className="text-xs text-green-600 mt-1">Formula is valid</p>}
+      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+      {!error && value.trim() && <p className="text-xs text-success mt-1">Formula is valid</p>}
       <div className="text-3xs text-[#9AA2AF] leading-relaxed mt-1">
         <span className="font-medium">Reference fields:</span> {'{FieldName}'} &middot;{' '}
         <span className="font-medium">Functions:</span>{' '}

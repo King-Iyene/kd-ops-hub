@@ -878,7 +878,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
             </div>
           )}
 
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
         {/* Delete field button — hidden for primary fields */}
         {field && !field.is_primary && !field.is_system && (

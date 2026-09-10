@@ -674,7 +674,7 @@ export const EmployeeCsvImport = ({
                               )}
                             </div>
                           ) : (
-                            <span className="text-emerald-600 text-2xs">OK</span>
+                            <span className="text-success text-2xs">OK</span>
                           )}
                         </TableCell>
                       </TableRow>

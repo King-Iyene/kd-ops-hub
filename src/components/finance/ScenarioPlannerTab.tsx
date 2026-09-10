@@ -207,7 +207,7 @@ export default function ScenarioPlannerTab() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground">Monthly Impact</p>
-            <p className={cn('text-lg font-bold', totalMonthlyImpact < 0 ? 'text-destructive' : 'text-emerald-600')}>
+            <p className={cn('text-lg font-bold', totalMonthlyImpact < 0 ? 'text-destructive' : 'text-success')}>
               {totalMonthlyImpact >= 0 ? '+' : ''}{formatNairaCompact(totalMonthlyImpact)}
             </p>
           </CardContent>
@@ -405,10 +405,10 @@ export default function ScenarioPlannerTab() {
                       <TableCell>
                         <Badge variant="secondary" className="text-3xs">{typeDef?.label}</Badge>
                       </TableCell>
-                      <TableCell className={cn('text-right font-medium', signed < 0 ? 'text-destructive' : 'text-emerald-600')}>
+                      <TableCell className={cn('text-right font-medium', signed < 0 ? 'text-destructive' : 'text-success')}>
                         {signed >= 0 ? '+' : ''}{formatNairaCompact(signed)}
                       </TableCell>
-                      <TableCell className={cn('text-right', signed < 0 ? 'text-destructive' : 'text-emerald-600')}>
+                      <TableCell className={cn('text-right', signed < 0 ? 'text-destructive' : 'text-success')}>
                         {signed >= 0 ? '+' : ''}{formatNairaCompact(signed * 12)}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
@@ -419,10 +419,10 @@ export default function ScenarioPlannerTab() {
                 })}
                 <TableRow className="font-bold">
                   <TableCell colSpan={2}>Total</TableCell>
-                  <TableCell className={cn('text-right', totalMonthlyImpact < 0 ? 'text-destructive' : 'text-emerald-600')}>
+                  <TableCell className={cn('text-right', totalMonthlyImpact < 0 ? 'text-destructive' : 'text-success')}>
                     {totalMonthlyImpact >= 0 ? '+' : ''}{formatNairaCompact(totalMonthlyImpact)}
                   </TableCell>
-                  <TableCell className={cn('text-right', totalMonthlyImpact < 0 ? 'text-destructive' : 'text-emerald-600')}>
+                  <TableCell className={cn('text-right', totalMonthlyImpact < 0 ? 'text-destructive' : 'text-success')}>
                     {totalMonthlyImpact >= 0 ? '+' : ''}{formatNairaCompact(totalMonthlyImpact * 12)}
                   </TableCell>
                   <TableCell />

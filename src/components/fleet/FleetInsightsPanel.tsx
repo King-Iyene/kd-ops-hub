@@ -55,9 +55,9 @@ interface Props {
 }
 
 function healthColor(score: number) {
-  if (score >= 85) return 'text-green-600';
+  if (score >= 85) return 'text-success';
   if (score >= 65) return 'text-amber-600';
-  return 'text-red-600';
+  return 'text-destructive';
 }
 
 function healthBg(score: number) {
@@ -386,7 +386,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
   }
 
   const iconByType: Record<FleetInsight['type'], React.ReactNode> = {
-    warning: <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />,
+    warning: <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />,
     opportunity: <Target className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />,
     action: <Zap className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />,
     positive: <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />,
@@ -437,10 +437,10 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <Shield className="h-3.5 w-3.5 text-green-600" />
+              <Shield className="h-3.5 w-3.5 text-success" />
               <p className="text-xs text-muted-foreground">Healthy</p>
             </div>
-            <p className="text-2xl font-bold text-green-600">{excellentVehicles.length}</p>
+            <p className="text-2xl font-bold text-success">{excellentVehicles.length}</p>
             <p className="text-xs text-muted-foreground">
               {vehicles.length > 0 ? Math.round((excellentVehicles.length / vehicles.length) * 100) : 0}% of fleet
             </p>
@@ -588,7 +588,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
                 </div>
                 <div className="shrink-0">
                   {vh.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
-                  {vh.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
+                  {vh.trend === 'down' && <TrendingDown className="h-4 w-4 text-destructive" />}
                   {vh.trend === 'stable' && <Activity className="h-4 w-4 text-muted-foreground" />}
                 </div>
               </div>
@@ -649,7 +649,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
           <span className="text-xs">Maintenance</span>
         </Button>
         <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => onNavigate('anomalies')}>
-          <AlertTriangle className="h-4 w-4 text-red-500" />
+          <AlertTriangle className="h-4 w-4 text-destructive" />
           <span className="text-xs">Review Anomalies</span>
         </Button>
         <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => onNavigate('compliance')}>

@@ -132,7 +132,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
               </p>
               <p className="text-xs text-[#6A7184] mt-1">{statusMsg}</p>
             </div>
-            {error && <p className="text-xs text-red-500">{error}</p>}
+            {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
         </DialogContent>
       </Dialog>
@@ -204,7 +204,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
             </div>
           </div>
 
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
         <DialogFooter>
           <Button

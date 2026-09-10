@@ -138,7 +138,7 @@ export function CreateLinkDialog({ open, onOpenChange }: CreateLinkDialogProps) 
               {relType === 'many_to_many' && 'Records on both sides can link to many records. A junction table is created.'}
             </p>
           </div>
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
         <DialogFooter>
           <Button

@@ -317,7 +317,7 @@ export const BeneficiaryCsvImport = ({ open, onOpenChange, onImport }: Props) =>
                               )}
                             </div>
                           ) : (
-                            <span className="text-emerald-600 text-2xs">OK</span>
+                            <span className="text-success text-2xs">OK</span>
                           )}
                         </TableCell>
                       </TableRow>

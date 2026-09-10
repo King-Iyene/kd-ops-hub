@@ -159,10 +159,10 @@ export default function SharedViewPage() {
               Submit
             </button>
             {verifyPassword.isSuccess && !verifyPassword.data && (
-              <p className="text-red-500 text-xs mt-2">Incorrect password</p>
+              <p className="text-destructive text-xs mt-2">Incorrect password</p>
             )}
             {verifyPassword.isError && (
-              <p className="text-red-500 text-xs mt-2">Something went wrong. Please try again.</p>
+              <p className="text-destructive text-xs mt-2">Something went wrong. Please try again.</p>
             )}
           </form>
         </div>

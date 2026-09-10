@@ -48,6 +48,7 @@ import { PayrollSchedules, NextPayrollBanner } from '@/components/PayrollSchedul
 import { PayrollRunsTab } from '@/components/payroll/PayrollRunsTab';
 import { AnnualSummaryTab } from '@/components/payroll/AnnualSummaryTab';
 import { PayrollDialogs } from '@/components/payroll/PayrollDialogs';
+import { useFieldErrors } from '@/components/ui-kit/FieldError';
 import { PayrollDashboardTab } from '@/components/payroll/PayrollDashboardTab';
 import { PayrollGroupsTab } from '@/components/payroll/PayrollGroupsTab';
 import { LayoutGrid, Layers } from 'lucide-react';
@@ -129,6 +130,7 @@ const Payroll = () => {
   const [adjustForm, setAdjustForm] = useState<{ employee_id: string; kind: string; description: string; amount: string; taxable: boolean }>({
     employee_id: '', kind: 'bonus', description: '', amount: '', taxable: true,
   });
+  const { errors: adjustErrors, setError: setAdjustError, clearError: clearAdjustError, clearAll: clearAdjustErrors } = useFieldErrors<'employee_id' | 'description' | 'amount'>();
   // Manager queue of salary-advance requests awaiting action.
   const [advanceQueue, setAdvanceQueue] = useState<any[]>([]);
   const [advanceBusy, setAdvanceBusy] = useState<string | null>(null);
@@ -1037,9 +1039,12 @@ const Payroll = () => {
   const addAdjustment = async () => {
     if (!adjustRun) return;
     const amt = Number(adjustForm.amount);
-    if (!adjustForm.employee_id) { toast({ title: 'Pick an employee', variant: 'destructive' }); return; }
-    if (!adjustForm.description.trim()) { toast({ title: 'Description is required', variant: 'destructive' }); return; }
-    if (!(amt > 0)) { toast({ title: 'Enter an amount greater than ₦0', variant: 'destructive' }); return; }
+    let hasValidationError = false;
+    clearAdjustErrors();
+    if (!adjustForm.employee_id) { setAdjustError('employee_id', 'Pick an employee'); hasValidationError = true; }
+    if (!adjustForm.description.trim()) { setAdjustError('description', 'Description is required'); hasValidationError = true; }
+    if (!(amt > 0)) { setAdjustError('amount', 'Enter an amount greater than ₦0'); hasValidationError = true; }
+    if (hasValidationError) return;
     setAdjustSaving(true);
     const { data, error } = await (supabase as any).from('payslip_adjustments').insert({
       payroll_run_id: adjustRun.id,
@@ -1054,6 +1059,7 @@ const Payroll = () => {
     if (error) { toast({ title: 'Could not add adjustment', description: error.message, variant: 'destructive' }); return; }
     setAdjustList((l) => [...l, data]);
     setAdjustForm({ employee_id: '', kind: 'bonus', description: '', amount: '', taxable: true });
+    clearAdjustErrors();
     void logAudit(
       'payslip_adjustment_added' as never,
       `Payslip adjustment (${data.kind} ${formatNaira(Number(data.amount_ngn))}) added for ${adjustEmployees.find((e) => e.id === data.employee_id)?.name || data.employee_id} · ${monthLabel(adjustRun.period)}`,
@@ -2307,6 +2313,9 @@ const Payroll = () => {
         setAdjustForm={setAdjustForm}
         addAdjustment={addAdjustment}
         removeAdjustment={removeAdjustment}
+        adjustErrors={adjustErrors}
+        clearAdjustError={clearAdjustError}
+        clearAdjustErrors={clearAdjustErrors}
         disburseTarget={disburseTarget}
         setDisburseTarget={setDisburseTarget}
         disbursing={disbursing}

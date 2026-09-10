@@ -87,7 +87,7 @@ export function BatchRiskFlags({ batchId, onAcknowledgedChange, readOnly }: Prop
   if (flags.length === 0) {
     return (
       <Alert className="border-emerald-500/40 bg-emerald-500/5">
-        <ShieldCheck className="h-4 w-4 text-emerald-600" />
+        <ShieldCheck className="h-4 w-4 text-success" />
         <AlertDescription className="text-sm">
           No risk indicators detected for this batch.
         </AlertDescription>
@@ -108,7 +108,7 @@ export function BatchRiskFlags({ batchId, onAcknowledgedChange, readOnly }: Prop
           <AlertTriangle
             className={
               f.severity === 'high'
-                ? 'h-4 w-4 text-red-600'
+                ? 'h-4 w-4 text-destructive'
                 : f.severity === 'medium'
                 ? 'h-4 w-4 text-amber-600'
                 : 'h-4 w-4 text-blue-600'

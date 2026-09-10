@@ -132,7 +132,7 @@ export function RecordHistoryPanel({ baseId, tableId, recordId, fields }: Record
 
   if (error) {
     return (
-      <p className="text-xs text-red-500 py-4 text-center">
+      <p className="text-xs text-destructive py-4 text-center">
         Failed to load history
       </p>
     );

@@ -48,7 +48,7 @@ export default function IncrementsTab({ increments, canManage, onShowIncrementDi
                         <TableCell className="text-right currency">{formatNaira(inc.old_salary_ngn || 0)}</TableCell>
                         <TableCell className="text-right currency">{formatNaira(inc.new_salary_ngn || 0)}</TableCell>
                         <TableCell className="text-right currency">
-                          <span className={diff >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+                          <span className={diff >= 0 ? 'text-success' : 'text-destructive'}>
                             {diff >= 0 ? '+' : ''}{formatNaira(diff)}
                           </span>
                         </TableCell>

@@ -243,9 +243,9 @@ export function VehicleInspectionForm({
 
         <div className="shrink-0 px-6 pb-5 pt-3 border-t bg-background flex items-center justify-between gap-3">
           <div className="text-xs text-muted-foreground">
-            <span className="text-green-600 font-medium">{items.filter((i) => i.status === 'pass').length}</span> pass
+            <span className="text-success font-medium">{items.filter((i) => i.status === 'pass').length}</span> pass
             {failCount > 0 && (
-              <> · <span className="text-red-600 font-medium">{failCount}</span> fail</>
+              <> · <span className="text-destructive font-medium">{failCount}</span> fail</>
             )}
             {items.filter((i) => i.status === 'na').length > 0 && (
               <> · <span className="text-gray-500">{items.filter((i) => i.status === 'na').length}</span> N/A</>

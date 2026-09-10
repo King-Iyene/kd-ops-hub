@@ -30,7 +30,7 @@ function FuelGauge({ tank, current, lastRefuel }: { tank: number; current: numbe
   const pct = cap > 0 ? Math.round((cur / cap) * 100) : 0;
   const isCritical = pct < 10;
   const barColor = pct >= 50 ? 'bg-green-500' : pct >= 25 ? 'bg-amber-500' : 'bg-red-500';
-  const textColor = pct >= 50 ? 'text-green-700' : pct >= 25 ? 'text-amber-600' : 'text-red-600';
+  const textColor = pct >= 50 ? 'text-success' : pct >= 25 ? 'text-amber-600' : 'text-destructive';
   const daysSince = lastRefuel
     ? Math.floor((Date.now() - new Date(lastRefuel).getTime()) / 86_400_000)
     : null;
@@ -53,12 +53,12 @@ function FuelGauge({ tank, current, lastRefuel }: { tank: number; current: numbe
         </p>
       )}
       {isCritical && (
-        <p className="text-3xs text-red-600 font-medium flex items-center gap-0.5 animate-pulse">
+        <p className="text-3xs text-destructive font-medium flex items-center gap-0.5 animate-pulse">
           <AlertTriangle className="h-2.5 w-2.5" /> Critical — may be empty
         </p>
       )}
       {!isCritical && pct < 25 && (
-        <p className="text-3xs text-red-600 font-medium flex items-center gap-0.5">
+        <p className="text-3xs text-destructive font-medium flex items-center gap-0.5">
           <AlertTriangle className="h-2.5 w-2.5" /> Low fuel
         </p>
       )}
@@ -154,8 +154,8 @@ function FuelHistoryDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: ()
                       <td className="px-3 py-1.5 text-muted-foreground">{new Date(l.created_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}</td>
                       <td className="px-3 py-1.5">
                         {l.event_type === 'fuel_added'
-                          ? <span className="text-green-600 font-medium">Fuel added</span>
-                          : <span className="text-red-600 font-medium">Trip consumed</span>}
+                          ? <span className="text-success font-medium">Fuel added</span>
+                          : <span className="text-destructive font-medium">Trip consumed</span>}
                       </td>
                       <td className="px-3 py-1.5 text-right">{l.event_type === 'fuel_added' ? '+' : '−'}{l.amount_litres.toFixed(1)}L</td>
                       <td className="px-3 py-1.5 text-right font-medium">{l.resulting_level_litres.toFixed(1)}L</td>

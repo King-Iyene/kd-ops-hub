@@ -219,7 +219,7 @@ export default function CostIntelligenceTab() {
                   <p className="text-xs text-muted-foreground">Monthly impact</p>
                   <p className={cn(
                     'text-lg font-semibold flex items-center gap-1 currency',
-                    scenario.delta_ctc_ngn >= 0 ? 'text-destructive' : 'text-emerald-600',
+                    scenario.delta_ctc_ngn >= 0 ? 'text-destructive' : 'text-success',
                   )}>
                     {scenario.delta_ctc_ngn >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                     {scenario.delta_ctc_ngn >= 0 ? '+' : ''}{formatNaira(scenario.delta_ctc_ngn)}
@@ -254,7 +254,7 @@ export default function CostIntelligenceTab() {
                         <TableCell className="text-right currency">{formatNaira(d.scenario_ctc_ngn)}</TableCell>
                         <TableCell className={cn(
                           'text-right font-medium currency',
-                          d.delta_ctc_ngn > 0 ? 'text-destructive' : d.delta_ctc_ngn < 0 ? 'text-emerald-600' : '',
+                          d.delta_ctc_ngn > 0 ? 'text-destructive' : d.delta_ctc_ngn < 0 ? 'text-success' : '',
                         )}>
                           {d.delta_ctc_ngn === 0 ? '—' : `${d.delta_ctc_ngn > 0 ? '+' : ''}${formatNaira(d.delta_ctc_ngn)}`}
                         </TableCell>
@@ -273,7 +273,7 @@ export default function CostIntelligenceTab() {
                       <MobileCardMeta
                         className={cn(
                           'currency',
-                          d.delta_ctc_ngn > 0 ? 'text-destructive' : d.delta_ctc_ngn < 0 ? 'text-emerald-600' : '',
+                          d.delta_ctc_ngn > 0 ? 'text-destructive' : d.delta_ctc_ngn < 0 ? 'text-success' : '',
                         )}
                       >
                         {d.delta_ctc_ngn === 0 ? '—' : `${d.delta_ctc_ngn > 0 ? '+' : ''}${formatNaira(d.delta_ctc_ngn)}`}
@@ -324,7 +324,7 @@ export default function CostIntelligenceTab() {
                       </TableCell>
                       <TableCell className={cn(
                         'text-right font-medium currency',
-                        c.direction === 'increase' ? 'text-destructive' : c.direction === 'decrease' ? 'text-emerald-600' : '',
+                        c.direction === 'increase' ? 'text-destructive' : c.direction === 'decrease' ? 'text-success' : '',
                       )}>
                         {c.direction === 'unchanged' ? '—' : `${c.monthly_delta_ngn > 0 ? '+' : ''}${formatNaira(c.monthly_delta_ngn)}`}
                         {c.pct_change != null && c.direction !== 'unchanged' && (
@@ -352,7 +352,7 @@ export default function CostIntelligenceTab() {
                     <MobileCardMeta
                       className={cn(
                         'currency',
-                        c.direction === 'increase' ? 'text-destructive' : c.direction === 'decrease' ? 'text-emerald-600' : '',
+                        c.direction === 'increase' ? 'text-destructive' : c.direction === 'decrease' ? 'text-success' : '',
                       )}
                     >
                       {c.direction === 'unchanged' ? '—' : `${c.monthly_delta_ngn > 0 ? '+' : ''}${formatNaira(c.monthly_delta_ngn)}`}

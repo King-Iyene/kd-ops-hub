@@ -1107,7 +1107,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               </div>
             </div>
             {error && (
-              <div className="flex items-start gap-2 text-xs text-red-500">
+              <div className="flex items-start gap-2 text-xs text-destructive">
                 <AlertCircle size={14} className="shrink-0 mt-0.5" /> {error}
               </div>
             )}
@@ -1157,7 +1157,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               </div>
             )}
             {error && (
-              <div className="flex items-start gap-2 text-xs text-red-500">
+              <div className="flex items-start gap-2 text-xs text-destructive">
                 <AlertCircle size={14} className="shrink-0 mt-0.5" /> {error}
               </div>
             )}
@@ -1233,7 +1233,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               ))}
             </div>
             {error && (
-              <div className="flex items-start gap-2 text-xs text-red-500">
+              <div className="flex items-start gap-2 text-xs text-destructive">
                 <AlertCircle size={14} className="shrink-0 mt-0.5" /> {error}
               </div>
             )}

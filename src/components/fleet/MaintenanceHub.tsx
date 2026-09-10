@@ -480,11 +480,11 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
 
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
-            <div className="flex items-center gap-2 text-red-600 text-xs font-medium mb-1">
+            <div className="flex items-center gap-2 text-destructive text-xs font-medium mb-1">
               <AlertTriangle className="h-3.5 w-3.5" />
               Overdue
             </div>
-            <p className="text-2xl font-bold text-red-600">{loading ? '...' : stats.overdue}</p>
+            <p className="text-2xl font-bold text-destructive">{loading ? '...' : stats.overdue}</p>
           </CardContent>
         </Card>
 
@@ -500,11 +500,11 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
 
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
-            <div className="flex items-center gap-2 text-green-600 text-xs font-medium mb-1">
+            <div className="flex items-center gap-2 text-success text-xs font-medium mb-1">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Done (MTD)
             </div>
-            <p className="text-2xl font-bold text-green-600">
+            <p className="text-2xl font-bold text-success">
               {loading ? '...' : stats.completedThisMonth}
             </p>
           </CardContent>

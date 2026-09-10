@@ -216,7 +216,7 @@ export default function ProfitLossTab() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground">Net Income</p>
-            <p className={cn('text-lg font-bold', totals.netIncome >= 0 ? 'text-emerald-600' : 'text-destructive')}>
+            <p className={cn('text-lg font-bold', totals.netIncome >= 0 ? 'text-success' : 'text-destructive')}>
               {formatNairaCompact(totals.netIncome)}
             </p>
           </CardContent>
@@ -224,7 +224,7 @@ export default function ProfitLossTab() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground">Avg. Margin</p>
-            <p className={cn('text-lg font-bold', avgMargin >= 0 ? 'text-emerald-600' : 'text-destructive')}>
+            <p className={cn('text-lg font-bold', avgMargin >= 0 ? 'text-success' : 'text-destructive')}>
               {avgMargin.toFixed(1)}%
             </p>
           </CardContent>
@@ -367,11 +367,11 @@ export default function ProfitLossTab() {
               <TableRow className="font-bold border-t-2 bg-muted/30">
                 <TableCell>Net Income</TableCell>
                 {rows.map(r => (
-                  <TableCell key={r.month} className={cn('text-right', r.netIncome >= 0 ? 'text-emerald-600' : 'text-destructive')}>
+                  <TableCell key={r.month} className={cn('text-right', r.netIncome >= 0 ? 'text-success' : 'text-destructive')}>
                     {formatNairaCompact(r.netIncome)}
                   </TableCell>
                 ))}
-                <TableCell className={cn('text-right', totals.netIncome >= 0 ? 'text-emerald-600' : 'text-destructive')}>
+                <TableCell className={cn('text-right', totals.netIncome >= 0 ? 'text-success' : 'text-destructive')}>
                   {formatNairaCompact(totals.netIncome)}
                 </TableCell>
               </TableRow>
@@ -380,11 +380,11 @@ export default function ProfitLossTab() {
               <TableRow>
                 <TableCell className="text-muted-foreground">Margin</TableCell>
                 {rows.map(r => (
-                  <TableCell key={r.month} className={cn('text-right text-xs', r.margin >= 0 ? 'text-emerald-600' : 'text-destructive')}>
+                  <TableCell key={r.month} className={cn('text-right text-xs', r.margin >= 0 ? 'text-success' : 'text-destructive')}>
                     {r.margin.toFixed(1)}%
                   </TableCell>
                 ))}
-                <TableCell className={cn('text-right text-xs font-medium', avgMargin >= 0 ? 'text-emerald-600' : 'text-destructive')}>
+                <TableCell className={cn('text-right text-xs font-medium', avgMargin >= 0 ? 'text-success' : 'text-destructive')}>
                   {avgMargin.toFixed(1)}%
                 </TableCell>
               </TableRow>

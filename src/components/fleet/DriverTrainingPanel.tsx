@@ -196,10 +196,10 @@ export function DriverTrainingPanel({ staff }: Props) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Valid</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
+            <CheckCircle className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{totalValid}</div>
+            <div className="text-2xl font-bold text-success">{totalValid}</div>
           </CardContent>
         </Card>
 

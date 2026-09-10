@@ -446,7 +446,7 @@ export function RefreshAttachmentsDialog({ open, onOpenChange, baseId }: Props) 
             </div>
             <div className="flex gap-4 text-xs">
               <span className="text-emerald-500">Fixed: {progress.fixed}</span>
-              {progress.failed > 0 && <span className="text-red-500">Failed: {progress.failed}</span>}
+              {progress.failed > 0 && <span className="text-destructive">Failed: {progress.failed}</span>}
             </div>
             <Button
               variant="outline"
@@ -468,11 +468,11 @@ export function RefreshAttachmentsDialog({ open, onOpenChange, baseId }: Props) 
               <p className="text-sm font-medium">Refresh complete!</p>
             </div>
             <div className="flex justify-center gap-6 text-sm">
-              <span className="text-emerald-600">
+              <span className="text-success">
                 {progress.fixed} fixed
               </span>
               {progress.failed > 0 && (
-                <span className="text-red-500">
+                <span className="text-destructive">
                   {progress.failed} failed
                 </span>
               )}

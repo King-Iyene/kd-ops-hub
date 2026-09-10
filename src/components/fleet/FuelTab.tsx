@@ -143,7 +143,7 @@ function WeeklyBudgetBar({
     : isAmber ? '[&>div]:bg-amber-500'
     :           '[&>div]:bg-green-500';
 
-  const remainColour = isOver ? 'text-destructive' : isRed ? 'text-red-600' : isAmber ? 'text-amber-600' : 'text-green-700';
+  const remainColour = isOver ? 'text-destructive' : isRed ? 'text-destructive' : isAmber ? 'text-amber-600' : 'text-success';
 
   return (
     <div className="rounded-md border px-3 py-2.5 space-y-2 bg-muted/30 text-xs">
@@ -177,7 +177,7 @@ function WeeklyBudgetBar({
         </p>
       )}
       {isOver  && <p className="text-destructive font-medium">Weekly budget exhausted.</p>}
-      {isRed   && <p className="text-red-600">Less than 25% of budget remaining.</p>}
+      {isRed   && <p className="text-destructive">Less than 25% of budget remaining.</p>}
       {isAmber && <p className="text-amber-600">Less than 50% of budget remaining.</p>}
     </div>
   );
@@ -191,7 +191,7 @@ function FuelRequestFuelLevel({ vehicleId, vehicles }: { vehicleId: string | nul
   const cur = Math.min(veh.current_fuel_litres || 0, cap);
   const pct = cap > 0 ? Math.round((cur / cap) * 100) : 0;
   return (
-    <span className={`font-medium ${pct < 20 ? 'text-red-600' : pct < 50 ? 'text-amber-600' : 'text-green-600'}`}>
+    <span className={`font-medium ${pct < 20 ? 'text-destructive' : pct < 50 ? 'text-amber-600' : 'text-success'}`}>
       {cur.toFixed(0)}L ({pct}%)
       {pct < 20 && <AlertTriangle className="inline h-3 w-3 ml-0.5 -mt-0.5" />}
     </span>
@@ -2492,7 +2492,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                       {formatNaira(requested)}
                     </p>
                     {weekBudget && weekBudget.total > 0 && (
-                      <p className={`text-xs mt-0.5 currency ${isOverBudget ? 'text-red-500' : 'text-emerald-600'}`}>
+                      <p className={`text-xs mt-0.5 currency ${isOverBudget ? 'text-destructive' : 'text-success'}`}>
                         {isOverBudget
                           ? `${formatNaira(requested - weekBudget.remaining)} over budget`
                           : `${formatNaira(weekBudget.remaining - requested)} remaining after this`}
@@ -3143,7 +3143,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
               />
               {repairReceipt ? (
                 <div className="flex items-center gap-3 rounded-xl border-2 border-green-400 bg-green-50 dark:bg-green-950/20 px-4 py-3">
-                  <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                   <span className="text-sm text-green-700 dark:text-green-400 truncate flex-1">{repairReceipt.name}</span>
                   <button type="button" className="text-xs text-muted-foreground hover:text-destructive shrink-0" onClick={() => { setRepairReceipt(null); setRepairReceiptOcrAmount(''); }}>
                     Change

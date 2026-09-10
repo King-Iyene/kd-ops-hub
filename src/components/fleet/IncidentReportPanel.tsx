@@ -547,10 +547,10 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Open Cases</CardTitle>
-            <ShieldAlert className="h-4 w-4 text-red-500" />
+            <ShieldAlert className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{openCases}</div>
+            <div className="text-2xl font-bold text-destructive">{openCases}</div>
           </CardContent>
         </Card>
 

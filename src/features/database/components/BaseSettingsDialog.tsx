@@ -226,7 +226,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
               </div>
             </div>
 
-            {error && <p className="text-xs text-red-500">{error}</p>}
+            {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
         )}
 
@@ -296,7 +296,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
                 </div>
               )}
             </div>
-            {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+            {error && <p className="text-xs text-destructive mt-2">{error}</p>}
           </div>
         )}
 
@@ -810,7 +810,7 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
               <Copy size={12} />
             </Button>
           </div>
-          {copied && <p className="text-3xs text-green-600">Copied!</p>}
+          {copied && <p className="text-3xs text-success">Copied!</p>}
         </div>
       )}
 

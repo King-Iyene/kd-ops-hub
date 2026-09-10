@@ -334,7 +334,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
           </div>
 
           {regexError && (
-            <p className="text-2xs text-red-500">{regexError}</p>
+            <p className="text-2xs text-destructive">{regexError}</p>
           )}
 
           {/* Match list */}

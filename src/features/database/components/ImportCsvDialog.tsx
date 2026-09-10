@@ -410,7 +410,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                   or paste above
                 </span>
               </div>
-              {error && <p className="text-xs text-red-500">{error}</p>}
+              {error && <p className="text-xs text-destructive">{error}</p>}
             </div>
           ) : (
             <div className="space-y-3">
@@ -535,7 +535,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                   Back to input
                 </button>
               )}
-              {error && <p className="text-xs text-red-500">{error}</p>}
+              {error && <p className="text-xs text-destructive">{error}</p>}
             </div>
           )}
         </div>

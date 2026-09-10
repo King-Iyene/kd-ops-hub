@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import { FieldError } from '@/components/ui-kit/FieldError';
 import { PayrollRosterPreview } from '@/components/payroll/PayrollRosterPreview';
 import type { PayrollRun, BonusLine } from '@/lib/payroll-run';
 
@@ -169,6 +170,9 @@ export interface PayrollDialogsProps {
   setAdjustForm: React.Dispatch<React.SetStateAction<AdjustFormState>>;
   addAdjustment: () => void;
   removeAdjustment: (id: string) => void;
+  adjustErrors: Partial<Record<'employee_id' | 'description' | 'amount', string>>;
+  clearAdjustError: (field: 'employee_id' | 'description' | 'amount') => void;
+  clearAdjustErrors: () => void;
 
   // Disburse dialog
   disburseTarget: { run: PayrollRun; payslips: any[] } | null;
@@ -247,6 +251,9 @@ export const PayrollDialogs = ({
   setAdjustForm,
   addAdjustment,
   removeAdjustment,
+  adjustErrors,
+  clearAdjustError,
+  clearAdjustErrors,
   disburseTarget,
   setDisburseTarget,
   disbursing,
@@ -798,7 +805,7 @@ export const PayrollDialogs = ({
       {/* Per-employee payslip adjustments for a run */}
       <ResponsiveDialog
         open={!!adjustRun}
-        onOpenChange={(open) => { if (!open) setAdjustRun(null); }}
+        onOpenChange={(open) => { if (!open) { clearAdjustErrors(); setAdjustRun(null); } }}
         preventOutsideClose
         size="2xl"
         title={`Payslip adjustments${adjustRun ? ` · ${monthLabel(adjustRun.period)}` : ''}`}
@@ -815,14 +822,15 @@ export const PayrollDialogs = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border p-3">
               <div className="space-y-1 sm:col-span-2">
                 <Label>Employee</Label>
-                <Select value={adjustForm.employee_id || undefined} onValueChange={(v) => setAdjustForm((f) => ({ ...f, employee_id: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select an employee" /></SelectTrigger>
+                <Select value={adjustForm.employee_id || undefined} onValueChange={(v) => { clearAdjustError('employee_id'); setAdjustForm((f) => ({ ...f, employee_id: v })); }}>
+                  <SelectTrigger aria-invalid={!!adjustErrors.employee_id}><SelectValue placeholder="Select an employee" /></SelectTrigger>
                   <SelectContent>
                     {adjustEmployees.map((e) => (
                       <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <FieldError message={adjustErrors.employee_id} />
               </div>
               <div className="space-y-1">
                 <Label>Type</Label>
@@ -841,17 +849,21 @@ export const PayrollDialogs = ({
                 <Input
                   type="number" min="0" inputMode="numeric"
                   value={adjustForm.amount}
-                  onChange={(e) => setAdjustForm((f) => ({ ...f, amount: e.target.value }))}
+                  onChange={(e) => { clearAdjustError('amount'); setAdjustForm((f) => ({ ...f, amount: e.target.value })); }}
                   placeholder="0"
+                  aria-invalid={!!adjustErrors.amount}
                 />
+                <FieldError message={adjustErrors.amount} />
               </div>
               <div className="space-y-1 sm:col-span-2">
                 <Label>Description</Label>
                 <Input
                   value={adjustForm.description}
-                  onChange={(e) => setAdjustForm((f) => ({ ...f, description: e.target.value }))}
+                  onChange={(e) => { clearAdjustError('description'); setAdjustForm((f) => ({ ...f, description: e.target.value })); }}
                   placeholder="e.g. Performance bonus, Q2"
+                  aria-invalid={!!adjustErrors.description}
                 />
+                <FieldError message={adjustErrors.description} />
               </div>
               {adjustForm.kind !== 'deduction' && (
                 <label className="sm:col-span-2 flex items-center gap-2 text-sm text-muted-foreground">

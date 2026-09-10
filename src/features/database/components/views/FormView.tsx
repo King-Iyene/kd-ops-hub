@@ -1025,7 +1025,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
                         )}
                         {renderInput(f)}
                         {hasError && (
-                          <p className="text-xs text-red-500 mt-1.5">{errors[f.id]}</p>
+                          <p className="text-xs text-destructive mt-1.5">{errors[f.id]}</p>
                         )}
                       </div>
                     </div>
