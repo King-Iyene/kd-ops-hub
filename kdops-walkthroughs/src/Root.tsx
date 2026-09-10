@@ -128,6 +128,31 @@ import { TimesheetModule } from "./TimesheetModule/TimesheetModule";
 import { EmployeeHandbook } from "./EmployeeHandbook/EmployeeHandbook";
 import { ApprovalWorkflows } from "./ApprovalWorkflows/ApprovalWorkflows";
 import { AuditLog } from "./AuditLog/AuditLog";
+import { KnowledgeBase } from "./KnowledgeBase/KnowledgeBase";
+import { CommunicationsHub } from "./CommunicationsHub/CommunicationsHub";
+import { ContactsDirectory } from "./ContactsDirectory/ContactsDirectory";
+import { MessagingModule } from "./MessagingModule/MessagingModule";
+import { AIAssistant } from "./AIAssistant/AIAssistant";
+import { DeveloperHubVideo } from "./DeveloperHubVideo/DeveloperHubVideo";
+import { PlatformSettings } from "./PlatformSettings/PlatformSettings";
+import { PlatformGuide } from "./PlatformGuide/PlatformGuide";
+import { PrincipalDisbursements } from "./PrincipalDisbursements/PrincipalDisbursements";
+import { MyDashboard } from "./MyDashboard/MyDashboard";
+import { ReferralsModule } from "./ReferralsModule/ReferralsModule";
+import { PlacementsModule } from "./PlacementsModule/PlacementsModule";
+import { PublicLinksModule } from "./PublicLinksModule/PublicLinksModule";
+import { FlexTables } from "./FlexTables/FlexTables";
+import { DocumentTemplates } from "./DocumentTemplates/DocumentTemplates";
+import { OrgChart } from "./OrgChart/OrgChart";
+import { CompanyCalendar } from "./CompanyCalendar/CompanyCalendar";
+import { NotificationsCenter } from "./NotificationsCenter/NotificationsCenter";
+import { BulkOperations } from "./BulkOperations/BulkOperations";
+import { ReportsAnalytics } from "./ReportsAnalytics/ReportsAnalytics";
+import { SecurityAudit } from "./SecurityAudit/SecurityAudit";
+import { TaxCompliance } from "./TaxCompliance/TaxCompliance";
+import { EmployeeSelfService } from "./EmployeeSelfService/EmployeeSelfService";
+import { WorkflowAutomation } from "./WorkflowAutomation/WorkflowAutomation";
+import { DataImportExport } from "./DataImportExport/DataImportExport";
 
 const FPS = 30;
 
@@ -212,6 +237,33 @@ const V47_FRAMES = 2190;
 const V48_FRAMES = 2190;
 const V49_FRAMES = 2190;
 const V50_FRAMES = 2190;
+
+// Batch 5 videos (51-75) — same structure as batch 4: 2190 frames each
+const V51_FRAMES = 2190;
+const V52_FRAMES = 2190;
+const V53_FRAMES = 2190;
+const V54_FRAMES = 2190;
+const V55_FRAMES = 2190;
+const V56_FRAMES = 2190;
+const V57_FRAMES = 2190;
+const V58_FRAMES = 2190;
+const V59_FRAMES = 2190;
+const V60_FRAMES = 2190;
+const V61_FRAMES = 2190;
+const V62_FRAMES = 2190;
+const V63_FRAMES = 2190;
+const V64_FRAMES = 2190;
+const V65_FRAMES = 2190;
+const V66_FRAMES = 2190;
+const V67_FRAMES = 2190;
+const V68_FRAMES = 2190;
+const V69_FRAMES = 2190;
+const V70_FRAMES = 2190;
+const V71_FRAMES = 2190;
+const V72_FRAMES = 2190;
+const V73_FRAMES = 2190;
+const V74_FRAMES = 2190;
+const V75_FRAMES = 2190;
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -505,6 +557,35 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="EmployeeHandbook" component={EmployeeHandbook} durationInFrames={V48_FRAMES} fps={FPS} width={1920} height={1080} />
       <Composition id="ApprovalWorkflows" component={ApprovalWorkflows} durationInFrames={V49_FRAMES} fps={FPS} width={1920} height={1080} />
       <Composition id="AuditLog" component={AuditLog} durationInFrames={V50_FRAMES} fps={FPS} width={1920} height={1080} />
+
+      {/* === Batch 5a: Videos 51-63 === */}
+      <Composition id="KnowledgeBase" component={KnowledgeBase} durationInFrames={V51_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="CommunicationsHub" component={CommunicationsHub} durationInFrames={V52_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="ContactsDirectory" component={ContactsDirectory} durationInFrames={V53_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="MessagingModule" component={MessagingModule} durationInFrames={V54_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="AIAssistant" component={AIAssistant} durationInFrames={V55_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="DeveloperHubVideo" component={DeveloperHubVideo} durationInFrames={V56_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="PlatformSettings" component={PlatformSettings} durationInFrames={V57_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="PlatformGuide" component={PlatformGuide} durationInFrames={V58_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="PrincipalDisbursements" component={PrincipalDisbursements} durationInFrames={V59_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="MyDashboard" component={MyDashboard} durationInFrames={V60_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="ReferralsModule" component={ReferralsModule} durationInFrames={V61_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="PlacementsModule" component={PlacementsModule} durationInFrames={V62_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="PublicLinksModule" component={PublicLinksModule} durationInFrames={V63_FRAMES} fps={FPS} width={1920} height={1080} />
+
+      {/* === Batch 5b: Videos 64-75 === */}
+      <Composition id="FlexTables" component={FlexTables} durationInFrames={V64_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="DocumentTemplates" component={DocumentTemplates} durationInFrames={V65_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="OrgChart" component={OrgChart} durationInFrames={V66_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="CompanyCalendar" component={CompanyCalendar} durationInFrames={V67_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="NotificationsCenter" component={NotificationsCenter} durationInFrames={V68_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="BulkOperations" component={BulkOperations} durationInFrames={V69_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="ReportsAnalytics" component={ReportsAnalytics} durationInFrames={V70_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="SecurityAudit" component={SecurityAudit} durationInFrames={V71_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="TaxCompliance" component={TaxCompliance} durationInFrames={V72_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="EmployeeSelfService" component={EmployeeSelfService} durationInFrames={V73_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="WorkflowAutomation" component={WorkflowAutomation} durationInFrames={V74_FRAMES} fps={FPS} width={1920} height={1080} />
+      <Composition id="DataImportExport" component={DataImportExport} durationInFrames={V75_FRAMES} fps={FPS} width={1920} height={1080} />
     </>
   );
 };
