@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import { CheckCircle2, Loader2, Table2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -272,6 +272,68 @@ function NoOptionsNotice({ onNoOptions, text }: { onNoOptions: (empty: boolean) 
   return <p className="text-xs text-muted-foreground italic">{text}</p>;
 }
 
+interface LinkableTaskOption { id: string; title: string; parent_id: string | null; parent_title: string | null; }
+
+/** Renders a flat task list with subtasks indented directly below their
+ *  parent — or, when the parent itself didn't make it into this filtered
+ *  list (e.g. it's not yet completed, or not due), grouped under a plain
+ *  label naming that parent instead of looking like an unrelated task. */
+function LinkedTaskCheckboxList({ options, ids, onToggle }: {
+  options: LinkableTaskOption[];
+  ids: string[];
+  onToggle: (id: string) => void;
+}) {
+  const rendered = new Set<string>();
+  const rows: ReactNode[] = [];
+
+  for (const t of options) {
+    if (t.parent_id || rendered.has(t.id)) continue;
+    rendered.add(t.id);
+    rows.push(
+      <label key={t.id} className="flex items-center gap-2 cursor-pointer">
+        <Checkbox checked={ids.includes(t.id)} onCheckedChange={() => onToggle(t.id)} />
+        <span className="text-sm">{t.title}</span>
+      </label>,
+    );
+    for (const c of options) {
+      if (c.parent_id === t.id && !rendered.has(c.id)) {
+        rendered.add(c.id);
+        rows.push(
+          <label key={c.id} className="flex items-center gap-2 cursor-pointer ml-5">
+            <Checkbox checked={ids.includes(c.id)} onCheckedChange={() => onToggle(c.id)} />
+            <span className="text-sm">{c.title}</span>
+          </label>,
+        );
+      }
+    }
+  }
+
+  const groups = new Map<string, LinkableTaskOption[]>();
+  for (const t of options) {
+    if (!t.parent_id || rendered.has(t.id)) continue;
+    if (!groups.has(t.parent_id)) groups.set(t.parent_id, []);
+    groups.get(t.parent_id)!.push(t);
+  }
+  for (const [parentId, children] of groups) {
+    rows.push(
+      <p key={`h-${parentId}`} className="text-[11px] font-medium text-muted-foreground/70 pt-1 truncate">
+        Under: {children[0].parent_title || 'Other subtasks'}
+      </p>,
+    );
+    for (const c of children) {
+      rendered.add(c.id);
+      rows.push(
+        <label key={c.id} className="flex items-center gap-2 cursor-pointer ml-5">
+          <Checkbox checked={ids.includes(c.id)} onCheckedChange={() => onToggle(c.id)} />
+          <span className="text-sm">{c.title}</span>
+        </label>,
+      );
+    }
+  }
+
+  return <>{rows}</>;
+}
+
 function TaskLinkPicker({ token, personId, value, onChange, onNoOptions }: {
   token: string;
   personId?: string;
@@ -279,7 +341,7 @@ function TaskLinkPicker({ token, personId, value, onChange, onNoOptions }: {
   onChange: (v: unknown) => void;
   onNoOptions: (empty: boolean) => void;
 }) {
-  const [options, setOptions] = useState<{ id: string; title: string }[]>([]);
+  const [options, setOptions] = useState<LinkableTaskOption[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -289,7 +351,7 @@ function TaskLinkPicker({ token, personId, value, onChange, onNoOptions }: {
       setLoading(true);
       const { data } = await flexApi.getFormTasks(token, personId);
       if (!cancelled) {
-        const list = (data as { id: string; title: string }[]) || [];
+        const list = (data as LinkableTaskOption[]) || [];
         setOptions(list);
         setLoading(false);
         onNoOptions(list.length === 0);
@@ -306,12 +368,11 @@ function TaskLinkPicker({ token, personId, value, onChange, onNoOptions }: {
   const ids = Array.isArray(value) ? (value as string[]) : [];
   return (
     <div className="space-y-1.5 border border-border rounded-md p-2.5 max-h-48 overflow-y-auto">
-      {options.map((t) => (
-        <label key={t.id} className="flex items-center gap-2 cursor-pointer">
-          <Checkbox checked={ids.includes(t.id)} onCheckedChange={(v) => onChange(v ? [...ids, t.id] : ids.filter((i) => i !== t.id))} />
-          <span className="text-sm">{t.title}</span>
-        </label>
-      ))}
+      <LinkedTaskCheckboxList
+        options={options}
+        ids={ids}
+        onToggle={(id) => onChange(ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id])}
+      />
     </div>
   );
 }
@@ -323,7 +384,7 @@ function CompletedTaskLinkPicker({ token, personId, value, onChange, onNoOptions
   onChange: (v: unknown) => void;
   onNoOptions: (empty: boolean) => void;
 }) {
-  const [options, setOptions] = useState<{ id: string; title: string }[]>([]);
+  const [options, setOptions] = useState<LinkableTaskOption[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -333,7 +394,7 @@ function CompletedTaskLinkPicker({ token, personId, value, onChange, onNoOptions
       setLoading(true);
       const { data } = await flexApi.getFormCompletedTasks(token, personId);
       if (!cancelled) {
-        const list = (data as { id: string; title: string }[]) || [];
+        const list = (data as LinkableTaskOption[]) || [];
         setOptions(list);
         setLoading(false);
         onNoOptions(list.length === 0);
@@ -350,12 +411,11 @@ function CompletedTaskLinkPicker({ token, personId, value, onChange, onNoOptions
   const ids = Array.isArray(value) ? (value as string[]) : [];
   return (
     <div className="space-y-1.5 border border-border rounded-md p-2.5 max-h-48 overflow-y-auto">
-      {options.map((t) => (
-        <label key={t.id} className="flex items-center gap-2 cursor-pointer">
-          <Checkbox checked={ids.includes(t.id)} onCheckedChange={(v) => onChange(v ? [...ids, t.id] : ids.filter((i) => i !== t.id))} />
-          <span className="text-sm">{t.title}</span>
-        </label>
-      ))}
+      <LinkedTaskCheckboxList
+        options={options}
+        ids={ids}
+        onToggle={(id) => onChange(ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id])}
+      />
     </div>
   );
 }

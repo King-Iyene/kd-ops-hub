@@ -371,7 +371,53 @@ function sampleValueForField(f: FlexField): FormulaValue {
 }
 
 interface ProfileLite { id: string; full_name: string; email: string; }
-interface TaskLite { id: string; title: string; status: string; completed_at: string | null; }
+interface TaskLite { id: string; title: string; status: string; completed_at: string | null; parent_id: string | null; }
+
+/** Orders a flat list of linkable tasks so subtasks render directly below
+ *  their parent, indented — same idea as Airtable's linked-record picker.
+ *  A subtask whose parent isn't itself in `list` (e.g. filtered out —
+ *  common for "Completed linked tasks", where the parent may still be
+ *  open) is grouped under a plain, unselectable label naming that parent
+ *  instead of being silently flattened in with the top-level tasks. */
+type PickerRow<T> =
+  | { kind: 'task'; task: T; indent: boolean }
+  | { kind: 'header'; label: string; key: string };
+
+function buildTaskPickerRows<T extends { id: string; parent_id?: string | null }>(
+  list: T[],
+  resolveParentTitle: (parentId: string) => string | null,
+): PickerRow<T>[] {
+  const rendered = new Set<string>();
+  const rows: PickerRow<T>[] = [];
+
+  for (const t of list) {
+    if (t.parent_id || rendered.has(t.id)) continue;
+    rows.push({ kind: 'task', task: t, indent: false });
+    rendered.add(t.id);
+    for (const c of list) {
+      if (c.parent_id === t.id && !rendered.has(c.id)) {
+        rows.push({ kind: 'task', task: c, indent: true });
+        rendered.add(c.id);
+      }
+    }
+  }
+
+  const groups = new Map<string, T[]>();
+  for (const t of list) {
+    if (!t.parent_id || rendered.has(t.id)) continue;
+    if (!groups.has(t.parent_id)) groups.set(t.parent_id, []);
+    groups.get(t.parent_id)!.push(t);
+  }
+  for (const [parentId, children] of groups) {
+    rows.push({ kind: 'header', label: resolveParentTitle(parentId) || 'Other subtasks', key: parentId });
+    for (const c of children) {
+      rows.push({ kind: 'task', task: c, indent: true });
+      rendered.add(c.id);
+    }
+  }
+
+  return rows;
+}
 
 // ─── Column summaries (Airtable-style footer/group totals) ─────────────
 
@@ -622,7 +668,10 @@ export default function FlexTables() {
     (async () => {
       const [profRes, taskRes] = await Promise.all([
         supabase.from('profiles_directory').select('id, full_name, email').eq('is_anonymised', false).in('status', ['active', 'invited']).in('role', ['operations', 'admin', 'super_admin']).order('full_name').limit(500),
-        supabase.from('tasks').select('id, title, status, completed_at').is('parent_id', null).order('created_at', { ascending: false }).limit(1000),
+        // No parent_id filter — subtasks are included too, so they can be
+        // linked from a table just like top-level tasks (grouped under
+        // their parent in the picker).
+        supabase.from('tasks').select('id, title, status, completed_at, parent_id').order('created_at', { ascending: false }).limit(1000),
       ]);
       setProfiles((profRes.data as ProfileLite[]) || []);
       setTasksList((taskRes.data as TaskLite[]) || []);
@@ -2026,11 +2075,22 @@ function Cell({
         )}
         {(field.type === 'task_link' || field.type === 'completed_task_link') && (
           <div className="max-h-56 overflow-y-auto space-y-1">
-            {(field.type === 'completed_task_link' ? completedTasks : Array.from(tasksById.values())).map((t) => {
+            {buildTaskPickerRows(
+              field.type === 'completed_task_link' ? completedTasks : Array.from(tasksById.values()),
+              (parentId) => tasksById.get(parentId)?.title ?? null,
+            ).map((row) => {
+              if (row.kind === 'header') {
+                return (
+                  <p key={`h-${row.key}`} className="px-2 pt-1.5 text-[10px] font-medium text-muted-foreground/70 truncate">
+                    Under: {row.label}
+                  </p>
+                );
+              }
+              const t = row.task;
               const ids = Array.isArray(draft) ? (draft as string[]) : [];
               const checked = ids.includes(t.id);
               return (
-                <label key={t.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/40 cursor-pointer">
+                <label key={t.id} className={cn('flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/40 cursor-pointer', row.indent && 'ml-4')}>
                   <Checkbox checked={checked} onCheckedChange={(v) => {
                     const next = v ? [...ids, t.id] : ids.filter((i) => i !== t.id);
                     setDraft(next);
