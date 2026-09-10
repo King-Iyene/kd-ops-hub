@@ -3,7 +3,7 @@ import {
   Plus, Table2, Trash2, Loader2, MoreHorizontal, EyeOff, ListFilter,
   Type, AlignLeft, Hash, CalendarDays, CheckSquare, ListChecks,
   User, Users, Link2, AtSign, Phone, Globe, Copy, FileText, Check, Sigma, CheckCircle2, GripVertical,
-  AlertTriangle, TrendingUp,
+  AlertTriangle, TrendingUp, Pencil,
 } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -169,9 +169,19 @@ function getFieldDisplayValue(
   return resolveDisplayValue(field, record.data[field.id], profilesById, tasksById);
 }
 
-type FilterOp = 'contains' | 'not_contains' | 'is' | 'is_not' | 'is_empty' | 'is_not_empty' | 'gt' | 'lt' | 'gte' | 'lte';
+type FilterOp = 'contains' | 'not_contains' | 'is' | 'is_not' | 'is_empty' | 'is_not_empty' | 'gt' | 'lt' | 'gte' | 'lte' | 'is_within';
 
 interface FlexFilter { id: string; fieldId: string; operator: FilterOp; value: string; }
+
+/** A saved View — a named snapshot of the filter set (and grouping) that
+ *  can be reapplied later, Airtable-style. Persisted per table. */
+interface FlexView {
+  id: string;
+  name: string;
+  filters: FlexFilter[];
+  groupByField: string;
+  subGroupByField: string;
+}
 
 const TEXT_OPS: { value: FilterOp; label: string }[] = [
   { value: 'contains', label: 'contains' },
@@ -190,11 +200,60 @@ const NUMERIC_OPS: { value: FilterOp; label: string }[] = [
 ];
 
 const DATE_OPS: { value: FilterOp; label: string }[] = [
+  { value: 'is_within', label: 'is within' },
   { value: 'is', label: 'is on' }, { value: 'is_not', label: 'is not on' },
   { value: 'gt', label: 'is after' }, { value: 'gte', label: 'is on or after' },
   { value: 'lt', label: 'is before' }, { value: 'lte', label: 'is on or before' },
   { value: 'is_empty', label: 'is empty' }, { value: 'is_not_empty', label: 'is not empty' },
 ];
+
+/** Airtable-style relative date presets for the Date field's "is within"
+ *  operator — each resolves to an inclusive [start, end] ISO date range
+ *  computed fresh every time the filter runs, so "This week" etc. always
+ *  reflect today rather than whatever day the filter was created. */
+const DATE_PRESETS: { value: string; label: string }[] = [
+  { value: 'today', label: 'Today' },
+  { value: 'tomorrow', label: 'Tomorrow' },
+  { value: 'yesterday', label: 'Yesterday' },
+  { value: 'this_week', label: 'This calendar week' },
+  { value: 'last_week', label: 'Last calendar week' },
+  { value: 'next_week', label: 'Next calendar week' },
+  { value: 'this_month', label: 'This calendar month' },
+  { value: 'last_month', label: 'Last calendar month' },
+  { value: 'next_month', label: 'Next calendar month' },
+  { value: 'this_year', label: 'This calendar year' },
+  { value: 'past_7_days', label: 'The past 7 days' },
+  { value: 'past_14_days', label: 'The past 14 days' },
+  { value: 'past_30_days', label: 'The past 30 days' },
+  { value: 'next_7_days', label: 'The next 7 days' },
+  { value: 'next_30_days', label: 'The next 30 days' },
+];
+
+function resolveDatePresetRange(preset: string): { start: string; end: string } | null {
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const today = new Date();
+  const startOfWeek = (d: Date) => { const x = new Date(d); const day = x.getDay(); x.setDate(x.getDate() + (day === 0 ? -6 : 1 - day)); return x; };
+  const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+
+  switch (preset) {
+    case 'today': return { start: iso(today), end: iso(today) };
+    case 'tomorrow': { const d = addDays(today, 1); return { start: iso(d), end: iso(d) }; }
+    case 'yesterday': { const d = addDays(today, -1); return { start: iso(d), end: iso(d) }; }
+    case 'this_week': { const s = startOfWeek(today); return { start: iso(s), end: iso(addDays(s, 6)) }; }
+    case 'last_week': { const s = addDays(startOfWeek(today), -7); return { start: iso(s), end: iso(addDays(s, 6)) }; }
+    case 'next_week': { const s = addDays(startOfWeek(today), 7); return { start: iso(s), end: iso(addDays(s, 6)) }; }
+    case 'this_month': { const s = new Date(today.getFullYear(), today.getMonth(), 1); const e = new Date(today.getFullYear(), today.getMonth() + 1, 0); return { start: iso(s), end: iso(e) }; }
+    case 'last_month': { const s = new Date(today.getFullYear(), today.getMonth() - 1, 1); const e = new Date(today.getFullYear(), today.getMonth(), 0); return { start: iso(s), end: iso(e) }; }
+    case 'next_month': { const s = new Date(today.getFullYear(), today.getMonth() + 1, 1); const e = new Date(today.getFullYear(), today.getMonth() + 2, 0); return { start: iso(s), end: iso(e) }; }
+    case 'this_year': { return { start: iso(new Date(today.getFullYear(), 0, 1)), end: iso(new Date(today.getFullYear(), 11, 31)) }; }
+    case 'past_7_days': return { start: iso(addDays(today, -6)), end: iso(today) };
+    case 'past_14_days': return { start: iso(addDays(today, -13)), end: iso(today) };
+    case 'past_30_days': return { start: iso(addDays(today, -29)), end: iso(today) };
+    case 'next_7_days': return { start: iso(today), end: iso(addDays(today, 6)) };
+    case 'next_30_days': return { start: iso(today), end: iso(addDays(today, 29)) };
+    default: return null;
+  }
+}
 
 const CHECKBOX_OPS: { value: FilterOp; label: string }[] = [
   { value: 'is', label: 'is' },
@@ -269,6 +328,12 @@ function filterMatches(
       if (filter.operator === 'lt') return n < target;
       if (filter.operator === 'gte') return n >= target;
       return n <= target;
+    }
+    case 'is_within': {
+      if (isEmpty) return false;
+      const range = resolveDatePresetRange(filter.value);
+      if (!range) return false;
+      return display >= range.start && display <= range.end;
     }
     default: return true;
   }
@@ -435,13 +500,24 @@ function SummaryCell({
  *  picker for Date, a dropdown of real choices/names for Select/Person and
  *  their multi- variants, Yes/No for Checkbox, and free text otherwise. */
 function FilterValueInput({
-  field, value, profilesById, onChange,
+  field, value, operator, profilesById, onChange,
 }: {
   field: FlexField;
   value: string;
+  operator: FilterOp;
   profilesById: Map<string, ProfileLite>;
   onChange: (v: string) => void;
 }) {
+  if (field.type === 'date' && operator === 'is_within') {
+    return (
+      <Select value={value || undefined} onValueChange={onChange}>
+        <SelectTrigger className="h-7 text-xs flex-1"><SelectValue placeholder="Select range..." /></SelectTrigger>
+        <SelectContent>
+          {DATE_PRESETS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    );
+  }
   switch (field.type) {
     case 'date':
       return <Input type="date" className="h-7 text-xs flex-1" value={value} onChange={(e) => onChange(e.target.value)} />;
@@ -1184,6 +1260,12 @@ function GridView({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<FlexFilter[]>([]);
   const [summaryByField, setSummaryByField] = useState<Record<string, SummaryType>>({});
+  const [views, setViews] = useState<FlexView[]>([]);
+  const [activeViewId, setActiveViewId] = useState<string | null>(null);
+  const [saveViewDialog, setSaveViewDialog] = useState(false);
+  const [saveViewName, setSaveViewName] = useState('');
+  const [renamingView, setRenamingView] = useState<FlexView | null>(null);
+  const [renameViewValue, setRenameViewValue] = useState('');
 
   // Grouping is remembered per table (survives switching to Forms and back,
   // and page reloads) until the user explicitly changes it.
@@ -1225,6 +1307,73 @@ function GridView({
 
   const setFieldSummaryType = (fieldId: string, type: SummaryType) =>
     setSummaryByField((prev) => ({ ...prev, [fieldId]: type }));
+
+  // Saved Views — a named filter (+ grouping) snapshot the user can jump
+  // back to. Persisted per table; switching tables resets the active view.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`flex_views_${tableId}`);
+      setViews(raw ? JSON.parse(raw) : []);
+    } catch {
+      setViews([]);
+    }
+    setActiveViewId(null);
+  }, [tableId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`flex_views_${tableId}`, JSON.stringify(views));
+    } catch { /* best-effort persistence only */ }
+  }, [tableId, views]);
+
+  const applyView = (view: FlexView | null) => {
+    if (!view) {
+      setFilters([]);
+      setGroupByField('__none__');
+      setSubGroupByField('__none__');
+      setActiveViewId(null);
+      return;
+    }
+    setFilters(view.filters.map((f) => ({ ...f })));
+    setGroupByField(view.groupByField);
+    setSubGroupByField(view.subGroupByField);
+    setActiveViewId(view.id);
+  };
+
+  const saveCurrentAsView = () => {
+    if (!saveViewName.trim()) return;
+    const view: FlexView = {
+      id: crypto.randomUUID(),
+      name: saveViewName.trim(),
+      filters: filters.map((f) => ({ ...f })),
+      groupByField,
+      subGroupByField,
+    };
+    setViews((prev) => [...prev, view]);
+    setActiveViewId(view.id);
+    setSaveViewDialog(false);
+    setSaveViewName('');
+  };
+
+  const updateActiveView = () => {
+    if (!activeViewId) return;
+    setViews((prev) => prev.map((v) => (v.id === activeViewId
+      ? { ...v, filters: filters.map((f) => ({ ...f })), groupByField, subGroupByField }
+      : v)));
+  };
+
+  const renameView = () => {
+    if (!renamingView || !renameViewValue.trim()) return;
+    setViews((prev) => prev.map((v) => (v.id === renamingView.id ? { ...v, name: renameViewValue.trim() } : v)));
+    setRenamingView(null);
+  };
+
+  const deleteView = (view: FlexView) => {
+    setViews((prev) => prev.filter((v) => v.id !== view.id));
+    if (activeViewId === view.id) applyView(null);
+  };
+
+  const activeView = views.find((v) => v.id === activeViewId) || null;
 
   const startResize = useCallback((fieldId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -1344,6 +1493,54 @@ function GridView({
     <div>
       <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5">
+                <ListFilter className="h-3.5 w-3.5" /> {activeView ? activeView.name : 'All records'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-64">
+              <DropdownMenuItem onClick={() => applyView(null)}>
+                {!activeView && <Check className="h-3.5 w-3.5 mr-2" />}
+                <span className={!activeView ? '' : 'ml-[22px]'}>All records</span>
+              </DropdownMenuItem>
+              {views.length > 0 && <DropdownMenuSeparator />}
+              {views.map((v) => (
+                <div key={v.id} className="flex items-center group/view">
+                  <button
+                    className="flex-1 min-w-0 flex items-center px-2 py-1.5 text-sm rounded-sm hover:bg-muted/60 text-left"
+                    onClick={() => applyView(v)}
+                  >
+                    {activeViewId === v.id && <Check className="h-3.5 w-3.5 mr-2 shrink-0" />}
+                    <span className={cn('truncate', activeViewId !== v.id && 'ml-[22px]')}>{v.name}</span>
+                  </button>
+                  <button
+                    className="h-6 w-6 shrink-0 rounded-md opacity-0 group-hover/view:opacity-100 flex items-center justify-center text-muted-foreground hover:text-foreground mr-1"
+                    onClick={(e) => { e.stopPropagation(); setRenamingView(v); setRenameViewValue(v.name); }}
+                    aria-label="Rename view"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                  <button
+                    className="h-6 w-6 shrink-0 rounded-md opacity-0 group-hover/view:opacity-100 flex items-center justify-center text-muted-foreground hover:text-destructive mr-1"
+                    onClick={(e) => { e.stopPropagation(); deleteView(v); }}
+                    aria-label="Delete view"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              <DropdownMenuSeparator />
+              {activeView && (
+                <DropdownMenuItem onClick={updateActiveView}>
+                  <Check className="h-3.5 w-3.5 mr-2 opacity-0" /> Save changes to "{activeView.name}"
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={() => { setSaveViewName(''); setSaveViewDialog(true); }}>
+                <Plus className="h-3.5 w-3.5 mr-2" /> Save current filters as view...
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Select value={groupByField} onValueChange={(v) => { setGroupByField(v); setSubGroupByField('__none__'); }}>
             <SelectTrigger className="h-7 w-[150px] text-xs"><SelectValue placeholder="Group by" /></SelectTrigger>
             <SelectContent>
@@ -1381,7 +1578,7 @@ function GridView({
                           {fields.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      <Select value={f.operator} onValueChange={(v) => updateFilter(f.id, { operator: v as FilterOp })}>
+                      <Select value={f.operator} onValueChange={(v) => updateFilter(f.id, { operator: v as FilterOp, value: '' })}>
                         <SelectTrigger className="h-7 text-xs w-[130px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {ops.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
@@ -1391,6 +1588,7 @@ function GridView({
                         <FilterValueInput
                           field={field}
                           value={f.value}
+                          operator={f.operator}
                           profilesById={profilesById}
                           onChange={(v) => updateFilter(f.id, { value: v })}
                         />
@@ -1514,6 +1712,41 @@ function GridView({
           <Plus className="h-3.5 w-3.5" /> Add row
         </button>
       </div>
+
+      {/* Save current filters as a new view */}
+      <Dialog open={saveViewDialog} onOpenChange={setSaveViewDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Save current filters as a view</DialogTitle></DialogHeader>
+          <Input
+            placeholder="View name"
+            value={saveViewName}
+            onChange={(e) => setSaveViewName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') saveCurrentAsView(); }}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSaveViewDialog(false)}>Cancel</Button>
+            <Button onClick={saveCurrentAsView} disabled={!saveViewName.trim()}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename view */}
+      <Dialog open={!!renamingView} onOpenChange={(v) => { if (!v) setRenamingView(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Rename view</DialogTitle></DialogHeader>
+          <Input
+            value={renameViewValue}
+            onChange={(e) => setRenameViewValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') renameView(); }}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRenamingView(null)}>Cancel</Button>
+            <Button onClick={renameView} disabled={!renameViewValue.trim()}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
