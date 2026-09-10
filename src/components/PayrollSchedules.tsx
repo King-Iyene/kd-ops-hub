@@ -773,7 +773,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
                         <Users className="h-[18px] w-[18px]" />
                       </span>
                       <div className="min-w-0">
-                        <p className="text-[15px] font-semibold">{g.name}</p>
+                        <p className="text-base font-semibold">{g.name}</p>
                         {g.description && <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed max-w-md">{g.description}</p>}
                         {g.role_filter.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1.5">
@@ -807,7 +807,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
                           {names.slice(0, 4).map((n, idx) => (
                             <span
                               key={idx}
-                              className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-muted text-[9.5px] font-bold text-foreground overflow-hidden"
+                              className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-muted text-3xs font-bold text-foreground overflow-hidden"
                             >
                               {n.photo_url ? (
                                 <img src={n.photo_url} alt={n.name} className="h-full w-full object-cover" />
@@ -817,7 +817,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
                             </span>
                           ))}
                           {count > 4 && (
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-muted text-[9px] font-bold text-muted-foreground">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-muted text-3xs font-bold text-muted-foreground">
                               +{count - 4}
                             </span>
                           )}
@@ -857,7 +857,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
             ].map((item) => (
               <div key={item.title}>
                 <p className="text-xs font-semibold">{item.title}</p>
-                <p className="text-[11.5px] text-muted-foreground leading-relaxed mt-1">{item.body}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed mt-1">{item.body}</p>
               </div>
             ))}
           </div>
@@ -1480,7 +1480,7 @@ function SetupChecklist({ items }: { items: SetupItem[] }) {
           )}
         >
           <span className={cn(
-            'flex h-4 w-4 items-center justify-center rounded-full text-[9px]',
+            'flex h-4 w-4 items-center justify-center rounded-full text-3xs',
             item.done ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground',
           )}>
             {item.done ? <Check className="h-2.5 w-2.5" /> : null}

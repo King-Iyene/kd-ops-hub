@@ -134,7 +134,7 @@ const STATUS_LABELS: Record<LoanStatus, string> = {
 };
 
 const TAB_TRIGGER =
-  'text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none';
+  'text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none';
 
 export default function StaffLoans() {
   usePageTitle('Staff Loans');

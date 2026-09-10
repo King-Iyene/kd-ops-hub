@@ -157,7 +157,7 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
       <DialogContent className="sm:max-w-[640px] max-h-[85vh] flex flex-col p-0 gap-0">
         {/* Header */}
         <DialogHeader className="px-4 pt-4 pb-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] shrink-0">
-          <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
+          <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <History size={16} className="text-[#2D7FF9]" />
             Audit Log
           </DialogTitle>

@@ -42,7 +42,7 @@ function CodeBlock({ label, code, language }: { label: string; code: string; lan
       <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800/80">
         <div className="flex items-center gap-2">
           <span className="text-3xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{label}</span>
-          {language && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-zinc-200/70 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 font-medium">{language}</span>}
+          {language && <span className="text-3xs px-1.5 py-0.5 rounded-full bg-zinc-200/70 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 font-medium">{language}</span>}
         </div>
         <CopyButton text={code} />
       </div>
@@ -104,7 +104,7 @@ function OverviewTab({ baseId, onSubDialog, onSwitchTab }: { baseId: string | nu
             <Cable size={22} className="text-blue-600 dark:text-blue-400" />
           </div>
           <div className="flex-1">
-            <h3 className="text-[15px] font-bold text-zinc-800 dark:text-zinc-100">Connect Your Tools</h3>
+            <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-100">Connect Your Tools</h3>
             <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1.5 leading-relaxed">
               KDOps has a full <strong>Airtable-compatible REST API</strong>. Connect n8n, Zapier, Make, or any tool
               that speaks HTTP. Fields are <strong className="text-blue-600 dark:text-blue-400">auto-created</strong> when you send new data — no setup needed.
@@ -640,7 +640,7 @@ export function IntegrationsDialog({ open, onOpenChange, tableId, baseId }: Inte
           <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200 dark:border-zinc-700/80">
             <div className="flex items-center gap-2">
               <Cable size={16} className="text-blue-600 dark:text-blue-400" />
-              <h2 className="text-[15px] font-bold text-zinc-800 dark:text-zinc-100">Integrations</h2>
+              <h2 className="text-base font-bold text-zinc-800 dark:text-zinc-100">Integrations</h2>
             </div>
           </div>
 

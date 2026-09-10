@@ -294,7 +294,7 @@ export const PayrollRunsTab = ({
                 <p className="text-xs font-semibold text-white/55 uppercase tracking-wide">
                   {monthLabel(latest.period, latest.period_type)} Payroll
                 </p>
-                <p className="kd-display text-[28px] font-extrabold tabular-nums mt-1.5">
+                <p className="kd-display text-display-md font-extrabold tabular-nums mt-1.5">
                   {formatNaira(latest.total_burn_ngn)}
                 </p>
                 <p className="text-xs text-white/60 mt-0.5">{latest.employee_count ?? 0} employees</p>

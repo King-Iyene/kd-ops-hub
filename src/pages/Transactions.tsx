@@ -439,7 +439,7 @@ const Transactions = () => {
                     {label}
                   </span>
                   <span className={cn(
-                    'mt-1.5 text-[20px] font-semibold tabular-nums font-mono leading-none tracking-tight block',
+                    'mt-1.5 text-xl font-semibold tabular-nums font-mono leading-none tracking-tight block',
                     isActive && 'text-primary',
                   )}>
                     {count.toLocaleString()}
@@ -467,7 +467,7 @@ const Transactions = () => {
             return (
               <div className="mt-2 space-y-2 flex-1 flex flex-col justify-center">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-[28px] font-semibold font-mono tabular-nums leading-none tracking-tight text-emerald-600 dark:text-emerald-400">
+                  <span className="text-display-md font-semibold font-mono tabular-nums leading-none tracking-tight text-emerald-600 dark:text-emerald-400">
                     {successRate}%
                   </span>
                   <span className="text-2xs text-muted-foreground">success rate</span>
@@ -694,10 +694,10 @@ const Transactions = () => {
                           <td className="px-3 py-2 font-mono text-2xs text-muted-foreground tracking-tight whitespace-nowrap">
                             {refDisplay}
                           </td>
-                          <td className="px-3 py-2 text-right font-mono text-[11.5px] text-muted-foreground tabular-nums whitespace-nowrap">
+                          <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground tabular-nums whitespace-nowrap">
                             {fee > 0 ? formatNaira(fee) : <span className="text-muted-foreground/30">—</span>}
                           </td>
-                          <td className="px-3 py-2 text-right font-mono text-[11.5px] text-muted-foreground tabular-nums whitespace-nowrap">
+                          <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground tabular-nums whitespace-nowrap">
                             {stamp > 0 ? formatNaira(stamp) : <span className="text-muted-foreground/30">—</span>}
                           </td>
                           <td className="px-3 py-2 text-right font-mono font-semibold text-xs-plus tabular-nums whitespace-nowrap">
@@ -842,7 +842,7 @@ function LedgerStatusDot({ status }: { status: string }) {
   };
   const c = config[status] ?? config.pending;
   return (
-    <span className={cn('inline-flex items-center gap-1.5 text-[11.5px] font-medium', c.text)}>
+    <span className={cn('inline-flex items-center gap-1.5 text-xs font-medium', c.text)}>
       <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', c.dot)} />
       {c.label}
     </span>

@@ -344,7 +344,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">
                       <span
-                        className="px-1.5 py-0.5 rounded text-[9px] font-medium"
+                        className="px-1.5 py-0.5 rounded text-3xs font-medium"
                         style={{ backgroundColor: isDark ? badge.darkBg : badge.bg, color: isDark ? badge.darkText : badge.text }}
                       >
                         {TRIGGER_LABELS[a.trigger_type]}

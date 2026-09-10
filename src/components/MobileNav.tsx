@@ -168,7 +168,7 @@ export function MobileNav() {
                 <tab.icon className={cn('h-5 w-5 kd-transition', active && 'text-primary')} />
                 <span className={cn('text-3xs font-medium leading-tight', active && 'text-primary font-semibold')}>{tab.title}</span>
                 {tab.badge === 'approvals' && approvalTotal > 0 && (
-                  <span className="absolute top-0 right-[calc(50%-14px)] h-4 min-w-4 px-0.5 rounded-full bg-amber-400 text-[9px] font-bold text-amber-900 flex items-center justify-center">
+                  <span className="absolute top-0 right-[calc(50%-14px)] h-4 min-w-4 px-0.5 rounded-full bg-amber-400 text-3xs font-bold text-amber-900 flex items-center justify-center">
                     {approvalTotal > 9 ? '9+' : approvalTotal}
                   </span>
                 )}

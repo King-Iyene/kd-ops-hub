@@ -241,8 +241,8 @@ export const OfferLetterTemplatesAdmin = () => {
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium truncate">{t.name}</span>
                     <div className="flex items-center gap-1 shrink-0">
-                      {t.is_system && <Badge variant="secondary" className="text-[9px]">system</Badge>}
-                      {!t.active && <Badge variant="secondary" className="text-[9px] bg-muted">off</Badge>}
+                      {t.is_system && <Badge variant="secondary" className="text-3xs">system</Badge>}
+                      {!t.active && <Badge variant="secondary" className="text-3xs bg-muted">off</Badge>}
                     </div>
                   </div>
                   <p className="text-3xs text-muted-foreground truncate">{t.code}</p>

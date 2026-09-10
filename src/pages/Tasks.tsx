@@ -986,7 +986,7 @@ const Tasks = () => {
                         <Filter className="h-3.5 w-3.5" />
                         <span className="hidden sm:inline">Filter</span>
                         {activeFilters.length > 0 && (
-                          <span className="bg-primary text-primary-foreground text-[9px] rounded-full h-4 w-4 flex items-center justify-center">
+                          <span className="bg-primary text-primary-foreground text-3xs rounded-full h-4 w-4 flex items-center justify-center">
                             {activeFilters.length}
                           </span>
                         )}

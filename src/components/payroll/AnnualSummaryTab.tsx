@@ -181,7 +181,7 @@ function RaiseSimulator({ departments }: { departments: { id: string; name: stri
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
           <CardTitle className="text-base">What-if: raise simulator</CardTitle>
-          <Badge variant="outline" className="text-[9.5px] uppercase tracking-wide">New</Badge>
+          <Badge variant="outline" className="text-3xs uppercase tracking-wide">New</Badge>
         </div>
         <p className="text-xs text-muted-foreground">
           Full loaded cost of a raise — gross, plus employer pension and NSITF, not just the headline number.

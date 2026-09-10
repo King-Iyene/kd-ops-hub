@@ -123,15 +123,15 @@ export function ImportTemplatesDialog({ open, onOpenChange }: ImportTemplatesDia
 
           <div className="rounded-md border border-border/60 p-3 space-y-1.5">
             <p className="font-medium text-xs-plus">Columns</p>
-            <p className="text-[12.5px]">
+            <p className="text-xs-plus">
               <span className="font-semibold text-foreground">Required:</span>{' '}
               <code className="text-xs">full_name</code>, <code className="text-xs">bank_name</code>, <code className="text-xs">account_number</code>
             </p>
-            <p className="text-[12.5px]">
+            <p className="text-xs-plus">
               <span className="font-semibold text-foreground">Optional:</span>{' '}
               <code className="text-xs">linkedin_email</code> (primary email), <code className="text-xs">email</code>, <code className="text-xs">whatsapp_phone</code>, <code className="text-xs">linkedin_password</code>, <code className="text-xs">linkedin_url</code>, <code className="text-xs">default_amount_ngn</code>, <code className="text-xs">onboarded_at</code>
             </p>
-            <p className="text-[11.5px] text-muted-foreground pt-0.5">
+            <p className="text-xs text-muted-foreground pt-0.5">
               If <code className="text-xs">linkedin_email</code> is blank, the <code className="text-xs">email</code> value fills it on import. Accounts are Paystack-verified — unverifiable accounts are blocked.
             </p>
           </div>

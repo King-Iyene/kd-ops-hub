@@ -533,10 +533,10 @@ const Contacts = () => {
                       <div className="min-w-0 flex-1">
                         <MobileCardTitle>{displayName(c.first_name, c.last_name, c.full_name)}</MobileCardTitle>
                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                          <Badge variant="secondary" className={`h-4 px-1.5 text-[9px] ${TYPE_BADGE[c.contact_type]}`}>
+                          <Badge variant="secondary" className={`h-4 px-1.5 text-3xs ${TYPE_BADGE[c.contact_type]}`}>
                             {c.contact_type}
                           </Badge>
-                          <Badge variant="secondary" className={`h-4 px-1.5 text-[9px] ${STATUS_BADGE[c.status]}`}>
+                          <Badge variant="secondary" className={`h-4 px-1.5 text-3xs ${STATUS_BADGE[c.status]}`}>
                             {c.status}
                           </Badge>
                         </div>

@@ -379,7 +379,7 @@ function ListRow({
               const tag = availableTags.find((t) => t.id === tagId);
               if (!tag) return null;
               return (
-                <span key={tagId} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
+                <span key={tagId} className="text-3xs px-1.5 py-0.5 rounded-full font-medium"
                   style={tag.color ? { backgroundColor: `${tag.color}15`, color: tag.color } : undefined}>
                   {tag.name}
                 </span>

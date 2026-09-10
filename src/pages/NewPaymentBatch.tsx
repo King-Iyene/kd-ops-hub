@@ -842,7 +842,7 @@ const NewPaymentBatch = () => {
                       {t.icon}
                     </div>
                     <div>
-                      <p className="font-semibold text-[15px] leading-tight">{t.label}</p>
+                      <p className="font-semibold text-base leading-tight">{t.label}</p>
                       <p className="text-xs-plus text-muted-foreground/60 mt-1 leading-snug">{t.desc}</p>
                     </div>
                   </button>
@@ -1034,7 +1034,7 @@ const NewPaymentBatch = () => {
                             />
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-[12.5px] font-medium truncate">{name}</span>
+                                <span className="text-xs-plus font-medium truncate">{name}</span>
                                 {hasBank ? (
                                   <span className="hidden sm:inline text-2xs text-muted-foreground/80 font-mono tracking-tight truncate">
                                     {e.bank_name} · {e.bank_account_number || '—'}
@@ -1123,7 +1123,7 @@ const NewPaymentBatch = () => {
                             />
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-[12.5px] font-medium truncate">{name}</span>
+                                <span className="text-xs-plus font-medium truncate">{name}</span>
                                 {showStatus && (
                                   <span
                                     className={cn(
@@ -1256,7 +1256,7 @@ const NewPaymentBatch = () => {
                         {items.map((item, i) => (
                           <tr key={item._key} className="hover:bg-muted/20 kd-transition">
                             <td className="px-3 py-1.5 max-w-[280px]">
-                              <div className="text-[12.5px] font-medium truncate">{item.full_name || 'Unknown'}</div>
+                              <div className="text-xs-plus font-medium truncate">{item.full_name || 'Unknown'}</div>
                               {item.bank_name && (
                                 <div className="text-2xs text-muted-foreground/80 font-mono tracking-tight truncate">
                                   {item.bank_name} · {item.account_number || '—'}

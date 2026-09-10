@@ -185,7 +185,7 @@ export default function LeaveCalendar() {
                     {d.getUTCDate()}
                   </span>
                   {cell.length > 0 && (
-                    <span className="text-[9px] font-medium text-muted-foreground">
+                    <span className="text-3xs font-medium text-muted-foreground">
                       {cell.length}
                     </span>
                   )}
@@ -205,7 +205,7 @@ export default function LeaveCalendar() {
                     </div>
                   ))}
                   {cell.length > 3 && (
-                    <span className="text-[9px] text-muted-foreground">+{cell.length - 3} more</span>
+                    <span className="text-3xs text-muted-foreground">+{cell.length - 3} more</span>
                   )}
                 </div>
               </div>

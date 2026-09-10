@@ -77,7 +77,7 @@ function CodeBlock({ label, code, language }: { label: string; code: string; lan
         <div className="flex items-center gap-2">
           <span className="text-3xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{label}</span>
           {language && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-zinc-200/70 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 font-medium">
+            <span className="text-3xs px-1.5 py-0.5 rounded-full bg-zinc-200/70 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 font-medium">
               {language}
             </span>
           )}
@@ -1462,7 +1462,7 @@ function EndpointCard({ endpoint, moduleId }: { endpoint: Endpoint; moduleId: st
                         <TableCell className="text-2xs text-zinc-500 dark:text-zinc-400 py-2">{f.type}</TableCell>
                         <TableCell className="py-2">
                           {f.required ? (
-                            <Badge variant="secondary" className="text-[9px] bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-100">
+                            <Badge variant="secondary" className="text-3xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-100">
                               Required
                             </Badge>
                           ) : (

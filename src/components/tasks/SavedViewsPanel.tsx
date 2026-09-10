@@ -131,7 +131,7 @@ export function SavedViewsPanel({
               onKeyDown={(e) => { if (e.key === 'Enter') saveView(); if (e.key === 'Escape') setShowSave(false); }}
               autoFocus
             />
-            <Button size="sm" className="h-6 text-[9px] px-2" onClick={saveView}>Save</Button>
+            <Button size="sm" className="h-6 text-3xs px-2" onClick={saveView}>Save</Button>
             <button onClick={() => setShowSave(false)} className="text-muted-foreground hover:text-foreground">
               <span className="text-3xs">Cancel</span>
             </button>

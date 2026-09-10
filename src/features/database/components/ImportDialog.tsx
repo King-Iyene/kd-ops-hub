@@ -129,7 +129,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
     >
       <DialogContent className="sm:max-w-[540px]">
         <DialogHeader>
-          <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
+          <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <Upload size={16} className="text-[#2D7FF9]" />
             Import data
           </DialogTitle>

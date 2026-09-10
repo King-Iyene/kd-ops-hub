@@ -598,7 +598,7 @@ export default function Projects() {
                             <div className="flex items-center gap-1.5">
                               <div className={cn('h-2 w-2 rounded-full', SM?.dot)} />
                               <span className="text-xs">{SM?.label}</span>
-                              {isOverdue && <Badge variant="destructive" className="text-[9px] px-1 py-0">Late</Badge>}
+                              {isOverdue && <Badge variant="destructive" className="text-3xs px-1 py-0">Late</Badge>}
                             </div>
                           </td>
                           <td className="py-3 px-4 text-xs text-muted-foreground">{nameOf(project.owner_id)}</td>
@@ -898,7 +898,7 @@ function ProjectCard({
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-sm font-semibold leading-snug truncate">{project.name}</p>
               {isOverdue && (
-                <Badge variant="destructive" className="text-[9px] px-1.5 py-0 shrink-0">Overdue</Badge>
+                <Badge variant="destructive" className="text-3xs px-1.5 py-0 shrink-0">Overdue</Badge>
               )}
             </div>
             {space && (

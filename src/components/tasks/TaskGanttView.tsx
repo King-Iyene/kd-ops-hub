@@ -221,7 +221,7 @@ export function TaskGanttView({ tasks, profiles, onTaskClick, dependencies = [] 
                   <div
                     key={i}
                     className={cn(
-                      'text-[9px] text-center border-r flex items-center justify-center',
+                      'text-3xs text-center border-r flex items-center justify-center',
                       isWeekend && 'bg-muted/40',
                       isToday && 'bg-primary/10 font-bold text-primary',
                     )}
@@ -328,7 +328,7 @@ export function TaskGanttView({ tasks, profiles, onTaskClick, dependencies = [] 
                             'bg-amber-500',
                           )}
                         />
-                        <span className="text-[9px] font-medium text-muted-foreground whitespace-nowrap -rotate-0 ml-1 group-hover/ms:text-foreground">
+                        <span className="text-3xs font-medium text-muted-foreground whitespace-nowrap -rotate-0 ml-1 group-hover/ms:text-foreground">
                           {t.title}
                         </span>
                       </button>
@@ -336,7 +336,7 @@ export function TaskGanttView({ tasks, profiles, onTaskClick, dependencies = [] 
                       <button
                         onClick={() => onTaskClick(t)}
                         className={cn(
-                          'absolute top-1 h-6 rounded text-[9px] text-white font-medium px-1.5 truncate transition-colors hover:opacity-80',
+                          'absolute top-1 h-6 rounded text-3xs text-white font-medium px-1.5 truncate transition-colors hover:opacity-80',
                           t.status === 'complete' ? 'bg-green-500' :
                           t.status === 'blocked' ? 'bg-red-500' :
                           t.status === 'in_progress' ? 'bg-blue-500' :

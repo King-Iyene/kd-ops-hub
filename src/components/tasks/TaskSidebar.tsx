@@ -117,7 +117,7 @@ export function TaskSidebar({
           active={currentView === 'my-tasks' && !selectedSpace}
           onClick={() => { onSelectSpace(null); onSelectList(null); onChangeView('my-tasks'); }}
           badge={taskCounts.overdue > 0 ? (
-            <span className="text-[9px] bg-destructive/15 text-destructive rounded-full px-1.5 py-0.5 font-medium tabular-nums">
+            <span className="text-3xs bg-destructive/15 text-destructive rounded-full px-1.5 py-0.5 font-medium tabular-nums">
               {taskCounts.overdue}
             </span>
           ) : undefined}

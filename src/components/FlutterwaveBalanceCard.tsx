@@ -214,7 +214,7 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
                     balance with real money. */}
                 <span
                   className={cn(
-                    'inline-flex items-center px-1.5 py-0 rounded text-[9px] font-bold uppercase tracking-wider leading-[1.4]',
+                    'inline-flex items-center px-1.5 py-0 rounded text-3xs font-bold uppercase tracking-wider leading-[1.4]',
                     mode === 'live'
                       ? 'bg-gradient-to-r from-red-500 to-rose-500 text-white'
                       : 'bg-gradient-to-r from-amber-500 to-orange-400 text-white',
@@ -230,7 +230,7 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
                 Paystack card so the two feel like one system. */}
             <span
               className={cn(
-                'ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider leading-none whitespace-nowrap kd-transition',
+                'ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-bold uppercase tracking-wider leading-none whitespace-nowrap kd-transition',
                 isActive
                   ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-[0_2px_8px_-2px_rgba(245,158,11,0.5)]'
                   : 'border border-border/60 text-muted-foreground bg-muted/30',
@@ -423,7 +423,7 @@ function FundingRow({ label, value, mono }: { label: string; value: string; mono
     <CopyButton onCopy={onCopy} label={label}>
       <span className="text-3xs uppercase tracking-wider text-muted-foreground/70 shrink-0 w-14">{label}</span>
       <span className={cn(
-        'text-[11.5px] font-medium text-foreground truncate flex-1 text-right',
+        'text-xs font-medium text-foreground truncate flex-1 text-right',
         mono && 'font-mono tracking-tight',
       )}>{value}</span>
     </CopyButton>

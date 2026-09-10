@@ -140,7 +140,7 @@ export function MentionInput({
           className,
         )}
       />
-      <p className="text-[9px] text-muted-foreground mt-0.5">
+      <p className="text-3xs text-muted-foreground mt-0.5">
         Ctrl+Enter to submit · Type @ to mention
       </p>
       {showMentions && filtered.length > 0 && (
@@ -168,7 +168,7 @@ export function MentionInput({
               </div>
               <div className="min-w-0">
                 <p className="font-medium truncate">{p.full_name}</p>
-                <p className="text-[9px] text-muted-foreground truncate">{p.email}</p>
+                <p className="text-3xs text-muted-foreground truncate">{p.email}</p>
               </div>
             </button>
           ))}

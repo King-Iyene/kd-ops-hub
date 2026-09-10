@@ -920,7 +920,7 @@ const ProfilePage = () => {
           <TabsTrigger value="requests">
             Requests
             {stats.pending > 0 && (
-              <span className="ml-1.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[9px] font-bold px-1">
+              <span className="ml-1.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 text-3xs font-bold px-1">
                 {stats.pending}
               </span>
             )}

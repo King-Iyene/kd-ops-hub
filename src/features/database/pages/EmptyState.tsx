@@ -109,7 +109,7 @@ export function EmptyState() {
             <Table2 size={28} className="text-[#2D7FF9]" />
           </div>
           <div>
-            <p className="text-[15px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
+            <p className="text-base font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
               No tables yet
             </p>
             <p className="text-xs-plus text-[#6A7184] mt-1 leading-relaxed">

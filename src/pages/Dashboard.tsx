@@ -825,7 +825,7 @@ const Dashboard = () => {
                     </span>
                     <span className="text-2xs font-medium text-muted-foreground group-hover:text-foreground kd-transition leading-tight">{label}</span>
                     {badge !== undefined && badge > 0 && (
-                      <span className="absolute top-1.5 right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-amber-100 px-1 text-[9px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                      <span className="absolute top-1.5 right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-amber-100 px-1 text-3xs font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
                         {badge}
                       </span>
                     )}

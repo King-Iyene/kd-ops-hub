@@ -823,7 +823,7 @@ const Employees = () => {
                       size={40}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[15px] font-medium text-foreground truncate leading-tight">
+                      <p className="text-base font-medium text-foreground truncate leading-tight">
                         {displayName(e.first_name, e.last_name, e.full_name)}
                       </p>
                       <p className="text-xs-plus text-muted-foreground/70 truncate mt-0.5 capitalize">

@@ -98,7 +98,7 @@ export function LinkedRecordPicker({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[440px] max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-[15px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] flex items-center gap-2">
+          <DialogTitle className="text-base font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] flex items-center gap-2">
             <Link2 size={16} className="text-[#2D7FF9]" />
             Link Records
           </DialogTitle>

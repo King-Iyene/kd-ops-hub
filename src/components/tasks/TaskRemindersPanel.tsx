@@ -289,7 +289,7 @@ export function TaskRemindersPanel({ taskId }: TaskRemindersPanelProps) {
                       {formatRelativeTime(r.remind_at)}
                     </span>
                     {isOverdue && (
-                      <Badge variant="destructive" className="text-[9px] px-1 py-0 leading-tight">
+                      <Badge variant="destructive" className="text-3xs px-1 py-0 leading-tight">
                         Overdue
                       </Badge>
                     )}

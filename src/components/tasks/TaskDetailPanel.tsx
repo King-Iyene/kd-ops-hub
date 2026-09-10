@@ -600,7 +600,7 @@ export function TaskDetailPanel({
                     </button>
                     <div className="flex items-center gap-1.5 shrink-0">
                       {sub.assignee_id && profiles.get(sub.assignee_id) && (
-                        <span className="text-[9px] text-muted-foreground">{profiles.get(sub.assignee_id)!.full_name.split(' ')[0]}</span>
+                        <span className="text-3xs text-muted-foreground">{profiles.get(sub.assignee_id)!.full_name.split(' ')[0]}</span>
                       )}
                       {sub.due_date && (
                         <span className={cn('text-3xs tabular-nums', sub.status !== 'complete' && daysUntil(sub.due_date) !== null && daysUntil(sub.due_date)! < 0 ? 'text-destructive' : 'text-muted-foreground')}>
@@ -769,7 +769,7 @@ export function TaskDetailPanel({
                       return (
                         <div key={c.id} className="flex gap-2.5 group">
                           <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                            <span className="text-[9px] font-bold leading-none">{initials}</span>
+                            <span className="text-3xs font-bold leading-none">{initials}</span>
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
@@ -948,7 +948,7 @@ export function TaskDetailPanel({
                             )}
                             onClick={() => toggleAssignee(p.id)}
                           >
-                            <span className="h-5 w-5 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[9px] font-bold shrink-0">{initials}</span>
+                            <span className="h-5 w-5 rounded-full bg-primary/15 text-primary flex items-center justify-center text-3xs font-bold shrink-0">{initials}</span>
                             <span className="flex-1 text-left truncate">{p.full_name}</span>
                             {isSelected && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
                           </button>
@@ -1135,7 +1135,7 @@ export function TaskDetailPanel({
                     {availableGoals.map((g) => (
                       <SelectItem key={g.id} value={g.id}>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] text-muted-foreground shrink-0">{g.quarter}</span>
+                          <span className="text-3xs text-muted-foreground shrink-0">{g.quarter}</span>
                           <span className="truncate">{g.title}</span>
                         </div>
                       </SelectItem>

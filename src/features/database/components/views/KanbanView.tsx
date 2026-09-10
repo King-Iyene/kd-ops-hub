@@ -572,7 +572,7 @@ export default function KanbanView({
                               return (
                                 <div key={f.id} className="mt-1.5">
                                   <div
-                                    className="text-[9px] font-semibold uppercase tracking-wider mb-0.5"
+                                    className="text-3xs font-semibold uppercase tracking-wider mb-0.5"
                                     style={{ color: 'var(--kanban-subtle)' }}
                                   >
                                     {f.name}

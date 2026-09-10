@@ -76,7 +76,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) { setRevealedKey(null); setShowCreate(false); } }}>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
+          <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <Key size={16} className="text-[#2D7FF9]" />
             API Keys
           </DialogTitle>

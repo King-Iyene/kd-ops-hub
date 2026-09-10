@@ -536,7 +536,7 @@ export default function PaymentSchedule() {
                 {label}
                 {warn && <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-red-500 animate-pulse" />}
               </p>
-              <p className="mt-1.5 text-[20px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
+              <p className="mt-1.5 text-xl font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
                 {value}
               </p>
               <p className="mt-1 text-2xs text-muted-foreground/80 tabular-nums truncate">{sub}</p>

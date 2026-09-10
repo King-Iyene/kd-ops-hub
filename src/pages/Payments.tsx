@@ -533,10 +533,10 @@ const Payments = () => {
               {/* Column header */}
               <div className="hidden md:grid grid-cols-[12px_1fr_180px_110px_140px_12px] gap-3 items-center px-3 h-8 border-b border-border/70 bg-muted/30">
                 <span />
-                <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Description</p>
-                <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Recipients · Pay date</p>
-                <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Status</p>
-                <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90 text-right">Amount</p>
+                <p className="text-3xs font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Description</p>
+                <p className="text-3xs font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Recipients · Pay date</p>
+                <p className="text-3xs font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Status</p>
+                <p className="text-3xs font-semibold uppercase tracking-[0.14em] text-muted-foreground/90 text-right">Amount</p>
                 <span />
               </div>
               <div className="divide-y divide-border/50">
@@ -574,7 +574,7 @@ const Payments = () => {
                     <div className="min-w-0 flex items-center gap-2">
                       <p className="font-medium text-xs-plus text-foreground truncate">{batch.name}</p>
                       {typeMeta && (
-                        <span className={cn('hidden lg:inline-flex items-center rounded px-1.5 py-0 text-[9.5px] font-semibold uppercase tracking-[0.06em] shrink-0', typeMeta.bg, typeMeta.text)}>
+                        <span className={cn('hidden lg:inline-flex items-center rounded px-1.5 py-0 text-3xs font-semibold uppercase tracking-[0.06em] shrink-0', typeMeta.bg, typeMeta.text)}>
                           {typeMeta.label}
                         </span>
                       )}

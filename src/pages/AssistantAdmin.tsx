@@ -416,10 +416,10 @@ export default function AssistantAdmin() {
                         <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{k.content}</p>
                         <div className="flex flex-wrap gap-1 mt-1.5">
                           {k.visible_to_roles.map((r) => (
-                            <Badge key={r} variant="secondary" className="text-[9px] py-0 px-1.5">{r}</Badge>
+                            <Badge key={r} variant="secondary" className="text-3xs py-0 px-1.5">{r}</Badge>
                           ))}
                           {k.tags.map((t) => (
-                            <Badge key={t} variant="outline" className="text-[9px] py-0 px-1.5">#{t}</Badge>
+                            <Badge key={t} variant="outline" className="text-3xs py-0 px-1.5">#{t}</Badge>
                           ))}
                         </div>
                       </div>

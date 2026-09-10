@@ -186,7 +186,7 @@ export function PaystackBalanceCard({
                 Flutterwave card so the two feel like one system. */}
             <span
               className={cn(
-                'ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider leading-none whitespace-nowrap kd-transition',
+                'ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-bold uppercase tracking-wider leading-none whitespace-nowrap kd-transition',
                 isActive
                   ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-[0_2px_8px_-2px_rgba(16,185,129,0.5)]'
                   : 'border border-border/60 text-muted-foreground bg-muted/30',
@@ -409,7 +409,7 @@ function FundingRow({
         {label}
       </span>
       <span className={cn(
-        'text-[11.5px] font-medium text-foreground truncate flex-1 text-right',
+        'text-xs font-medium text-foreground truncate flex-1 text-right',
         mono && 'font-mono tracking-tight',
       )}>
         {value}

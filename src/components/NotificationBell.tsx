@@ -378,7 +378,7 @@ export function NotificationBell() {
                                   {n.title}
                                 </p>
                                 <span
-                                  className="text-[11.5px] font-medium text-muted-foreground shrink-0 tabular-nums whitespace-nowrap pt-0.5 pl-1"
+                                  className="text-xs font-medium text-muted-foreground shrink-0 tabular-nums whitespace-nowrap pt-0.5 pl-1"
                                   title={new Date(n.created_at).toLocaleString('en-NG')}
                                 >
                                   {formatRelative(n.created_at)}

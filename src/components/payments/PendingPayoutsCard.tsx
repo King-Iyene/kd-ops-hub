@@ -410,7 +410,7 @@ function KpiCell({
       {value === null ? (
         <Skeleton className="h-5 w-20 mt-1.5" />
       ) : (
-        <p className={cn('text-sm sm:text-[16px] font-bold tabular-nums font-mono mt-1 leading-tight truncate', valueClass[tone])} title={value}>
+        <p className={cn('text-sm sm:text-base font-bold tabular-nums font-mono mt-1 leading-tight truncate', valueClass[tone])} title={value}>
           {value}
         </p>
       )}

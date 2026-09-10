@@ -115,7 +115,7 @@ export function DatabaseTopBar() {
       <Dialog open={shareOpen} onOpenChange={setShareOpen}>
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
-            <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
+            <DialogTitle className="text-base font-semibold flex items-center gap-2">
               <Share2 size={16} className="text-[#2D7FF9]" />
               Share {activeBase?.name ? `"${activeBase.name}"` : 'base'}
             </DialogTitle>
@@ -166,7 +166,7 @@ export function DatabaseTopBar() {
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
+            <DialogTitle className="text-base font-semibold flex items-center gap-2">
               <HelpCircle size={16} className="text-[#2D7FF9]" />
               Keyboard Shortcuts
             </DialogTitle>

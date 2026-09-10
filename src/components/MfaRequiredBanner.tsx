@@ -75,7 +75,7 @@ export function MfaRequiredBanner() {
       </p>
       <Link
         to="/profile"
-        className="text-[12.5px] font-semibold rounded-md bg-amber-950/15 hover:bg-amber-950/25 dark:bg-amber-50/15 dark:hover:bg-amber-50/25 px-2.5 py-1 kd-transition shrink-0"
+        className="text-xs-plus font-semibold rounded-md bg-amber-950/15 hover:bg-amber-950/25 dark:bg-amber-50/15 dark:hover:bg-amber-50/25 px-2.5 py-1 kd-transition shrink-0"
       >
         Enable now
       </Link>

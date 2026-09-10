@@ -222,7 +222,7 @@ export function AppSidebar() {
                 {showBadge && (
                   <span className={cn(
                     'relative ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1',
-                    'text-[9px] font-bold tabular-nums kd-status-live-warning',
+                    'text-3xs font-bold tabular-nums kd-status-live-warning',
                     badgeTone,
                   )}>
                     {badgeCount > 99 ? '99+' : badgeCount}
@@ -321,7 +321,7 @@ export function AppSidebar() {
                       className="flex w-full items-center gap-1.5 px-3 pt-3 pb-1 kd-transition hover:opacity-90 focus-visible:outline-none group/sub"
                       aria-expanded={!isCollapsed}
                     >
-                      <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/35 flex-1 text-left group-hover/sub:text-sidebar-foreground/55 kd-transition">
+                      <span className="text-3xs font-bold uppercase tracking-[0.14em] text-sidebar-foreground/35 flex-1 text-left group-hover/sub:text-sidebar-foreground/55 kd-transition">
                         {group.label}
                       </span>
                       <ChevronDown
@@ -436,7 +436,7 @@ export function AppSidebar() {
             {!sidebarCollapsed && (
               <div className="mx-3 mb-2">
                 <div className="h-px bg-sidebar-border/25" />
-                <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/30 mt-2.5 mb-1 px-0.5">
+                <p className="text-3xs font-bold uppercase tracking-[0.14em] text-sidebar-foreground/30 mt-2.5 mb-1 px-0.5">
                   Modules
                 </p>
               </div>
@@ -480,7 +480,7 @@ export function AppSidebar() {
                             {badge && badge.total > 0 && (
                               <span className={cn(
                                 'flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1',
-                                'text-[9px] font-bold tabular-nums kd-status-live-warning',
+                                'text-3xs font-bold tabular-nums kd-status-live-warning',
                                 badge.hasAnomaly ? 'bg-red-500/90 text-white' : 'bg-amber-400/90 text-amber-900',
                               )}>
                                 {badge.total > 99 ? '99+' : badge.total}

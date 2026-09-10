@@ -41,7 +41,7 @@ export function PresenceIndicator() {
       {visible.map((u) => (
         <div key={u.id} className="relative group">
           <div
-            className="h-6 w-6 rounded-full flex items-center justify-center text-[9px] font-semibold text-white border-2 border-white dark:border-[hsl(200,30%,8%)] cursor-default"
+            className="h-6 w-6 rounded-full flex items-center justify-center text-3xs font-semibold text-white border-2 border-white dark:border-[hsl(200,30%,8%)] cursor-default"
             style={{ backgroundColor: u.color }}
           >
             {u.initials}
@@ -56,7 +56,7 @@ export function PresenceIndicator() {
         </div>
       ))}
       {overflow > 0 && (
-        <div className="h-6 w-6 rounded-full bg-[#E5E7EB] dark:bg-[hsl(200,25%,25%)] flex items-center justify-center text-[9px] font-semibold text-[#6A7184] border-2 border-white dark:border-[hsl(200,30%,8%)]">
+        <div className="h-6 w-6 rounded-full bg-[#E5E7EB] dark:bg-[hsl(200,25%,25%)] flex items-center justify-center text-3xs font-semibold text-[#6A7184] border-2 border-white dark:border-[hsl(200,30%,8%)]">
           +{overflow}
         </div>
       )}

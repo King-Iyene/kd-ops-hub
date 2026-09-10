@@ -103,7 +103,7 @@ export function PayrollLifecycleRail({
             )}
             <span
               className={cn(
-                'text-center text-[9.5px] font-medium leading-tight',
+                'text-center text-3xs font-medium leading-tight',
                 p.kind === 'planned'
                   ? dark ? 'text-white/35' : 'text-muted-foreground/60'
                   : p.state !== 'todo'

@@ -247,9 +247,9 @@ export default function CfoNotesTab() {
                       <div className="min-w-0">
                         <CardTitle className="text-sm truncate">{note.title}</CardTitle>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <Badge variant="secondary" className="text-[9px]">{cat.label}</Badge>
+                          <Badge variant="secondary" className="text-3xs">{cat.label}</Badge>
                           {note.period_label && (
-                            <Badge variant="outline" className="text-[9px]">{note.period_label}</Badge>
+                            <Badge variant="outline" className="text-3xs">{note.period_label}</Badge>
                           )}
                           {note.pinned && (
                             <Pin className="h-3 w-3 text-primary" />

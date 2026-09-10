@@ -84,7 +84,7 @@ const EMPTY_QUESTION = {
   is_required: true, options: '' ,
 };
 
-const TAB_CLASS = "text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none";
+const TAB_CLASS = "text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none";
 
 export default function Surveys() {
   usePageTitle('Surveys');

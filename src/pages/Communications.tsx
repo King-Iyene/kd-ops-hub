@@ -960,7 +960,7 @@ export default function Communications() {
 
             <p className="text-3xs text-muted-foreground">
               {channel === 'email'
-                ? <>Supports plain emails and <code className="text-[9px]">Name &lt;email&gt;</code> format.</>
+                ? <>Supports plain emails and <code className="text-3xs">Name &lt;email&gt;</code> format.</>
                 : 'Nigerian mobile numbers only — any common format works. '}
               Duplicates filtered automatically.
             </p>

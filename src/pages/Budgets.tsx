@@ -750,7 +750,7 @@ const Budgets = () => {
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <MobileCardTitle>{r.name}</MobileCardTitle>
                             {r.locked && (
-                              <Badge className="bg-destructive/10 text-destructive gap-1 h-4 px-1.5 text-[9px]">
+                              <Badge className="bg-destructive/10 text-destructive gap-1 h-4 px-1.5 text-3xs">
                                 <Lock className="h-2.5 w-2.5" /> Locked
                               </Badge>
                             )}
@@ -774,7 +774,7 @@ const Budgets = () => {
                         </div>
                         <div className="flex items-center justify-between text-2xs text-muted-foreground">
                           <span>{total === 0 ? 'No budget' : `${pct.toFixed(0)}% utilised`}</span>
-                          <Badge variant="secondary" className={cn('h-4 px-1.5 text-[9px]', STATUS_CLASSES[r.status])}>
+                          <Badge variant="secondary" className={cn('h-4 px-1.5 text-3xs', STATUS_CLASSES[r.status])}>
                             {STATUS_LABELS[r.status] || r.status}
                           </Badge>
                         </div>

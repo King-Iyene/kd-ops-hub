@@ -630,13 +630,13 @@ function WebhooksTab({ baseId }: { baseId: string }) {
                   <p className="text-3xs text-muted-foreground font-mono truncate">{hook.url}</p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {hook.events.map(ev => (
-                      <span key={ev} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#2D7FF9]/10 text-[#2D7FF9]">
+                      <span key={ev} className="text-3xs px-1.5 py-0.5 rounded-full bg-[#2D7FF9]/10 text-[#2D7FF9]">
                         {ev.replace('record.', '')}
                       </span>
                     ))}
                   </div>
                   {hook.last_triggered_at && (
-                    <p className="text-[9px] text-muted-foreground mt-1">
+                    <p className="text-3xs text-muted-foreground mt-1">
                       Last fired: {new Date(hook.last_triggered_at).toLocaleString()}
                     </p>
                   )}

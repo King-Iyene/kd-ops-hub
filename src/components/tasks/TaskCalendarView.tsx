@@ -138,7 +138,7 @@ export function TaskCalendarView({ tasks, profiles, onTaskClick }: TaskCalendarV
                   </button>
                 ))}
                 {dayTasks.length > 4 && (
-                  <p className="text-[9px] text-muted-foreground text-center">
+                  <p className="text-3xs text-muted-foreground text-center">
                     +{dayTasks.length - 4} more
                   </p>
                 )}

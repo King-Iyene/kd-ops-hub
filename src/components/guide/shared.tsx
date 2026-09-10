@@ -49,7 +49,7 @@ export function ModuleCard({
     <div id={`mod-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} className="scroll-mt-20 space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap border-b border-white/[0.06] pb-3">
         <div>
-          <h3 className="text-[17px] font-semibold tracking-tight">{title}</h3>
+          <h3 className="text-base font-semibold tracking-tight">{title}</h3>
           {route && <p className="text-2xs font-mono text-muted-foreground/50 mt-0.5">{route}</p>}
         </div>
         <RoleBadges roles={roles} />

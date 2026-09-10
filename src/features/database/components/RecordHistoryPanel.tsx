@@ -171,7 +171,7 @@ export function RecordHistoryPanel({ baseId, tableId, recordId, fields }: Record
               {entry.action === 'UPDATE' && (() => {
                 const n = countChangedFields(entry.old_value, entry.new_value);
                 return n > 0 ? (
-                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-500 dark:text-blue-400">
+                  <span className="text-3xs px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-500 dark:text-blue-400">
                     {n} field{n !== 1 ? 's' : ''}
                   </span>
                 ) : null;

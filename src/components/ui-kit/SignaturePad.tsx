@@ -149,7 +149,7 @@ export function SignaturePad({ onSign, onCancel, signerName, label = 'Sign below
             onTouchEnd={endDraw}
           />
           <div className="absolute bottom-2 left-3 right-3 border-t border-muted-foreground/20" />
-          <p className="absolute bottom-3 left-1/2 -translate-x-1/2 text-[9px] text-muted-foreground/40 select-none">
+          <p className="absolute bottom-3 left-1/2 -translate-x-1/2 text-3xs text-muted-foreground/40 select-none">
             Sign here
           </p>
         </div>

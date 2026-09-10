@@ -558,7 +558,7 @@ export function ChatWidget() {
                       : <Send className="h-3.5 w-3.5" />}
                   </Button>
                 </div>
-                <p className="text-[9px] text-muted-foreground/50 text-center mt-1">
+                <p className="text-3xs text-muted-foreground/50 text-center mt-1">
                   Enter to send · Shift+Enter for new line
                 </p>
               </div>
@@ -627,7 +627,7 @@ function WidgetBubble({ message }: { message: WidgetMessage }) {
             {message.tools_used.map((t) => {
               const meta = TOOL_META[t];
               return (
-                <span key={t} className={`${meta?.cls ?? 'kd-badge kd-badge-muted'} text-[9px]`}>
+                <span key={t} className={`${meta?.cls ?? 'kd-badge kd-badge-muted'} text-3xs`}>
                   {meta?.label ?? t}
                 </span>
               );

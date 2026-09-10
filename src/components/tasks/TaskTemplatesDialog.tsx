@@ -120,13 +120,13 @@ export function TaskTemplatesDialog({ open, onClose, currentTask, onApplyTemplat
                   )}
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {t.template_data.priority && (
-                      <Badge variant="secondary" className="text-[9px] h-4">{t.template_data.priority}</Badge>
+                      <Badge variant="secondary" className="text-3xs h-4">{t.template_data.priority}</Badge>
                     )}
                     {t.template_data.task_type && t.template_data.task_type !== 'task' && (
-                      <Badge variant="secondary" className="text-[9px] h-4">{t.template_data.task_type}</Badge>
+                      <Badge variant="secondary" className="text-3xs h-4">{t.template_data.task_type}</Badge>
                     )}
                     {(t.template_data.tags || []).length > 0 && (
-                      <Badge variant="secondary" className="text-[9px] h-4">
+                      <Badge variant="secondary" className="text-3xs h-4">
                         {t.template_data.tags.length} tags
                       </Badge>
                     )}

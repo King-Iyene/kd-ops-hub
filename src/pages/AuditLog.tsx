@@ -473,7 +473,7 @@ const AuditLog = () => {
                       <MobileCardHeader>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                            <Badge variant="secondary" className={cn('h-4 px-1.5 text-[9px] font-medium', MODULE_COLOR[mod] || MODULE_COLOR['—'])}>
+                            <Badge variant="secondary" className={cn('h-4 px-1.5 text-3xs font-medium', MODULE_COLOR[mod] || MODULE_COLOR['—'])}>
                               {mod}
                             </Badge>
                             <span className="inline-flex items-center gap-1 text-2xs capitalize text-muted-foreground">

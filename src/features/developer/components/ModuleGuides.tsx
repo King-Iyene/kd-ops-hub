@@ -1708,7 +1708,7 @@ export default function ModuleGuides() {
                 >
                   <Icon size={15} className={isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400 dark:text-zinc-500'} />
                   <span className="truncate">{mod.name}</span>
-                  <Badge variant="outline" className="ml-auto text-[9px] px-1.5 py-0 shrink-0">
+                  <Badge variant="outline" className="ml-auto text-3xs px-1.5 py-0 shrink-0">
                     {mod.basePath}
                   </Badge>
                 </button>

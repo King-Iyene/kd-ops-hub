@@ -183,13 +183,13 @@ export function PayrollGroupsTab() {
                 {g.members.slice(0, 5).map((m) => (
                   <Avatar key={m.id} className="h-7 w-7 border-2 border-background">
                     {m.photo_url && <AvatarImage src={m.photo_url} alt={m.name} />}
-                    <AvatarFallback className="text-[9.5px] font-semibold bg-[hsl(200,60%,92%)] text-[hsl(200,90%,25%)]">
+                    <AvatarFallback className="text-3xs font-semibold bg-[hsl(200,60%,92%)] text-[hsl(200,90%,25%)]">
                       {initials(m.name)}
                     </AvatarFallback>
                   </Avatar>
                 ))}
                 {g.members.length > 5 && (
-                  <div className="h-7 w-7 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[9.5px] font-semibold text-muted-foreground">
+                  <div className="h-7 w-7 rounded-full border-2 border-background bg-muted flex items-center justify-center text-3xs font-semibold text-muted-foreground">
                     +{g.members.length - 5}
                   </div>
                 )}

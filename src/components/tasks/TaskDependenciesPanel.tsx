@@ -140,7 +140,7 @@ export function TaskDependenciesPanel({ taskId, allTasks, onUpdate }: TaskDepend
           >
             <span className={cn('h-2 w-2 rounded-full shrink-0', STATUS_DOT[task.status])} />
             <span className="text-xs truncate flex-1">{task.title}</span>
-            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 shrink-0">
+            <Badge variant="secondary" className="text-3xs px-1.5 py-0 h-4 shrink-0">
               {task.status.replace('_', ' ')}
             </Badge>
             <Button

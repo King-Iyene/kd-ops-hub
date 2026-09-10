@@ -362,7 +362,7 @@ const Fleet = () => {
                       )}
                       <span>{item.label}</span>
                       {(item as any).badge && (
-                        <span className="inline-flex items-center justify-center rounded-full text-[9px] font-bold min-w-[16px] h-4 px-1 bg-amber-500 text-white">
+                        <span className="inline-flex items-center justify-center rounded-full text-3xs font-bold min-w-[16px] h-4 px-1 bg-amber-500 text-white">
                           {(item as any).badge}
                         </span>
                       )}

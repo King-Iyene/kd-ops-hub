@@ -246,7 +246,7 @@ export function DatabaseSidebar() {
               style={{ backgroundColor: base.icon ? 'transparent' : (base.color || '#2D7FF9') }}
             >
               {base.icon ? (
-                <span className="text-[16px] leading-none">{base.icon}</span>
+                <span className="text-base leading-none">{base.icon}</span>
               ) : (
                 <span className="text-white font-bold">
                   {base.name?.charAt(0)?.toUpperCase() || 'B'}

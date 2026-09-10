@@ -126,7 +126,7 @@ export function NotificationsPanel() {
       >
         <Bell size={15} />
         {unread > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#EF4444] text-white text-[9px] font-bold flex items-center justify-center leading-none">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#EF4444] text-white text-3xs font-bold flex items-center justify-center leading-none">
             {unread > 99 ? '99+' : unread}
           </span>
         )}
