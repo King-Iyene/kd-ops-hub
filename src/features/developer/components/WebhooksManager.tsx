@@ -165,7 +165,7 @@ export default function WebhooksManager() {
       input.headers.forEach((h) => { if (h.key.trim()) headersObj[h.key.trim()] = h.value; });
       const payload: any = {
         base_id: PLATFORM_BASE_ID,
-        table_id: null,
+        table_id: PLATFORM_BASE_ID,
         name: input.name,
         url: input.url,
         events: input.events,
