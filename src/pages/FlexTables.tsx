@@ -126,7 +126,7 @@ function resolveDisplayValue(
       return value ? 'Checked' : 'Unchecked';
     case 'percent': {
       const n = typeof value === 'number' ? value : Number(value);
-      return isNaN(n) ? '(Empty)' : `${(n * 100).toLocaleString('en-NG', { maximumFractionDigits: 2 })}%`;
+      return isNaN(n) ? '(Empty)' : `${n.toLocaleString('en-NG', { maximumFractionDigits: 2 })}%`;
     }
     case 'select':
       return field.options.choices?.find((c) => c.id === value)?.label || '(Empty)';
@@ -423,7 +423,7 @@ function numericValueForField(
 
 function formatSummaryNumber(n: number, field: FlexField): string {
   if (field.type === 'formula' && field.options.format) return formatNumericValue(n, field.options.format);
-  if (field.type === 'percent') return `${(n * 100).toLocaleString('en-NG', { maximumFractionDigits: 2 })}%`;
+  if (field.type === 'percent') return `${n.toLocaleString('en-NG', { maximumFractionDigits: 2 })}%`;
   return Number.isInteger(n) ? String(n) : n.toFixed(2);
 }
 
@@ -1919,19 +1919,18 @@ function Cell({
     );
   }
   if (field.type === 'percent') {
-    // Stored as a fraction (0.5) so it composes correctly in formulas
-    // referencing this field — the box itself shows/accepts the
-    // percentage number (50) with a fixed "%" suffix, Airtable-style.
-    const displayVal = value === null || value === undefined || value === '' ? '' : String(Number(value) * 100);
+    // Whatever number is typed (decimals included) is what's stored and
+    // what shows, just with a fixed "%" suffix — no scaling.
     return (
       <div className="relative">
         <Input
           className="h-8 border-0 shadow-none bg-transparent text-xs focus-visible:ring-1 pr-5"
           type="number"
-          defaultValue={displayVal}
+          step="any"
+          defaultValue={value as string ?? ''}
           onBlur={(e) => {
             const raw = e.target.value;
-            const v = raw === '' ? null : Number(raw) / 100;
+            const v = raw === '' ? null : Number(raw);
             if (v !== value) onChange(v);
           }}
         />
