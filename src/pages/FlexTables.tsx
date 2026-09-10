@@ -995,7 +995,10 @@ const startOfWeek = (d: Date) => {
   x.setHours(0, 0, 0, 0);
   return x;
 };
-const endOfWeek = (d: Date) => { const s = startOfWeek(d); const e = new Date(s); e.setDate(e.getDate() + 6); return e; };
+// A "week" on the dashboard is the 5 working days (Monday–Friday) —
+// weekends are never counted, so "This week" and every stat/chart that
+// spans a week reflect only working days.
+const endOfWeek = (d: Date) => { const s = startOfWeek(d); const e = new Date(s); e.setDate(e.getDate() + 4); return e; };
 // A date-range picker can be stretched arbitrarily wide — cap the
 // day-by-day series/business-day count so a huge range can't hang the tab.
 const MAX_DASHBOARD_SPAN_DAYS = 92;
