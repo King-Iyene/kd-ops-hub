@@ -371,7 +371,9 @@ function sampleValueForField(f: FlexField): FormulaValue {
 }
 
 interface ProfileLite { id: string; full_name: string; email: string; }
-interface TaskLite { id: string; title: string; status: string; completed_at: string | null; parent_id: string | null; }
+interface TaskLite { id: string; title: string; status: string; completed_at: string | null; parent_id: string | null; due_date: string | null; }
+
+const taskOptionLabel = (t: TaskLite) => (t.due_date ? `${t.title} - ${formatDate(t.due_date)}` : t.title);
 
 /** Orders a flat list of linkable tasks so subtasks render directly below
  *  their parent, indented — same idea as Airtable's linked-record picker.
@@ -671,7 +673,7 @@ export default function FlexTables() {
         // No parent_id filter — subtasks are included too, so they can be
         // linked from a table just like top-level tasks (grouped under
         // their parent in the picker).
-        supabase.from('tasks').select('id, title, status, completed_at, parent_id').order('created_at', { ascending: false }).limit(1000),
+        supabase.from('tasks').select('id, title, status, completed_at, parent_id, due_date').order('created_at', { ascending: false }).limit(1000),
       ]);
       setProfiles((profRes.data as ProfileLite[]) || []);
       setTasksList((taskRes.data as TaskLite[]) || []);
@@ -1953,7 +1955,7 @@ function Cell({
           <div className="flex items-center gap-1 overflow-hidden whitespace-nowrap">
             {ids.map((id) => {
               const t = tasksById.get(id);
-              return t ? <Badge key={id} variant="secondary" className="max-w-[140px] truncate shrink-0">{t.title}</Badge> : null;
+              return t ? <Badge key={id} variant="secondary" className="max-w-[200px] truncate shrink-0" title={taskOptionLabel(t)}>{taskOptionLabel(t)}</Badge> : null;
             })}
           </div>
         );
@@ -2096,7 +2098,7 @@ function Cell({
                     setDraft(next);
                     onChange(next);
                   }} />
-                  <span className="text-xs truncate">{t.title}</span>
+                  <span className="text-xs truncate">{taskOptionLabel(t)}</span>
                 </label>
               );
             })}

@@ -9,6 +9,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { flexApi, conditionMatches, type FlexFieldType, type FlexFormField, type FlexChoice } from '@/lib/flexTables';
+import { formatDate } from '@/lib/format';
 
 interface PublicField {
   id: string;
@@ -272,7 +273,9 @@ function NoOptionsNotice({ onNoOptions, text }: { onNoOptions: (empty: boolean) 
   return <p className="text-xs text-muted-foreground italic">{text}</p>;
 }
 
-interface LinkableTaskOption { id: string; title: string; parent_id: string | null; parent_title: string | null; }
+interface LinkableTaskOption { id: string; title: string; due_date: string | null; parent_id: string | null; parent_title: string | null; }
+
+const taskOptionLabel = (t: LinkableTaskOption) => (t.due_date ? `${t.title} - ${formatDate(t.due_date)}` : t.title);
 
 /** Renders a flat task list with subtasks indented directly below their
  *  parent — or, when the parent itself didn't make it into this filtered
@@ -292,7 +295,7 @@ function LinkedTaskCheckboxList({ options, ids, onToggle }: {
     rows.push(
       <label key={t.id} className="flex items-center gap-2 cursor-pointer">
         <Checkbox checked={ids.includes(t.id)} onCheckedChange={() => onToggle(t.id)} />
-        <span className="text-sm">{t.title}</span>
+        <span className="text-sm">{taskOptionLabel(t)}</span>
       </label>,
     );
     for (const c of options) {
@@ -301,7 +304,7 @@ function LinkedTaskCheckboxList({ options, ids, onToggle }: {
         rows.push(
           <label key={c.id} className="flex items-center gap-2 cursor-pointer ml-5">
             <Checkbox checked={ids.includes(c.id)} onCheckedChange={() => onToggle(c.id)} />
-            <span className="text-sm">{c.title}</span>
+            <span className="text-sm">{taskOptionLabel(c)}</span>
           </label>,
         );
       }
@@ -325,7 +328,7 @@ function LinkedTaskCheckboxList({ options, ids, onToggle }: {
       rows.push(
         <label key={c.id} className="flex items-center gap-2 cursor-pointer ml-5">
           <Checkbox checked={ids.includes(c.id)} onCheckedChange={() => onToggle(c.id)} />
-          <span className="text-sm">{c.title}</span>
+          <span className="text-sm">{taskOptionLabel(c)}</span>
         </label>,
       );
     }
