@@ -32,4 +32,14 @@ export interface PayrollRun {
   payroll_segment_id?: string | null;
   scheduled_disburse_at?: string | null;
   is_auto_generated?: boolean;
+  run_options?: {
+    include_paye?: boolean;
+    include_pension?: boolean;
+    include_nhf?: boolean;
+    include_nhis?: boolean;
+    include_dev_levy?: boolean;
+    include_advances?: boolean;
+    include_deductions?: boolean;
+    include_ewa?: boolean;
+  } | null;
 }

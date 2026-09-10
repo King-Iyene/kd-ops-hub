@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { PayrollRosterPreview } from '@/components/payroll/PayrollRosterPreview';
 import type { PayrollRun, BonusLine } from '@/lib/payroll-run';
@@ -89,6 +90,15 @@ interface DraftForm {
   transport_per_emp: number;
   meal_per_emp: number;
   payroll_segment_id: string;
+  // Per-run deduction overrides — all default true (include everything)
+  include_paye: boolean;
+  include_pension: boolean;
+  include_nhf: boolean;
+  include_nhis: boolean;
+  include_dev_levy: boolean;
+  include_advances: boolean;
+  include_deductions: boolean;
+  include_ewa: boolean;
 }
 
 interface SegmentFormState {
@@ -566,6 +576,36 @@ export const PayrollDialogs = ({
                         onChange={(e) => setForm({ ...form, meal_per_emp: Number(e.target.value) || 0 })}
                       />
                     </div>
+                  </div>
+                </div>
+
+                {/* ── Deduction toggles ────────────────────────────────── */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <Label>Deductions included in this run</Label>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground -mt-1.5">
+                    Turn off any statutory deduction or repayment you don't want applied this run. Changes only affect this payroll — employee and company settings stay the same.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-4">
+                    {([
+                      { key: 'include_paye' as const, label: 'PAYE (Income Tax)' },
+                      { key: 'include_pension' as const, label: 'Pension (8% + 10%)' },
+                      { key: 'include_nhf' as const, label: 'NHF (2.5%)' },
+                      { key: 'include_nhis' as const, label: 'NHIS (5% + 10%)' },
+                      { key: 'include_dev_levy' as const, label: 'Development Levy' },
+                      { key: 'include_advances' as const, label: 'Salary Advance Repayments' },
+                      { key: 'include_deductions' as const, label: 'Recurring Deductions' },
+                      { key: 'include_ewa' as const, label: 'Earned Wage Access (EWA)' },
+                    ] as const).map(({ key, label }) => (
+                      <label key={key} className="flex items-center gap-2 cursor-pointer">
+                        <Switch
+                          checked={form[key]}
+                          onCheckedChange={(v) => setForm({ ...form, [key]: v })}
+                        />
+                        <span className={cn('text-xs', !form[key] && 'text-muted-foreground line-through')}>{label}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
 
