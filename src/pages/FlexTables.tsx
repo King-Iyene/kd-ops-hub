@@ -1091,12 +1091,16 @@ function TableDashboard({
 
   const consistency = useMemo(() => {
     if (!personField) return [];
-    return profiles.map((p) => {
-      const personRows = rows.filter((r) => r.personId === p.id);
-      const rangeDates = new Set(personRows.filter((r) => r.dateStr! >= fromDate && r.dateStr! <= toDate).map((r) => r.dateStr));
-      const lastSubmission = personRows.reduce<string | null>((max, r) => (!max || r.dateStr! > max ? r.dateStr! : max), null);
-      const pWorked = personRows.filter((r) => r.dateStr! >= fromDate && r.dateStr! <= toDate).reduce((s, r) => s + r.worked, 0);
-      const pCompleted = personRows.filter((r) => r.dateStr! >= fromDate && r.dateStr! <= toDate).reduce((s, r) => s + r.completed, 0);
+    const scopedProfiles = personFilter === 'all' ? profiles : profiles.filter((p) => p.id === personFilter);
+    return scopedProfiles.map((p) => {
+      // Scoped entirely to the selected date range — including "Last
+      // Submission", so the whole table reflects the same period the
+      // date filter above is set to, not all-time history.
+      const personRowsInRange = rows.filter((r) => r.personId === p.id && r.dateStr! >= fromDate && r.dateStr! <= toDate);
+      const rangeDates = new Set(personRowsInRange.map((r) => r.dateStr));
+      const lastSubmission = personRowsInRange.reduce<string | null>((max, r) => (!max || r.dateStr! > max ? r.dateStr! : max), null);
+      const pWorked = personRowsInRange.reduce((s, r) => s + r.worked, 0);
+      const pCompleted = personRowsInRange.reduce((s, r) => s + r.completed, 0);
       const missedDays = Math.max(0, businessDaysInRange - rangeDates.size);
       return {
         id: p.id,
@@ -1108,7 +1112,7 @@ function TableDashboard({
         consistent: missedDays <= 1,
       };
     }).sort((a, b) => b.missedDays - a.missedDays);
-  }, [profiles, rows, personField, fromDate, toDate, businessDaysInRange]);
+  }, [profiles, rows, personField, personFilter, fromDate, toDate, businessDaysInRange]);
 
   const missingCount = consistency.filter((c) => !c.consistent).length;
 
