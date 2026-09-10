@@ -598,6 +598,9 @@ export default function FlexTables() {
   const [pendingDeleteTable, setPendingDeleteTable] = useState<FlexTable | null>(null);
   const [renamingTable, setRenamingTable] = useState<FlexTable | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [viewCreateTable, setViewCreateTable] = useState<FlexTable | null>(null);
+  const [viewCreateName, setViewCreateName] = useState('');
+  const [pendingViewId, setPendingViewId] = useState<string | null>(null);
 
   const loadTables = useCallback(async () => {
     setLoadingTables(true);
@@ -660,6 +663,28 @@ export default function FlexTables() {
     setTables((prev) => prev.map((t) => (t.id === renamingTable.id ? { ...t, name: renameValue.trim() } : t)));
     if (selectedTable?.id === renamingTable.id) setSelectedTable((prev) => (prev ? { ...prev, name: renameValue.trim() } : prev));
     setRenamingTable(null);
+  };
+
+  const createBlankView = () => {
+    if (!viewCreateTable || !viewCreateName.trim()) return;
+    const view: FlexView = {
+      id: crypto.randomUUID(),
+      name: viewCreateName.trim(),
+      filters: [],
+      groupByField: '__none__',
+      subGroupByField: '__none__',
+    };
+    try {
+      const key = `flex_views_${viewCreateTable.id}`;
+      const raw = localStorage.getItem(key);
+      const existing: FlexView[] = raw ? JSON.parse(raw) : [];
+      localStorage.setItem(key, JSON.stringify([...existing, view]));
+    } catch { /* best-effort persistence only */ }
+    setSelectedTable(viewCreateTable);
+    setTab('grid');
+    setPendingViewId(view.id);
+    setViewCreateTable(null);
+    setViewCreateName('');
   };
 
   const confirmDeleteTable = async () => {
@@ -772,6 +797,7 @@ export default function FlexTables() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenuItem onClick={() => { setRenamingTable(t); setRenameValue(t.name); }}>Rename</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setViewCreateTable(t); setViewCreateName(''); }}>Create view</DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem className="text-destructive" onClick={() => setPendingDeleteTable(t)}>Delete</DropdownMenuItem>
                     </DropdownMenuContent>
@@ -853,6 +879,8 @@ export default function FlexTables() {
                 onDeleteField={deleteField}
                 onToggleFieldHidden={toggleFieldHidden}
                 onReorderFields={reorderFields}
+                pendingViewId={pendingViewId}
+                onPendingViewApplied={() => setPendingViewId(null)}
               />
             ) : (
               <FormsView
@@ -894,6 +922,18 @@ export default function FlexTables() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setRenamingTable(null)}>Cancel</Button>
             <Button onClick={renameTable} disabled={!renameValue.trim()}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create view (from a table's "..." menu) */}
+      <Dialog open={!!viewCreateTable} onOpenChange={(v) => { if (!v) setViewCreateTable(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Create view</DialogTitle></DialogHeader>
+          <Input placeholder="View name" value={viewCreateName} onChange={(e) => setViewCreateName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') createBlankView(); }} autoFocus />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setViewCreateTable(null)}>Cancel</Button>
+            <Button onClick={createBlankView} disabled={!viewCreateName.trim()}>Create</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1249,6 +1289,7 @@ function TableDashboard({
 
 function GridView({
   tableId, fields, records, profilesById, tasksById, completedTasks, onAddRow, onDeleteRow, onUpdateCell, onAddField, onEditField, onDeleteField, onToggleFieldHidden, onReorderFields,
+  pendingViewId, onPendingViewApplied,
 }: {
   tableId: string;
   fields: FlexField[];
@@ -1264,6 +1305,11 @@ function GridView({
   onDeleteField: (id: string) => void;
   onToggleFieldHidden: (f: FlexField) => void;
   onReorderFields: (draggedId: string, targetId: string) => void;
+  /** Set right after a new blank View is created from a table's "..."
+   *  menu (which can't reach into this component's own filter state) —
+   *  picked up here once, then cleared via onPendingViewApplied. */
+  pendingViewId?: string | null;
+  onPendingViewApplied?: () => void;
 }) {
   const DEFAULT_COL_WIDTH = 160;
   const MIN_COL_WIDTH = 90;
@@ -1354,6 +1400,24 @@ function GridView({
     setSubGroupByField(view.subGroupByField);
     setActiveViewId(view.id);
   };
+
+  // A blank View created from the table's "..." menu (in the parent, which
+  // has no access to this component's filter state) lands here as a
+  // pending id — read the fresh view list straight from localStorage
+  // (rather than trusting `views` state, which may not have caught up
+  // yet on the same tableId-change render) and switch to it once.
+  useEffect(() => {
+    if (!pendingViewId) return;
+    try {
+      const raw = localStorage.getItem(`flex_views_${tableId}`);
+      const list: FlexView[] = raw ? JSON.parse(raw) : [];
+      setViews(list);
+      const v = list.find((x) => x.id === pendingViewId);
+      if (v) applyView(v);
+    } catch { /* best-effort only */ }
+    onPendingViewApplied?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingViewId, tableId]);
 
   const saveCurrentAsView = () => {
     if (!saveViewName.trim()) return;
@@ -1616,6 +1680,11 @@ function GridView({
               </div>
             </PopoverContent>
           </Popover>
+          {filters.length > 0 && (
+            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5 text-primary" onClick={() => { setSaveViewName(''); setSaveViewDialog(true); }}>
+              <Plus className="h-3.5 w-3.5" /> Save as view
+            </Button>
+          )}
         </div>
         {hiddenFields.length > 0 && (
           <Popover>
