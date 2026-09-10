@@ -36,7 +36,7 @@ export const makeOutroScene = (opts: {
           {opts.subtitle}
         </Interactive.Div>
         <Interactive.Div name="UpNext" style={{ display: "flex", gap: 16, marginTop: 48, opacity: interpolate(frame, [1.5 * fps, 2 * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }}>
-          {opts.upNext.map((t) => (
+          {(opts.upNext ?? []).map((t) => (
             <div key={t} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: "16px 24px", textAlign: "center" as const }}>
               <div style={{ fontSize: 12, color: COLORS.accentBright, fontFamily: monoFamily, marginBottom: 6 }}>
                 {opts.isFinal ? "WATCH AGAIN" : "UP NEXT"}
