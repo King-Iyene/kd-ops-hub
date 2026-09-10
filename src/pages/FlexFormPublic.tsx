@@ -182,6 +182,20 @@ function FieldInput({ field, value, onChange, token, personId, hasPersonFilter, 
       return <Checkbox checked={!!value} onCheckedChange={(v) => onChange(!!v)} />;
     case 'number':
       return <Input type="number" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))} />;
+    case 'percent': {
+      const displayVal = value === null || value === undefined || value === '' ? '' : Number(value) * 100;
+      return (
+        <div className="relative">
+          <Input
+            type="number"
+            className="pr-6"
+            value={displayVal}
+            onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value) / 100)}
+          />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+        </div>
+      );
+    }
     case 'date':
       return <Input type="date" value={(value as string) || ''} onChange={(e) => onChange(e.target.value)} />;
     case 'url':

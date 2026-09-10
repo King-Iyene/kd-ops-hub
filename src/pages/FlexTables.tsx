@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import {
   Plus, Table2, Trash2, Loader2, MoreHorizontal, EyeOff, ListFilter,
   Type, AlignLeft, Hash, CalendarDays, CheckSquare, ListChecks,
-  User, Users, Link2, AtSign, Phone, Globe, Copy, FileText, Check, Sigma, CheckCircle2, GripVertical,
+  User, Users, Link2, AtSign, Phone, Globe, Copy, FileText, Check, Sigma, CheckCircle2, GripVertical, Percent,
   AlertTriangle, TrendingUp, Pencil,
 } from 'lucide-react';
 import {
@@ -46,7 +46,7 @@ import {
 } from '@/lib/flexTables';
 
 const FIELD_ICONS: Record<FlexFieldType, typeof Type> = {
-  text: Type, long_text: AlignLeft, number: Hash, date: CalendarDays, checkbox: CheckSquare,
+  text: Type, long_text: AlignLeft, number: Hash, percent: Percent, date: CalendarDays, checkbox: CheckSquare,
   select: ListChecks, multi_select: ListChecks, person: User, multi_person: Users,
   task_link: Link2, completed_task_link: CheckCircle2, url: Globe, email: AtSign, phone: Phone, formula: Sigma,
 };
@@ -69,7 +69,7 @@ function buildFormulaScope(
       case 'checkbox':
         scope[f.name] = !!v;
         break;
-      case 'number':
+      case 'number': case 'percent':
         scope[f.name] = typeof v === 'number' ? v : v == null ? null : Number(v);
         break;
       case 'select': {
@@ -124,6 +124,10 @@ function resolveDisplayValue(
   switch (field.type) {
     case 'checkbox':
       return value ? 'Checked' : 'Unchecked';
+    case 'percent': {
+      const n = typeof value === 'number' ? value : Number(value);
+      return isNaN(n) ? '(Empty)' : `${(n * 100).toLocaleString('en-NG', { maximumFractionDigits: 2 })}%`;
+    }
     case 'select':
       return field.options.choices?.find((c) => c.id === value)?.label || '(Empty)';
     case 'multi_select': {
@@ -277,7 +281,7 @@ function isMultiValueField(type: FlexFieldType): boolean {
 
 function operatorsForField(field: FlexField | undefined): { value: FilterOp; label: string }[] {
   switch (field?.type) {
-    case 'number': return NUMERIC_OPS;
+    case 'number': case 'percent': return NUMERIC_OPS;
     case 'date': return DATE_OPS;
     case 'checkbox': return CHECKBOX_OPS;
     case 'select': case 'person': return SINGLE_PICK_OPS;
@@ -307,9 +311,17 @@ function filterMatches(
     case 'not_contains': return !display.toLowerCase().includes(filter.value.toLowerCase());
     case 'is':
       if (multi) return display.toLowerCase().split(', ').includes(filter.value.toLowerCase());
+      if (field.type === 'number' || field.type === 'percent') {
+        const n = parseFloat(display); const t = parseFloat(filter.value);
+        return !isNaN(n) && !isNaN(t) && n === t;
+      }
       return display.toLowerCase() === filter.value.toLowerCase();
     case 'is_not':
       if (multi) return !display.toLowerCase().split(', ').includes(filter.value.toLowerCase());
+      if (field.type === 'number' || field.type === 'percent') {
+        const n = parseFloat(display); const t = parseFloat(filter.value);
+        return !(!isNaN(n) && !isNaN(t) && n === t);
+      }
       return display.toLowerCase() !== filter.value.toLowerCase();
     case 'gt': case 'lt': case 'gte': case 'lte': {
       // Dates are stored/displayed as ISO YYYY-MM-DD, which sorts correctly
@@ -351,7 +363,7 @@ const NUMERIC_FORMULA_FORMATS = new Set<FlexNumberFormat>(['integer', 'decimal',
  *  runtime via buildFormulaScope, regardless of when that other formula
  *  was set up. */
 function sampleValueForField(f: FlexField): FormulaValue {
-  if (f.type === 'number') return 1;
+  if (f.type === 'number' || f.type === 'percent') return 1;
   if (f.type === 'checkbox') return true;
   if (f.type === 'date') return new Date().toISOString().slice(0, 10);
   if (f.type === 'formula' && f.options.format && NUMERIC_FORMULA_FORMATS.has(f.options.format)) return 1;
@@ -378,7 +390,7 @@ const GENERIC_SUMMARY_TYPES: SummaryType[] = ['none', 'filled', 'empty', 'percen
 const NUMERIC_SUMMARY_TYPES: SummaryType[] = [...GENERIC_SUMMARY_TYPES, 'sum', 'average', 'min', 'max', 'range'];
 
 function fieldSupportsNumericSummary(field: FlexField): boolean {
-  return field.type === 'number' || (field.type === 'formula' && !!field.options.format && NUMERIC_FORMULA_FORMATS.has(field.options.format));
+  return field.type === 'number' || field.type === 'percent' || (field.type === 'formula' && !!field.options.format && NUMERIC_FORMULA_FORMATS.has(field.options.format));
 }
 
 function summaryOptionsForField(field: FlexField): SummaryType[] {
@@ -392,7 +404,7 @@ function numericValueForField(
   profilesById: Map<string, ProfileLite>,
   tasksById: Map<string, TaskLite>,
 ): number | null {
-  if (field.type === 'number') {
+  if (field.type === 'number' || field.type === 'percent') {
     const v = record.data[field.id];
     if (typeof v === 'number') return v;
     if (v === null || v === undefined || v === '') return null;
@@ -411,6 +423,7 @@ function numericValueForField(
 
 function formatSummaryNumber(n: number, field: FlexField): string {
   if (field.type === 'formula' && field.options.format) return formatNumericValue(n, field.options.format);
+  if (field.type === 'percent') return `${(n * 100).toLocaleString('en-NG', { maximumFractionDigits: 2 })}%`;
   return Number.isInteger(n) ? String(n) : n.toFixed(2);
 }
 
@@ -523,6 +536,8 @@ function FilterValueInput({
       return <Input type="date" className="h-7 text-xs flex-1" value={value} onChange={(e) => onChange(e.target.value)} />;
     case 'number':
       return <Input type="number" className="h-7 text-xs flex-1" value={value} onChange={(e) => onChange(e.target.value)} placeholder="value" />;
+    case 'percent':
+      return <Input type="number" className="h-7 text-xs flex-1" value={value} onChange={(e) => onChange(e.target.value)} placeholder="e.g. 50" />;
     case 'checkbox':
       return (
         <Select value={value || undefined} onValueChange={onChange}>
@@ -1831,6 +1846,27 @@ function Cell({
     return (
       <div className="px-2 py-1">
         <Checkbox checked={!!value} onCheckedChange={(v) => onChange(!!v)} />
+      </div>
+    );
+  }
+  if (field.type === 'percent') {
+    // Stored as a fraction (0.5) so it composes correctly in formulas
+    // referencing this field — the box itself shows/accepts the
+    // percentage number (50) with a fixed "%" suffix, Airtable-style.
+    const displayVal = value === null || value === undefined || value === '' ? '' : String(Number(value) * 100);
+    return (
+      <div className="relative">
+        <Input
+          className="h-8 border-0 shadow-none bg-transparent text-xs focus-visible:ring-1 pr-5"
+          type="number"
+          defaultValue={displayVal}
+          onBlur={(e) => {
+            const raw = e.target.value;
+            const v = raw === '' ? null : Number(raw) / 100;
+            if (v !== value) onChange(v);
+          }}
+        />
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
       </div>
     );
   }

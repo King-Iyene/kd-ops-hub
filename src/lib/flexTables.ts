@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import type { FlexNumberFormat } from '@/lib/flexFormula';
 
 export type FlexFieldType =
-  | 'text' | 'long_text' | 'number' | 'date' | 'checkbox'
+  | 'text' | 'long_text' | 'number' | 'percent' | 'date' | 'checkbox'
   | 'select' | 'multi_select' | 'person' | 'multi_person' | 'task_link'
   | 'completed_task_link'
   | 'url' | 'email' | 'phone' | 'formula';
@@ -11,6 +11,7 @@ export const FLEX_FIELD_TYPES: { value: FlexFieldType; label: string }[] = [
   { value: 'text', label: 'Single line text' },
   { value: 'long_text', label: 'Long text' },
   { value: 'number', label: 'Number' },
+  { value: 'percent', label: 'Percent' },
   { value: 'date', label: 'Date' },
   { value: 'checkbox', label: 'Checkbox' },
   { value: 'select', label: 'Single select' },
