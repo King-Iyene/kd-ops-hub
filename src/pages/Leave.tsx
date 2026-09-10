@@ -969,6 +969,7 @@ const Leave = () => {
               ) : (
                 <>
                   <div className="hidden md:block">
+                  <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -1098,6 +1099,7 @@ const Leave = () => {
                       })}
                     </TableBody>
                   </Table>
+                  </div>
                   </div>
 
                   {/* Mobile: card list with the same per-row actions. */}

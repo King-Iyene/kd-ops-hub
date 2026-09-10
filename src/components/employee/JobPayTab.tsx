@@ -261,6 +261,7 @@ export default function JobPayTab({
                 No salary set — use Edit Profile to add salary
               </div>
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40">
@@ -327,6 +328,7 @@ export default function JobPayTab({
                   )}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>

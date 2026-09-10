@@ -280,6 +280,7 @@ export const BeneficiaryCsvImport = ({ open, onOpenChange, onImport }: Props) =>
             </div>
 
             <div className="border rounded-md overflow-hidden max-h-[400px] overflow-y-auto">
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -324,6 +325,7 @@ export const BeneficiaryCsvImport = ({ open, onOpenChange, onImport }: Props) =>
                   })}
                 </TableBody>
               </Table>
+              </div>
             </div>
             {rows.length > 200 && (
               <p className="text-xs text-muted-foreground">

@@ -1678,6 +1678,7 @@ const Contractors = () => {
         <div className="p-0">
           {/* Desktop: table. Mobile: card list (below). */}
           <div className="hidden md:block">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -1853,6 +1854,7 @@ const Contractors = () => {
               })}
             </TableBody>
           </Table>
+          </div>
           </div>
 
           {/* Mobile: tap a card to open the contractor profile. */}

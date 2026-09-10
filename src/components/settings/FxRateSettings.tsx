@@ -331,6 +331,7 @@ export default function FxRateSettings() {
         </CardHeader>
         <CardContent>
           <div className="rounded-lg border border-border/70 overflow-hidden">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
@@ -369,6 +370,7 @@ export default function FxRateSettings() {
                 })}
               </TableBody>
             </Table>
+            </div>
             {histPage.totalPages > 1 && (
               <Pagination
                 page={histPage.page}

@@ -1542,6 +1542,7 @@ const Expenses = () => {
           ) : (
             <>
               <div className="hidden md:block">
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1810,6 +1811,7 @@ const Expenses = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
               </div>
 
               {/* Mobile card list — same data, thumb-friendly */}

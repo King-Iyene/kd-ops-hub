@@ -691,6 +691,7 @@ const Employees = () => {
           ) : (
             <>
               <div className="hidden md:block">
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -826,6 +827,7 @@ const Employees = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
               </div>
 
               {/* Mobile employees list */}

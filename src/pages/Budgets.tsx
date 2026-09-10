@@ -578,6 +578,7 @@ const Budgets = () => {
           ) : (
             <>
               <div className="hidden md:block">
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -722,6 +723,7 @@ const Budgets = () => {
                   })}
                 </TableBody>
               </Table>
+              </div>
               </div>
 
               {/* Mobile card list — same data, thumb-friendly */}
@@ -940,6 +942,7 @@ const Budgets = () => {
                 </Button>
               </div>
               <div className="border rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -997,6 +1000,7 @@ const Budgets = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </div>
               <datalist id="budget-categories">
                 {CATEGORY_SUGGESTIONS.map((c) => (

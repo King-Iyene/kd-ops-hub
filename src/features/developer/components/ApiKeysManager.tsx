@@ -394,6 +394,7 @@ export default function ApiKeysManager() {
               </Button>
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-zinc-200 dark:border-zinc-800">
@@ -466,6 +467,7 @@ export default function ApiKeysManager() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

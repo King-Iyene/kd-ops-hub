@@ -1772,6 +1772,7 @@ function ModuleContent({ module: mod }: { module: ModuleDef }) {
           Available Endpoints
         </h3>
         <Card className="border-zinc-200 dark:border-zinc-700/80 overflow-hidden">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-zinc-200 dark:border-zinc-700/80">
@@ -1792,6 +1793,7 @@ function ModuleContent({ module: mod }: { module: ModuleDef }) {
               ))}
             </TableBody>
           </Table>
+          </div>
         </Card>
       </section>
 

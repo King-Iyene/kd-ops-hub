@@ -587,6 +587,7 @@ const Goals = () => {
           ) : (
             <>
             <div className="hidden md:block">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -766,6 +767,7 @@ const Goals = () => {
                 })}
               </TableBody>
             </Table>
+            </div>
             </div>
             {/* Mobile card view */}
             <div className="md:hidden space-y-2 p-1">

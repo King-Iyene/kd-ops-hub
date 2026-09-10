@@ -1185,7 +1185,7 @@ const Compliance = () => {
             />
           ) : (
             <>
-            <div className="hidden md:block">
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1356,7 +1356,7 @@ const Compliance = () => {
             />
           ) : (
             <>
-            <div className="hidden md:block">
+            <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>

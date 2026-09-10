@@ -131,7 +131,7 @@ export default function PayHub() {
               {loading ? '—' : formatNaira(totalMoneyOut)}
             </div>
           </div>
-          <div className="flex-1 flex gap-0 border-l border-white/20 pl-6 flex-wrap">
+          <div className="flex-1 flex gap-0 sm:border-l sm:border-white/20 sm:pl-6 flex-wrap">
             <div className="flex-1 min-w-[90px] text-center">
               <div className="font-bold currency">{formatNaira(stats.latestRun?.total_burn_ngn || 0)}</div>
               <div className="text-2xs opacity-75 mt-0.5">Salary ({stats.latestRun?.period ? formatDate(`${stats.latestRun.period}-01`) : '—'})</div>

@@ -21,28 +21,30 @@ export default function LogsTab({ auditLogs }: Props) {
           {auditLogs.length === 0 ? (
             <EmptyState compact icon={Activity} title="No activity yet" description="Profile changes and audit events will appear here." />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40">
-                  <TableHead className="pl-4">Action</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="pr-4 whitespace-nowrap">Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {auditLogs.map((log: any) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="pl-4 font-mono text-xs whitespace-nowrap">
-                      {log.action_type || '—'}
-                    </TableCell>
-                    <TableCell className="text-sm">{log.description || '—'}</TableCell>
-                    <TableCell className="pr-4 text-muted-foreground text-xs whitespace-nowrap">
-                      {formatDateTime(log.created_at)}
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    <TableHead className="pl-4">Action</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="pr-4 whitespace-nowrap">Date</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {auditLogs.map((log: any) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="pl-4 font-mono text-xs whitespace-nowrap">
+                        {log.action_type || '—'}
+                      </TableCell>
+                      <TableCell className="text-sm">{log.description || '—'}</TableCell>
+                      <TableCell className="pr-4 text-muted-foreground text-xs whitespace-nowrap">
+                        {formatDateTime(log.created_at)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

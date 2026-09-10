@@ -590,6 +590,7 @@ export default function PartnerPayCalculator() {
           </div>
 
           <ScrollArea className="h-[46vh] rounded-lg border border-border/70">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow className="hover:bg-transparent">
@@ -634,6 +635,7 @@ export default function PartnerPayCalculator() {
                 })}
               </TableBody>
             </Table>
+            </div>
           </ScrollArea>
 
           <DialogFooter className="sm:justify-between gap-3 items-center">

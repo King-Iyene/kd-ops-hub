@@ -430,6 +430,7 @@ const Contacts = () => {
           ) : (
             <>
               <div className="hidden md:block">
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -518,6 +519,7 @@ const Contacts = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
               </div>
 
               {/* Mobile contacts list */}

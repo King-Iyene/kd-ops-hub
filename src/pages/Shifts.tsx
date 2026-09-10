@@ -326,7 +326,7 @@ export default function Shifts() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left p-3 font-medium text-muted-foreground sticky left-0 bg-card min-w-[160px]">Employee</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground sticky left-0 z-10 bg-card min-w-[160px]">Employee</th>
                       {weekDays.map(day => (
                         <th key={day.toISOString()} className="text-center p-3 font-medium text-muted-foreground min-w-[120px]">
                           <div>{format(day, 'EEE')}</div>
@@ -338,7 +338,7 @@ export default function Shifts() {
                   <tbody>
                     {profiles.map(emp => (
                       <tr key={emp.id} className="border-b last:border-b-0 hover:bg-muted/30">
-                        <td className="p-3 font-medium sticky left-0 bg-card">{emp.full_name}</td>
+                        <td className="p-3 font-medium sticky left-0 z-10 bg-card">{emp.full_name}</td>
                         {weekDays.map(day => {
                           const dateStr = format(day, 'yyyy-MM-dd');
                           const assignment = assignmentGrid.get(`${emp.id}::${dateStr}`);

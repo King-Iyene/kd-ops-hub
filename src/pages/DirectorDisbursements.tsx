@@ -543,6 +543,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
           ) : (
             <>
               <div className="hidden md:block">
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -586,6 +587,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </div>
               <div className="md:hidden space-y-2 p-3">
                 {filteredRows.map((r) => (
@@ -1495,6 +1497,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
           ) : (
             <>
               <div className="hidden md:block">
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1559,6 +1562,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </div>
               <div className="md:hidden space-y-2 p-3">
                 {paginatedRows.map((r) => (

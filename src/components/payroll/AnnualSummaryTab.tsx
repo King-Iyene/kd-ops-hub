@@ -447,7 +447,7 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
           <Card>
             <CardContent className="pt-6">
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="min-w-[800px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Month</TableHead>
