@@ -569,7 +569,7 @@ export default function PaymentSchedule() {
                   className={cn(
                     'text-2xs font-semibold uppercase tracking-[0.1em] px-1 pb-1.5',
                     group === 'Overdue'
-                      ? 'text-red-600'
+                      ? 'text-destructive'
                       : 'text-muted-foreground/80',
                   )}
                 >

@@ -971,13 +971,13 @@ function Placements() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {stats.overdueCount > 0 && (
                 <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+                  <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-semibold text-sm text-red-600">Overdue Payments</p>
+                    <p className="font-semibold text-sm text-destructive">Overdue Payments</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {stats.overdueCount} payment{stats.overdueCount !== 1 ? 's' : ''} overdue. Review in the Payment Tracker tab.
                     </p>
-                    <Button variant="ghost" size="xs" className="mt-2 text-red-600" onClick={() => { setActiveTab('payments'); setPayFilterStatus('overdue'); }}>
+                    <Button variant="ghost" size="xs" className="mt-2 text-destructive" onClick={() => { setActiveTab('payments'); setPayFilterStatus('overdue'); }}>
                       View Overdue <ArrowUpRight className="h-3 w-3 ml-1" />
                     </Button>
                   </div>
@@ -1501,12 +1501,12 @@ function Placements() {
                       <MobileCardRow label="Operator Net">{formatNaira(pp.net_employee_ngn)}</MobileCardRow>
                       <MobileCardRow label="Client Paid">
                         {pp.client_paid
-                          ? <span className="text-emerald-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Yes{pp.client_paid_at ? ` · ${formatDate(pp.client_paid_at)}` : ''}</span>
+                          ? <span className="text-success flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Yes{pp.client_paid_at ? ` · ${formatDate(pp.client_paid_at)}` : ''}</span>
                           : <span className="text-amber-600">No</span>}
                       </MobileCardRow>
                       <MobileCardRow label="Operator Paid">
                         {pp.operator_paid
-                          ? <span className="text-emerald-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Yes{pp.operator_paid_at ? ` · ${formatDate(pp.operator_paid_at)}` : ''}</span>
+                          ? <span className="text-success flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Yes{pp.operator_paid_at ? ` · ${formatDate(pp.operator_paid_at)}` : ''}</span>
                           : <span className="text-amber-600">No</span>}
                       </MobileCardRow>
                       {isAdmin && (!pp.client_paid || !pp.operator_paid) && (
@@ -2165,9 +2165,9 @@ function Placements() {
                     const unpaid = payments.filter((pp) => !pp.client_paid && !pp.operator_paid).length;
                     return (
                       <>
-                        {settled > 0 && <> · <span className="text-emerald-600">{settled} settled</span></>}
+                        {settled > 0 && <> · <span className="text-success">{settled} settled</span></>}
                         {(clientOnly > 0 || operatorOnly > 0) && <> · <span className="text-amber-600">{clientOnly + operatorOnly} partial</span></>}
-                        {unpaid > 0 && <> · <span className="text-red-600">{unpaid} unpaid</span></>}
+                        {unpaid > 0 && <> · <span className="text-destructive">{unpaid} unpaid</span></>}
                       </>
                     );
                   })()}
@@ -2341,12 +2341,12 @@ function Placements() {
                         )}
                         <MobileCardRow label="Client Paid">
                           {pp.client_paid
-                            ? <span className="text-emerald-600">Yes{pp.client_paid_at ? ` — ${formatDate(pp.client_paid_at)}` : ''}</span>
+                            ? <span className="text-success">Yes{pp.client_paid_at ? ` — ${formatDate(pp.client_paid_at)}` : ''}</span>
                             : <span className="text-amber-600">No</span>}
                         </MobileCardRow>
                         <MobileCardRow label="Operator Paid">
                           {pp.operator_paid
-                            ? <span className="text-emerald-600">Yes{pp.operator_paid_at ? ` — ${formatDate(pp.operator_paid_at)}` : ''}</span>
+                            ? <span className="text-success">Yes{pp.operator_paid_at ? ` — ${formatDate(pp.operator_paid_at)}` : ''}</span>
                             : <span className="text-amber-600">No</span>}
                         </MobileCardRow>
                         {isAdmin && (

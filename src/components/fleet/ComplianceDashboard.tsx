@@ -216,10 +216,10 @@ export function ComplianceDashboard({ vehicles, onUpdated }: Props) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Expired / Blocked</CardTitle>
-            <XCircle className="h-4 w-4 text-red-600" />
+            <XCircle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{blockedCount}</div>
+            <div className="text-2xl font-bold text-destructive">{blockedCount}</div>
           </CardContent>
         </Card>
       </div>
@@ -296,9 +296,9 @@ export function ComplianceDashboard({ vehicles, onUpdated }: Props) {
                 {editForm[doc.key] && (() => {
                   const days = daysUntil(editForm[doc.key]);
                   if (days === null) return null;
-                  if (days < 0) return <p className="text-xs text-red-600">Expired {Math.abs(days)} days ago</p>;
+                  if (days < 0) return <p className="text-xs text-destructive">Expired {Math.abs(days)} days ago</p>;
                   if (days <= 30) return <p className="text-xs text-amber-600">Expires in {days} days</p>;
-                  return <p className="text-xs text-green-600">Valid for {days} days</p>;
+                  return <p className="text-xs text-success">Valid for {days} days</p>;
                 })()}
               </div>
             ))}

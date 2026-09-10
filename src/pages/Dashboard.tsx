@@ -476,7 +476,7 @@ const Dashboard = () => {
           </p>
           <button
             onClick={() => { setLoadError(false); setLoading(true); fetchDashboard(); }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 kd-transition"
+            className="inline-flex items-center gap-2 px-4 py-2 min-h-[44px] md:min-h-0 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 kd-transition"
           >
             <RefreshCw className="h-4 w-4" /> Retry
           </button>

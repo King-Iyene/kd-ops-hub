@@ -1387,7 +1387,7 @@ const EmployeeProfile = () => {
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    className="text-red-600"
+                    className="text-destructive"
                     onClick={() => setConfirmAnonymise(true)}
                   >
                     Delete &amp; Anonymise
@@ -1890,7 +1890,7 @@ const EmployeeProfile = () => {
       <Dialog open={confirmAnonymise} onOpenChange={(o) => { if (!o) { setConfirmAnonymise(false); setAnonymiseInput(''); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-red-600">
+            <DialogTitle className="text-destructive">
               Permanently delete {employee?.first_name}?
             </DialogTitle>
           </DialogHeader>
@@ -1899,7 +1899,7 @@ const EmployeeProfile = () => {
               <li>Their account will be permanently closed</li>
               <li>Their name and contact details will be erased</li>
               <li>Payment records will show as "Former Employee"</li>
-              <li className="text-red-600 font-medium">This CANNOT be undone.</li>
+              <li className="text-destructive font-medium">This CANNOT be undone.</li>
             </ul>
             <p className="text-sm font-medium">Type DELETE to confirm:</p>
             <Input

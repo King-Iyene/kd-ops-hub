@@ -365,7 +365,7 @@ export default function Timesheets() {
                         {ts.status === 'submitted' && (
                           <>
                             <Button variant="ghost" size="icon" onClick={() => updateStatus(ts, 'approved')} aria-label="Approve timesheet">
-                              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                              <CheckCircle2 className="h-4 w-4 text-success" />
                             </Button>
                             <Button variant="ghost" size="icon" onClick={() => updateStatus(ts, 'rejected')} aria-label="Reject timesheet">
                               <XCircle className="h-4 w-4 text-destructive" />

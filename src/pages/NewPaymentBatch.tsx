@@ -26,6 +26,7 @@ import {
   Loader2, Trash2, ArrowLeft, ArrowRight, Check, Search, Plus, Upload,
   Users, Banknote, Gift, AlertTriangle, Building2, ReceiptText,
 } from 'lucide-react';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 import { StickyActionBar, StickyActionBarSpacer } from '@/components/ui-kit/StickyActionBar';
 import {
   MobileCard,
@@ -230,6 +231,13 @@ const NewPaymentBatch = () => {
   // Default ON: a one-off beneficiary is saved to the contractors table so they
   // can be reused. Operators can untick for a genuine one-time payee.
   const [adHocSaveContractor, setAdHocSaveContractor] = useState(true);
+
+  // Inline field-level validation
+  type BatchField = 'batchName' | 'paymentDate';
+  const { errors: batchErrors, setError: setBatchError, clearError: clearBatchError, clearAll: clearBatchErrors, hasErrors: hasBatchErrors } = useFieldErrors<BatchField>();
+
+  type AdHocField = 'bank' | 'amount';
+  const { errors: adHocErrors, setError: setAdHocError, clearError: clearAdHocError, clearAll: clearAdHocErrors } = useFieldErrors<AdHocField>();
 
   // Only fetch when the caller can actually create an employee-based batch
   // (salary/advance/bonus) — operations/field_staff have none of those
@@ -517,27 +525,21 @@ const NewPaymentBatch = () => {
   const isEmployeeBatchType = batchType === 'employee_salary' || batchType === 'employee_allowance' || batchType === 'employee_reimbursement' || batchType === 'advance' || batchType === 'prize';
 
   const addAdHoc = () => {
+    let adHocValid = true;
     if (!adHocBank.verified) {
-      toast({
-        title: 'Verify the account first',
-        description: 'Beneficiary account must be verified before adding.',
-        variant: 'destructive',
-      });
-      return;
-    }
+      setAdHocError('bank', 'Verify the account before adding');
+      adHocValid = false;
+    } else { clearAdHocError('bank'); }
+    const amount = round2(parseFloat(adHoc.amount_ngn) || 0);
+    if (!adHoc.amount_ngn || amount <= 0) {
+      setAdHocError('amount', 'Amount must be greater than ₦0');
+      adHocValid = false;
+    } else { clearAdHocError('amount'); }
+    if (!adHocValid) return;
     if (items.length >= MAX_RECIPIENTS_PER_BATCH) {
       toast({
         title: `Batch full — ${MAX_RECIPIENTS_PER_BATCH} recipients max`,
         description: 'Submit this one and create a second batch for the rest.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    const amount = round2(parseFloat(adHoc.amount_ngn) || 0);
-    if (!adHoc.amount_ngn || amount <= 0) {
-      toast({
-        title: 'Amount required',
-        description: 'Amount must be greater than ₦0.',
         variant: 'destructive',
       });
       return;
@@ -560,6 +562,7 @@ const NewPaymentBatch = () => {
     setAdHoc({ first_name: '', last_name: '', amount_ngn: '', reference: '' });
     setAdHocBank(emptyBank);
     setAdHocSaveContractor(true);
+    clearAdHocErrors();
   };
 
   const handleCsvImport = (rows: ImportedBeneficiary[]) => {
@@ -731,6 +734,7 @@ const NewPaymentBatch = () => {
         profile,
       );
 
+      clearBatchErrors();
       toast({ title: submit ? 'Batch submitted for approval' : isEditMode ? 'Draft updated' : 'Batch saved as draft' });
       if (!isEditMode) dispatchPlatformWebhook('batch.created', { name: batchName, total_amount: totalAmount, beneficiary_count: items.length, status: submit ? 'pending_approval' : 'draft' });
       navigate(isEditMode ? `/payments/${editId}` : '/payments');
@@ -907,11 +911,23 @@ const NewPaymentBatch = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Batch Name</Label>
-                <Input value={batchName} onChange={(e) => setBatchName(e.target.value)} placeholder="e.g. 30/03/26 — LinkedIn 1-20" />
+                <Input
+                  value={batchName}
+                  onChange={(e) => { setBatchName(e.target.value); clearBatchError('batchName'); }}
+                  placeholder="e.g. 30/03/26 — LinkedIn 1-20"
+                  aria-invalid={!!batchErrors.batchName}
+                />
+                <FieldError message={batchErrors.batchName} />
               </div>
               <div className="space-y-2">
                 <Label>Payment Date</Label>
-                <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
+                <Input
+                  type="date"
+                  value={paymentDate}
+                  onChange={(e) => { setPaymentDate(e.target.value); clearBatchError('paymentDate'); }}
+                  aria-invalid={!!batchErrors.paymentDate}
+                />
+                <FieldError message={batchErrors.paymentDate} />
               </div>
               <div className="space-y-2">
                 <Label>Payment Period</Label>
@@ -936,8 +952,12 @@ const NewPaymentBatch = () => {
             </div>
             <StickyActionBar>
               <Button
-                onClick={() => setStep(2)}
-                disabled={!batchName || !paymentDate}
+                onClick={() => {
+                  let valid = true;
+                  if (!batchName.trim()) { setBatchError('batchName', 'Batch name is required'); valid = false; } else { clearBatchError('batchName'); }
+                  if (!paymentDate) { setBatchError('paymentDate', 'Payment date is required'); valid = false; } else { clearBatchError('paymentDate'); }
+                  if (valid) { clearBatchErrors(); setStep(2); }
+                }}
                 className="flex-1 md:flex-none h-11 md:h-9"
               >
                 Next <ArrowRight className="ml-2 h-4 w-4" />
@@ -1471,7 +1491,7 @@ const NewPaymentBatch = () => {
       <StickyActionBarSpacer />
 
       {/* Ad-hoc beneficiary dialog */}
-      <Dialog open={showAdHoc} onOpenChange={setShowAdHoc}>
+      <Dialog open={showAdHoc} onOpenChange={(open) => { setShowAdHoc(open); if (!open) clearAdHocErrors(); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Add One-off Beneficiary</DialogTitle></DialogHeader>
           <div className="space-y-3">
@@ -1493,15 +1513,20 @@ const NewPaymentBatch = () => {
                 />
               </div>
             </div>
-            <BankAccountField value={adHocBank} onChange={setAdHocBank} />
+            <div>
+              <BankAccountField value={adHocBank} onChange={(v) => { setAdHocBank(v); if (v.verified) clearAdHocError('bank'); }} />
+              <FieldError message={adHocErrors.bank} />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Amount (₦)</Label>
                 <Input
                   type="number"
                   value={adHoc.amount_ngn}
-                  onChange={(e) => setAdHoc({ ...adHoc, amount_ngn: e.target.value })}
+                  onChange={(e) => { setAdHoc({ ...adHoc, amount_ngn: e.target.value }); clearAdHocError('amount'); }}
+                  aria-invalid={!!adHocErrors.amount}
                 />
+                <FieldError message={adHocErrors.amount} />
               </div>
               <div className="space-y-1">
                 <Label>Reference</Label>

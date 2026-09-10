@@ -232,7 +232,7 @@ export default function Vendors() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Active', value: stats.active, icon: CheckCircle2, color: 'text-green-600' },
+          { label: 'Active', value: stats.active, icon: CheckCircle2, color: 'text-success' },
           { label: 'Inactive', value: stats.inactive, icon: Building2, color: 'text-muted-foreground' },
           { label: 'Blacklisted', value: stats.blacklisted, icon: Ban, color: 'text-destructive' },
           { label: 'Contracts expiring ≤30d', value: stats.expiring, icon: AlertTriangle, color: 'text-warning' },

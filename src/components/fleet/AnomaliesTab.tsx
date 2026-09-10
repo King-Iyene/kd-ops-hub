@@ -125,7 +125,7 @@ export function AnomaliesTab({
       {/* Flagged Trip Logs */}
       <div>
         <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-red-500" /> Flagged Trip Logs
+          <AlertTriangle className="h-4 w-4 text-destructive" /> Flagged Trip Logs
           <span className="text-xs text-muted-foreground font-normal">({anomalousTrips.length})</span>
         </h2>
         {anomalousTrips.length === 0 ? (
@@ -161,7 +161,7 @@ export function AnomaliesTab({
                         <TableCell className="text-xs">
                           <div className="flex flex-col gap-0.5">
                             {t.is_anomaly && (
-                              <span className="text-red-600 flex items-center gap-1">
+                              <span className="text-destructive flex items-center gap-1">
                                 <AlertTriangle className="h-3 w-3" /> {t.anomaly_reason}
                               </span>
                             )}
@@ -214,7 +214,7 @@ export function AnomaliesTab({
       {/* Flagged Fuel Requests */}
       <div>
         <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
-          <Fuel className="h-4 w-4 text-red-500" /> Flagged Fuel Requests
+          <Fuel className="h-4 w-4 text-destructive" /> Flagged Fuel Requests
           <span className="text-xs text-muted-foreground font-normal">({anomalousFuelReqs.length})</span>
         </h2>
         {anomalousFuelReqs.length === 0 ? (

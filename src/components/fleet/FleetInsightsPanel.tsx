@@ -450,10 +450,10 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+              <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
               <p className="text-xs text-muted-foreground">At Risk</p>
             </div>
-            <p className="text-2xl font-bold text-red-600">{atRiskVehicles.length}</p>
+            <p className="text-2xl font-bold text-destructive">{atRiskVehicles.length}</p>
             {weekOverWeekChange !== null && (
               <p className={`text-xs flex items-center gap-1 ${weekOverWeekChange > 0 ? 'text-red-500' : 'text-green-500'}`}>
                 {weekOverWeekChange > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}

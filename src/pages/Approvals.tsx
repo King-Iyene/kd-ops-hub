@@ -871,7 +871,7 @@ const Approvals = () => {
             <button
               type="button"
               onClick={manualRefresh}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-medium hover:bg-muted/80 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-1.5 min-h-[44px] md:min-h-0 rounded-full bg-muted border border-border text-xs font-medium hover:bg-muted/80 transition-colors"
               title="Refresh now"
             >
               <RefreshCw className="h-3 w-3" /> {lastUpdatedLabel}

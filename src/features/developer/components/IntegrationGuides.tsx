@@ -1111,7 +1111,7 @@ export default function IntegrationGuides() {
               key={p.id}
               onClick={() => setPlatform(p.id)}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border',
+                'flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] md:min-h-0 rounded-full text-xs font-medium transition-all border',
                 platform === p.id
                   ? 'text-white shadow-sm'
                   : 'text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 bg-white dark:bg-zinc-900',

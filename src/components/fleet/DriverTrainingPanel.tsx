@@ -217,10 +217,10 @@ export function DriverTrainingPanel({ staff }: Props) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Expired</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <AlertTriangle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{totalExpired}</div>
+            <div className="text-2xl font-bold text-destructive">{totalExpired}</div>
           </CardContent>
         </Card>
       </div>

@@ -57,7 +57,7 @@ function MultiSelectInput({
           <button
             key={c.title}
             type="button"
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all border"
+            className="inline-flex items-center gap-1 px-3 py-1.5 min-h-[44px] md:min-h-0 rounded-full text-xs font-medium transition-all border"
             style={{
               backgroundColor: selected ? color.bg : 'transparent',
               color: selected ? color.text : undefined,

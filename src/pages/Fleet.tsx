@@ -219,7 +219,7 @@ const Fleet = () => {
           </p>
           <button
             onClick={() => { setLoadError(false); setLoading(true); fetchData(); }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 kd-transition"
+            className="inline-flex items-center gap-2 px-4 py-2 min-h-[44px] md:min-h-0 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 kd-transition"
           >
             <RefreshCw className="h-4 w-4" /> Retry
           </button>
@@ -281,7 +281,7 @@ const Fleet = () => {
             <button
               type="button"
               onClick={manualRefresh}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-medium hover:bg-muted/80 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-1.5 min-h-[44px] md:min-h-0 rounded-full bg-muted border border-border text-xs font-medium hover:bg-muted/80 transition-colors"
               title="Refresh fleet data"
             >
               <RefreshCw className="h-3 w-3" /> {lastUpdatedLabel}
@@ -347,7 +347,7 @@ const Fleet = () => {
                       type="button"
                       onClick={() => setTab(item.value)}
                       className={cn(
-                        'flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all shrink-0',
+                        'flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 min-h-[44px] md:min-h-0 rounded-lg text-xs font-medium whitespace-nowrap transition-all shrink-0',
                         isActive
                           ? 'bg-primary text-primary-foreground shadow-sm'
                           : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground active:bg-muted',

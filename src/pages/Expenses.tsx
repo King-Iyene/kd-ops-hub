@@ -1672,7 +1672,7 @@ const Expenses = () => {
                           {(() => {
                             const days = ageingDays(e);
                             if (days === null || days < 3) return null;
-                            const tone = days >= 7 ? 'text-red-600 font-semibold' : days >= 5 ? 'text-amber-600 font-medium' : 'text-muted-foreground';
+                            const tone = days >= 7 ? 'text-destructive font-semibold' : days >= 5 ? 'text-amber-600 font-medium' : 'text-muted-foreground';
                             return (
                               <span className={`text-3xs ${tone}`}>
                                 Awaiting {days}d

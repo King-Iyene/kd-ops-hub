@@ -35,14 +35,14 @@ import { cn } from '@/lib/utils';
 
 const STATUS_META: Record<string, { label: string; icon: React.ElementType; color: string; bg: string; dot: string }> = {
   planning:  { label: 'Planning',   icon: Clock,       color: 'text-blue-500',    bg: 'bg-blue-50 dark:bg-blue-950/30',    dot: 'bg-blue-500' },
-  active:    { label: 'Active',     icon: FolderKanban,color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30', dot: 'bg-emerald-500' },
+  active:    { label: 'Active',     icon: FolderKanban,color: 'text-success', bg: 'bg-emerald-50 dark:bg-emerald-950/30', dot: 'bg-emerald-500' },
   on_hold:   { label: 'On Hold',    icon: PauseCircle, color: 'text-amber-500',   bg: 'bg-amber-50 dark:bg-amber-950/30',  dot: 'bg-amber-500' },
-  completed: { label: 'Completed',  icon: CheckCircle2,color: 'text-emerald-600', bg: 'bg-emerald-50/50 dark:bg-emerald-950/20', dot: 'bg-emerald-500' },
+  completed: { label: 'Completed',  icon: CheckCircle2,color: 'text-success', bg: 'bg-emerald-50/50 dark:bg-emerald-950/20', dot: 'bg-emerald-500' },
   cancelled: { label: 'Cancelled',  icon: XCircle,     color: 'text-muted-foreground', bg: 'bg-muted',  dot: 'bg-slate-400' },
 };
 
 const PRIORITY_META: Record<string, { label: string; color: string; dot: string }> = {
-  critical: { label: 'Critical', color: 'text-red-600',    dot: 'bg-red-500' },
+  critical: { label: 'Critical', color: 'text-destructive',    dot: 'bg-red-500' },
   high:     { label: 'High',     color: 'text-orange-500', dot: 'bg-orange-400' },
   normal:   { label: 'Normal',   color: 'text-blue-500',   dot: 'bg-blue-400' },
   low:      { label: 'Low',      color: 'text-slate-400',  dot: 'bg-slate-300 dark:bg-slate-600' },
@@ -488,10 +488,10 @@ export default function Projects() {
           {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: 'Active',    value: stats.active,    color: 'text-emerald-600', icon: FolderKanban },
+              { label: 'Active',    value: stats.active,    color: 'text-success', icon: FolderKanban },
               { label: 'Planning',  value: stats.planning,  color: 'text-blue-500',    icon: Clock },
               { label: 'Completed', value: stats.completed, color: 'text-muted-foreground', icon: CheckCircle2 },
-              { label: 'Overdue',   value: stats.overdue,   color: 'text-red-600',     icon: Flag },
+              { label: 'Overdue',   value: stats.overdue,   color: 'text-destructive',     icon: Flag },
             ].map(s => (
               <Card key={s.label} className="overflow-hidden">
                 <CardContent className="pt-4 pb-3">
@@ -1109,7 +1109,7 @@ function ProjectDetailPanel({
             <p className="text-3xs text-muted-foreground">Tasks</p>
           </div>
           <div className="rounded-lg border p-3 text-center">
-            <p className="text-lg font-bold tabular-nums text-emerald-600">{doneTasks}</p>
+            <p className="text-lg font-bold tabular-nums text-success">{doneTasks}</p>
             <p className="text-3xs text-muted-foreground">Complete</p>
           </div>
           <div className="rounded-lg border p-3 text-center">
@@ -1132,7 +1132,7 @@ function ProjectDetailPanel({
             {milestones.map(ms => (
               <div key={ms.id} className="flex items-center gap-2 group rounded-md px-2 py-1.5 hover:bg-muted/50">
                 <button onClick={() => onToggleMilestone(ms)} className="shrink-0">
-                  <CheckCircle2 className={cn('h-4 w-4', ms.status === 'complete' ? 'text-emerald-600 fill-emerald-100' : 'text-muted-foreground/40')} />
+                  <CheckCircle2 className={cn('h-4 w-4', ms.status === 'complete' ? 'text-success fill-emerald-100' : 'text-muted-foreground/40')} />
                 </button>
                 <span className={cn('flex-1 text-sm', ms.status === 'complete' && 'line-through text-muted-foreground')}>{ms.title}</span>
                 {ms.due_date && (
@@ -1177,7 +1177,7 @@ function ProjectDetailPanel({
                 const late = t.status !== 'complete' && d !== null && d < 0;
                 return (
                   <div key={t.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50">
-                    <CheckCircle2 className={cn('h-3.5 w-3.5 shrink-0', t.status === 'complete' ? 'text-emerald-600' : 'text-muted-foreground/40')} />
+                    <CheckCircle2 className={cn('h-3.5 w-3.5 shrink-0', t.status === 'complete' ? 'text-success' : 'text-muted-foreground/40')} />
                     <span className={cn('flex-1 text-sm truncate', t.status === 'complete' && 'line-through text-muted-foreground')}>{t.title}</span>
                     {late && <span className="text-3xs text-destructive shrink-0">{Math.abs(d!)}d late</span>}
                   </div>

@@ -831,10 +831,10 @@ const Documents = () => {
         <Card>
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+              <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
               <span className="text-xs text-muted-foreground">Expired</span>
             </div>
-            <p className="text-xl font-bold text-red-600">{stats.expired}</p>
+            <p className="text-xl font-bold text-destructive">{stats.expired}</p>
             <p className="text-3xs text-muted-foreground">need renewal</p>
           </CardContent>
         </Card>

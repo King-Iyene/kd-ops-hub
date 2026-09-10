@@ -414,9 +414,9 @@ export default function TaskTeamDashboard() {
       {/* Row 1 — Headline stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
         <StatCard label="Total Tasks in Period" value={cur.total} current={cur.total} previous={prev.total} />
-        <StatCard label="Total Completed" value={cur.completed} current={cur.completed} previous={prev.completed} tone="text-emerald-500" />
+        <StatCard label="Total Completed" value={cur.completed} current={cur.completed} previous={prev.completed} tone="text-success" />
         <CompletionRateCard current={cur.rate} previous={prev.rate} />
-        <StatCard label="Total Overdue" value={cur.overdue} current={cur.overdue} previous={prev.overdue} tone="text-red-500" />
+        <StatCard label="Total Overdue" value={cur.overdue} current={cur.overdue} previous={prev.overdue} tone="text-destructive" />
         <StatCard label="Total Blocked" value={cur.blocked} current={cur.blocked} previous={prev.blocked} tone="text-amber-500" />
         <StatCard label="Total In Progress" value={cur.inProgress} current={cur.inProgress} previous={prev.inProgress} tone="text-primary" />
         <StatCard label="Unassigned Tasks" value={cur.unassigned} current={cur.unassigned} previous={prev.unassigned} />

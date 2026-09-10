@@ -229,9 +229,9 @@ export function DriverVerificationPanel() {
         {!isSelfService && (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <SummaryCard label="Total Drivers" value={totalDrivers} icon={<UserCheck className="h-4 w-4 text-muted-foreground" />} />
-            <SummaryCard label="Verified" value={verifiedCount} icon={<CheckCircle className="h-4 w-4 text-green-600" />} className="text-green-600" />
+            <SummaryCard label="Verified" value={verifiedCount} icon={<CheckCircle className="h-4 w-4 text-success" />} className="text-success" />
             <SummaryCard label="Assigned to Vehicle" value={assignedCount} icon={<Car className="h-4 w-4 text-blue-600" />} className="text-blue-600" />
-            <SummaryCard label="License Expiring" value={expiringCount} icon={<XCircle className="h-4 w-4 text-red-600" />} className="text-red-600" />
+            <SummaryCard label="License Expiring" value={expiringCount} icon={<XCircle className="h-4 w-4 text-destructive" />} className="text-destructive" />
           </div>
         )}
 

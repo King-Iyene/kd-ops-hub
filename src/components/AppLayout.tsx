@@ -156,7 +156,7 @@ export default function AppLayout() {
               <button
                 type="button"
                 onClick={openCommandPalette}
-                className="md:hidden inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 kd-transition"
+                className="md:hidden inline-flex items-center justify-center h-11 w-11 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 kd-transition"
                 aria-label="Search"
               >
                 <Search className="h-4 w-4" />

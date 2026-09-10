@@ -12,6 +12,7 @@ import {
   Facebook,
   Twitter,
 } from 'lucide-react';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 import { supabase } from '@/lib/supabase';
 import { resolveAccount } from '@/lib/paystack';
 import { NIGERIAN_BANKS, getBankCode, fetchBanks } from '@/lib/nigerian-banks';
@@ -40,6 +41,9 @@ const JoinForm = () => {
 
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  type FormField = 'first_name' | 'last_name' | 'email' | 'phone' | 'linkedin_url' | 'linkedin_email' | 'heyreach_password' | 'bank_name' | 'account_number' | 'bank_verified';
+  const { errors, setError, clearError, clearAll, hasErrors } = useFieldErrors<FormField>();
 
   const [form, setForm] = useState({
     first_name: '',
@@ -154,59 +158,33 @@ const JoinForm = () => {
     setForm((f) => ({ ...f, bank_name: v }));
     setAccountName('');
     setVerifyError('');
+    clearError('bank_name');
+    clearError('bank_verified');
   };
   const handleAccountNumberChange = (v: string) => {
     setForm((f) => ({ ...f, account_number: v.replace(/\D/g, '').slice(0, 10) }));
     setAccountName('');
     setVerifyError('');
+    clearError('account_number');
+    clearError('bank_verified');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.first_name.trim() || !form.last_name.trim()) {
-      toast({ title: 'First and last name are required', variant: 'destructive' });
-      return;
-    }
-    if (!form.email.trim()) {
-      toast({ title: 'Email is required', variant: 'destructive' });
-      return;
-    }
-    if (!form.phone.trim()) {
-      toast({ title: 'Phone / WhatsApp number is required', variant: 'destructive' });
-      return;
-    }
-    if (!isValidLinkedIn) {
-      toast({
-        title: 'LinkedIn profile URL required',
-        description: 'Must start with https://linkedin.com/in/...',
-        variant: 'destructive',
-      });
-      return;
-    }
-    if (!form.linkedin_email.trim()) {
-      toast({ title: 'LinkedIn Email is required', variant: 'destructive' });
-      return;
-    }
-    if (!form.heyreach_password.trim()) {
-      toast({ title: 'LinkedIn Password is required', variant: 'destructive' });
-      return;
-    }
-    if (!form.bank_name) {
-      toast({ title: 'Select a bank', variant: 'destructive' });
-      return;
-    }
-    if (!isValidNuban) {
-      toast({ title: 'Account number must be exactly 10 digits (NUBAN)', variant: 'destructive' });
-      return;
-    }
-    if (!bankVerified) {
-      toast({
-        title: 'Please verify your bank account first',
-        description: 'Click "Verify" next to your account number.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    clearAll();
+    let valid = true;
+    if (!form.first_name.trim()) { setError('first_name', 'First name is required'); valid = false; }
+    if (!form.last_name.trim()) { setError('last_name', 'Last name is required'); valid = false; }
+    if (!form.email.trim()) { setError('email', 'Email is required'); valid = false; }
+    if (!form.phone.trim()) { setError('phone', 'Phone / WhatsApp number is required'); valid = false; }
+    if (!form.linkedin_url.trim()) { setError('linkedin_url', 'LinkedIn profile URL is required'); valid = false; }
+    else if (!isValidLinkedIn) { setError('linkedin_url', 'Must be a valid LinkedIn URL (https://linkedin.com/in/...)'); valid = false; }
+    if (!form.linkedin_email.trim()) { setError('linkedin_email', 'LinkedIn Email is required'); valid = false; }
+    if (!form.heyreach_password.trim()) { setError('heyreach_password', 'LinkedIn Password is required'); valid = false; }
+    if (!form.bank_name) { setError('bank_name', 'Select a bank'); valid = false; }
+    if (!isValidNuban) { setError('account_number', 'Account number must be exactly 10 digits (NUBAN)'); valid = false; }
+    if (valid && !bankVerified) { setError('bank_verified', 'Please verify your bank account first'); valid = false; }
+    if (!valid) return;
 
     setSubmitting(true);
     try {
@@ -227,6 +205,7 @@ const JoinForm = () => {
         status: 'pending',
       });
       if (error) throw error;
+      clearAll();
       setSubmitted(true);
     } catch (err: unknown) {
       toast({
@@ -288,19 +267,23 @@ const JoinForm = () => {
                   <Label className="kd-label">First name *</Label>
                   <Input
                     value={form.first_name}
-                    onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                    onChange={(e) => { setForm({ ...form, first_name: e.target.value }); clearError('first_name'); }}
                     placeholder="Ada"
                     required
+                    aria-invalid={!!errors.first_name}
                   />
+                  <FieldError message={errors.first_name} />
                 </div>
                 <div className="space-y-1">
                   <Label className="kd-label">Last name *</Label>
                   <Input
                     value={form.last_name}
-                    onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                    onChange={(e) => { setForm({ ...form, last_name: e.target.value }); clearError('last_name'); }}
                     placeholder="Okonkwo"
                     required
+                    aria-invalid={!!errors.last_name}
                   />
+                  <FieldError message={errors.last_name} />
                 </div>
                 <p className="text-xs text-muted-foreground sm:col-span-2">
                   Please this should be exactly the full name you have on your LinkedIn profile
@@ -310,19 +293,23 @@ const JoinForm = () => {
                   <Input
                     type="email"
                     value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    onChange={(e) => { setForm({ ...form, email: e.target.value }); clearError('email'); }}
                     placeholder="ada@example.com"
                     required
+                    aria-invalid={!!errors.email}
                   />
+                  <FieldError message={errors.email} />
                 </div>
                 <div className="space-y-1">
                   <Label className="kd-label">Phone / WhatsApp *</Label>
                   <Input
                     value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    onChange={(e) => { setForm({ ...form, phone: e.target.value }); clearError('phone'); }}
                     placeholder="+234 800 000 0000"
                     required
+                    aria-invalid={!!errors.phone}
                   />
+                  <FieldError message={errors.phone} />
                 </div>
               </div>
             </div>
@@ -336,11 +323,13 @@ const JoinForm = () => {
                 <Label className="kd-label">LinkedIn profile URL *</Label>
                 <Input
                   value={form.linkedin_url}
-                  onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })}
+                  onChange={(e) => { setForm({ ...form, linkedin_url: e.target.value }); clearError('linkedin_url'); }}
                   placeholder="https://linkedin.com/in/your-profile"
                   required
+                  aria-invalid={!!errors.linkedin_url}
                 />
-                {form.linkedin_url.trim() && !isValidLinkedIn && (
+                <FieldError message={errors.linkedin_url} />
+                {!errors.linkedin_url && form.linkedin_url.trim() && !isValidLinkedIn && (
                   <p className="text-xs text-destructive">
                     Must be a valid LinkedIn URL (https://linkedin.com/in/...)
                   </p>
@@ -356,20 +345,24 @@ const JoinForm = () => {
                 <Input
                   type="email"
                   value={form.linkedin_email}
-                  onChange={(e) => setForm({ ...form, linkedin_email: e.target.value })}
+                  onChange={(e) => { setForm({ ...form, linkedin_email: e.target.value }); clearError('linkedin_email'); }}
                   placeholder="Email you use to log in to LinkedIn"
                   required
+                  aria-invalid={!!errors.linkedin_email}
                 />
+                <FieldError message={errors.linkedin_email} />
               </div>
               <div className="space-y-1">
                 <Label className="kd-label">LinkedIn Password *</Label>
                 <Input
                   type="text"
                   value={form.heyreach_password}
-                  onChange={(e) => setForm({ ...form, heyreach_password: e.target.value })}
+                  onChange={(e) => { setForm({ ...form, heyreach_password: e.target.value }); clearError('heyreach_password'); }}
                   placeholder="Enter your LinkedIn login password"
                   required
+                  aria-invalid={!!errors.heyreach_password}
                 />
+                <FieldError message={errors.heyreach_password} />
                 <p className="text-xs text-muted-foreground flex items-start gap-1.5">
                   <Info className="h-3 w-3 mt-0.5 shrink-0" />
                   We use this to manage your LinkedIn outreach campaigns on your behalf. Your credentials are stored securely and only used for campaign management on the HeyReach platform.
@@ -390,6 +383,7 @@ const JoinForm = () => {
                     onChange={(name) => handleBankChange(name)}
                     banks={banks}
                   />
+                  <FieldError message={errors.bank_name} />
                 </div>
                 <div className="space-y-1">
                   <Label className="kd-label">Account number (10 digits) *</Label>
@@ -401,6 +395,7 @@ const JoinForm = () => {
                       maxLength={10}
                       placeholder="0123456789"
                       className="flex-1"
+                      aria-invalid={!!errors.account_number}
                     />
                     <Button
                       type="button"
@@ -413,9 +408,10 @@ const JoinForm = () => {
                       {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
                     </Button>
                   </div>
-                  {form.account_number.length > 0 && !isValidNuban && (
+                  {form.account_number.length > 0 && !isValidNuban && !errors.account_number && (
                     <p className="text-xs text-destructive">Must be exactly 10 digits</p>
                   )}
+                  <FieldError message={errors.account_number} />
                 </div>
               </div>
 
@@ -435,6 +431,7 @@ const JoinForm = () => {
                   Click <strong>Verify</strong> to confirm your account details.
                 </p>
               )}
+              <FieldError message={errors.bank_verified} />
             </div>
 
             <Button
