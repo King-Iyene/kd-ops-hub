@@ -161,18 +161,20 @@ export default function WebhooksManager() {
   const createMutation = useMutation({
     mutationFn: async (input: FormState) => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
       const headersObj: Record<string, string> = {};
       input.headers.forEach((h) => { if (h.key.trim()) headersObj[h.key.trim()] = h.value; });
       const payload: any = {
         base_id: PLATFORM_BASE_ID,
         table_id: PLATFORM_BASE_ID,
+        workspace_id: PLATFORM_BASE_ID,
         name: input.name,
         url: input.url,
         events: input.events,
         secret: input.secret || null,
         headers: headersObj,
         is_active: input.is_active,
-        created_by: user?.id,
+        created_by: user.id,
       };
       if (editingId) {
         const { error } = await supabase.schema('nc_meta').from('webhooks').update(payload).eq('id', editingId);
