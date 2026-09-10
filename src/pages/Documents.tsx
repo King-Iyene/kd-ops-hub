@@ -719,8 +719,8 @@ const Documents = () => {
     if (!r.expires_at) return <span className="text-muted-foreground text-xs">—</span>;
     const d = daysUntil(r.expires_at);
     if (d === null) return <span className="text-muted-foreground text-xs">—</span>;
-    if (d < 0) return <Badge className="bg-destructive/10 text-destructive text-[10px]">Expired</Badge>;
-    if (d <= 30) return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px]">{d}d left</Badge>;
+    if (d < 0) return <Badge className="bg-destructive/10 text-destructive text-3xs">Expired</Badge>;
+    if (d <= 30) return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-3xs">{d}d left</Badge>;
     return <span className="text-muted-foreground text-xs">{formatDate(r.expires_at)}</span>;
   };
 
@@ -729,7 +729,7 @@ const Documents = () => {
     const name = getEntityName(r.entity_type, r.entity_id);
     const TypeIcon = ENTITY_TYPES.find((e) => e.value === r.entity_type)?.icon || Link2;
     return (
-      <Badge variant="outline" className="text-[10px] gap-1">
+      <Badge variant="outline" className="text-3xs gap-1">
         <TypeIcon className="h-2.5 w-2.5" />
         {name || r.entity_type}
       </Badge>
@@ -815,7 +815,7 @@ const Documents = () => {
               <span className="text-xs text-muted-foreground">Total Documents</span>
             </div>
             <p className="text-xl font-bold">{stats.total}</p>
-            <p className="text-[10px] text-muted-foreground">{formatBytes(stats.totalSize)} used</p>
+            <p className="text-3xs text-muted-foreground">{formatBytes(stats.totalSize)} used</p>
           </CardContent>
         </Card>
         <Card>
@@ -825,7 +825,7 @@ const Documents = () => {
               <span className="text-xs text-muted-foreground">Expiring Soon</span>
             </div>
             <p className="text-xl font-bold text-amber-600">{stats.expiringSoon}</p>
-            <p className="text-[10px] text-muted-foreground">within 30 days</p>
+            <p className="text-3xs text-muted-foreground">within 30 days</p>
           </CardContent>
         </Card>
         <Card>
@@ -835,7 +835,7 @@ const Documents = () => {
               <span className="text-xs text-muted-foreground">Expired</span>
             </div>
             <p className="text-xl font-bold text-red-600">{stats.expired}</p>
-            <p className="text-[10px] text-muted-foreground">need renewal</p>
+            <p className="text-3xs text-muted-foreground">need renewal</p>
           </CardContent>
         </Card>
         <Card>
@@ -845,7 +845,7 @@ const Documents = () => {
               <span className="text-xs text-muted-foreground">Linked</span>
             </div>
             <p className="text-xl font-bold text-blue-600">{stats.linked}</p>
-            <p className="text-[10px] text-muted-foreground">to entities</p>
+            <p className="text-3xs text-muted-foreground">to entities</p>
           </CardContent>
         </Card>
         <Card>
@@ -855,7 +855,7 @@ const Documents = () => {
               <span className="text-xs text-muted-foreground">Folders</span>
             </div>
             <p className="text-xl font-bold">{folders.length}</p>
-            <p className="text-[10px] text-muted-foreground">{stats.templates} templates</p>
+            <p className="text-3xs text-muted-foreground">{stats.templates} templates</p>
           </CardContent>
         </Card>
       </div>
@@ -976,7 +976,7 @@ const Documents = () => {
                             <FolderIcon className="h-5 w-5 shrink-0" style={{ color: folder.color }} />
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium truncate">{folder.name}</p>
-                              <p className="text-[10px] text-muted-foreground">{docCount} file{docCount !== 1 ? 's' : ''}</p>
+                              <p className="text-3xs text-muted-foreground">{docCount} file{docCount !== 1 ? 's' : ''}</p>
                             </div>
                           </button>
                           {canEdit && (
@@ -1057,11 +1057,11 @@ const Documents = () => {
                                       <p className="text-xs text-muted-foreground truncate max-w-[200px]">{r.description}</p>
                                     )}
                                   </div>
-                                  {r.is_template && <Badge variant="outline" className="text-[10px] shrink-0">Template</Badge>}
+                                  {r.is_template && <Badge variant="outline" className="text-3xs shrink-0">Template</Badge>}
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <Badge variant="secondary" className="text-[10px] capitalize">
+                                <Badge variant="secondary" className="text-3xs capitalize">
                                   {r.category.replace(/_/g, ' ')}
                                 </Badge>
                               </TableCell>
@@ -1069,10 +1069,10 @@ const Documents = () => {
                               <TableCell>
                                 <div className="flex flex-wrap gap-1 max-w-[150px]">
                                   {(r.tags || []).slice(0, 2).map((t, i) => (
-                                    <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t}</span>
+                                    <span key={i} className="text-3xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t}</span>
                                   ))}
                                   {(r.tags || []).length > 2 && (
-                                    <span className="text-[10px] text-muted-foreground">+{(r.tags || []).length - 2}</span>
+                                    <span className="text-3xs text-muted-foreground">+{(r.tags || []).length - 2}</span>
                                   )}
                                 </div>
                               </TableCell>
@@ -1163,8 +1163,8 @@ const Documents = () => {
                             <DocThumbnail doc={r} size="lg" />
                           </div>
                           <p className="text-sm font-medium truncate w-full">{r.title}</p>
-                          <p className="text-[10px] text-muted-foreground capitalize">{r.category.replace(/_/g, ' ')}</p>
-                          <p className="text-[10px] text-muted-foreground">{formatBytes(r.file_size_bytes)}</p>
+                          <p className="text-3xs text-muted-foreground capitalize">{r.category.replace(/_/g, ' ')}</p>
+                          <p className="text-3xs text-muted-foreground">{formatBytes(r.file_size_bytes)}</p>
                           {entityBadge(r) && <div className="mt-1">{entityBadge(r)}</div>}
                           {r.expires_at && <div className="mt-1">{expiryBadge(r)}</div>}
                         </button>

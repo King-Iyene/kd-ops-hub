@@ -82,7 +82,7 @@ function Kbd({ children }: { children: string }) {
       className="inline-flex items-center justify-center min-w-[24px] h-[22px] px-1.5 rounded
         bg-[#F4F4F5] dark:bg-[hsl(200,25%,18%)]
         border border-[#E5E5E5] dark:border-[hsl(200,25%,25%)]
-        text-[11px] font-mono font-medium
+        text-2xs font-mono font-medium
         text-[#6A7184] dark:text-[hsl(200,25%,70%)]
         shadow-[0_1px_0_0_rgba(0,0,0,0.05)]"
     >
@@ -104,7 +104,7 @@ export function KeyboardShortcutsDialog({ open, onOpenChange }: KeyboardShortcut
         <div className="space-y-5 pt-1">
           {SECTIONS.map((section) => (
             <div key={section.title}>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#6A7184] dark:text-[hsl(200,25%,60%)] mb-2 px-1">
+              <h3 className="text-2xs font-semibold uppercase tracking-wider text-[#6A7184] dark:text-[hsl(200,25%,60%)] mb-2 px-1">
                 {section.title}
               </h3>
               <div className="space-y-0.5">
@@ -114,14 +114,14 @@ export function KeyboardShortcutsDialog({ open, onOpenChange }: KeyboardShortcut
                     className="flex items-center justify-between py-1.5 px-2 rounded
                       hover:bg-[#F9F9FA] dark:hover:bg-[hsl(200,25%,14%)]"
                   >
-                    <span className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                    <span className="text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)]">
                       {shortcut.description}
                     </span>
                     <div className="flex items-center gap-1 ml-4 shrink-0">
                       {shortcut.keys.map((key, i) => (
                         <span key={i} className="flex items-center gap-1">
                           {i > 0 && (
-                            <span className="text-[10px] text-[#9AA2AF] dark:text-[hsl(200,25%,45%)]">+</span>
+                            <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(200,25%,45%)]">+</span>
                           )}
                           <Kbd>{key}</Kbd>
                         </span>
@@ -134,7 +134,7 @@ export function KeyboardShortcutsDialog({ open, onOpenChange }: KeyboardShortcut
           ))}
         </div>
         <div className="pt-3 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
-          <p className="text-[11px] text-[#9AA2AF] dark:text-[hsl(200,25%,50%)] text-center">
+          <p className="text-2xs text-[#9AA2AF] dark:text-[hsl(200,25%,50%)] text-center">
             Press <Kbd>?</Kbd> anytime to open this dialog
           </p>
         </div>

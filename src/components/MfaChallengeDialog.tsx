@@ -133,7 +133,7 @@ export function MfaChallengeDialog(props: {
           <button
             type="button"
             onClick={async () => { await supabase.auth.signOut(); }}
-            className="w-full text-[11px] text-muted-foreground hover:text-foreground"
+            className="w-full text-2xs text-muted-foreground hover:text-foreground"
           >
             Sign out instead
           </button>

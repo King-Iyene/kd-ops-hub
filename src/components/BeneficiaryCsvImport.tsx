@@ -309,14 +309,14 @@ export const BeneficiaryCsvImport = ({ open, onOpenChange, onImport }: Props) =>
                           {hasError ? (
                             <div className="space-y-0.5">
                               {r.__errors.slice(0, 2).map((err, i) => (
-                                <p key={i} className="text-destructive text-[11px]">{err}</p>
+                                <p key={i} className="text-destructive text-2xs">{err}</p>
                               ))}
                               {r.__errors.length > 2 && (
-                                <p className="text-destructive/70 text-[10px]">+{r.__errors.length - 2} more</p>
+                                <p className="text-destructive/70 text-3xs">+{r.__errors.length - 2} more</p>
                               )}
                             </div>
                           ) : (
-                            <span className="text-emerald-600 text-[11px]">OK</span>
+                            <span className="text-emerald-600 text-2xs">OK</span>
                           )}
                         </TableCell>
                       </TableRow>

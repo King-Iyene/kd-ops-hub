@@ -181,7 +181,7 @@ export function DriverScorecard() {
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Shield className="h-4 w-4 text-muted-foreground" />
           Driver Safety Scores
-          <Badge variant="secondary" className="text-[10px] font-normal">Last 30 days</Badge>
+          <Badge variant="secondary" className="text-3xs font-normal">Last 30 days</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2.5">
@@ -211,7 +211,7 @@ export function DriverScorecard() {
                 <div className="text-right shrink-0 min-w-[60px]">
                   <Badge
                     variant="secondary"
-                    className={`text-[10px] px-1.5 ${
+                    className={`text-3xs px-1.5 ${
                       d.safety_score >= 90
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                         : d.safety_score >= 70

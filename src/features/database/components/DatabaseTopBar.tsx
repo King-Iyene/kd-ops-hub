@@ -124,8 +124,8 @@ export function DatabaseTopBar() {
             <div className="flex items-center gap-2 p-3 rounded-lg bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
               <Lock size={14} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)] shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Private to workspace</p>
-                <p className="text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Only workspace members can access</p>
+                <p className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Private to workspace</p>
+                <p className="text-2xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Only workspace members can access</p>
               </div>
             </div>
             <div>
@@ -154,8 +154,8 @@ export function DatabaseTopBar() {
                   size={28}
                 />
                 <div className="flex-1">
-                  <p className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium">{profile?.full_name ?? 'You'}</p>
-                  <p className="text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Owner</p>
+                  <p className="text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium">{profile?.full_name ?? 'You'}</p>
+                  <p className="text-2xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Owner</p>
                 </div>
               </div>
             </div>
@@ -195,8 +195,8 @@ export function DatabaseTopBar() {
               ['Drag column header', 'Reorder columns'],
             ].map(([shortcut, desc]) => (
               <div key={shortcut} className="flex items-center justify-between py-1.5 px-1">
-                <span className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)]">{desc}</span>
-                <kbd className="px-2 py-0.5 rounded bg-[#F4F4F5] dark:bg-[hsl(200,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] font-mono">
+                <span className="text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)]">{desc}</span>
+                <kbd className="px-2 py-0.5 rounded bg-[#F4F4F5] dark:bg-[hsl(200,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-2xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] font-mono">
                   {shortcut}
                 </kbd>
               </div>

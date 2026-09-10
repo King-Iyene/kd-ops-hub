@@ -414,7 +414,7 @@ const ClientProfile = () => {
             <Briefcase className="h-3.5 w-3.5" />
             Placements
             {analytics.activePlacements > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">{analytics.activePlacements}</Badge>
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-3xs">{analytics.activePlacements}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="revenue" className="gap-1.5">

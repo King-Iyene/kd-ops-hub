@@ -392,7 +392,7 @@ export default function Projects() {
         {/* ─── Spaces Sidebar ──────────────────────────────────────── */}
         <div className="hidden lg:flex flex-col w-56 shrink-0 space-y-1">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Spaces</span>
+            <span className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider">Spaces</span>
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -414,7 +414,7 @@ export default function Projects() {
             )}>
             <Layers className="h-4 w-4 shrink-0" />
             <span className="flex-1 truncate">All Projects</span>
-            <span className="text-[11px] tabular-nums opacity-60">{projects.length}</span>
+            <span className="text-2xs tabular-nums opacity-60">{projects.length}</span>
           </button>
 
           {spaces.map((space) => {
@@ -430,7 +430,7 @@ export default function Projects() {
                   )}>
                   <div className="h-3.5 w-3.5 rounded shrink-0" style={{ backgroundColor: space.color }} />
                   <span className="flex-1 truncate">{space.name}</span>
-                  <span className="text-[11px] tabular-nums opacity-60">{count}</span>
+                  <span className="text-2xs tabular-nums opacity-60">{count}</span>
                 </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -462,7 +462,7 @@ export default function Projects() {
               )}>
               <FolderOpen className="h-4 w-4 shrink-0 opacity-50" />
               <span className="flex-1 truncate">Unorganized</span>
-              <span className="text-[11px] tabular-nums opacity-60">
+              <span className="text-2xs tabular-nums opacity-60">
                 {projects.filter(p => !p.space_id).length}
               </span>
             </button>
@@ -497,7 +497,7 @@ export default function Projects() {
                 <CardContent className="pt-4 pb-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">{s.label}</p>
+                      <p className="text-2xs text-muted-foreground font-medium uppercase tracking-wider">{s.label}</p>
                       <p className={cn('text-2xl font-bold mt-1 tabular-nums', s.color)}>{s.value}</p>
                     </div>
                     <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
@@ -588,7 +588,7 @@ export default function Projects() {
                             <button className="text-left hover:underline" onClick={() => setDetailProject(project)}>
                               <p className="font-medium">{project.name}</p>
                               {project.space_id && (
-                                <span className="text-[10px] text-muted-foreground">
+                                <span className="text-3xs text-muted-foreground">
                                   {spaces.find(s => s.id === project.space_id)?.name}
                                 </span>
                               )}
@@ -609,14 +609,14 @@ export default function Projects() {
                                 {pMs.length > 0 && (
                                   <div className="flex items-center gap-2">
                                     <Progress value={pMs.length > 0 ? (doneMs / pMs.length) * 100 : 0} className="h-1 flex-1" />
-                                    <span className="text-[10px] text-muted-foreground tabular-nums">{doneMs}/{pMs.length}</span>
+                                    <span className="text-3xs text-muted-foreground tabular-nums">{doneMs}/{pMs.length}</span>
                                   </div>
                                 )}
                                 {tc && tc.total > 0 && (
-                                  <span className="text-[10px] text-muted-foreground">{tc.done}/{tc.total} tasks</span>
+                                  <span className="text-3xs text-muted-foreground">{tc.done}/{tc.total} tasks</span>
                                 )}
                               </div>
-                            ) : <span className="text-[10px] text-muted-foreground">—</span>}
+                            ) : <span className="text-3xs text-muted-foreground">—</span>}
                           </td>
                           <td className="py-3 px-4">
                             {project.end_date ? (
@@ -904,7 +904,7 @@ function ProjectCard({
             {space && (
               <div className="flex items-center gap-1.5 mt-0.5">
                 <div className="h-2 w-2 rounded" style={{ backgroundColor: space.color }} />
-                <span className="text-[10px] text-muted-foreground">{space.name}</span>
+                <span className="text-3xs text-muted-foreground">{space.name}</span>
               </div>
             )}
           </div>
@@ -928,12 +928,12 @@ function ProjectCard({
 
         {/* Status + Priority */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className={cn('flex items-center gap-1.5 text-[11px] font-medium rounded-full px-2 py-0.5', SM?.bg)}>
+          <div className={cn('flex items-center gap-1.5 text-2xs font-medium rounded-full px-2 py-0.5', SM?.bg)}>
             <div className={cn('h-1.5 w-1.5 rounded-full', SM?.dot)} />
             <span className={SM?.color}>{SM?.label}</span>
           </div>
           {project.priority !== 'normal' && (
-            <div className="flex items-center gap-1 text-[11px]">
+            <div className="flex items-center gap-1 text-2xs">
               <div className={cn('h-1.5 w-1.5 rounded-full', PM?.dot)} />
               <span className={PM?.color}>{PM?.label}</span>
             </div>
@@ -945,7 +945,7 @@ function ProjectCard({
           <div className="space-y-1.5">
             {milestones.length > 0 && (
               <div className="space-y-1">
-                <div className="flex justify-between text-[10px] text-muted-foreground">
+                <div className="flex justify-between text-3xs text-muted-foreground">
                   <span>Milestones</span>
                   <span className="tabular-nums">{doneMs}/{milestones.length}</span>
                 </div>
@@ -954,7 +954,7 @@ function ProjectCard({
             )}
             {taskCounts && taskCounts.total > 0 && (
               <div className="space-y-1">
-                <div className="flex justify-between text-[10px] text-muted-foreground">
+                <div className="flex justify-between text-3xs text-muted-foreground">
                   <span>Tasks</span>
                   <span className="tabular-nums">
                     {taskCounts.done}/{taskCounts.total}
@@ -968,7 +968,7 @@ function ProjectCard({
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 pt-1 text-[11px] text-muted-foreground">
+        <div className="flex items-center justify-between gap-2 pt-1 text-2xs text-muted-foreground">
           <div className="flex items-center gap-3 min-w-0">
             {project.owner_id && (
               <div className="flex items-center gap-1 min-w-0">
@@ -1049,22 +1049,22 @@ function ProjectDetailPanel({
         {/* Meta badges */}
         <div className="flex items-center gap-2 flex-wrap">
           {space && (
-            <div className="flex items-center gap-1.5 text-[11px] rounded-full px-2.5 py-0.5 bg-muted">
+            <div className="flex items-center gap-1.5 text-2xs rounded-full px-2.5 py-0.5 bg-muted">
               <div className="h-2 w-2 rounded" style={{ backgroundColor: space.color }} />
               {space.name}
             </div>
           )}
-          <div className={cn('flex items-center gap-1.5 text-[11px] font-medium rounded-full px-2.5 py-0.5', SM?.bg)}>
+          <div className={cn('flex items-center gap-1.5 text-2xs font-medium rounded-full px-2.5 py-0.5', SM?.bg)}>
             <div className={cn('h-1.5 w-1.5 rounded-full', SM?.dot)} />
             <span className={SM?.color}>{SM?.label}</span>
           </div>
           {project.priority !== 'normal' && (
-            <Badge variant="outline" className="text-[10px]">
+            <Badge variant="outline" className="text-3xs">
               <div className={cn('h-1.5 w-1.5 rounded-full mr-1', PRIORITY_META[project.priority]?.dot)} />
               {PRIORITY_META[project.priority]?.label}
             </Badge>
           )}
-          {isOverdue && <Badge variant="destructive" className="text-[10px]">Overdue</Badge>}
+          {isOverdue && <Badge variant="destructive" className="text-3xs">Overdue</Badge>}
         </div>
 
         {/* Details grid */}
@@ -1106,15 +1106,15 @@ function ProjectDetailPanel({
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-lg border p-3 text-center">
             <p className="text-lg font-bold tabular-nums">{tasks.length}</p>
-            <p className="text-[10px] text-muted-foreground">Tasks</p>
+            <p className="text-3xs text-muted-foreground">Tasks</p>
           </div>
           <div className="rounded-lg border p-3 text-center">
             <p className="text-lg font-bold tabular-nums text-emerald-600">{doneTasks}</p>
-            <p className="text-[10px] text-muted-foreground">Complete</p>
+            <p className="text-3xs text-muted-foreground">Complete</p>
           </div>
           <div className="rounded-lg border p-3 text-center">
             <p className={cn('text-lg font-bold tabular-nums', overdueTasks > 0 && 'text-destructive')}>{overdueTasks}</p>
-            <p className="text-[10px] text-muted-foreground">Overdue</p>
+            <p className="text-3xs text-muted-foreground">Overdue</p>
           </div>
         </div>
 
@@ -1122,7 +1122,7 @@ function ProjectDetailPanel({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label className="text-sm font-semibold">Milestones</Label>
-            {milestones.length > 0 && <span className="text-[11px] text-muted-foreground">{doneMs}/{milestones.length} done</span>}
+            {milestones.length > 0 && <span className="text-2xs text-muted-foreground">{doneMs}/{milestones.length} done</span>}
           </div>
           {milestones.length > 0 && (
             <Progress value={milestones.length > 0 ? (doneMs / milestones.length) * 100 : 0} className="h-1.5" />
@@ -1136,7 +1136,7 @@ function ProjectDetailPanel({
                 </button>
                 <span className={cn('flex-1 text-sm', ms.status === 'complete' && 'line-through text-muted-foreground')}>{ms.title}</span>
                 {ms.due_date && (
-                  <span className={cn('text-[11px]', isPast(parseISO(ms.due_date)) && ms.status === 'pending' ? 'text-destructive' : 'text-muted-foreground')}>
+                  <span className={cn('text-2xs', isPast(parseISO(ms.due_date)) && ms.status === 'pending' ? 'text-destructive' : 'text-muted-foreground')}>
                     {format(parseISO(ms.due_date), 'd MMM')}
                   </span>
                 )}
@@ -1179,7 +1179,7 @@ function ProjectDetailPanel({
                   <div key={t.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50">
                     <CheckCircle2 className={cn('h-3.5 w-3.5 shrink-0', t.status === 'complete' ? 'text-emerald-600' : 'text-muted-foreground/40')} />
                     <span className={cn('flex-1 text-sm truncate', t.status === 'complete' && 'line-through text-muted-foreground')}>{t.title}</span>
-                    {late && <span className="text-[10px] text-destructive shrink-0">{Math.abs(d!)}d late</span>}
+                    {late && <span className="text-3xs text-destructive shrink-0">{Math.abs(d!)}d late</span>}
                   </div>
                 );
               })}

@@ -229,7 +229,7 @@ function FilingPackMenu(props: {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="text-[10px] uppercase tracking-wide">
+        <DropdownMenuLabel className="text-3xs uppercase tracking-wide">
           Period {props.period}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -1054,7 +1054,7 @@ const Compliance = () => {
                         </p>
                         <p className="font-medium truncate">{c.title}</p>
                       </div>
-                      <Badge variant="secondary" className={cn('text-[10px]', badgeCls)}>
+                      <Badge variant="secondary" className={cn('text-3xs', badgeCls)}>
                         {expired ? 'expired' : soon ? 'expiring' : 'valid'}
                       </Badge>
                     </div>
@@ -1386,14 +1386,14 @@ const Compliance = () => {
                           {isAuto && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Badge variant="secondary" className="bg-primary/10 text-primary text-[10px] px-1.5 py-0 h-5 gap-1">
+                                <Badge variant="secondary" className="bg-primary/10 text-primary text-3xs px-1.5 py-0 h-5 gap-1">
                                   <Sparkles className="h-3 w-3" /> Auto
                                 </Badge>
                               </TooltipTrigger>
                               <TooltipContent className="max-w-xs">
                                 Auto-calculated from approved payroll for {r.period}
                                 {r.auto_calculated_at && (
-                                  <p className="text-[10px] opacity-70 mt-1">Last refreshed {formatDate(r.auto_calculated_at)}</p>
+                                  <p className="text-3xs opacity-70 mt-1">Last refreshed {formatDate(r.auto_calculated_at)}</p>
                                 )}
                               </TooltipContent>
                             </Tooltip>
@@ -1402,7 +1402,7 @@ const Compliance = () => {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-5 px-1 text-[10px]"
+                              className="h-5 px-1 text-3xs"
                               onClick={() => setExpandedId(isExpanded ? null : r.id)}
                             >
                               <ChevronDown className={cn('h-3 w-3 transition-transform', isExpanded && 'rotate-180')} />
@@ -1555,7 +1555,7 @@ const Compliance = () => {
                     <MobileCardHeader>
                       <div className="min-w-0 flex-1">
                         <MobileCardTitle>{KIND_LABELS[r.kind]}</MobileCardTitle>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">{KIND_NOTES[r.kind]}</p>
+                        <p className="text-2xs text-muted-foreground mt-0.5">{KIND_NOTES[r.kind]}</p>
                       </div>
                       {r.amount_ngn != null && (
                         <MobileCardMeta className="currency text-base">

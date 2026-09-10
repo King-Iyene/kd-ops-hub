@@ -522,7 +522,7 @@ export const EmployeeCsvImport = ({
               <div className="flex items-center gap-2">
                 <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-muted-foreground">{fileName}</span>
-                <Badge variant="secondary" className="text-[10px]">
+                <Badge variant="secondary" className="text-3xs">
                   {rawRows.length} rows · {sourceHeaders.length} columns
                 </Badge>
               </div>
@@ -530,7 +530,7 @@ export const EmployeeCsvImport = ({
                 <Badge
                   variant="secondary"
                   className={cn(
-                    'text-[10px]',
+                    'text-3xs',
                     mappedRequired
                       ? 'bg-emerald-100 text-emerald-700'
                       : 'bg-warning/10 text-warning',
@@ -546,7 +546,7 @@ export const EmployeeCsvImport = ({
                     </>
                   )}
                 </Badge>
-                <Badge variant="secondary" className="text-[10px]">
+                <Badge variant="secondary" className="text-3xs">
                   <Wand2 className="mr-1 h-3 w-3" /> {mappedCount} auto-mapped
                 </Badge>
               </div>
@@ -588,7 +588,7 @@ export const EmployeeCsvImport = ({
                               <SelectItem value={NONE}>— Ignore this column —</SelectItem>
                               {Object.entries(grouped).map(([groupName, fields]) => (
                                 <div key={groupName}>
-                                  <p className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
+                                  <p className="px-2 pt-2 pb-1 text-3xs uppercase tracking-wide text-muted-foreground font-semibold">
                                     {groupName}
                                   </p>
                                   {fields.map((f) => (
@@ -660,18 +660,18 @@ export const EmployeeCsvImport = ({
                           {hasError ? (
                             <div className="space-y-0.5">
                               {r.__errors.slice(0, 2).map((err, i) => (
-                                <p key={i} className="text-destructive text-[11px]">
+                                <p key={i} className="text-destructive text-2xs">
                                   {err}
                                 </p>
                               ))}
                               {r.__errors.length > 2 && (
-                                <p className="text-destructive/70 text-[10px]">
+                                <p className="text-destructive/70 text-3xs">
                                   +{r.__errors.length - 2} more
                                 </p>
                               )}
                             </div>
                           ) : (
-                            <span className="text-emerald-600 text-[11px]">OK</span>
+                            <span className="text-emerald-600 text-2xs">OK</span>
                           )}
                         </TableCell>
                       </TableRow>

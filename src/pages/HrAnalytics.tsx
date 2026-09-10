@@ -524,7 +524,7 @@ function TreeNode({
         style={{ marginLeft: depth * 20 }}
       >
         <div
-          className="h-7 w-7 rounded-full bg-primary/10 grid place-items-center text-[10px] font-semibold text-primary shrink-0"
+          className="h-7 w-7 rounded-full bg-primary/10 grid place-items-center text-3xs font-semibold text-primary shrink-0"
           aria-hidden
         >
           {name
@@ -536,7 +536,7 @@ function TreeNode({
         </div>
         <div className="min-w-0">
           <p className="text-sm font-medium truncate">{name}</p>
-          <p className="text-[11px] text-muted-foreground truncate">
+          <p className="text-2xs text-muted-foreground truncate">
             {node.job_title || node.role || 'Employee'}
             {node.departments?.name ? ` · ${node.departments.name}` : ''}
             {kids.length > 0 ? ` · ${kids.length} report${kids.length === 1 ? '' : 's'}` : ''}

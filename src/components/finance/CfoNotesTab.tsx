@@ -272,7 +272,7 @@ export default function CfoNotesTab() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-xs text-muted-foreground whitespace-pre-line line-clamp-4">{note.body}</p>
-                  <p className="text-[10px] text-muted-foreground mt-2">
+                  <p className="text-3xs text-muted-foreground mt-2">
                     {note.created_by_name} · {formatDate(note.created_at)}
                   </p>
                 </CardContent>

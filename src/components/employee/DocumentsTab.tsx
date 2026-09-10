@@ -24,7 +24,7 @@ export default function DocumentsTab({ employeeId, documents, canManage, onOpenU
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Signed HR documents</CardTitle>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <p className="text-2xs text-muted-foreground mt-0.5">
             Every offer letter, contract or policy acknowledgement signed
             by or for this employee. Each row can be re-verified against
             its SHA-256 hash — tampering is visually flagged.

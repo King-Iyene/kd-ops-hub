@@ -49,7 +49,7 @@ export function SaveStatusIndicator() {
   if (!visible) return null;
 
   return (
-    <div className="flex items-center gap-1.5 text-[11px] font-medium select-none">
+    <div className="flex items-center gap-1.5 text-2xs font-medium select-none">
       {visible === 'saving' && (
         <>
           <Loader2 size={12} className="animate-spin text-blue-500" />

@@ -68,7 +68,7 @@ export function TechSecuritySection() {
             { a: 'Platform Guide (this page)', b: '✓', c: '✓', d: '✓', e: '✓', f: '✓' },
           ]}
         />
-        <p className="text-[11px] text-muted-foreground mt-2">✓ = can access · — = blocked at route and database level. Role changes take effect on the employee's next page load.</p>
+        <p className="text-2xs text-muted-foreground mt-2">✓ = can access · — = blocked at route and database level. Role changes take effect on the employee's next page load.</p>
       </RefSection>
 
       <RefSection icon={Shield} title="Fine-grained write permissions">

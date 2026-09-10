@@ -48,17 +48,17 @@ function FuelGauge({ tank, current, lastRefuel }: { tank: number; current: numbe
         />
       </div>
       {daysSince !== null && (
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-3xs text-muted-foreground">
           Last filled {daysSince === 0 ? 'today' : `${daysSince}d ago`}
         </p>
       )}
       {isCritical && (
-        <p className="text-[10px] text-red-600 font-medium flex items-center gap-0.5 animate-pulse">
+        <p className="text-3xs text-red-600 font-medium flex items-center gap-0.5 animate-pulse">
           <AlertTriangle className="h-2.5 w-2.5" /> Critical — may be empty
         </p>
       )}
       {!isCritical && pct < 25 && (
-        <p className="text-[10px] text-red-600 font-medium flex items-center gap-0.5">
+        <p className="text-3xs text-red-600 font-medium flex items-center gap-0.5">
           <AlertTriangle className="h-2.5 w-2.5" /> Low fuel
         </p>
       )}
@@ -578,7 +578,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <Car className="h-3.5 w-3.5 text-muted-foreground" />
-                <h3 className="kd-display text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Identity</h3>
+                <h3 className="kd-display text-2xs font-semibold uppercase tracking-widest text-muted-foreground">Identity</h3>
                 <div className="flex-1 h-px bg-border/60" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -613,7 +613,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <Fuel className="h-3.5 w-3.5 text-muted-foreground" />
-                <h3 className="kd-display text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Fuel & efficiency</h3>
+                <h3 className="kd-display text-2xs font-semibold uppercase tracking-widest text-muted-foreground">Fuel & efficiency</h3>
                 <div className="flex-1 h-px bg-border/60" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -632,7 +632,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <User className="h-3.5 w-3.5 text-muted-foreground" />
-                <h3 className="kd-display text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Assignment & budget</h3>
+                <h3 className="kd-display text-2xs font-semibold uppercase tracking-widest text-muted-foreground">Assignment & budget</h3>
                 <div className="flex-1 h-px bg-border/60" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -661,7 +661,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
-                <h3 className="kd-display text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Compliance & service</h3>
+                <h3 className="kd-display text-2xs font-semibold uppercase tracking-widest text-muted-foreground">Compliance & service</h3>
                 <div className="flex-1 h-px bg-border/60" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -688,7 +688,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                <h3 className="kd-display text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Notes</h3>
+                <h3 className="kd-display text-2xs font-semibold uppercase tracking-widest text-muted-foreground">Notes</h3>
                 <div className="flex-1 h-px bg-border/60" />
               </div>
               <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} placeholder="Internal notes about this vehicle..." />

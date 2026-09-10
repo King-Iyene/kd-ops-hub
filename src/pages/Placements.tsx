@@ -919,12 +919,12 @@ function Placements() {
           </TabsTrigger>
           <TabsTrigger value="placements" className="gap-1.5">
             <Briefcase className="h-3.5 w-3.5" /> Placements
-            <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0">{stats.total}</Badge>
+            <Badge variant="outline" className="ml-1 text-3xs px-1.5 py-0">{stats.total}</Badge>
           </TabsTrigger>
           <TabsTrigger value="payments" className="gap-1.5">
             <DollarSign className="h-3.5 w-3.5" /> Payment Tracker
             {stats.pendingCount > 0 && (
-              <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-600">{stats.pendingCount}</Badge>
+              <Badge variant="outline" className="ml-1 text-3xs px-1.5 py-0 bg-amber-500/10 text-amber-600">{stats.pendingCount}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="fx" className="gap-1.5">
@@ -1244,7 +1244,7 @@ function Placements() {
                             {p.client_rate_usd != null && p.client_rate_usd > 0 ? (
                               <div>
                                 <span className="font-semibold">{formatUsd(p.client_rate_usd)}</span>
-                                <span className="block text-[10px] text-muted-foreground">{formatNaira(p.client_rate_ngn)}</span>
+                                <span className="block text-3xs text-muted-foreground">{formatNaira(p.client_rate_ngn)}</span>
                               </div>
                             ) : (
                               formatNaira(p.client_rate_ngn)
@@ -1292,7 +1292,7 @@ function Placements() {
                       </MobileCardHeader>
                       <MobileCardRow label="Client">{p.client_name}</MobileCardRow>
                       <MobileCardRow label="Category">
-                        <Badge variant="outline" className={`text-[10px] ${CATEGORY_COLORS[p.placement_category]}`}>
+                        <Badge variant="outline" className={`text-3xs ${CATEGORY_COLORS[p.placement_category]}`}>
                           {CATEGORY_LABELS[p.placement_category]}
                         </Badge>
                       </MobileCardRow>
@@ -1430,7 +1430,7 @@ function Placements() {
                             {pp.gross_amount_usd != null && pp.gross_amount_usd > 0 ? (
                               <div>
                                 <span>{formatUsd(pp.gross_amount_usd)}</span>
-                                <span className="block text-[10px] text-muted-foreground">{formatNaira(pp.gross_amount_ngn)}</span>
+                                <span className="block text-3xs text-muted-foreground">{formatNaira(pp.gross_amount_ngn)}</span>
                               </div>
                             ) : (
                               formatNaira(pp.gross_amount_ngn)
@@ -1485,7 +1485,7 @@ function Placements() {
                       <MobileCardHeader>
                         <MobileCardTitle>{monthLabel(pp.month)}</MobileCardTitle>
                         <MobileCardMeta>
-                          <Badge variant="outline" className={`text-[10px] ${PAYMENT_STATUS_TONE[pp.status as PaymentStatus]}`}>
+                          <Badge variant="outline" className={`text-3xs ${PAYMENT_STATUS_TONE[pp.status as PaymentStatus]}`}>
                             {pp.status}
                           </Badge>
                         </MobileCardMeta>
@@ -1712,7 +1712,7 @@ function Placements() {
                         <TableCell className="text-right tabular-nums">{formatNaira(r.currentNgn)}</TableCell>
                         <TableCell className={`text-right font-semibold tabular-nums ${r.diff >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                           {r.diff >= 0 ? '+' : ''}{formatNaira(r.diff)}
-                          <span className="block text-[10px] font-normal">
+                          <span className="block text-3xs font-normal">
                             {r.diffPct >= 0 ? '+' : ''}{r.diffPct.toFixed(1)}%
                           </span>
                         </TableCell>
@@ -1721,7 +1721,7 @@ function Placements() {
                   </TableBody>
                 </Table>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-3">
+              <p className="text-2xs text-muted-foreground mt-3">
                 Impact shows what each placement would be worth today vs. the rate locked at creation.
                 Positive = naira weakened (you earn more NGN per USD). Consider renegotiating placements with large negative impact.
               </p>
@@ -1757,7 +1757,7 @@ function Placements() {
                           {m.rateUsd != null && m.rateUsd > 0 ? (
                             <div>
                               <span>{formatUsd(m.rateUsd)}</span>
-                              <span className="block text-[10px] text-muted-foreground">{formatNaira(m.rateNgn)}</span>
+                              <span className="block text-3xs text-muted-foreground">{formatNaira(m.rateNgn)}</span>
                             </div>
                           ) : (
                             formatNaira(m.rateNgn)
@@ -1865,7 +1865,7 @@ function Placements() {
                             {c.revenueUsd > 0 ? (
                               <div>
                                 <span>{formatUsd(c.revenueUsd)}</span>
-                                <span className="block text-[10px] text-muted-foreground">{formatNaira(c.revenue)}</span>
+                                <span className="block text-3xs text-muted-foreground">{formatNaira(c.revenue)}</span>
                               </div>
                             ) : (
                               formatNaira(c.revenue)
@@ -1936,7 +1936,7 @@ function Placements() {
                   <SelectItem value="employee_receives">{TYPE_LABELS.employee_receives}</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 {form.placement_type === 'kd_receives'
                   ? 'KD receives payment from the client and pays the employee. Monthly payments are auto-verified.'
                   : 'The employee receives payment from the client and remits KD\'s commission. Monthly payments require manual verification.'}
@@ -1983,7 +1983,7 @@ function Placements() {
                   <ArrowRightLeft className="h-3.5 w-3.5" /> Client Rate
                 </p>
                 {currentFxRate && (
-                  <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                  <Badge variant="outline" className="text-3xs bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
                     1 USD = {formatFxRate(currentFxRate)}
                   </Badge>
                 )}
@@ -2033,13 +2033,13 @@ function Placements() {
               </div>
 
               {form.client_rate_usd && currentFxRate && (
-                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <p className="text-2xs text-muted-foreground flex items-center gap-1">
                   <Zap className="h-3 w-3 text-primary" />
                   Auto-converted: {formatUsd(Number(form.client_rate_usd))} × {formatFxRate(currentFxRate)} = {formatNaira(Number(form.client_rate_usd) * currentFxRate)}
                 </p>
               )}
               {!currentFxRate && (
-                <p className="text-[11px] text-amber-600 flex items-center gap-1">
+                <p className="text-2xs text-amber-600 flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
                   No live FX rate available. Enter the NGN rate directly, or set up an FX rate first.
                 </p>
@@ -2213,7 +2213,7 @@ function Placements() {
                             <TableCell className="font-medium">
                               {monthLabel(pp.month)}
                               {pp.period_start && pp.period_end && pp.period_start !== pp.month && (
-                                <span className="block text-[10px] text-muted-foreground">
+                                <span className="block text-3xs text-muted-foreground">
                                   {formatDate(pp.period_start)} – {formatDate(pp.period_end)}
                                 </span>
                               )}
@@ -2222,7 +2222,7 @@ function Placements() {
                               {pp.gross_amount_usd != null && pp.gross_amount_usd > 0 ? (
                                 <div>
                                   <span>{formatUsd(pp.gross_amount_usd)}</span>
-                                  <span className="block text-[10px] text-muted-foreground">{formatNaira(pp.gross_amount_ngn)}</span>
+                                  <span className="block text-3xs text-muted-foreground">{formatNaira(pp.gross_amount_ngn)}</span>
                                 </div>
                               ) : (
                                 formatNaira(pp.gross_amount_ngn)
@@ -2308,11 +2308,11 @@ function Placements() {
                           <MobileCardTitle>{monthLabel(pp.month)}</MobileCardTitle>
                           <MobileCardMeta>
                             {pp.client_paid && pp.operator_paid ? (
-                              <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600">Settled</Badge>
+                              <Badge variant="outline" className="text-3xs bg-emerald-500/10 text-emerald-600">Settled</Badge>
                             ) : pp.client_paid || pp.operator_paid ? (
-                              <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600">Partial</Badge>
+                              <Badge variant="outline" className="text-3xs bg-amber-500/10 text-amber-600">Partial</Badge>
                             ) : (
-                              <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-600">Unpaid</Badge>
+                              <Badge variant="outline" className="text-3xs bg-red-500/10 text-red-600">Unpaid</Badge>
                             )}
                           </MobileCardMeta>
                         </MobileCardHeader>

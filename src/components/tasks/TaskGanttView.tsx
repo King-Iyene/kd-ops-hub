@@ -181,7 +181,7 @@ export function TaskGanttView({ tasks, profiles, onTaskClick, dependencies = [] 
         {/* Task labels */}
         <div className="w-[200px] shrink-0 border-r overflow-y-auto">
           <div className="h-[52px] border-b bg-muted/30 flex items-end px-2 pb-1">
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase">Task</span>
+            <span className="text-3xs font-semibold text-muted-foreground uppercase">Task</span>
           </div>
           {ganttTasks.map((t) => (
             <button
@@ -204,7 +204,7 @@ export function TaskGanttView({ tasks, profiles, onTaskClick, dependencies = [] 
               {months.map((m, i) => (
                 <div
                   key={i}
-                  className="text-[10px] font-semibold text-muted-foreground border-r flex items-center px-1"
+                  className="text-3xs font-semibold text-muted-foreground border-r flex items-center px-1"
                   style={{ width: m.span * DAY_WIDTH }}
                 >
                   {m.label}

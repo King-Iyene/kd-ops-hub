@@ -171,7 +171,7 @@ export function LocationCell({ location, lat, lng, showCoords = false }: {
     <span className="block min-w-0">
       <span className="truncate block" title={resolved && isCoord ? location : displayName}>{displayName}</span>
       {showCoords && coordText && (
-        <span className="block text-[10px] font-mono text-muted-foreground/55 leading-tight mt-0.5">{coordText}</span>
+        <span className="block text-3xs font-mono text-muted-foreground/55 leading-tight mt-0.5">{coordText}</span>
       )}
     </span>
   );
@@ -263,16 +263,16 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
             <div className="min-w-0">
               <DialogTitle className="kd-display text-lg truncate">Trip Map · {trip.employee_name}</DialogTitle>
               <DialogDescription className="mt-0.5 space-y-0.5">
-                <span className="block text-[11px] text-muted-foreground">{formatDate(trip.date)}</span>
+                <span className="block text-2xs text-muted-foreground">{formatDate(trip.date)}</span>
                 <span className="block truncate">
                   {displayStart || '—'}
                   {trip.start_lat != null && trip.start_lng != null && (
-                    <span className="ml-1 font-mono text-[10px] text-muted-foreground/60">{formatCoords(trip.start_lat, trip.start_lng)}</span>
+                    <span className="ml-1 font-mono text-3xs text-muted-foreground/60">{formatCoords(trip.start_lat, trip.start_lng)}</span>
                   )}
                   {' → '}
                   {displayEnd || '—'}
                   {trip.end_lat != null && trip.end_lng != null && (
-                    <span className="ml-1 font-mono text-[10px] text-muted-foreground/60">{formatCoords(trip.end_lat, trip.end_lng)}</span>
+                    <span className="ml-1 font-mono text-3xs text-muted-foreground/60">{formatCoords(trip.end_lat, trip.end_lng)}</span>
                   )}
                 </span>
               </DialogDescription>
@@ -283,37 +283,37 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
         {/* Telemetry strip */}
         <div className="px-6 pt-4 pb-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 shrink-0 border-b border-border/60">
           <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Distance</p>
+            <p className="text-3xs uppercase tracking-wider text-muted-foreground/80">Distance</p>
             <p className="kd-stat-number text-base font-bold leading-tight">
               {distanceKm != null ? `${distanceKm.toLocaleString()} km` : '—'}
             </p>
           </div>
           <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Duration</p>
+            <p className="text-3xs uppercase tracking-wider text-muted-foreground/80">Duration</p>
             <p className="kd-stat-number text-base font-bold leading-tight">
               {durationMin != null ? formatDuration(durationMin * 60) : '—'}
             </p>
           </div>
           <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Avg speed</p>
+            <p className="text-3xs uppercase tracking-wider text-muted-foreground/80">Avg speed</p>
             <p className="kd-stat-number text-base font-bold leading-tight">
               {avgSpeedKph != null ? `${avgSpeedKph} km/h` : '—'}
             </p>
           </div>
           <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Fuel</p>
+            <p className="text-3xs uppercase tracking-wider text-muted-foreground/80">Fuel</p>
             <p className="kd-stat-number text-base font-bold leading-tight">
               {litres != null ? `${litres} L` : '—'}
             </p>
           </div>
           <div className={`rounded-lg border px-3 py-2 ${idleMinutes != null && idleMinutes > 30 ? 'border-amber-300 bg-amber-50/40 dark:bg-amber-950/20' : 'border-border/50 bg-muted/30'}`}>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Stopped</p>
+            <p className="text-3xs uppercase tracking-wider text-muted-foreground/80">Stopped</p>
             <p className={`kd-stat-number text-base font-bold leading-tight ${idleMinutes != null && idleMinutes > 30 ? 'text-amber-600' : ''}`}>
               {idleMinutes != null ? `${idleMinutes} min` : '—'}
             </p>
           </div>
           <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Telemetry</p>
+            <p className="text-3xs uppercase tracking-wider text-muted-foreground/80">Telemetry</p>
             <p className="kd-stat-number text-base font-bold leading-tight">
               {breadcrumbs.length} ping{breadcrumbs.length === 1 ? '' : 's'} · {extStops} stop{extStops !== 1 ? 's' : ''}
             </p>
@@ -342,7 +342,7 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
               {icon}
               {label}
               {badge > 0 && (
-                <span className="bg-destructive text-destructive-foreground text-[10px] rounded-full px-1.5 leading-none kd-status-live-danger">
+                <span className="bg-destructive text-destructive-foreground text-3xs rounded-full px-1.5 leading-none kd-status-live-danger">
                   {badge}
                 </span>
               )}

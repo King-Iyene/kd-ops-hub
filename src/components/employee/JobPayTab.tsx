@@ -170,7 +170,7 @@ export default function JobPayTab({
                 />
                 <div className="flex-1">
                   <Label className="text-xs font-semibold">Use salary components (Nigerian compliance)</Label>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <p className="text-2xs text-muted-foreground mt-0.5">
                     When ON, pension (8% / 10%) is calculated on Basic + Housing + Transport (PRA 2014),
                     and NHF (2.5%) on Basic only — instead of full gross. This is the legally correct base.
                     OFF preserves the current flat-gross behavior.
@@ -230,7 +230,7 @@ export default function JobPayTab({
                       onChange={(e) => patch({ other_allowances_ngn: e.target.value === '' ? 0 : Number(e.target.value) })}
                     />
                   </div>
-                  <div className="col-span-2 text-[11px] text-muted-foreground border-t pt-2">
+                  <div className="col-span-2 text-2xs text-muted-foreground border-t pt-2">
                     Computed gross: <span className="font-semibold currency">
                       {formatNaira(
                         (Number(form.basic_ngn || 0) +
@@ -452,7 +452,7 @@ export default function JobPayTab({
                         <SelectItem value="contractor">Contractor</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-[11px] text-muted-foreground">Used by payroll segments.</p>
+                    <p className="text-2xs text-muted-foreground">Used by payroll segments.</p>
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="pay_group_id" className="text-xs">Pay group</Label>
@@ -468,7 +468,7 @@ export default function JobPayTab({
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-[11px] text-muted-foreground">Pay schedule group (Payroll module).</p>
+                    <p className="text-2xs text-muted-foreground">Pay schedule group (Payroll module).</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -489,7 +489,7 @@ export default function JobPayTab({
                       }}
                     />
                     {form.annual_leave_days != null && form.annual_leave_days < 6 && (
-                      <p className="text-[11px] text-destructive">Labour Act s.18 minimum is 6 working days</p>
+                      <p className="text-2xs text-destructive">Labour Act s.18 minimum is 6 working days</p>
                     )}
                   </div>
                   <div className="space-y-1.5">
@@ -542,7 +542,7 @@ export default function JobPayTab({
                       onChange={(e) => patch({ contract_end_date: e.target.value || null })}
                       placeholder="dd/mm/yyyy"
                     />
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-3xs text-muted-foreground">
                       For Contract / Intern roles. Leave blank for permanent staff.
                     </p>
                   </div>
@@ -566,7 +566,7 @@ export default function JobPayTab({
                       onChange={(e) => patch({ pfa_code: e.target.value || null })}
                       placeholder="e.g. PENCOM-issued PSSP code"
                     />
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-3xs text-muted-foreground">
                       Required on the PenCom PSSP schedule export.
                     </p>
                   </div>
@@ -590,7 +590,7 @@ export default function JobPayTab({
                         ].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-3xs text-muted-foreground">
                       PAYE is remitted to the State IRS of residence.
                     </p>
                   </div>
@@ -609,7 +609,7 @@ export default function JobPayTab({
                       if (!name) return '—';
                       return (
                         <span
-                          className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold"
+                          className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-2xs font-semibold"
                           style={deptBadgeStyle(name)}
                         >
                           <span
@@ -685,8 +685,8 @@ export default function JobPayTab({
                       <dt className="text-muted-foreground">Contract ends</dt>
                       <dd className="flex items-center gap-2">
                         <span className="font-medium">{formatDate(employee.contract_end_date)}</span>
-                        {daysUntil <= 0 && <Badge variant="destructive" className="text-[10px]">Expired</Badge>}
-                        {daysUntil > 0 && daysUntil <= 30 && <Badge className="bg-warning/15 text-warning border-warning/30 text-[10px]">{daysUntil}d left</Badge>}
+                        {daysUntil <= 0 && <Badge variant="destructive" className="text-3xs">Expired</Badge>}
+                        {daysUntil > 0 && daysUntil <= 30 && <Badge className="bg-warning/15 text-warning border-warning/30 text-3xs">{daysUntil}d left</Badge>}
                       </dd>
                     </div>
                   );
@@ -835,7 +835,7 @@ export default function JobPayTab({
                     Submit request
                   </Button>
                 </div>
-                <p className="text-[11px] text-muted-foreground">An admin will review and apply this change. Your current account stays active until then.</p>
+                <p className="text-2xs text-muted-foreground">An admin will review and apply this change. Your current account stays active until then.</p>
               </div>
             )}
 

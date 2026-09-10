@@ -266,7 +266,7 @@ function ListGroup({
         {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         <div className={cn('h-2.5 w-2.5 rounded-full shrink-0', accent)} />
         <span>{label}</span>
-        <span className="text-[11px] tabular-nums text-muted-foreground ml-1">{tasks.length}</span>
+        <span className="text-2xs tabular-nums text-muted-foreground ml-1">{tasks.length}</span>
       </button>
 
       {!collapsed && (
@@ -281,7 +281,7 @@ function ListGroup({
             {groupBy !== 'status' && (
               <SortableHeader label="Status" field="status" sortField={sortField} sortDir={sortDir} onToggleSort={onToggleSort} />
             )}
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Info</span>
+            <span className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Info</span>
             <span />
           </div>
 
@@ -392,7 +392,7 @@ function ListRow({
       {/* Assignee — inline editable */}
       <div className="hidden sm:block" onClick={(e) => e.stopPropagation()}>
         <Select value={task.assignee_id || '__none__'} onValueChange={(v) => inlineUpdate('assignee_id', v === '__none__' ? null : v)}>
-          <SelectTrigger className="h-7 text-[11px] border-0 bg-transparent shadow-none hover:bg-muted/60 transition-colors px-1">
+          <SelectTrigger className="h-7 text-2xs border-0 bg-transparent shadow-none hover:bg-muted/60 transition-colors px-1">
             <div className="flex items-center gap-1.5 min-w-0">
               {assignee ? (
                 <>
@@ -430,8 +430,8 @@ function ListRow({
       {/* Priority — inline editable */}
       <div className="hidden sm:block" onClick={(e) => e.stopPropagation()}>
         <Select value={task.priority} onValueChange={(v) => inlineUpdate('priority', v)}>
-          <SelectTrigger className="h-7 text-[10px] border-0 bg-transparent shadow-none hover:bg-muted/60 transition-colors px-1">
-            <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0', PRIORITY_CLASS[task.priority])}>
+          <SelectTrigger className="h-7 text-3xs border-0 bg-transparent shadow-none hover:bg-muted/60 transition-colors px-1">
+            <Badge variant="secondary" className={cn('text-3xs px-1.5 py-0', PRIORITY_CLASS[task.priority])}>
               {task.priority}
             </Badge>
           </SelectTrigger>
@@ -445,8 +445,8 @@ function ListRow({
       {showStatus && (
         <div className="hidden sm:block" onClick={(e) => e.stopPropagation()}>
           <Select value={task.status} onValueChange={(v) => inlineUpdate('status', v)}>
-            <SelectTrigger className="h-7 text-[10px] border-0 bg-transparent shadow-none hover:bg-muted/60 transition-colors px-1">
-              <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0', STATUS_CLASS[task.status])}>
+            <SelectTrigger className="h-7 text-3xs border-0 bg-transparent shadow-none hover:bg-muted/60 transition-colors px-1">
+              <Badge variant="secondary" className={cn('text-3xs px-1.5 py-0', STATUS_CLASS[task.status])}>
                 {task.status.replace('_', ' ')}
               </Badge>
             </SelectTrigger>
@@ -460,12 +460,12 @@ function ListRow({
       {/* Info */}
       <div className="hidden sm:flex items-center gap-2 justify-end">
         {sc && sc.total > 0 && (
-          <span className="text-[10px] text-muted-foreground tabular-nums flex items-center gap-0.5">
+          <span className="text-3xs text-muted-foreground tabular-nums flex items-center gap-0.5">
             <CheckCircle2 className="h-3 w-3" />{sc.done}/{sc.total}
           </span>
         )}
         {cc > 0 && (
-          <span className="text-[10px] text-muted-foreground tabular-nums flex items-center gap-0.5">
+          <span className="text-3xs text-muted-foreground tabular-nums flex items-center gap-0.5">
             <MessageSquare className="h-3 w-3" />{cc}
           </span>
         )}
@@ -494,7 +494,7 @@ function SortableHeader({ label, field, sortField, sortDir, onToggleSort }: {
   return (
     <button
       onClick={() => onToggleSort(field)}
-      className="flex items-center gap-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+      className="flex items-center gap-0.5 text-3xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
     >
       {label}
       {active ? (
@@ -526,7 +526,7 @@ function InlineDateInput({
       <input
         ref={inputRef}
         type="date"
-        className="h-7 text-[11px] bg-transparent border-0 outline-none w-full px-1"
+        className="h-7 text-2xs bg-transparent border-0 outline-none w-full px-1"
         defaultValue={value || ''}
         onBlur={(e) => { onChange(e.target.value); setEditing(false); }}
         onChange={(e) => { onChange(e.target.value); setEditing(false); }}
@@ -542,7 +542,7 @@ function InlineDateInput({
     >
       {value ? (
         <span className={cn(
-          'text-[11px] tabular-nums',
+          'text-2xs tabular-nums',
           overdue ? 'text-destructive font-medium' : 'text-muted-foreground',
         )}>
           {overdue
@@ -552,7 +552,7 @@ function InlineDateInput({
             : formatDate(value)}
         </span>
       ) : (
-        <span className="text-[11px] text-muted-foreground/40">—</span>
+        <span className="text-2xs text-muted-foreground/40">—</span>
       )}
     </button>
   );

@@ -755,7 +755,7 @@ const Budgets = () => {
                               </Badge>
                             )}
                           </div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                          <p className="text-2xs text-muted-foreground mt-0.5">
                             {formatDate(r.period_start)} – {formatDate(r.period_end)}
                           </p>
                         </div>
@@ -763,7 +763,7 @@ const Budgets = () => {
                           <p className={cn('text-base font-bold currency leading-tight', pct >= 100 && 'text-destructive')}>
                             {formatNaira(spent)}
                           </p>
-                          <p className="text-[11px] text-muted-foreground currency">of {formatNaira(total)}</p>
+                          <p className="text-2xs text-muted-foreground currency">of {formatNaira(total)}</p>
                         </div>
                       </MobileCardHeader>
 
@@ -772,7 +772,7 @@ const Budgets = () => {
                         <div className="h-2 rounded-full bg-muted overflow-hidden">
                           <div className={cn('h-full kd-transition', barColor)} style={{ width: `${Math.min(100, pct)}%` }} />
                         </div>
-                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <div className="flex items-center justify-between text-2xs text-muted-foreground">
                           <span>{total === 0 ? 'No budget' : `${pct.toFixed(0)}% utilised`}</span>
                           <Badge variant="secondary" className={cn('h-4 px-1.5 text-[9px]', STATUS_CLASSES[r.status])}>
                             {STATUS_LABELS[r.status] || r.status}

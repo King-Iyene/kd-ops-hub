@@ -300,7 +300,7 @@ export const ClockInWidget = ({ lateThreshold = '09:15' }: ClockInWidgetProps) =
               <Badge
                 variant="secondary"
                 className={cn(
-                  'text-[11px]',
+                  'text-2xs',
                   today_?.status === 'late' ? 'bg-warning/10 text-warning' :
                   today_?.status === 'present' ? 'bg-emerald-100 text-emerald-700' :
                   'bg-muted text-muted-foreground',
@@ -335,7 +335,7 @@ export const ClockInWidget = ({ lateThreshold = '09:15' }: ClockInWidgetProps) =
                 />
                 <div className="text-xs text-muted-foreground">
                   Today's clock-in selfie
-                  <p className="text-[10px] mt-0.5">Private — signed URL expires in 5 min</p>
+                  <p className="text-3xs mt-0.5">Private — signed URL expires in 5 min</p>
                 </div>
               </div>
             )}

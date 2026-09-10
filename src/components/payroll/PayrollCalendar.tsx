@@ -436,11 +436,11 @@ export function PayrollCalendar() {
               className="mx-auto"
             />
             {/* Legend */}
-            <div className="flex flex-wrap items-center gap-3 px-3 py-2 text-[11px] text-muted-foreground border-t mt-2">
+            <div className="flex flex-wrap items-center gap-3 px-3 py-2 text-2xs text-muted-foreground border-t mt-2">
               <LegendDot className="bg-emerald-500" label="Pay day" />
               <LegendDot className="bg-amber-500"   label="Cutoff" />
               <LegendDot className="bg-red-500"     label="Holiday" />
-              <span className="ml-auto text-[10px] text-muted-foreground/70">
+              <span className="ml-auto text-3xs text-muted-foreground/70">
                 Nigerian public holidays · auto-rolled by next_pay_dates
               </span>
             </div>
@@ -452,7 +452,7 @@ export function PayrollCalendar() {
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
                 {month.toLocaleString('en-GB', { month: 'long', year: 'numeric' })}
               </p>
-              <Badge variant="outline" className="text-[10px]">
+              <Badge variant="outline" className="text-3xs">
                 {monthEvents.length} event{monthEvents.length === 1 ? '' : 's'}
               </Badge>
             </div>
@@ -473,11 +473,11 @@ export function PayrollCalendar() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
                         <p className="text-xs font-semibold truncate">{e.label}</p>
-                        <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
+                        <span className="text-3xs text-muted-foreground tabular-nums whitespace-nowrap">
                           {formatDate(e.date)}
                         </span>
                       </div>
-                      {e.detail && <p className="text-[11px] text-muted-foreground mt-0.5">{e.detail}</p>}
+                      {e.detail && <p className="text-2xs text-muted-foreground mt-0.5">{e.detail}</p>}
                     </div>
                   </div>
                 );

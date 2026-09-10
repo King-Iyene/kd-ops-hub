@@ -489,7 +489,7 @@ function SummaryCell({
       <DropdownMenuTrigger asChild>
         <button
           className={cn(
-            'w-full text-left px-2 truncate text-[11px] hover:bg-muted/50 rounded',
+            'w-full text-left px-2 truncate text-2xs hover:bg-muted/50 rounded',
             compact ? 'py-0.5' : 'py-1',
             type === 'none' ? 'text-muted-foreground/40 hover:text-muted-foreground' : 'text-muted-foreground font-medium',
           )}
@@ -762,7 +762,7 @@ export default function FlexTables() {
         {/* ─── Module Sidebar — list of tables ───────────────────────── */}
         <div className="hidden md:flex flex-col w-[220px] lg:w-[240px] shrink-0 border-r border-border/60 bg-card/50 p-3 overflow-y-auto">
           <div className="flex items-center justify-between px-1 mb-2">
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Tables</span>
+            <span className="text-3xs font-semibold text-muted-foreground uppercase tracking-widest">Tables</span>
             <Button size="icon" variant="ghost" className="h-5 w-5" aria-label="New table" onClick={() => setNewTableDialog(true)}>
               <Plus className="h-3 w-3" />
             </Button>
@@ -778,7 +778,7 @@ export default function FlexTables() {
                   <button
                     onClick={() => setSelectedTable(t)}
                     className={cn(
-                      'flex items-center gap-2 flex-1 min-w-0 px-2 py-1.5 rounded-md text-[13px] font-medium transition-all text-left',
+                      'flex items-center gap-2 flex-1 min-w-0 px-2 py-1.5 rounded-md text-xs-plus font-medium transition-all text-left',
                       selectedTable?.id === t.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
                     )}
                   >
@@ -1239,7 +1239,7 @@ function TableDashboard({
               <CardTitle className="text-sm flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-muted-foreground" /> Reporting Consistency
               </CardTitle>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 Business days in the selected range: {businessDaysInRange}. A person is flagged once they've missed more than one.
               </p>
             </CardHeader>
@@ -1268,7 +1268,7 @@ function TableDashboard({
                         <td className="py-2 pr-3">{c.completionRate === null ? '—' : `${c.completionRate}%`}</td>
                         <td className="py-2 pr-3">
                           <span className={cn(
-                            'inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full',
+                            'inline-flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full',
                             c.consistent ? 'bg-emerald-500/15 text-emerald-500' : 'bg-red-500/15 text-red-500',
                           )}
                           >
@@ -1702,7 +1702,7 @@ function GridView({
                 {hiddenFields.map((f) => (
                   <div key={f.id} className="flex items-center justify-between px-2 py-1 rounded hover:bg-muted/40">
                     <span className="text-xs truncate">{f.name}</span>
-                    <button className="text-[11px] text-primary hover:underline shrink-0" onClick={() => onToggleFieldHidden(f)}>Show</button>
+                    <button className="text-2xs text-primary hover:underline shrink-0" onClick={() => onToggleFieldHidden(f)}>Show</button>
                   </div>
                 ))}
               </div>
@@ -1775,7 +1775,7 @@ function GridView({
                         return (
                           <Fragment key={subGroupKey}>
                             <tr className="bg-muted/15">
-                              <td colSpan={colSpan} className="px-3 py-1 pl-6 text-[11px] font-medium text-muted-foreground cursor-pointer" onClick={() => toggleGroup(subGroupKey)}>
+                              <td colSpan={colSpan} className="px-3 py-1 pl-6 text-2xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleGroup(subGroupKey)}>
                                 {collapsedGroups.has(subGroupKey) ? '▸' : '▾'} {subGroupByFieldObj?.name}: {subKey} ({subRecords.length})
                               </td>
                             </tr>
@@ -2154,7 +2154,7 @@ function FieldEditorDialog({
                     <button
                       key={f.id}
                       type="button"
-                      className="text-[11px] px-1.5 py-0.5 rounded bg-muted/60 hover:bg-muted text-muted-foreground"
+                      className="text-2xs px-1.5 py-0.5 rounded bg-muted/60 hover:bg-muted text-muted-foreground"
                       onClick={() => setFormula((prev) => `${prev}{${f.name}}`)}
                     >
                       {f.name}
@@ -2163,7 +2163,7 @@ function FieldEditorDialog({
                   {referenceableFields.length > REFS_PREVIEW_COUNT && (
                     <button
                       type="button"
-                      className="text-[11px] px-1.5 py-0.5 text-primary hover:underline"
+                      className="text-2xs px-1.5 py-0.5 text-primary hover:underline"
                       onClick={() => setShowAllRefs((v) => !v)}
                     >
                       {showAllRefs ? 'Show less' : `Show ${referenceableFields.length - REFS_PREVIEW_COUNT} more`}
@@ -2171,7 +2171,7 @@ function FieldEditorDialog({
                   )}
                 </div>
               )}
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 {'Functions: IF, AND, OR, NOT, SUM, MIN, MAX, ROUND, ABS, LEN, UPPER, LOWER, TRIM, CONCATENATE, TODAY, NOW, MOD, WEEKDAY, DATEADD, COUNT. COUNT({Field}) counts entries in a Linked Tasks / multi-select / multi-person field. Use & to join text, + - * / for math.'}
               </p>
 
@@ -2184,7 +2184,7 @@ function FieldEditorDialog({
               </Select>
 
               {formula.trim() && (
-                <p className="text-[11px]">
+                <p className="text-2xs">
                   Preview: {isFormulaError(formulaPreview) ? (
                     <span className="text-destructive">{formulaPreview.error}</span>
                   ) : (
@@ -2241,7 +2241,7 @@ function FormsView({
                 <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{f.name}</p>
-                  <p className="text-[11px] text-muted-foreground truncate">{`${window.location.origin}/t/f/${f.share_token}`}</p>
+                  <p className="text-2xs text-muted-foreground truncate">{`${window.location.origin}/t/f/${f.share_token}`}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
@@ -2366,7 +2366,7 @@ function FormBuilderDialog({
                     <Checkbox checked={included} onCheckedChange={(v) => toggleField(f.id, !!v)} />
                     <span className="text-sm flex-1">{f.name}</span>
                     {included && (
-                      <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <span className="flex items-center gap-1 text-2xs text-muted-foreground">
                         Required
                         <Checkbox checked={entry!.required} onCheckedChange={(v) => updateEntry(f.id, { required: !!v })} />
                       </span>
@@ -2375,7 +2375,7 @@ function FormBuilderDialog({
 
                   {included && conditionSources.filter((s) => s.id !== f.id).length > 0 && (
                     <div className="flex items-center gap-2 pl-6">
-                      <span className="text-[11px] text-muted-foreground shrink-0">Show only if</span>
+                      <span className="text-2xs text-muted-foreground shrink-0">Show only if</span>
                       <Select
                         value={entry!.condition?.field_id || '__none__'}
                         onValueChange={(v) => updateEntry(f.id, { condition: v === '__none__' ? null : { field_id: v, value: '' } })}
@@ -2414,7 +2414,7 @@ function FormBuilderDialog({
 
                   {included && (f.type === 'task_link' || f.type === 'completed_task_link') && (
                     <div className="flex items-center gap-2 pl-6">
-                      <span className="text-[11px] text-muted-foreground shrink-0">Only show tasks assigned to</span>
+                      <span className="text-2xs text-muted-foreground shrink-0">Only show tasks assigned to</span>
                       <Select
                         value={entry!.filterByPersonField || '__none__'}
                         onValueChange={(v) => updateEntry(f.id, { filterByPersonField: v === '__none__' ? null : v })}

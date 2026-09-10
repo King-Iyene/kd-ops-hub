@@ -36,10 +36,10 @@ export function DeveloperHub() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-medium">
+              <span className="text-3xs font-mono px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-medium">
                 API v1
               </span>
-              <span className="text-[10px] font-mono px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium">
+              <span className="text-3xs font-mono px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium">
                 REST
               </span>
             </div>

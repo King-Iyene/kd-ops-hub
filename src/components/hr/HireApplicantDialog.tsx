@@ -359,7 +359,7 @@ export const HireApplicantDialog = ({
                 placeholder="e.g. 450000"
               />
               {applicant?.offer_amount_ngn != null && (
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-3xs text-muted-foreground">
                   Pre-filled from annual offer {formatNairaCompact(applicant.offer_amount_ngn)} ÷ 12.
                 </p>
               )}

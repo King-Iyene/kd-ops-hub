@@ -843,7 +843,7 @@ const NewPaymentBatch = () => {
                     </div>
                     <div>
                       <p className="font-semibold text-[15px] leading-tight">{t.label}</p>
-                      <p className="text-[13px] text-muted-foreground/60 mt-1 leading-snug">{t.desc}</p>
+                      <p className="text-xs-plus text-muted-foreground/60 mt-1 leading-snug">{t.desc}</p>
                     </div>
                   </button>
                 ))}
@@ -1046,7 +1046,7 @@ const NewPaymentBatch = () => {
                                 )}
                               </div>
                               {hasBank && (
-                                <span className="sm:hidden text-[10px] text-muted-foreground/80 font-mono tracking-tight block truncate">
+                                <span className="sm:hidden text-3xs text-muted-foreground/80 font-mono tracking-tight block truncate">
                                   {e.bank_name} · {e.bank_account_number || '—'}
                                 </span>
                               )}
@@ -1127,7 +1127,7 @@ const NewPaymentBatch = () => {
                                 {showStatus && (
                                   <span
                                     className={cn(
-                                      'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium shrink-0',
+                                      'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-3xs font-medium shrink-0',
                                       st.className,
                                     )}
                                     title={st.reason}
@@ -1142,7 +1142,7 @@ const NewPaymentBatch = () => {
                                 )}
                               </div>
                               {c.bank_name && (
-                                <span className="sm:hidden text-[10px] text-muted-foreground/80 font-mono tracking-tight block truncate">
+                                <span className="sm:hidden text-3xs text-muted-foreground/80 font-mono tracking-tight block truncate">
                                   {c.bank_name} · {c.account_number || '—'}
                                 </span>
                               )}
@@ -1172,7 +1172,7 @@ const NewPaymentBatch = () => {
                       our dispatcher loops single-call transfers. */}
                   <span
                     className={cn(
-                      'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
+                      'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-semibold tabular-nums',
                       items.length >= MAX_RECIPIENTS_PER_BATCH
                         ? 'bg-red-500/15 text-red-700 dark:text-red-300'
                         : items.length >= WARN_RECIPIENTS
@@ -1226,7 +1226,7 @@ const NewPaymentBatch = () => {
                       />
                     </div>
                   )}
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-2xs text-muted-foreground">
                     {amountMode === 'same'
                       ? 'One amount applied to all selected beneficiaries.'
                       : 'Type an amount per beneficiary below.'}
@@ -1246,9 +1246,9 @@ const NewPaymentBatch = () => {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-border/50">
-                          <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Beneficiary</th>
-                          <th className="text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Amount (₦)</th>
-                          <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Reference</th>
+                          <th className="text-left text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Beneficiary</th>
+                          <th className="text-right text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Amount (₦)</th>
+                          <th className="text-left text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Reference</th>
                           <th className="w-8" />
                         </tr>
                       </thead>
@@ -1283,7 +1283,7 @@ const NewPaymentBatch = () => {
                             </td>
                             <td className="px-3 py-1.5">
                               <Input
-                                className="w-32 h-7 text-[11px] font-mono"
+                                className="w-32 h-7 text-2xs font-mono"
                                 value={item.reference}
                                 onChange={(e) => updateItem(i, 'reference', e.target.value)}
                               />
@@ -1519,7 +1519,7 @@ const NewPaymentBatch = () => {
               />
               <span className="text-sm leading-snug">
                 Save as a contractor for future payments
-                <span className="block text-[11px] text-muted-foreground">
+                <span className="block text-2xs text-muted-foreground">
                   Adds them to your contractor list (skipped if a contractor already has this bank account). Untick for a true one-off.
                 </span>
               </span>

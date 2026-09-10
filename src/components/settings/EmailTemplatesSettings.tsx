@@ -343,13 +343,13 @@ export default function EmailTemplatesSettings() {
         <Card>
           <CardContent className="p-2 space-y-3">
             <div className="flex items-center justify-between gap-2 px-2 pt-1">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <p className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
                 Templates
               </p>
               <Button
                 size="sm"
                 variant="outline"
-                className="h-7 px-2 text-[11px] gap-1"
+                className="h-7 px-2 text-2xs gap-1"
                 onClick={() => setShowCreate(true)}
                 disabled={loading || missingTable}
               >
@@ -365,7 +365,7 @@ export default function EmailTemplatesSettings() {
             ) : (
               [...grouped.entries()].map(([cat, items]) => (
                 <div key={cat}>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-2 py-1.5">
+                  <p className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground px-2 py-1.5">
                     {CATEGORY_LABEL[cat]}
                   </p>
                   <div className="space-y-0.5">
@@ -378,7 +378,7 @@ export default function EmailTemplatesSettings() {
                         }`}
                       >
                         <div className="truncate">{t.name}</div>
-                        <code className="text-[10px] text-muted-foreground">{t.key}</code>
+                        <code className="text-3xs text-muted-foreground">{t.key}</code>
                       </button>
                     ))}
                   </div>
@@ -396,17 +396,17 @@ export default function EmailTemplatesSettings() {
                 <div className="space-y-1 min-w-0">
                   <CardTitle className="text-base flex items-center gap-2 flex-wrap">
                     {selected.name}
-                    <Badge variant="outline" className={`text-[10px] ${CATEGORY_BADGE[selected.category]}`}>
+                    <Badge variant="outline" className={`text-3xs ${CATEGORY_BADGE[selected.category]}`}>
                       {CATEGORY_LABEL[selected.category]}
                     </Badge>
                     {selected.is_system && (
-                      <Badge variant="outline" className="text-[10px] bg-muted/40">System</Badge>
+                      <Badge variant="outline" className="text-3xs bg-muted/40">System</Badge>
                     )}
                   </CardTitle>
                   {selected.description && (
                     <p className="text-xs text-muted-foreground">{selected.description}</p>
                   )}
-                  <code className="text-[10px] text-muted-foreground">{selected.key}</code>
+                  <code className="text-3xs text-muted-foreground">{selected.key}</code>
                 </div>
                 <div className="flex gap-2 shrink-0 flex-wrap">
                   <Button size="sm" variant="outline" onClick={handleSendTest} disabled={sendingTest}>
@@ -471,7 +471,7 @@ export default function EmailTemplatesSettings() {
                       <Label className="text-xs">Variables</Label>
                       <div className="rounded-md border bg-muted/20 p-2 space-y-1.5 max-h-[480px] overflow-y-auto">
                         {(selected.variables ?? []).length === 0 && (
-                          <p className="text-[11px] text-muted-foreground italic">No variables defined.</p>
+                          <p className="text-2xs text-muted-foreground italic">No variables defined.</p>
                         )}
                         {(selected.variables ?? []).map((v) => (
                           <button
@@ -485,15 +485,15 @@ export default function EmailTemplatesSettings() {
                               <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100" />
                             </div>
                             {v.description && (
-                              <p className="text-[10px] text-muted-foreground mt-0.5">{v.description}</p>
+                              <p className="text-3xs text-muted-foreground mt-0.5">{v.description}</p>
                             )}
                             {v.example && (
-                              <p className="text-[10px] text-muted-foreground italic">e.g. {v.example}</p>
+                              <p className="text-3xs text-muted-foreground italic">e.g. {v.example}</p>
                             )}
                           </button>
                         ))}
                       </div>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-3xs text-muted-foreground">
                         Click a variable to copy its <code>{'{{name}}'}</code> placeholder.
                       </p>
                     </div>
@@ -511,7 +511,7 @@ export default function EmailTemplatesSettings() {
                         className="w-full h-[480px] bg-white"
                       />
                     </div>
-                    <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <p className="text-2xs text-muted-foreground flex items-center gap-1">
                       <CheckCircle2 className="h-3 w-3 text-emerald-500" />
                       Rendered with each variable's example value.
                     </p>
@@ -521,7 +521,7 @@ export default function EmailTemplatesSettings() {
                   <Textarea
                     readOnly
                     value={previewHtml}
-                    className="font-mono text-[11px] min-h-[480px]"
+                    className="font-mono text-2xs min-h-[480px]"
                   />
                 </TabsContent>
               </Tabs>
@@ -555,7 +555,7 @@ export default function EmailTemplatesSettings() {
                 placeholder="e.g. Welcome onboard"
                 autoFocus
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 Internal key will be <code>custom.{newName ? newName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') : 'your_name'}</code>
               </p>
             </div>

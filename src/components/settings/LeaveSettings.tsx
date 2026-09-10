@@ -191,7 +191,7 @@ export default function LeaveSettings() {
                           )}
                           <span className="font-medium">{p.name}</span>
                           {p.gender && (
-                            <span className="text-[10px] text-muted-foreground uppercase">({p.gender})</span>
+                            <span className="text-3xs text-muted-foreground uppercase">({p.gender})</span>
                           )}
                         </div>
                       </TableCell>

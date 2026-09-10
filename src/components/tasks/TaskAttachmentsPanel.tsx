@@ -190,7 +190,7 @@ export function TaskAttachmentsPanel({ taskId, onUpdate }: TaskAttachmentsPanelP
             Attachments
           </p>
           {files.length > 0 && (
-            <span className="text-[10px] text-muted-foreground">({files.length})</span>
+            <span className="text-3xs text-muted-foreground">({files.length})</span>
           )}
         </div>
         <Button
@@ -227,12 +227,12 @@ export function TaskAttachmentsPanel({ taskId, onUpdate }: TaskAttachmentsPanelP
         {uploading ? (
           <div className="flex items-center justify-center gap-1.5">
             <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground">Uploading...</span>
+            <span className="text-3xs text-muted-foreground">Uploading...</span>
           </div>
         ) : (
           <div className="flex items-center justify-center gap-1.5">
             <Upload className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-3xs text-muted-foreground">
               Drop files here or click to upload
             </span>
           </div>
@@ -248,7 +248,7 @@ export function TaskAttachmentsPanel({ taskId, onUpdate }: TaskAttachmentsPanelP
 
       {/* File list */}
       {!loading && files.length === 0 && (
-        <p className="text-[10px] text-muted-foreground">No attachments</p>
+        <p className="text-3xs text-muted-foreground">No attachments</p>
       )}
 
       {!loading && files.length > 0 && (
@@ -267,7 +267,7 @@ export function TaskAttachmentsPanel({ taskId, onUpdate }: TaskAttachmentsPanelP
                 <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs truncate">{file.name}</p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-3xs text-muted-foreground">
                     {size != null && formatFileSize(size)}
                     {size != null && file.created_at && ' · '}
                     {file.created_at && new Date(file.created_at).toLocaleDateString()}

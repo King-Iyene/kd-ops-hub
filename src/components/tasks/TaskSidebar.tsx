@@ -135,7 +135,7 @@ export function TaskSidebar({
       {/* ─── Favorites Section ─────────────────────────── */}
       {favoriteSpaceIds && favoriteSpaceIds.size > 0 && (
         <div className="space-y-0.5 mb-4">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2 mb-1.5">
+          <p className="text-3xs font-semibold text-muted-foreground uppercase tracking-widest px-2 mb-1.5">
             Favorites
           </p>
           {spaces.filter((s) => favoriteSpaceIds.has(s.id)).map((space) => (
@@ -156,7 +156,7 @@ export function TaskSidebar({
         <div className="flex items-center justify-between px-2 mb-1.5">
           <button
             onClick={() => setSpacesExpanded(!spacesExpanded)}
-            className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors"
+            className="flex items-center gap-1 text-3xs font-semibold text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors"
           >
             {spacesExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
             Folders
@@ -200,7 +200,7 @@ export function TaskSidebar({
                         onSelectSpace(space.id); onSelectList(null); ensureTaskView();
                       }}
                       className={cn(
-                        'flex items-center gap-2 flex-1 min-w-0 px-2 py-1.5 rounded-md text-[13px] font-medium transition-all text-left',
+                        'flex items-center gap-2 flex-1 min-w-0 px-2 py-1.5 rounded-md text-xs-plus font-medium transition-all text-left',
                         selectedSpace === space.id && !selectedList
                           ? 'bg-primary/10 text-primary'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
@@ -213,7 +213,7 @@ export function TaskSidebar({
                       )}
                       <FolderKanban className="h-3.5 w-3.5 shrink-0" style={space.color ? { color: space.color } : undefined} />
                       <span className="flex-1 truncate">{space.name}</span>
-                      <span className="text-[10px] tabular-nums opacity-50">{spaceTaskCounts.get(space.id) ?? 0}</span>
+                      <span className="text-3xs tabular-nums opacity-50">{spaceTaskCounts.get(space.id) ?? 0}</span>
                     </button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -258,7 +258,7 @@ export function TaskSidebar({
                                 {isFolderExpanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
                                 <FolderKanban className="h-3 w-3 shrink-0" style={folder.color ? { color: folder.color } : undefined} />
                                 <span className="flex-1 truncate text-left">{folder.name}</span>
-                                <span className="text-[10px] tabular-nums opacity-40">{folderLists.length}</span>
+                                <span className="text-3xs tabular-nums opacity-40">{folderLists.length}</span>
                               </button>
                               {(onRenameFolder || onDeleteFolder || onCreateList) && (
                                 <DropdownMenu>
@@ -348,7 +348,7 @@ function SidebarItem({
     <button
       onClick={onClick}
       className={cn(
-        'flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-all text-left',
+        'flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md text-xs-plus font-medium transition-all text-left',
         active
           ? 'bg-primary/10 text-primary'
           : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
@@ -359,7 +359,7 @@ function SidebarItem({
       <span className="flex-1 truncate">{label}</span>
       {badge}
       {count !== undefined && !badge && (
-        <span className="text-[10px] tabular-nums opacity-50">{count}</span>
+        <span className="text-3xs tabular-nums opacity-50">{count}</span>
       )}
     </button>
   );
@@ -386,7 +386,7 @@ function ListItem({ list, count, active, onClick, onRename, onDelete }: {
       >
         <ListTodo className="h-3 w-3 shrink-0" style={list.color ? { color: list.color } : undefined} />
         <span className="flex-1 truncate">{list.name}</span>
-        <span className="text-[10px] tabular-nums opacity-40">{count}</span>
+        <span className="text-3xs tabular-nums opacity-40">{count}</span>
       </button>
       {(onRename || onDelete) && (
         <DropdownMenu>
@@ -453,7 +453,7 @@ function SpaceItem({
       <button
         onClick={onClick}
         className={cn(
-          'flex items-center gap-2 flex-1 min-w-0 px-1.5 py-1.5 rounded-md text-[13px] font-medium transition-all text-left',
+          'flex items-center gap-2 flex-1 min-w-0 px-1.5 py-1.5 rounded-md text-xs-plus font-medium transition-all text-left',
           active
             ? 'bg-primary/10 text-primary'
             : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
@@ -462,7 +462,7 @@ function SpaceItem({
         <div className="h-3 w-3 rounded shrink-0" style={{ backgroundColor: space.color }} />
         <span className="flex-1 truncate">{space.name}</span>
         {space.is_private && <Lock className="h-2.5 w-2.5 text-muted-foreground/60 shrink-0" />}
-        <span className="text-[10px] tabular-nums opacity-50">{count}</span>
+        <span className="text-3xs tabular-nums opacity-50">{count}</span>
       </button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

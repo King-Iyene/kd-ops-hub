@@ -256,7 +256,7 @@ export default function ScenarioPlannerTab() {
                 return (
                   <div key={adj.id} className="flex flex-wrap items-end gap-2 p-3 rounded-lg border bg-muted/30">
                     <div className="space-y-1 min-w-[140px]">
-                      <Label className="text-[11px]">Type</Label>
+                      <Label className="text-2xs">Type</Label>
                       <Select
                         value={adj.type}
                         onValueChange={(v) => updateAdjustment(adj.id, { type: v as AdjustmentType })}
@@ -270,7 +270,7 @@ export default function ScenarioPlannerTab() {
                       </Select>
                     </div>
                     <div className="space-y-1 flex-1 min-w-[140px]">
-                      <Label className="text-[11px]">Description</Label>
+                      <Label className="text-2xs">Description</Label>
                       <Input
                         className="h-8"
                         placeholder="e.g. Senior engineer"
@@ -279,7 +279,7 @@ export default function ScenarioPlannerTab() {
                       />
                     </div>
                     <div className="space-y-1 w-[130px]">
-                      <Label className="text-[11px]">Monthly amount (₦)</Label>
+                      <Label className="text-2xs">Monthly amount (₦)</Label>
                       <Input
                         className="h-8"
                         type="number"
@@ -288,7 +288,7 @@ export default function ScenarioPlannerTab() {
                       />
                     </div>
                     <div className="space-y-1 w-[90px]">
-                      <Label className="text-[11px]">Start week</Label>
+                      <Label className="text-2xs">Start week</Label>
                       <Input
                         className="h-8"
                         type="number"
@@ -299,7 +299,7 @@ export default function ScenarioPlannerTab() {
                       />
                     </div>
                     <div className="space-y-1 w-[90px]">
-                      <Label className="text-[11px]">Duration</Label>
+                      <Label className="text-2xs">Duration</Label>
                       <Input
                         className="h-8"
                         type="number"
@@ -402,7 +402,7 @@ export default function ScenarioPlannerTab() {
                     <TableRow key={adj.id}>
                       <TableCell className="font-medium">{adj.label || 'Untitled'}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="text-[10px]">{typeDef?.label}</Badge>
+                        <Badge variant="secondary" className="text-3xs">{typeDef?.label}</Badge>
                       </TableCell>
                       <TableCell className={cn('text-right font-medium', signed < 0 ? 'text-destructive' : 'text-emerald-600')}>
                         {signed >= 0 ? '+' : ''}{formatNairaCompact(signed)}

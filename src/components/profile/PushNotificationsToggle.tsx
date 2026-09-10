@@ -90,7 +90,7 @@ export function PushNotificationsToggle() {
         </div>
 
         {isOn && (
-          <p className="text-[11px] text-muted-foreground border-t border-border/40 pt-2">
+          <p className="text-2xs text-muted-foreground border-t border-border/40 pt-2">
             This switch only controls THIS device. Sign in on another device to subscribe it separately.
           </p>
         )}

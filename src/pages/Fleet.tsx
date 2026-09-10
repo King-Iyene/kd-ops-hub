@@ -248,7 +248,7 @@ const Fleet = () => {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Car className="h-4 w-4 text-muted-foreground" />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Fleet</span>
+              <span className="text-2xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Fleet</span>
             </div>
             <h1 className="kd-display text-3xl sm:text-4xl font-bold tracking-tight">
               {totalAnomalies > 0 ? `${totalAnomalies} anomal${totalAnomalies === 1 ? 'y' : 'ies'} flagged` : 'Fleet running smoothly'}

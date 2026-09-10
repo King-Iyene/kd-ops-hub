@@ -402,7 +402,7 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
           </div>
           <p className="text-lg font-semibold tabular-nums">{summary.activeTimers}</p>
           {summary.activeTimers > 0 && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-1 text-3xs text-emerald-600 dark:text-emerald-400">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Running
             </span>
@@ -473,7 +473,7 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
               <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 Time Entries
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">
+                <Badge variant="secondary" className="text-3xs px-1.5 py-0 ml-1">
                   {sortedEntries.length}
                 </Badge>
               </h3>
@@ -497,7 +497,7 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
                           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                             {group.label}
                           </span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-3xs text-muted-foreground">
                             ({formatMinutes(group.entries.reduce((s, e) => s + (e.duration_minutes ?? 0), 0))})
                           </span>
                           <div className="flex-1 h-px bg-border" />
@@ -647,13 +647,13 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
                               className="h-full rounded bg-primary/60 transition-all"
                               style={{ width: `${barWidth}%` }}
                             />
-                            <span className="absolute inset-0 flex items-center px-2 text-[10px] font-medium tabular-nums">
+                            <span className="absolute inset-0 flex items-center px-2 text-3xs font-medium tabular-nums">
                               {formatHours(person.totalMinutes)}
                             </span>
                           </div>
                         </div>
 
-                        <span className="text-[10px] text-muted-foreground w-16 text-right shrink-0">
+                        <span className="text-3xs text-muted-foreground w-16 text-right shrink-0">
                           {person.taskCount} {person.taskCount === 1 ? 'task' : 'tasks'}
                         </span>
                       </div>
@@ -700,7 +700,7 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
                           </td>
                           <td className="py-2 text-right">
                             <span className={cn(
-                              'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums',
+                              'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-medium tabular-nums',
                               varianceBg(item.variancePct),
                               varianceColor(item.variancePct),
                             )}>

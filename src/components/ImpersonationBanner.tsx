@@ -112,7 +112,7 @@ export function ImpersonationBanner() {
         </span>
 
         {elapsed && (
-          <span className="hidden md:inline-flex items-center gap-1 text-[10px] text-white/60 shrink-0 tabular-nums">
+          <span className="hidden md:inline-flex items-center gap-1 text-3xs text-white/60 shrink-0 tabular-nums">
             <Clock className="h-3 w-3" />
             {elapsed}
           </span>
@@ -123,7 +123,7 @@ export function ImpersonationBanner() {
             type="button"
             onClick={() => setSwitchOpen(true)}
             disabled={exiting}
-            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium bg-white/15 hover:bg-white/25 kd-transition disabled:opacity-60"
+            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-2xs font-medium bg-white/15 hover:bg-white/25 kd-transition disabled:opacity-60"
             title="Switch to a different person"
           >
             <Repeat className="h-3 w-3" /> Switch
@@ -132,7 +132,7 @@ export function ImpersonationBanner() {
             type="button"
             onClick={handleExit}
             disabled={exiting}
-            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium bg-white/90 text-rose-800 hover:bg-white kd-transition disabled:opacity-60"
+            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-2xs font-medium bg-white/90 text-rose-800 hover:bg-white kd-transition disabled:opacity-60"
             title="Exit impersonation (Esc)"
           >
             <LogOut className="h-3 w-3" /> {exiting ? 'Exiting…' : 'Exit'}

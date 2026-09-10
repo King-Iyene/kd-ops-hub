@@ -191,7 +191,7 @@ export function BulkActionsBar({
 
       {/* Selection count */}
       <span
-        className="text-[13px] font-medium whitespace-nowrap"
+        className="text-xs-plus font-medium whitespace-nowrap"
         style={{ color: 'var(--bulk-bar-text)' }}
       >
         {count} row{count !== 1 ? 's' : ''} selected
@@ -260,13 +260,13 @@ export function BulkActionsBar({
             }}
           >
             <label
-              className="block text-[11px] font-medium mb-1"
+              className="block text-2xs font-medium mb-1"
               style={{ color: 'var(--bulk-bar-muted)' }}
             >
               Field
             </label>
             <select
-              className="w-full border rounded-md px-2 py-1.5 text-[13px] mb-2"
+              className="w-full border rounded-md px-2 py-1.5 text-xs-plus mb-2"
               style={{
                 borderColor: 'var(--bulk-bar-border)',
                 backgroundColor: 'var(--bulk-bar-bg)',
@@ -290,7 +290,7 @@ export function BulkActionsBar({
             {selectedFieldId && (
               <>
                 <label
-                  className="block text-[11px] font-medium mb-1"
+                  className="block text-2xs font-medium mb-1"
                   style={{ color: 'var(--bulk-bar-muted)' }}
                 >
                   Value
@@ -302,7 +302,7 @@ export function BulkActionsBar({
                   if (field.ui_type === 'Checkbox') {
                     return (
                       <select
-                        className="w-full border rounded-md px-2 py-1.5 text-[13px] mb-2"
+                        className="w-full border rounded-md px-2 py-1.5 text-xs-plus mb-2"
                         style={{
                           borderColor: 'var(--bulk-bar-border)',
                           backgroundColor: 'var(--bulk-bar-bg)',
@@ -322,7 +322,7 @@ export function BulkActionsBar({
                     return (
                       <input
                         type="date"
-                        className="w-full border rounded-md px-2 py-1.5 text-[13px] mb-2"
+                        className="w-full border rounded-md px-2 py-1.5 text-xs-plus mb-2"
                         style={{
                           borderColor: 'var(--bulk-bar-border)',
                           backgroundColor: 'var(--bulk-bar-bg)',
@@ -346,7 +346,7 @@ export function BulkActionsBar({
                         {field.options.choices!.map((c) => (
                           <label
                             key={c.title}
-                            className="flex items-center gap-1.5 text-[13px] py-0.5 cursor-pointer"
+                            className="flex items-center gap-1.5 text-xs-plus py-0.5 cursor-pointer"
                             style={{ color: 'var(--bulk-bar-text)' }}
                           >
                             <input
@@ -370,7 +370,7 @@ export function BulkActionsBar({
                   if (field.ui_type === 'SingleSelect' && field.options?.choices) {
                     return (
                       <select
-                        className="w-full border rounded-md px-2 py-1.5 text-[13px] mb-2"
+                        className="w-full border rounded-md px-2 py-1.5 text-xs-plus mb-2"
                         style={{
                           borderColor: 'var(--bulk-bar-border)',
                           backgroundColor: 'var(--bulk-bar-bg)',
@@ -396,7 +396,7 @@ export function BulkActionsBar({
                           ? 'number'
                           : 'text'
                       }
-                      className="w-full border rounded-md px-2 py-1.5 text-[13px] mb-2"
+                      className="w-full border rounded-md px-2 py-1.5 text-xs-plus mb-2"
                       style={{
                         borderColor: 'var(--bulk-bar-border)',
                         backgroundColor: 'var(--bulk-bar-bg)',
@@ -452,7 +452,7 @@ export function BulkActionsBar({
               Delete {count}?
             </span>
             <button
-              className="px-2 py-1 rounded-md text-[11px] font-medium text-white"
+              className="px-2 py-1 rounded-md text-2xs font-medium text-white"
               style={{ backgroundColor: 'var(--bulk-bar-danger)' }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bulk-bar-danger-hover)')}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--bulk-bar-danger)')}
@@ -461,7 +461,7 @@ export function BulkActionsBar({
               Confirm
             </button>
             <button
-              className="px-2 py-1 rounded-md text-[11px] font-medium"
+              className="px-2 py-1 rounded-md text-2xs font-medium"
               style={{ color: 'var(--bulk-bar-muted)' }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bulk-bar-hover)')}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}

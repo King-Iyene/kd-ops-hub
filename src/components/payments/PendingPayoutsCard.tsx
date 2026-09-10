@@ -264,7 +264,7 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
 
         {/* ── Sub-tab strip + View all ──────────────────────────────
             Inline with the action — saves a row. Tabs are slimmer
-            (text-[10px], h-6), counts integrated as suffix not chip. */}
+            (text-3xs, h-6), counts integrated as suffix not chip. */}
         <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b bg-muted/20">
           <div className="flex items-center gap-0.5 overflow-x-auto kd-mobile-snap-x">
             {(Object.keys(TAB_META) as Bucket[]).map((k) => {
@@ -277,7 +277,7 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
                   type="button"
                   onClick={() => setTab(k)}
                   className={cn(
-                    'shrink-0 inline-flex items-center gap-1 rounded-md px-2 h-6 text-[11px] kd-transition',
+                    'shrink-0 inline-flex items-center gap-1 rounded-md px-2 h-6 text-2xs kd-transition',
                     isActive
                       ? 'bg-foreground text-background font-medium'
                       : 'text-muted-foreground hover:text-foreground hover:bg-background',
@@ -291,7 +291,7 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
                   )}
                   <span>{TAB_META[k].label}</span>
                   <span className={cn(
-                    'tabular-nums text-[10px]',
+                    'tabular-nums text-3xs',
                     isActive ? 'opacity-70' : 'opacity-50',
                   )}>
                     {count}
@@ -303,7 +303,7 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
           <button
             type="button"
             onClick={viewAll}
-            className="shrink-0 inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground kd-transition"
+            className="shrink-0 inline-flex items-center gap-1 text-3xs text-muted-foreground hover:text-foreground kd-transition"
           >
             View all <ArrowRight className="h-2.5 w-2.5" />
           </button>
@@ -322,7 +322,7 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
               <Skeleton className="h-7 w-full" />
             </>
           ) : tabBatches.length === 0 ? (
-            <div className="px-3 py-3 text-center text-[11px] text-muted-foreground">
+            <div className="px-3 py-3 text-center text-2xs text-muted-foreground">
               {tab === 'stuck'
                 ? 'Nothing stuck — every pending batch is moving on schedule.'
                 : tab === 'all'
@@ -363,7 +363,7 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
           <button
             type="button"
             onClick={viewAll}
-            className="w-full px-3 py-1.5 border-t text-[10px] text-muted-foreground hover:bg-muted/30 hover:text-foreground kd-transition flex items-center justify-center gap-1"
+            className="w-full px-3 py-1.5 border-t text-3xs text-muted-foreground hover:bg-muted/30 hover:text-foreground kd-transition flex items-center justify-center gap-1"
           >
             +{tabBatches.length - 4} more · View all
             <ArrowRight className="h-2.5 w-2.5" />
@@ -373,7 +373,7 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
         {fundingGap != null && fundingGap > 0 && (
           <div className="border-t px-3 py-1.5 flex items-start gap-1.5 bg-amber-500/5">
             <AlertTriangle className="h-3 w-3 text-amber-600 mt-0.5 shrink-0" />
-            <p className="text-[10px] leading-snug text-amber-800 dark:text-amber-300">
+            <p className="text-3xs leading-snug text-amber-800 dark:text-amber-300">
               Top up <span className="font-semibold font-mono">{formatNaira(fundingGap)}</span> before processing.
             </p>
           </div>
@@ -402,7 +402,7 @@ function KpiCell({
   };
   return (
     <div className="px-4 py-3 min-w-0 overflow-hidden">
-      <div className="flex items-center gap-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
+      <div className="flex items-center gap-1 text-3xs uppercase tracking-[0.12em] text-muted-foreground font-semibold">
         {icon}
         <span>{label}</span>
         {hint && <InfoHint>{hint}</InfoHint>}
@@ -414,7 +414,7 @@ function KpiCell({
           {value}
         </p>
       )}
-      <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{sub}</p>
+      <p className="text-3xs text-muted-foreground mt-0.5 truncate">{sub}</p>
     </div>
   );
 }

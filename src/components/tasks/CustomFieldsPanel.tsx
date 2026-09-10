@@ -165,8 +165,8 @@ export function CustomFieldsPanel({ taskId, spaceId }: CustomFieldsPanelProps) {
             />
           )}
           <div className="flex gap-1">
-            <Button size="sm" className="h-6 text-[10px] flex-1" onClick={addField}>Add</Button>
-            <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => setShowAddField(false)}>Cancel</Button>
+            <Button size="sm" className="h-6 text-3xs flex-1" onClick={addField}>Add</Button>
+            <Button size="sm" variant="ghost" className="h-6 text-3xs" onClick={() => setShowAddField(false)}>Cancel</Button>
           </div>
         </div>
       )}
@@ -176,7 +176,7 @@ export function CustomFieldsPanel({ taskId, spaceId }: CustomFieldsPanelProps) {
         return (
           <div key={field.id} className="group flex items-start gap-1.5">
             <div className="flex-1 space-y-0.5">
-              <Label className="text-[10px] text-muted-foreground">{field.name}</Label>
+              <Label className="text-3xs text-muted-foreground">{field.name}</Label>
               {field.field_type === 'text' && (
                 <Input
                   className="h-7 text-xs"
@@ -199,7 +199,7 @@ export function CustomFieldsPanel({ taskId, spaceId }: CustomFieldsPanelProps) {
                       key={n}
                       onClick={() => updateValue(field.id, field.field_type, n === val ? 0 : n)}
                       className={cn(
-                        'h-5 w-5 rounded text-[10px] font-bold transition-colors',
+                        'h-5 w-5 rounded text-3xs font-bold transition-colors',
                         n <= (val || 0)
                           ? 'bg-amber-400 text-white'
                           : 'bg-muted text-muted-foreground',
@@ -256,7 +256,7 @@ export function CustomFieldsPanel({ taskId, spaceId }: CustomFieldsPanelProps) {
                           updateValue(field.id, field.field_type, arr);
                         }}
                         className={cn(
-                          'text-[10px] px-2 py-0.5 rounded-full border transition-colors',
+                          'text-3xs px-2 py-0.5 rounded-full border transition-colors',
                           selected
                             ? 'bg-primary/10 text-primary border-primary/30'
                             : 'bg-muted text-muted-foreground border-border',

@@ -333,7 +333,7 @@ export function LiveTrackingTab() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Radio className="h-4 w-4 text-muted-foreground" />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Live Tracking</span>
+              <span className="text-2xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Live Tracking</span>
             </div>
             <h1 className="kd-display text-3xl sm:text-4xl font-bold tracking-tight">
               {tripList.length > 0 ? `${tripList.length} driver${tripList.length === 1 ? '' : 's'} on the move` : 'No active trips right now'}
@@ -390,28 +390,28 @@ export function LiveTrackingTab() {
                       <div className="text-right shrink-0">
                         <p className="text-xs font-mono text-muted-foreground flex items-center gap-1 justify-end"><Clock className="h-3 w-3" /> {formatElapsed(row.elapsedMs)}</p>
                         {row.lastPingMs != null && (
-                          <p className={cn('text-[10px] mt-0.5', row.stale ? 'text-amber-600 font-semibold' : 'text-muted-foreground')}>ping {formatPingAge(now - row.lastPingMs)}</p>
+                          <p className={cn('text-3xs mt-0.5', row.stale ? 'text-amber-600 font-semibold' : 'text-muted-foreground')}>ping {formatPingAge(now - row.lastPingMs)}</p>
                         )}
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-1 text-xs pt-1">
                       <div>
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Speed</p>
+                        <p className="text-3xs text-muted-foreground uppercase tracking-wide">Speed</p>
                         <p className={cn('font-mono font-semibold', row.speeding ? 'text-red-600' : 'text-foreground')}>
-                          {row.last?.speed_kmh != null ? `${Math.round(row.last.speed_kmh)}` : '—'}<span className="text-[10px] font-normal text-muted-foreground ml-0.5">km/h</span>
+                          {row.last?.speed_kmh != null ? `${Math.round(row.last.speed_kmh)}` : '—'}<span className="text-3xs font-normal text-muted-foreground ml-0.5">km/h</span>
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Distance</p>
-                        <p className="font-mono font-semibold text-foreground">{row.distanceKm.toFixed(1)}<span className="text-[10px] font-normal text-muted-foreground ml-0.5">km</span></p>
+                        <p className="text-3xs text-muted-foreground uppercase tracking-wide">Distance</p>
+                        <p className="font-mono font-semibold text-foreground">{row.distanceKm.toFixed(1)}<span className="text-3xs font-normal text-muted-foreground ml-0.5">km</span></p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Max</p>
-                        <p className="font-mono font-semibold text-foreground">{row.maxSpeedKmh > 0 ? Math.round(row.maxSpeedKmh) : '—'}<span className="text-[10px] font-normal text-muted-foreground ml-0.5">km/h</span></p>
+                        <p className="text-3xs text-muted-foreground uppercase tracking-wide">Max</p>
+                        <p className="font-mono font-semibold text-foreground">{row.maxSpeedKmh > 0 ? Math.round(row.maxSpeedKmh) : '—'}<span className="text-3xs font-normal text-muted-foreground ml-0.5">km/h</span></p>
                       </div>
                     </div>
                     {t.start_location && (
-                      <p className="text-[11px] text-muted-foreground flex items-start gap-1">
+                      <p className="text-2xs text-muted-foreground flex items-start gap-1">
                         <MapPin className="h-3 w-3 mt-0.5 shrink-0" /><span className="truncate">From: {t.start_location}</span>
                       </p>
                     )}

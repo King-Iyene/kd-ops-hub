@@ -41,12 +41,12 @@ function CodeBlock({ label, code, language }: { label: string; code: string; lan
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700/80 overflow-hidden">
       <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800/80">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{label}</span>
+          <span className="text-3xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{label}</span>
           {language && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-zinc-200/70 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 font-medium">{language}</span>}
         </div>
         <CopyButton text={code} />
       </div>
-      <pre className="px-3 py-2.5 text-[11px] leading-relaxed font-mono text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap break-all bg-white dark:bg-zinc-900/50 overflow-x-auto">{code}</pre>
+      <pre className="px-3 py-2.5 text-2xs leading-relaxed font-mono text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap break-all bg-white dark:bg-zinc-900/50 overflow-x-auto">{code}</pre>
     </div>
   );
 }
@@ -58,14 +58,14 @@ function MethodBadge({ method }: { method: HttpMethod }) {
     PATCH: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
     DELETE: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
   };
-  return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${colors[method]}`}>{method}</span>;
+  return <span className={`text-3xs font-bold px-1.5 py-0.5 rounded ${colors[method]}`}>{method}</span>;
 }
 
 function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-1.5 text-[11px] font-medium rounded-lg transition-all ${
+      className={`px-3 py-1.5 text-2xs font-medium rounded-lg transition-all ${
         active
           ? 'bg-blue-600 text-white shadow-sm'
           : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
@@ -83,8 +83,8 @@ function SectionHeader({ icon: Icon, title, subtitle }: { icon: React.ElementTyp
         <Icon size={14} className="text-blue-600 dark:text-blue-400" />
       </div>
       <div>
-        <h4 className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200">{title}</h4>
-        {subtitle && <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">{subtitle}</p>}
+        <h4 className="text-xs-plus font-semibold text-zinc-800 dark:text-zinc-200">{title}</h4>
+        {subtitle && <p className="text-2xs text-zinc-500 dark:text-zinc-400 mt-0.5">{subtitle}</p>}
       </div>
     </div>
   );
@@ -110,11 +110,11 @@ function OverviewTab({ baseId, onSubDialog, onSwitchTab }: { baseId: string | nu
               that speaks HTTP. Fields are <strong className="text-blue-600 dark:text-blue-400">auto-created</strong> when you send new data — no setup needed.
             </p>
             <div className="flex gap-2 mt-3">
-              <button onClick={() => onSwitchTab('api-reference')} className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+              <button onClick={() => onSwitchTab('api-reference')} className="text-2xs font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
                 <Code2 size={12} /> View API Reference
               </button>
               <span className="text-zinc-300 dark:text-zinc-600">|</span>
-              <button onClick={() => onSwitchTab('connect')} className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+              <button onClick={() => onSwitchTab('connect')} className="text-2xs font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
                 <Plug size={12} /> Connect n8n / Zapier
               </button>
             </div>
@@ -127,15 +127,15 @@ function OverviewTab({ baseId, onSubDialog, onSwitchTab }: { baseId: string | nu
         <SectionHeader icon={BookOpen} title="Quick Start" subtitle="Get up and running in 3 steps" />
         <div className="space-y-2">
           {[
-            { step: 1, title: 'Create an API Key', desc: <>Generate a <code className="px-1 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-[10px] font-mono">kdops_</code> key with read/write permissions.</>, action: () => onSubDialog('api-keys') },
+            { step: 1, title: 'Create an API Key', desc: <>Generate a <code className="px-1 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-3xs font-mono">kdops_</code> key with read/write permissions.</>, action: () => onSubDialog('api-keys') },
             { step: 2, title: 'Send data via HTTP', desc: 'POST records to the API. Unknown fields are auto-created with smart type detection (Email, URL, Date, Number, etc).', action: () => onSwitchTab('api-reference') },
             { step: 3, title: 'Set up webhooks (optional)', desc: 'Get notified in real-time when records change — push data to n8n, Slack, or any URL.', action: () => onSubDialog('webhooks') },
           ].map(({ step, title, desc, action }) => (
             <button key={step} onClick={action} className="w-full flex items-start gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/80 dark:border-zinc-700/50 hover:border-blue-300 dark:hover:border-blue-700 transition-colors text-left group">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-[11px] font-bold shrink-0 mt-0.5">{step}</span>
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-2xs font-bold shrink-0 mt-0.5">{step}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{title}</p>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">{desc}</p>
+                <p className="text-2xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">{desc}</p>
               </div>
               <ChevronRight size={14} className="text-zinc-300 dark:text-zinc-600 group-hover:text-blue-500 transition-colors shrink-0 mt-1" />
             </button>
@@ -158,8 +158,8 @@ function OverviewTab({ baseId, onSubDialog, onSwitchTab }: { baseId: string | nu
           ].map((f) => (
             <div key={f.title} className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-700/60 bg-zinc-50/50 dark:bg-zinc-800/30">
               <div className="w-1.5 h-1.5 rounded-full mb-2" style={{ backgroundColor: f.color }} />
-              <p className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">{f.title}</p>
-              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-snug">{f.desc}</p>
+              <p className="text-2xs font-semibold text-zinc-700 dark:text-zinc-300">{f.title}</p>
+              <p className="text-3xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-snug">{f.desc}</p>
             </div>
           ))}
         </div>
@@ -180,7 +180,7 @@ function OverviewTab({ baseId, onSubDialog, onSwitchTab }: { baseId: string | nu
               </div>
               <div>
                 <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{card.title}</p>
-                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">{card.desc}</p>
+                <p className="text-3xs text-zinc-400 dark:text-zinc-500 mt-0.5">{card.desc}</p>
               </div>
               <ArrowRight size={11} className="text-zinc-300 dark:text-zinc-600 group-hover:text-blue-500 transition-colors" />
             </button>
@@ -349,9 +349,9 @@ Headers:
 
       {/* Endpoint */}
       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700/80 p-3 bg-zinc-50/50 dark:bg-zinc-800/30">
-        <p className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">Base Endpoint</p>
+        <p className="text-3xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">Base Endpoint</p>
         <div className="flex items-center gap-2">
-          <code className="flex-1 text-[11px] font-mono text-zinc-700 dark:text-zinc-300 break-all">{endpoint}</code>
+          <code className="flex-1 text-2xs font-mono text-zinc-700 dark:text-zinc-300 break-all">{endpoint}</code>
           <CopyButton text={endpoint} />
         </div>
       </div>
@@ -360,11 +360,11 @@ Headers:
       <div className="rounded-lg border border-amber-200 dark:border-amber-800/40 p-3 bg-amber-50/50 dark:bg-amber-900/10">
         <div className="flex items-center gap-2 mb-1">
           <Shield size={12} className="text-amber-600 dark:text-amber-400" />
-          <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Authentication</span>
+          <span className="text-2xs font-semibold text-amber-700 dark:text-amber-400">Authentication</span>
         </div>
-        <p className="text-[11px] text-amber-600 dark:text-amber-400/80 leading-relaxed">
-          All requests require a <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded text-[10px]">Bearer</code> token.
-          Pass your API key in the Authorization header: <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded text-[10px]">Authorization: Bearer kdops_YOUR_KEY</code>
+        <p className="text-2xs text-amber-600 dark:text-amber-400/80 leading-relaxed">
+          All requests require a <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded text-3xs">Bearer</code> token.
+          Pass your API key in the Authorization header: <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded text-3xs">Authorization: Bearer kdops_YOUR_KEY</code>
         </p>
       </div>
 
@@ -374,7 +374,7 @@ Headers:
           <button
             key={m}
             onClick={() => setActiveMethod(m)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-[11px] font-bold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-2xs font-bold transition-all ${
               activeMethod === m
                 ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-800 dark:text-zinc-100'
                 : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
@@ -390,8 +390,8 @@ Headers:
         <div className="flex items-center gap-2">
           <active.icon size={14} className="text-zinc-500 dark:text-zinc-400" />
           <div>
-            <h5 className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200">{active.title}</h5>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{active.desc}</p>
+            <h5 className="text-xs-plus font-semibold text-zinc-800 dark:text-zinc-200">{active.title}</h5>
+            <p className="text-2xs text-zinc-500 dark:text-zinc-400">{active.desc}</p>
           </div>
         </div>
 
@@ -400,7 +400,7 @@ Headers:
 
         {active.notes && (
           <div className="rounded-lg border border-blue-200 dark:border-blue-800/40 p-3 bg-blue-50/50 dark:bg-blue-900/10">
-            <p className="text-[11px] text-blue-700 dark:text-blue-400 leading-relaxed">
+            <p className="text-2xs text-blue-700 dark:text-blue-400 leading-relaxed">
               <strong>Note:</strong> {active.notes}
             </p>
           </div>
@@ -412,7 +412,7 @@ Headers:
         <div>
           <SectionHeader icon={Sparkles} title="Auto-Detected Field Types" subtitle="KDOps inspects your data and picks the right type" />
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-700/80 overflow-hidden">
-            <table className="w-full text-[11px]">
+            <table className="w-full text-2xs">
               <thead>
                 <tr className="bg-zinc-50 dark:bg-zinc-800/80">
                   <th className="text-left px-3 py-2 font-semibold text-zinc-500 dark:text-zinc-400">Your Data</th>
@@ -436,7 +436,7 @@ Headers:
                   <tr key={type} className="text-zinc-600 dark:text-zinc-400">
                     <td className="px-3 py-1.5">{data}</td>
                     <td className="px-3 py-1.5 font-medium text-zinc-800 dark:text-zinc-200">{type}</td>
-                    <td className="px-3 py-1.5 font-mono text-[10px] text-zinc-500">{example}</td>
+                    <td className="px-3 py-1.5 font-mono text-3xs text-zinc-500">{example}</td>
                   </tr>
                 ))}
               </tbody>
@@ -462,8 +462,8 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
       color: '#EA4B71',
       steps: [
         { title: 'Add an HTTP Request node', detail: 'Drag "HTTP Request" from the node palette into your workflow.' },
-        { title: 'Set Method & URL', detail: <>Method: <strong>POST</strong> | URL: <code className="text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">{endpoint}</code></> },
-        { title: 'Configure Authentication', detail: <>Go to Authentication → <strong>Header Auth</strong>. Name: <code className="text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Authorization</code> Value: <code className="text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Bearer kdops_YOUR_KEY</code></> },
+        { title: 'Set Method & URL', detail: <>Method: <strong>POST</strong> | URL: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">{endpoint}</code></> },
+        { title: 'Configure Authentication', detail: <>Go to Authentication → <strong>Header Auth</strong>. Name: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Authorization</code> Value: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Bearer kdops_YOUR_KEY</code></> },
         { title: 'Set Body', detail: <>Send as <strong>JSON</strong>. Set body to the records format below. Map your trigger data into the fields object.</> },
         { title: 'Test & Activate', detail: 'Click "Test step" to verify. New fields will auto-create in KDOps. Activate your workflow.' },
       ],
@@ -488,8 +488,8 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
       color: '#FF4A00',
       steps: [
         { title: 'Add "Webhooks by Zapier" action', detail: 'In your Zap, add a new action step and choose "Webhooks by Zapier" → "Custom Request".' },
-        { title: 'Set Method & URL', detail: <>Method: <strong>POST</strong> | URL: <code className="text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">{endpoint}</code></> },
-        { title: 'Add Headers', detail: <>Add two headers:<br /><code className="text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Authorization: Bearer kdops_YOUR_KEY</code><br /><code className="text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Content-Type: application/json</code></> },
+        { title: 'Set Method & URL', detail: <>Method: <strong>POST</strong> | URL: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">{endpoint}</code></> },
+        { title: 'Add Headers', detail: <>Add two headers:<br /><code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Authorization: Bearer kdops_YOUR_KEY</code><br /><code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Content-Type: application/json</code></> },
         { title: 'Map Data', detail: 'In the Data section, build the JSON body using Zapier field mappings from your trigger step.' },
         { title: 'Test & Turn On', detail: 'Test the action — check KDOps to see the new record and any auto-created fields.' },
       ],
@@ -514,8 +514,8 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
       color: '#6D00CC',
       steps: [
         { title: 'Add an HTTP module', detail: 'In your scenario, add "HTTP" → "Make a request" module.' },
-        { title: 'Configure the request', detail: <>URL: <code className="text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">{endpoint}</code><br />Method: <strong>POST</strong> | Body type: <strong>Raw</strong> | Content type: <strong>JSON</strong></> },
-        { title: 'Add Authorization header', detail: <>In Headers, add: <code className="text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Authorization: Bearer kdops_YOUR_KEY</code></> },
+        { title: 'Configure the request', detail: <>URL: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">{endpoint}</code><br />Method: <strong>POST</strong> | Body type: <strong>Raw</strong> | Content type: <strong>JSON</strong></> },
+        { title: 'Add Authorization header', detail: <>In Headers, add: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Authorization: Bearer kdops_YOUR_KEY</code></> },
         { title: 'Set Request content', detail: 'Paste the JSON template below and map fields from your trigger module.' },
         { title: 'Run once & schedule', detail: 'Use "Run once" to test, then set your schedule (instant, interval, or on-demand).' },
       ],
@@ -540,7 +540,7 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
       color: '#374151',
       steps: [
         { title: 'Copy the command', detail: 'Use the cURL command below or adapt it to any HTTP client (Postman, Insomnia, Python requests, fetch, etc).' },
-        { title: 'Replace placeholders', detail: <>Replace <code className="text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">kdops_YOUR_KEY</code> with your actual API key.</> },
+        { title: 'Replace placeholders', detail: <>Replace <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">kdops_YOUR_KEY</code> with your actual API key.</> },
         { title: 'Run it', detail: 'Execute from terminal, Postman, or your code. New fields auto-create on first use.' },
       ],
       code: `curl -X POST "${endpoint}" \\
@@ -576,7 +576,7 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
           <button
             key={key}
             onClick={() => setActiveTool(key as typeof activeTool)}
-            className={`flex-1 py-2 rounded-md text-[11px] font-bold transition-all ${
+            className={`flex-1 py-2 rounded-md text-2xs font-bold transition-all ${
               activeTool === key
                 ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-800 dark:text-zinc-100'
                 : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
@@ -591,10 +591,10 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
       <div className="space-y-1.5">
         {active.steps.map((step, i) => (
           <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-zinc-700/40">
-            <span className="flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold shrink-0 mt-0.5" style={{ backgroundColor: active.color }}>{i + 1}</span>
+            <span className="flex items-center justify-center w-5 h-5 rounded-full text-white text-3xs font-bold shrink-0 mt-0.5" style={{ backgroundColor: active.color }}>{i + 1}</span>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{step.title}</p>
-              <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">{step.detail}</div>
+              <div className="text-2xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">{step.detail}</div>
             </div>
           </div>
         ))}
@@ -607,9 +607,9 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
       <div className="rounded-lg border border-emerald-200 dark:border-emerald-800/40 p-3 bg-emerald-50/50 dark:bg-emerald-900/10">
         <div className="flex items-center gap-2 mb-1">
           <Webhook size={12} className="text-emerald-600 dark:text-emerald-400" />
-          <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Pro Tip: Two-Way Sync</span>
+          <span className="text-2xs font-semibold text-emerald-700 dark:text-emerald-400">Pro Tip: Two-Way Sync</span>
         </div>
-        <p className="text-[11px] text-emerald-600 dark:text-emerald-400/80 leading-relaxed">
+        <p className="text-2xs text-emerald-600 dark:text-emerald-400/80 leading-relaxed">
           Set up a <strong>Webhook</strong> in KDOps to push changes back to your tool. When a record is created/updated/deleted in KDOps,
           your n8n/Zapier workflow gets notified instantly.
         </p>
@@ -650,7 +650,7 @@ export function IntegrationsDialog({ open, onOpenChange, tableId, baseId }: Inte
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-2xs font-medium transition-all ${
                   tab === t.id
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700/50'

@@ -140,7 +140,7 @@ export function StatCard({
         <div className={cn('flex items-start justify-between gap-2', compact ? 'mb-1.5' : 'mb-3')}>
           <div className="flex items-center gap-1.5 min-w-0">
             <span className={cn('h-1.5 w-1.5 rounded-full shrink-0 mt-px', cfg.dot)} />
-            <p className={cn('font-semibold uppercase tracking-[0.08em] text-muted-foreground/80 truncate leading-none pt-px', compact ? 'text-[10px]' : 'text-label-xs')}>
+            <p className={cn('font-semibold uppercase tracking-[0.08em] text-muted-foreground/80 truncate leading-none pt-px', compact ? 'text-3xs' : 'text-label-xs')}>
               {title}
             </p>
           </div>
@@ -166,11 +166,11 @@ export function StatCard({
         {(subtitle || trend) && (
           <div className="flex items-center justify-between gap-2 mt-2">
             {subtitle && (
-              <p className="text-[11px] text-muted-foreground tabular-nums truncate">{subtitle}</p>
+              <p className="text-2xs text-muted-foreground tabular-nums truncate">{subtitle}</p>
             )}
             {trend && (
               <div className={cn(
-                'flex items-center gap-0.5 text-[11px] font-semibold tabular-nums shrink-0 ml-auto',
+                'flex items-center gap-0.5 text-2xs font-semibold tabular-nums shrink-0 ml-auto',
                 isPositiveTrend ? cfg.trendUp : cfg.trendDown,
               )}>
                 {isPositiveTrend

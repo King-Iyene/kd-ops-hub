@@ -153,18 +153,18 @@ export function PayrollGroupsTab() {
             <div>
               <div className="flex items-center justify-between gap-2">
                 <p className="font-semibold text-sm">{g.name}</p>
-                <Badge variant="outline" className="text-[10px] capitalize font-medium">
+                <Badge variant="outline" className="text-3xs capitalize font-medium">
                   {g.frequency ? g.frequency.replace('_', ' ') : 'No schedule'}
                 </Badge>
               </div>
               {g.description && (
-                <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{g.description}</p>
+                <p className="text-2xs text-muted-foreground mt-0.5 line-clamp-2">{g.description}</p>
               )}
             </div>
 
             <div>
               <p className="text-2xl font-bold tabular-nums">{formatNaira(g.monthlyCost)}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-2xs text-muted-foreground mt-0.5">
                 per month · {g.members.length} member{g.members.length === 1 ? '' : 's'}
                 {g.anchorDay != null && g.anchorDay !== 99 && ` · pays on the ${ordinal(g.anchorDay)}`}
                 {g.anchorDay === 99 && ' · pays last working day'}
@@ -194,7 +194,7 @@ export function PayrollGroupsTab() {
                   </div>
                 )}
                 {g.members.length === 0 && (
-                  <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
+                  <span className="text-2xs text-muted-foreground inline-flex items-center gap-1">
                     <Users className="h-3 w-3" /> No members yet
                   </span>
                 )}

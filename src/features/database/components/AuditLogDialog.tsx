@@ -102,11 +102,11 @@ function EntryRow({ entry }: { entry: AuditLogEntry }) {
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
+          <span className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
             {entry.user_email ?? entry.user_id?.slice(0, 8) ?? 'System'}
           </span>
           <span
-            className="text-[11px] font-medium px-1.5 py-0.5 rounded"
+            className="text-2xs font-medium px-1.5 py-0.5 rounded"
             style={{
               backgroundColor: `${meta.color}18`,
               color: meta.color,
@@ -114,7 +114,7 @@ function EntryRow({ entry }: { entry: AuditLogEntry }) {
           >
             {meta.label}
           </span>
-          <span className="text-[11px] text-[#6A7184] dark:text-[hsl(200,25%,60%)] ml-auto shrink-0">
+          <span className="text-2xs text-[#6A7184] dark:text-[hsl(200,25%,60%)] ml-auto shrink-0">
             {formatTimestamp(entry.created_at)}
           </span>
         </div>
@@ -229,7 +229,7 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
             >
               Previous
             </Button>
-            <span className="text-[11px] text-[#6A7184] dark:text-[hsl(200,25%,60%)]">Page {page + 1}</span>
+            <span className="text-2xs text-[#6A7184] dark:text-[hsl(200,25%,60%)]">Page {page + 1}</span>
             <Button
               variant="ghost"
               size="sm"

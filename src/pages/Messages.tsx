@@ -367,7 +367,7 @@ export default function Messages() {
                       <p className={cn('truncate text-sm', c.unread ? 'font-semibold text-foreground' : 'font-medium text-foreground')}>
                         {displayName(c)}
                       </p>
-                      <span className="shrink-0 text-[10px] text-muted-foreground">{relativeTime(c.last_message_at)}</span>
+                      <span className="shrink-0 text-3xs text-muted-foreground">{relativeTime(c.last_message_at)}</span>
                     </div>
                     <p className={cn('truncate text-xs mt-0.5', c.unread ? 'text-foreground' : 'text-muted-foreground')}>
                       {c.lastMessagePreview
@@ -397,7 +397,7 @@ export default function Messages() {
                   <div className="min-w-0">
                     <p className="text-sm font-semibold truncate">{displayName(active)}</p>
                     {active.otherParticipants.length > 1 && (
-                      <p className="text-[11px] text-muted-foreground truncate">
+                      <p className="text-2xs text-muted-foreground truncate">
                         {active.otherParticipants.map((p) => p.full_name).join(', ')}
                       </p>
                     )}
@@ -420,7 +420,7 @@ export default function Messages() {
                       return (
                         <div key={m.id} className={cn('flex flex-col', mine ? 'items-end' : 'items-start')}>
                           {!mine && active.otherParticipants.length > 1 && (
-                            <span className="text-[10px] text-muted-foreground mb-0.5 px-1">
+                            <span className="text-3xs text-muted-foreground mb-0.5 px-1">
                               {sender?.full_name ?? 'Unknown'}
                             </span>
                           )}
@@ -430,7 +430,7 @@ export default function Messages() {
                           )}>
                             {m.body}
                           </div>
-                          <span className="text-[10px] text-muted-foreground mt-0.5 px-1">
+                          <span className="text-3xs text-muted-foreground mt-0.5 px-1">
                             {new Date(m.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
@@ -506,7 +506,7 @@ export default function Messages() {
                     onClick={() => setPickedPeople((cur) => [...cur, p])}
                     className="w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-muted/50 transition-colors"
                   >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-semibold uppercase">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-3xs font-semibold uppercase">
                       {initials(p.full_name)}
                     </span>
                     <span className="text-sm truncate flex-1">{p.full_name}</span>

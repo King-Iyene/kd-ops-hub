@@ -162,7 +162,7 @@ export function SignaturePad({ onSign, onCancel, signerName, label = 'Sign below
             className="border-0 border-b rounded-none bg-transparent text-xl font-serif italic focus-visible:ring-0 px-0"
           />
           {typedName && (
-            <p className="mt-3 text-[10px] text-muted-foreground/50">
+            <p className="mt-3 text-3xs text-muted-foreground/50">
               By typing your name you agree this constitutes your electronic signature.
             </p>
           )}

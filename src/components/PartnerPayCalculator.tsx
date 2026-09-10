@@ -415,13 +415,13 @@ export default function PartnerPayCalculator() {
                   </Button>
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground">Applied to every active partner without a personal override.</p>
+              <p className="text-2xs text-muted-foreground">Applied to every active partner without a personal override.</p>
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <Label>Exchange rate {usingManual ? '(manual)' : '(live)'}</Label>
                 {canEdit && (
-                  <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+                  <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
                     Enter manually
                     <Switch
                       checked={usingManual}
@@ -451,7 +451,7 @@ export default function PartnerPayCalculator() {
                           : <>1 USD = ₦{rate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</>}
                 </div>
               )}
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 {usingManual
                   ? 'Used for this run only — not saved, and the draft batch records the rate you used.'
                   : (rateAt ? `Locked from the rate effective ${formatDateTime(rateAt)}` : 'Set in Settings → Exchange rate.')}
@@ -525,7 +525,7 @@ export default function PartnerPayCalculator() {
                 <FileText className="mr-2 h-4 w-4" />
                 Build draft batch{eligible.length > 0 ? ` (${Math.min(eligible.length, MAX_BATCH)} of ${eligible.length})` : ''}
               </Button>
-              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <span className="text-2xs text-muted-foreground flex items-center gap-1">
                 <Info className="h-3 w-3" />
                 {isSuperAdmin
                   ? <>Review up to {MAX_BATCH} partners &amp; their amounts, then create a draft for approval — nothing is paid until you approve it.</>
@@ -579,7 +579,7 @@ export default function PartnerPayCalculator() {
               </div>
             </div>
             <Button type="button" variant="outline" onClick={applyBulkAmount}>Apply to all</Button>
-            <span className="text-[11px] text-muted-foreground pb-2">Or edit any row below for a different amount. Amounts apply to this batch only.</span>
+            <span className="text-2xs text-muted-foreground pb-2">Or edit any row below for a different amount. Amounts apply to this batch only.</span>
           </div>
 
           <div className="flex items-center justify-between text-sm">

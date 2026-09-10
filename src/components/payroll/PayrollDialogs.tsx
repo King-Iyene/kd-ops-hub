@@ -287,7 +287,7 @@ export const PayrollDialogs = ({
         size="xl"
         header={
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
               {editingDraftId ? 'Edit draft' : 'New payroll run'} · Step {draftStep + 1} of {DRAFT_STEPS.length}
             </div>
             <div className="kd-display text-lg leading-tight font-semibold mt-0.5">{DRAFT_STEPS[draftStep].title}</div>
@@ -338,7 +338,7 @@ export const PayrollDialogs = ({
               <div key={s.title} className="flex items-center flex-1 last:flex-none">
                 <div
                   className={cn(
-                    'h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0',
+                    'h-6 w-6 rounded-full flex items-center justify-center text-2xs font-bold shrink-0',
                     i < draftStep ? 'bg-success text-success-foreground' :
                     i === draftStep ? 'bg-primary text-primary-foreground' :
                     'bg-muted text-muted-foreground',
@@ -390,7 +390,7 @@ export const PayrollDialogs = ({
                           <LayoutGrid className="h-4 w-4" />
                         </span>
                         <span className="block text-sm font-semibold leading-tight">All Pay Groups</span>
-                        <span className="block text-[11px] text-muted-foreground -mt-1.5">Everyone active — pick a specific group for cleaner runs</span>
+                        <span className="block text-2xs text-muted-foreground -mt-1.5">Everyone active — pick a specific group for cleaner runs</span>
                       </button>
                       {segmentPayGroups.map((g, i) => {
                         const selected = currentPayGroupId === g.id;
@@ -412,7 +412,7 @@ export const PayrollDialogs = ({
                               <Users2 className="h-4 w-4" />
                             </span>
                             <span className="block text-sm font-semibold leading-tight truncate w-full">{g.name}</span>
-                            <span className="block text-[11px] text-muted-foreground -mt-1.5">
+                            <span className="block text-2xs text-muted-foreground -mt-1.5">
                               {[freq, `${g.memberCount} ${g.memberCount === 1 ? 'person' : 'people'}`].filter(Boolean).join(' · ')}
                             </span>
                           </button>
@@ -514,7 +514,7 @@ export const PayrollDialogs = ({
                   <div className="flex items-center justify-between">
                     <Label>Bonuses &amp; Extras <span className="font-normal text-muted-foreground">— company-wide, applies to everyone</span></Label>
                   </div>
-                  <p className="text-[11px] text-muted-foreground -mt-1">
+                  <p className="text-2xs text-muted-foreground -mt-1">
                     Need to pay a bonus to just one or a few people instead of everyone? Draft this run first, then use <strong>Adjustments</strong> on it — that's per-employee.
                   </p>
                   {form.bonuses.map((b, i) => (
@@ -585,7 +585,7 @@ export const PayrollDialogs = ({
                   <div className="flex items-center justify-between">
                     <Label>Deductions included in this run</Label>
                   </div>
-                  <p className="text-[11px] text-muted-foreground -mt-1.5">
+                  <p className="text-2xs text-muted-foreground -mt-1.5">
                     Turn off any statutory deduction or repayment you don't want applied this run. Changes only affect this payroll — employee and company settings stay the same.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-4">
@@ -741,7 +741,7 @@ export const PayrollDialogs = ({
                       </Badge>
                     ))}
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-2xs text-muted-foreground">
                     Leave empty to not filter by Pay Group. Pick one or more to run payroll for just those groups — assign employees to a Pay Group from Payroll → Schedules → Pay Groups.
                   </p>
                 </div>
@@ -760,7 +760,7 @@ export const PayrollDialogs = ({
                     </Badge>
                   ))}
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-2xs text-muted-foreground">
                   Employees are tagged with a payroll category on their profile page. Uncategorized employees are never excluded by this filter.
                 </p>
               </div>

@@ -32,11 +32,11 @@ export default function IntegrationsTab({ settings, patch, isSuperAdmin }: Props
               />
               <span className="text-sm">Secret key configured</span>
             </label>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               The secret key itself lives only in Supabase's edge function environment variables
-              (<code className="text-[11px] bg-muted px-1 py-0.5 rounded">PAYSTACK_SECRET_KEY_LIVE</code> /{' '}
-              <code className="text-[11px] bg-muted px-1 py-0.5 rounded">_TEST</code>) — it is never stored in
-              the database or sent to the browser. Set or rotate it via <code className="text-[11px] bg-muted px-1 py-0.5 rounded">supabase secrets set</code>,
+              (<code className="text-2xs bg-muted px-1 py-0.5 rounded">PAYSTACK_SECRET_KEY_LIVE</code> /{' '}
+              <code className="text-2xs bg-muted px-1 py-0.5 rounded">_TEST</code>) — it is never stored in
+              the database or sent to the browser. Set or rotate it via <code className="text-2xs bg-muted px-1 py-0.5 rounded">supabase secrets set</code>,
               then flip this toggle so the team can see at a glance that it's set up.
             </p>
           </div>

@@ -166,7 +166,7 @@ export function MobileNav() {
                   <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-primary" />
                 )}
                 <tab.icon className={cn('h-5 w-5 kd-transition', active && 'text-primary')} />
-                <span className={cn('text-[10px] font-medium leading-tight', active && 'text-primary font-semibold')}>{tab.title}</span>
+                <span className={cn('text-3xs font-medium leading-tight', active && 'text-primary font-semibold')}>{tab.title}</span>
                 {tab.badge === 'approvals' && approvalTotal > 0 && (
                   <span className="absolute top-0 right-[calc(50%-14px)] h-4 min-w-4 px-0.5 rounded-full bg-amber-400 text-[9px] font-bold text-amber-900 flex items-center justify-center">
                     {approvalTotal > 9 ? '9+' : approvalTotal}
@@ -184,7 +184,7 @@ export function MobileNav() {
             )}
           >
             <Menu className="h-5 w-5" />
-            <span className="text-[10px] font-medium leading-tight">More</span>
+            <span className="text-3xs font-medium leading-tight">More</span>
           </button>
         </div>
       </nav>
@@ -227,7 +227,7 @@ export function MobileNav() {
             ) : (
               <button
                 onClick={openCommandPalette}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/50 font-medium hover:text-muted-foreground kd-transition"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-3xs text-muted-foreground/50 font-medium hover:text-muted-foreground kd-transition"
                 aria-label="Open command palette"
               >
                 ⌘K
@@ -280,7 +280,7 @@ export function MobileNav() {
                     <item.icon className={cn('h-5 w-5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
                     <span className="flex-1 text-left truncate">{item.title}</span>
                     {item.badge === 'approvals' && approvalTotal > 0 && (
-                      <span className="h-5 min-w-5 px-1 rounded-full bg-amber-400 text-[10px] font-bold text-amber-900 flex items-center justify-center">
+                      <span className="h-5 min-w-5 px-1 rounded-full bg-amber-400 text-3xs font-bold text-amber-900 flex items-center justify-center">
                         {approvalTotal > 9 ? '9+' : approvalTotal}
                       </span>
                     )}
@@ -317,11 +317,11 @@ export function MobileNav() {
                       <p className={cn('text-sm font-semibold leading-none', hasActiveItem ? 'text-primary' : 'text-foreground')}>
                         {hub.label}
                       </p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-none truncate">
+                      <p className="text-2xs text-muted-foreground mt-0.5 leading-none truncate">
                         {hub.description}
                       </p>
                     </div>
-                    <span className="text-[11px] tabular-nums text-muted-foreground/50 font-medium mr-1">
+                    <span className="text-2xs tabular-nums text-muted-foreground/50 font-medium mr-1">
                       {hub.items.length}
                     </span>
                     <ChevronDown className={cn(
@@ -345,7 +345,7 @@ export function MobileNav() {
                             <item.icon className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
                             <span className="flex-1 text-left truncate">{item.title}</span>
                             {item.badge === 'approvals' && approvalTotal > 0 && (
-                              <span className="h-5 min-w-5 px-1 rounded-full bg-amber-400 text-[10px] font-bold text-amber-900 flex items-center justify-center">
+                              <span className="h-5 min-w-5 px-1 rounded-full bg-amber-400 text-3xs font-bold text-amber-900 flex items-center justify-center">
                                 {approvalTotal > 9 ? '9+' : approvalTotal}
                               </span>
                             )}

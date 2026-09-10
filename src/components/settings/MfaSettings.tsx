@@ -443,7 +443,7 @@ export default function MfaSettings() {
                 onKeyDown={(e) => { if (e.key === 'Enter' && disableCode.length >= 6) void handleDisable(); }}
                 autoFocus
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 Security requires you to prove you still have your authenticator before removing it.
               </p>
             </div>
@@ -465,7 +465,7 @@ export default function MfaSettings() {
         </DialogContent>
       </Dialog>
 
-      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+      <p className="text-2xs text-muted-foreground flex items-center gap-1">
         <Info className="h-3 w-3" /> MFA is opt-in for every role. Disable any time.
       </p>
     </div>

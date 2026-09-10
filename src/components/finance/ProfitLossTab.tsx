@@ -202,7 +202,7 @@ export default function ProfitLossTab() {
               <TrendingUp className="h-3 w-3" /> Total Revenue
             </p>
             <p className="text-lg font-bold">{formatNairaCompact(totals.revenue)}</p>
-            <p className="text-[10px] text-muted-foreground">{rows.length} months</p>
+            <p className="text-3xs text-muted-foreground">{rows.length} months</p>
           </CardContent>
         </Card>
         <Card>
@@ -393,7 +393,7 @@ export default function ProfitLossTab() {
         </CardContent>
       </Card>
 
-      <p className="text-[10px] text-muted-foreground text-center">
+      <p className="text-3xs text-muted-foreground text-center">
         Revenue is pulled from the revenue ledger (Reports &gt; Revenue). Months with no entries show &#8358;0.
       </p>
     </div>

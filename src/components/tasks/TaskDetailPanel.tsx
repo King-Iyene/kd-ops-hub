@@ -450,16 +450,16 @@ export function TaskDetailPanel({
               const parent = allTasks.find((t) => t.id === task.parent_id);
               return (
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Subtask of</span>
+                  <span className="text-3xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Subtask of</span>
                   {parent ? (
                     <button
-                      className="text-[10px] text-primary hover:underline font-medium truncate max-w-[200px]"
+                      className="text-3xs text-primary hover:underline font-medium truncate max-w-[200px]"
                       onClick={() => onTaskClick?.(parent)}
                     >
                       {parent.title}
                     </button>
                   ) : (
-                    <span className="text-[10px] text-muted-foreground">Unknown parent</span>
+                    <span className="text-3xs text-muted-foreground">Unknown parent</span>
                   )}
                 </div>
               );
@@ -494,7 +494,7 @@ export function TaskDetailPanel({
             </h2>
           )}
           {creator && (
-            <p className="text-[11px] text-muted-foreground mt-1">
+            <p className="text-2xs text-muted-foreground mt-1">
               Created by {creator.full_name} · {formatDate(task.created_at)}
             </p>
           )}
@@ -578,7 +578,7 @@ export function TaskDetailPanel({
                   Subtasks
                 </Label>
                 {subtasks.length > 0 && (
-                  <span className="text-[11px] text-muted-foreground tabular-nums">{doneSubtasks}/{subtasks.length}</span>
+                  <span className="text-2xs text-muted-foreground tabular-nums">{doneSubtasks}/{subtasks.length}</span>
                 )}
               </div>
               {subtasks.length > 0 && (
@@ -603,7 +603,7 @@ export function TaskDetailPanel({
                         <span className="text-[9px] text-muted-foreground">{profiles.get(sub.assignee_id)!.full_name.split(' ')[0]}</span>
                       )}
                       {sub.due_date && (
-                        <span className={cn('text-[10px] tabular-nums', sub.status !== 'complete' && daysUntil(sub.due_date) !== null && daysUntil(sub.due_date)! < 0 ? 'text-destructive' : 'text-muted-foreground')}>
+                        <span className={cn('text-3xs tabular-nums', sub.status !== 'complete' && daysUntil(sub.due_date) !== null && daysUntil(sub.due_date)! < 0 ? 'text-destructive' : 'text-muted-foreground')}>
                           {formatDate(sub.due_date)}
                         </span>
                       )}
@@ -642,7 +642,7 @@ export function TaskDetailPanel({
                 </Label>
                 <div className="flex items-center gap-1">
                   {checklists.length > 0 && (
-                    <span className="text-[11px] text-muted-foreground tabular-nums mr-1">{checkedItems}/{checklists.length}</span>
+                    <span className="text-2xs text-muted-foreground tabular-nums mr-1">{checkedItems}/{checklists.length}</span>
                   )}
                   <Button size="icon" variant="ghost" className="h-5 w-5" aria-label="Add group" onClick={() => setAddingGroup(true)}>
                     <Plus className="h-3 w-3" />
@@ -678,9 +678,9 @@ export function TaskDetailPanel({
                   return (
                     <div key={groupName} className="space-y-1">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-medium text-muted-foreground">{groupName}</span>
+                        <span className="text-2xs font-medium text-muted-foreground">{groupName}</span>
                         {items.length > 0 && (
-                          <span className="text-[10px] text-muted-foreground/60">{groupChecked}/{items.length}</span>
+                          <span className="text-3xs text-muted-foreground/60">{groupChecked}/{items.length}</span>
                         )}
                       </div>
                       <div className="space-y-0.5">
@@ -732,7 +732,7 @@ export function TaskDetailPanel({
                     {tab === 'activity' && <Activity className="h-3 w-3 inline mr-1.5" />}
                     {tab}
                     {tab === 'comments' && comments.length > 0 && (
-                      <span className="ml-1.5 text-[10px] bg-muted rounded-full px-1.5 py-0.5 tabular-nums">{comments.length}</span>
+                      <span className="ml-1.5 text-3xs bg-muted rounded-full px-1.5 py-0.5 tabular-nums">{comments.length}</span>
                     )}
                   </button>
                 ))}
@@ -774,7 +774,7 @@ export function TaskDetailPanel({
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-semibold">{author?.full_name || 'Unknown'}</span>
-                              <span className="text-[10px] text-muted-foreground">{formatDateTime(c.created_at)}</span>
+                              <span className="text-3xs text-muted-foreground">{formatDateTime(c.created_at)}</span>
                               {isOwn && !isEditing && (
                                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
                                   <Button size="icon" variant="ghost" className="h-5 w-5" aria-label="Edit comment" onClick={() => startEditComment(c)}>
@@ -797,8 +797,8 @@ export function TaskDetailPanel({
                                   onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveEditComment(); }}
                                 />
                                 <div className="flex gap-1.5">
-                                  <Button size="sm" className="h-6 text-[11px]" onClick={saveEditComment} disabled={!editCommentBody.trim()}>Save</Button>
-                                  <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => setEditingCommentId(null)}>Cancel</Button>
+                                  <Button size="sm" className="h-6 text-2xs" onClick={saveEditComment} disabled={!editCommentBody.trim()}>Save</Button>
+                                  <Button size="sm" variant="ghost" className="h-6 text-2xs" onClick={() => setEditingCommentId(null)}>Cancel</Button>
                                 </div>
                               </div>
                             ) : (
@@ -827,7 +827,7 @@ export function TaskDetailPanel({
                             {' '}
                             <span className="text-muted-foreground">{describeActivity(a, profiles)}</span>
                           </p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">{formatDateTime(a.created_at)}</p>
+                          <p className="text-3xs text-muted-foreground mt-0.5">{formatDateTime(a.created_at)}</p>
                         </div>
                       </div>
                     );
@@ -899,7 +899,7 @@ export function TaskDetailPanel({
                       const p = profiles.get(uid);
                       const initials = p ? p.full_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '??';
                       return (
-                        <span key={uid} className="inline-flex items-center gap-1 text-[10px] bg-primary/10 text-primary rounded-full pl-1 pr-1.5 py-0.5 font-medium">
+                        <span key={uid} className="inline-flex items-center gap-1 text-3xs bg-primary/10 text-primary rounded-full pl-1 pr-1.5 py-0.5 font-medium">
                           <span className="h-4 w-4 rounded-full bg-primary/20 flex items-center justify-center text-[8px] font-bold shrink-0">{initials}</span>
                           {p?.full_name || 'Unknown'}
                         </span>
@@ -929,7 +929,7 @@ export function TaskDetailPanel({
                       if (!atTop && !atBottom) e.stopPropagation();
                     }}
                   >
-                    <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">People</div>
+                    <div className="px-2 py-1 text-3xs font-semibold text-muted-foreground uppercase tracking-wider">People</div>
                     {Array.from(profiles.values())
                       .filter((p) => {
                         if (!assigneeSearch) return true;
@@ -978,7 +978,7 @@ export function TaskDetailPanel({
                 onChange={(e) => updateField('due_date', e.target.value || null)}
               />
               {overdue && (
-                <p className="text-[10px] text-destructive font-medium mt-1">{Math.abs(d!)} days overdue</p>
+                <p className="text-3xs text-destructive font-medium mt-1">{Math.abs(d!)} days overdue</p>
               )}
             </MetaField>
 
@@ -996,12 +996,12 @@ export function TaskDetailPanel({
                     </Button>
                   )}
                 </div>
-                <div className="flex items-center justify-between text-[11px]">
+                <div className="flex items-center justify-between text-2xs">
                   <span className="text-muted-foreground">Logged</span>
                   <span className="font-medium tabular-nums">{formatMinutes(totalTimeLogged)}</span>
                 </div>
                 {task.time_estimate_minutes && (
-                  <div className="flex items-center justify-between text-[11px]">
+                  <div className="flex items-center justify-between text-2xs">
                     <span className="text-muted-foreground">Estimate</span>
                     <span className="font-medium tabular-nums">{formatMinutes(task.time_estimate_minutes)}</span>
                   </div>
@@ -1021,7 +1021,7 @@ export function TaskDetailPanel({
                     {timeEntries.filter((e) => e.ended_at).map((entry) => {
                       const who = entry.user_id ? profiles.get(entry.user_id) : null;
                       return (
-                        <div key={entry.id} className="flex items-center justify-between text-[10px] text-muted-foreground px-1 py-0.5 rounded hover:bg-muted/40">
+                        <div key={entry.id} className="flex items-center justify-between text-3xs text-muted-foreground px-1 py-0.5 rounded hover:bg-muted/40">
                           <span className="truncate">{who?.full_name?.split(' ')[0] || 'User'} · {new Date(entry.started_at).toLocaleDateString()}</span>
                           <span className="font-medium tabular-nums shrink-0">{formatMinutes(entry.duration_minutes || 0)}</span>
                         </div>
@@ -1090,7 +1090,7 @@ export function TaskDetailPanel({
                           updateField('tags', newTags);
                         }}
                         className={cn(
-                          'text-[10px] px-2 py-0.5 rounded-full font-medium border transition-all',
+                          'text-3xs px-2 py-0.5 rounded-full font-medium border transition-all',
                           selected ? 'opacity-100' : 'opacity-30 hover:opacity-60',
                         )}
                         style={tag.color ? {
@@ -1114,7 +1114,7 @@ export function TaskDetailPanel({
                   const p = profiles.get(uid);
                   if (!p) return null;
                   return (
-                    <span key={uid} className="text-[10px] bg-muted rounded-full px-2 py-0.5 font-medium">
+                    <span key={uid} className="text-3xs bg-muted rounded-full px-2 py-0.5 font-medium">
                       {p.full_name.split(' ')[0]}
                     </span>
                   );
@@ -1145,7 +1145,7 @@ export function TaskDetailPanel({
                 {task.goal_id && (() => {
                   const goal = availableGoals.find((g) => g.id === task.goal_id);
                   return goal ? (
-                    <div className="flex items-center justify-between text-[10px] mt-1">
+                    <div className="flex items-center justify-between text-3xs mt-1">
                       <span className="text-muted-foreground">{goal.quarter} · {goal.scope}</span>
                       <span className="font-medium tabular-nums">{goal.progress_pct}%</span>
                     </div>
@@ -1229,7 +1229,7 @@ function DependencySection({
     if (!t) return null;
     return (
       <div key={dep.id} className="flex items-center gap-2 group">
-        <span className={cn('text-[10px] font-medium shrink-0 w-[70px]', color)}>{label}</span>
+        <span className={cn('text-3xs font-medium shrink-0 w-[70px]', color)}>{label}</span>
         <button
           onClick={() => onTaskClick?.(t)}
           className="flex-1 text-xs text-left truncate hover:text-primary transition-colors"
@@ -1260,7 +1260,7 @@ function DependencySection({
           return renderDep(dep, targetId, 'Related', 'text-blue-500');
         })}
         {blocking.length === 0 && blockedBy.length === 0 && related.length === 0 && (
-          <p className="text-[11px] text-muted-foreground text-center py-1">No dependencies</p>
+          <p className="text-2xs text-muted-foreground text-center py-1">No dependencies</p>
         )}
       </div>
     </div>
@@ -1337,7 +1337,7 @@ function describeActivity(a: TaskActivity, profiles: Map<string, ProfileRow>): s
 function MetaField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
-      <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</Label>
+      <Label className="text-3xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</Label>
       {children}
     </div>
   );

@@ -302,7 +302,7 @@ export function FinancialHealthCard() {
                 expiring documents, stale cash data, pending approvals —
                 deduct up to 20 points.
               </p>
-              <p className="text-[11px] opacity-80">
+              <p className="text-2xs opacity-80">
                 Set cash-on-hand and external monthly burn in Settings →
                 Company so this number stays accurate. Update weekly.
               </p>

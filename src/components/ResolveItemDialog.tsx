@@ -97,7 +97,7 @@ export function ResolveItemDialog({ item, mode, profile, onClose, onResolved }: 
               className="min-h-[70px]"
             />
           </div>
-          <div className="rounded-md border border-muted-foreground/20 bg-muted/30 p-2.5 text-[11px] leading-snug text-muted-foreground">
+          <div className="rounded-md border border-muted-foreground/20 bg-muted/30 p-2.5 text-2xs leading-snug text-muted-foreground">
             No money will be sent. The original failed status stays on the row for audit; the row drops out of pending and the batch closes. Cancellations are reversible — use the Undo button if you change your mind.
           </div>
         </div>

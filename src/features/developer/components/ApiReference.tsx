@@ -75,7 +75,7 @@ function CodeBlock({ label, code, language }: { label: string; code: string; lan
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700/80 overflow-hidden">
       <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800/80">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{label}</span>
+          <span className="text-3xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{label}</span>
           {language && (
             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-zinc-200/70 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 font-medium">
               {language}
@@ -84,7 +84,7 @@ function CodeBlock({ label, code, language }: { label: string; code: string; lan
         </div>
         <CopyButton text={code} />
       </div>
-      <pre className="px-3 py-2.5 text-[11px] leading-relaxed font-mono text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap break-all bg-white dark:bg-zinc-900/60 overflow-x-auto">
+      <pre className="px-3 py-2.5 text-2xs leading-relaxed font-mono text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap break-all bg-white dark:bg-zinc-900/60 overflow-x-auto">
         {code}
       </pre>
     </div>
@@ -99,7 +99,7 @@ function MethodBadge({ method }: { method: HttpMethod }) {
     DELETE: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
   };
   return (
-    <span className={cn('text-[10px] font-bold font-mono px-2 py-0.5 rounded', colors[method])}>
+    <span className={cn('text-3xs font-bold font-mono px-2 py-0.5 rounded', colors[method])}>
       {method}
     </span>
   );
@@ -1449,27 +1449,27 @@ function EndpointCard({ endpoint, moduleId }: { endpoint: Endpoint; moduleId: st
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-zinc-50 dark:bg-zinc-800/60">
-                      <TableHead className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 h-8">Name</TableHead>
-                      <TableHead className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 h-8">Type</TableHead>
-                      <TableHead className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 h-8">Required</TableHead>
-                      <TableHead className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 h-8">Description</TableHead>
+                      <TableHead className="text-2xs font-semibold text-zinc-500 dark:text-zinc-400 h-8">Name</TableHead>
+                      <TableHead className="text-2xs font-semibold text-zinc-500 dark:text-zinc-400 h-8">Type</TableHead>
+                      <TableHead className="text-2xs font-semibold text-zinc-500 dark:text-zinc-400 h-8">Required</TableHead>
+                      <TableHead className="text-2xs font-semibold text-zinc-500 dark:text-zinc-400 h-8">Description</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {fields.map((f) => (
                       <TableRow key={f.name} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
                         <TableCell className="text-xs font-mono text-zinc-700 dark:text-zinc-300 py-2">{f.name}</TableCell>
-                        <TableCell className="text-[11px] text-zinc-500 dark:text-zinc-400 py-2">{f.type}</TableCell>
+                        <TableCell className="text-2xs text-zinc-500 dark:text-zinc-400 py-2">{f.type}</TableCell>
                         <TableCell className="py-2">
                           {f.required ? (
                             <Badge variant="secondary" className="text-[9px] bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-100">
                               Required
                             </Badge>
                           ) : (
-                            <span className="text-[10px] text-zinc-400">Optional</span>
+                            <span className="text-3xs text-zinc-400">Optional</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-[11px] text-zinc-600 dark:text-zinc-400 py-2">{f.description}</TableCell>
+                        <TableCell className="text-2xs text-zinc-600 dark:text-zinc-400 py-2">{f.description}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -1571,7 +1571,7 @@ export default function ApiReference() {
                 >
                   <m.icon size={13} className="shrink-0" />
                   <span className="truncate">{m.name}</span>
-                  <span className="ml-auto text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">
+                  <span className="ml-auto text-3xs text-zinc-400 dark:text-zinc-500 font-mono">
                     {m.endpoints.length}
                   </span>
                 </button>
@@ -1608,7 +1608,7 @@ Content-Type: application/json`}
                 />
               </div>
             </div>
-            <div className="flex flex-wrap gap-4 text-[11px] text-zinc-500 dark:text-zinc-400 pt-1">
+            <div className="flex flex-wrap gap-4 text-2xs text-zinc-500 dark:text-zinc-400 pt-1">
               <span><strong className="text-zinc-700 dark:text-zinc-300">Rate Limit:</strong> 100 req/min per key (429 when exceeded)</span>
               <span><strong className="text-zinc-700 dark:text-zinc-300">Pagination:</strong> ?page=1&per_page=25 (default 25, max 100)</span>
               <span><strong className="text-zinc-700 dark:text-zinc-300">Base URL:</strong> <code className="font-mono">https://api.kdops.ng/v1</code></span>
@@ -1627,7 +1627,7 @@ Content-Type: application/json`}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{m.name}</h3>
-                  <code className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                  <code className="text-3xs font-mono text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
                     {m.basePath}
                   </code>
                 </div>

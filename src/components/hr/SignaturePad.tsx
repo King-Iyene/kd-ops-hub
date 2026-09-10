@@ -136,7 +136,7 @@ export const SignaturePad = ({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-6 px-2 text-[11px]"
+            className="h-6 px-2 text-2xs"
             onClick={clear}
           >
             <Eraser className="h-3 w-3 mr-1" /> Clear
@@ -162,11 +162,11 @@ export const SignaturePad = ({
         />
       </div>
       {hasStroke ? (
-        <p className="text-[11px] text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+        <p className="text-2xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
           <Check className="h-3 w-3" /> Signature captured
         </p>
       ) : (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Draw with your mouse, finger, or stylus.
         </p>
       )}

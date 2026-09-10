@@ -137,7 +137,7 @@ export default function ActionCenterTab() {
           <CardTitle className="text-base flex items-center gap-2">
             <ClipboardCheck className="h-4 w-4 text-primary" /> What needs your attention
             {criticalCount > 0 && (
-              <Badge variant="outline" className="text-[10px] border-red-500/30 text-red-600 dark:text-red-400">
+              <Badge variant="outline" className="text-3xs border-red-500/30 text-red-600 dark:text-red-400">
                 {criticalCount} critical
               </Badge>
             )}

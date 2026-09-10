@@ -353,7 +353,7 @@ export default function ReferralCommissions() {
         )}
       />
 
-      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+      <p className="text-2xs text-muted-foreground flex items-center gap-1">
         <Info className="h-3 w-3" /> Generating commission payouts (approval batch) is the next step.
       </p>
     </div>

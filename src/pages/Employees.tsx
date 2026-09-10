@@ -602,7 +602,7 @@ const Employees = () => {
                     setSearch(e.target.value);
                     setPage(0);
                   }}
-                  className="pl-8 h-8 text-[13px] bg-transparent border-border/60"
+                  className="pl-8 h-8 text-xs-plus bg-transparent border-border/60"
                 />
               </div>
             }
@@ -707,7 +707,7 @@ const Employees = () => {
                                   return (
                                     <span
                                       key={tid}
-                                      className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                                      className="inline-flex items-center rounded-full px-1.5 py-0.5 text-3xs font-medium"
                                       style={tag.color ? { backgroundColor: `${tag.color}18`, color: tag.color } : undefined}
                                     >
                                       {tag.name}
@@ -719,8 +719,8 @@ const Employees = () => {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-[13px] text-muted-foreground capitalize">{roleLabel(e.role)}</TableCell>
-                      <TableCell className="text-[13px] text-muted-foreground">
+                      <TableCell className="text-xs-plus text-muted-foreground capitalize">{roleLabel(e.role)}</TableCell>
+                      <TableCell className="text-xs-plus text-muted-foreground">
                         {(() => {
                           const name =
                             e.department?.name
@@ -738,19 +738,19 @@ const Employees = () => {
                           );
                         })()}
                       </TableCell>
-                      <TableCell className="text-[13px] text-muted-foreground/80">
+                      <TableCell className="text-xs-plus text-muted-foreground/80">
                         {e.email}
                       </TableCell>
-                      <TableCell className="text-[13px] text-muted-foreground/80 tabular-nums">
+                      <TableCell className="text-xs-plus text-muted-foreground/80 tabular-nums">
                         {e.phone || <span className="text-muted-foreground/40">—</span>}
                       </TableCell>
-                      <TableCell className="text-[13px] text-muted-foreground/70 tabular-nums whitespace-nowrap">
+                      <TableCell className="text-xs-plus text-muted-foreground/70 tabular-nums whitespace-nowrap">
                         {e.created_at ? formatDate(e.created_at) : '—'}
                       </TableCell>
                       <TableCell>
                         <Badge
                           variant="secondary"
-                          className={cn('text-[11px] font-medium capitalize', STATUS_BADGE[e.status] || STATUS_BADGE.inactive)}
+                          className={cn('text-2xs font-medium capitalize', STATUS_BADGE[e.status] || STATUS_BADGE.inactive)}
                         >
                           {e.status === 'invited' && <Mail className="h-3 w-3 mr-1" />}
                           {e.status}
@@ -826,7 +826,7 @@ const Employees = () => {
                       <p className="text-[15px] font-medium text-foreground truncate leading-tight">
                         {displayName(e.first_name, e.last_name, e.full_name)}
                       </p>
-                      <p className="text-[13px] text-muted-foreground/70 truncate mt-0.5 capitalize">
+                      <p className="text-xs-plus text-muted-foreground/70 truncate mt-0.5 capitalize">
                         {roleLabel(e.role)}
                         {(() => {
                           const name = e.department?.name ?? departments.find((d) => d.id === e.department_id)?.name ?? null;
@@ -835,7 +835,7 @@ const Employees = () => {
                       </p>
                     </div>
                     {e.status === 'invited' ? (
-                      <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">Invited</span>
+                      <span className="text-2xs font-medium text-amber-600 dark:text-amber-400">Invited</span>
                     ) : (
                       <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0" />
                     )}

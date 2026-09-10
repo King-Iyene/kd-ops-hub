@@ -1224,7 +1224,7 @@ input[type=number] {
 
   /* Section header */
   .kd-section-label {
-    @apply text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-3;
+    @apply text-2xs font-semibold uppercase tracking-widest text-muted-foreground mb-3;
   }
 
   /* Number display — tabular figures, tight tracking for that fintech feel */

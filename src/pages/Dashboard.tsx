@@ -514,7 +514,7 @@ const Dashboard = () => {
         <AuroraHero className="p-5 sm:p-6" pattern="grid">
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="h-4 w-4 text-muted-foreground" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">My Overview</span>
+            <span className="text-2xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">My Overview</span>
           </div>
           <h1 className="kd-display text-3xl sm:text-4xl font-bold">{greeting}, {firstName}.</h1>
           <p className="text-sm text-muted-foreground mt-1.5">{todSubtitle[tod]}</p>
@@ -553,7 +553,7 @@ const Dashboard = () => {
                       <span className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 kd-transition', iconBg)}>
                         <Icon className={cn('h-4.5 w-4.5', iconColor)} strokeWidth={2} />
                       </span>
-                      <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground kd-transition leading-tight">{label}</span>
+                      <span className="text-2xs font-medium text-muted-foreground group-hover:text-foreground kd-transition leading-tight">{label}</span>
                     </button>
                   ))}
                 </div>
@@ -572,7 +572,7 @@ const Dashboard = () => {
       <AuroraHero className="p-5 sm:p-7" scanLine pattern="grid">
         <div className="flex items-center gap-2 mb-1">
           <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Operations Overview</span>
+          <span className="text-2xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Operations Overview</span>
         </div>
         <h1 className="kd-display text-3xl sm:text-4xl font-bold tracking-tight">
           {greeting}, {firstName}.
@@ -746,7 +746,7 @@ const Dashboard = () => {
                         { label: 'Remaining', value: remaining },
                       ].map(({ label, value }) => (
                         <div key={label} className="rounded-lg bg-muted/60 px-2.5 py-2">
-                          <p className="text-[11px] text-muted-foreground">{label}</p>
+                          <p className="text-2xs text-muted-foreground">{label}</p>
                           <p className="text-xs font-bold currency mt-0.5">{formatNaira(value)}</p>
                         </div>
                       ))}
@@ -823,7 +823,7 @@ const Dashboard = () => {
                     <span className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 kd-transition', iconBg)}>
                       <Icon className={cn('h-4.5 w-4.5', iconColor)} strokeWidth={2} />
                     </span>
-                    <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground kd-transition leading-tight">{label}</span>
+                    <span className="text-2xs font-medium text-muted-foreground group-hover:text-foreground kd-transition leading-tight">{label}</span>
                     {badge !== undefined && badge > 0 && (
                       <span className="absolute top-1.5 right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-amber-100 px-1 text-[9px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
                         {badge}
@@ -866,7 +866,7 @@ const Dashboard = () => {
                         </div>
                         <div className="text-right shrink-0 ml-3">
                           <p className="text-sm font-semibold currency">{formatNaira(s.amount_ngn)}</p>
-                          <span className={cn('inline-block rounded-full px-2 py-0.5 text-[10px] font-medium mt-0.5', urgent ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-muted text-muted-foreground')}>
+                          <span className={cn('inline-block rounded-full px-2 py-0.5 text-3xs font-medium mt-0.5', urgent ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-muted text-muted-foreground')}>
                             {urgent ? 'Soon' : 'Upcoming'}
                           </span>
                         </div>
@@ -962,7 +962,7 @@ const Dashboard = () => {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium leading-snug">{prettyType(item.action_type)}</p>
                       <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{item.description}</p>
-                      <p className="text-[11px] text-muted-foreground/50 mt-1">
+                      <p className="text-2xs text-muted-foreground/50 mt-1">
                         {item.performed_by_name ? `${item.performed_by_name} · ` : ''}
                         {item.created_at ? formatDateTime(item.created_at) : ''}
                       </p>

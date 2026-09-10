@@ -118,7 +118,7 @@ export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEdi
 
   return (
     <div className="flex items-center w-full h-full bg-transparent">
-      <span className="pl-2 text-[13px] text-[#94A3B8] dark:text-[hsl(215,12%,45%)] shrink-0 font-medium">{symbol}</span>
+      <span className="pl-2 text-xs-plus text-[#94A3B8] dark:text-[hsl(215,12%,45%)] shrink-0 font-medium">{symbol}</span>
       <input
         ref={ref}
         type="text"
@@ -320,7 +320,7 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
         }}
       />
       {invalid && (
-        <div className="absolute left-0 top-full z-50 bg-transparent border border-red-300 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap mt-0.5">
+        <div className="absolute left-0 top-full z-50 bg-transparent border border-red-300 rounded px-2 py-1 shadow text-2xs text-red-600 whitespace-nowrap mt-0.5">
           Enter a valid email address
         </div>
       )}
@@ -375,7 +375,7 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         }}
       />
       {invalid && (
-        <div className="absolute left-0 top-full z-50 bg-transparent border border-red-300 rounded px-2 py-1 shadow text-[11px] text-red-600 whitespace-nowrap mt-0.5">
+        <div className="absolute left-0 top-full z-50 bg-transparent border border-red-300 rounded px-2 py-1 shadow text-2xs text-red-600 whitespace-nowrap mt-0.5">
           Enter a valid URL
         </div>
       )}
@@ -417,7 +417,7 @@ export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorP
         }}
       />
       {hasLetters && (
-        <div className="absolute left-0 top-full z-50 bg-transparent border border-amber-300 rounded px-2 py-1 shadow text-[11px] text-amber-600 whitespace-nowrap mt-0.5">
+        <div className="absolute left-0 top-full z-50 bg-transparent border border-amber-300 rounded px-2 py-1 shadow text-2xs text-amber-600 whitespace-nowrap mt-0.5">
           Phone number contains letters
         </div>
       )}
@@ -792,7 +792,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
                   onClick={() => toggle(choice.title)}
                 >
                   <span
-                    className="inline-flex items-center justify-center w-4 h-4 rounded border text-[10px]"
+                    className="inline-flex items-center justify-center w-4 h-4 rounded border text-3xs"
                     style={{
                       borderColor: isChecked ? colors.primary : colors.muted,
                       backgroundColor: isChecked ? colors.primary : 'transparent',
@@ -954,12 +954,12 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
   return (
     <div className="absolute left-0 top-0 z-50 shadow-lg bg-white dark:bg-[hsl(200,30%,10%)]" style={{ minHeight: 80, minWidth: 300, border: '2px solid #2D7FF9', borderRadius: 1 }}>
       <div className="flex items-center gap-0.5 px-1.5 py-1 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
-        <button type="button" className="px-1.5 py-0.5 text-[11px] font-bold text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '**', '**', setText); }} title="Bold">B</button>
-        <button type="button" className="px-1.5 py-0.5 text-[11px] italic text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '*', '*', setText); }} title="Italic">I</button>
-        <button type="button" className="px-1.5 py-0.5 text-[11px] line-through text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '~~', '~~', setText); }} title="Strikethrough">S</button>
+        <button type="button" className="px-1.5 py-0.5 text-2xs font-bold text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '**', '**', setText); }} title="Bold">B</button>
+        <button type="button" className="px-1.5 py-0.5 text-2xs italic text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '*', '*', setText); }} title="Italic">I</button>
+        <button type="button" className="px-1.5 py-0.5 text-2xs line-through text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '~~', '~~', setText); }} title="Strikethrough">S</button>
         <div className="w-px h-3 bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] mx-0.5" />
-        <button type="button" className="px-1.5 py-0.5 text-[11px] text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '`', '`', setText); }} title="Code">&lt;/&gt;</button>
-        <button type="button" className="px-1.5 py-0.5 text-[11px] text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '- ', '', setText); }} title="List">•</button>
+        <button type="button" className="px-1.5 py-0.5 text-2xs text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '`', '`', setText); }} title="Code">&lt;/&gt;</button>
+        <button type="button" className="px-1.5 py-0.5 text-2xs text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '- ', '', setText); }} title="List">•</button>
       </div>
       <textarea
         ref={ref}
@@ -977,7 +977,7 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
         className="w-full p-2 outline-none resize-y border-none bg-transparent"
         style={{ fontSize: 13, color: 'inherit', borderRadius: 0 }}
       />
-      <div className="px-2 pb-1 text-[10px] text-[#9AA2AF]">⌘+Enter to save · Esc to cancel</div>
+      <div className="px-2 pb-1 text-3xs text-[#9AA2AF]">⌘+Enter to save · Esc to cancel</div>
     </div>
   );
 }
@@ -1284,7 +1284,7 @@ export function UserCellEditor({ value, field, onCommit, onCancel }: CellEditorP
                   <span className="text-xs font-medium truncate" style={{ color: colors.text }}>
                     {user.full_name}
                   </span>
-                  <span className="text-[11px] truncate" style={{ color: colors.muted }}>
+                  <span className="text-2xs truncate" style={{ color: colors.muted }}>
                     {user.email}
                   </span>
                 </div>
@@ -1416,7 +1416,7 @@ export function LinkedTasksCellEditor({ value, onCommit, onCancel }: CellEditorP
                   {task.title}
                 </span>
                 {task.status && (
-                  <span className="text-[10px] shrink-0" style={{ color: colors.muted }}>
+                  <span className="text-3xs shrink-0" style={{ color: colors.muted }}>
                     {task.status}
                   </span>
                 )}

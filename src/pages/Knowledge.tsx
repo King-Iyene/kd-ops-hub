@@ -318,14 +318,14 @@ const Knowledge = () => {
                       <Badge variant="secondary" className={CATEGORY_BADGE[a.category]}>
                         {CATEGORY_LABELS[a.category]}
                       </Badge>
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-2xs text-muted-foreground">
                         v{a.version}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2 whitespace-pre-wrap">
                       {a.body.slice(0, 240)}
                     </p>
-                    <p className="text-[11px] text-muted-foreground/70 mt-1">
+                    <p className="text-2xs text-muted-foreground/70 mt-1">
                       Updated {formatDateTime(a.updated_at)}
                     </p>
                   </div>

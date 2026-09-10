@@ -59,7 +59,7 @@ function RatioGauge({ label, value, threshold, thresholdLabel }: {
           style={{ left: `${Math.min(100, (threshold / (threshold * 2)) * 100)}%` }}
         />
       </div>
-      <p className="text-[10px] text-muted-foreground">Healthy: ≥ {thresholdLabel}</p>
+      <p className="text-3xs text-muted-foreground">Healthy: ≥ {thresholdLabel}</p>
     </div>
   );
 }
@@ -206,11 +206,11 @@ export default function WorkingCapitalTab() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3">
-                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-1.5 text-2xs text-muted-foreground">
                     <span className="w-3 h-2 rounded-[2px]" style={{ background: INFLOW_COLOR }} />
                     Inflows
                   </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-1.5 text-2xs text-muted-foreground">
                     <span className="w-3 h-2 rounded-[2px]" style={{ background: OUTFLOW_COLOR }} />
                     Outflows
                   </div>
@@ -239,7 +239,7 @@ export default function WorkingCapitalTab() {
                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                   {data.waterfall.map((w) => (
                     <div key={w.label}>
-                      <p className="text-[10px] text-muted-foreground">{w.label}</p>
+                      <p className="text-3xs text-muted-foreground">{w.label}</p>
                       <p className={cn(
                         'text-xs font-semibold tabular-nums',
                         w.running_wc_ngn >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',

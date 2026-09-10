@@ -264,7 +264,7 @@ export function DriverVerificationPanel() {
                         {hasNin ? (
                           <span className="flex items-center gap-2">
                             ****{driver.nin_last4 || driver.nin?.slice(-4)}
-                            <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700 text-[10px]">Verified</Badge>
+                            <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700 text-3xs">Verified</Badge>
                           </span>
                         ) : (
                           <span className="text-amber-600">Not submitted</span>
@@ -414,7 +414,7 @@ export function DriverVerificationPanel() {
                 maxLength={11}
                 inputMode="numeric"
               />
-              <p className="text-[10px] text-muted-foreground">Your NIN is stored securely. Only the last 4 digits are visible to others.</p>
+              <p className="text-3xs text-muted-foreground">Your NIN is stored securely. Only the last 4 digits are visible to others.</p>
             </div>
             <div className="space-y-1">
               <Label>Driver License Number</Label>

@@ -126,7 +126,7 @@ export default function PayHub() {
       <Card className="p-6 bg-gradient-to-br from-primary to-[hsl(200,90%,20%)] text-white border-0">
         <div className="flex flex-wrap items-center gap-8">
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-wide opacity-75">Money out this period, across every channel</div>
+            <div className="text-2xs font-bold uppercase tracking-wide opacity-75">Money out this period, across every channel</div>
             <div className="text-3xl font-extrabold tracking-tight mt-1.5 currency">
               {loading ? '—' : formatNaira(totalMoneyOut)}
             </div>

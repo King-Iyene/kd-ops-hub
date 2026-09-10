@@ -1106,7 +1106,7 @@ const ProfilePage = () => {
                         <span className="font-medium">Net pay (indicative)</span>
                         <span className="font-bold currency tabular-nums text-success">{formatNaira(comp.netMonthlyNgn)}</span>
                       </div>
-                      <p className="text-[11px] text-muted-foreground pt-1">
+                      <p className="text-2xs text-muted-foreground pt-1">
                         Indicative — your monthly payslip is authoritative and may include bonuses, advances or other adjustments.
                       </p>
                     </div>
@@ -1353,7 +1353,7 @@ const ProfilePage = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-sm font-medium truncate">{r.title}</p>
-                            <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider shrink-0', t.bg, t.fg)}>
+                            <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-semibold uppercase tracking-wider shrink-0', t.bg, t.fg)}>
                               <t.Icon className="h-2.5 w-2.5" /> {t.label}
                             </span>
                           </div>
@@ -1363,7 +1363,7 @@ const ProfilePage = () => {
                               {r.amountNgn !== null && (
                                 <span className="text-xs font-semibold tabular-nums">{formatNaira(r.amountNgn)}</span>
                               )}
-                              <span className="text-[10px] text-muted-foreground/70 tabular-nums">{formatDateTime(r.createdAt)}</span>
+                              <span className="text-3xs text-muted-foreground/70 tabular-nums">{formatDateTime(r.createdAt)}</span>
                               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-foreground kd-transition" />
                             </div>
                           </div>
@@ -1477,7 +1477,7 @@ const ProfilePage = () => {
                             <Badge
                               variant="outline"
                               className={cn(
-                                'font-medium text-[10px]',
+                                'font-medium text-3xs',
                                 live
                                   ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
                                   : 'bg-muted text-muted-foreground border-border',
@@ -1646,7 +1646,7 @@ function HeroStat({
       )}>
         {value}
       </p>
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
+      <p className="text-3xs uppercase tracking-wider text-muted-foreground mt-0.5">
         {label}
       </p>
     </div>

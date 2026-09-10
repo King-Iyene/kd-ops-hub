@@ -152,7 +152,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
   const { ui_type } = field;
 
   if (value === null || value === undefined || value === '') {
-    return <span className="text-[#D1D5DB] dark:text-[hsl(200,25%,35%)] italic text-[11px]">Empty</span>;
+    return <span className="text-[#D1D5DB] dark:text-[hsl(200,25%,35%)] italic text-2xs">Empty</span>;
   }
 
   // Checkbox
@@ -187,7 +187,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
     const color = choice ? getPillColor(choice.color) : getPillColor('Gray');
     return (
       <span
-        className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
+        className="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium"
         style={{ backgroundColor: color.bg, color: color.text }}
       >
         {String(value)}
@@ -206,7 +206,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
           return (
             <span
               key={item}
-              className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium"
               style={{ backgroundColor: color.bg, color: color.text }}
             >
               {item}
@@ -250,7 +250,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
       return (
         <div className="flex items-center gap-1.5">
           <img src={url} alt="" className="w-8 h-8 rounded object-cover border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]" />
-          <span className="text-[11px] text-[#6A7184] dark:text-[hsl(200,25%,55%)]">
+          <span className="text-2xs text-[#6A7184] dark:text-[hsl(200,25%,55%)]">
             {Array.isArray(value) ? `${(value as unknown[]).length} file(s)` : '1 file'}
           </span>
         </div>
@@ -385,7 +385,7 @@ function GalleryCard({
         </div>
         {previewFields.map((f) => (
           <div key={f.id} className="mb-2.5 last:mb-0">
-            <div className="text-[10px] font-semibold text-[#9AA2AF] dark:text-[hsl(200,25%,50%)] uppercase tracking-wider mb-0.5">
+            <div className="text-3xs font-semibold text-[#9AA2AF] dark:text-[hsl(200,25%,50%)] uppercase tracking-wider mb-0.5">
               {f.name}
             </div>
             <FieldValue field={f} value={record[f.pg_column_name]} />

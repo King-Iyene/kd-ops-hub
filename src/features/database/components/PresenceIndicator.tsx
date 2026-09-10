@@ -49,7 +49,7 @@ export function PresenceIndicator() {
           {/* Online dot */}
           <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#22C55E] border-2 border-white dark:border-[hsl(200,30%,8%)]" />
           {/* Tooltip */}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2 py-1 rounded bg-[#1F2937] text-white text-[11px] whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2 py-1 rounded bg-[#1F2937] text-white text-2xs whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
             <span className="font-medium">{u.name}</span>
             <span className="text-[#9CA3AF] ml-1">Online now</span>
           </div>

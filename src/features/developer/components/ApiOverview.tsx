@@ -244,7 +244,7 @@ export default function ApiOverview({
                 </p>
                 {s.code && (
                   <div className="rounded-lg bg-zinc-950 dark:bg-zinc-900 p-3 overflow-x-auto">
-                    <code className="text-[11px] leading-relaxed text-emerald-400 font-mono whitespace-pre">
+                    <code className="text-2xs leading-relaxed text-emerald-400 font-mono whitespace-pre">
                       {s.code}
                     </code>
                   </div>
@@ -325,7 +325,7 @@ export default function ApiOverview({
                     <Badge
                       key={ep}
                       variant="secondary"
-                      className="font-mono text-[10px] px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+                      className="font-mono text-3xs px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
                     >
                       {ep}
                     </Badge>

@@ -95,7 +95,7 @@ export default function RevenueConcentrationTab() {
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground">Top client share</p>
                 <p className="text-2xl font-bold">{data.top_client_pct != null ? `${data.top_client_pct.toFixed(1)}%` : '—'}</p>
-                <p className="text-[10px] text-muted-foreground">{data.clients[0]?.client_name}</p>
+                <p className="text-3xs text-muted-foreground">{data.clients[0]?.client_name}</p>
               </CardContent>
             </Card>
             <Card>
@@ -108,7 +108,7 @@ export default function RevenueConcentrationTab() {
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground">Active clients</p>
                 <p className="text-2xl font-bold">{data.client_count}</p>
-                <p className="text-[10px] text-muted-foreground">12-month trailing</p>
+                <p className="text-3xs text-muted-foreground">12-month trailing</p>
               </CardContent>
             </Card>
           </div>
@@ -124,7 +124,7 @@ export default function RevenueConcentrationTab() {
               <CardContent>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
                   {pieData.map((d, i) => (
-                    <div key={d.name} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <div key={d.name} className="flex items-center gap-1.5 text-2xs text-muted-foreground">
                       <span
                         className="w-2 h-2 rounded-[2px] shrink-0"
                         style={{ background: i < SERIES.length ? SERIES[i] : PIE_DEEMPHASIS }}
@@ -231,9 +231,9 @@ export default function RevenueConcentrationTab() {
                   to 10,000 (one client with 100% of revenue). Regulators and investors use the same scale:
                 </p>
                 <ul className="space-y-1 text-muted-foreground">
-                  <li className="flex items-center gap-2"><Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 border-emerald-500/30 text-[10px]">{'< 1,500'}</Badge> Diversified — low client risk</li>
-                  <li className="flex items-center gap-2"><Badge variant="outline" className="bg-amber-500/15 text-amber-700 border-amber-500/30 text-[10px]">1,500–2,500</Badge> Moderate concentration</li>
-                  <li className="flex items-center gap-2"><Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">{'> 2,500'}</Badge> Highly concentrated — diversify revenue sources</li>
+                  <li className="flex items-center gap-2"><Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 border-emerald-500/30 text-3xs">{'< 1,500'}</Badge> Diversified — low client risk</li>
+                  <li className="flex items-center gap-2"><Badge variant="outline" className="bg-amber-500/15 text-amber-700 border-amber-500/30 text-3xs">1,500–2,500</Badge> Moderate concentration</li>
+                  <li className="flex items-center gap-2"><Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-3xs">{'> 2,500'}</Badge> Highly concentrated — diversify revenue sources</li>
                 </ul>
               </div>
             </CardContent>

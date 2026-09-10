@@ -148,7 +148,7 @@ export function PaymentEmailAudienceCard() {
                         </p>
                         {selected && <Check className="h-3.5 w-3.5 text-primary" />}
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{opt.desc}</p>
+                      <p className="text-2xs text-muted-foreground mt-0.5 leading-snug">{opt.desc}</p>
                     </div>
                   </div>
                 </button>
@@ -158,7 +158,7 @@ export function PaymentEmailAudienceCard() {
         )}
 
         {!isAdmin && (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             Only admins and super admins can change this setting.
           </p>
         )}

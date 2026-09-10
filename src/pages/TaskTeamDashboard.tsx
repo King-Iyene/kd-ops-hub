@@ -100,7 +100,7 @@ function DeltaBadge({ current, previous }: { current: number; previous: number }
   const pct = pctDelta(current, previous);
   const up = pct >= 0;
   return (
-    <span className={cn('inline-flex items-center gap-0.5 text-[11px] font-medium', up ? 'text-emerald-500' : 'text-red-500')}>
+    <span className={cn('inline-flex items-center gap-0.5 text-2xs font-medium', up ? 'text-emerald-500' : 'text-red-500')}>
       {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
       {Math.abs(pct)}%
     </span>
@@ -129,7 +129,7 @@ function PointDeltaBadge({ current, previous }: { current: number; previous: num
   const diff = current - previous;
   const up = diff >= 0;
   return (
-    <span className={cn('inline-flex items-center gap-0.5 text-[11px] font-medium', up ? 'text-emerald-500' : 'text-red-500')}>
+    <span className={cn('inline-flex items-center gap-0.5 text-2xs font-medium', up ? 'text-emerald-500' : 'text-red-500')}>
       {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
       {Math.abs(diff)}pt
     </span>
@@ -428,7 +428,7 @@ export default function TaskTeamDashboard() {
           <CardHeader className="pb-2"><CardTitle className="text-sm">Status distribution</CardTitle></CardHeader>
           <CardContent>
             {statusClickFilter && (
-              <button onClick={() => setStatusClickFilter(null)} className="mb-2 inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
+              <button onClick={() => setStatusClickFilter(null)} className="mb-2 inline-flex items-center gap-1 text-2xs text-primary hover:underline">
                 Filtered by: {statusClickFilter} <X className="h-3 w-3" />
               </button>
             )}
@@ -556,7 +556,7 @@ export default function TaskTeamDashboard() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Blocked tasks</CardTitle>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             Date Blocked is approximated from task creation date — this schema has no dedicated "blocked at" timestamp. Escalation Status is derived from Days Blocked.
           </p>
         </CardHeader>
@@ -591,7 +591,7 @@ export default function TaskTeamDashboard() {
                     <td className="py-2 pr-3 max-w-[260px] truncate">{b.blockerDescription}</td>
                     <td className="py-2 pr-3">
                       <span className={cn(
-                        'text-[11px] font-medium px-2 py-0.5 rounded-full',
+                        'text-2xs font-medium px-2 py-0.5 rounded-full',
                         b.escalation === 'Escalated' ? 'bg-red-500/15 text-red-500' : b.escalation === 'Watch' ? 'bg-amber-500/15 text-amber-500' : 'bg-muted text-muted-foreground',
                       )}
                       >

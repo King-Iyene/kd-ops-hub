@@ -81,7 +81,7 @@ export function ElaTamperAnalysisDialog({ target, onClose }: ElaTamperAnalysisDi
                   <span className={`text-lg font-bold ${verdict.color}`}>{verdict.icon}</span>
                   <div>
                     <p className={`text-sm font-semibold ${verdict.color}`}>{verdict.label}</p>
-                    <p className="text-[11px] text-muted-foreground">Confidence score: {Math.round(avg)}/255 (higher = more variation detected)</p>
+                    <p className="text-2xs text-muted-foreground">Confidence score: {Math.round(avg)}/255 (higher = more variation detected)</p>
                   </div>
                 </div>
 
@@ -123,7 +123,7 @@ export function ElaTamperAnalysisDialog({ target, onClose }: ElaTamperAnalysisDi
                   </div>
                 </div>
 
-                <p className="text-[11px] text-muted-foreground italic">
+                <p className="text-2xs text-muted-foreground italic">
                   This is an automated visual aid, not definitive proof. WhatsApp-forwarded images, screenshots, and re-saved photos can produce bright areas without any tampering. Always verify with the original source before taking action.
                 </p>
               </>

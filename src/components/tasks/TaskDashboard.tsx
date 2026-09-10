@@ -165,8 +165,8 @@ export function TaskDashboard({ tasks, allTasks, profiles, currentUserId, onTask
                       <p className="text-sm font-medium truncate">{t.title}</p>
                       <p className="text-xs text-muted-foreground">{assignee?.full_name ?? 'Unassigned'}</p>
                     </div>
-                    <Badge variant="destructive" className="shrink-0 text-[10px]">{Math.abs(d)}d overdue</Badge>
-                    <Badge variant="secondary" className={cn('shrink-0 text-[10px]', PRIORITY_CLASS[t.priority])}>{t.priority}</Badge>
+                    <Badge variant="destructive" className="shrink-0 text-3xs">{Math.abs(d)}d overdue</Badge>
+                    <Badge variant="secondary" className={cn('shrink-0 text-3xs', PRIORITY_CLASS[t.priority])}>{t.priority}</Badge>
                   </button>
                 );
               })}
@@ -197,7 +197,7 @@ export function TaskDashboard({ tasks, allTasks, profiles, currentUserId, onTask
                       <p className="text-sm font-medium truncate">{t.title}</p>
                       <p className="text-xs text-muted-foreground">{assignee?.full_name ?? 'Unassigned'}</p>
                     </div>
-                    <Badge variant="secondary" className="bg-destructive/10 text-destructive text-[10px]">Blocked</Badge>
+                    <Badge variant="secondary" className="bg-destructive/10 text-destructive text-3xs">Blocked</Badge>
                   </button>
                 );
               })}
@@ -226,11 +226,11 @@ function KpiCard({ icon: Icon, label, value, trend, trendUp, sub, color }: {
             <p className="text-xs text-muted-foreground font-medium">{label}</p>
             <p className={cn('text-3xl font-bold mt-1 tabular-nums', color)}>{value}</p>
             {trend && (
-              <p className={cn('text-[11px] mt-1 flex items-center gap-0.5', trendUp ? 'text-emerald-600' : 'text-red-500')}>
+              <p className={cn('text-2xs mt-1 flex items-center gap-0.5', trendUp ? 'text-emerald-600' : 'text-red-500')}>
                 <ArrowUpRight className={cn('h-3 w-3', !trendUp && 'rotate-90')} /> {trend}
               </p>
             )}
-            {sub && <p className="text-[11px] text-muted-foreground mt-1">{sub}</p>}
+            {sub && <p className="text-2xs text-muted-foreground mt-1">{sub}</p>}
           </div>
           <div className="h-9 w-9 rounded-lg flex items-center justify-center bg-muted">
             <Icon className={cn('h-4.5 w-4.5', color)} />

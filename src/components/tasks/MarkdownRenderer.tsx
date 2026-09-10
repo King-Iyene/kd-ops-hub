@@ -30,7 +30,7 @@ function renderInline(text: string): string {
   result = result.replace(/~~(.+?)~~/g, '<del>$1</del>');
 
   // Inline code
-  result = result.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-muted text-[11px] font-mono">$1</code>');
+  result = result.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-muted text-2xs font-mono">$1</code>');
 
   // Links — only allow http(s) and mailto protocols
   result = result.replace(
@@ -83,7 +83,7 @@ function parseMarkdown(source: string): string {
     // Code blocks
     if (line.startsWith('```')) {
       if (inCodeBlock) {
-        html.push(`<pre class="bg-muted rounded p-2 text-[11px] font-mono overflow-x-auto my-1"><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+        html.push(`<pre class="bg-muted rounded p-2 text-2xs font-mono overflow-x-auto my-1"><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
         codeLines = [];
         inCodeBlock = false;
       } else {
@@ -141,7 +141,7 @@ function parseMarkdown(source: string): string {
 
   flushList();
   if (inCodeBlock) {
-    html.push(`<pre class="bg-muted rounded p-2 text-[11px] font-mono overflow-x-auto my-1"><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+    html.push(`<pre class="bg-muted rounded p-2 text-2xs font-mono overflow-x-auto my-1"><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
   }
 
   return html.join('\n');

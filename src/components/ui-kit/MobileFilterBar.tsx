@@ -76,7 +76,7 @@ export function MobileFilterBar({
           <SlidersHorizontal className="h-4 w-4" />
           <span className="text-sm">Filters</span>
           {activeCount > 0 && (
-            <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold">
+            <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-2xs font-bold">
               {activeCount > 9 ? '9+' : activeCount}
             </span>
           )}

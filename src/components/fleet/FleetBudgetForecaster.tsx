@@ -158,7 +158,7 @@ export function FleetBudgetForecaster() {
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Calculator className="h-4 w-4 text-muted-foreground" />
           Fleet Budget Forecast
-          <Badge variant="secondary" className="text-[10px] font-normal">
+          <Badge variant="secondary" className="text-3xs font-normal">
             6-month history + 2-month projection
           </Badge>
           <Tooltip>
@@ -175,16 +175,16 @@ export function FleetBudgetForecaster() {
         {/* Summary KPIs */}
         <div className="grid grid-cols-3 gap-3 mb-4">
           <div className="rounded-lg bg-muted/50 px-3 py-2">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Avg Monthly</div>
+            <div className="text-3xs text-muted-foreground uppercase tracking-wider">Avg Monthly</div>
             <div className="text-sm font-semibold tabular-nums">{formatNaira(avgMonthly)}</div>
           </div>
           {nextMonth && (
             <div className="rounded-lg bg-muted/50 px-3 py-2">
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Next Month</div>
+              <div className="text-3xs text-muted-foreground uppercase tracking-wider">Next Month</div>
               <div className="text-sm font-semibold tabular-nums flex items-center gap-1">
                 {formatNaira(nextMonth.total)}
                 {changeFromLast !== 0 && (
-                  <span className={`text-[10px] ${changeFromLast > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                  <span className={`text-3xs ${changeFromLast > 0 ? 'text-red-500' : 'text-green-500'}`}>
                     {changeFromLast > 0 ? '+' : ''}{changeFromLast}%
                   </span>
                 )}
@@ -193,7 +193,7 @@ export function FleetBudgetForecaster() {
           )}
           {nextMonth && (
             <div className="rounded-lg bg-muted/50 px-3 py-2">
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Fuel / Maint</div>
+              <div className="text-3xs text-muted-foreground uppercase tracking-wider">Fuel / Maint</div>
               <div className="text-xs tabular-nums mt-0.5">
                 <span className="font-medium">{formatNaira(nextMonth.fuel)}</span>
                 <span className="text-muted-foreground"> / </span>

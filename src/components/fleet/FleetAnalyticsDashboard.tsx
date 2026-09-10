@@ -58,7 +58,7 @@ export function KpiCard({
           <div className={`kd-stat-number text-xl font-bold tracking-tight ${warn ? 'text-red-600' : ''}`}>{value}</div>
         )}
         {subtext && value !== null && (
-          <div className="text-[11px] text-muted-foreground mt-0.5">{subtext}</div>
+          <div className="text-2xs text-muted-foreground mt-0.5">{subtext}</div>
         )}
       </CardContent>
     </Card>

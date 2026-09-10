@@ -614,7 +614,7 @@ const Invoices = () => {
                             {inv.client_name}
                           </p>
                           {inv.client_email && (
-                            <p className="text-[10px] text-muted-foreground truncate">
+                            <p className="text-3xs text-muted-foreground truncate">
                               {inv.client_email}
                             </p>
                           )}
@@ -986,7 +986,7 @@ function StatusBadge({ status, size }: { status: string; size?: 'sm' }) {
     draft: 'Draft', sent: 'Sent', paid: 'Paid', overdue: 'Overdue', cancelled: 'Cancelled',
   };
   return (
-    <Badge variant="secondary" className={cn('font-medium', size === 'sm' ? 'text-[11px]' : 'text-xs', map[status] ?? 'bg-muted text-muted-foreground')}>
+    <Badge variant="secondary" className={cn('font-medium', size === 'sm' ? 'text-2xs' : 'text-xs', map[status] ?? 'bg-muted text-muted-foreground')}>
       {label[status] ?? status}
     </Badge>
   );

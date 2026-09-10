@@ -92,7 +92,7 @@ export function PayrollLifecycleRail({
             ) : (
               <span
                 className={cn(
-                  'relative z-10 flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold',
+                  'relative z-10 flex h-6 w-6 items-center justify-center rounded-full text-3xs font-bold',
                   p.state === 'done' ? 'bg-success text-success-foreground'
                     : p.state === 'current' ? (dark ? 'bg-secondary text-[#00283d]' : 'bg-primary text-primary-foreground')
                     : dark ? 'bg-white/10 text-white/40' : 'bg-muted text-muted-foreground',

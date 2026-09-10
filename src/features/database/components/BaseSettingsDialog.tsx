@@ -385,7 +385,7 @@ function BackupsTab({ baseId }: { baseId: string }) {
             >
               <div className="min-w-0">
                 <p className="text-xs font-medium truncate">{snap.name}</p>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-3xs text-muted-foreground">
                   {new Date(snap.created_at).toLocaleString()}
                 </p>
               </div>
@@ -395,7 +395,7 @@ function BackupsTab({ baseId }: { baseId: string }) {
                     <Button
                       variant="destructive"
                       size="sm"
-                      className="text-[10px] h-6 px-2"
+                      className="text-3xs h-6 px-2"
                       onClick={async () => {
                         await restoreSnapshot.mutateAsync(snap.id);
                         setRestoreId(null);
@@ -407,7 +407,7 @@ function BackupsTab({ baseId }: { baseId: string }) {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-[10px] h-6 px-2"
+                      className="text-3xs h-6 px-2"
                       onClick={() => setRestoreId(null)}
                     >
                       Cancel
@@ -418,7 +418,7 @@ function BackupsTab({ baseId }: { baseId: string }) {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-[10px] h-6 px-2"
+                      className="text-3xs h-6 px-2"
                       onClick={() => setRestoreId(snap.id)}
                     >
                       Restore
@@ -426,7 +426,7 @@ function BackupsTab({ baseId }: { baseId: string }) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-[10px] h-6 px-2 text-red-500 hover:text-red-600"
+                      className="text-3xs h-6 px-2 text-red-500 hover:text-red-600"
                       onClick={() => deleteSnapshot.mutate({ snapshotId: snap.id, baseId })}
                     >
                       Delete
@@ -529,7 +529,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
         <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] flex items-center gap-1.5">
           <Webhook size={13} className="text-[#2D7FF9]" /> Webhooks
         </p>
-        <p className="text-[11px] text-[#9AA2AF]">
+        <p className="text-2xs text-[#9AA2AF]">
           Send HTTP POST requests to external URLs when records are created, updated, or deleted.
           Use with n8n, Zapier, or any webhook receiver.
         </p>
@@ -551,7 +551,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="e.g. n8n — new expenses"
-              className="h-8 text-[13px]"
+              className="h-8 text-xs-plus"
             />
           </div>
           <div className="space-y-1.5">
@@ -560,7 +560,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
               value={newUrl}
               onChange={(e) => setNewUrl(e.target.value)}
               placeholder="https://your-n8n.com/webhook/..."
-              className="h-8 text-[13px] font-mono"
+              className="h-8 text-xs-plus font-mono"
             />
           </div>
           <div className="space-y-1.5">
@@ -570,7 +570,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
                 <button
                   key={ev.value}
                   className={cn(
-                    'px-2 py-1 rounded text-[11px] border transition-colors',
+                    'px-2 py-1 rounded text-2xs border transition-colors',
                     newEvents.includes(ev.value)
                       ? 'bg-[#2D7FF9] text-white border-[#2D7FF9]'
                       : 'bg-white dark:bg-[hsl(200,30%,10%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-[#6A7184]',
@@ -588,7 +588,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
               value={newSecret}
               onChange={(e) => setNewSecret(e.target.value)}
               placeholder="whsec_..."
-              className="h-8 text-[13px] font-mono"
+              className="h-8 text-xs-plus font-mono"
             />
           </div>
           <div className="flex gap-2">
@@ -627,7 +627,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium truncate">{hook.name}</p>
-                  <p className="text-[10px] text-muted-foreground font-mono truncate">{hook.url}</p>
+                  <p className="text-3xs text-muted-foreground font-mono truncate">{hook.url}</p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {hook.events.map(ev => (
                       <span key={ev} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#2D7FF9]/10 text-[#2D7FF9]">
@@ -669,7 +669,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
 
       <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(200,30%,8%)] p-3 space-y-2">
         <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Webhook Payload</p>
-        <pre className="text-[10px] font-mono bg-white dark:bg-[hsl(200,30%,10%)] border rounded p-2 overflow-x-auto whitespace-pre text-[#374151] dark:text-[hsl(200,25%,88%)]">{`{
+        <pre className="text-3xs font-mono bg-white dark:bg-[hsl(200,30%,10%)] border rounded p-2 overflow-x-auto whitespace-pre text-[#374151] dark:text-[hsl(200,25%,88%)]">{`{
   "event": "record.created",
   "timestamp": "2026-09-05T12:00:00Z",
   "base_id": "uuid",
@@ -681,7 +681,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
     ]
   }
 }`}</pre>
-        <p className="text-[10px] text-[#9AA2AF]">
+        <p className="text-3xs text-[#9AA2AF]">
           If a secret is set, requests include an <code className="bg-white dark:bg-[hsl(200,30%,10%)] px-1 rounded">X-KDOps-Signature</code> header (SHA-256 of body + secret).
         </p>
       </div>
@@ -782,15 +782,15 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
       <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(200,30%,8%)] p-3 space-y-2">
         <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">API Base URL</p>
         <div className="flex items-center gap-2">
-          <code className="flex-1 text-[11px] bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-2 py-1.5 font-mono text-[#374151] dark:text-[hsl(200,25%,88%)] select-all overflow-x-auto">
+          <code className="flex-1 text-2xs bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-2 py-1.5 font-mono text-[#374151] dark:text-[hsl(200,25%,88%)] select-all overflow-x-auto">
             {apiBaseUrl}
           </code>
           <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => handleCopy(apiBaseUrl)}>
             <Copy size={12} />
           </Button>
         </div>
-        <p className="text-[11px] text-[#9AA2AF]">
-          Use with header: <code className="bg-white dark:bg-[hsl(200,30%,10%)] px-1 rounded text-[10px]">Authorization: Bearer kdops_xxx</code>
+        <p className="text-2xs text-[#9AA2AF]">
+          Use with header: <code className="bg-white dark:bg-[hsl(200,30%,10%)] px-1 rounded text-3xs">Authorization: Bearer kdops_xxx</code>
         </p>
       </div>
 
@@ -800,7 +800,7 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
             API key created — copy it now, you won't see it again
           </p>
           <div className="flex items-center gap-2">
-            <code className="flex-1 text-[11px] font-mono bg-white dark:bg-[hsl(200,30%,10%)] border rounded px-2 py-1.5 overflow-x-auto">
+            <code className="flex-1 text-2xs font-mono bg-white dark:bg-[hsl(200,30%,10%)] border rounded px-2 py-1.5 overflow-x-auto">
               {showKey ? createdKey : createdKey.substring(0, 12) + '•'.repeat(30)}
             </code>
             <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => setShowKey(!showKey)}>
@@ -810,7 +810,7 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
               <Copy size={12} />
             </Button>
           </div>
-          {copied && <p className="text-[10px] text-green-600">Copied!</p>}
+          {copied && <p className="text-3xs text-green-600">Copied!</p>}
         </div>
       )}
 
@@ -850,7 +850,7 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
             >
               <div className="min-w-0">
                 <p className="text-xs font-medium truncate">{key.name}</p>
-                <p className="text-[10px] text-muted-foreground font-mono">
+                <p className="text-3xs text-muted-foreground font-mono">
                   {key.key_prefix}•••
                   {key.last_used_at && (
                     <> · Last used {new Date(key.last_used_at).toLocaleDateString()}</>
@@ -860,7 +860,7 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-[10px] h-6 px-2 text-red-500 hover:text-red-600 shrink-0"
+                className="text-3xs h-6 px-2 text-red-500 hover:text-red-600 shrink-0"
                 onClick={() => handleRevoke(key.id)}
               >
                 <Trash2 size={10} className="mr-1" />
@@ -873,7 +873,7 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
 
       <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(200,30%,8%)] p-3 space-y-2">
         <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Quick Start</p>
-        <pre className="text-[10px] font-mono bg-white dark:bg-[hsl(200,30%,10%)] border rounded p-2 overflow-x-auto whitespace-pre text-[#374151] dark:text-[hsl(200,25%,88%)]">{`# List records
+        <pre className="text-3xs font-mono bg-white dark:bg-[hsl(200,30%,10%)] border rounded p-2 overflow-x-auto whitespace-pre text-[#374151] dark:text-[hsl(200,25%,88%)]">{`# List records
 curl "${apiBaseUrl}/bases/${baseSchemaName}/tables/TABLE_SLUG/records" \\
   -H "Authorization: Bearer kdops_YOUR_KEY"
 

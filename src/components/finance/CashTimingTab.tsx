@@ -163,7 +163,7 @@ export default function CashTimingTab() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">Week of {w.week_start}</span>
-                      <Badge variant="outline" className={cn('text-[10px]', RISK_TONE[w.risk].tone)}>{RISK_TONE[w.risk].label}</Badge>
+                      <Badge variant="outline" className={cn('text-3xs', RISK_TONE[w.risk].tone)}>{RISK_TONE[w.risk].label}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">{w.advice}</p>
                   </div>

@@ -443,7 +443,7 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
               />
               <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">
                 <img src={f.url} alt={f.name} className="w-32 h-32 object-cover rounded-lg shadow-xl border border-white/20" />
-                <div className="text-[10px] text-center mt-1 px-1 truncate max-w-[140px] text-white bg-black/70 rounded" style={{ margin: '0 auto' }}>{f.name}</div>
+                <div className="text-3xs text-center mt-1 px-1 truncate max-w-[140px] text-white bg-black/70 rounded" style={{ margin: '0 auto' }}>{f.name}</div>
               </div>
             </span>
           ) : (() => {
@@ -459,14 +459,14 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
                   <Icon size={13} style={{ color }} />
                 </span>
                 <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">
-                  <div className="text-[10px] text-center px-2 py-1 truncate max-w-[140px] text-white bg-black/80 rounded shadow-lg whitespace-nowrap">{f.name}</div>
+                  <div className="text-3xs text-center px-2 py-1 truncate max-w-[140px] text-white bg-black/80 rounded shadow-lg whitespace-nowrap">{f.name}</div>
                 </div>
               </span>
             );
           })(),
         )}
         {files.length > 3 && (
-          <span className="text-[10px] shrink-0" style={{ color: colors.systemText }}>
+          <span className="text-3xs shrink-0" style={{ color: colors.systemText }}>
             +{files.length - 3}
           </span>
         )}
@@ -768,7 +768,7 @@ export const JsonCellRenderer = React.memo(function JsonCellRenderer({
   if (value == null || value === '') return null;
   const text = typeof value === 'string' ? value : JSON.stringify(value);
   return (
-    <span className="truncate font-mono text-[11px]" style={{ color: colors.muted }}>
+    <span className="truncate font-mono text-2xs" style={{ color: colors.muted }}>
       {text}
     </span>
   );
@@ -973,7 +973,7 @@ export const UserCellRenderer = React.memo(function UserCellRenderer({
         );
       })}
       {users.length > 3 && (
-        <span className="text-[10px] shrink-0" style={{ color: colors.systemText }}>
+        <span className="text-3xs shrink-0" style={{ color: colors.systemText }}>
           +{users.length - 3}
         </span>
       )}
@@ -1018,7 +1018,7 @@ export const LinkedTasksCellRenderer = React.memo(function LinkedTasksCellRender
         </span>
       ))}
       {tasks.length > 3 && (
-        <span className="text-[10px] shrink-0" style={{ color: colors.systemText }}>
+        <span className="text-3xs shrink-0" style={{ color: colors.systemText }}>
           +{tasks.length - 3}
         </span>
       )}

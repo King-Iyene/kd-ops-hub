@@ -429,7 +429,7 @@ export default function ApiKeysManager() {
                             key={scope}
                             variant="secondary"
                             className={cn(
-                              'text-[10px] font-mono px-1.5 py-0',
+                              'text-3xs font-mono px-1.5 py-0',
                               SCOPE_TO_BADGE[scope] ?? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300',
                             )}
                           >
@@ -437,7 +437,7 @@ export default function ApiKeysManager() {
                           </Badge>
                         ))}
                         {(key.scopes ?? []).length > 4 && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                          <Badge variant="secondary" className="text-3xs px-1.5 py-0">
                             +{key.scopes.length - 4}
                           </Badge>
                         )}

@@ -99,7 +99,7 @@ function GuideSidebar() {
               <div key={g.id}>
                 <div className="flex items-center gap-1.5 px-2 mb-1.5">
                   <Icon className="h-3.5 w-3.5 text-muted-foreground/50" />
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60">
+                  <span className="text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/60">
                     {g.group}
                   </span>
                 </div>
@@ -111,7 +111,7 @@ function GuideSidebar() {
                         key={item.id}
                         to={`/guide/${item.id}`}
                         className={cn(
-                          'group flex items-center justify-between text-[13px] px-2.5 py-1.5 rounded-lg kd-transition leading-snug',
+                          'group flex items-center justify-between text-xs-plus px-2.5 py-1.5 rounded-lg kd-transition leading-snug',
                           isActive
                             ? 'bg-primary/10 text-primary font-medium'
                             : 'text-muted-foreground/80 hover:bg-white/[0.04] hover:text-foreground',
@@ -210,7 +210,7 @@ export default function Guide() {
       <div>
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">KDOps Platform Guide</h1>
-          <Badge variant="outline" className="text-[10px] font-medium bg-primary/10 text-primary border-primary/20">
+          <Badge variant="outline" className="text-3xs font-medium bg-primary/10 text-primary border-primary/20">
             {NAV.reduce((sum, g) => sum + g.items.length, 0)} sections
           </Badge>
         </div>

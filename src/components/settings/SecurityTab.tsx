@@ -226,7 +226,7 @@ export default function SecurityTab({ settings, patch, approverMfaStatus, export
                     <td className="py-1.5 pr-4 font-medium">{module}</td>
                     {[sa, ad, fi, op, fs].map((allowed, i) => (
                       <td key={i} className="py-1.5 px-2 text-center">
-                        <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${allowed ? 'bg-emerald-100 text-emerald-700' : 'bg-red-50 text-red-400'}`}>
+                        <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-3xs font-bold ${allowed ? 'bg-emerald-100 text-emerald-700' : 'bg-red-50 text-red-400'}`}>
                           {allowed ? '✓' : '✕'}
                         </span>
                       </td>
@@ -236,11 +236,11 @@ export default function SecurityTab({ settings, patch, approverMfaStatus, export
               </tbody>
             </table>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-3 border-t pt-2">
+          <p className="text-2xs text-muted-foreground mt-3 border-t pt-2">
             Role changes are applied by editing the employee's profile in the <strong>Employees</strong> page.
             Changes take effect on the employee's next page load (no restart required).
           </p>
-          <p className="text-[11px] text-muted-foreground mt-2">
+          <p className="text-2xs text-muted-foreground mt-2">
             <strong>Operations scope:</strong> within <em>Payments</em>, <em>Transactions</em> and contractor
             profiles, Operations sees <strong>only contractor batches</strong> (no Quick Pay, no salary runs, no
             advances, no bonuses, no expense pay-outs). Archived batches are hidden for all roles except
@@ -364,13 +364,13 @@ function LeaveQuotasPanel() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">{p.name}</span>
                     {p.paid && (
-                      <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">Paid</span>
+                      <span className="text-3xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">Paid</span>
                     )}
                     {!p.paid && p.accrual_type === 'unpaid' && (
-                      <span className="text-[10px] font-medium text-slate-500 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded">Unpaid</span>
+                      <span className="text-3xs font-medium text-slate-500 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded">Unpaid</span>
                     )}
                   </div>
-                  <span className="text-[11px] text-muted-foreground">{p.code}</span>
+                  <span className="text-2xs text-muted-foreground">{p.code}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Input
@@ -485,7 +485,7 @@ function FailedLoginPanel() {
             <button
               type="button"
               onClick={() => setUnmasked((v) => !v)}
-              className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 kd-transition shrink-0"
+              className="text-2xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 kd-transition shrink-0"
               title={unmasked ? 'Hide full email addresses (for screen-share)' : 'Show full email addresses'}
             >
               {unmasked ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
@@ -534,7 +534,7 @@ function FailedLoginPanel() {
               </table>
             </div>
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-2 border-t text-[11px] text-muted-foreground">
+              <div className="flex items-center justify-between px-4 py-2 border-t text-2xs text-muted-foreground">
                 <span>Page {page + 1} of {totalPages}</span>
                 <div className="flex gap-1">
                   <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="h-7 px-2">

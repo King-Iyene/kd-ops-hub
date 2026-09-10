@@ -125,14 +125,14 @@ export function FindReplaceDialog({
                 value={findText}
                 onChange={(e) => { setFindText(e.target.value); setCurrentIdx(0); }}
                 placeholder="Find in this view..."
-                className="w-full px-3 py-2 text-[13px] rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#2D7FF9] focus:ring-1 focus:ring-[#2D7FF9]/30"
+                className="w-full px-3 py-2 text-xs-plus rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#2D7FF9] focus:ring-1 focus:ring-[#2D7FF9]/30"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') { if (e.shiftKey) goPrev(); else goNext(); }
                   if (e.key === 'Escape') onOpenChange(false);
                 }}
               />
               {findText && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-[#9AA2AF] dark:text-[hsl(200,25%,50%)]">
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-2xs text-[#9AA2AF] dark:text-[hsl(200,25%,50%)]">
                   {matches.length > 0 ? `${currentIdx + 1} / ${matches.length}` : '0 results'}
                 </span>
               )}
@@ -166,7 +166,7 @@ export function FindReplaceDialog({
                 value={replaceText}
                 onChange={(e) => setReplaceText(e.target.value)}
                 placeholder="Replace with..."
-                className="w-full px-3 py-2 text-[13px] rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#2D7FF9] focus:ring-1 focus:ring-[#2D7FF9]/30"
+                className="w-full px-3 py-2 text-xs-plus rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#2D7FF9] focus:ring-1 focus:ring-[#2D7FF9]/30"
                 onKeyDown={(e) => { if (e.key === 'Escape') onOpenChange(false); }}
               />
               <div className="flex gap-2">

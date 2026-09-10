@@ -355,7 +355,7 @@ const SettingsPage = () => {
 
       <Tabs defaultValue="company" orientation="vertical" className="grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)] gap-6">
         <TabsList className="flex md:flex-col h-auto items-stretch md:items-start gap-1 bg-card md:bg-transparent border md:border-0 rounded-lg md:rounded-none p-2 md:p-0 md:sticky md:top-20 md:self-start overflow-x-auto md:overflow-visible">
-          <p className="hidden md:block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2">Configuration</p>
+          <p className="hidden md:block text-2xs font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2">Configuration</p>
           <TabsTrigger value="company" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Building2 className="mr-2 h-4 w-4" /> Company</TabsTrigger>
           {profile?.role === 'super_admin' && (
             <TabsTrigger value="integrations" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><LinkIcon className="mr-2 h-4 w-4" /> Integrations</TabsTrigger>
@@ -679,7 +679,7 @@ function DataRetentionPanel() {
               </p>
               <p className="text-amber-800 leading-relaxed">
                 <strong>Recovery window:</strong> archives are kept for 90 days
-                after deletion in a private <code className="text-[11px] bg-amber-100 px-1 rounded">archives/</code>{' '}
+                after deletion in a private <code className="text-2xs bg-amber-100 px-1 rounded">archives/</code>{' '}
                 bucket and can be restored by support. After 90 days, archives
                 are also removed and recovery is no longer possible.
               </p>
@@ -694,7 +694,7 @@ function DataRetentionPanel() {
           <CardTitle className="text-base flex items-center gap-2">
             <ImageIcon className="h-4 w-4 text-primary" />
             Image compression on upload
-            <span className="text-[10px] font-medium uppercase tracking-wider bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">
+            <span className="text-3xs font-medium uppercase tracking-wider bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">
               Active
             </span>
           </CardTitle>
@@ -797,7 +797,7 @@ function DataRetentionPanel() {
           <CardTitle className="text-base flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-emerald-600" />
             Employee &amp; HR documents
-            <span className="text-[10px] font-medium uppercase tracking-wider bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">
+            <span className="text-3xs font-medium uppercase tracking-wider bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">
               Protected
             </span>
           </CardTitle>
@@ -1087,7 +1087,7 @@ function PlatformExportCard() {
             This exports database records only — not uploaded files (receipts,
             documents, photos). Those are stored in Supabase Storage and can be
             downloaded from the Supabase dashboard. A daily automated{' '}
-            <code className="text-[11px] bg-muted px-1 rounded">pg_dump</code>{' '}
+            <code className="text-2xs bg-muted px-1 rounded">pg_dump</code>{' '}
             backup also runs via GitHub Actions (retained 30 days).
           </p>
         </div>
@@ -1126,7 +1126,7 @@ function RetentionPolicyCard({
         <CardTitle className="text-base flex items-center gap-2 flex-wrap">
           <Icon className="h-4 w-4 text-primary" />
           {meta.title}
-          <span className={`text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded ${badge.cls}`}>
+          <span className={`text-3xs font-medium uppercase tracking-wider px-1.5 py-0.5 rounded ${badge.cls}`}>
             {badge.label}
           </span>
         </CardTitle>
@@ -1134,11 +1134,11 @@ function RetentionPolicyCard({
       <CardContent className="space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="rounded-lg border bg-muted/30 px-3 py-2.5">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">What it is</p>
+            <p className="text-2xs uppercase tracking-wide text-muted-foreground font-semibold mb-1">What it is</p>
             <p className="text-xs leading-relaxed">{meta.whatItIs}</p>
           </div>
           <div className="rounded-lg border bg-muted/30 px-3 py-2.5">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Why enable it</p>
+            <p className="text-2xs uppercase tracking-wide text-muted-foreground font-semibold mb-1">Why enable it</p>
             <p className="text-xs leading-relaxed">{meta.whyEnable}</p>
           </div>
         </div>
@@ -1180,7 +1180,7 @@ function RetentionPolicyCard({
         </div>
 
         <div>
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Dangers</p>
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Dangers</p>
           <ul className="list-disc pl-5 text-xs space-y-1 text-muted-foreground leading-relaxed">
             {meta.dangers.map((d, i) => <li key={i}>{d}</li>)}
           </ul>
@@ -1374,7 +1374,7 @@ function ConfigureRetentionDialog({
                 {previewLoading ? '…' : previewCount?.toLocaleString() ?? '—'}
                 <span className="text-sm font-normal text-muted-foreground ml-1">rows</span>
               </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-2xs text-muted-foreground mt-0.5">
                 Cutoff: anything older than {new Date(Date.now() - retentionDays * 86_400_000).toLocaleDateString('en-NG')}
               </p>
             </div>
@@ -1383,7 +1383,7 @@ function ConfigureRetentionDialog({
                 <span className="font-semibold">⚠ Archive + delete</span> permanently removes rows from the source table after the archive succeeds. The archive is your only recovery path.
               </div>
             )}
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               Recommended for this data type: <strong>{RETENTION_OPTIONS_DAYS.find((o) => o.value === meta.recommended)?.label}</strong>
             </p>
           </div>
@@ -1828,7 +1828,7 @@ function TagsManager() {
                   />
                   <span className="font-medium">{t.name}</span>
                   {t.module !== 'all' && (
-                    <span className="text-[10px] text-muted-foreground capitalize">({t.module})</span>
+                    <span className="text-3xs text-muted-foreground capitalize">({t.module})</span>
                   )}
                   <button
                     disabled={deletingTagId === t.id}

@@ -19,7 +19,7 @@ export function RoleBadges({ roles }: { roles: Role[] }) {
   return (
     <div className="flex gap-1.5 flex-wrap">
       {roles.map((r) => (
-        <Badge key={r} variant="outline" className={cn('text-[10px] font-medium whitespace-nowrap', ROLE_CONFIG[r].className)}>
+        <Badge key={r} variant="outline" className={cn('text-3xs font-medium whitespace-nowrap', ROLE_CONFIG[r].className)}>
           {ROLE_CONFIG[r].label}
         </Badge>
       ))}
@@ -32,7 +32,7 @@ export function StepList({ steps, startIndex = 0 }: { steps: ReactNode[]; startI
     <ol className="space-y-3">
       {steps.map((s, i) => (
         <li key={i} className="flex gap-3 text-sm">
-          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-[11px] font-semibold flex items-center justify-center mt-0.5">
+          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-2xs font-semibold flex items-center justify-center mt-0.5">
             {startIndex + i + 1}
           </span>
           <span className="text-muted-foreground/90 leading-relaxed flex-1">{s}</span>
@@ -50,7 +50,7 @@ export function ModuleCard({
       <div className="flex items-start justify-between gap-3 flex-wrap border-b border-white/[0.06] pb-3">
         <div>
           <h3 className="text-[17px] font-semibold tracking-tight">{title}</h3>
-          {route && <p className="text-[11px] font-mono text-muted-foreground/50 mt-0.5">{route}</p>}
+          {route && <p className="text-2xs font-mono text-muted-foreground/50 mt-0.5">{route}</p>}
         </div>
         <RoleBadges roles={roles} />
       </div>
@@ -68,10 +68,10 @@ export function Callout({ tone, children }: { tone: 'tip' | 'warn' | 'caution'; 
   const LABEL: Record<typeof tone, string> = { tip: 'TIP', warn: 'NOTE', caution: 'CAUTION' };
   const DOT: Record<typeof tone, string> = { tip: 'bg-emerald-500', warn: 'bg-amber-500', caution: 'bg-rose-500' };
   return (
-    <div className={cn('flex gap-3 rounded-xl border px-4 py-3 text-[13px] leading-relaxed', TONE[tone])}>
+    <div className={cn('flex gap-3 rounded-xl border px-4 py-3 text-xs-plus leading-relaxed', TONE[tone])}>
       <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
         <span className={cn('h-1.5 w-1.5 rounded-full', DOT[tone])} />
-        <span className="font-semibold text-[10px] tracking-wide">{LABEL[tone]}</span>
+        <span className="font-semibold text-3xs tracking-wide">{LABEL[tone]}</span>
       </div>
       <span>{children}</span>
     </div>
@@ -92,7 +92,7 @@ export function Screenshot({
         />
       </div>
       {caption && (
-        <figcaption className="text-[11px] text-muted-foreground/60 px-3.5 py-2 border-t border-white/[0.04]">
+        <figcaption className="text-2xs text-muted-foreground/60 px-3.5 py-2 border-t border-white/[0.04]">
           {caption}
         </figcaption>
       )}
@@ -153,7 +153,7 @@ export function VideoEmbed({
         )}
       </div>
       {caption && (
-        <figcaption className="text-[11px] text-muted-foreground/60 px-3.5 py-2 border-t border-white/[0.04] flex items-center gap-2">
+        <figcaption className="text-2xs text-muted-foreground/60 px-3.5 py-2 border-t border-white/[0.04] flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full bg-primary/60 shrink-0" />
           {caption}
         </figcaption>
@@ -173,7 +173,7 @@ export function RefTable({ rows, cols }: { rows: RefRow[]; cols: string[] }) {
         <thead className="border-b border-white/[0.06] bg-white/[0.02]">
           <tr>
             {cols.map((c) => (
-              <th key={c} className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60 px-3.5 py-2.5">
+              <th key={c} className="text-left text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/60 px-3.5 py-2.5">
                 {c}
               </th>
             ))}

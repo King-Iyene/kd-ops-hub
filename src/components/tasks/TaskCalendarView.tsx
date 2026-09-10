@@ -88,7 +88,7 @@ export function TaskCalendarView({ tasks, profiles, onTaskClick }: TaskCalendarV
 
       <div className="grid grid-cols-7 border-b">
         {DAY_NAMES.map((d) => (
-          <div key={d} className="text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wide py-2 border-r last:border-r-0">
+          <div key={d} className="text-center text-3xs font-semibold text-muted-foreground uppercase tracking-wide py-2 border-r last:border-r-0">
             {d}
           </div>
         ))}
@@ -110,11 +110,11 @@ export function TaskCalendarView({ tasks, profiles, onTaskClick }: TaskCalendarV
               )}
             >
               <div className={cn(
-                'text-[11px] font-medium mb-0.5 text-right pr-0.5',
+                'text-2xs font-medium mb-0.5 text-right pr-0.5',
                 isToday ? 'text-primary font-bold' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground/50',
               )}>
                 {isToday ? (
-                  <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px]">
+                  <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-3xs">
                     {date.getDate()}
                   </span>
                 ) : (
@@ -128,7 +128,7 @@ export function TaskCalendarView({ tasks, profiles, onTaskClick }: TaskCalendarV
                     key={t.id}
                     onClick={() => onTaskClick(t)}
                     className={cn(
-                      'w-full text-left text-[10px] leading-tight px-1.5 py-0.5 rounded truncate border-l-2 transition-colors',
+                      'w-full text-left text-3xs leading-tight px-1.5 py-0.5 rounded truncate border-l-2 transition-colors',
                       'hover:bg-muted/80',
                       PRIORITY_BORDER[t.priority],
                     )}

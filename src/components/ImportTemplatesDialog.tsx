@@ -115,14 +115,14 @@ export function ImportTemplatesDialog({ open, onOpenChange }: ImportTemplatesDia
         <div className="space-y-3 mt-1 text-sm">
           <div className="rounded-md border border-border/60 bg-muted/30 p-3 space-y-2">
             <p className="font-medium">What you'll get</p>
-            <ul className="text-[13px] text-muted-foreground space-y-1 list-disc pl-4">
+            <ul className="text-xs-plus text-muted-foreground space-y-1 list-disc pl-4">
               <li><span className="font-medium text-foreground">kdops-contractors-sample.csv</span> — the import template with example rows</li>
               <li><span className="font-medium text-foreground">kdops-supported-banks.csv</span> — every bank's exact name to paste into <code className="rounded bg-muted px-1 py-0.5 text-xs">bank_name</code></li>
             </ul>
           </div>
 
           <div className="rounded-md border border-border/60 p-3 space-y-1.5">
-            <p className="font-medium text-[13px]">Columns</p>
+            <p className="font-medium text-xs-plus">Columns</p>
             <p className="text-[12.5px]">
               <span className="font-semibold text-foreground">Required:</span>{' '}
               <code className="text-xs">full_name</code>, <code className="text-xs">bank_name</code>, <code className="text-xs">account_number</code>

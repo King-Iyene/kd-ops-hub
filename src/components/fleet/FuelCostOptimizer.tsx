@@ -179,7 +179,7 @@ export function FuelCostOptimizer({ vehicles }: Props) {
               <div>
                 <p className="text-xs text-muted-foreground">Monthly savings opportunity</p>
                 <p className="text-lg font-bold text-green-600 currency">{formatNaira(potentialSavings)}</p>
-                <p className="text-[10px] text-muted-foreground">By optimizing worst performers</p>
+                <p className="text-3xs text-muted-foreground">By optimizing worst performers</p>
               </div>
             </CardContent>
           </Card>
@@ -240,11 +240,11 @@ export function FuelCostOptimizer({ vehicles }: Props) {
                         <td className="text-right py-2 pl-2">
                           {vc.cost_per_km != null ? (
                             isGood ? (
-                              <Badge variant="outline" className="text-green-600 border-green-200 text-[10px]">
+                              <Badge variant="outline" className="text-green-600 border-green-200 text-3xs">
                                 <ArrowDownRight className="h-3 w-3 mr-0.5" /> Efficient
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="text-red-600 border-red-200 text-[10px]">
+                              <Badge variant="outline" className="text-red-600 border-red-200 text-3xs">
                                 <ArrowUpRight className="h-3 w-3 mr-0.5" /> High
                               </Badge>
                             )

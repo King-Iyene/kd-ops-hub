@@ -491,7 +491,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium">{insight.title}</p>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">
+                    <Badge variant="outline" className="text-3xs px-1.5 py-0 h-4 shrink-0">
                       {insight.type === 'warning' ? 'Needs Action' : insight.type === 'opportunity' ? 'Opportunity' : insight.type === 'action' ? 'To Do' : 'Good News'}
                     </Badge>
                   </div>
@@ -547,7 +547,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
                   <div className="flex flex-wrap gap-1 mt-1">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${vh.fuel_efficiency_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.fuel_efficiency_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
+                        <span className={`text-3xs px-1.5 py-0.5 rounded ${vh.fuel_efficiency_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.fuel_efficiency_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
                           Fuel {vh.fuel_efficiency_score}%
                         </span>
                       </TooltipTrigger>
@@ -555,7 +555,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${vh.maintenance_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.maintenance_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
+                        <span className={`text-3xs px-1.5 py-0.5 rounded ${vh.maintenance_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.maintenance_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
                           Maint {vh.maintenance_score}%
                         </span>
                       </TooltipTrigger>
@@ -563,7 +563,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${vh.compliance_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.compliance_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
+                        <span className={`text-3xs px-1.5 py-0.5 rounded ${vh.compliance_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.compliance_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
                           Compl {vh.compliance_score}%
                         </span>
                       </TooltipTrigger>
@@ -571,7 +571,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${vh.inspection_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.inspection_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
+                        <span className={`text-3xs px-1.5 py-0.5 rounded ${vh.inspection_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.inspection_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
                           Insp {vh.inspection_score}%
                         </span>
                       </TooltipTrigger>
@@ -581,7 +581,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
                   {vh.issues.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1">
                       {vh.issues.slice(0, 3).map((issue, i) => (
-                        <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{issue}</span>
+                        <span key={i} className="text-3xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{issue}</span>
                       ))}
                     </div>
                   )}

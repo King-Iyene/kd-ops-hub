@@ -352,7 +352,7 @@ export function ChatWidget() {
                   {view === 'history' ? 'Chat history' : 'KD Assistant'}
                 </p>
                 {view === 'chat' && (
-                  <p className="text-[10px] text-white/70 truncate">
+                  <p className="text-3xs text-white/70 truncate">
                     Llama 3.3 · Gemini Vision · Tavily
                   </p>
                 )}
@@ -430,7 +430,7 @@ export function ChatWidget() {
                       <MessageSquare className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${c.id === convId ? 'text-primary' : 'text-muted-foreground/50'}`} />
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium truncate text-foreground">{c.title}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                        <p className="text-3xs text-muted-foreground mt-0.5">
                           {new Date(c.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
@@ -469,7 +469,7 @@ export function ChatWidget() {
                         <Sparkles className="h-6 w-6 text-white" />
                       </div>
                       <p className="text-sm font-medium mb-0.5">How can I help?</p>
-                      <p className="text-[11px] text-muted-foreground leading-snug max-w-[200px]">
+                      <p className="text-2xs text-muted-foreground leading-snug max-w-[200px]">
                         Ask about payments, fleet, payroll or anything on the platform.
                       </p>
                     </div>

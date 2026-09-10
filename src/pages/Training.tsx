@@ -73,8 +73,8 @@ function effectiveStatus(r: TrainingRecord): TrainingRecord['status'] {
 function expiryBadge(expiry: string | null) {
   if (!expiry) return null;
   const days = differenceInDays(parseISO(expiry), new Date());
-  if (days < 0)   return <Badge variant="destructive" className="text-[10px]">Expired</Badge>;
-  if (days <= 30) return <Badge variant="outline" className="text-[10px] border-warning text-warning">Expires in {days}d</Badge>;
+  if (days < 0)   return <Badge variant="destructive" className="text-3xs">Expired</Badge>;
+  if (days <= 30) return <Badge variant="outline" className="text-3xs border-warning text-warning">Expires in {days}d</Badge>;
   return null;
 }
 
@@ -272,7 +272,7 @@ export default function Training() {
                     <p className="font-medium truncate">{r.title}</p>
                     <p className="text-xs text-muted-foreground">{nameOf(r.employee_id)}</p>
                   </div>
-                  <Badge variant="outline" className="text-[10px] shrink-0 border-warning text-warning ml-2">
+                  <Badge variant="outline" className="text-3xs shrink-0 border-warning text-warning ml-2">
                     {days === 0 ? 'Expires today' : `${days}d left`}
                   </Badge>
                 </div>
@@ -339,7 +339,7 @@ export default function Training() {
             <thead className="border-b bg-muted/30">
               <tr>
                 {['Employee', 'Title / Provider', 'Type', 'Category', 'Dates', 'Score', 'Status', ''].map(h => (
-                  <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">{h}</th>
+                  <th key={h} className="text-left text-2xs font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -352,9 +352,9 @@ export default function Training() {
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-1.5">
                         <p className="text-sm font-medium">{r.title}</p>
-                        {r.is_mandatory && <Badge variant="outline" className="text-[10px]">Mandatory</Badge>}
+                        {r.is_mandatory && <Badge variant="outline" className="text-3xs">Mandatory</Badge>}
                       </div>
-                      {r.provider && <p className="text-[11px] text-muted-foreground">{r.provider}</p>}
+                      {r.provider && <p className="text-2xs text-muted-foreground">{r.provider}</p>}
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -366,13 +366,13 @@ export default function Training() {
                     <td className="px-3 py-3 text-xs text-muted-foreground">{CATEGORY_LABEL[r.category]}</td>
                     <td className="px-3 py-3 space-y-0.5">
                       {r.completion_date && (
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-2xs text-muted-foreground">
                           Completed: {format(parseISO(r.completion_date), 'd MMM yyyy')}
                         </p>
                       )}
                       {r.expiry_date && (
                         <div className="flex items-center gap-1">
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-2xs text-muted-foreground">
                             Expires: {format(parseISO(r.expiry_date), 'd MMM yyyy')}
                           </p>
                           {expiryBadge(r.expiry_date)}
@@ -381,7 +381,7 @@ export default function Training() {
                     </td>
                     <td className="px-3 py-3 text-xs text-muted-foreground">{r.score ?? '—'}</td>
                     <td className="px-3 py-3">
-                      <Badge variant={STATUS_BADGE[eff].variant} className="text-[10px]">
+                      <Badge variant={STATUS_BADGE[eff].variant} className="text-3xs">
                         {STATUS_BADGE[eff].label}
                       </Badge>
                     </td>
@@ -412,12 +412,12 @@ export default function Training() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <MobileCardTitle>{r.title}</MobileCardTitle>
-                      {r.is_mandatory && <Badge variant="outline" className="text-[10px] shrink-0">Mandatory</Badge>}
+                      {r.is_mandatory && <Badge variant="outline" className="text-3xs shrink-0">Mandatory</Badge>}
                     </div>
-                    {r.provider && <p className="text-[11px] text-muted-foreground">{r.provider}</p>}
+                    {r.provider && <p className="text-2xs text-muted-foreground">{r.provider}</p>}
                   </div>
                   <MobileCardMeta>
-                    <Badge variant={STATUS_BADGE[eff].variant} className="text-[10px]">
+                    <Badge variant={STATUS_BADGE[eff].variant} className="text-3xs">
                       {STATUS_BADGE[eff].label}
                     </Badge>
                   </MobileCardMeta>

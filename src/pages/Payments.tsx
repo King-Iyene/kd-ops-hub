@@ -572,7 +572,7 @@ const Payments = () => {
                     <span />
 
                     <div className="min-w-0 flex items-center gap-2">
-                      <p className="font-medium text-[13px] text-foreground truncate">{batch.name}</p>
+                      <p className="font-medium text-xs-plus text-foreground truncate">{batch.name}</p>
                       {typeMeta && (
                         <span className={cn('hidden lg:inline-flex items-center rounded px-1.5 py-0 text-[9.5px] font-semibold uppercase tracking-[0.06em] shrink-0', typeMeta.bg, typeMeta.text)}>
                           {typeMeta.label}
@@ -580,7 +580,7 @@ const Payments = () => {
                       )}
                     </div>
 
-                    <p className="hidden md:block text-[11px] text-muted-foreground tabular-nums font-mono tracking-tight">
+                    <p className="hidden md:block text-2xs text-muted-foreground tabular-nums font-mono tracking-tight">
                       {batch.beneficiary_count} · {formatDate(batch.payment_date)}
                     </p>
 
@@ -589,7 +589,7 @@ const Payments = () => {
                     </div>
 
                     <div className="text-right ml-auto md:ml-0 shrink-0">
-                      <p className={cn('font-mono font-semibold text-[13px] tabular-nums leading-none tracking-tight', amountColor)}>
+                      <p className={cn('font-mono font-semibold text-xs-plus tabular-nums leading-none tracking-tight', amountColor)}>
                         {formatNaira(batch.total_amount || 0)}
                       </p>
                     </div>

@@ -202,7 +202,7 @@ export function ImpersonateUserDialog({
                       {p.job_title || p.email}
                     </p>
                   </div>
-                  <Badge variant="outline" className={cn('shrink-0 text-[10px] font-semibold', roleBadgeClass(p.role))}>
+                  <Badge variant="outline" className={cn('shrink-0 text-3xs font-semibold', roleBadgeClass(p.role))}>
                     {roleLabel(p.role)}
                   </Badge>
                   {starting === p.id && <span className="text-xs text-muted-foreground shrink-0">Signing in…</span>}

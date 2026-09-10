@@ -2054,7 +2054,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                           : <StatusBadge status={displayFuelStatus(r)} />}
                       </div>
                       {r.status === 'rejected' && r.rejection_reason && (
-                        <p className="text-[11px] text-muted-foreground max-w-[200px] truncate" title={r.rejection_reason}>
+                        <p className="text-2xs text-muted-foreground max-w-[200px] truncate" title={r.rejection_reason}>
                           Reason: {r.rejection_reason}
                         </p>
                       )}
@@ -2248,7 +2248,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                   <MobileCardHeader>
                     <div className="min-w-0 flex-1">
                       <MobileCardTitle>{r.employee_name}</MobileCardTitle>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                      <p className="text-2xs text-muted-foreground mt-0.5 truncate">
                         {r.station_name}
                       </p>
                     </div>
@@ -2415,7 +2415,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
 
               {/* Driver & Vehicle */}
               <div className="space-y-3">
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Driver & Vehicle</p>
+                <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground">Driver & Vehicle</p>
                 <div className="space-y-1">
                   <Label>Employee</Label>
                   <Select value={fuelForm.employee_id} onValueChange={(v) => setFuelForm({ ...fuelForm, employee_id: v })}>
@@ -2469,7 +2469,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
 
               {/* Fuel Details */}
               <div className="space-y-3 pt-4 border-t">
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Fuel Details</p>
+                <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground">Fuel Details</p>
                 <div className="space-y-1">
                   <Label>Fuel Station</Label>
                   <Input value={fuelForm.station_name} onChange={(e) => setFuelForm({ ...fuelForm, station_name: e.target.value })} placeholder="e.g. NNPC, Total, MRS" />
@@ -2509,7 +2509,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
 
               {/* Purpose & Documents */}
               <div className="space-y-3 pt-4 border-t">
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Purpose & Documents</p>
+                <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground">Purpose & Documents</p>
                 <div className="space-y-1">
                   <Label>Purpose / Reason</Label>
                   <Textarea value={fuelForm.reason} onChange={(e) => setFuelForm({ ...fuelForm, reason: e.target.value })} placeholder="Brief description of trip purpose…" className="resize-none" rows={2} />
@@ -3022,7 +3022,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-[11px] text-muted-foreground">Marks this service item done and updates the vehicle's maintenance schedule once the receipt is attached.</p>
+                    <p className="text-2xs text-muted-foreground">Marks this service item done and updates the vehicle's maintenance schedule once the receipt is attached.</p>
                   </div>
                 )}
               </>
@@ -3094,7 +3094,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                     onClick={() => setRepairForm((f) => ({ ...f, priority: val }))}
                   >
                     <span className="block font-medium">{label}</span>
-                    <span className="block mt-0.5 opacity-70 text-[10px]">{desc}</span>
+                    <span className="block mt-0.5 opacity-70 text-3xs">{desc}</span>
                   </button>
                 ))}
               </div>

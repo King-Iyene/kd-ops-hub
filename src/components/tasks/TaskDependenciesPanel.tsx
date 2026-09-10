@@ -129,7 +129,7 @@ export function TaskDependenciesPanel({ taskId, allTasks, onUpdate }: TaskDepend
     if (items.length === 0) return null;
     return (
       <div className="space-y-1">
-        <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+        <div className="flex items-center gap-1.5 text-3xs font-medium text-muted-foreground uppercase tracking-wide">
           <Icon className="h-3 w-3" />
           {label}
         </div>
@@ -204,7 +204,7 @@ export function TaskDependenciesPanel({ taskId, allTasks, onUpdate }: TaskDepend
           </div>
           <div className="max-h-36 overflow-y-auto space-y-0.5">
             {filteredTasks.length === 0 && (
-              <p className="text-[10px] text-muted-foreground text-center py-2">No tasks found</p>
+              <p className="text-3xs text-muted-foreground text-center py-2">No tasks found</p>
             )}
             {filteredTasks.slice(0, 20).map((t) => (
               <button
@@ -220,7 +220,7 @@ export function TaskDependenciesPanel({ taskId, allTasks, onUpdate }: TaskDepend
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 text-[10px] w-full"
+            className="h-6 text-3xs w-full"
             onClick={() => { setAdding(false); setSearch(''); }}
           >
             Cancel
@@ -233,7 +233,7 @@ export function TaskDependenciesPanel({ taskId, allTasks, onUpdate }: TaskDepend
       {renderGroup('Related to', ArrowLeftRight, grouped.relatedTo)}
 
       {!hasAny && !adding && (
-        <p className="text-[10px] text-muted-foreground">No dependencies</p>
+        <p className="text-3xs text-muted-foreground">No dependencies</p>
       )}
     </div>
   );

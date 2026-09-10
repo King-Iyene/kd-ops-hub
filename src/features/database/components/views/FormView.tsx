@@ -137,12 +137,12 @@ function PeopleInput({
               onClick={() => toggle(u)}
               className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[#F8FAFC] dark:hover:bg-[hsl(220,18%,12%)]"
             >
-              <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#6366F1] text-white text-[10px] font-semibold shrink-0">
+              <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#6366F1] text-white text-3xs font-semibold shrink-0">
                 {(u.full_name || u.email).charAt(0).toUpperCase()}
               </span>
               <span className="flex flex-col min-w-0 flex-1">
                 <span className="text-xs font-medium text-[#1E293B] dark:text-[hsl(210,20%,88%)] truncate">{u.full_name}</span>
-                <span className="text-[11px] text-[#94A3B8] truncate">{u.email}</span>
+                <span className="text-2xs text-[#94A3B8] truncate">{u.email}</span>
               </span>
               {active && <Check size={14} className="text-[#2D7FF9] shrink-0" />}
             </button>
@@ -216,7 +216,7 @@ function LinkedTasksInput({
               className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[#F8FAFC] dark:hover:bg-[hsl(220,18%,12%)]"
             >
               <span className="text-xs text-[#1E293B] dark:text-[hsl(210,20%,88%)] truncate flex-1">{t.title}</span>
-              {t.status && <span className="text-[10px] text-[#94A3B8] shrink-0">{t.status}</span>}
+              {t.status && <span className="text-3xs text-[#94A3B8] shrink-0">{t.status}</span>}
               {active && <Check size={14} className="text-[#2D7FF9] shrink-0" />}
             </button>
           );
@@ -750,7 +750,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
         <div className="flex-1 overflow-y-auto">
           {/* Cover color */}
           <div className="px-4 py-3 border-b border-[#F1F5F9] dark:border-[hsl(220,15%,15%)]">
-            <label className="text-[11px] font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-wider mb-2 block">Cover</label>
+            <label className="text-2xs font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-wider mb-2 block">Cover</label>
             <div className="grid grid-cols-4 gap-1.5">
               {COVER_COLORS.map((c) => (
                 <button
@@ -770,7 +770,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
 
           {/* Submit button label */}
           <div className="px-4 py-3 border-b border-[#F1F5F9] dark:border-[hsl(220,15%,15%)]">
-            <label className="text-[11px] font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-wider mb-1.5 block">Submit Button</label>
+            <label className="text-2xs font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-wider mb-1.5 block">Submit Button</label>
             <input
               type="text"
               value={formConfig.submit_label ?? ''}
@@ -782,7 +782,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
 
           {/* Success message */}
           <div className="px-4 py-3 border-b border-[#F1F5F9] dark:border-[hsl(220,15%,15%)]">
-            <label className="text-[11px] font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-wider mb-1.5 block">Success Message</label>
+            <label className="text-2xs font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-wider mb-1.5 block">Success Message</label>
             <textarea
               value={formConfig.success_message ?? ''}
               onChange={(e) => saveConfig({ success_message: e.target.value })}
@@ -794,7 +794,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
 
           {/* Redirect URL */}
           <div className="px-4 py-3 border-b border-[#F1F5F9] dark:border-[hsl(220,15%,15%)]">
-            <label className="text-[11px] font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-wider mb-1.5 block">Redirect after submit</label>
+            <label className="text-2xs font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-wider mb-1.5 block">Redirect after submit</label>
             <input
               type="url"
               value={formConfig.redirect_url ?? ''}
@@ -802,12 +802,12 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
               placeholder="https://example.com/thank-you"
               className="w-full text-xs px-2.5 py-1.5 rounded-md border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-[#2D7FF9] text-[#1E293B] dark:text-[hsl(210,20%,85%)] placeholder:text-[#CBD5E1]"
             />
-            <p className="text-[10px] text-[#94A3B8] mt-1">Leave empty to show success message</p>
+            <p className="text-3xs text-[#94A3B8] mt-1">Leave empty to show success message</p>
           </div>
 
           {/* Visible fields */}
           <div className="px-4 py-3">
-            <label className="text-[11px] font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-wider mb-2 block">
+            <label className="text-2xs font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-wider mb-2 block">
               Visible Fields ({visibleFields.length})
             </label>
             <div className="space-y-0.5">
@@ -824,7 +824,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
                     <GripVertical size={12} className="text-[#CBD5E1] dark:text-[hsl(215,12%,30%)] shrink-0" />
                     <Icon size={12} className="text-[#94A3B8] dark:text-[hsl(215,12%,45%)] shrink-0" />
                     <span className="text-xs text-[#1E293B] dark:text-[hsl(210,20%,85%)] truncate flex-1">{f.name}</span>
-                    {fc.required && <span className="text-red-400 text-[10px]">*</span>}
+                    {fc.required && <span className="text-red-400 text-3xs">*</span>}
                     <button
                       className="opacity-0 group-hover/field:opacity-100 p-0.5 hover:bg-[#FEE2E2] dark:hover:bg-red-900/20 rounded transition-all"
                       onClick={(e) => { e.stopPropagation(); updateFieldConfig(f.id, { hidden: true }); }}
@@ -856,7 +856,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
                   <span className="text-xs text-[#475569] dark:text-[hsl(215,15%,60%)]">Required</span>
                 </label>
                 <div>
-                  <label className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider mb-1 block">Help Text</label>
+                  <label className="text-3xs font-medium text-[#94A3B8] uppercase tracking-wider mb-1 block">Help Text</label>
                   <input
                     type="text"
                     value={fieldConfigs[selectedField.id]?.description ?? ''}
@@ -866,7 +866,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider mb-1 block">Show only if</label>
+                  <label className="text-3xs font-medium text-[#94A3B8] uppercase tracking-wider mb-1 block">Show only if</label>
                   <select
                     value={fieldConfigs[selectedField.id]?.condition?.field_id ?? ''}
                     onChange={(e) => {
@@ -887,7 +887,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
                   </select>
                   {fieldConfigs[selectedField.id]?.condition?.field_id && (
                     <div className="mt-1.5 flex items-center gap-1.5">
-                      <span className="text-[10px] text-[#94A3B8] shrink-0">equals</span>
+                      <span className="text-3xs text-[#94A3B8] shrink-0">equals</span>
                       <input
                         type="text"
                         value={fieldConfigs[selectedField.id]?.condition?.value ?? ''}
@@ -904,7 +904,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
                       />
                     </div>
                   )}
-                  <p className="text-[10px] text-[#94A3B8] mt-1">
+                  <p className="text-3xs text-[#94A3B8] mt-1">
                     Hidden fields are never required and are not submitted.
                   </p>
                 </div>
@@ -915,10 +915,10 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
           {/* Hidden fields */}
           {hiddenFields.length > 0 && (
             <div className="px-4 py-3 border-t border-[#E2E8F0] dark:border-[hsl(220,15%,18%)]">
-              <label className="text-[11px] font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-wider mb-2 block">
+              <label className="text-2xs font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-wider mb-2 block">
                 Hidden Fields ({hiddenFields.length})
               </label>
-              <p className="text-[10px] text-[#94A3B8] mb-2">Click to add back to form</p>
+              <p className="text-3xs text-[#94A3B8] mb-2">Click to add back to form</p>
               <div className="space-y-0.5">
                 {hiddenFields.map((f) => {
                   const Icon = getFieldTypeIcon(f.ui_type);
@@ -1048,7 +1048,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
 
           {/* Branding */}
           {(formConfig.show_branding !== false) && (
-            <p className="text-center text-[11px] text-[#CBD5E1] dark:text-[hsl(215,12%,30%)] mt-4">
+            <p className="text-center text-2xs text-[#CBD5E1] dark:text-[hsl(215,12%,30%)] mt-4">
               Powered by KDOps
             </p>
           )}

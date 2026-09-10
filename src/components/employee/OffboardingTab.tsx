@@ -353,7 +353,7 @@ export default function OffboardingTab({
               <span className="tabular-nums">{formatNaira(estimate.net)}</span>
             </div>
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             Estimate only (leave payout at salary ÷ 22 working days; gratuity at {policy.gratuity_months_per_year || 0} month/yr; pro-rate {policy.last_month_prorated ? 'on' : 'off'}).
             Statutory PAYE and pension adjustments are excluded — confirm the agreed figure before paying.
           </p>

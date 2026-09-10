@@ -856,7 +856,7 @@ function CompanyDisbursementSendDialog({
                   })}
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-muted-foreground leading-snug">
+              <p className="text-2xs text-muted-foreground leading-snug">
                 {directorDisbursementCategoryDef(form.category)?.hint ?? 'Required — feeds the company ledger and expense/payables reporting.'}
               </p>
             </div>
@@ -1040,7 +1040,7 @@ function RecurringSchedulesCard({ profile, toast }: { profile: any; toast: Retur
               </p>
             </div>
             <div className="flex items-center gap-1 shrink-0">
-              <Badge variant={s.status === 'active' ? 'secondary' : 'outline'} className="text-[10px]">{s.status}</Badge>
+              <Badge variant={s.status === 'active' ? 'secondary' : 'outline'} className="text-3xs">{s.status}</Badge>
               <Button variant="ghost" size="icon-sm" aria-label={s.status === 'paused' ? 'Resume' : 'Pause'} onClick={() => togglePause(s)}>
                 {s.status === 'paused' ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
               </Button>
@@ -1248,7 +1248,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
             <p className="text-xl font-semibold font-mono currency">
               {walletBalance != null ? formatNaira(walletBalance) : '—'}
             </p>
-            {dva && <p className="text-[10px] text-muted-foreground mt-1">{dva.bank_name} · {dva.account_number}</p>}
+            {dva && <p className="text-3xs text-muted-foreground mt-1">{dva.bank_name} · {dva.account_number}</p>}
           </CardContent>
         </Card>
         <Card className="rounded-xl">
@@ -1257,7 +1257,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
               <ArrowUpRight className="h-3.5 w-3.5" /> Sent this month
             </div>
             <p className="text-xl font-semibold font-mono currency">{formatNaira(stats.sentThisMonth)}</p>
-            <p className="text-[10px] text-muted-foreground mt-1">{stats.succeededCount} transfer{stats.succeededCount !== 1 ? 's' : ''} completed</p>
+            <p className="text-3xs text-muted-foreground mt-1">{stats.succeededCount} transfer{stats.succeededCount !== 1 ? 's' : ''} completed</p>
           </CardContent>
         </Card>
         <Card className="rounded-xl">
@@ -1266,7 +1266,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
               <Clock className="h-3.5 w-3.5" /> Pending
             </div>
             <p className="text-xl font-semibold font-mono currency">{formatNaira(stats.pendingAmount)}</p>
-            <p className="text-[10px] text-muted-foreground mt-1">{stats.pendingCount} transfer{stats.pendingCount !== 1 ? 's' : ''} in queue</p>
+            <p className="text-3xs text-muted-foreground mt-1">{stats.pendingCount} transfer{stats.pendingCount !== 1 ? 's' : ''} in queue</p>
           </CardContent>
         </Card>
         <Card className="rounded-xl">
@@ -1275,7 +1275,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
               <TrendingUp className="h-3.5 w-3.5" /> This month
             </div>
             <p className="text-xl font-semibold">{stats.totalThisMonth}</p>
-            <p className="text-[10px] text-muted-foreground mt-1">
+            <p className="text-3xs text-muted-foreground mt-1">
               {stats.failedCount > 0 ? `${stats.failedCount} failed · ` : ''}
               {stats.succeededCount} succeeded
             </p>
@@ -1319,7 +1319,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
               onClick={() => handleQuickSend(r)}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs hover:bg-accent transition whitespace-nowrap shrink-0"
             >
-              <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+              <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-3xs font-bold">
                 {(r.recipient_account_name || r.recipient_name || '?')[0].toUpperCase()}
               </div>
               <span className="max-w-[100px] truncate">{r.recipient_account_name || r.recipient_name}</span>
@@ -1335,7 +1335,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <FileText className="h-4 w-4 text-primary" /> Drafts awaiting send
-              <Badge variant="secondary" className="text-[10px]">{drafts.length}</Badge>
+              <Badge variant="secondary" className="text-3xs">{drafts.length}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -1399,7 +1399,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <Badge variant={s.status === 'active' ? 'secondary' : 'outline'} className="text-[10px]">{s.status}</Badge>
+                  <Badge variant={s.status === 'active' ? 'secondary' : 'outline'} className="text-3xs">{s.status}</Badge>
                   <Button
                     variant="ghost" size="icon-sm"
                     aria-label={s.status === 'paused' ? 'Resume' : 'Pause'}
@@ -1517,12 +1517,12 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                             </div>
                             <div className="min-w-0">
                               <p className="text-sm font-medium truncate">{r.recipient_account_name || r.recipient_name}</p>
-                              <p className="text-[10px] text-muted-foreground">{r.recipient_bank_name}</p>
+                              <p className="text-3xs text-muted-foreground">{r.recipient_bank_name}</p>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="max-w-[280px] truncate">
-                          {r.batch_label && <Badge variant="outline" className="mr-1.5 text-[10px]">{r.batch_label}</Badge>}
+                          {r.batch_label && <Badge variant="outline" className="mr-1.5 text-3xs">{r.batch_label}</Badge>}
                           {r.memo || (r.batch_label ? '' : '—')}
                         </TableCell>
                         <TableCell className="text-right font-medium currency">{formatNaira(r.amount_ngn)}</TableCell>
@@ -1781,7 +1781,7 @@ function PersonalRecurringDialog({
             <div className="space-y-1">
               <Label>Day of month (1–28)</Label>
               <Input type="number" min={1} max={28} value={day} onChange={(e) => setDay(Number(e.target.value) || 1)} />
-              <p className="text-[11px] text-muted-foreground">Capped at 28 to avoid month-end ambiguity.</p>
+              <p className="text-2xs text-muted-foreground">Capped at 28 to avoid month-end ambiguity.</p>
             </div>
 
             <div className="space-y-1">

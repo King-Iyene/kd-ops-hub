@@ -151,7 +151,7 @@ export function LinkedRecordPicker({
 
         {/* Record count */}
         {totalCount > 0 && (
-          <div className="text-[11px] text-[#9AA2AF] px-0.5">
+          <div className="text-2xs text-[#9AA2AF] px-0.5">
             Showing {Math.min(records.length, totalCount)} of{' '}
             {totalCount.toLocaleString()} records
           </div>
@@ -195,7 +195,7 @@ export function LinkedRecordPicker({
                       </span>
                     ) : (
                       <span
-                        className="w-4 h-4 rounded border-2 flex items-center justify-center text-[10px] shrink-0"
+                        className="w-4 h-4 rounded border-2 flex items-center justify-center text-3xs shrink-0"
                         style={{
                           borderColor: isChecked ? '#2D7FF9' : '#9AA2AF',
                           backgroundColor: isChecked ? '#2D7FF9' : 'transparent',
@@ -205,7 +205,7 @@ export function LinkedRecordPicker({
                         {isChecked ? '✓' : ''}
                       </span>
                     )}
-                    <span className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
+                    <span className="text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
                       {getRecordDisplayValue(record, primaryField)}
                     </span>
                   </button>

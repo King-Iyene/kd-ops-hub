@@ -62,7 +62,7 @@ export default function CashConversionTab() {
               <div className="text-center">
                 <p className="text-xs text-muted-foreground mb-1">DSO</p>
                 <p className="text-2xl font-bold">{fmt(data.dso.dso_days)}</p>
-                <p className="text-[10px] text-muted-foreground">Days Sales Outstanding</p>
+                <p className="text-3xs text-muted-foreground">Days Sales Outstanding</p>
               </div>
 
               <div className="hidden sm:flex items-center text-muted-foreground">
@@ -72,7 +72,7 @@ export default function CashConversionTab() {
               <div className="text-center">
                 <p className="text-xs text-muted-foreground mb-1">DPO</p>
                 <p className="text-2xl font-bold">{fmt(data.dpo.dpo_days)}</p>
-                <p className="text-[10px] text-muted-foreground">Days Payable Outstanding</p>
+                <p className="text-3xs text-muted-foreground">Days Payable Outstanding</p>
               </div>
 
               <div className="hidden sm:flex items-center text-muted-foreground">
@@ -123,7 +123,7 @@ export default function CashConversionTab() {
                   {data.dso.dso_days != null && data.dso.dso_days > 45 && <TrendingUp className="h-3.5 w-3.5 text-destructive" />}
                 </span>
               </div>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-3xs text-muted-foreground">
                 {data.dso.dso_days == null
                   ? 'No trailing revenue to compute DSO.'
                   : data.dso.dso_days <= 30
@@ -165,7 +165,7 @@ export default function CashConversionTab() {
                   {data.dpo.dpo_days != null && data.dpo.dpo_days >= 30 && <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />}
                 </span>
               </div>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-3xs text-muted-foreground">
                 {data.dpo.dpo_days == null
                   ? 'No trailing costs to compute DPO.'
                   : data.dpo.dpo_days >= 30

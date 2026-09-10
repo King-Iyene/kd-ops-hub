@@ -131,7 +131,7 @@ export function MyTasksView({
           >
             {tab.label}
             <span className={cn(
-              'ml-2 text-[11px] tabular-nums rounded-full px-1.5 py-0.5',
+              'ml-2 text-2xs tabular-nums rounded-full px-1.5 py-0.5',
               activeTab === tab.key ? 'bg-primary/10' : 'bg-muted',
             )}>
               {tab.count}
@@ -265,7 +265,7 @@ function TaskGroup({
         <Icon className={cn('h-3.5 w-3.5', iconColor)} />
         <span>{title}</span>
         <span className={cn(
-          'text-[11px] tabular-nums ml-1 rounded-full px-1.5 py-0.5',
+          'text-2xs tabular-nums ml-1 rounded-full px-1.5 py-0.5',
           highlight === 'destructive' ? 'bg-destructive/10' : 'bg-muted',
         )}>
           {count}
@@ -350,13 +350,13 @@ function TaskRow({
       {/* Metadata */}
       <div className="flex items-center gap-2 shrink-0">
         {sc && sc.total > 0 && (
-          <span className="text-[10px] text-muted-foreground tabular-nums">
+          <span className="text-3xs text-muted-foreground tabular-nums">
             <CheckCircle2 className="h-3 w-3 inline mr-0.5" />{sc.done}/{sc.total}
           </span>
         )}
 
         {cc > 0 && (
-          <span className="text-[10px] text-muted-foreground tabular-nums">
+          <span className="text-3xs text-muted-foreground tabular-nums">
             <MessageSquare className="h-3 w-3 inline mr-0.5" />{cc}
           </span>
         )}
@@ -381,7 +381,7 @@ function TaskRow({
         {/* Due date */}
         {task.due_date && (
           <span className={cn(
-            'text-[11px] tabular-nums shrink-0',
+            'text-2xs tabular-nums shrink-0',
             overdue ? 'text-destructive font-medium' : 'text-muted-foreground',
           )}>
             {overdue

@@ -1271,12 +1271,12 @@ const Contractors = () => {
   const filterPanel = (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Filters</span>
+        <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">Filters</span>
         {(heyreachFilter !== 'all' || emailFilter !== 'all' || linkFilter !== 'all' || advRules.length > 0) && (
           <button
             type="button"
             onClick={() => { setHeyreachFilter('all'); setEmailFilter('all'); setLinkFilter('all'); clearAdvFilters(); }}
-            className="text-[11px] text-primary hover:underline"
+            className="text-2xs text-primary hover:underline"
           >
             Clear all
           </button>
@@ -1286,18 +1286,18 @@ const Contractors = () => {
       {/* Saved views — own + team-shared (RLS-enforced). */}
       <div className="space-y-0.5">
         <div className="flex items-center justify-between px-2 pb-1">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Saved views</p>
+          <p className="text-3xs font-semibold uppercase tracking-wider text-muted-foreground/70">Saved views</p>
           <button
             type="button"
             onClick={openSaveView}
             disabled={activeFacetCount === 0}
-            className="text-[11px] text-primary hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+            className="text-2xs text-primary hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
           >
             Save current
           </button>
         </div>
         {savedViews.length === 0 ? (
-          <p className="px-2 text-[11px] text-muted-foreground/70">No saved views yet.</p>
+          <p className="px-2 text-2xs text-muted-foreground/70">No saved views yet.</p>
         ) : (
           savedViews.map((v) => {
             const active = activeViewId === v.id;
@@ -1336,7 +1336,7 @@ const Contractors = () => {
       </div>
 
       <div className="space-y-0.5">
-        <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">HeyReach status</p>
+        <p className="px-2 pb-1 text-3xs font-semibold uppercase tracking-wider text-muted-foreground/70">HeyReach status</p>
         {([
           { key: 'all',          label: 'All',          dot: 'bg-muted-foreground/40' },
           { key: 'active',       label: 'Active',       dot: 'bg-success' },
@@ -1356,7 +1356,7 @@ const Contractors = () => {
       </div>
 
       <div className="space-y-0.5">
-        <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">LinkedIn email</p>
+        <p className="px-2 pb-1 text-3xs font-semibold uppercase tracking-wider text-muted-foreground/70">LinkedIn email</p>
         {([
           { key: 'all',  label: 'Any' },
           { key: 'has',  label: 'Has email' },
@@ -1367,7 +1367,7 @@ const Contractors = () => {
       </div>
 
       <div className="space-y-0.5">
-        <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">LinkedIn link</p>
+        <p className="px-2 pb-1 text-3xs font-semibold uppercase tracking-wider text-muted-foreground/70">LinkedIn link</p>
         {([
           { key: 'all',  label: 'Any' },
           { key: 'has',  label: 'Has link' },
@@ -1385,7 +1385,7 @@ const Contractors = () => {
               <SlidersHorizontal className="mr-2 h-4 w-4" />
               Advanced filters
               {advRules.length > 0 && (
-                <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary tabular-nums">
+                <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-3xs font-semibold text-primary tabular-nums">
                   {advRules.length}
                 </span>
               )}
@@ -1611,7 +1611,7 @@ const Contractors = () => {
                   >
                     <SlidersHorizontal className="h-4 w-4" /> Filters
                     {activeFacetCount > 0 && (
-                      <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold">
+                      <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-2xs font-bold">
                         {activeFacetCount > 9 ? '9+' : activeFacetCount}
                       </span>
                     )}
@@ -1644,13 +1644,13 @@ const Contractors = () => {
                   active match mode (and / or). */}
               {advRules.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
                     {advMatch === 'any' ? 'Any of' : 'All of'}
                   </span>
                   {advRules.map((r, idx) => (
                     <span key={r.id} className="inline-flex items-center gap-1.5">
                       {idx > 0 && (
-                        <span className="text-[11px] text-muted-foreground/70">
+                        <span className="text-2xs text-muted-foreground/70">
                           {advMatch === 'any' ? 'or' : 'and'}
                         </span>
                       )}
@@ -1744,7 +1744,7 @@ const Contractors = () => {
                   <TableCell className="font-medium">
                     <div><Link to={`/contractors/${c.id}`} className="hover:underline" onClick={(e) => e.preventDefault()}>{displayName(c.first_name, c.last_name, c.full_name)}</Link></div>
                     {c.linkedin_id && (
-                      <div className="text-[11px] text-muted-foreground">
+                      <div className="text-2xs text-muted-foreground">
                         {c.linkedin_id}
                       </div>
                     )}
@@ -1756,7 +1756,7 @@ const Contractors = () => {
                           return (
                             <span
                               key={tid}
-                              className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                              className="inline-flex items-center rounded-full px-1.5 py-0.5 text-3xs font-medium"
                               style={tag.color ? { backgroundColor: `${tag.color}25`, color: tag.color } : undefined}
                             >
                               {tag.name}
@@ -1779,7 +1779,7 @@ const Contractors = () => {
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-2xs text-muted-foreground">
                         {done}/{total} steps · {pct}%
                       </p>
                     </div>
@@ -1872,12 +1872,12 @@ const Contractors = () => {
                     <MobileCardMeta className="currency">{formatNaira(c.default_amount_ngn || 0)}</MobileCardMeta>
                   </MobileCardHeader>
                   <MobileCardRow label="Bank">
-                    <span className="text-[11px] tracking-tight flex items-center gap-1">
+                    <span className="text-2xs tracking-tight flex items-center gap-1">
                       {c.bank_name || '—'} · <MaskedAccountNumber value={c.account_number} />
                     </span>
                   </MobileCardRow>
                   <MobileCardRow label="HeyReach">
-                    <span className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium', hr.className)}>
+                    <span className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-3xs font-medium', hr.className)}>
                       <span className={cn('h-1.5 w-1.5 rounded-full', hr.dotClass)} /> {hr.label}
                     </span>
                   </MobileCardRow>
@@ -2054,7 +2054,7 @@ const Contractors = () => {
                           <TableCell className="text-right currency">
                             {formatNaira(r.default_amount_ngn || 0)}
                           </TableCell>
-                          <TableCell className="text-muted-foreground font-mono text-[11px] truncate max-w-[160px]">
+                          <TableCell className="text-muted-foreground font-mono text-2xs truncate max-w-[160px]">
                             {r.linkedin_url || '—'}
                           </TableCell>
                           <TableCell>
@@ -2063,7 +2063,7 @@ const Contractors = () => {
                                 <Badge variant="outline" className="border-blue-500/40 text-blue-700 bg-blue-50">
                                   <RefreshCw className="h-3 w-3 mr-1" /> Will update
                                 </Badge>
-                                <div className="text-[10px] text-muted-foreground">
+                                <div className="text-3xs text-muted-foreground">
                                   matched by {r.existingMatchBasis === 'bank+account' ? 'bank + account' : r.existingMatchBasis === 'id' ? 'export ID' : r.existingMatchBasis} · bank details unchanged
                                 </div>
                               </div>
@@ -2229,7 +2229,7 @@ function ApplicationsBadge() {
   }, []);
   if (count === 0) return null;
   return (
-    <Badge className="ml-2 bg-warning text-warning-foreground h-5 px-1.5 text-[10px] font-semibold">
+    <Badge className="ml-2 bg-warning text-warning-foreground h-5 px-1.5 text-3xs font-semibold">
       {count}
     </Badge>
   );
@@ -2265,7 +2265,7 @@ function FacetButton({
       <span className="flex-1 truncate">{label}</span>
       {count != null && (
         <span className={cn(
-          'rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
+          'rounded px-1.5 py-0.5 text-3xs font-semibold tabular-nums',
           active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
         )}>
           {count}

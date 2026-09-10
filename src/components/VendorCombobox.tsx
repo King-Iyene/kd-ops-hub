@@ -96,7 +96,7 @@ export function VendorCombobox({
                     )}
                   />
                   <span className="truncate">{v.name}</span>
-                  <span className="ml-auto text-muted-foreground capitalize text-[10px]">
+                  <span className="ml-auto text-muted-foreground capitalize text-3xs">
                     {v.category}
                   </span>
                 </CommandItem>

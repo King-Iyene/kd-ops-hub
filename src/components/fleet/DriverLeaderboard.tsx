@@ -228,8 +228,8 @@ export function DriverLeaderboard() {
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Award className="h-4 w-4 text-muted-foreground" />
           Driver Leaderboard
-          <Badge variant="secondary" className="text-[10px] font-normal">Last 30 days</Badge>
-          <span className="ml-auto text-[10px] text-muted-foreground font-normal">
+          <Badge variant="secondary" className="text-3xs font-normal">Last 30 days</Badge>
+          <span className="ml-auto text-3xs text-muted-foreground font-normal">
             40% Safety · 35% Efficiency · 25% Cost
           </span>
         </CardTitle>
@@ -270,7 +270,7 @@ export function DriverLeaderboard() {
                       return (
                         <Tooltip key={b}>
                           <TooltipTrigger asChild>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${cfg.color}`}>
+                            <span className={`text-3xs px-1.5 py-0.5 rounded-full ${cfg.color}`}>
                               {cfg.icon}
                             </span>
                           </TooltipTrigger>
@@ -323,7 +323,7 @@ export function DriverLeaderboard() {
                   <div className="text-xs text-muted-foreground tabular-nums">
                     {d.total_km.toLocaleString()} km
                   </div>
-                  <div className="text-[10px] text-muted-foreground tabular-nums">
+                  <div className="text-3xs text-muted-foreground tabular-nums">
                     {d.fuel_efficiency != null ? `${d.fuel_efficiency} km/L` : '—'}
                   </div>
                 </div>

@@ -174,18 +174,18 @@ export const SignedDocumentsList = ({
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge
                       variant="secondary"
-                      className={cn('text-[10px]', KIND_TONE[d.document_kind] || KIND_TONE.other)}
+                      className={cn('text-3xs', KIND_TONE[d.document_kind] || KIND_TONE.other)}
                     >
                       <FileSignature className="h-3 w-3 mr-1" />
                       {KIND_LABELS[d.document_kind] || d.document_kind}
                     </Badge>
                     {verified === true && (
-                      <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700">
+                      <Badge variant="secondary" className="text-3xs bg-emerald-100 text-emerald-700">
                         <ShieldCheck className="h-3 w-3 mr-1" /> Verified
                       </Badge>
                     )}
                     {verified === false && (
-                      <Badge variant="secondary" className="text-[10px] bg-destructive/10 text-destructive">
+                      <Badge variant="secondary" className="text-3xs bg-destructive/10 text-destructive">
                         <ShieldX className="h-3 w-3 mr-1" /> Tamper detected
                       </Badge>
                     )}
@@ -201,7 +201,7 @@ export const SignedDocumentsList = ({
                       </span>
                     )}
                   </p>
-                  <p className="text-[10px] font-mono text-muted-foreground/70 mt-0.5 truncate">
+                  <p className="text-3xs font-mono text-muted-foreground/70 mt-0.5 truncate">
                     hash {d.document_hash.slice(0, 24)}…
                   </p>
                 </div>

@@ -361,7 +361,7 @@ export default function Assistant() {
           </div>
           <div className="min-w-0">
             <h1 className="kd-display text-base font-semibold truncate leading-tight">KD-Ops Assistant</h1>
-            <p className="text-[11px] text-muted-foreground truncate">
+            <p className="text-2xs text-muted-foreground truncate">
               Powered by Llama&nbsp;3.3&nbsp;70B · Gemini Vision · Tavily Search
             </p>
           </div>
@@ -432,7 +432,7 @@ export default function Assistant() {
               {/* Pinned */}
               {pinnedConvs.length > 0 && (
                 <div className="mb-2">
-                  <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  <p className="px-2 py-1 text-3xs font-semibold uppercase tracking-wider text-muted-foreground/70">
                     Pinned
                   </p>
                   {pinnedConvs.map((c) => (
@@ -455,7 +455,7 @@ export default function Assistant() {
               {recentConvs.length > 0 && (
                 <div>
                   {pinnedConvs.length > 0 && (
-                    <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    <p className="px-2 py-1 text-3xs font-semibold uppercase tracking-wider text-muted-foreground/70">
                       Recent
                     </p>
                   )}
@@ -618,11 +618,11 @@ export default function Assistant() {
               </div>
 
               <div className="flex items-center justify-between mt-1.5 px-0.5">
-                <p className="text-[10px] text-muted-foreground/60">
+                <p className="text-3xs text-muted-foreground/60">
                   Enter to send · Shift+Enter for new line
                 </p>
                 {useWebSearch && (
-                  <span className="kd-badge kd-badge-primary text-[10px] flex items-center gap-1">
+                  <span className="kd-badge kd-badge-primary text-3xs flex items-center gap-1">
                     <Globe className="h-2.5 w-2.5" /> Web search active
                   </span>
                 )}
@@ -677,7 +677,7 @@ function ConvItem({
             <p className={`text-xs font-medium truncate ${active ? 'text-primary' : 'text-foreground'}`}>
               {conv.title}
             </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
+            <p className="text-3xs text-muted-foreground mt-0.5">
               {formatDateTime(conv.updated_at)}
             </p>
           </>
@@ -689,13 +689,13 @@ function ConvItem({
         <div className="flex gap-1 shrink-0">
           <button
             onClick={(e) => { e.stopPropagation(); onCancelDelete(); }}
-            className="h-5 rounded px-1.5 text-[10px] font-medium bg-muted hover:bg-muted/80 text-muted-foreground kd-transition"
+            className="h-5 rounded px-1.5 text-3xs font-medium bg-muted hover:bg-muted/80 text-muted-foreground kd-transition"
           >
             Cancel
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onConfirmDelete(); }}
-            className="h-5 rounded px-1.5 text-[10px] font-medium bg-destructive/90 hover:bg-destructive text-destructive-foreground kd-transition"
+            className="h-5 rounded px-1.5 text-3xs font-medium bg-destructive/90 hover:bg-destructive text-destructive-foreground kd-transition"
           >
             Delete
           </button>
@@ -773,7 +773,7 @@ function MessageBubble({ message }: { message: Message }) {
         }`}
       >
         {isUser
-          ? <span className="text-[10px] font-bold text-muted-foreground">You</span>
+          ? <span className="text-3xs font-bold text-muted-foreground">You</span>
           : <Bot className="h-4 w-4 text-white" />}
       </div>
 
@@ -793,7 +793,7 @@ function MessageBubble({ message }: { message: Message }) {
               {message.attachments.map((a, i) => (
                 <span
                   key={i}
-                  className="inline-flex items-center gap-1 rounded bg-background/20 px-1.5 py-0.5 text-[10px]"
+                  className="inline-flex items-center gap-1 rounded bg-background/20 px-1.5 py-0.5 text-3xs"
                 >
                   {a.mime_type.startsWith('image/')
                     ? <ImageIcon className="h-2.5 w-2.5" />
@@ -812,7 +812,7 @@ function MessageBubble({ message }: { message: Message }) {
               const meta = TOOL_META[t];
               const Icon = meta?.icon ?? Search;
               return (
-                <span key={t} className={`${meta?.cls ?? 'kd-badge kd-badge-muted'} flex items-center gap-1 text-[10px]`}>
+                <span key={t} className={`${meta?.cls ?? 'kd-badge kd-badge-muted'} flex items-center gap-1 text-3xs`}>
                   <Icon className="h-2.5 w-2.5" />
                   {meta?.label ?? t}
                 </span>

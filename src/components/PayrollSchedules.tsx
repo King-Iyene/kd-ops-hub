@@ -398,7 +398,7 @@ function YearCalendar({ schedules }: { schedules: PaySchedule[] }) {
                   <span className="text-xs text-muted-foreground">{year}</span>
                 </div>
                 <CardContent className="p-3">
-                  <div className="grid grid-cols-7 gap-1 text-[10px] text-muted-foreground mb-1">
+                  <div className="grid grid-cols-7 gap-1 text-3xs text-muted-foreground mb-1">
                     {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
                       <span key={i} className="text-center">{d}</span>
                     ))}
@@ -425,7 +425,7 @@ function YearCalendar({ schedules }: { schedules: PaySchedule[] }) {
                       const cell = (
                         <div
                           className={cn(
-                            'aspect-square rounded text-center text-[11px] flex items-center justify-center relative cursor-default',
+                            'aspect-square rounded text-center text-2xs flex items-center justify-center relative cursor-default',
                             isToday && 'ring-2 ring-primary ring-offset-1',
                             isPast && payHits.length === 0 && !holiday && 'text-muted-foreground/40',
                             !isPast && payHits.length === 0 && !holiday && 'text-muted-foreground hover:bg-muted/40',
@@ -778,7 +778,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
                         {g.role_filter.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1.5">
                             {g.role_filter.map((r) => (
-                              <span key={r} className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted">{r}</span>
+                              <span key={r} className="text-3xs px-1.5 py-0.5 rounded-full bg-muted">{r}</span>
                             ))}
                           </div>
                         )}
@@ -801,7 +801,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
 
                   <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-border/50 pt-3.5">
                     <button type="button" onClick={() => openMembers(g)} className="text-left group">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Members</p>
+                      <p className="text-3xs font-bold uppercase tracking-wide text-muted-foreground">Members</p>
                       {count > 0 ? (
                         <div className="flex items-center -space-x-1.5 mt-1.5">
                           {names.slice(0, 4).map((n, idx) => (
@@ -827,13 +827,13 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
                       )}
                     </button>
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Cadence</p>
+                      <p className="text-3xs font-bold uppercase tracking-wide text-muted-foreground">Cadence</p>
                       <p className="text-sm font-medium mt-1">
                         {sched ? sched.name : <span className="italic text-muted-foreground font-normal">Unassigned</span>}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Monthly cost</p>
+                      <p className="text-3xs font-bold uppercase tracking-wide text-muted-foreground">Monthly cost</p>
                       <p className="kd-display text-base font-extrabold tabular-nums mt-1">{formatNaira(memberCosts[g.id] ?? 0)}</p>
                     </div>
                   </div>
@@ -1092,7 +1092,7 @@ function HolidaysManager() {
             return (
               <div key={h.id} className="group flex items-center gap-3.5 rounded-xl border border-border/70 bg-card px-4 py-3.5">
                 <div className="w-12 text-center shrink-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                  <p className="text-3xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">
                     {d.toLocaleDateString('en-US', { month: 'short' })}
                   </p>
                   <p className="kd-display text-lg font-extrabold leading-tight">{d.getDate()}</p>
@@ -1633,13 +1633,13 @@ export function PayrollSchedules() {
           <TabsTrigger value="groups">
             <Users className="mr-2 h-4 w-4" />Pay Groups
             {payGroupCount !== null && (
-              <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums">({payGroupCount})</span>
+              <span className="ml-1.5 text-3xs text-muted-foreground tabular-nums">({payGroupCount})</span>
             )}
           </TabsTrigger>
           <TabsTrigger value="holidays">
             <Sparkles className="mr-2 h-4 w-4" />Holidays
             {holidayCount !== null && (
-              <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums">({holidayCount})</span>
+              <span className="ml-1.5 text-3xs text-muted-foreground tabular-nums">({holidayCount})</span>
             )}
           </TabsTrigger>
         </TabsList>
@@ -1719,7 +1719,7 @@ export function PayrollSchedules() {
                                 </span>
                                 {s.name}
                                 {s.schedule_kind === 'off_cycle' && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-medium">
+                                  <span className="text-3xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-medium">
                                     Off-cycle
                                   </span>
                                 )}

@@ -86,8 +86,8 @@ function DimensionCard({ dim }: { dim: HealthDimension }) {
           style={{ width: barWidth }}
         />
       </div>
-      <p className="text-[11px] text-muted-foreground leading-snug">{dim.detail}</p>
-      <p className="text-[10px] text-muted-foreground">Weight: {(dim.weight * 100).toFixed(0)}%</p>
+      <p className="text-2xs text-muted-foreground leading-snug">{dim.detail}</p>
+      <p className="text-3xs text-muted-foreground">Weight: {(dim.weight * 100).toFixed(0)}%</p>
     </div>
   );
 }

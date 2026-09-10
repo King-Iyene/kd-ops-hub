@@ -69,13 +69,13 @@ export function ChartTooltip({
   return (
     <div className="rounded-lg border bg-popover/95 backdrop-blur-sm px-3 py-2.5 shadow-lg ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
       {label != null && (
-        <p className="text-[11px] font-medium text-popover-foreground mb-1.5">
+        <p className="text-2xs font-medium text-popover-foreground mb-1.5">
           {label}
         </p>
       )}
       <div className="space-y-1">
         {visible.map((entry, i) => (
-          <div key={i} className="flex items-center gap-2 text-[11px]">
+          <div key={i} className="flex items-center gap-2 text-2xs">
             <span
               className="w-2 h-[2px] rounded-sm shrink-0"
               style={{ background: entry.color }}

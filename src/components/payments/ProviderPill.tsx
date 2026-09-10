@@ -23,7 +23,7 @@ interface ProviderPillProps {
 }
 
 const SIZE_CLASSES: Record<'xs' | 'sm' | 'md', string> = {
-  xs: 'text-[10px] px-1.5 py-0.5 gap-1',
+  xs: 'text-3xs px-1.5 py-0.5 gap-1',
   sm: 'text-xs px-2 py-0.5 gap-1',
   md: 'text-sm px-2.5 py-1 gap-1.5',
 };

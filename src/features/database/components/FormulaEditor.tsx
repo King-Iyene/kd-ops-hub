@@ -229,12 +229,12 @@ export function FormulaEditor({ value, onChange, fields, error, sampleRecords: s
         onKeyDown={handleKeyDown}
         onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
         placeholder='e.g. IF({Status} = "Done", 1, 0)'
-        className="w-full h-24 px-3 py-2 border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg text-[13px] font-mono resize-y focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
+        className="w-full h-24 px-3 py-2 border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg text-xs-plus font-mono resize-y focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
         spellCheck={false}
       />
       {isValid && (
         <div className="absolute bottom-2 right-2 flex items-center gap-1">
-          <span className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">✓</span>
+          <span className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-3xs">✓</span>
         </div>
       )}
 
@@ -254,14 +254,14 @@ export function FormulaEditor({ value, onChange, fields, error, sampleRecords: s
                 applySuggestion(sug);
               }}
             >
-              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+              <span className={`text-3xs font-mono px-1.5 py-0.5 rounded ${
                 sug.type === 'field'
                   ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
                   : 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
               }`}>
                 {sug.type === 'field' ? 'field' : 'fn'}
               </span>
-              <span className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)]">
+              <span className="text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)]">
                 {sug.type === 'field' ? `{${sug.label}}` : `${sug.label}()`}
               </span>
             </button>
@@ -271,7 +271,7 @@ export function FormulaEditor({ value, onChange, fields, error, sampleRecords: s
 
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
       {!error && value.trim() && <p className="text-xs text-green-600 mt-1">Formula is valid</p>}
-      <div className="text-[10px] text-[#9AA2AF] leading-relaxed mt-1">
+      <div className="text-3xs text-[#9AA2AF] leading-relaxed mt-1">
         <span className="font-medium">Reference fields:</span> {'{FieldName}'} &middot;{' '}
         <span className="font-medium">Functions:</span>{' '}
         {FORMULA_FUNCTIONS.slice(0, 12).join(', ')}...
@@ -285,7 +285,7 @@ export function FormulaEditor({ value, onChange, fields, error, sampleRecords: s
       )}
       {preview.status === 'ok' && preview.rows.length > 0 && (
         <div className="mt-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/15 border border-blue-200 dark:border-blue-800/40">
-          <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">
+          <p className="text-3xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">
             Preview
           </p>
           <div className="space-y-0.5">

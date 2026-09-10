@@ -132,7 +132,7 @@ export function CreateLinkDialog({ open, onOpenChange }: CreateLinkDialogProps) 
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[10px] text-[#9AA2AF]">
+            <p className="text-3xs text-[#9AA2AF]">
               {relType === 'one_to_many' && 'One record here links to many records in the related table.'}
               {relType === 'one_to_one' && 'Each record here belongs to one record in the related table.'}
               {relType === 'many_to_many' && 'Records on both sides can link to many records. A junction table is created.'}

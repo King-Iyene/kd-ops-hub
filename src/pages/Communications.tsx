@@ -803,7 +803,7 @@ export default function Communications() {
                 <div className="flex items-center justify-between">
                   <Label className="kd-label mb-0">Message</Label>
                   <span className={cn(
-                    'text-[10px] tabular-nums',
+                    'text-3xs tabular-nums',
                     channel === 'sms' && smsSegments > 1 ? 'text-amber-500' : 'text-muted-foreground',
                   )}>
                     {textMessage.length} chars
@@ -938,12 +938,12 @@ export default function Communications() {
                       const display = r.name || (channel === 'email' ? r.email : r.phone) || '';
                       return (
                         <div key={key} className="text-xs px-2.5 py-1.5 flex items-center gap-2 group">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-semibold uppercase">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-3xs font-semibold uppercase">
                             {display.slice(0, 1)}
                           </span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate font-medium text-foreground">{display}</p>
-                            {r.name && <p className="truncate text-[10px] text-muted-foreground">{channel === 'email' ? r.email : r.phone}</p>}
+                            {r.name && <p className="truncate text-3xs text-muted-foreground">{channel === 'email' ? r.email : r.phone}</p>}
                           </div>
                           <button
                             onClick={() => setPickedRecipients((cur) => cur.filter((x) => recipientKey(x, channel) !== key))}
@@ -958,7 +958,7 @@ export default function Communications() {
               </div>
             )}
 
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-3xs text-muted-foreground">
               {channel === 'email'
                 ? <>Supports plain emails and <code className="text-[9px]">Name &lt;email&gt;</code> format.</>
                 : 'Nigerian mobile numbers only — any common format works. '}
@@ -1114,7 +1114,7 @@ export default function Communications() {
               className="font-mono text-xs min-h-[320px]"
             />
             {editingTemplate?.variables && editingTemplate.variables.length > 0 && (
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-3xs text-muted-foreground">
                 Available variables:{' '}
                 {editingTemplate.variables.map((v) => (
                   <code key={v.name} className="mr-1">{`{{${v.name}}}`}</code>

@@ -67,7 +67,7 @@ export function ViewAsBanner() {
         title="Exit simulation (Esc)"
       >
         <X className="h-3 w-3" /> Exit
-        <kbd className="hidden lg:inline ml-0.5 text-[10px] opacity-60 font-mono">Esc</kbd>
+        <kbd className="hidden lg:inline ml-0.5 text-3xs opacity-60 font-mono">Esc</kbd>
       </button>
     </div>
   );

@@ -245,7 +245,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
               <Search size={14} className="absolute left-2.5 top-2.5 text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
               <input
                 ref={searchInputRef}
-                className="w-full h-9 pl-8 pr-3 text-[13px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-md bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#2D7FF9]"
+                className="w-full h-9 pl-8 pr-3 text-xs-plus border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-md bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#2D7FF9]"
                 placeholder="Find..."
                 value={searchText}
                 onChange={(e) => { setSearchText(e.target.value); setCurrentMatchIndex(0); }}
@@ -279,7 +279,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
             <div className="flex-1 relative">
               <Replace size={14} className="absolute left-2.5 top-2.5 text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
               <input
-                className="w-full h-9 pl-8 pr-3 text-[13px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-md bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#2D7FF9]"
+                className="w-full h-9 pl-8 pr-3 text-xs-plus border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-md bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#2D7FF9]"
                 placeholder="Replace with..."
                 value={replaceText}
                 onChange={(e) => setReplaceText(e.target.value)}
@@ -314,7 +314,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
             {toggleBtn(useRegex, () => setUseRegex((v) => !v), 'Use regular expression', <Regex size={14} />)}
 
             <select
-              className="h-7 px-2 text-[11px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="h-7 px-2 text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
               value={selectedFieldId}
               onChange={(e) => { setSelectedFieldId(e.target.value); setCurrentMatchIndex(0); }}
             >
@@ -334,7 +334,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
           </div>
 
           {regexError && (
-            <p className="text-[11px] text-red-500">{regexError}</p>
+            <p className="text-2xs text-red-500">{regexError}</p>
           )}
 
           {/* Match list */}
@@ -363,7 +363,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
                     }`}
                   >
                     <div className="flex-1 min-w-0">
-                      <span className="text-[10px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] mr-2">{m.fieldName}</span>
+                      <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] mr-2">{m.fieldName}</span>
                       <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)]">
                         {prefix}
                         <mark className={`px-0.5 rounded ${isActive ? 'bg-[#2D7FF9]/20 dark:bg-[#2D7FF9]/30' : 'bg-yellow-200 dark:bg-yellow-700/50'} dark:text-[hsl(200,25%,88%)]`}>
@@ -376,7 +376,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
                 );
               })}
               {matches.length > 100 && (
-                <div className="px-3 py-2 text-[11px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] text-center">
+                <div className="px-3 py-2 text-2xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] text-center">
                   ...and {matches.length - 100} more matches
                 </div>
               )}

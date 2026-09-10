@@ -121,7 +121,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
               <X size={14} className="text-gray-400" />
             </button>
           )}
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-3xs font-medium
             bg-gray-100 dark:bg-[hsl(200,25%,15%)]
             text-gray-500 dark:text-[hsl(200,20%,50%)]
             border border-gray-200 dark:border-[hsl(200,25%,22%)]">
@@ -181,7 +181,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
                         {highlight(r.matchValue, query)}
                       </div>
                     )}
-                    <div className="flex items-center gap-1.5 mt-1 text-[10px] text-gray-400 dark:text-[hsl(200,20%,42%)]">
+                    <div className="flex items-center gap-1.5 mt-1 text-3xs text-gray-400 dark:text-[hsl(200,20%,42%)]">
                       <Database size={10} />
                       <span>{r.baseName}</span>
                       <span className="opacity-50">/</span>
@@ -197,7 +197,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
 
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 dark:border-[hsl(200,25%,18%)]
-          text-[10px] text-gray-400 dark:text-[hsl(200,20%,42%)]">
+          text-3xs text-gray-400 dark:text-[hsl(200,20%,42%)]">
           <span>
             <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-[hsl(200,25%,15%)] border border-gray-200 dark:border-[hsl(200,25%,22%)] font-mono">↑↓</kbd>
             {' '}navigate

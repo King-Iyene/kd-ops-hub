@@ -93,8 +93,8 @@ function totalDepreciation(asset: Asset): number {
 function insuranceExpiryBadge(expiry: string | null) {
   if (!expiry) return null;
   const days = differenceInDays(parseISO(expiry), new Date());
-  if (days < 0)   return <Badge variant="destructive" className="text-[10px]">Expired</Badge>;
-  if (days <= 30) return <Badge variant="outline" className="text-[10px] border-warning text-warning">Ins. expires {days}d</Badge>;
+  if (days < 0)   return <Badge variant="destructive" className="text-3xs">Expired</Badge>;
+  if (days <= 30) return <Badge variant="outline" className="text-3xs border-warning text-warning">Ins. expires {days}d</Badge>;
   return null;
 }
 
@@ -339,7 +339,7 @@ export default function Assets() {
                   <tr key={a.id} className="hover:bg-muted/40 kd-transition">
                     <td className="px-3 py-3">
                       <p className="font-medium">{a.name}</p>
-                      <p className="text-[11px] text-muted-foreground">{a.asset_number}</p>
+                      <p className="text-2xs text-muted-foreground">{a.asset_number}</p>
                     </td>
                     <td className="px-3 py-3 text-xs text-muted-foreground">{CATEGORY_META[a.category].label}</td>
                     <td className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
@@ -349,7 +349,7 @@ export default function Assets() {
                     <td className="px-3 py-3 text-xs font-medium text-success currency">{formatNaira(bv)}</td>
                     <td className="px-3 py-3">
                       <p className="text-xs text-muted-foreground currency">{formatNaira(depn)}</p>
-                      <p className="text-[10px] text-muted-foreground/60">{depnPct.toFixed(0)}%</p>
+                      <p className="text-3xs text-muted-foreground/60">{depnPct.toFixed(0)}%</p>
                     </td>
                     <td className="px-3 py-3 text-xs text-muted-foreground">
                       {a.assigned_to ? (
@@ -362,13 +362,13 @@ export default function Assets() {
                       {a.insurance_expiry && (
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-[11px] text-muted-foreground">{format(parseISO(a.insurance_expiry), 'd MMM yy')}</span>
+                          <span className="text-2xs text-muted-foreground">{format(parseISO(a.insurance_expiry), 'd MMM yy')}</span>
                         </div>
                       )}
                       {insuranceExpiryBadge(a.insurance_expiry)}
                     </td>
                     <td className="px-3 py-3">
-                      <Badge variant={STATUS_BADGE[a.status].variant} className="text-[10px]">
+                      <Badge variant={STATUS_BADGE[a.status].variant} className="text-3xs">
                         {STATUS_BADGE[a.status].label}
                       </Badge>
                     </td>
@@ -399,10 +399,10 @@ export default function Assets() {
                 <MobileCardHeader>
                   <div className="min-w-0 flex-1">
                     <MobileCardTitle>{a.name}</MobileCardTitle>
-                    <p className="text-[11px] text-muted-foreground">{a.asset_number}</p>
+                    <p className="text-2xs text-muted-foreground">{a.asset_number}</p>
                   </div>
                   <MobileCardMeta>
-                    <Badge variant={STATUS_BADGE[a.status].variant} className="text-[10px]">
+                    <Badge variant={STATUS_BADGE[a.status].variant} className="text-3xs">
                       {STATUS_BADGE[a.status].label}
                     </Badge>
                   </MobileCardMeta>

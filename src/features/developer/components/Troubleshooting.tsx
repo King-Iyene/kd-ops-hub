@@ -35,7 +35,7 @@ function CodeBlock({ label, code, language }: { label: string; code: string; lan
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700/80 overflow-hidden">
       <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800/80">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{label}</span>
+          <span className="text-3xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{label}</span>
           {language && (
             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-zinc-200/70 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 font-medium">
               {language}
@@ -109,9 +109,9 @@ function severityColor(s: Severity) {
 
 function severityBadge(s: Severity) {
   switch (s) {
-    case 'critical': return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 text-[10px]">Critical</Badge>;
-    case 'common': return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 text-[10px]">Common</Badge>;
-    case 'tip': return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-[10px]">Tip</Badge>;
+    case 'critical': return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 text-3xs">Critical</Badge>;
+    case 'common': return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 text-3xs">Common</Badge>;
+    case 'tip': return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-3xs">Tip</Badge>;
   }
 }
 
@@ -576,7 +576,7 @@ def verify_signature(body: bytes, secret: str, signature: str) -> bool:
 const CHECKLIST_ITEMS = [
   { label: 'Is your API key valid? (not revoked, not expired)' },
   { label: <>Does the key have the right scopes? (e.g., <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">employees:read</code> for GET /employees)</> },
-  { label: <>Is the URL correct? Base: <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono text-[10px]">https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/platform-api/v1</code></> },
+  { label: <>Is the URL correct? Base: <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono text-3xs">https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/platform-api/v1</code></> },
   { label: <>Are you sending the Authorization header? (<code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">Bearer kdops_xxxxx</code>)</> },
   { label: <>Is Content-Type set to <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">application/json</code> for POST/PATCH?</> },
   { label: 'Are you within the rate limit? (100 requests/minute per key)' },
@@ -656,7 +656,7 @@ export default function Troubleshooting({ onNavigate }: { onNavigate?: (tab: str
           <div className="flex items-center gap-2 mb-4">
             <CheckCircle2 size={18} className="text-blue-600 dark:text-blue-400" />
             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Quick Diagnostics Checklist</h3>
-            <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-[10px]">Start here</Badge>
+            <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-3xs">Start here</Badge>
           </div>
           <div className="space-y-2.5">
             {CHECKLIST_ITEMS.map((item, idx) => (

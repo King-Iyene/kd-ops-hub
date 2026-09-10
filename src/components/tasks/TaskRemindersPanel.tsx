@@ -257,7 +257,7 @@ export function TaskRemindersPanel({ taskId }: TaskRemindersPanelProps) {
         <Bell className="h-3.5 w-3.5" />
         Reminders
         {activeReminders.length > 0 && (
-          <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
+          <Badge variant="secondary" className="ml-auto text-3xs px-1.5 py-0">
             {activeReminders.length}
           </Badge>
         )}
@@ -358,7 +358,7 @@ export function TaskRemindersPanel({ taskId }: TaskRemindersPanelProps) {
         <Button
           variant="outline"
           size="sm"
-          className="h-6 text-[11px] px-2"
+          className="h-6 text-2xs px-2"
           disabled={saving}
           onClick={() => createReminder(inOneHour())}
         >
@@ -368,7 +368,7 @@ export function TaskRemindersPanel({ taskId }: TaskRemindersPanelProps) {
         <Button
           variant="outline"
           size="sm"
-          className="h-6 text-[11px] px-2"
+          className="h-6 text-2xs px-2"
           disabled={saving}
           onClick={() => createReminder(tomorrowAt9())}
         >
@@ -378,7 +378,7 @@ export function TaskRemindersPanel({ taskId }: TaskRemindersPanelProps) {
         <Button
           variant="outline"
           size="sm"
-          className="h-6 text-[11px] px-2"
+          className="h-6 text-2xs px-2"
           disabled={saving}
           onClick={() => createReminder(nextMondayAt9())}
         >
@@ -388,7 +388,7 @@ export function TaskRemindersPanel({ taskId }: TaskRemindersPanelProps) {
         <Button
           variant="outline"
           size="sm"
-          className="h-6 text-[11px] px-2"
+          className="h-6 text-2xs px-2"
           disabled={saving}
           onClick={() => {
             const now = new Date();
@@ -429,7 +429,7 @@ export function TaskRemindersPanel({ taskId }: TaskRemindersPanelProps) {
           <div className="flex gap-1.5">
             <Button
               size="sm"
-              className="h-6 text-[11px] px-3"
+              className="h-6 text-2xs px-3"
               disabled={saving || !customDate || !customTime}
               onClick={handleCustomSubmit}
             >
@@ -438,7 +438,7 @@ export function TaskRemindersPanel({ taskId }: TaskRemindersPanelProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 text-[11px] px-2"
+              className="h-6 text-2xs px-2"
               onClick={() => setShowCustom(false)}
             >
               Cancel
@@ -449,7 +449,7 @@ export function TaskRemindersPanel({ taskId }: TaskRemindersPanelProps) {
 
       {/* Empty state */}
       {!loading && reminders.length === 0 && !showCustom && (
-        <p className="text-[11px] text-muted-foreground/60 py-1">
+        <p className="text-2xs text-muted-foreground/60 py-1">
           No reminders set for this task.
         </p>
       )}

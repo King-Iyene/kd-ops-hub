@@ -532,14 +532,14 @@ export default function PaymentSchedule() {
         ].map(({ label, value, sub, warn }) => (
           <div key={label} className="kd-holographic relative px-4 py-3.5 kd-transition">
             <div className="relative z-[2]">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1.5">
+              <p className="text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1.5">
                 {label}
                 {warn && <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-red-500 animate-pulse" />}
               </p>
               <p className="mt-1.5 text-[20px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
                 {value}
               </p>
-              <p className="mt-1 text-[11px] text-muted-foreground/80 tabular-nums truncate">{sub}</p>
+              <p className="mt-1 text-2xs text-muted-foreground/80 tabular-nums truncate">{sub}</p>
             </div>
           </div>
         ))}
@@ -549,7 +549,7 @@ export default function PaymentSchedule() {
           status rail on the left, group label small-caps). */}
       <div className="space-y-4">
         <div className="flex items-baseline gap-2">
-          <h2 className="text-[13px] font-semibold tracking-tight">Upcoming payments</h2>
+          <h2 className="text-xs-plus font-semibold tracking-tight">Upcoming payments</h2>
         </div>
         {loading ? (
           <TableSkeleton rows={5} cols={4} />
@@ -595,14 +595,14 @@ export default function PaymentSchedule() {
                         <span className={cn('absolute left-0 top-0 h-full w-[3px]', railColor)} />
                         <cfg.icon className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0 ml-0.5" />
                         <div className="flex-1 min-w-0 flex items-center gap-2">
-                          <p className="font-medium text-[13px] truncate text-foreground shrink min-w-0">{item.name}</p>
+                          <p className="font-medium text-xs-plus truncate text-foreground shrink min-w-0">{item.name}</p>
                           <Badge
                             variant="outline"
-                            className={cn('hidden md:inline-flex text-[10px] h-4 px-1.5 shrink-0', cfg.className)}
+                            className={cn('hidden md:inline-flex text-3xs h-4 px-1.5 shrink-0', cfg.className)}
                           >
                             {cfg.label}
                           </Badge>
-                          <span className="hidden md:inline text-[11px] text-muted-foreground/70 tabular-nums shrink-0">
+                          <span className="hidden md:inline text-2xs text-muted-foreground/70 tabular-nums shrink-0">
                             {formatDate(item.dueDate)}
                           </span>
                         </div>
@@ -610,7 +610,7 @@ export default function PaymentSchedule() {
                           {formatDate(item.dueDate)}
                         </span>
                         <span className={cn(
-                          'shrink-0 font-mono font-semibold text-[13px] tabular-nums leading-none tracking-tight w-28 text-right',
+                          'shrink-0 font-mono font-semibold text-xs-plus tabular-nums leading-none tracking-tight w-28 text-right',
                           isOverdue && 'text-red-700',
                         )}>
                           {formatNaira(item.amount)}
@@ -629,7 +629,7 @@ export default function PaymentSchedule() {
       {/* Section 4 — Recurring schedules (native table, hairline
           divider, mono dates, dot+label status). */}
       <div ref={recurringRef} className="space-y-3">
-        <h2 className="text-[13px] font-semibold tracking-tight">Recurring schedules</h2>
+        <h2 className="text-xs-plus font-semibold tracking-tight">Recurring schedules</h2>
         {loading ? (
           <TableSkeleton rows={3} cols={6} />
         ) : recurringSchedules.length === 0 ? (
@@ -646,18 +646,18 @@ export default function PaymentSchedule() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border/50">
-                    <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Batch</th>
-                    <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Frequency</th>
-                    <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Next run</th>
-                    <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Last run</th>
-                    <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Status</th>
-                    <th className="text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Actions</th>
+                    <th className="text-left text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Batch</th>
+                    <th className="text-left text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Frequency</th>
+                    <th className="text-left text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Next run</th>
+                    <th className="text-left text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Last run</th>
+                    <th className="text-left text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Status</th>
+                    <th className="text-right text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
                   {recurringSchedules.map((s) => (
                     <tr key={s.id} className="hover:bg-muted/30 kd-transition">
-                      <td className="px-3 py-2 text-[13px] font-medium">{s.batch_name}</td>
+                      <td className="px-3 py-2 text-xs-plus font-medium">{s.batch_name}</td>
                       <td className="px-3 py-2 text-xs capitalize text-muted-foreground">{s.frequency}</td>
                       <td className="px-3 py-2 text-xs font-mono tabular-nums text-muted-foreground">
                         {s.next_run_date ? formatDate(s.next_run_date) : <span className="text-muted-foreground/30">—</span>}

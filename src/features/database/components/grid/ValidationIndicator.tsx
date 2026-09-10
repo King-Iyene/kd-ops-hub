@@ -41,7 +41,7 @@ export function ValidationIndicator({ errors }: ValidationIndicatorProps) {
       />
       {show && (
         <span
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-50 whitespace-nowrap rounded px-2 py-1 text-[11px] leading-tight shadow-lg pointer-events-none"
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-50 whitespace-nowrap rounded px-2 py-1 text-2xs leading-tight shadow-lg pointer-events-none"
           style={{
             backgroundColor: '#1F2937',
             color: '#F9FAFB',

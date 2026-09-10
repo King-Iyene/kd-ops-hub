@@ -92,7 +92,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                 </p>
               </div>
               <div className="flex gap-2">
-                <code className="flex-1 px-3 py-1.5 rounded-md bg-white dark:bg-[hsl(200,30%,10%)] border border-[#F59E0B]/30 text-[11px] text-[#92400E] dark:text-[#FCD34D] font-mono break-all select-all">
+                <code className="flex-1 px-3 py-1.5 rounded-md bg-white dark:bg-[hsl(200,30%,10%)] border border-[#F59E0B]/30 text-2xs text-[#92400E] dark:text-[#FCD34D] font-mono break-all select-all">
                   {revealedKey}
                 </code>
                 <Button
@@ -121,18 +121,18 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
               >
                 <Key size={14} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)] shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                  <p className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
                     {k.name}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <code className="text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] font-mono">
+                    <code className="text-2xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] font-mono">
                       {k.key_prefix}...
                     </code>
-                    <span className="text-[10px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+                    <span className="text-3xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
                       {k.scopes.join(', ')}
                     </span>
                     {k.last_used_at && (
-                      <span className="text-[10px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+                      <span className="text-3xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
                         Used {timeAgo(k.last_used_at)}
                       </span>
                     )}
@@ -143,7 +143,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-7 px-2 text-[11px] text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
+                      className="h-7 px-2 text-2xs text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
                       onClick={() => handleRevoke(k.id)}
                     >
                       Revoke
@@ -151,7 +151,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-7 px-2 text-[11px]"
+                      className="h-7 px-2 text-2xs"
                       onClick={() => setConfirmRevokeId(null)}
                     >
                       Cancel
@@ -161,7 +161,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 px-2 text-[11px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
+                    className="h-7 px-2 text-2xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
                     onClick={() => setConfirmRevokeId(k.id)}
                   >
                     Revoke

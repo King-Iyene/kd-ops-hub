@@ -433,7 +433,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                         >
                           <div className="truncate max-w-[140px]">{h}</div>
                           <select
-                            className="mt-1 text-[10px] font-normal bg-transparent border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:text-[hsl(200,20%,55%)]"
+                            className="mt-1 text-3xs font-normal bg-transparent border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:text-[hsl(200,20%,55%)]"
                             value={columnTypes[i] ?? 'SingleLineText'}
                             onChange={(e) => {
                               const next = [...columnTypes];
@@ -448,7 +448,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                         </th>
                       ))}
                       {remainingHeaders.length > 0 && (
-                        <th className="text-left px-3 py-2 font-normal text-[10px] border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] whitespace-nowrap text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+                        <th className="text-left px-3 py-2 font-normal text-3xs border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] whitespace-nowrap text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
                           +{remainingHeaders.length} more
                         </th>
                       )}
@@ -466,7 +466,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                           </td>
                         ))}
                         {remainingHeaders.length > 0 && (
-                          <td className="px-3 py-1.5 border-b text-[10px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">…</td>
+                          <td className="px-3 py-1.5 border-b text-3xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">…</td>
                         )}
                       </tr>
                     ))}
@@ -485,7 +485,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                       <div key={i} className="flex items-center gap-2 px-3 py-1.5">
                         <span className="flex-1 truncate text-[#374151] dark:text-[hsl(200,25%,88%)]">{h}</span>
                         <select
-                          className="text-[10px] bg-transparent border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:text-[hsl(200,20%,55%)]"
+                          className="text-3xs bg-transparent border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:text-[hsl(200,20%,55%)]"
                           value={columnTypes[i] ?? 'SingleLineText'}
                           onChange={(e) => {
                             const next = [...columnTypes];
@@ -516,7 +516,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                       style={{ width: progress.total > 0 ? `${Math.round((progress.done / progress.total) * 100)}%` : '0%' }}
                     />
                   </div>
-                  <div className="flex items-center justify-between text-[10px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+                  <div className="flex items-center justify-between text-3xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
                     <span>
                       {phase === 'fields' && 'Creating fields...'}
                       {phase === 'records' && `${progress.done} / ${progress.total} rows`}

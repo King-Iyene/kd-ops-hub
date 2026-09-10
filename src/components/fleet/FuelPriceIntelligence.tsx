@@ -256,7 +256,7 @@ export function FuelPriceIntelligence() {
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
               Price Alerts
-              <Badge variant="destructive" className="text-[10px]">{alerts.length} station{alerts.length > 1 ? 's' : ''}</Badge>
+              <Badge variant="destructive" className="text-3xs">{alerts.length} station{alerts.length > 1 ? 's' : ''}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -276,7 +276,7 @@ export function FuelPriceIntelligence() {
                   <span className="font-medium">{formatNaira(Math.round(a.currentPrice))}/L</span>
                   <Badge
                     variant="secondary"
-                    className={`text-[10px] ${
+                    className={`text-3xs ${
                       a.direction === 'up'
                         ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                         : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
@@ -298,7 +298,7 @@ export function FuelPriceIntelligence() {
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Fuel className="h-4 w-4 text-muted-foreground" />
               Fleet Fuel Price Trend
-              <Badge variant="secondary" className="text-[10px] font-normal">6 months</Badge>
+              <Badge variant="secondary" className="text-3xs font-normal">6 months</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -341,7 +341,7 @@ export function FuelPriceIntelligence() {
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
               Station Price History
-              <Badge variant="secondary" className="text-[10px] font-normal">Top {topStations.size} stations</Badge>
+              <Badge variant="secondary" className="text-3xs font-normal">Top {topStations.size} stations</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -388,7 +388,7 @@ export function FuelPriceIntelligence() {
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Target className="h-4 w-4 text-muted-foreground" />
               Station Recommendations
-              <Badge variant="secondary" className="text-[10px] font-normal">Based on price + consistency</Badge>
+              <Badge variant="secondary" className="text-3xs font-normal">Based on price + consistency</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2.5">
@@ -413,7 +413,7 @@ export function FuelPriceIntelligence() {
                     <span className="text-sm font-medium truncate">{r.station}</span>
                     <Badge
                       variant="secondary"
-                      className={`text-[10px] ${
+                      className={`text-3xs ${
                         r.trend === 'falling'
                           ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                           : r.trend === 'rising'
@@ -431,7 +431,7 @@ export function FuelPriceIntelligence() {
                 <div className="text-right shrink-0">
                   <div className="text-sm font-semibold tabular-nums">{formatNaira(Math.round(r.avgPrice))}/L</div>
                   {r.savingsPotential > 0 && (
-                    <div className="text-[10px] text-green-600 dark:text-green-400 tabular-nums">
+                    <div className="text-3xs text-green-600 dark:text-green-400 tabular-nums">
                       Save ~{formatNaira(r.savingsPotential)}/mo
                     </div>
                   )}

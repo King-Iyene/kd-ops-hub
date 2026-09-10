@@ -111,7 +111,7 @@ export default function PrivacyPanel() {
       rejected: 'border-rose-500/40 text-rose-700 dark:text-rose-400',
       cancelled: 'border-slate-500/40 text-slate-700 dark:text-slate-400',
     };
-    return <Badge variant="outline" className={`text-[10px] ${map[s]}`}>{s}</Badge>;
+    return <Badge variant="outline" className={`text-3xs ${map[s]}`}>{s}</Badge>;
   };
 
   return (
@@ -173,11 +173,11 @@ export default function PrivacyPanel() {
                 <div key={r.id} className="py-2 flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-sm font-medium">{KIND_LABEL[r.request_type]}</div>
-                    <div className="text-[11px] text-muted-foreground">
+                    <div className="text-2xs text-muted-foreground">
                       Submitted {new Date(r.created_at).toLocaleString()}
                       {r.completed_at && ` · completed ${new Date(r.completed_at).toLocaleDateString()}`}
                     </div>
-                    {r.reason && <p className="text-[11px] text-muted-foreground italic mt-0.5 truncate">"{r.reason}"</p>}
+                    {r.reason && <p className="text-2xs text-muted-foreground italic mt-0.5 truncate">"{r.reason}"</p>}
                   </div>
                   {statusBadge(r.status)}
                 </div>
@@ -186,7 +186,7 @@ export default function PrivacyPanel() {
           )}
         </div>
 
-        <p className="text-[11px] text-muted-foreground flex items-start gap-1">
+        <p className="text-2xs text-muted-foreground flex items-start gap-1">
           <Info className="h-3 w-3 mt-0.5" />
           Statutory records (payroll, tax filings) are retained for the period Nigerian law requires
           even after account deletion. Identifying fields are anonymised; aggregates remain.

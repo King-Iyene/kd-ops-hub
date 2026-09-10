@@ -227,7 +227,7 @@ const accruedAnnualDays = (
 };
 
 const TabCount = ({ n }: { n: number }) => (
-  <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+  <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-3xs font-semibold tabular-nums text-muted-foreground">
     {n}
   </span>
 );
@@ -1004,7 +1004,7 @@ const Leave = () => {
                                 {r.leave_type}
                               </Badge>
                               {r.is_half_day && (
-                                <Badge variant="outline" className="ml-1.5 text-[10px]">
+                                <Badge variant="outline" className="ml-1.5 text-3xs">
                                   Half day
                                 </Badge>
                               )}
@@ -1118,12 +1118,12 @@ const Leave = () => {
                             <MobileCardRow label="Type">
                               <Badge variant="secondary" className={TYPE_BADGE[r.leave_type]}>{r.leave_type}</Badge>
                               {r.is_half_day && (
-                                <Badge variant="outline" className="ml-1.5 text-[10px]">Half day</Badge>
+                                <Badge variant="outline" className="ml-1.5 text-3xs">Half day</Badge>
                               )}
                             </MobileCardRow>
                           )}
                           {r.is_half_day && tab !== 'team' && (
-                            <MobileCardRow label="Duration"><Badge variant="outline" className="text-[10px]">Half day</Badge></MobileCardRow>
+                            <MobileCardRow label="Duration"><Badge variant="outline" className="text-3xs">Half day</Badge></MobileCardRow>
                           )}
                           <MobileCardRow label="Dates">{formatDate(r.start_date)} → {formatDate(r.end_date)}</MobileCardRow>
                           <MobileCardRow label="Status"><StatusBadge status={r.status} /></MobileCardRow>

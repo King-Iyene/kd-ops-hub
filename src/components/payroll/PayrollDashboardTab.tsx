@@ -274,7 +274,7 @@ export function PayrollDashboardTab({
                 <div key={p.id} className="flex items-center gap-2.5">
                   <Avatar className="h-8 w-8 shrink-0">
                     {p.photo_url && <AvatarImage src={p.photo_url} alt={p.name} />}
-                    <AvatarFallback className="text-[11px] font-semibold bg-[hsl(200,60%,92%)] text-[hsl(200,90%,25%)]">
+                    <AvatarFallback className="text-2xs font-semibold bg-[hsl(200,60%,92%)] text-[hsl(200,90%,25%)]">
                       {initials(p.name)}
                     </AvatarFallback>
                   </Avatar>
@@ -310,7 +310,7 @@ function StatTile({
           {icon}
         </span>
         <div className="min-w-0">
-          <p className="text-[11px] text-muted-foreground font-medium leading-tight">{label}</p>
+          <p className="text-2xs text-muted-foreground font-medium leading-tight">{label}</p>
           <p className="text-lg font-bold tabular-nums leading-tight mt-0.5">{value}</p>
           {hint && <p className="text-2xs text-muted-foreground mt-0.5">{hint}</p>}
         </div>

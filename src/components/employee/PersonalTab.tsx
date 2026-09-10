@@ -285,16 +285,16 @@ export default function PersonalTab({
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium text-sm">{dep.full_name}</p>
-                      <Badge variant="secondary" className="text-[10px]">
+                      <Badge variant="secondary" className="text-3xs">
                         {relationshipLabel(dep.relationship)}
                       </Badge>
                       {dep.is_beneficiary && (
-                        <Badge className="text-[10px] bg-amber-100 text-amber-700 hover:bg-amber-100">
+                        <Badge className="text-3xs bg-amber-100 text-amber-700 hover:bg-amber-100">
                           Beneficiary
                         </Badge>
                       )}
                       {dep.is_hmo_enrolled && (
-                        <Badge className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                        <Badge className="text-3xs bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
                           HMO enrolled
                         </Badge>
                       )}
@@ -308,14 +308,14 @@ export default function PersonalTab({
                   {canManage && (
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="flex items-center gap-1.5">
-                        <Label className="text-[11px] text-muted-foreground">Beneficiary</Label>
+                        <Label className="text-2xs text-muted-foreground">Beneficiary</Label>
                         <Switch
                           checked={!!dep.is_beneficiary}
                           onCheckedChange={() => toggleDependentFlag(dep, 'is_beneficiary')}
                         />
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <Label className="text-[11px] text-muted-foreground">HMO</Label>
+                        <Label className="text-2xs text-muted-foreground">HMO</Label>
                         <Switch
                           checked={!!dep.is_hmo_enrolled}
                           onCheckedChange={() => toggleDependentFlag(dep, 'is_hmo_enrolled')}

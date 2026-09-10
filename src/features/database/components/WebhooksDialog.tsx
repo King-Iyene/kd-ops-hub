@@ -176,7 +176,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
             <div className="flex items-center justify-between px-3 py-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
               <div className="flex items-center gap-1.5">
                 <Webhook size={14} className="text-[#2D7FF9]" />
-                <span className="text-[13px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Webhooks</span>
+                <span className="text-xs-plus font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Webhooks</span>
               </div>
               <button
                 className="p-1 rounded hover:bg-[#E5E5E5] dark:hover:bg-[hsl(200,25%,18%)] text-[#6A7184] dark:text-[hsl(200,20%,55%)] transition-colors"
@@ -192,7 +192,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                 <div className="px-3 py-8 text-center">
                   <Webhook size={28} className="mx-auto mb-2 text-[#D1D5DB] dark:text-[hsl(200,25%,30%)]" />
                   <p className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">No webhooks yet</p>
-                  <p className="text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] mt-1">Click + to create one</p>
+                  <p className="text-2xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] mt-1">Click + to create one</p>
                 </div>
               )}
               {webhooks.map((wh) => (
@@ -213,7 +213,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                     >
                       {wh.name}
                     </p>
-                    <p className="text-[10px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] mt-0.5 truncate">
+                    <p className="text-3xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] mt-0.5 truncate">
                       {wh.events.map((e) => EVENTS.find((ev) => ev.value === e)?.label).filter(Boolean).join(', ')}
                     </p>
                   </div>
@@ -242,7 +242,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
                   <Webhook size={36} className="mx-auto mb-3 text-[#D1D5DB] dark:text-[hsl(200,25%,30%)]" />
-                  <p className="text-[13px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Select a webhook or create a new one</p>
+                  <p className="text-xs-plus text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Select a webhook or create a new one</p>
                 </div>
               </div>
             ) : (
@@ -264,9 +264,9 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
 
                 {/* Name */}
                 <div>
-                  <Label className="text-[11px] font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Name</Label>
+                  <Label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Name</Label>
                   <Input
-                    className="mt-1 h-8 text-[13px]"
+                    className="mt-1 h-8 text-xs-plus"
                     placeholder="e.g. Notify Slack on new record"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -275,12 +275,12 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
 
                 {/* Events (multi-select checkboxes) */}
                 <div>
-                  <Label className="text-[11px] font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Events</Label>
+                  <Label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Events</Label>
                   <div className="mt-1.5 space-y-1.5">
                     {EVENTS.map((ev) => (
                       <label
                         key={ev.value}
-                        className="flex items-center gap-2 cursor-pointer text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                        className="flex items-center gap-2 cursor-pointer text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)]"
                       >
                         <input
                           type="checkbox"
@@ -296,9 +296,9 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
 
                 {/* URL */}
                 <div>
-                  <Label className="text-[11px] font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">URL</Label>
+                  <Label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">URL</Label>
                   <Input
-                    className="mt-1 h-8 text-[13px]"
+                    className="mt-1 h-8 text-xs-plus"
                     placeholder="https://example.com/webhook"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
@@ -307,22 +307,22 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
 
                 {/* Secret */}
                 <div>
-                  <Label className="text-[11px] font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Signing Secret (optional)</Label>
+                  <Label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Signing Secret (optional)</Label>
                   <Input
-                    className="mt-1 h-8 text-[13px] font-mono"
+                    className="mt-1 h-8 text-xs-plus font-mono"
                     placeholder="whsec_..."
                     type="password"
                     value={secret}
                     onChange={(e) => setSecret(e.target.value)}
                   />
-                  <p className="text-[10px] text-[#9CA3AF] dark:text-[hsl(200,20%,45%)] mt-1">
+                  <p className="text-3xs text-[#9CA3AF] dark:text-[hsl(200,20%,45%)] mt-1">
                     Used to sign payloads via X-KDOps-Signature header
                   </p>
                 </div>
 
                 {/* Headers */}
                 <div>
-                  <Label className="text-[11px] font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Headers</Label>
+                  <Label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Headers</Label>
                   <div className="mt-1 space-y-1.5">
                     {Object.entries(headers).map(([k, v]) => (
                       <div key={k} className="flex items-center gap-2">
@@ -352,7 +352,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                         onChange={(e) => setHeaderValue(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddHeader()}
                       />
-                      <Button variant="outline" size="sm" className="h-7 px-2 text-[11px]" onClick={handleAddHeader}>
+                      <Button variant="outline" size="sm" className="h-7 px-2 text-2xs" onClick={handleAddHeader}>
                         Add
                       </Button>
                     </div>
@@ -361,7 +361,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
 
                 {/* Last triggered info */}
                 {!isNew && selected?.last_triggered_at && (
-                  <p className="text-[10px] text-[#9CA3AF] dark:text-[hsl(200,20%,45%)]">
+                  <p className="text-3xs text-[#9CA3AF] dark:text-[hsl(200,20%,45%)]">
                     Last triggered: {new Date(selected.last_triggered_at).toLocaleString()}
                     {selected.failure_count > 0 && (
                       <span className="ml-2 text-[#DC2626] dark:text-[#FCA5A5]">

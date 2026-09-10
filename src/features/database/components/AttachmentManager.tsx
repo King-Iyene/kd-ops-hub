@@ -242,7 +242,7 @@ export function AttachmentManager({
                         <p className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
                           {att.name}
                         </p>
-                        <p className="text-[10px] text-[#9AA2AF]">{formatSize(att.size)}</p>
+                        <p className="text-3xs text-[#9AA2AF]">{formatSize(att.size)}</p>
                       </div>
                       {/* Delete button */}
                       <button

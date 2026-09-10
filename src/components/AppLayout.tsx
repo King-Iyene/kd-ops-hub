@@ -144,7 +144,7 @@ export default function AppLayout() {
                 {effectiveRole && (
                   <>
                     {pageTitle && <span className="hidden sm:inline text-border/60 text-xs select-none">·</span>}
-                    <span className={`hidden sm:inline text-[10px] font-bold px-2.5 py-0.5 rounded-full tracking-wider uppercase border ${roleBadgeClass(effectiveRole ?? '')}`}>
+                    <span className={`hidden sm:inline text-3xs font-bold px-2.5 py-0.5 rounded-full tracking-wider uppercase border ${roleBadgeClass(effectiveRole ?? '')}`}>
                       {roleLabel(effectiveRole ?? '')}
                     </span>
                   </>
@@ -170,8 +170,8 @@ export default function AppLayout() {
               >
                 <Search className="h-3.5 w-3.5" />
                 <span>Search</span>
-                <kbd className="ml-1 hidden lg:inline-flex items-center gap-0.5 rounded border border-border bg-card px-1.5 py-0.5 text-[10px] font-medium">
-                  <span className="text-[11px]">⌘</span>K
+                <kbd className="ml-1 hidden lg:inline-flex items-center gap-0.5 rounded border border-border bg-card px-1.5 py-0.5 text-3xs font-medium">
+                  <span className="text-2xs">⌘</span>K
                 </kbd>
               </button>
               <NotificationBell />

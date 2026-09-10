@@ -89,10 +89,10 @@ function CodeBlock({ label, code }: { label: string; code: string }) {
   return (
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700/80 overflow-hidden">
       <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800/80">
-        <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{label}</span>
+        <span className="text-3xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{label}</span>
         <div className="flex items-center gap-1">
           {isLong && (
-            <button onClick={() => setOpen(!open)} className="text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 px-1.5 py-0.5">
+            <button onClick={() => setOpen(!open)} className="text-3xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 px-1.5 py-0.5">
               {open ? 'Collapse' : 'Expand'}
             </button>
           )}
@@ -1784,7 +1784,7 @@ function ModuleContent({ module: mod }: { module: ModuleDef }) {
               {mod.endpoints.map((ep, i) => (
                 <TableRow key={i} className="border-zinc-200 dark:border-zinc-700/80">
                   <TableCell>
-                    <Badge className={cn('text-[10px] font-bold', methodColors[ep.method])}>{ep.method}</Badge>
+                    <Badge className={cn('text-3xs font-bold', methodColors[ep.method])}>{ep.method}</Badge>
                   </TableCell>
                   <TableCell className="font-mono text-xs text-zinc-700 dark:text-zinc-300">{ep.path}</TableCell>
                   <TableCell className="text-xs text-zinc-600 dark:text-zinc-400">{ep.description}</TableCell>
@@ -1817,13 +1817,13 @@ function ModuleContent({ module: mod }: { module: ModuleDef }) {
                   <TableRow key={i} className="border-zinc-200 dark:border-zinc-700/80">
                     <TableCell className="font-mono text-xs font-medium text-zinc-800 dark:text-zinc-200">{f.name}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-[10px] font-mono">{f.type}</Badge>
+                      <Badge variant="outline" className="text-3xs font-mono">{f.type}</Badge>
                     </TableCell>
                     <TableCell>
                       {f.required ? (
-                        <Badge className="text-[10px] bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">Yes</Badge>
+                        <Badge className="text-3xs bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">Yes</Badge>
                       ) : (
-                        <span className="text-[10px] text-zinc-400">No</span>
+                        <span className="text-3xs text-zinc-400">No</span>
                       )}
                     </TableCell>
                     <TableCell className="text-xs text-zinc-600 dark:text-zinc-400">{f.description}</TableCell>
@@ -1845,7 +1845,7 @@ function ModuleContent({ module: mod }: { module: ModuleDef }) {
           {mod.endpoints.map((ep, i) => (
             <div key={i} className="space-y-3">
               <div className="flex items-center gap-2">
-                <Badge className={cn('text-[10px] font-bold', methodColors[ep.method])}>{ep.method}</Badge>
+                <Badge className={cn('text-3xs font-bold', methodColors[ep.method])}>{ep.method}</Badge>
                 <code className="text-xs font-mono text-zinc-700 dark:text-zinc-300">{ep.path}</code>
                 <span className="text-xs text-zinc-500 dark:text-zinc-400">— {ep.description}</span>
               </div>

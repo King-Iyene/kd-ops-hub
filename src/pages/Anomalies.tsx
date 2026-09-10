@@ -480,7 +480,7 @@ export default function Anomalies() {
                               )}
                               <p className="text-xs text-muted-foreground">
                                 Detected {new Date(r.detected_at).toLocaleString()} ·
-                                Fingerprint <code className="text-[10px]">{r.fingerprint}</code>
+                                Fingerprint <code className="text-3xs">{r.fingerprint}</code>
                               </p>
                             </div>
                           </TableCell>

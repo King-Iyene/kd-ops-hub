@@ -97,6 +97,7 @@ export default {
       fontSize: {
         "3xs": ["0.625rem", { lineHeight: "1rem" }],
         "2xs": ["0.6875rem", { lineHeight: "1rem" }],
+        "xs-plus": ["0.8125rem", { lineHeight: "1.125rem" }],
         "display-sm": ["1.375rem", { lineHeight: "1.3", letterSpacing: "-0.025em" }],
         "display-md": ["1.75rem", { lineHeight: "1.25", letterSpacing: "-0.03em" }],
         "display-lg": ["2.25rem", { lineHeight: "1.2", letterSpacing: "-0.035em" }],

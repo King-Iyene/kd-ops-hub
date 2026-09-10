@@ -235,8 +235,8 @@ export function KanbanBoard({
               {/* Column header */}
               <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/40">
                 <div className={cn('h-2 w-2 rounded-full shrink-0', col.accent)} />
-                <span className="text-[13px] font-semibold tracking-tight flex-1 truncate">{col.label}</span>
-                <span className="text-[11px] text-muted-foreground tabular-nums font-medium bg-background/60 rounded-md px-1.5 py-0.5">
+                <span className="text-xs-plus font-semibold tracking-tight flex-1 truncate">{col.label}</span>
+                <span className="text-2xs text-muted-foreground tabular-nums font-medium bg-background/60 rounded-md px-1.5 py-0.5">
                   {col.tasks.length}
                 </span>
                 {groupBy === 'status' && (
@@ -261,7 +261,7 @@ export function KanbanBoard({
                       <div className={cn('h-3 w-3 rounded-full opacity-40', col.accent)} />
                     </div>
                     <p className="text-xs text-muted-foreground font-medium">No tasks here</p>
-                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">Drag tasks here or create new ones</p>
+                    <p className="text-3xs text-muted-foreground/60 mt-0.5">Drag tasks here or create new ones</p>
                   </div>
                 )}
 
@@ -312,7 +312,7 @@ export function KanbanBoard({
 
                 {isOver && col.tasks.length > 0 && dragSourceCol.current !== col.key && (
                   <div className="rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 h-12 flex items-center justify-center">
-                    <p className="text-[11px] text-primary/50 font-medium">Drop here</p>
+                    <p className="text-2xs text-primary/50 font-medium">Drop here</p>
                   </div>
                 )}
               </div>
@@ -482,7 +482,7 @@ function TaskCard({
             <div className="bg-emerald-500 h-1 rounded-full transition-all"
               style={{ width: `${(subtaskCount.done / subtaskCount.total) * 100}%` }} />
           </div>
-          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+          <span className="text-3xs text-muted-foreground tabular-nums shrink-0">
             {subtaskCount.done}/{subtaskCount.total}
           </span>
         </div>
@@ -509,7 +509,7 @@ function TaskCard({
           )}
 
           {commentCount > 0 && (
-            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground tabular-nums">
+            <span className="flex items-center gap-0.5 text-3xs text-muted-foreground tabular-nums">
               <MessageSquare className="h-3 w-3" />{commentCount}
             </span>
           )}
@@ -517,7 +517,7 @@ function TaskCard({
 
         {task.due_date && (
           <span className={cn(
-            'flex items-center gap-0.5 text-[10px] shrink-0 rounded-full px-2 py-0.5',
+            'flex items-center gap-0.5 text-3xs shrink-0 rounded-full px-2 py-0.5',
             overdue
               ? 'bg-destructive/10 text-destructive font-medium'
               : d !== null && d <= 2

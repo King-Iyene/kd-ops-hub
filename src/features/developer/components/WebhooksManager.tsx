@@ -349,7 +349,7 @@ export default function WebhooksManager() {
       <div className="flex flex-wrap gap-1.5">
         {Array.from(grouped.entries()).map(([mod, evts]) =>
           evts.map((e) => (
-            <Badge key={e} variant="outline" className={cn('text-[11px] font-mono border', eventColor(e))}>
+            <Badge key={e} variant="outline" className={cn('text-2xs font-mono border', eventColor(e))}>
               {e}
             </Badge>
           ))
@@ -426,11 +426,11 @@ export default function WebhooksManager() {
                     {/* Title row */}
                     <div className="flex items-center gap-3">
                       <h3 className="font-semibold text-base truncate">{wh.name}</h3>
-                      <Badge variant={wh.is_active ? 'default' : 'secondary'} className="text-[11px]">
+                      <Badge variant={wh.is_active ? 'default' : 'secondary'} className="text-2xs">
                         {wh.is_active ? 'Active' : 'Inactive'}
                       </Badge>
                       {(wh.failure_count ?? 0) > 0 && (
-                        <Badge variant="destructive" className="text-[11px] gap-1">
+                        <Badge variant="destructive" className="text-2xs gap-1">
                           <AlertTriangle className="h-3 w-3" />
                           {wh.failure_count} failures
                         </Badge>

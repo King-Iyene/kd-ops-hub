@@ -120,7 +120,7 @@ export default function StatutorySettingsTab({ settings, patch }: Props) {
                     {t.label}
                   </Label>
                   <p className="text-xs text-muted-foreground">{t.description}</p>
-                  <p className="text-[10px] text-muted-foreground/70">{t.detail}</p>
+                  <p className="text-3xs text-muted-foreground/70">{t.detail}</p>
                 </div>
                 <Switch
                   id={t.key}
@@ -148,7 +148,7 @@ export default function StatutorySettingsTab({ settings, patch }: Props) {
                 }
                 placeholder="e.g. 100"
               />
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-3xs text-muted-foreground">
                 Flat amount charged per employee per year, spread evenly across monthly payroll runs.
               </p>
             </div>

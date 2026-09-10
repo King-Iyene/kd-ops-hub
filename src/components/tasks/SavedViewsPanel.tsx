@@ -81,7 +81,7 @@ export function SavedViewsPanel({
       <Button
         variant="ghost"
         size="sm"
-        className="h-7 text-[10px] gap-1 text-muted-foreground"
+        className="h-7 text-3xs gap-1 text-muted-foreground"
         onClick={() => setShowSave(true)}
       >
         <Bookmark className="h-3 w-3" /> Save view
@@ -96,7 +96,7 @@ export function SavedViewsPanel({
           <div key={v.id} className="group inline-flex items-center gap-1">
             <button
               onClick={() => onApplyView(v)}
-              className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-muted hover:bg-muted/80 transition-colors"
+              className="inline-flex items-center gap-1 text-3xs font-medium px-2 py-0.5 rounded-full bg-muted hover:bg-muted/80 transition-colors"
             >
               <Bookmark className="h-2.5 w-2.5" />
               {v.name}
@@ -124,7 +124,7 @@ export function SavedViewsPanel({
         ) : (
           <div className="inline-flex items-center gap-1">
             <Input
-              className="h-6 w-[120px] text-[10px]"
+              className="h-6 w-[120px] text-3xs"
               placeholder="View name..."
               value={saveName}
               onChange={(e) => setSaveName(e.target.value)}
@@ -133,7 +133,7 @@ export function SavedViewsPanel({
             />
             <Button size="sm" className="h-6 text-[9px] px-2" onClick={saveView}>Save</Button>
             <button onClick={() => setShowSave(false)} className="text-muted-foreground hover:text-foreground">
-              <span className="text-[10px]">Cancel</span>
+              <span className="text-3xs">Cancel</span>
             </button>
           </div>
         )}

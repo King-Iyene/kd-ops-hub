@@ -1073,7 +1073,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
         {step === 'token' && (
           <div className="space-y-4 py-2">
-            <p className="text-[13px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] leading-relaxed">
+            <p className="text-xs-plus text-[#6A7184] dark:text-[hsl(200,20%,55%)] leading-relaxed">
               Enter your Airtable Personal Access Token to import bases, tables, and all records.
               Create one at{' '}
               <a
@@ -1087,7 +1087,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             </p>
             <div className="rounded-lg border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/10 px-3 py-2.5">
               <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
-                <strong>Required scopes:</strong> <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded text-[11px]">data.records:read</code> and <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded text-[11px]">schema.bases:read</code> for the bases you want to import.
+                <strong>Required scopes:</strong> <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded text-2xs">data.records:read</code> and <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded text-2xs">schema.bases:read</code> for the bases you want to import.
               </p>
             </div>
             <div className="space-y-1.5">
@@ -1116,7 +1116,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
         {step === 'select' && !selectedBaseId && (
           <div className="space-y-3 py-2">
-            <p className="text-[13px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+            <p className="text-xs-plus text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
               Select a base to import ({bases.length} base{bases.length !== 1 ? 's' : ''} found):
             </p>
             {bases.length > 5 && (
@@ -1126,7 +1126,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                   value={baseSearch}
                   onChange={(e) => setBaseSearch(e.target.value)}
                   placeholder="Search bases..."
-                  className="h-8 pl-9 text-[13px]"
+                  className="h-8 pl-9 text-xs-plus"
                 />
               </div>
             )}
@@ -1142,10 +1142,10 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                     <Database size={16} className="text-[#2D7FF9]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate group-hover:text-[#2D7FF9]">
+                    <p className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate group-hover:text-[#2D7FF9]">
                       {base.name}
                     </p>
-                    <p className="text-[11px] text-[#9AA2AF]">{base.permissionLevel}</p>
+                    <p className="text-2xs text-[#9AA2AF]">{base.permissionLevel}</p>
                   </div>
                   <ChevronRight size={16} className="text-[#9AA2AF] group-hover:text-[#2D7FF9]" />
                 </button>
@@ -1180,14 +1180,14 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               </div>
               <div className="flex items-center gap-1">
                 <button
-                  className="text-[11px] px-2 py-0.5 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] text-[#2D7FF9] font-medium"
+                  className="text-2xs px-2 py-0.5 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] text-[#2D7FF9] font-medium"
                   onClick={allSelected ? deselectAll : selectAll}
                 >
                   {allSelected ? 'Deselect all' : 'Select all'}
                 </button>
               </div>
             </div>
-            <p className="text-[13px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+            <p className="text-xs-plus text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
               {selectedCount} of {tables.length} table{tables.length !== 1 ? 's' : ''} selected
               <span className="text-[#9AA2AF]"> · {selectedTotalFields} fields total</span>
             </p>
@@ -1198,7 +1198,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                   value={tableSearch}
                   onChange={(e) => setTableSearch(e.target.value)}
                   placeholder="Search tables..."
-                  className="h-8 pl-9 text-[13px]"
+                  className="h-8 pl-9 text-xs-plus"
                 />
               </div>
             )}
@@ -1221,10 +1221,10 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                     }
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
+                    <p className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
                       {table.name}
                     </p>
-                    <p className="text-[11px] text-[#9AA2AF]">
+                    <p className="text-2xs text-[#9AA2AF]">
                       {table.fields.length} field{table.fields.length !== 1 ? 's' : ''}
                     </p>
                   </div>
@@ -1260,7 +1260,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
             {/* Table progress bar */}
             <div className="space-y-1.5">
-              <div className="flex justify-between text-[11px] text-[#9AA2AF]">
+              <div className="flex justify-between text-2xs text-[#9AA2AF]">
                 <span>Tables</span>
                 <span>{progress.tableIndex} / {progress.tableCount}</span>
               </div>
@@ -1275,7 +1275,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             {/* Record progress bar (when inserting) */}
             {progress.phase === 'inserting' && progress.totalRecords > 0 && (
               <div className="space-y-1.5">
-                <div className="flex justify-between text-[11px] text-[#9AA2AF]">
+                <div className="flex justify-between text-2xs text-[#9AA2AF]">
                   <span>Records</span>
                   <span>{formatNumber(progress.recordsInserted)} / {formatNumber(progress.totalRecords)}</span>
                 </div>
@@ -1294,7 +1294,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                   <AlertTriangle size={12} /> {progress.errors.length} warning{progress.errors.length !== 1 ? 's' : ''}
                 </div>
                 {progress.errors.slice(-3).map((err, i) => (
-                  <p key={i} className="text-[11px] text-amber-600 dark:text-amber-500 truncate">{err}</p>
+                  <p key={i} className="text-2xs text-amber-600 dark:text-amber-500 truncate">{err}</p>
                 ))}
               </div>
             )}
@@ -1333,7 +1333,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                   <AlertTriangle size={12} /> Some records had issues
                 </div>
                 {progress.errors.map((err, i) => (
-                  <p key={i} className="text-[11px] text-amber-600 dark:text-amber-500">{err}</p>
+                  <p key={i} className="text-2xs text-amber-600 dark:text-amber-500">{err}</p>
                 ))}
               </div>
             )}

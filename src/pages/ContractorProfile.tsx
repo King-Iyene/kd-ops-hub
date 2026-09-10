@@ -1096,7 +1096,7 @@ const ContractorProfile = () => {
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {formatDateTime(log.created_at)}
                           {log.action_type && (
-                            <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0">
+                            <Badge variant="outline" className="ml-2 text-3xs px-1.5 py-0">
                               {log.action_type.replace(/_/g, ' ')}
                             </Badge>
                           )}

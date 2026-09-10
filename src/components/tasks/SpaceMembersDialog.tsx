@@ -171,7 +171,7 @@ export function SpaceMembersDialog({ space, open, onClose, profiles }: SpaceMemb
               <AvatarCircle name={profiles.get(space.owner_id)?.full_name || 'Owner'} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{profiles.get(space.owner_id)?.full_name || 'Unknown'}</p>
-                <p className="text-[11px] text-muted-foreground">Space owner</p>
+                <p className="text-2xs text-muted-foreground">Space owner</p>
               </div>
               <div className="flex items-center gap-1.5 text-amber-500">
                 <Crown className="h-3.5 w-3.5" />
@@ -201,7 +201,7 @@ export function SpaceMembersDialog({ space, open, onClose, profiles }: SpaceMemb
                     <AvatarCircle name={p?.full_name || 'User'} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{p?.full_name || 'Unknown'}</p>
-                      <p className="text-[11px] text-muted-foreground">{p?.email}</p>
+                      <p className="text-2xs text-muted-foreground">{p?.email}</p>
                     </div>
                     {canManage ? (
                       <div className="flex items-center gap-1.5">
@@ -241,7 +241,7 @@ export function SpaceMembersDialog({ space, open, onClose, profiles }: SpaceMemb
           {canManage && nonMembers.length > 0 && (
             <div className="flex items-end gap-2 pt-2 border-t border-border/40">
               <div className="flex-1 space-y-1">
-                <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Add member</label>
+                <label className="text-3xs font-semibold uppercase tracking-wider text-muted-foreground">Add member</label>
                 <Select value={addingUser || undefined} onValueChange={setAddingUser}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Select a person..." />
@@ -278,7 +278,7 @@ function AvatarCircle({ name }: { name: string }) {
   const initials = name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
   return (
     <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-      <span className="text-[10px] font-bold leading-none">{initials}</span>
+      <span className="text-3xs font-bold leading-none">{initials}</span>
     </div>
   );
 }

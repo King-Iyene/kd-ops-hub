@@ -78,7 +78,7 @@ function InlineRenameInput({
   return (
     <input
       ref={ref}
-      className="bg-white dark:bg-[hsl(200,30%,12%)] border border-[#2D7FF9] rounded px-1.5 py-0.5 text-[13px] w-24 outline-none text-[#374151] dark:text-[hsl(200,25%,88%)]"
+      className="bg-white dark:bg-[hsl(200,30%,12%)] border border-[#2D7FF9] rounded px-1.5 py-0.5 text-xs-plus w-24 outline-none text-[#374151] dark:text-[hsl(200,25%,88%)]"
       value={text}
       onChange={(e) => setText(e.target.value)}
       onBlur={commit}
@@ -95,7 +95,7 @@ function TabRecordCount({ baseId, tableId }: { baseId: string; tableId: string }
   const { data: count } = useRecordCount(baseId, tableId);
   if (count == null) return null;
   return (
-    <span className="text-[11px] opacity-50 tabular-nums ml-0.5">
+    <span className="text-2xs opacity-50 tabular-nums ml-0.5">
       {count > 999 ? `${(count / 1000).toFixed(1)}k` : count}
     </span>
   );
@@ -278,7 +278,7 @@ export function TableTabBar() {
         <div ref={setNodeRef} style={dndStyle} {...attributes} {...listeners} className="group/tab flex items-center h-full">
           <div
             className={cn(
-              'relative flex items-center gap-1.5 h-full px-3 text-[13px] cursor-pointer transition-colors',
+              'relative flex items-center gap-1.5 h-full px-3 text-xs-plus cursor-pointer transition-colors',
               table.id === activeTableId
                 ? 'bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium rounded-t-md -mb-px'
                 : 'text-white/70 hover:text-white',
@@ -293,7 +293,7 @@ export function TableTabBar() {
             }}
           >
             {table.icon ? (
-              <span className="text-[13px] shrink-0">{table.icon}</span>
+              <span className="text-xs-plus shrink-0">{table.icon}</span>
             ) : (
               <Table2 size={14} className="shrink-0" />
             )}
@@ -409,7 +409,7 @@ export function TableTabBar() {
         <DropdownMenu open={showHiddenMenu} onOpenChange={setShowHiddenMenu}>
           <DropdownMenuTrigger asChild>
             <button
-              className="flex items-center gap-1 h-7 px-2 ml-0.5 rounded hover:bg-white/20 text-white/60 hover:text-white transition-colors shrink-0 text-[11px]"
+              className="flex items-center gap-1 h-7 px-2 ml-0.5 rounded hover:bg-white/20 text-white/60 hover:text-white transition-colors shrink-0 text-2xs"
               title={`${hiddenTables.length} hidden table${hiddenTables.length > 1 ? 's' : ''}`}
             >
               <EyeOff size={12} />
@@ -417,7 +417,7 @@ export function TableTabBar() {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-48">
-            <div className="px-2 py-1 text-[10px] font-medium text-[#9AA2AF] uppercase tracking-wider">
+            <div className="px-2 py-1 text-3xs font-medium text-[#9AA2AF] uppercase tracking-wider">
               Hidden tables
             </div>
             {hiddenTables.map((table: any) => (

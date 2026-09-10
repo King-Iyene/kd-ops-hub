@@ -293,7 +293,7 @@ export default function SuccessionPlanning() {
   const RiskBadge = ({ level }: { level: string }) => (
     <Badge
       variant={RISK_VARIANT[level] ?? 'default'}
-      className={`text-[10px] ${RISK_CLASS[level] ?? ''}`}
+      className={`text-3xs ${RISK_CLASS[level] ?? ''}`}
     >
       {RISK_LABEL[level] ?? level}
     </Badge>
@@ -302,7 +302,7 @@ export default function SuccessionPlanning() {
   const StatusBadge = ({ status }: { status: string }) => (
     <Badge
       variant={STATUS_VARIANT[status] ?? 'default'}
-      className={`text-[10px] ${STATUS_CLASS[status] ?? ''}`}
+      className={`text-3xs ${STATUS_CLASS[status] ?? ''}`}
     >
       {STATUS_LABEL[status] ?? status}
     </Badge>
@@ -567,7 +567,7 @@ export default function SuccessionPlanning() {
                                 <div className="min-w-0">
                                   <p className="text-sm font-medium">{nameOf(c.candidate_id)}</p>
                                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                    <Badge variant="outline" className="text-[10px]">
+                                    <Badge variant="outline" className="text-3xs">
                                       {READINESS_LABEL[c.readiness]}
                                     </Badge>
                                     {c.rating !== null && (

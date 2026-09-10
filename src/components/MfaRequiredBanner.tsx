@@ -68,7 +68,7 @@ export function MfaRequiredBanner() {
       className="sticky top-0 z-50 bg-amber-500 text-amber-950 dark:bg-amber-600 dark:text-amber-50 border-b border-amber-600 px-4 py-2 flex items-center gap-3 shadow-sm"
     >
       <ShieldAlert className="h-4 w-4 shrink-0" />
-      <p className="text-[13px] font-medium flex-1 min-w-0">
+      <p className="text-xs-plus font-medium flex-1 min-w-0">
         <span className="font-semibold">Two-factor authentication is required.</span>{' '}
         <span className="hidden sm:inline">Your admin requires every account to enable an authenticator app. </span>
         <span className="sm:hidden">Set up your authenticator now.</span>

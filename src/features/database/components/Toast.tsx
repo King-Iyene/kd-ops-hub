@@ -51,7 +51,7 @@ function ToastEntry({ item }: { item: ToastItem }) {
       className="flex items-start gap-2 px-4 py-3 bg-white dark:bg-[hsl(200,30%,12%)] rounded-lg shadow-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] min-w-[280px] max-w-[380px] animate-[slideIn_0.2s_ease-out]"
       style={{ borderLeft: `4px solid ${BORDER_COLORS[item.type]}` }}
     >
-      <span className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)] flex-1">{item.message}</span>
+      <span className="text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)] flex-1">{item.message}</span>
       <button
         onClick={() => removeToast(item.id)}
         className="shrink-0 p-0.5 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,18%)] text-[#9AA2AF] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)] transition-colors"

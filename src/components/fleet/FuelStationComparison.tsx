@@ -194,7 +194,7 @@ export function FuelStationComparison() {
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Fuel className="h-4 w-4 text-muted-foreground" />
             Station Price Comparison
-            <Badge variant="secondary" className="text-[10px] font-normal">Last 90 days</Badge>
+            <Badge variant="secondary" className="text-3xs font-normal">Last 90 days</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -227,12 +227,12 @@ export function FuelStationComparison() {
                           <span className="flex items-center gap-2">
                             {s.name}
                             {isCheapest && (
-                              <Badge className="text-[10px] bg-green-600 hover:bg-green-700 text-white">
+                              <Badge className="text-3xs bg-green-600 hover:bg-green-700 text-white">
                                 Cheapest
                               </Badge>
                             )}
                             {isMostExpensive && (
-                              <Badge className="text-[10px] bg-red-600 hover:bg-red-700 text-white">
+                              <Badge className="text-3xs bg-red-600 hover:bg-red-700 text-white">
                                 Most Expensive
                               </Badge>
                             )}
@@ -265,7 +265,7 @@ export function FuelStationComparison() {
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
             Cost per KM Trend
-            <Badge variant="secondary" className="text-[10px] font-normal">Last 12 weeks</Badge>
+            <Badge variant="secondary" className="text-3xs font-normal">Last 12 weeks</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>

@@ -1302,7 +1302,7 @@ const EmployeeProfile = () => {
             </span>
             {/* Hover overlay — full-bleed dimmed prompt */}
             <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-white">
+              <span className="text-3xs font-semibold uppercase tracking-wider text-white">
                 {employee.photo_url ? 'Change' : 'Upload'}
               </span>
             </div>
@@ -2375,7 +2375,7 @@ const EmployeeProfile = () => {
                 return (
                   <div key={entry.id} className="rounded-md border p-3 text-sm">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className={`text-[11px] uppercase font-semibold px-2 py-0.5 rounded border ${kindColor}`}>
+                      <span className={`text-2xs uppercase font-semibold px-2 py-0.5 rounded border ${kindColor}`}>
                         {kind}
                       </span>
                       <span className="text-xs text-muted-foreground">
@@ -2387,12 +2387,12 @@ const EmployeeProfile = () => {
                     </p>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <p className="text-muted-foreground text-[10px] uppercase tracking-wide mb-0.5">Before</p>
+                        <p className="text-muted-foreground text-3xs uppercase tracking-wide mb-0.5">Before</p>
                         <p className="font-mono">{meta.old_bank_name || '(none)'}</p>
                         <p className="font-mono text-muted-foreground">{meta.old_account_mask || '(none)'}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground text-[10px] uppercase tracking-wide mb-0.5">After</p>
+                        <p className="text-muted-foreground text-3xs uppercase tracking-wide mb-0.5">After</p>
                         <p className="font-mono">{meta.new_bank_name || '(none)'}</p>
                         <p className="font-mono text-muted-foreground">{meta.new_account_mask || '(none)'}</p>
                       </div>

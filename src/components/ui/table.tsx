@@ -52,7 +52,7 @@ const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<
       ref={ref}
       className={cn(
         // Slimmer header, uppercase mini-caps for that Apple HIG feel
-        "h-9 px-3 text-left align-middle font-medium text-[11px] uppercase tracking-wider text-muted-foreground/80 [&:has([role=checkbox])]:pr-0",
+        "h-9 px-3 text-left align-middle font-medium text-2xs uppercase tracking-wider text-muted-foreground/80 [&:has([role=checkbox])]:pr-0",
         className,
       )}
       {...props}

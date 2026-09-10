@@ -59,7 +59,7 @@ function RecordCard({
       onClick={handleClick}
     >
       <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-medium text-[#1E293B] dark:text-[hsl(210,20%,90%)] truncate leading-snug">
+        <div className="text-xs-plus font-medium text-[#1E293B] dark:text-[hsl(210,20%,90%)] truncate leading-snug">
           {displayVal}
         </div>
         {extraFields.length > 0 && (
@@ -70,7 +70,7 @@ function RecordCard({
                 ? Number(val).toLocaleString()
                 : String(val);
               return (
-                <span key={f.id} className="text-[11px] text-[#64748B] dark:text-[hsl(215,15%,50%)] truncate max-w-[140px]">
+                <span key={f.id} className="text-2xs text-[#64748B] dark:text-[hsl(215,15%,50%)] truncate max-w-[140px]">
                   <span className="text-[#94A3B8] dark:text-[hsl(215,12%,40%)]">{f.name}: </span>
                   {formatted}
                 </span>
@@ -171,7 +171,7 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
                   return (
                     <span
                       key={rec.id}
-                      className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium shrink-0 max-w-[200px] truncate leading-tight"
+                      className="inline-flex items-center px-2 py-0.5 rounded text-2xs font-medium shrink-0 max-w-[200px] truncate leading-tight"
                       style={{
                         backgroundColor: colors.linkPillBg,
                         color: colors.linkPillText,
@@ -224,7 +224,7 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
         <div className="max-h-72 overflow-y-auto">
           {linkedRecords.length > 0 && (
             <div className="p-1.5">
-              <p className="px-2 py-1.5 text-[10px] font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-widest">
+              <p className="px-2 py-1.5 text-3xs font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-widest">
                 Linked ({linkedRecords.length})
               </p>
               {linkedRecords.map((rec) => (
@@ -248,7 +248,7 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
 
           {filteredSearchResults.length > 0 && (
             <div className="p-1.5 border-t border-[#E5E5E5] dark:border-[hsl(220,15%,20%)]">
-              <p className="px-2 py-1.5 text-[10px] font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-widest">
+              <p className="px-2 py-1.5 text-3xs font-semibold text-[#94A3B8] dark:text-[hsl(215,12%,45%)] uppercase tracking-widest">
                 {searchTerm ? 'Search results' : 'Suggestions'}
               </p>
               {filteredSearchResults.map((rec) => (

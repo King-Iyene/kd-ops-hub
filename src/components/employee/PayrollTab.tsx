@@ -322,7 +322,7 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
                     {opt.label}
                     {count > 0 && (
                       <span className={cn(
-                        'text-[10px] tabular-nums rounded-full px-1.5 py-0',
+                        'text-3xs tabular-nums rounded-full px-1.5 py-0',
                         filter === opt.value ? 'bg-primary-foreground/20' : 'bg-muted-foreground/15',
                       )}>
                         {count}
@@ -362,7 +362,7 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium truncate">{txn.batchName}</span>
                         <span className={cn(
-                          'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border',
+                          'inline-flex items-center px-1.5 py-0.5 rounded text-3xs font-medium border',
                           BATCH_TYPE_STYLE[txn.batchType] || 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20',
                         )}>
                           {BATCH_TYPE_LABEL[txn.batchType] || txn.batchType}

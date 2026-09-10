@@ -66,7 +66,7 @@ function DiffView({
   );
 
   if (keys.length === 0) {
-    return <span className="text-[11px] text-[#9AA2AF] italic">No field changes recorded</span>;
+    return <span className="text-2xs text-[#9AA2AF] italic">No field changes recorded</span>;
   }
 
   return (
@@ -77,7 +77,7 @@ function DiffView({
         if (oldVal === newVal) return null;
         const name = resolveFieldName(key, fields);
         return (
-          <div key={key} className="text-[11px]">
+          <div key={key} className="text-2xs">
             <span className="font-medium text-[#6A7184] dark:text-[#9AA2AF]">{name}</span>
             <div className="flex items-start gap-1 mt-0.5 flex-wrap">
               {oldVal != null && (
@@ -142,8 +142,8 @@ export function RecordHistoryPanel({ baseId, tableId, recordId, fields }: Record
     return (
       <div className="flex flex-col items-center justify-center py-10 text-center">
         <Inbox size={28} className="text-[#D1D5DB] dark:text-[hsl(200,20%,30%)] mb-2" />
-        <p className="text-[13px] font-medium text-[#6A7184] dark:text-[#9AA2AF]">No history available</p>
-        <p className="text-[11px] text-[#9AA2AF] dark:text-[hsl(200,20%,50%)] mt-1">
+        <p className="text-xs-plus font-medium text-[#6A7184] dark:text-[#9AA2AF]">No history available</p>
+        <p className="text-2xs text-[#9AA2AF] dark:text-[hsl(200,20%,50%)] mt-1">
           Changes to this record will appear here
         </p>
       </div>
@@ -162,10 +162,10 @@ export function RecordHistoryPanel({ baseId, tableId, recordId, fields }: Record
 
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${actionColor(entry.action)}`}>
+              <span className={`inline-block px-1.5 py-0.5 rounded text-3xs font-semibold uppercase tracking-wide ${actionColor(entry.action)}`}>
                 {entry.action}
               </span>
-              <span className="text-[10px] text-[#9AA2AF]" title={new Date(entry.created_at).toLocaleString()}>
+              <span className="text-3xs text-[#9AA2AF]" title={new Date(entry.created_at).toLocaleString()}>
                 {timeAgo(entry.created_at)}
               </span>
               {entry.action === 'UPDATE' && (() => {
@@ -179,7 +179,7 @@ export function RecordHistoryPanel({ baseId, tableId, recordId, fields }: Record
             </div>
 
             {entry.user_email && (
-              <p className="text-[11px] text-[#6A7184] dark:text-[#9AA2AF]">{entry.user_email}</p>
+              <p className="text-2xs text-[#6A7184] dark:text-[#9AA2AF]">{entry.user_email}</p>
             )}
 
             {entry.action === 'UPDATE' && (

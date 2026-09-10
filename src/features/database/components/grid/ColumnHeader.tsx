@@ -217,7 +217,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
             >
               <textarea
                 autoFocus
-                className="w-full text-[11px] font-normal text-[#374151] dark:text-[hsl(200,25%,88%)] bg-transparent border-0 outline-none resize-none leading-snug"
+                className="w-full text-2xs font-normal text-[#374151] dark:text-[hsl(200,25%,88%)] bg-transparent border-0 outline-none resize-none leading-snug"
                 rows={2}
                 value={descriptionDraft}
                 placeholder="Add a description..."
@@ -237,7 +237,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
               />
             </span>
           ) : (
-            <span className="hidden group-hover/info:flex items-start gap-1 absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white dark:bg-[hsl(200,30%,12%)] shadow-lg rounded-md px-2.5 py-1.5 text-[11px] text-[#374151] dark:text-[hsl(200,25%,88%)] font-normal max-w-[200px] whitespace-normal leading-snug border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
+            <span className="hidden group-hover/info:flex items-start gap-1 absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white dark:bg-[hsl(200,30%,12%)] shadow-lg rounded-md px-2.5 py-1.5 text-2xs text-[#374151] dark:text-[hsl(200,25%,88%)] font-normal max-w-[200px] whitespace-normal leading-snug border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
               <span className="flex-1">{field.description}</span>
               <Pencil
                 size={11}
@@ -296,26 +296,26 @@ export const ColumnHeader = React.memo(function ColumnHeader({
             className="fixed z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[180px] animate-[panelSlideDown_150ms_ease-out]"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
-            <div className="px-3 py-1.5 text-[11px] font-medium tracking-wide uppercase flex items-center gap-2" style={{ color: colors.muted }}>
+            <div className="px-3 py-1.5 text-2xs font-medium tracking-wide uppercase flex items-center gap-2" style={{ color: colors.muted }}>
               <Icon size={12} className="shrink-0" />
               {field.ui_type.replace(/([A-Z])/g, ' $1').trim()}
             </div>
             <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] my-1" />
             <button
-              className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={handleSortAsc}
             >
               <ArrowUp size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Sort A → Z
             </button>
             <button
-              className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={handleSortDesc}
             >
               <ArrowDown size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Sort Z → A
             </button>
             <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] my-1" />
             <button
-              className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={() => {
                 setFilters([...filters, { field_id: field.id, operator: 'isNotEmpty', value: '', conjunction: 'and' }]);
                 setContextMenu(null);
@@ -324,7 +324,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
               <Filter size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Filter by this field
             </button>
             <button
-              className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={() => {
                 if (!groupByLevels.some((g) => g.field_id === field.id)) {
                   setGroupByLevels([...groupByLevels, { field_id: field.id, direction: 'asc' }]);
@@ -337,7 +337,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
             <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] my-1" />
             {!field.is_system && onEditField && (
               <button
-                className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
                 onClick={() => { onEditField(field); setContextMenu(null); }}
               >
                 <Pencil size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Edit field
@@ -345,14 +345,14 @@ export const ColumnHeader = React.memo(function ColumnHeader({
             )}
             {!field.is_primary && !field.is_system && onDuplicateField && (
               <button
-                className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
                 onClick={() => { onDuplicateField(field.id); setContextMenu(null); }}
               >
                 <Copy size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Duplicate field
               </button>
             )}
             <button
-              className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
               onClick={() => {
                 setDescriptionDraft(field.description ?? '');
                 setIsEditingDescription(true);
@@ -363,7 +363,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
             </button>
             {!field.is_system && (
               <button
-                className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
                 onClick={handleHide}
               >
                 <EyeOff size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Hide field
@@ -371,7 +371,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
             )}
             {columnIndex != null && onFreezeUpTo && (
               <button
-                className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
                 onClick={() => {
                   onFreezeUpTo(isFrozen ? 0 : columnIndex + 1);
                   setContextMenu(null);
@@ -385,7 +385,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
               <>
                 <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] my-1" />
                 <button
-                  className="w-full text-left px-3 py-1.5 text-[13px] hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-red-500"
+                  className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-red-500"
                   onClick={handleDelete}
                 >
                   <Trash2 size={14} /> Delete field

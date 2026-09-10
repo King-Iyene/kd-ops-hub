@@ -317,13 +317,13 @@ export default function Handbook() {
                     <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 font-medium">{p.title}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${CATEGORY_COLOR[p.category]}`}>
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-2xs font-medium ${CATEGORY_COLOR[p.category]}`}>
                           {CATEGORY_LABEL[p.category]}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center text-muted-foreground">v{p.version}</td>
                       <td className="px-4 py-3 text-center">
-                        <Badge variant={p.is_active ? 'default' : 'secondary'} className="text-[10px]">
+                        <Badge variant={p.is_active ? 'default' : 'secondary'} className="text-3xs">
                           {p.is_active ? 'Yes' : 'No'}
                         </Badge>
                       </td>
@@ -383,10 +383,10 @@ export default function Handbook() {
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-medium text-sm truncate">{p.title}</h3>
-                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${CATEGORY_COLOR[p.category]}`}>
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-3xs font-medium ${CATEGORY_COLOR[p.category]}`}>
                             {CATEGORY_LABEL[p.category]}
                           </span>
-                          <span className="text-[11px] text-muted-foreground">v{p.version}</span>
+                          <span className="text-2xs text-muted-foreground">v{p.version}</span>
                         </div>
                         {p.published_at && (
                           <p className="text-xs text-muted-foreground">Published {format(parseISO(p.published_at), 'MMM d, yyyy')}</p>
@@ -397,7 +397,7 @@ export default function Handbook() {
                           <Eye className="h-4 w-4" />
                         </Button>
                         {acked ? (
-                          <Badge variant="default" className="text-[10px]">
+                          <Badge variant="default" className="text-3xs">
                             <CheckCircle2 className="h-3 w-3 mr-1" />Signed
                           </Badge>
                         ) : (
@@ -484,7 +484,7 @@ export default function Handbook() {
               <DialogHeader>
                 <DialogTitle>{viewPolicy.title}</DialogTitle>
                 <DialogDescription>
-                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium mr-2 ${CATEGORY_COLOR[viewPolicy.category]}`}>
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-2xs font-medium mr-2 ${CATEGORY_COLOR[viewPolicy.category]}`}>
                     {CATEGORY_LABEL[viewPolicy.category]}
                   </span>
                   Version {viewPolicy.version}
@@ -498,7 +498,7 @@ export default function Handbook() {
               <DialogFooter className="flex-col sm:flex-row gap-2">
                 {viewPolicy.requires_acknowledgment && (
                   hasAcked(viewPolicy) ? (
-                    <Badge variant="default" className="text-[10px]">
+                    <Badge variant="default" className="text-3xs">
                       <CheckCircle2 className="h-3 w-3 mr-1" />Signed
                     </Badge>
                   ) : (

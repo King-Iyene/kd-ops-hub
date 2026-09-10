@@ -88,7 +88,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
           {EMOJI_CATEGORIES.map((cat, i) => (
             <button
               key={cat.label}
-              className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
+              className={`px-1.5 py-0.5 text-3xs rounded transition-colors ${
                 i === activeCategory
                   ? 'bg-[#2D7FF9]/10 text-[#2D7FF9] font-medium'
                   : 'text-[#9AA2AF] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]'
@@ -103,7 +103,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
       <div className="max-h-[200px] overflow-y-auto p-2">
         {(search.trim() ? filteredCategories : [filteredCategories[activeCategory]]).map((cat) => (
           <div key={cat.label}>
-            <div className="text-[10px] font-medium text-[#9AA2AF] uppercase tracking-wider mb-1">{cat.label}</div>
+            <div className="text-3xs font-medium text-[#9AA2AF] uppercase tracking-wider mb-1">{cat.label}</div>
             <div className="grid grid-cols-8 gap-0.5">
               {cat.emojis.map((emoji) => (
                 <button
@@ -120,7 +120,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
       </div>
       <div className="p-1.5 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] flex justify-end">
         <button
-          className="text-[11px] text-red-500 hover:text-red-600 px-2 py-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+          className="text-2xs text-red-500 hover:text-red-600 px-2 py-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
           onClick={() => { onSelect(''); onClose(); }}
         >
           Remove icon

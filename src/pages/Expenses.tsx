@@ -172,7 +172,7 @@ const mileageAmount = (km: number, rate: number) =>
   Math.max(0, Math.round(km * rate * 100) / 100);
 
 const TabCount = ({ n }: { n: number }) => (
-  <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+  <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-3xs font-semibold tabular-nums text-muted-foreground">
     {n}
   </span>
 );
@@ -1599,7 +1599,7 @@ const Expenses = () => {
                       <TableCell className="max-w-xs">
                         <div className="truncate">{e.description || '—'}</div>
                         {e.vendor_name && (
-                          <div className="text-[10px] text-muted-foreground truncate">{e.vendor_name}</div>
+                          <div className="text-3xs text-muted-foreground truncate">{e.vendor_name}</div>
                         )}
                         {e.receipt_url && (
                           <div className="flex items-center gap-2 mt-0.5" onClick={(evt) => evt.stopPropagation()}>
@@ -1654,12 +1654,12 @@ const Expenses = () => {
                             )}
                           </div>
                           {e.status === 'pending_second_approval' && (
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-3xs text-muted-foreground">
                               1 of 2 approvals
                             </span>
                           )}
                           {e.status === 'approved' && e.approved_by_secondary && (
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-3xs text-muted-foreground">
                               Dual approved
                             </span>
                           )}
@@ -1668,7 +1668,7 @@ const Expenses = () => {
                             if (days === null || days < 3) return null;
                             const tone = days >= 7 ? 'text-red-600 font-semibold' : days >= 5 ? 'text-amber-600 font-medium' : 'text-muted-foreground';
                             return (
-                              <span className={`text-[10px] ${tone}`}>
+                              <span className={`text-3xs ${tone}`}>
                                 Awaiting {days}d
                               </span>
                             );
@@ -1679,7 +1679,7 @@ const Expenses = () => {
                         <div className="flex flex-col gap-0.5">
                           {e.status === 'approved' && paymentBadge(e.payment_status)}
                           {missingBankDetails(e) && (
-                            <Badge variant="outline" className="gap-1 border-orange-400 text-orange-700 bg-orange-50 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-500/30 text-[10px]">
+                            <Badge variant="outline" className="gap-1 border-orange-400 text-orange-700 bg-orange-50 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-500/30 text-3xs">
                               <BanknoteIcon className="h-3 w-3" /> No bank details
                             </Badge>
                           )}
@@ -1848,7 +1848,7 @@ const Expenses = () => {
                               </MobileCardTitle>
                             </div>
                             {e.mileage_km && (
-                              <p className="text-[10px] text-muted-foreground">
+                              <p className="text-3xs text-muted-foreground">
                                 {e.mileage_km} km × {formatNaira(e.rate_per_km_ngn || 0)}/km
                               </p>
                             )}

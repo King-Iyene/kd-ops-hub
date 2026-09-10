@@ -16,7 +16,7 @@ interface RowContextMenuProps {
 }
 
 const menuItemClass =
-  'flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] transition-colors';
+  'flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] transition-colors';
 
 export function RowContextMenu({
   x,
@@ -139,7 +139,7 @@ export function RowContextMenu({
           <div className="my-1 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]" />
 
           <button
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs-plus text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             onClick={async () => {
               onClose();
               const confirmed = await confirm({ description: 'Are you sure you want to delete this record? This action cannot be undone.', variant: 'destructive' });

@@ -267,7 +267,7 @@ export const PayrollRunsTab = ({
             <p className="kd-display text-xl font-extrabold tabular-nums tracking-tight text-foreground leading-none truncate">
               {value}
             </p>
-            <p className="mt-1.5 text-[11px] text-muted-foreground truncate">{label}</p>
+            <p className="mt-1.5 text-2xs text-muted-foreground truncate">{label}</p>
             <p className="mt-0.5 text-2xs text-muted-foreground/70 tabular-nums truncate">{sub}</p>
           </div>
         ))}
@@ -376,7 +376,7 @@ export const PayrollRunsTab = ({
 
       {advanceQueue.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-[13px] font-semibold tracking-tight">Salary advance requests</h2>
+          <h2 className="text-xs-plus font-semibold tracking-tight">Salary advance requests</h2>
           <div className="rounded-lg border border-border/60 bg-card divide-y">
             {advanceQueue.map((a) => (
               <div key={a.id} className="flex items-center justify-between gap-3 p-3 flex-wrap">
@@ -419,7 +419,7 @@ export const PayrollRunsTab = ({
           buttons for the right action. */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-[13px] font-semibold tracking-tight">Payroll runs</h2>
+          <h2 className="text-xs-plus font-semibold tracking-tight">Payroll runs</h2>
           {runs.length > 0 && (
             <Button size="sm" onClick={() => setDialog(true)} className="gap-1.5">
               <Plus className="h-3.5 w-3.5" /> New run
@@ -438,7 +438,7 @@ export const PayrollRunsTab = ({
               )}
             >
               All pay groups
-              <span className={cn('rounded-full px-1.5 text-[10px]', segmentFilter === '__all__' ? 'bg-primary/15' : 'bg-muted')}>{runs.length}</span>
+              <span className={cn('rounded-full px-1.5 text-3xs', segmentFilter === '__all__' ? 'bg-primary/15' : 'bg-muted')}>{runs.length}</span>
             </button>
             {segmentFilterOptions.map((opt) => (
               <button
@@ -451,7 +451,7 @@ export const PayrollRunsTab = ({
                 )}
               >
                 {opt.name}
-                <span className={cn('rounded-full px-1.5 text-[10px]', segmentFilter === opt.id ? 'bg-primary/15' : 'bg-muted')}>{opt.count}</span>
+                <span className={cn('rounded-full px-1.5 text-3xs', segmentFilter === opt.id ? 'bg-primary/15' : 'bg-muted')}>{opt.count}</span>
               </button>
             ))}
           </div>
@@ -499,12 +499,12 @@ export const PayrollRunsTab = ({
                         <span className="font-semibold text-sm">{monthLabel(r.period, r.period_type)}</span>
                         <StatusBadge status={r.status} />
                         {isUncomputedAutoDraft(r) && (
-                          <Badge variant="outline" className="gap-1 text-[10px] border-purple-300 text-purple-700 bg-purple-50 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-700">
+                          <Badge variant="outline" className="gap-1 text-3xs border-purple-300 text-purple-700 bg-purple-50 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-700">
                             <Sparkles className="h-3 w-3" /> Autopilot
                           </Badge>
                         )}
                         {r.status === 'approved' && r.scheduled_disburse_at && (
-                          <Badge variant="outline" className="gap-1 text-[10px] border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-700">
+                          <Badge variant="outline" className="gap-1 text-3xs border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-700">
                             <Clock className="h-3 w-3" />
                             {new Date(r.scheduled_disburse_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
                           </Badge>
@@ -516,7 +516,7 @@ export const PayrollRunsTab = ({
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-semibold currency tabular-nums">{formatNaira(r.total_burn_ngn)}</p>
-                      <p className="text-[11px] text-muted-foreground tabular-nums">
+                      <p className="text-2xs text-muted-foreground tabular-nums">
                         {r.employee_count ?? '—'} employee{r.employee_count === 1 ? '' : 's'}
                         {momPct !== null && (
                           <span className={cn('ml-1.5 inline-flex items-center gap-0.5', momPct >= 0 ? 'text-success' : 'text-destructive')}>
@@ -692,7 +692,7 @@ function RunDetailDrawer({
                 {r.total_expenses_ngn > 0 && <span>Expenses: <span className="tabular-nums text-foreground">{formatNaira(r.total_expenses_ngn)}</span></span>}
               </div>
             )}
-            <p className="text-[11px] text-muted-foreground mt-1.5">
+            <p className="text-2xs text-muted-foreground mt-1.5">
               Employer cost on top of gross (employer pension): {formatNaira(r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE))}
             </p>
           </div>

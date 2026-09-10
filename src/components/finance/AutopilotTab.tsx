@@ -211,7 +211,7 @@ export default function AutopilotTab() {
                       <TableCell className="text-muted-foreground">{formatDate(s.scheduled_date)}</TableCell>
                       <TableCell className="text-right currency">{formatNaira(s.amount_ngn)}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={cn('text-[10px] capitalize', ACTION_TONE[s.action])}>{s.action}</Badge>
+                        <Badge variant="outline" className={cn('text-3xs capitalize', ACTION_TONE[s.action])}>{s.action}</Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[280px]">{s.note}</TableCell>
                     </TableRow>

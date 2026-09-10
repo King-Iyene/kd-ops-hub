@@ -82,8 +82,8 @@ const EMPTY: Omit<Vendor, 'id' | 'created_at'> = {
 function contractExpiryBadge(end: string | null) {
   if (!end) return null;
   const days = differenceInDays(parseISO(end), new Date());
-  if (days < 0)  return <Badge variant="destructive" className="text-[10px]">Expired</Badge>;
-  if (days <= 30) return <Badge variant="outline" className="text-[10px] border-warning text-warning">Expires in {days}d</Badge>;
+  if (days < 0)  return <Badge variant="destructive" className="text-3xs">Expired</Badge>;
+  if (days <= 30) return <Badge variant="outline" className="text-3xs border-warning text-warning">Expires in {days}d</Badge>;
   return null;
 }
 
@@ -296,7 +296,7 @@ export default function Vendors() {
             <thead className="border-b bg-muted/30">
               <tr>
                 {['Vendor', 'Category', 'Status', 'Contact', 'Payment Terms', 'Contract', ''].map(h => (
-                  <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">{h}</th>
+                  <th key={h} className="text-left text-2xs font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -305,25 +305,25 @@ export default function Vendors() {
                 <tr key={v.id} className="hover:bg-muted/20">
                   <td className="px-3 py-3">
                     <p className="font-medium">{v.name}</p>
-                    {v.rc_number && <p className="text-[11px] text-muted-foreground">RC: {v.rc_number}</p>}
+                    {v.rc_number && <p className="text-2xs text-muted-foreground">RC: {v.rc_number}</p>}
                   </td>
                   <td className="px-3 py-3">
                     <span className="text-xs text-muted-foreground">{CATEGORY_LABEL[v.category]}</span>
                   </td>
                   <td className="px-3 py-3">
-                    <Badge variant={STATUS_BADGE[v.status].variant} className="text-[10px]">
+                    <Badge variant={STATUS_BADGE[v.status].variant} className="text-3xs">
                       {STATUS_BADGE[v.status].label}
                     </Badge>
                   </td>
                   <td className="px-3 py-3 space-y-0.5">
                     {v.contact_name && <p className="text-xs">{v.contact_name}</p>}
                     {v.contact_email && (
-                      <a href={`mailto:${v.contact_email}`} className="flex items-center gap-1 text-[11px] text-primary">
+                      <a href={`mailto:${v.contact_email}`} className="flex items-center gap-1 text-2xs text-primary">
                         <Mail className="h-3 w-3" />{v.contact_email}
                       </a>
                     )}
                     {v.contact_phone && (
-                      <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <p className="flex items-center gap-1 text-2xs text-muted-foreground">
                         <Phone className="h-3 w-3" />{v.contact_phone}
                       </p>
                     )}
@@ -336,7 +336,7 @@ export default function Vendors() {
                     {v.contract_end && (
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-2xs text-muted-foreground">
                           {format(parseISO(v.contract_end), 'd MMM yyyy')}
                         </span>
                         {contractExpiryBadge(v.contract_end)}
@@ -366,10 +366,10 @@ export default function Vendors() {
               <MobileCardHeader>
                 <div className="min-w-0 flex-1">
                   <MobileCardTitle>{v.name}</MobileCardTitle>
-                  {v.rc_number && <p className="text-[11px] text-muted-foreground">RC: {v.rc_number}</p>}
+                  {v.rc_number && <p className="text-2xs text-muted-foreground">RC: {v.rc_number}</p>}
                 </div>
                 <MobileCardMeta>
-                  <Badge variant={STATUS_BADGE[v.status].variant} className="text-[10px]">
+                  <Badge variant={STATUS_BADGE[v.status].variant} className="text-3xs">
                     {STATUS_BADGE[v.status].label}
                   </Badge>
                 </MobileCardMeta>

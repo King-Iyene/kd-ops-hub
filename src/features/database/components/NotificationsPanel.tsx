@@ -136,12 +136,12 @@ export function NotificationsPanel() {
         <div className="absolute right-0 top-full mt-1 w-[340px] bg-white dark:bg-[hsl(200,30%,10%)] rounded-lg shadow-xl border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
-            <span className="text-[13px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
+            <span className="text-xs-plus font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
               Notifications
             </span>
             {notifications.length > 0 && (
               <button
-                className="text-[11px] text-[#2D7FF9] hover:underline"
+                className="text-2xs text-[#2D7FF9] hover:underline"
                 onClick={markAllRead}
               >
                 Mark all read
@@ -154,7 +154,7 @@ export function NotificationsPanel() {
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">
                 <Bell size={28} className="mb-2 opacity-40" />
-                <span className="text-[13px]">No notifications</span>
+                <span className="text-xs-plus">No notifications</span>
               </div>
             ) : (
               notifications.map((n) => {
@@ -176,7 +176,7 @@ export function NotificationsPanel() {
                       <p className="text-xs text-[#374151] dark:text-[hsl(200,25%,85%)] leading-snug">
                         {n.message}
                       </p>
-                      <span className="text-[10px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] mt-0.5 block">
+                      <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] mt-0.5 block">
                         {relativeTime(n.timestamp)}
                       </span>
                     </div>

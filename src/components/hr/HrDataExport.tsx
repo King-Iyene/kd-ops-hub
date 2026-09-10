@@ -385,7 +385,7 @@ export const HrDataExport = () => {
                   <Label className="font-medium text-sm cursor-pointer">
                     {d.label}
                   </Label>
-                  <Badge variant="secondary" className="text-[10px]">
+                  <Badge variant="secondary" className="text-3xs">
                     {d.csvColumns.length} columns
                   </Badge>
                 </div>

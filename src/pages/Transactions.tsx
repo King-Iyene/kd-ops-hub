@@ -435,7 +435,7 @@ const Transactions = () => {
                 )}
               >
                 <div className="relative z-[2]">
-                  <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
+                  <span className="text-3xs uppercase tracking-[0.12em] text-muted-foreground font-semibold">
                     {label}
                   </span>
                   <span className={cn(
@@ -444,7 +444,7 @@ const Transactions = () => {
                   )}>
                     {count.toLocaleString()}
                   </span>
-                  <span className="mt-1 text-[11px] font-mono tabular-nums text-muted-foreground/70 block">
+                  <span className="mt-1 text-2xs font-mono tabular-nums text-muted-foreground/70 block">
                     {formatNaira(total)}
                   </span>
                 </div>
@@ -455,7 +455,7 @@ const Transactions = () => {
 
         {/* Transaction Summary card */}
         <div className="lg:col-span-4 rounded-lg border border-border/70 bg-card p-4 flex flex-col justify-between">
-          <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
+          <span className="text-3xs uppercase tracking-[0.12em] text-muted-foreground font-semibold">
             Transaction Summary
           </span>
           {(() => {
@@ -470,9 +470,9 @@ const Transactions = () => {
                   <span className="text-[28px] font-semibold font-mono tabular-nums leading-none tracking-tight text-emerald-600 dark:text-emerald-400">
                     {successRate}%
                   </span>
-                  <span className="text-[11px] text-muted-foreground">success rate</span>
+                  <span className="text-2xs text-muted-foreground">success rate</span>
                 </div>
-                <div className="flex items-center gap-3 text-[11px] tabular-nums">
+                <div className="flex items-center gap-3 text-2xs tabular-nums">
                   <span className="flex items-center gap-1">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
                     <span className="text-muted-foreground">{succeededCount.toLocaleString()} succeeded</span>
@@ -511,7 +511,7 @@ const Transactions = () => {
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                className="pl-8 h-8 text-[13px] bg-transparent border-border/60"
+                className="pl-8 h-8 text-xs-plus bg-transparent border-border/60"
                 placeholder="Search reference, beneficiary, bank…"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); pagination.reset(); }}
@@ -566,7 +566,7 @@ const Transactions = () => {
         />
 
         {/* Filtered totals — always-visible slim inline strip */}
-        <div className="px-3 py-1.5 border-b border-border/50 bg-muted/20 text-[11px] text-muted-foreground flex items-center gap-3 flex-wrap">
+        <div className="px-3 py-1.5 border-b border-border/50 bg-muted/20 text-2xs text-muted-foreground flex items-center gap-3 flex-wrap">
           <span className="tabular-nums">
             {hasActiveFilters
               ? `${filtered.length.toLocaleString()} match${filtered.length !== 1 ? 'es' : ''}`
@@ -603,13 +603,13 @@ const Transactions = () => {
                 <table className="w-full">
                   <thead className="sticky top-12 z-10 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
                     <tr className="border-b border-border/50">
-                      <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Date</th>
-                      <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Beneficiary</th>
-                      <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Reference</th>
-                      <th className="text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Fee</th>
-                      <th className="text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Duty</th>
-                      <th className="text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Amount</th>
-                      <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Status</th>
+                      <th className="text-left text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Date</th>
+                      <th className="text-left text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Beneficiary</th>
+                      <th className="text-left text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Reference</th>
+                      <th className="text-right text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Fee</th>
+                      <th className="text-right text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Duty</th>
+                      <th className="text-right text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Amount</th>
+                      <th className="text-left text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
@@ -658,7 +658,7 @@ const Transactions = () => {
                           <td className="px-3 py-2 text-xs text-muted-foreground tabular-nums whitespace-nowrap">
                             <span className="font-mono">{formatDate(r.created_at)}</span>
                           </td>
-                          <td className="px-3 py-2 text-[13px] max-w-[260px]">
+                          <td className="px-3 py-2 text-xs-plus max-w-[260px]">
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span className="font-medium truncate capitalize">{(r.account_name || r.description || '—').toLowerCase()}</span>
                               {f && ledgerStatus === 'failed' && (
@@ -677,7 +677,7 @@ const Transactions = () => {
                                     <p className="font-semibold mb-1 text-destructive">{f.title}</p>
                                     <p className="text-muted-foreground mb-2">{f.hint}</p>
                                     {f.hint !== r.rejection_reason && (
-                                      <p className="font-mono text-[10px] text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
+                                      <p className="font-mono text-3xs text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
                                         <span className="opacity-60">Paystack: </span>{r.rejection_reason}
                                       </p>
                                     )}
@@ -691,7 +691,7 @@ const Transactions = () => {
                               </p>
                             )}
                           </td>
-                          <td className="px-3 py-2 font-mono text-[11px] text-muted-foreground tracking-tight whitespace-nowrap">
+                          <td className="px-3 py-2 font-mono text-2xs text-muted-foreground tracking-tight whitespace-nowrap">
                             {refDisplay}
                           </td>
                           <td className="px-3 py-2 text-right font-mono text-[11.5px] text-muted-foreground tabular-nums whitespace-nowrap">
@@ -700,7 +700,7 @@ const Transactions = () => {
                           <td className="px-3 py-2 text-right font-mono text-[11.5px] text-muted-foreground tabular-nums whitespace-nowrap">
                             {stamp > 0 ? formatNaira(stamp) : <span className="text-muted-foreground/30">—</span>}
                           </td>
-                          <td className="px-3 py-2 text-right font-mono font-semibold text-[13px] tabular-nums whitespace-nowrap">
+                          <td className="px-3 py-2 text-right font-mono font-semibold text-xs-plus tabular-nums whitespace-nowrap">
                             {formatNaira(r.amount_ngn)}
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap">
@@ -747,7 +747,7 @@ const Transactions = () => {
                     >
                       <MobileCardHeader>
                         <div className="min-w-0 flex-1">
-                          <Badge variant="secondary" className={cn('font-medium text-[10px] mb-1 h-4 px-1.5', TYPE_COLOR[r.txn_type])}>
+                          <Badge variant="secondary" className={cn('font-medium text-3xs mb-1 h-4 px-1.5', TYPE_COLOR[r.txn_type])}>
                             <Icon className="h-2.5 w-2.5 mr-1" />
                             {typeLabel(r.txn_type)}
                           </Badge>
@@ -769,7 +769,7 @@ const Transactions = () => {
                                   <p className="font-semibold mb-1 text-destructive">{f.title}</p>
                                   <p className="text-muted-foreground mb-2">{f.hint}</p>
                                   {f.hint !== r.rejection_reason && (
-                                    <p className="font-mono text-[10px] text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
+                                    <p className="font-mono text-3xs text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
                                       <span className="opacity-60">Paystack: </span>{r.rejection_reason}
                                     </p>
                                   )}
@@ -778,12 +778,12 @@ const Transactions = () => {
                             )}
                           </div>
                           {r.bank_name && (
-                            <p className="text-[11px] text-muted-foreground">
+                            <p className="text-2xs text-muted-foreground">
                               {r.bank_name} · <span className="font-mono">{r.account_number || '—'}</span>
                             </p>
                           )}
                           {r.batch_name && r.txn_type !== 'quick_pay' && (
-                            <p className="text-[11px] text-muted-foreground/80">from {r.batch_name}</p>
+                            <p className="text-2xs text-muted-foreground/80">from {r.batch_name}</p>
                           )}
                         </div>
                         <MobileCardMeta className={cn('currency text-base', (r.txn_type as string) === 'charge' && 'text-warning')}>
@@ -830,7 +830,7 @@ export default Transactions;
 // Ledger status dot — Mercury / Brex / Ramp style.
 //   • Coloured 6px dot
 //   • Sentence-case label (succeeded / pending / failed / refunded)
-//   • text-[11px] muted-foreground for the label so the dot does the work
+//   • text-2xs muted-foreground for the label so the dot does the work
 // ---------------------------------------------------------------------------
 
 function LedgerStatusDot({ status }: { status: string }) {

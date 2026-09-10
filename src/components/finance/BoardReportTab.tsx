@@ -39,9 +39,9 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 function StatTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-lg border bg-card p-4">
-      <p className="text-[11px] text-muted-foreground mb-1">{label}</p>
+      <p className="text-2xs text-muted-foreground mb-1">{label}</p>
       <p className="text-xl font-bold leading-tight">{value}</p>
-      {sub && <p className="text-[10px] text-muted-foreground mt-1">{sub}</p>}
+      {sub && <p className="text-3xs text-muted-foreground mt-1">{sub}</p>}
     </div>
   );
 }
@@ -92,7 +92,7 @@ export default function BoardReportTab() {
                   Generated {formatDate(report.generated_at.slice(0, 10))}
                 </p>
               </div>
-              <Badge variant="outline" className="text-[10px] font-medium">
+              <Badge variant="outline" className="text-3xs font-medium">
                 Board ready
               </Badge>
             </div>
@@ -193,7 +193,7 @@ export default function BoardReportTab() {
                     </TableBody>
                   </Table>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-2">
+                <p className="text-2xs text-muted-foreground mt-2">
                   Total cost-to-company: {formatNaira(totalCtc)} (gross + employer pension 10% + NSITF 1%)
                 </p>
               </section>
@@ -254,7 +254,7 @@ export default function BoardReportTab() {
                         <XCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
                         <div>
                           <p className="text-sm font-medium">{c.kind.toUpperCase()} — {c.period}</p>
-                          <p className="text-[11px] text-muted-foreground">Due {formatDate(c.due_date)}</p>
+                          <p className="text-2xs text-muted-foreground">Due {formatDate(c.due_date)}</p>
                         </div>
                       </div>
                       {c.amount_ngn != null && (
@@ -334,10 +334,10 @@ export default function BoardReportTab() {
 
             {/* ─── Footer ──────────────────────────────────────────── */}
             <div className="border-t pt-4 flex items-center justify-between">
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-3xs text-muted-foreground">
                 KDOps Financial Report — Confidential
               </p>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-3xs text-muted-foreground">
                 {formatDate(report.generated_at.slice(0, 10))}
               </p>
             </div>

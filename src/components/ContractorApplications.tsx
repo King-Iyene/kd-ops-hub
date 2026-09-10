@@ -310,7 +310,7 @@ export function ContractorApplications() {
             <TabsTrigger value="pending">
               Pending
               {pendingCount > 0 && (
-                <Badge className="ml-2 bg-warning text-warning-foreground h-5 px-1.5 text-[10px]">
+                <Badge className="ml-2 bg-warning text-warning-foreground h-5 px-1.5 text-3xs">
                   {pendingCount}
                 </Badge>
               )}

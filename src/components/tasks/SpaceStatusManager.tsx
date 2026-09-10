@@ -136,7 +136,7 @@ export function SpaceStatusManager({ spaceId, spaceName, open, onClose }: SpaceS
               <div key={group.value} className="space-y-1.5">
                 <div className="flex items-center gap-2">
                   <div className={cn('h-2 w-2 rounded-full', group.color)} />
-                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{group.label}</Label>
+                  <Label className="text-3xs font-semibold uppercase tracking-wider text-muted-foreground">{group.label}</Label>
                 </div>
                 {group.statuses.map((status) => (
                   <div key={status.id} className="flex items-center gap-2 group rounded-md px-2 py-1.5 hover:bg-muted/50 transition-colors">
@@ -156,7 +156,7 @@ export function SpaceStatusManager({ spaceId, spaceName, open, onClose }: SpaceS
                           onKeyDown={(e) => { if (e.key === 'Enter') updateStatus(status.id); if (e.key === 'Escape') setEditingId(null); }}
                         />
                         <Select value={editGroup} onValueChange={(v) => setEditGroup(v as SpaceStatus['status_group'])}>
-                          <SelectTrigger className="h-7 w-[100px] text-[11px]"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-7 w-[100px] text-2xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             {STATUS_GROUPS.map((g) => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}
                           </SelectContent>
@@ -173,7 +173,7 @@ export function SpaceStatusManager({ spaceId, spaceName, open, onClose }: SpaceS
                         <GripVertical className="h-3 w-3 text-muted-foreground/30 shrink-0" />
                         <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: status.color }} />
                         <span className="flex-1 text-sm font-medium">{status.name}</span>
-                        <span className="text-[10px] text-muted-foreground/60">{group.label}</span>
+                        <span className="text-3xs text-muted-foreground/60">{group.label}</span>
                         <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" aria-label="Edit status" onClick={() => startEdit(status)}>
                           <Pencil className="h-2.5 w-2.5 text-muted-foreground" />
                         </Button>

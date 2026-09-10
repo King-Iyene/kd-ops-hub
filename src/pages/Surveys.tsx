@@ -462,7 +462,7 @@ export default function Surveys() {
                           )}
                           <div className="flex items-center gap-2 pt-1">
                             {typeBadge(s.survey_type)}
-                            {s.is_anonymous && <Badge variant="outline" className="text-[10px]">Anonymous</Badge>}
+                            {s.is_anonymous && <Badge variant="outline" className="text-3xs">Anonymous</Badge>}
                             <span className="text-xs text-muted-foreground">{qs.length} question{qs.length !== 1 ? 's' : ''}</span>
                           </div>
                         </div>
@@ -482,7 +482,7 @@ export default function Surveys() {
                                     {i + 1}. {q.question_text}
                                     {q.is_required && <span className="text-destructive ml-1">*</span>}
                                   </p>
-                                  <Badge variant="outline" className="text-[10px] shrink-0">{q.question_type}</Badge>
+                                  <Badge variant="outline" className="text-3xs shrink-0">{q.question_type}</Badge>
                                 </div>
                                 {(q.question_type === 'rating' || q.question_type === 'enps') && (
                                   <div className="space-y-2">
@@ -499,7 +499,7 @@ export default function Surveys() {
                                         {answerDrafts[q.id]?.rating ?? 5}
                                       </span>
                                     </div>
-                                    <div className="flex justify-between text-[10px] text-muted-foreground px-0.5">
+                                    <div className="flex justify-between text-3xs text-muted-foreground px-0.5">
                                       <span>0</span>
                                       <span>10</span>
                                     </div>
@@ -646,10 +646,10 @@ export default function Surveys() {
                           {i + 1}. {q.question_text}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className="text-[10px]">{q.question_type}</Badge>
-                          {q.is_required && <span className="text-[10px] text-destructive">Required</span>}
+                          <Badge variant="outline" className="text-3xs">{q.question_type}</Badge>
+                          {q.is_required && <span className="text-3xs text-destructive">Required</span>}
                           {q.options && (
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-3xs text-muted-foreground">
                               {(q.options as string[]).length} options
                             </span>
                           )}

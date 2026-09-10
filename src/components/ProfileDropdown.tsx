@@ -120,7 +120,7 @@ export function ProfileDropdown() {
           {/* Time-of-day greeting strip */}
           <div className="mt-3 flex items-center gap-2 rounded-md bg-muted/40 px-2.5 py-1.5">
             <TodIcon className="h-3.5 w-3.5 kd-tod-text" />
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               {greetingFor(tod)}{firstName ? `, ${firstName}` : ''}.
             </span>
           </div>
@@ -170,7 +170,7 @@ export function ProfileDropdown() {
                   );
                 })}
               </div>
-              <p className="text-[11px] text-muted-foreground px-1 mt-2">
+              <p className="text-2xs text-muted-foreground px-1 mt-2">
                 View-only simulation — your real role is never changed.
               </p>
             </div>

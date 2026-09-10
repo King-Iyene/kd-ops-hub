@@ -200,7 +200,7 @@ export const LeaveBalancesPanel = ({
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-3xl font-bold tabular-nums">{stats.available}</span>
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">days left</span>
+                <span className="text-3xs uppercase tracking-wider text-muted-foreground">days left</span>
               </div>
             </div>
 
@@ -277,7 +277,7 @@ export const LeaveBalancesPanel = ({
                         <p className="text-sm font-medium truncate">{p.name}</p>
                       </div>
                       {p.accrual_type === 'unpaid' ? (
-                        <Badge variant="secondary" className="text-[10px]">unpaid</Badge>
+                        <Badge variant="secondary" className="text-3xs">unpaid</Badge>
                       ) : (
                         <span className="text-xs font-semibold tabular-nums">
                           {used} / {entitlement}d
@@ -301,7 +301,7 @@ export const LeaveBalancesPanel = ({
           <CardTitle className="text-sm">Recent requests</CardTitle>
           <Link
             to="/leave"
-            className="text-[11px] text-primary hover:underline"
+            className="text-2xs text-primary hover:underline"
           >
             Manage on Leave page →
           </Link>
@@ -331,7 +331,7 @@ export const LeaveBalancesPanel = ({
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{r.days_requested}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className={cn('text-[10px]', STATUS_TONE[r.status] || '')}>
+                      <Badge variant="secondary" className={cn('text-3xs', STATUS_TONE[r.status] || '')}>
                         {r.status}
                       </Badge>
                     </TableCell>

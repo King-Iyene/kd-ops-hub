@@ -104,7 +104,7 @@ export function KeyboardShortcuts() {
           <div className="mt-6 space-y-6 overflow-y-auto max-h-[calc(100vh-120px)] pr-2">
             {GROUPS.map((g) => (
               <div key={g}>
-                <h4 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+                <h4 className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
                   {g}
                 </h4>
                 <div className="space-y-1.5">
@@ -115,7 +115,7 @@ export function KeyboardShortcuts() {
                         {s.keys.map((k, i) => (
                           <kbd
                             key={i}
-                            className="inline-flex items-center justify-center min-w-7 h-7 px-1.5 rounded-md border border-border bg-card text-[11px] font-mono font-semibold text-foreground shadow-sm"
+                            className="inline-flex items-center justify-center min-w-7 h-7 px-1.5 rounded-md border border-border bg-card text-2xs font-mono font-semibold text-foreground shadow-sm"
                           >
                             {k}
                           </kbd>

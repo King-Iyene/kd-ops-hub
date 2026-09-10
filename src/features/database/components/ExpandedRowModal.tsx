@@ -353,7 +353,7 @@ function Tooltip({ text, children }: { text: string; children: React.ReactNode }
     >
       {children}
       {show && (
-        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-[10px] rounded bg-[#374151] dark:bg-[hsl(200,25%,88%)] text-white dark:text-[hsl(200,30%,10%)] whitespace-nowrap z-50 pointer-events-none shadow">
+        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-3xs rounded bg-[#374151] dark:bg-[hsl(200,25%,88%)] text-white dark:text-[hsl(200,30%,10%)] whitespace-nowrap z-50 pointer-events-none shadow">
           {text}
         </span>
       )}
@@ -381,7 +381,7 @@ function CopyLinkButton({ recordId }: { recordId: string }) {
       title="Copy record link"
     >
       {copied ? (
-        <span className="text-[10px] font-medium text-green-600 dark:text-green-400 px-1">Copied!</span>
+        <span className="text-3xs font-medium text-green-600 dark:text-green-400 px-1">Copied!</span>
       ) : (
         <Link2 size={15} className="text-[#6A7184] dark:text-[#9AA2AF]" />
       )}
@@ -405,13 +405,13 @@ function DeleteRecordButton({
             onDelete();
             setConfirming(false);
           }}
-          className="px-2 py-1 rounded text-[11px] font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+          className="px-2 py-1 rounded text-2xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
         >
           Confirm
         </button>
         <button
           onClick={() => setConfirming(false)}
-          className="px-2 py-1 rounded text-[11px] font-medium text-[#6A7184] hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+          className="px-2 py-1 rounded text-2xs font-medium text-[#6A7184] hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
         >
           Cancel
         </button>
@@ -434,7 +434,7 @@ function DeleteRecordButton({
 function CommentsSection({ baseId, tableId, recordId }: { baseId: string; tableId: string; recordId: string }) {
   return (
     <div>
-      <h3 className="flex items-center gap-1.5 text-[10px] font-semibold text-[#9AA2AF] uppercase tracking-wider mb-3">
+      <h3 className="flex items-center gap-1.5 text-3xs font-semibold text-[#9AA2AF] uppercase tracking-wider mb-3">
         <MessageSquare size={12} />
         Comments
       </h3>
@@ -467,7 +467,7 @@ function ActivitySection({ record, fields }: { record: RecordRow; fields: FieldM
 
   return (
     <div>
-      <h3 className="flex items-center gap-1.5 text-[10px] font-semibold text-[#9AA2AF] uppercase tracking-wider mb-3">
+      <h3 className="flex items-center gap-1.5 text-3xs font-semibold text-[#9AA2AF] uppercase tracking-wider mb-3">
         <Activity size={12} />
         Activity
       </h3>
@@ -478,7 +478,7 @@ function ActivitySection({ record, fields }: { record: RecordRow; fields: FieldM
           </div>
           <div>
             <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Record created</p>
-            <p className="text-[10px] text-[#9AA2AF]">{fmt(createdAt)}</p>
+            <p className="text-3xs text-[#9AA2AF]">{fmt(createdAt)}</p>
           </div>
         </div>
         {modifiedAt && modifiedAt !== createdAt && (
@@ -488,7 +488,7 @@ function ActivitySection({ record, fields }: { record: RecordRow; fields: FieldM
             </div>
             <div>
               <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Last modified</p>
-              <p className="text-[10px] text-[#9AA2AF]">{fmt(modifiedAt)}</p>
+              <p className="text-3xs text-[#9AA2AF]">{fmt(modifiedAt)}</p>
             </div>
           </div>
         )}
@@ -514,7 +514,7 @@ function SystemFieldsAccordion({
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-1.5 text-[10px] font-semibold text-[#9AA2AF] uppercase tracking-wider mb-3 hover:text-[#6A7184] dark:hover:text-[hsl(200,25%,70%)] transition-colors"
+        className="flex items-center gap-1.5 text-3xs font-semibold text-[#9AA2AF] uppercase tracking-wider mb-3 hover:text-[#6A7184] dark:hover:text-[hsl(200,25%,70%)] transition-colors"
       >
         <Clock size={12} />
         System Fields
@@ -527,7 +527,7 @@ function SystemFieldsAccordion({
             const Renderer = getCellRenderer(field.ui_type);
             return (
               <div key={field.id}>
-                <label className="block text-[10px] font-medium text-[#9AA2AF] mb-0.5">{field.name}</label>
+                <label className="block text-3xs font-medium text-[#9AA2AF] mb-0.5">{field.name}</label>
                 <div className="text-xs text-[#6A7184] dark:text-[hsl(200,25%,70%)]">
                   <Renderer value={val} field={field} record={record} rowHeight="medium" />
                 </div>
@@ -570,7 +570,7 @@ function RightSidebar({
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-medium rounded-t transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-2 text-2xs font-medium rounded-t transition-colors ${
               activeTab === tab.id
                 ? 'text-[#2D7FF9] border-b-2 border-[#2D7FF9] -mb-px'
                 : 'text-[#9AA2AF] hover:text-[#6A7184] dark:hover:text-[hsl(200,25%,70%)]'
@@ -903,7 +903,7 @@ export function ExpandedRowModal({
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-[#6A7184] dark:text-[#9AA2AF] uppercase tracking-wider mb-1.5">
+            <label className="flex items-center gap-1.5 text-2xs font-semibold text-[#6A7184] dark:text-[#9AA2AF] uppercase tracking-wider mb-1.5">
               {field.description ? (
                 <Tooltip text={field.description}>
                   <Icon size={11} className="text-[#9AA2AF]" />

@@ -297,7 +297,7 @@ export default function FxRateSettings() {
                     {savingManual ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   </Button>
                 </div>
-                <p className="text-[11px] text-muted-foreground">Goes live immediately and supersedes the current rate.</p>
+                <p className="text-2xs text-muted-foreground">Goes live immediately and supersedes the current rate.</p>
               </div>
               <div className="space-y-1.5">
                 <Label>Auto-rate deviation guard (%)</Label>
@@ -312,7 +312,7 @@ export default function FxRateSettings() {
                     {savingThreshold ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   </Button>
                 </div>
-                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <p className="text-2xs text-muted-foreground flex items-center gap-1">
                   <Info className="h-3 w-3" /> Auto-fetched rates moving more than this are held for approval.
                 </p>
               </div>

@@ -58,7 +58,7 @@ export function GroupPanel({ fields, groups, onGroupsChange }: GroupPanelProps) 
           <GroupIcon size={14} />
           Group
           {activeCount > 0 && (
-            <span className="ml-0.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-[#2D7FF9] text-white text-[10px] font-medium">
+            <span className="ml-0.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-[#2D7FF9] text-white text-3xs font-medium">
               {activeCount}
             </span>
           )}

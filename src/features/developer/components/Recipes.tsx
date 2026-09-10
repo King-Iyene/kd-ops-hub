@@ -526,7 +526,7 @@ function RecipeCard({ recipe }: { recipe: Recipe }) {
             <div className="flex items-center gap-2 flex-wrap mb-2">
               <Badge
                 className={cn(
-                  'text-[10px] font-medium px-1.5 py-0 border-0',
+                  'text-3xs font-medium px-1.5 py-0 border-0',
                   difficultyColors[recipe.difficulty]
                 )}
               >
@@ -536,7 +536,7 @@ function RecipeCard({ recipe }: { recipe: Recipe }) {
                 <Badge
                   key={p}
                   variant="outline"
-                  className="text-[10px] px-1.5 py-0"
+                  className="text-3xs px-1.5 py-0"
                 >
                   {p}
                 </Badge>
@@ -569,7 +569,7 @@ function RecipeCard({ recipe }: { recipe: Recipe }) {
                     key={i}
                     className="text-xs text-zinc-600 dark:text-zinc-400 flex items-start gap-2"
                   >
-                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-[10px] font-bold mt-0.5">
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-3xs font-bold mt-0.5">
                       {i + 1}
                     </span>
                     <span className="font-mono break-all">{step}</span>
@@ -609,7 +609,7 @@ function RecipeCard({ recipe }: { recipe: Recipe }) {
                   </h4>
                   <CopyButton text={block.content} />
                 </div>
-                <pre className="p-3 rounded-lg bg-zinc-900 dark:bg-zinc-950 text-zinc-100 text-[11px] leading-relaxed overflow-x-auto">
+                <pre className="p-3 rounded-lg bg-zinc-900 dark:bg-zinc-950 text-zinc-100 text-2xs leading-relaxed overflow-x-auto">
                   <code>{block.content}</code>
                 </pre>
               </div>

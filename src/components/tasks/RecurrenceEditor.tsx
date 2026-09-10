@@ -57,7 +57,7 @@ export function RecurrenceEditor({ value, onChange }: RecurrenceEditorProps) {
         <Button
           variant="ghost"
           size="sm"
-          className={cn('h-7 text-[11px] gap-1', value && 'text-primary')}
+          className={cn('h-7 text-2xs gap-1', value && 'text-primary')}
         >
           <Repeat className="h-3 w-3" />
           {label}
@@ -98,7 +98,7 @@ export function RecurrenceEditor({ value, onChange }: RecurrenceEditorProps) {
                   key={i}
                   onClick={() => toggleWeekday(i)}
                   className={cn(
-                    'h-7 w-7 rounded-full text-[10px] font-semibold transition-colors',
+                    'h-7 w-7 rounded-full text-3xs font-semibold transition-colors',
                     weekdays.includes(i)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-muted-foreground hover:bg-muted/80',

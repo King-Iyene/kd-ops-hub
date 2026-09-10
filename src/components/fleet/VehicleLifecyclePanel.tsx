@@ -346,7 +346,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 min-h-0">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">Acquisition</p>
+              <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Acquisition</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Purchase Price</Label>
@@ -394,7 +394,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
             </div>
 
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">Depreciation</p>
+              <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Depreciation</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label>Method</Label>
@@ -418,7 +418,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
             </div>
 
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">Insurance</p>
+              <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Insurance</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Provider</Label>

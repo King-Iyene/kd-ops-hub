@@ -124,7 +124,7 @@ export function NotificationsCard() {
                 placeholder="mailto:code@kdsquares.com"
                 className="font-mono text-xs"
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 A mailto: or https URL push services use to reach you if a subscription misbehaves.
               </p>
             </div>
@@ -141,7 +141,7 @@ export function NotificationsCard() {
                   {generating ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <ShieldAlert className="h-4 w-4 mr-1.5" />}
                   Rotate keys
                 </Button>
-                <p className="text-[11px] text-muted-foreground mt-2">
+                <p className="text-2xs text-muted-foreground mt-2">
                   Rotating invalidates all current subscribers. Only do this if a key was leaked.
                 </p>
               </div>
@@ -171,7 +171,7 @@ export function NotificationsCard() {
                     placeholder="mailto:code@kdsquares.com"
                     className="font-mono text-xs"
                   />
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-2xs text-muted-foreground">
                     A mailto: or https URL the push service uses to reach you. Default is fine.
                   </p>
                 </div>

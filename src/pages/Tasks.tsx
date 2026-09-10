@@ -1129,13 +1129,13 @@ const Tasks = () => {
                 <button
                   key={f.key}
                   onClick={f.onRemove}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  className="inline-flex items-center gap-1 text-2xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                 >
                   {f.label}
                   <X className="h-3 w-3" />
                 </button>
               ))}
-              <button onClick={clearFilters} className="text-[11px] text-muted-foreground hover:text-foreground ml-1">
+              <button onClick={clearFilters} className="text-2xs text-muted-foreground hover:text-foreground ml-1">
                 Clear all
               </button>
             </div>
@@ -1366,7 +1366,7 @@ const Tasks = () => {
                 {formAssignees.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
                     {formAssignees.map((uid) => (
-                      <span key={uid} className="inline-flex items-center gap-1 text-[10px] bg-muted rounded-full px-2 py-0.5">
+                      <span key={uid} className="inline-flex items-center gap-1 text-3xs bg-muted rounded-full px-2 py-0.5">
                         {profiles.get(uid)?.full_name || 'Unknown'}
                         <button onClick={() => setFormAssignees((prev) => prev.filter((id) => id !== uid))} className="hover:text-destructive">
                           <X className="h-2.5 w-2.5" />
@@ -1380,7 +1380,7 @@ const Tasks = () => {
                     setFormAssignees((prev) => [...prev, uid]);
                   }
                 }}>
-                  <SelectTrigger className="h-7 text-[10px] mt-1">
+                  <SelectTrigger className="h-7 text-3xs mt-1">
                     <span className="flex items-center gap-1 text-muted-foreground">
                       <User className="h-3 w-3" /> Add more assignees
                     </span>
@@ -1433,7 +1433,7 @@ const Tasks = () => {
                   )}
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-muted-foreground">Every task must be tied to a Goal.</p>
+              <p className="text-2xs text-muted-foreground">Every task must be tied to a Goal.</p>
             </div>
             {availableTags.length > 0 && (
               <div className="space-y-1">
@@ -1524,7 +1524,7 @@ const Tasks = () => {
             <div className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5">
               <div className="space-y-0.5">
                 <Label className="text-sm">Private folder</Label>
-                <p className="text-[11px] text-muted-foreground">Only members can see tasks in this folder</p>
+                <p className="text-2xs text-muted-foreground">Only members can see tasks in this folder</p>
               </div>
               <Switch
                 checked={spaceForm.is_private}

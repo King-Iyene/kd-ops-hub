@@ -104,7 +104,7 @@ export function ConditionalFormatDialog({ open, onOpenChange }: ConditionalForma
               <div className="flex flex-col gap-1.5 flex-1">
                 <div className="flex items-center gap-2">
                   <select
-                    className="text-[11px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] bg-white dark:bg-[hsl(200,30%,14%)] flex-1 max-w-[140px]"
+                    className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] bg-white dark:bg-[hsl(200,30%,14%)] flex-1 max-w-[140px]"
                     value={rule.field_id}
                     onChange={(e) => updateRule(rule.id, { field_id: e.target.value })}
                   >
@@ -113,7 +113,7 @@ export function ConditionalFormatDialog({ open, onOpenChange }: ConditionalForma
                     ))}
                   </select>
                   <select
-                    className="text-[11px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] bg-white dark:bg-[hsl(200,30%,14%)]"
+                    className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] bg-white dark:bg-[hsl(200,30%,14%)]"
                     value={rule.operator}
                     onChange={(e) => updateRule(rule.id, { operator: e.target.value as ConditionalFormatOperator })}
                   >
@@ -123,7 +123,7 @@ export function ConditionalFormatDialog({ open, onOpenChange }: ConditionalForma
                   </select>
                   {rule.operator !== 'isEmpty' && rule.operator !== 'isNotEmpty' && (
                     <input
-                      className="text-[11px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] bg-white dark:bg-[hsl(200,30%,14%)] flex-1 max-w-[100px]"
+                      className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] bg-white dark:bg-[hsl(200,30%,14%)] flex-1 max-w-[100px]"
                       value={rule.value ?? ''}
                       onChange={(e) => updateRule(rule.id, { value: e.target.value })}
                       placeholder="Value"

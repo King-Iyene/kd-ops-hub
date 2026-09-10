@@ -198,7 +198,7 @@ export function AppSidebar() {
           <NavLink
             to={item.url}
             className={cn(
-              'flex items-center gap-2.5 rounded-lg px-2 py-[7px] text-[13px] font-medium',
+              'flex items-center gap-2.5 rounded-lg px-2 py-[7px] text-xs-plus font-medium',
               'transition-all duration-200 ease-out group/nav relative',
               active
                 ? 'bg-white/[0.11] text-white shadow-[inset_0_1px_0_hsl(0_0%_100%/0.07)]'
@@ -292,10 +292,10 @@ export function AppSidebar() {
               <HubIcon className={cn('h-4 w-4', activeHubConfig.color)} />
             </div>
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-sidebar-primary leading-none tracking-tight">
+              <p className="text-xs-plus font-semibold text-sidebar-primary leading-none tracking-tight">
                 {activeHubConfig.label}
               </p>
-              <p className="text-[10px] text-sidebar-foreground/40 mt-0.5 leading-none truncate">
+              <p className="text-3xs text-sidebar-foreground/40 mt-0.5 leading-none truncate">
                 {activeHubConfig.description}
               </p>
             </div>
@@ -350,7 +350,7 @@ export function AppSidebar() {
             <SidebarMenuItem className="list-none">
               <SidebarMenuButton
                 onClick={signOut}
-                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] font-medium text-sidebar-foreground/55 hover:bg-red-500/10 hover:text-red-300 kd-transition w-full"
+                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs-plus font-medium text-sidebar-foreground/55 hover:bg-red-500/10 hover:text-red-300 kd-transition w-full"
               >
                 <LogOut className="h-3.5 w-3.5 shrink-0" />
                 <span>Sign Out</span>
@@ -376,7 +376,7 @@ export function AppSidebar() {
               <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-sidebar-background" />
             </div>
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-sidebar-primary leading-none tracking-tight">KDOps</p>
+              <p className="text-xs-plus font-semibold text-sidebar-primary leading-none tracking-tight">KDOps</p>
               <p className="text-2xs text-sidebar-foreground/45 mt-0.5 tracking-tight">Operations</p>
             </div>
           </div>
@@ -471,7 +471,7 @@ export function AppSidebar() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
                           <p className={cn(
-                            'text-[13px] font-semibold leading-none kd-transition truncate',
+                            'text-xs-plus font-semibold leading-none kd-transition truncate',
                             active ? 'text-sidebar-primary' : 'text-sidebar-foreground/75 group-hover/hub:text-sidebar-foreground/90',
                           )}>
                             {hub.label}
@@ -487,7 +487,7 @@ export function AppSidebar() {
                               </span>
                             )}
                             {!(badge && badge.total > 0) && (
-                              <span className="text-[10px] tabular-nums text-sidebar-foreground/25 font-medium">
+                              <span className="text-3xs tabular-nums text-sidebar-foreground/25 font-medium">
                                 {items.length}
                               </span>
                             )}
@@ -551,7 +551,7 @@ export function AppSidebar() {
             <SidebarMenuButton
               onClick={signOut}
               tooltip={sidebarCollapsed ? 'Sign Out' : undefined}
-              className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] font-medium text-sidebar-foreground/55 hover:bg-red-500/10 hover:text-red-300 kd-transition w-full"
+              className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs-plus font-medium text-sidebar-foreground/55 hover:bg-red-500/10 hover:text-red-300 kd-transition w-full"
             >
               <LogOut className="h-3.5 w-3.5 shrink-0" />
               {!sidebarCollapsed && <span>Sign Out</span>}

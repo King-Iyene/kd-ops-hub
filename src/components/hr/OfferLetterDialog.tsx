@@ -284,11 +284,11 @@ ${renderedHtml}
           onChange={setSignaturePng}
         />
 
-        <div className="text-[11px] text-muted-foreground flex items-center gap-2 pt-1">
-          <Badge variant="secondary" className="text-[10px]">
+        <div className="text-2xs text-muted-foreground flex items-center gap-2 pt-1">
+          <Badge variant="secondary" className="text-3xs">
             Signer: {vars.issuer_name}
           </Badge>
-          <Badge variant="secondary" className="text-[10px]">
+          <Badge variant="secondary" className="text-3xs">
             Applicant: {applicant?.full_name || '—'}
           </Badge>
         </div>

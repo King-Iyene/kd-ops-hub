@@ -90,7 +90,7 @@ export default function FxExposureTab() {
                   <p className="text-lg font-semibold">
                     {board?.volatility.largest_single_move_pct == null ? '—' : `${board.volatility.largest_single_move_pct.toFixed(1)}%`}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">Auto-review threshold: {board?.deviationThresholdPct ?? 5}%</p>
+                  <p className="text-3xs text-muted-foreground">Auto-review threshold: {board?.deviationThresholdPct ?? 5}%</p>
                 </div>
               </div>
               <div className="h-[220px]">
@@ -141,7 +141,7 @@ export default function FxExposureTab() {
                     <div key={src.label} className="rounded-md border p-2.5">
                       <p className="text-xs text-muted-foreground">{src.label}</p>
                       <p className="text-sm font-semibold">{formatNairaCompact(src.monthly_ngn)}</p>
-                      <p className="text-[10px] text-muted-foreground">{src.count} active</p>
+                      <p className="text-3xs text-muted-foreground">{src.count} active</p>
                     </div>
                   ))}
                 </div>

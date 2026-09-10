@@ -1309,7 +1309,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                     <MobileCardHeader>
                       <div className="min-w-0 flex-1">
                         <MobileCardTitle>{t.employee_name}</MobileCardTitle>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                        <p className="text-2xs text-muted-foreground mt-0.5">
                           {formatDate(t.date)}
                           {t.trip_start_time && ` · ${formatTime(t.trip_start_time)}`}
                         </p>
@@ -1321,7 +1321,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                         {isLive ? (
                           <Badge variant="outline" className="border-green-400 text-green-700 bg-green-50 mt-0.5">Live</Badge>
                         ) : t.duration_minutes != null && (
-                          <p className="text-[11px] text-muted-foreground tabular-nums">
+                          <p className="text-2xs text-muted-foreground tabular-nums">
                             {Math.floor(t.duration_minutes / 60)}h {t.duration_minutes % 60}m
                           </p>
                         )}
@@ -1331,11 +1331,11 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                     <div className="space-y-1 text-xs">
                       <div className="flex items-start gap-2">
                         <span className="text-muted-foreground w-10 shrink-0">From</span>
-                        <span className="text-[11px] flex-1 min-w-0"><LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} showCoords /></span>
+                        <span className="text-2xs flex-1 min-w-0"><LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} showCoords /></span>
                       </div>
                       <div className="flex items-start gap-2">
                         <span className="text-muted-foreground w-10 shrink-0">To</span>
-                        <span className="text-[11px] flex-1 min-w-0">
+                        <span className="text-2xs flex-1 min-w-0">
                           {t.end_location
                             ? <LocationCell location={t.end_location} lat={t.end_lat} lng={t.end_lng} showCoords />
                             : isLive ? <span className="text-green-600 italic">In progress…</span> : '—'}
@@ -1344,7 +1344,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                     </div>
 
                     {t.is_anomaly && t.anomaly_reason && (
-                      <div className="flex items-start gap-1.5 rounded-md bg-red-50 dark:bg-red-950/20 px-2 py-1.5 text-[11px] text-red-700 dark:text-red-300">
+                      <div className="flex items-start gap-1.5 rounded-md bg-red-50 dark:bg-red-950/20 px-2 py-1.5 text-2xs text-red-700 dark:text-red-300">
                         <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
                         <span className="leading-snug">{t.anomaly_reason}</span>
                       </div>
@@ -1428,7 +1428,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                         }}
                       />
                     </GoogleMap>
-                    <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 bg-white/90 dark:bg-black/70 backdrop-blur-sm rounded-full px-3 py-1 text-[10px] font-medium text-slate-700 dark:text-slate-200 shadow-sm">
+                    <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 bg-white/90 dark:bg-black/70 backdrop-blur-sm rounded-full px-3 py-1 text-3xs font-medium text-slate-700 dark:text-slate-200 shadow-sm">
                       Drag pin to adjust location
                     </div>
                   </>
@@ -1454,17 +1454,17 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                         {startAddress || formatCoords(startPinnedCoords.lat, startPinnedCoords.lng)}
                       </p>
                       {startAddress && (
-                        <p className="text-[10px] font-mono text-muted-foreground/60 leading-tight mt-0.5">
+                        <p className="text-3xs font-mono text-muted-foreground/60 leading-tight mt-0.5">
                           {formatCoords(startPinnedCoords.lat, startPinnedCoords.lng)}
                         </p>
                       )}
                     </div>
-                    <span className="text-[10px] text-muted-foreground shrink-0">
+                    <span className="text-3xs text-muted-foreground shrink-0">
                       ±{Math.round(startCoords?.accuracy ?? 0)} m
                     </span>
                     <button
                       type="button"
-                      className="text-[11px] text-green-600 hover:text-green-700 underline underline-offset-2 shrink-0"
+                      className="text-2xs text-green-600 hover:text-green-700 underline underline-offset-2 shrink-0"
                       onClick={() => {
                         setStartPinnedCoords(null);
                         acquireGeo(setStartGeoState, setStartCoords, (addr) => setStartAddress(addr));
@@ -1481,7 +1481,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                     </p>
                     <button
                       type="button"
-                      className="text-[11px] text-amber-600 underline underline-offset-2 shrink-0"
+                      className="text-2xs text-amber-600 underline underline-offset-2 shrink-0"
                       onClick={() => acquireGeo(setStartGeoState, setStartCoords, (addr) => setStartAddress(addr))}
                     >
                       Retry
@@ -1559,7 +1559,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                   {startTripForm.odometer_start && Number.isFinite(parseFloat(startTripForm.odometer_start)) && (
                     <div className="rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 px-4 py-3 flex items-center justify-between">
                       <div>
-                        <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-0.5">Odometer</p>
+                        <p className="text-3xs uppercase tracking-widest text-slate-400 mb-0.5">Odometer</p>
                         <p className="text-xl font-mono font-bold text-white tracking-wider">
                           {parseFloat(startTripForm.odometer_start).toLocaleString()}
                           <span className="text-sm font-normal text-slate-400 ml-1">km</span>
@@ -1685,7 +1685,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                       {endAddress || formatCoords(endCoords.lat, endCoords.lng)}
                     </p>
                     {endAddress && (
-                      <p className="text-[10px] font-mono text-green-600/70 dark:text-green-400/70 leading-tight mt-0.5">
+                      <p className="text-3xs font-mono text-green-600/70 dark:text-green-400/70 leading-tight mt-0.5">
                         {formatCoords(endCoords.lat, endCoords.lng)}
                       </p>
                     )}

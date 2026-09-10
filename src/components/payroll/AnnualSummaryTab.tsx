@@ -221,12 +221,12 @@ function RaiseSimulator({ departments }: { departments: { id: string; name: stri
         ) : (
           <div className="rounded-lg bg-muted/50 px-4 py-3 flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-[11px] text-muted-foreground font-medium">Annual cost of this raise</p>
+              <p className="text-2xs text-muted-foreground font-medium">Annual cost of this raise</p>
               <p className="text-lg font-extrabold currency mt-0.5">{formatNaira(impact.totalAnnualNgn)}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">across {impact.headcount} employee{impact.headcount === 1 ? '' : 's'}</p>
+              <p className="text-2xs text-muted-foreground mt-0.5">across {impact.headcount} employee{impact.headcount === 1 ? '' : 's'}</p>
             </div>
             <div className="text-right">
-              <p className="text-[11px] text-muted-foreground font-medium">incl. employer pension + NSITF</p>
+              <p className="text-2xs text-muted-foreground font-medium">incl. employer pension + NSITF</p>
               <p className="text-sm font-bold text-warning mt-0.5 currency">+{formatNaira(impact.statutoryAnnualNgn)} statutory</p>
             </div>
           </div>
@@ -280,7 +280,7 @@ function StatutoryRemittanceCalendar() {
             <div key={r.name} className="flex items-center justify-between py-2.5">
               <div>
                 <p className="text-sm font-medium">{r.name}</p>
-                <p className="text-[11px] text-muted-foreground">{r.sub}</p>
+                <p className="text-2xs text-muted-foreground">{r.sub}</p>
               </div>
               <span className={cn('text-xs font-bold tabular-nums', days <= 7 ? 'text-warning' : 'text-foreground')}>
                 {r.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
@@ -291,21 +291,21 @@ function StatutoryRemittanceCalendar() {
         <div className="flex items-center justify-between py-2.5">
           <div>
             <p className="text-sm font-medium">Pension</p>
-            <p className="text-[11px] text-muted-foreground">PenCom · within 7 working days of each payday</p>
+            <p className="text-2xs text-muted-foreground">PenCom · within 7 working days of each payday</p>
           </div>
           <span className="text-xs text-muted-foreground">Per run</span>
         </div>
         <div className="flex items-center justify-between py-2.5">
           <div>
             <p className="text-sm font-medium">NSITF</p>
-            <p className="text-[11px] text-muted-foreground">1% employer · monthly, employer-borne</p>
+            <p className="text-2xs text-muted-foreground">1% employer · monthly, employer-borne</p>
           </div>
           <span className="text-xs text-muted-foreground">Monthly</span>
         </div>
         <div className="flex items-center justify-between py-2.5">
           <div>
             <p className="text-sm font-medium">NHF</p>
-            <p className="text-[11px] text-muted-foreground">Opt-in only — see Payroll → Setup</p>
+            <p className="text-2xs text-muted-foreground">Opt-in only — see Payroll → Setup</p>
           </div>
           <span className="text-xs text-muted-foreground">—</span>
         </div>
@@ -358,7 +358,7 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
                     </span>
                     <p className="kd-display text-lg font-extrabold currency">{formatNaira(s.burn)}</p>
                     <p className="text-xs font-semibold mt-1 truncate">{s.name}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                    <p className="text-2xs text-muted-foreground mt-0.5">
                       {s.headcount} employee{s.headcount === 1 ? '' : 's'} paid across {summaryYear}
                     </p>
                   </CardContent>
@@ -419,7 +419,7 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
                     <p className="text-sm text-muted-foreground py-8 text-center">No non-draft runs yet.</p>
                   ) : reportGranularity === 'all-time' ? (
                     <div className="flex flex-col items-center justify-center py-10">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Total burn, all time</p>
+                      <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Total burn, all time</p>
                       <p className="text-4xl font-extrabold currency mt-2">{formatNaira(trendSeries[0].burn)}</p>
                       <p className="text-xs text-muted-foreground mt-2">Across every non-draft payroll run on record</p>
                     </div>
@@ -473,8 +473,8 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
                         <TableCell className="text-right tabular-nums currency">{m.contractors > 0 ? formatNaira(m.contractors) : '—'}</TableCell>
                         <TableCell className="text-right tabular-nums currency font-semibold">{m.burn > 0 ? formatNaira(m.burn) : '—'}</TableCell>
                         <TableCell className="text-center">
-                          {m.status === 'paid' && <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[10px]">Paid</Badge>}
-                          {m.status === 'pending' && <Badge variant="outline" className="text-[10px]">Pending</Badge>}
+                          {m.status === 'paid' && <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-3xs">Paid</Badge>}
+                          {m.status === 'pending' && <Badge variant="outline" className="text-3xs">Pending</Badge>}
                         </TableCell>
                       </TableRow>
                     ))}

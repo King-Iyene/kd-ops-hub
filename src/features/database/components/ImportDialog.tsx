@@ -144,10 +144,10 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
               onDrop={handleDrop}
             >
               <FileSpreadsheet size={32} className="mx-auto mb-3 text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
-              <p className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium mb-1">
+              <p className="text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium mb-1">
                 Drop a CSV file here or click to browse
               </p>
-              <p className="text-[11px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">Supports .csv files</p>
+              <p className="text-2xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">Supports .csv files</p>
             </div>
             <input
               ref={fileRef}
@@ -165,7 +165,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
         {step === 'mapping' && (
           <div className="space-y-4 pt-2">
             <div className="flex items-center justify-between">
-              <p className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)]">
+              <p className="text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)]">
                 <span className="font-medium">{fileName}</span> — {rows.length} rows
               </p>
               <Button variant="ghost" size="sm" className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]" onClick={reset}>
@@ -240,7 +240,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
                 style={{ width: `${progress}%`, backgroundColor: '#2D7FF9' }}
               />
             </div>
-            <p className="text-[13px] text-[#374151] dark:text-[hsl(200,25%,88%)]">
+            <p className="text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)]">
               Importing... {progress}% ({importedCount} of {rows.length})
             </p>
           </div>

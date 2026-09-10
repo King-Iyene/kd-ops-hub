@@ -64,7 +64,7 @@ function InlineRenameInput({
   return (
     <input
       ref={ref}
-      className="bg-white dark:bg-[hsl(200,30%,12%)] border border-[#2D7FF9] rounded px-1.5 py-0.5 text-[13px] w-full outline-none text-[#374151] dark:text-[hsl(200,25%,88%)]"
+      className="bg-white dark:bg-[hsl(200,30%,12%)] border border-[#2D7FF9] rounded px-1.5 py-0.5 text-xs-plus w-full outline-none text-[#374151] dark:text-[hsl(200,25%,88%)]"
       value={text}
       onChange={(e) => setText(e.target.value)}
       onBlur={commit}
@@ -190,7 +190,7 @@ export function DatabaseSidebar() {
       <div className="h-11 flex items-center justify-between px-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
         {!sidebarCollapsed && (
           <button
-            className="flex items-center gap-1.5 text-[13px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] hover:text-[#2D7FF9] transition-colors"
+            className="flex items-center gap-1.5 text-xs-plus font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] hover:text-[#2D7FF9] transition-colors"
             onClick={() => navigateToBase(null)}
             title="Go to home"
           >
@@ -242,7 +242,7 @@ export function DatabaseSidebar() {
             title={sidebarCollapsed ? base.name : undefined}
           >
             <span
-              className="w-6 h-6 rounded flex items-center justify-center text-[11px] shrink-0"
+              className="w-6 h-6 rounded flex items-center justify-center text-2xs shrink-0"
               style={{ backgroundColor: base.icon ? 'transparent' : (base.color || '#2D7FF9') }}
             >
               {base.icon ? (
@@ -269,7 +269,7 @@ export function DatabaseSidebar() {
                 ) : (
                   <span
                     className={cn(
-                      'text-[13px] font-medium truncate flex-1',
+                      'text-xs-plus font-medium truncate flex-1',
                       base.id === activeBaseId
                         ? 'text-[#2D7FF9]'
                         : 'text-[#374151] dark:text-[hsl(200,25%,88%)]',

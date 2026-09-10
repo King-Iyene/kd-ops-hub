@@ -848,7 +848,7 @@ const Approvals = () => {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Inbox className="h-4 w-4 text-muted-foreground" />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Approvals</span>
+              <span className="text-2xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Approvals</span>
             </div>
             <h1 className="kd-display text-3xl sm:text-4xl font-bold tracking-tight">
               {counts.total === 0 ? 'All clear.' : `${counts.total} pending`}
@@ -894,7 +894,7 @@ const Approvals = () => {
                   <Icon className={`h-3.5 w-3.5 ${n > 0 ? 'text-amber-600 dark:text-amber-200' : 'text-muted-foreground'}`} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+                  <p className="text-3xs uppercase tracking-wider text-muted-foreground">{label}</p>
                   <p className={`kd-display text-base font-bold leading-none ${n > 0 ? '' : 'opacity-40'}`}>{n}</p>
                 </div>
               </div>
@@ -1190,17 +1190,17 @@ const Approvals = () => {
                                 <div className="flex flex-wrap items-center gap-1 mb-1">
                                   <Badge variant="secondary" className="gap-1">
                                     <Icon className="h-3 w-3" />
-                                    <span className="text-[10px]">{KIND_LABELS[it.kind].replace(' Batches', '')}</span>
+                                    <span className="text-3xs">{KIND_LABELS[it.kind].replace(' Batches', '')}</span>
                                   </Badge>
                                   {(it.raw?.status as string) === 'pending_second_approval' && (
                                     <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/5">
-                                      <span className="text-[10px]">Awaiting 2nd</span>
+                                      <span className="text-3xs">Awaiting 2nd</span>
                                     </Badge>
                                   )}
                                 </div>
                                 <MobileCardTitle className="text-sm">{it.title}</MobileCardTitle>
                                 {it.subtitle && (
-                                  <p className="text-[11px] text-muted-foreground truncate">
+                                  <p className="text-2xs text-muted-foreground truncate">
                                     {it.subtitle}
                                   </p>
                                 )}

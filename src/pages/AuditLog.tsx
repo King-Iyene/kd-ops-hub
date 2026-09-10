@@ -476,7 +476,7 @@ const AuditLog = () => {
                             <Badge variant="secondary" className={cn('h-4 px-1.5 text-[9px] font-medium', MODULE_COLOR[mod] || MODULE_COLOR['—'])}>
                               {mod}
                             </Badge>
-                            <span className="inline-flex items-center gap-1 text-[11px] capitalize text-muted-foreground">
+                            <span className="inline-flex items-center gap-1 text-2xs capitalize text-muted-foreground">
                               <Icon className="h-3 w-3" />
                               {prettyType(r.action_type)}
                             </span>
@@ -486,7 +486,7 @@ const AuditLog = () => {
                           </MobileCardTitle>
                         </div>
                       </MobileCardHeader>
-                      <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                      <div className="flex items-center justify-between gap-2 text-2xs text-muted-foreground">
                         <span>{r.performed_by_name || '—'}</span>
                         <span>{r.created_at ? formatDateTime(r.created_at) : '—'}</span>
                       </div>

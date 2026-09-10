@@ -95,7 +95,7 @@ export function SaveFilterViewDialog({ open, onOpenChange, module, currentFilter
             <Checkbox checked={saveViewShared} onCheckedChange={(v) => setSaveViewShared(Boolean(v))} className="mt-0.5" />
             <span className="text-sm leading-snug">
               Share with team
-              <span className="block text-[11px] text-muted-foreground">
+              <span className="block text-2xs text-muted-foreground">
                 Everyone can apply it; only you can edit or delete it.
               </span>
             </span>

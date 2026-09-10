@@ -65,7 +65,7 @@ function CodeBlock({ label, code, language }: { label: string; code: string; lan
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-700/80 overflow-hidden">
       <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800/80">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{label}</span>
+          <span className="text-3xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{label}</span>
           {language && (
             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-zinc-200/70 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 font-medium">
               {language}
@@ -74,7 +74,7 @@ function CodeBlock({ label, code, language }: { label: string; code: string; lan
         </div>
         <CopyButton text={code} />
       </div>
-      <pre className="px-3 py-2.5 text-[11px] leading-relaxed font-mono text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap break-all bg-white dark:bg-zinc-900/60 overflow-x-auto">
+      <pre className="px-3 py-2.5 text-2xs leading-relaxed font-mono text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap break-all bg-white dark:bg-zinc-900/60 overflow-x-auto">
         {code}
       </pre>
     </div>
@@ -84,7 +84,7 @@ function CodeBlock({ label, code, language }: { label: string; code: string; lan
 function StepNumber({ n, color }: { n: number; color: string }) {
   return (
     <span
-      className="inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-[11px] font-bold shrink-0"
+      className="inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-2xs font-bold shrink-0"
       style={{ backgroundColor: color }}
     >
       {n}
@@ -482,7 +482,7 @@ function N8nGuide({ mod, color }: { mod: ModuleDef; color: string }) {
       <SectionTitle>Prerequisites</SectionTitle>
       <ul className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400 ml-4">
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> An n8n instance running (self-hosted or n8n Cloud)</li>
-        <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A KDOps API key with the <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{mod.id}:read</code> and <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{mod.id}:write</code> scopes</li>
+        <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A KDOps API key with the <code className="text-2xs px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{mod.id}:read</code> and <code className="text-2xs px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{mod.id}:write</code> scopes</li>
       </ul>
       <Callout type="info">
         Don't have an API key yet? Go to the <strong>API Keys</strong> tab in this Developer Hub and click "Create Key." Select the scopes you need for {mod.name.toLowerCase()}.
@@ -494,7 +494,7 @@ function N8nGuide({ mod, color }: { mod: ModuleDef; color: string }) {
           <StepNumber n={1} color={color} />
           <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
             <strong>Open your n8n instance</strong> and click the <strong>"+ New Workflow"</strong> button in the top-right corner.
-            Give it a descriptive name, e.g., <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">KDOps {mod.name} Sync</code>.
+            Give it a descriptive name, e.g., <code className="text-2xs px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">KDOps {mod.name} Sync</code>.
           </div>
         </div>
 
@@ -523,7 +523,7 @@ function N8nGuide({ mod, color }: { mod: ModuleDef; color: string }) {
             <strong>Configure the HTTP Request node:</strong>
             <div className="mt-2 space-y-2">
               <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-                <table className="w-full text-[11px]">
+                <table className="w-full text-2xs">
                   <tbody>
                     <tr className="border-b border-zinc-100 dark:border-zinc-800">
                       <td className="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 w-[140px]">Method</td>
@@ -582,7 +582,7 @@ function N8nGuide({ mod, color }: { mod: ModuleDef; color: string }) {
       </div>
 
       <Callout type="tip">
-        To map data from a previous node, click the field, then drag a value from the left panel's "Input" data. n8n uses the syntax <code className="text-[10px] px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 font-mono">{'{{ $json.fieldName }}'}</code> to reference data from the previous node.
+        To map data from a previous node, click the field, then drag a value from the left panel's "Input" data. n8n uses the syntax <code className="text-3xs px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 font-mono">{'{{ $json.fieldName }}'}</code> to reference data from the previous node.
       </Callout>
 
       <SectionTitle>Receiving Webhooks from KDOps in n8n</SectionTitle>
@@ -608,7 +608,7 @@ function N8nGuide({ mod, color }: { mod: ModuleDef; color: string }) {
         <div className="flex items-start gap-3">
           <StepNumber n={4} color={color} />
           <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
-            Paste the n8n webhook URL. Select the events you want to receive (e.g., <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{mod.id.replace(/s$/, '')}.created</code>, <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{mod.id.replace(/s$/, '')}.updated</code>).
+            Paste the n8n webhook URL. Select the events you want to receive (e.g., <code className="text-2xs px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{mod.id.replace(/s$/, '')}.created</code>, <code className="text-2xs px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{mod.id.replace(/s$/, '')}.updated</code>).
           </div>
         </div>
         <div className="flex items-start gap-3">
@@ -675,7 +675,7 @@ function ZapierGuide({ mod, color }: { mod: ModuleDef; color: string }) {
             <strong>Configure the Custom Request:</strong>
             <div className="mt-2 space-y-2">
               <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-                <table className="w-full text-[11px]">
+                <table className="w-full text-2xs">
                   <tbody>
                     <tr className="border-b border-zinc-100 dark:border-zinc-800">
                       <td className="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 w-[140px]">Method</td>
@@ -708,7 +708,7 @@ function ZapierGuide({ mod, color }: { mod: ModuleDef; color: string }) {
         <div className="flex items-start gap-3">
           <StepNumber n={5} color={color} />
           <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
-            <strong>Paste the JSON body</strong> into the "Data" field. Replace the <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{'{{field}}'}</code> placeholders by clicking each one and mapping it to your trigger's data from the dropdown.
+            <strong>Paste the JSON body</strong> into the "Data" field. Replace the <code className="text-2xs px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{'{{field}}'}</code> placeholders by clicking each one and mapping it to your trigger's data from the dropdown.
           </div>
         </div>
       </div>
@@ -731,7 +731,7 @@ function ZapierGuide({ mod, color }: { mod: ModuleDef; color: string }) {
       </div>
 
       <Callout type="tip">
-        In Zapier, use the variable picker (click a field, then choose from the dropdown) to map trigger data. Variables look like <code className="text-[10px] px-1 py-0.5 rounded bg-orange-100 dark:bg-orange-900/30 font-mono">{'{{firstName}}'}</code> in the JSON.
+        In Zapier, use the variable picker (click a field, then choose from the dropdown) to map trigger data. Variables look like <code className="text-3xs px-1 py-0.5 rounded bg-orange-100 dark:bg-orange-900/30 font-mono">{'{{firstName}}'}</code> in the JSON.
       </Callout>
 
       <SectionTitle>Receiving KDOps Webhooks in Zapier</SectionTitle>
@@ -745,7 +745,7 @@ function ZapierGuide({ mod, color }: { mod: ModuleDef; color: string }) {
         <div className="flex items-start gap-3">
           <StepNumber n={2} color={color} />
           <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
-            Zapier gives you a <strong>webhook URL</strong> (like <code className="text-[10px] font-mono px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">https://hooks.zapier.com/hooks/catch/...</code>). Copy it.
+            Zapier gives you a <strong>webhook URL</strong> (like <code className="text-3xs font-mono px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">https://hooks.zapier.com/hooks/catch/...</code>). Copy it.
           </div>
         </div>
         <div className="flex items-start gap-3">
@@ -798,7 +798,7 @@ function MakeGuide({ mod, color }: { mod: ModuleDef; color: string }) {
             <strong>Configure the HTTP module:</strong>
             <div className="mt-2 space-y-2">
               <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-                <table className="w-full text-[11px]">
+                <table className="w-full text-2xs">
                   <tbody>
                     <tr className="border-b border-zinc-100 dark:border-zinc-800">
                       <td className="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 w-[160px]">URL</td>
@@ -811,7 +811,7 @@ function MakeGuide({ mod, color }: { mod: ModuleDef; color: string }) {
                     <tr className="border-b border-zinc-100 dark:border-zinc-800">
                       <td className="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50">Headers</td>
                       <td className="px-3 py-2">
-                        <div className="space-y-1 font-mono text-[10px]">
+                        <div className="space-y-1 font-mono text-3xs">
                           <div>Name: <strong>Authorization</strong> &rarr; Value: <strong>Bearer kdops_YOUR_KEY</strong></div>
                           <div>Name: <strong>Content-Type</strong> &rarr; Value: <strong>application/json</strong></div>
                         </div>
@@ -834,7 +834,7 @@ function MakeGuide({ mod, color }: { mod: ModuleDef; color: string }) {
         <div className="flex items-start gap-3">
           <StepNumber n={5} color={color} />
           <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
-            <strong>Paste the JSON body</strong> into the "Request content" field. Replace <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{'{{1.fieldName}}'}</code> placeholders by clicking and choosing from the variable picker. The <code className="font-mono">1</code> refers to module #1 (your trigger).
+            <strong>Paste the JSON body</strong> into the "Request content" field. Replace <code className="text-2xs px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{'{{1.fieldName}}'}</code> placeholders by clicking and choosing from the variable picker. The <code className="font-mono">1</code> refers to module #1 (your trigger).
           </div>
         </div>
       </div>
@@ -857,7 +857,7 @@ function MakeGuide({ mod, color }: { mod: ModuleDef; color: string }) {
       </div>
 
       <Callout type="tip">
-        In Make, variables from other modules use the syntax <code className="text-[10px] px-1 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 font-mono">{'{{N.fieldName}}'}</code> where <strong>N</strong> is the module number. Module 1 is the trigger, module 2 is the next step, etc.
+        In Make, variables from other modules use the syntax <code className="text-3xs px-1 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 font-mono">{'{{N.fieldName}}'}</code> where <strong>N</strong> is the module number. Module 1 is the trigger, module 2 is the next step, etc.
       </Callout>
 
       <SectionTitle>Common Issues</SectionTitle>
@@ -872,7 +872,7 @@ function PythonGuide({ mod }: { mod: ModuleDef }) {
       <SectionTitle>Prerequisites</SectionTitle>
       <ul className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400 ml-4">
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> Python 3.7 or later installed</li>
-        <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> <code className="text-[11px] px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">requests</code> library installed (<code className="font-mono text-[10px]">pip install requests</code>)</li>
+        <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> <code className="text-2xs px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">requests</code> library installed (<code className="font-mono text-3xs">pip install requests</code>)</li>
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A KDOps API key</li>
       </ul>
 
@@ -882,7 +882,7 @@ function PythonGuide({ mod }: { mod: ModuleDef }) {
       <CodeBlock label={`${mod.name} - Python`} code={getPythonExample(mod)} language="python" />
 
       <Callout type="tip">
-        For production use, store your API key in an environment variable: <code className="text-[10px] px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 font-mono">API_KEY = os.environ["KDOPS_API_KEY"]</code>. Never hardcode keys in your source code.
+        For production use, store your API key in an environment variable: <code className="text-3xs px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 font-mono">API_KEY = os.environ["KDOPS_API_KEY"]</code>. Never hardcode keys in your source code.
       </Callout>
 
       <SectionTitle>Common Issues</SectionTitle>
@@ -896,19 +896,19 @@ function NodeGuide({ mod }: { mod: ModuleDef }) {
     <div className="space-y-4">
       <SectionTitle>Prerequisites</SectionTitle>
       <ul className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400 ml-4">
-        <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> Node.js 18+ (for built-in <code className="text-[11px] font-mono">fetch</code>)</li>
+        <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> Node.js 18+ (for built-in <code className="text-2xs font-mono">fetch</code>)</li>
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A KDOps API key</li>
       </ul>
 
       <Callout type="info">
-        These examples use the built-in <code className="text-[10px] font-mono px-1 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50">fetch</code> API available in Node.js 18+. For older versions, install <code className="text-[10px] font-mono">node-fetch</code>.
+        These examples use the built-in <code className="text-3xs font-mono px-1 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50">fetch</code> API available in Node.js 18+. For older versions, install <code className="text-3xs font-mono">node-fetch</code>.
       </Callout>
 
       <SectionTitle>Full Example: {mod.name} CRUD Operations</SectionTitle>
       <CodeBlock label={`${mod.name} - Node.js`} code={getNodeExample(mod)} language="javascript" />
 
       <Callout type="tip">
-        Store your API key in an environment variable: <code className="text-[10px] px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 font-mono">const API_KEY = process.env.KDOPS_API_KEY;</code>
+        Store your API key in an environment variable: <code className="text-3xs px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 font-mono">const API_KEY = process.env.KDOPS_API_KEY;</code>
       </Callout>
 
       <SectionTitle>Common Issues</SectionTitle>
@@ -931,11 +931,11 @@ function CurlGuide({ mod }: { mod: ModuleDef }) {
       <CodeBlock label={`${mod.name} - cURL`} code={getCurlExample(mod)} language="bash" />
 
       <Callout type="tip">
-        Save your API key as a shell variable for convenience: <code className="text-[10px] px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 font-mono">export KDOPS_KEY="kdops_YOUR_KEY"</code> then use <code className="font-mono text-[10px]">$KDOPS_KEY</code> in your commands.
+        Save your API key as a shell variable for convenience: <code className="text-3xs px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 font-mono">export KDOPS_KEY="kdops_YOUR_KEY"</code> then use <code className="font-mono text-3xs">$KDOPS_KEY</code> in your commands.
       </Callout>
 
       <Callout type="warning">
-        On Windows Command Prompt (not PowerShell), use double quotes for JSON and escape inner quotes: <code className="text-[10px] font-mono">-d "{"{"}\"first_name\":\"Emeka\"{"}"}"</code>
+        On Windows Command Prompt (not PowerShell), use double quotes for JSON and escape inner quotes: <code className="text-3xs font-mono">-d "{"{"}\"first_name\":\"Emeka\"{"}"}"</code>
       </Callout>
 
       <SectionTitle>Common Issues</SectionTitle>
@@ -957,7 +957,7 @@ function PhpGuide({ mod }: { mod: ModuleDef }) {
       <CodeBlock label={`${mod.name} - PHP`} code={getPhpExample(mod)} language="php" />
 
       <Callout type="tip">
-        In Laravel, use the HTTP facade instead: <code className="text-[10px] px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 font-mono">Http::withToken($apiKey)-&gt;get($url)</code> for cleaner code.
+        In Laravel, use the HTTP facade instead: <code className="text-3xs px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 font-mono">Http::withToken($apiKey)-&gt;get($url)</code> for cleaner code.
       </Callout>
 
       <SectionTitle>Common Issues</SectionTitle>
@@ -1020,10 +1020,10 @@ function CommonIssues({ platform }: { platform: string }) {
       {issues.map((issue) => (
         <div key={issue.code} className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
           <div className="flex items-start gap-2">
-            <code className={cn('text-[11px] font-bold font-mono shrink-0', issue.color)}>{issue.code}</code>
+            <code className={cn('text-2xs font-bold font-mono shrink-0', issue.color)}>{issue.code}</code>
           </div>
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1"><strong>Cause:</strong> {issue.cause}</p>
-          <p className="text-[11px] text-zinc-700 dark:text-zinc-300 mt-0.5"><strong>Fix:</strong> {issue.fix}</p>
+          <p className="text-2xs text-zinc-500 dark:text-zinc-400 mt-1"><strong>Cause:</strong> {issue.cause}</p>
+          <p className="text-2xs text-zinc-700 dark:text-zinc-300 mt-0.5"><strong>Fix:</strong> {issue.fix}</p>
         </div>
       ))}
     </div>
@@ -1070,31 +1070,31 @@ export default function IntegrationGuides() {
       {/* Always-visible reminders */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 px-3 py-2.5">
-          <div className="flex items-center gap-2 text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
+          <div className="flex items-center gap-2 text-2xs font-semibold text-zinc-700 dark:text-zinc-300">
             <Shield size={12} className="text-blue-500" />
             Authentication
           </div>
-          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+          <p className="text-3xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
             Every request needs a header:<br />
-            <code className="font-mono text-[10px] text-blue-600 dark:text-blue-400">Authorization: Bearer kdops_YOUR_KEY</code>
+            <code className="font-mono text-3xs text-blue-600 dark:text-blue-400">Authorization: Bearer kdops_YOUR_KEY</code>
           </p>
         </div>
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 px-3 py-2.5">
-          <div className="flex items-center gap-2 text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
+          <div className="flex items-center gap-2 text-2xs font-semibold text-zinc-700 dark:text-zinc-300">
             <Clock size={12} className="text-amber-500" />
             Rate Limit
           </div>
-          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+          <p className="text-3xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
             100 requests per minute per API key.<br />
             HTTP 429 response if exceeded.
           </p>
         </div>
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 px-3 py-2.5">
-          <div className="flex items-center gap-2 text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
+          <div className="flex items-center gap-2 text-2xs font-semibold text-zinc-700 dark:text-zinc-300">
             <Hash size={12} className="text-emerald-500" />
             Base URL
           </div>
-          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed font-mono break-all">
+          <p className="text-3xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed font-mono break-all">
             {BASE_URL}
           </p>
         </div>
@@ -1102,7 +1102,7 @@ export default function IntegrationGuides() {
 
       {/* Platform Selector */}
       <div>
-        <label className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">
+        <label className="text-2xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">
           Choose Platform
         </label>
         <div className="flex flex-wrap gap-2">
@@ -1127,7 +1127,7 @@ export default function IntegrationGuides() {
 
       {/* Module Selector */}
       <div>
-        <label className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">
+        <label className="text-2xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">
           Choose Module
         </label>
         <div className="flex flex-wrap gap-2">
@@ -1164,26 +1164,26 @@ export default function IntegrationGuides() {
               <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                 {currentPlatform.name} + {currentModule.name}
               </h3>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+              <p className="text-2xs text-zinc-500 dark:text-zinc-400">
                 {currentModule.description} using {currentPlatform.name}
               </p>
             </div>
-            <Badge variant="outline" className="ml-auto text-[10px] font-mono">
+            <Badge variant="outline" className="ml-auto text-3xs font-mono">
               {currentModule.endpoint}
             </Badge>
           </div>
 
           {/* Endpoint URL */}
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 mb-4">
-            <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase shrink-0">Endpoint</span>
-            <code className="text-[11px] font-mono text-zinc-700 dark:text-zinc-300 break-all flex-1">
+            <span className="text-3xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase shrink-0">Endpoint</span>
+            <code className="text-2xs font-mono text-zinc-700 dark:text-zinc-300 break-all flex-1">
               {BASE_URL}{currentModule.endpoint}
             </code>
             <CopyButton text={`${BASE_URL}${currentModule.endpoint}`} />
           </div>
 
           <Callout type="warning">
-            Replace <code className="text-[10px] font-mono px-1 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50">kdops_YOUR_KEY</code> with your actual API key from the <strong>API Keys</strong> tab in this Developer Hub.
+            Replace <code className="text-3xs font-mono px-1 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50">kdops_YOUR_KEY</code> with your actual API key from the <strong>API Keys</strong> tab in this Developer Hub.
             {module === 'expenses' || module === 'invoices' ? ' All monetary amounts are in the smallest currency unit (kobo for NGN, e.g., 500000 = 5,000 NGN).' : ''}
             {module === 'fleet' ? ' The employee MUST have bank details on file for fuel disbursement to work.' : ''}
           </Callout>
@@ -1203,7 +1203,7 @@ export default function IntegrationGuides() {
           {/* Pagination tip */}
           <div className="mt-3">
             <Callout type="info">
-              <strong>Pagination:</strong> All list endpoints support <code className="text-[10px] font-mono">?page=1&amp;per_page=50</code> query parameters. The response includes <code className="text-[10px] font-mono">total</code>, <code className="text-[10px] font-mono">page</code>, and <code className="text-[10px] font-mono">per_page</code> metadata for iterating through results.
+              <strong>Pagination:</strong> All list endpoints support <code className="text-3xs font-mono">?page=1&amp;per_page=50</code> query parameters. The response includes <code className="text-3xs font-mono">total</code>, <code className="text-3xs font-mono">page</code>, and <code className="text-3xs font-mono">per_page</code> metadata for iterating through results.
             </Callout>
           </div>
         </CardContent>

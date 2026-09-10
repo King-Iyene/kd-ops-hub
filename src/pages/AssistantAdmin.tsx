@@ -296,7 +296,7 @@ export default function AssistantAdmin() {
                   value={config.text_model}
                   onChange={(e) => setConfig({ ...config, text_model: e.target.value })}
                 />
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-2xs text-muted-foreground">
                   Recommended: <code>llama-3.3-70b-versatile</code> (best free), <code>llama-3.1-8b-instant</code> (fastest), <code>mixtral-8x7b-32768</code> (long context).
                 </p>
               </CardContent>
@@ -308,7 +308,7 @@ export default function AssistantAdmin() {
                   value={config.vision_model}
                   onChange={(e) => setConfig({ ...config, vision_model: e.target.value })}
                 />
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-2xs text-muted-foreground">
                   Recommended: <code>gemini-2.5-flash</code> (fast, current default), <code>gemini-2.5-pro</code> (best quality, smaller free quota).
                   This is also the fallback model used if the text model (Groq) fails, so keep it set to a real, working model even
                   if you don't use image/PDF uploads often.
@@ -405,13 +405,13 @@ export default function AssistantAdmin() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-medium truncate">{k.title}</p>
-                          <Badge variant="outline" className={`text-[10px] ${k.tsv_content ? 'border-emerald-300 text-emerald-700 dark:border-emerald-500/40 dark:text-emerald-400' : 'border-amber-300 text-amber-700 dark:border-amber-500/40 dark:text-amber-400'}`}>
+                          <Badge variant="outline" className={`text-3xs ${k.tsv_content ? 'border-emerald-300 text-emerald-700 dark:border-emerald-500/40 dark:text-emerald-400' : 'border-amber-300 text-amber-700 dark:border-amber-500/40 dark:text-amber-400'}`}>
                             {k.tsv_content
                               ? <><Eye className="h-2.5 w-2.5 mr-0.5" /> Indexed</>
                               : <><EyeOff className="h-2.5 w-2.5 mr-0.5" /> Not indexed</>
                             }
                           </Badge>
-                          {k.source && <span className="text-[10px] text-muted-foreground">{k.source}</span>}
+                          {k.source && <span className="text-3xs text-muted-foreground">{k.source}</span>}
                         </div>
                         <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{k.content}</p>
                         <div className="flex flex-wrap gap-1 mt-1.5">

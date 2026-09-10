@@ -177,7 +177,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
             </div>
             <div>
               <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Duplicate Detection</h2>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Find potential duplicate rows by fuzzy text matching</p>
+              <p className="text-2xs text-zinc-500 dark:text-zinc-400">Find potential duplicate rows by fuzzy text matching</p>
             </div>
           </div>
           <button onClick={() => onOpenChange(false)} className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700/50">
@@ -188,7 +188,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
         {/* Config */}
         <div className="px-5 py-3 border-b border-zinc-100 dark:border-zinc-700/30 space-y-3">
           <div>
-            <label className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Match threshold</label>
+            <label className="text-2xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Match threshold</label>
             <div className="flex items-center gap-3 mt-1">
               <input
                 type="range"
@@ -201,17 +201,17 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
               />
               <span className="text-xs font-mono text-zinc-600 dark:text-zinc-300 w-10 text-right">{Math.round(threshold * 100)}%</span>
             </div>
-            <p className="text-[10px] text-zinc-400 mt-0.5">Higher = stricter matching (exact duplicates). Lower = catches similar entries.</p>
+            <p className="text-3xs text-zinc-400 mt-0.5">Higher = stricter matching (exact duplicates). Lower = catches similar entries.</p>
           </div>
 
           <div>
-            <label className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Fields to check</label>
+            <label className="text-2xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Fields to check</label>
             <div className="flex flex-wrap gap-1.5 mt-1.5">
               {textFields.map(f => (
                 <button
                   key={f.id}
                   onClick={() => toggleField(f.id)}
-                  className={`px-2 py-0.5 rounded-full text-[11px] border transition-colors ${
+                  className={`px-2 py-0.5 rounded-full text-2xs border transition-colors ${
                     selectedFields.includes(f.id)
                       ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300'
                       : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-amber-300'
@@ -222,7 +222,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
               ))}
             </div>
             {selectedFields.length === 0 && (
-              <p className="text-[10px] text-zinc-400 mt-1">All text fields will be checked if none selected</p>
+              <p className="text-3xs text-zinc-400 mt-1">All text fields will be checked if none selected</p>
             )}
           </div>
 
@@ -252,8 +252,8 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
           {scanned && groups.length === 0 && (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <CheckCircle2 size={32} className="text-green-400 mb-2" />
-              <p className="text-[13px] font-medium text-zinc-600 dark:text-zinc-300">No duplicates found</p>
-              <p className="text-[11px] text-zinc-400 mt-1">Try lowering the match threshold to catch more similar entries</p>
+              <p className="text-xs-plus font-medium text-zinc-600 dark:text-zinc-300">No duplicates found</p>
+              <p className="text-2xs text-zinc-400 mt-1">Try lowering the match threshold to catch more similar entries</p>
             </div>
           )}
 
@@ -278,18 +278,18 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
                     >
                       {expandedGroups.has(group.key) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       <div className="flex-1 min-w-0">
-                        <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">{group.matchField}</span>
-                        <span className="text-[11px] text-zinc-400 mx-1.5">·</span>
-                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">"{group.matchValue}"</span>
+                        <span className="text-2xs font-medium text-zinc-600 dark:text-zinc-300">{group.matchField}</span>
+                        <span className="text-2xs text-zinc-400 mx-1.5">·</span>
+                        <span className="text-2xs text-zinc-500 dark:text-zinc-400 truncate">"{group.matchValue}"</span>
                       </div>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-medium">
+                      <span className="text-3xs px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-medium">
                         {group.rows.length} rows
                       </span>
                     </button>
 
                     {expandedGroups.has(group.key) && (
                       <div className="border-t border-zinc-100 dark:border-zinc-700/30">
-                        <table className="w-full text-[11px]">
+                        <table className="w-full text-2xs">
                           <thead>
                             <tr className="bg-zinc-50 dark:bg-zinc-800/50">
                               <th className="text-left px-3 py-1.5 font-medium text-zinc-500 dark:text-zinc-400 w-8">#</th>
@@ -321,7 +321,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
                                   <td className="px-2 py-1.5">
                                     {onScrollToRow && (
                                       <button
-                                        className="text-[10px] text-blue-500 hover:text-blue-600 hover:underline"
+                                        className="text-3xs text-blue-500 hover:text-blue-600 hover:underline"
                                         onClick={() => onScrollToRow(row.id)}
                                       >
                                         Go to →
@@ -344,10 +344,10 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-700/50 flex items-center justify-between">
-          <span className="text-[10px] text-zinc-400">
+          <span className="text-3xs text-zinc-400">
             {records.length} records scanned
           </span>
-          <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" size="sm" className="h-7 text-2xs" onClick={() => onOpenChange(false)}>
             Close
           </Button>
         </div>

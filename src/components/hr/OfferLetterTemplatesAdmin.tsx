@@ -245,7 +245,7 @@ export const OfferLetterTemplatesAdmin = () => {
                       {!t.active && <Badge variant="secondary" className="text-[9px] bg-muted">off</Badge>}
                     </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground truncate">{t.code}</p>
+                  <p className="text-3xs text-muted-foreground truncate">{t.code}</p>
                 </button>
               ))}
             </div>

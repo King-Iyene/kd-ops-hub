@@ -355,7 +355,7 @@ export function RefreshAttachmentsDialog({ open, onOpenChange, baseId }: Props) 
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 Create one at{' '}
                 <a
                   href="https://airtable.com/create/tokens"
@@ -365,7 +365,7 @@ export function RefreshAttachmentsDialog({ open, onOpenChange, baseId }: Props) 
                 >
                   airtable.com/create/tokens <ExternalLink size={10} />
                 </a>
-                . Needs <code className="text-[10px] bg-muted px-1 rounded">data.records:read</code> scope.
+                . Needs <code className="text-3xs bg-muted px-1 rounded">data.records:read</code> scope.
               </p>
             </div>
             <DialogFooter>

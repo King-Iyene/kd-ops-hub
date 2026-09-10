@@ -356,7 +356,7 @@ export default function KanbanView({
                   <ChevronRight size={14} style={{ color: color.text }} />
                 </div>
                 <div
-                  className="flex items-center justify-center rounded-full text-[10px] font-bold mt-2"
+                  className="flex items-center justify-center rounded-full text-3xs font-bold mt-2"
                   style={{
                     width: 22,
                     height: 22,
@@ -367,7 +367,7 @@ export default function KanbanView({
                   {items.length}
                 </div>
                 <div
-                  className="mt-3 text-[11px] font-semibold"
+                  className="mt-3 text-2xs font-semibold"
                   style={{
                     writingMode: 'vertical-rl',
                     textOrientation: 'mixed',
@@ -436,7 +436,7 @@ export default function KanbanView({
                     </span>
                   )}
                   <span
-                    className="text-[10px] font-medium shrink-0"
+                    className="text-3xs font-medium shrink-0"
                     style={{ color: color.text, opacity: 0.6 }}
                   >
                     {items.length}

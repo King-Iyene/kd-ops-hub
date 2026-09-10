@@ -1577,7 +1577,7 @@ const BatchDetail = () => {
             }
             return cells.map(({ label, value, bold }) => (
               <div key={label}>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">{label}</p>
+                <p className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground/70">{label}</p>
                 <p className={`text-sm mt-0.5 currency ${bold ? 'font-bold text-foreground' : 'font-medium'}`}>{value}</p>
               </div>
             ));
@@ -1948,7 +1948,7 @@ const BatchDetail = () => {
                       </div>
                       <p className="text-muted-foreground mb-1">{f.hint}</p>
                       {i.failure_reason && f.hint !== i.failure_reason && (
-                        <p className="font-mono text-[10px] text-muted-foreground/80 bg-background/60 rounded px-1.5 py-1 mt-1 break-all">
+                        <p className="font-mono text-3xs text-muted-foreground/80 bg-background/60 rounded px-1.5 py-1 mt-1 break-all">
                           <span className="opacity-60">Paystack said: </span>{i.failure_reason}
                         </p>
                       )}
@@ -1990,7 +1990,7 @@ const BatchDetail = () => {
                       key={key}
                       onClick={() => setItemFilter(key)}
                       className={cn(
-                        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors',
+                        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-2xs font-medium transition-colors',
                         itemFilter === key
                           ? key === 'failed' ? 'bg-destructive text-destructive-foreground'
                             : key === 'succeeded' ? 'bg-emerald-600 text-white'
@@ -2026,14 +2026,14 @@ const BatchDetail = () => {
                 font-mono on every numeric / identifier so dense lists
                 scan cleanly at a glance. */}
             <div className="hidden md:block">
-            <Table className="text-[13px]">
+            <Table className="text-xs-plus">
               <TableHeader>
                 <TableRow className="border-b border-border/50 hover:bg-transparent">
-                  <TableHead className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground py-2 h-auto">Beneficiary</TableHead>
-                  <TableHead className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground py-2 h-auto text-right">Amount</TableHead>
-                  <TableHead className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground py-2 h-auto">Reference</TableHead>
-                  <TableHead className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground py-2 h-auto">Status</TableHead>
-                  <TableHead className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground py-2 h-auto text-right">Actions</TableHead>
+                  <TableHead className="text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground py-2 h-auto">Beneficiary</TableHead>
+                  <TableHead className="text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground py-2 h-auto text-right">Amount</TableHead>
+                  <TableHead className="text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground py-2 h-auto">Reference</TableHead>
+                  <TableHead className="text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground py-2 h-auto">Status</TableHead>
+                  <TableHead className="text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground py-2 h-auto text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-border/40">
@@ -2082,7 +2082,7 @@ const BatchDetail = () => {
                                     <p className={`font-semibold mb-1 ${isOtp ? 'text-amber-700 dark:text-amber-400' : 'text-destructive'}`}>{f.title}</p>
                                     <p className="text-muted-foreground mb-2">{f.hint}</p>
                                     {f.hint !== item.failure_reason && (
-                                      <p className="font-mono text-[10px] text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
+                                      <p className="font-mono text-3xs text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
                                         <span className="opacity-60">Paystack: </span>{item.failure_reason}
                                       </p>
                                     )}
@@ -2091,7 +2091,7 @@ const BatchDetail = () => {
                               );
                             })()}
                           </div>
-                          <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1.5">
+                          <div className="text-2xs text-muted-foreground truncate flex items-center gap-1.5">
                             <span>{item.bank_name || '—'}</span>
                             {item.account_number && (
                               <>
@@ -2117,10 +2117,10 @@ const BatchDetail = () => {
                           {(() => {
                             const fee = getItemFee(item);
                             if (fee > 0) {
-                              return <div className="font-mono text-[10px] text-muted-foreground tabular-nums mt-0.5">+{formatNaira(fee)} fee</div>;
+                              return <div className="font-mono text-3xs text-muted-foreground tabular-nums mt-0.5">+{formatNaira(fee)} fee</div>;
                             }
                             if (item.status === 'succeeded') {
-                              return <div className="text-[10px] text-muted-foreground/70 mt-0.5" title="Webhook not yet received">fee pending…</div>;
+                              return <div className="text-3xs text-muted-foreground/70 mt-0.5" title="Webhook not yet received">fee pending…</div>;
                             }
                             return null;
                           })()}
@@ -2139,7 +2139,7 @@ const BatchDetail = () => {
                       </div>
                       {(item.paystack_reference || item.flutterwave_reference) && (
                         <div
-                          className="font-mono text-[10px] text-muted-foreground/70 truncate max-w-[160px]"
+                          className="font-mono text-3xs text-muted-foreground/70 truncate max-w-[160px]"
                           title={item.paystack_reference || item.flutterwave_reference}
                         >
                           {item.paystack_reference || item.flutterwave_reference}
@@ -2187,7 +2187,7 @@ const BatchDetail = () => {
                             return (
                               <>
                                 <span
-                                  className="text-[10px] text-amber-600 dark:text-amber-400 inline-flex items-center gap-1 mr-1"
+                                  className="text-3xs text-amber-600 dark:text-amber-400 inline-flex items-center gap-1 mr-1"
                                   title={`Stuck for ~${Math.round(ageHours)}h — Paystack hasn't responded`}
                                 >
                                   <AlertTriangle className="h-3 w-3" />
@@ -2229,14 +2229,14 @@ const BatchDetail = () => {
                               <div className="inline-flex items-center gap-2">
                                 {wasCancelled ? (
                                   <span
-                                    className="text-[10px] text-muted-foreground inline-flex items-center gap-1"
+                                    className="text-3xs text-muted-foreground inline-flex items-center gap-1"
                                     title={item.manual_resolution_note || 'Cancelled — closed without payment'}
                                   >
                                     <X className="h-3 w-3" /> Cancelled
                                   </span>
                                 ) : (
                                   <span
-                                    className="text-[10px] text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1"
+                                    className="text-3xs text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1"
                                     title={item.manual_resolution_note || 'Paid via another channel'}
                                   >
                                     <Check className="h-3 w-3" /> Paid externally
@@ -2245,7 +2245,7 @@ const BatchDetail = () => {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                                  className="h-6 px-2 text-3xs text-muted-foreground hover:text-foreground"
                                   onClick={() => unresolveItem(item)}
                                   disabled={isUndoing}
                                   title="Undo this resolution. Item returns to its original status."
@@ -2363,7 +2363,7 @@ const BatchDetail = () => {
                     <StatusBadge status={item.status} size="sm" />
                   </MobileCardRow>
                   {item.failure_reason && (
-                    <p className="text-[11px] text-destructive truncate">{item.failure_reason}</p>
+                    <p className="text-2xs text-destructive truncate">{item.failure_reason}</p>
                   )}
                   <MobileCardFooter>
                     <div className="flex gap-1 flex-wrap">

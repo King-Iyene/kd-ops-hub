@@ -238,7 +238,7 @@ export function TaskWorkloadView({ tasks, profiles, onTaskClick }: TaskWorkloadV
                           (w.statusCounts[s] ?? 0) > 0 && (
                             <div key={s} className="flex items-center gap-0.5" title={`${s}: ${w.statusCounts[s]}`}>
                               <span className={cn('inline-block h-2 w-2 rounded-full', STATUS_DOT[s])} />
-                              <span className="text-[10px] text-muted-foreground">{w.statusCounts[s]}</span>
+                              <span className="text-3xs text-muted-foreground">{w.statusCounts[s]}</span>
                             </div>
                           ),
                       )}
@@ -255,7 +255,7 @@ export function TaskWorkloadView({ tasks, profiles, onTaskClick }: TaskWorkloadV
                     <span className={cn('text-xs font-medium tabular-nums w-12 text-right', utilizationTextColor(w.utilization))}>
                       {w.utilization}%
                     </span>
-                    <span className="text-[10px] text-muted-foreground w-12 text-right">{hours}h</span>
+                    <span className="text-3xs text-muted-foreground w-12 text-right">{hours}h</span>
                   </div>
                 </div>
               </button>
@@ -281,16 +281,16 @@ export function TaskWorkloadView({ tasks, profiles, onTaskClick }: TaskWorkloadV
                             <span className={cn('inline-block h-2 w-2 rounded-full shrink-0', STATUS_DOT[t.status])} />
                             <span className="text-xs truncate flex-1">{t.title}</span>
                             {isOverdue && <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />}
-                            <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0 h-4', PRIORITY_CLASS[t.priority])}>
+                            <Badge variant="secondary" className={cn('text-3xs px-1.5 py-0 h-4', PRIORITY_CLASS[t.priority])}>
                               {t.priority}
                             </Badge>
                             {t.time_estimate_minutes != null && (
-                              <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                              <span className="text-3xs text-muted-foreground tabular-nums shrink-0">
                                 {(t.time_estimate_minutes / 60).toFixed(1)}h
                               </span>
                             )}
                             {t.due_date && (
-                              <span className={cn('text-[10px] tabular-nums shrink-0', isOverdue ? 'text-destructive' : 'text-muted-foreground')}>
+                              <span className={cn('text-3xs tabular-nums shrink-0', isOverdue ? 'text-destructive' : 'text-muted-foreground')}>
                                 {new Date(t.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                               </span>
                             )}

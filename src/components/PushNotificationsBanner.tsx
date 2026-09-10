@@ -64,15 +64,15 @@ export function PushNotificationsBanner() {
             </p>
             <ol className="text-xs text-muted-foreground mt-1.5 space-y-1 list-none">
               <li className="flex items-center gap-1.5">
-                <span className="inline-flex items-center justify-center h-4 w-4 rounded bg-muted text-[10px] font-bold shrink-0">1</span>
+                <span className="inline-flex items-center justify-center h-4 w-4 rounded bg-muted text-3xs font-bold shrink-0">1</span>
                 Tap <Share className="inline h-3.5 w-3.5 text-primary mx-0.5" /> Share in Safari
               </li>
               <li className="flex items-center gap-1.5">
-                <span className="inline-flex items-center justify-center h-4 w-4 rounded bg-muted text-[10px] font-bold shrink-0">2</span>
+                <span className="inline-flex items-center justify-center h-4 w-4 rounded bg-muted text-3xs font-bold shrink-0">2</span>
                 Tap <Plus className="inline h-3.5 w-3.5 text-primary mx-0.5" /> Add to Home Screen
               </li>
               <li className="flex items-center gap-1.5">
-                <span className="inline-flex items-center justify-center h-4 w-4 rounded bg-muted text-[10px] font-bold shrink-0">3</span>
+                <span className="inline-flex items-center justify-center h-4 w-4 rounded bg-muted text-3xs font-bold shrink-0">3</span>
                 Open from your Home Screen, then enable notifications
               </li>
             </ol>

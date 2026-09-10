@@ -93,14 +93,14 @@ export default function VendorSpendTab() {
                     ? `${((data.topVendors[0].total_ngn / data.total_spend_ngn) * 100).toFixed(0)}%`
                     : '—'}
                 </p>
-                <p className="text-[10px] text-muted-foreground truncate">{data.topVendors[0]?.vendor}</p>
+                <p className="text-3xs text-muted-foreground truncate">{data.topVendors[0]?.vendor}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground">Consolidation opps</p>
                 <p className="text-xl font-bold">{data.consolidation.length}</p>
-                <p className="text-[10px] text-muted-foreground">categories with 2+ vendors</p>
+                <p className="text-3xs text-muted-foreground">categories with 2+ vendors</p>
               </CardContent>
             </Card>
           </div>
@@ -142,7 +142,7 @@ export default function VendorSpendTab() {
               <CardContent>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3">
                   {trendVendors.map((vendor, i) => (
-                    <div key={vendor} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <div key={vendor} className="flex items-center gap-1.5 text-2xs text-muted-foreground">
                       <span className="w-3 h-[2px] rounded-full" style={{ background: SERIES[i] }} />
                       {vendor}
                     </div>
@@ -207,7 +207,7 @@ export default function VendorSpendTab() {
                       <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                       <TableCell className="font-medium">{v.vendor}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-3xs">
                           {v.source === 'subscription' ? 'Sub' : 'Expense'}
                         </Badge>
                       </TableCell>
@@ -226,13 +226,13 @@ export default function VendorSpendTab() {
                   <MobileCard key={v.vendor}>
                     <MobileCardHeader>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] text-muted-foreground mb-0.5">#{i + 1}</p>
+                        <p className="text-3xs text-muted-foreground mb-0.5">#{i + 1}</p>
                         <MobileCardTitle>{v.vendor}</MobileCardTitle>
                       </div>
                       <MobileCardMeta className="currency">{formatNaira(v.total_ngn)}</MobileCardMeta>
                     </MobileCardHeader>
                     <MobileCardRow label="Source">
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant="outline" className="text-3xs">
                         {v.source === 'subscription' ? 'Sub' : 'Expense'}
                       </Badge>
                     </MobileCardRow>

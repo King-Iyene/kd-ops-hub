@@ -242,7 +242,7 @@ export function TaskActivityView({ tasks, profiles, onTaskClick }: TaskActivityV
       <div className="flex items-center gap-2 mb-4">
         <Activity className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-semibold">Activity</span>
-        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">
+        <Badge variant="secondary" className="text-3xs px-1.5 py-0 ml-1">
           {timeline.length}
         </Badge>
       </div>
@@ -356,7 +356,7 @@ function ActivityRow({
         </p>
       </div>
 
-      <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap shrink-0 mt-1">
+      <span className="text-3xs text-muted-foreground tabular-nums whitespace-nowrap shrink-0 mt-1">
         <Clock className="inline h-3 w-3 mr-0.5 -mt-px" />
         {relativeTime(entry.timestamp)}
       </span>

@@ -68,7 +68,7 @@ function BaseCard({ base, onSelect }: { base: Base; onSelect: () => void }) {
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-3 mt-auto text-[11px] text-[#9AA2AF]">
+      <div className="flex items-center gap-3 mt-auto text-2xs text-[#9AA2AF]">
         <BaseCardTableCount baseId={base.id} />
         <span className="flex items-center gap-1">
           <Clock size={12} />
@@ -112,7 +112,7 @@ export function EmptyState() {
             <p className="text-[15px] font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
               No tables yet
             </p>
-            <p className="text-[13px] text-[#6A7184] mt-1 leading-relaxed">
+            <p className="text-xs-plus text-[#6A7184] mt-1 leading-relaxed">
               Click the <strong>+</strong> button in the table bar above to create your first table.
             </p>
           </div>
@@ -137,13 +137,13 @@ export function EmptyState() {
                 placeholder="Filter bases..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-[13px] rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:outline-none focus:border-[#2D7FF9] w-48"
+                className="pl-8 pr-3 py-1.5 text-xs-plus rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:outline-none focus:border-[#2D7FF9] w-48"
               />
             </div>
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5 text-[13px]"
+              className="gap-1.5 text-xs-plus"
               onClick={() => setImportOpen(true)}
             >
               <Download size={14} /> Import from Airtable
@@ -161,7 +161,7 @@ export function EmptyState() {
             <div className="w-10 h-10 rounded-full bg-[#2D7FF9]/10 flex items-center justify-center mb-2 group-hover:bg-[#2D7FF9]/20 transition-colors">
               <Plus size={20} className="text-[#2D7FF9]" />
             </div>
-            <span className="text-[13px] font-medium text-[#6A7184] group-hover:text-[#2D7FF9]">
+            <span className="text-xs-plus font-medium text-[#6A7184] group-hover:text-[#2D7FF9]">
               Create Base
             </span>
           </button>
@@ -177,13 +177,13 @@ export function EmptyState() {
 
         {filteredBases.length === 0 && searchQuery && (
           <div className="text-center py-12">
-            <p className="text-[13px] text-[#9AA2AF]">No bases match &ldquo;{searchQuery}&rdquo;</p>
+            <p className="text-xs-plus text-[#9AA2AF]">No bases match &ldquo;{searchQuery}&rdquo;</p>
           </div>
         )}
 
         {(bases ?? []).length === 0 && !searchQuery && (
           <div className="text-center py-8">
-            <p className="text-[13px] text-[#9AA2AF]">
+            <p className="text-xs-plus text-[#9AA2AF]">
               No bases yet. Create one or import from Airtable to get started.
             </p>
           </div>

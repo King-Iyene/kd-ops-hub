@@ -2179,7 +2179,7 @@ const Payroll = () => {
             <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
             Reports
           </TabsTrigger>
-          <span className="ml-auto self-center text-[11px] text-muted-foreground hidden sm:inline pr-1">
+          <span className="ml-auto self-center text-2xs text-muted-foreground hidden sm:inline pr-1">
             Setup merges Pay Groups, Schedules &amp; Holidays into one place
           </span>
         </TabsList>

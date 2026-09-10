@@ -494,12 +494,12 @@ export default function Performance() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <CardTitle className="text-base">{cycle.name}</CardTitle>
-                        <Badge variant={CYCLE_STATUS[cycle.status].variant} className="text-[10px]">
+                        <Badge variant={CYCLE_STATUS[cycle.status].variant} className="text-3xs">
                           {CYCLE_STATUS[cycle.status].label}
                         </Badge>
-                        <Badge variant="outline" className="text-[10px]">{CYCLE_TYPE_LABEL[cycle.cycle_type]}</Badge>
+                        <Badge variant="outline" className="text-3xs">{CYCLE_TYPE_LABEL[cycle.cycle_type]}</Badge>
                         {isOverdue && (
-                          <Badge variant="destructive" className="text-[10px]">
+                          <Badge variant="destructive" className="text-3xs">
                             <AlertCircle className="h-3 w-3 mr-1" />Overdue
                           </Badge>
                         )}
@@ -528,7 +528,7 @@ export default function Performance() {
                   {/* Submission progress bar */}
                   {cycleReviews.length > 0 && (
                     <div className="mt-2 space-y-1">
-                      <div className="flex justify-between text-[11px] text-muted-foreground">
+                      <div className="flex justify-between text-2xs text-muted-foreground">
                         <span>Submitted</span>
                         <span>{cycleReviews.filter(r => r.status !== 'draft').length} / {cycleReviews.length}</span>
                       </div>
@@ -559,7 +559,7 @@ export default function Performance() {
                                     <span className="text-sm font-semibold">{r.overall_rating.toFixed(1)}</span>
                                   </div>
                                 )}
-                                <Badge variant={STATUS_BADGE[r.status].variant} className="text-[10px]">
+                                <Badge variant={STATUS_BADGE[r.status].variant} className="text-3xs">
                                   {STATUS_BADGE[r.status].label}
                                 </Badge>
                                 {r.status === 'draft' && r.reviewer_id === profile?.id && (
@@ -616,10 +616,10 @@ export default function Performance() {
                             {/* Read-only reference: this employee's active goals, for context */}
                             {goals.filter(g => g.owner_id === r.employee_id).length > 0 && (
                               <div className="pt-1">
-                                <p className="text-[11px] font-semibold text-muted-foreground mb-1">Linked goals ({goals.filter(g => g.owner_id === r.employee_id).length})</p>
+                                <p className="text-2xs font-semibold text-muted-foreground mb-1">Linked goals ({goals.filter(g => g.owner_id === r.employee_id).length})</p>
                                 <div className="flex flex-wrap gap-1.5">
                                   {goals.filter(g => g.owner_id === r.employee_id).map(g => (
-                                    <Badge key={g.id} variant="outline" className="text-[10px] font-normal">
+                                    <Badge key={g.id} variant="outline" className="text-3xs font-normal">
                                       {g.title} · {g.quarter} · {g.progress_pct}%
                                     </Badge>
                                   ))}
@@ -688,17 +688,17 @@ export default function Performance() {
                         {p.description && (
                           <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{p.description}</p>
                         )}
-                        <div className="flex items-center gap-2 flex-wrap text-[10px]">
-                          <Badge variant="outline" className="text-[10px]">{PLAN_CATEGORY_LABEL[p.category]}</Badge>
+                        <div className="flex items-center gap-2 flex-wrap text-3xs">
+                          <Badge variant="outline" className="text-3xs">{PLAN_CATEGORY_LABEL[p.category]}</Badge>
                           {p.target_date && (
-                            <Badge variant={overdue ? 'destructive' : 'outline'} className="text-[10px]">
+                            <Badge variant={overdue ? 'destructive' : 'outline'} className="text-3xs">
                               {overdue && <AlertCircle className="h-3 w-3 mr-1" />}
                               Due {format(parseISO(p.target_date), 'd MMM yyyy')}
                             </Badge>
                           )}
                         </div>
                         <div className="space-y-1 mt-auto">
-                          <div className="flex justify-between text-[11px] text-muted-foreground">
+                          <div className="flex justify-between text-2xs text-muted-foreground">
                             <span>Progress</span><span>{p.progress}%</span>
                           </div>
                           <Progress value={p.progress} className="h-1.5" />

@@ -651,7 +651,7 @@ export function QuickPayDialog() {
                     if (items.length === 0) return null;
                     return (
                       <SelectGroup key={g}>
-                        <SelectLabel className={`text-[10px] uppercase tracking-wider text-muted-foreground/60 px-2 ${gi === 0 ? 'pt-1.5 pb-1' : 'pt-2 pb-1 border-t border-border/40 mt-1'}`}>
+                        <SelectLabel className={`text-3xs uppercase tracking-wider text-muted-foreground/60 px-2 ${gi === 0 ? 'pt-1.5 pb-1' : 'pt-2 pb-1 border-t border-border/40 mt-1'}`}>
                           {paymentCategoryGroupLabel[g]}
                         </SelectLabel>
                         {items.map((opt: PaymentCategoryDef) => {
@@ -674,13 +674,13 @@ export function QuickPayDialog() {
                 const def = paymentCategoryDef(form.category);
                 if (!def) {
                   return (
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-2xs text-muted-foreground">
                       Required — what this payment is for. Feeds Transactions and Reports so Quick Pays roll up cleanly.
                     </p>
                   );
                 }
                 return (
-                  <p className="text-[11px] text-muted-foreground leading-snug">
+                  <p className="text-2xs text-muted-foreground leading-snug">
                     {def.hint}
                   </p>
                 );

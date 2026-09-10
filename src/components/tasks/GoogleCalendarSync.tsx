@@ -426,7 +426,7 @@ export function GoogleCalendarSync({ tasks }: GoogleCalendarSyncProps) {
             <div className="mt-2 space-y-1.5 pl-5">
               <p>
                 The OAuth endpoint at{' '}
-                <code className="rounded bg-muted px-1 py-0.5 text-[11px]">
+                <code className="rounded bg-muted px-1 py-0.5 text-2xs">
                   /api/auth/google-calendar
                 </code>{' '}
                 needs to be deployed before this integration works.
@@ -439,14 +439,14 @@ export function GoogleCalendarSync({ tasks }: GoogleCalendarSyncProps) {
                 </li>
                 <li>
                   Store the tokens in the{' '}
-                  <code className="rounded bg-muted px-1 py-0.5 text-[11px]">
+                  <code className="rounded bg-muted px-1 py-0.5 text-2xs">
                     calendar_integrations
                   </code>{' '}
                   table
                 </li>
                 <li>
                   Post a message back to the opener window via{' '}
-                  <code className="rounded bg-muted px-1 py-0.5 text-[11px]">
+                  <code className="rounded bg-muted px-1 py-0.5 text-2xs">
                     postMessage
                   </code>
                 </li>

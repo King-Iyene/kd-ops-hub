@@ -852,11 +852,11 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
       </div>
 
       {state === 'warning' && (
-        <p className="text-[10px] text-amber-700 leading-tight">{errorMsg}</p>
+        <p className="text-3xs text-amber-700 leading-tight">{errorMsg}</p>
       )}
 
       {qualityWarning && (state === 'scanning' || state === 'fallback' || state === 'done' || state === 'warning') && (
-        <p className="text-[10px] text-muted-foreground leading-tight">{qualityWarning}</p>
+        <p className="text-3xs text-muted-foreground leading-tight">{qualityWarning}</p>
       )}
 
       <input
@@ -876,7 +876,7 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
       />
 
       {state === 'idle' && (
-        <p className="text-[10px] text-muted-foreground leading-tight">
+        <p className="text-3xs text-muted-foreground leading-tight">
           Take a photo of a paper receipt to auto-fill the form.
         </p>
       )}

@@ -204,10 +204,10 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
               <Wallet className={cn('h-3.5 w-3.5', t.icon)} />
             </div>
             <div className="leading-tight">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              <p className="text-3xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
                 Flutterwave Wallet
               </p>
-              <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
+              <p className="text-3xs text-muted-foreground/60 flex items-center gap-1">
                 <span>NGN</span>
                 {/* Mode pill — TEST (amber gradient) vs LIVE (red gradient).
                     Instantly readable so operators can never confuse test-mode
@@ -275,7 +275,7 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
             <p className="text-xs font-medium text-destructive">Could not load balance</p>
             <button
               onClick={refreshBalance}
-              className="text-[11px] text-destructive/80 hover:text-destructive underline underline-offset-2 mt-0.5"
+              className="text-2xs text-destructive/80 hover:text-destructive underline underline-offset-2 mt-0.5"
             >
               Retry
             </button>
@@ -291,7 +291,7 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
             <div className="flex items-center justify-between gap-2 mt-2">
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', t.dot, t.dotPulse)} />
-                <span className={cn('text-[11px] truncate', t.caption)}>
+                <span className={cn('text-2xs truncate', t.caption)}>
                   {tone === 'critical'
                     ? 'Critical — fund now'
                     : tone === 'low'
@@ -300,7 +300,7 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
                 </span>
               </div>
               {balanceUpdatedAt && (
-                <RelativeAge iso={balanceUpdatedAt} className="text-[10px] text-muted-foreground/60 tabular-nums shrink-0" />
+                <RelativeAge iso={balanceUpdatedAt} className="text-3xs text-muted-foreground/60 tabular-nums shrink-0" />
               )}
             </div>
           </div>
@@ -310,7 +310,7 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
         {(tone === 'low' || tone === 'critical') && t.banner && (
           <div className={cn('flex items-start gap-2 mt-3 rounded-lg px-2.5 py-2', t.banner)}>
             <AlertTriangle className={cn('h-3.5 w-3.5 shrink-0 mt-0.5', t.bannerText)} />
-            <p className={cn('text-[11px] leading-snug font-medium', t.bannerText)}>
+            <p className={cn('text-2xs leading-snug font-medium', t.bannerText)}>
               {tone === 'critical'
                 ? 'Wallet is critically low. Fund this account before any new transfers.'
                 : 'Top up before your next batch — funded transfers won\'t go out otherwise.'}
@@ -321,13 +321,13 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
         {/* ── Funding details ──────────────────────────────────── */}
         <div className="mt-3 pt-3 border-t border-border/60">
           <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/80">
+            <p className="text-3xs font-bold uppercase tracking-[0.14em] text-muted-foreground/80">
               Fund this account
             </p>
             {hasFunding && (
               <button
                 onClick={() => navigate('/settings#payment-rails')}
-                className="text-[10px] text-muted-foreground/60 hover:text-foreground kd-transition"
+                className="text-3xs text-muted-foreground/60 hover:text-foreground kd-transition"
                 title="Edit funding details in Settings"
               >
                 Edit
@@ -352,7 +352,7 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
               )}
               title="Add Flutterwave funding details in Settings"
             >
-              <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground group-hover:text-foreground">
+              <span className="flex items-center gap-1.5 text-2xs font-medium text-muted-foreground group-hover:text-foreground">
                 <Plus className="h-3 w-3" />
                 Add funding account
               </span>
@@ -366,7 +366,7 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-[11px] font-medium"
+            className="h-8 text-2xs font-medium"
             onClick={() => window.open('https://app.flutterwave.com/dashboard/wallets', '_blank')}
           >
             Fund Wallet
@@ -374,7 +374,7 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-[11px] font-medium"
+            className="h-8 text-2xs font-medium"
             onClick={() => window.open('https://app.flutterwave.com/dashboard/payouts', '_blank')}
           >
             Transfers
@@ -421,7 +421,7 @@ function FundingRow({ label, value, mono }: { label: string; value: string; mono
   };
   return (
     <CopyButton onCopy={onCopy} label={label}>
-      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 shrink-0 w-14">{label}</span>
+      <span className="text-3xs uppercase tracking-wider text-muted-foreground/70 shrink-0 w-14">{label}</span>
       <span className={cn(
         'text-[11.5px] font-medium text-foreground truncate flex-1 text-right',
         mono && 'font-mono tracking-tight',

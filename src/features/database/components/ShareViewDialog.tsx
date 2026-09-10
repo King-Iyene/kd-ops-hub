@@ -102,10 +102,10 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
           {/* Enable / disable toggle */}
           <div className="flex items-center justify-between p-3 rounded-lg bg-[#F9F9FA] dark:bg-[hsl(200,25%,12%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
             <div>
-              <p className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
+              <p className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
                 Enable shared view
               </p>
-              <p className="text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+              <p className="text-2xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
                 Anyone with the link can view this data
               </p>
             </div>
@@ -180,10 +180,10 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                 <div className="flex items-center gap-2">
                   <Download size={14} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]" />
                   <div>
-                    <p className="text-[13px] font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                    <p className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
                       Allow CSV download
                     </p>
-                    <p className="text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+                    <p className="text-2xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
                       Viewers can export data as CSV
                     </p>
                   </div>
@@ -205,7 +205,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                   Embed code
                 </label>
                 <div className="flex gap-2">
-                  <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-[11px] text-[#6A7184] dark:text-[hsl(200,20%,55%)] font-mono truncate">
+                  <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-2xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] font-mono truncate">
                     <Code size={12} className="shrink-0" />
                     <span className="truncate">{`<iframe src="${shareUrl}" width="100%" height="600" frameborder="0"></iframe>`}</span>
                   </div>

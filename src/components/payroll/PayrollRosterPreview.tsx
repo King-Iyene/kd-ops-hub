@@ -118,13 +118,13 @@ function RosterRow({ e }: { e: RosterEmployee }) {
   const missingBank = !e.bank_account_number;
   return (
     <li className="grid grid-cols-[auto_1fr_auto] items-center gap-x-2.5 gap-y-0 rounded-md px-1.5 py-1.5 hover:bg-muted/60">
-      <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold', avatarColour(e.id))}>
+      <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-3xs font-bold', avatarColour(e.id))}>
         {initials(name)}
       </span>
       <span className="min-w-0 truncate text-foreground" title={name}>{name}</span>
       <span className="shrink-0 tabular-nums text-muted-foreground text-right w-[92px]">{formatNaira(e.salary_ngn)}</span>
       {missingBank && (
-        <span className="col-start-2 col-span-2 -mt-0.5 flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
+        <span className="col-start-2 col-span-2 -mt-0.5 flex items-center gap-1 text-2xs text-amber-600 dark:text-amber-400">
           <AlertTriangle className="h-3 w-3 shrink-0" />
           No bank account on file
           <Link
@@ -217,7 +217,7 @@ export function PayrollRosterPreview({
                     style={{ width: `${readyPct}%` }}
                   />
                 </span>
-                <span className="text-[11px] text-muted-foreground shrink-0">
+                <span className="text-2xs text-muted-foreground shrink-0">
                   {readyCount}/{included.length} ready to pay
                 </span>
               </span>

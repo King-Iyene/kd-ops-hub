@@ -88,7 +88,7 @@ export function RecordComments({ baseId, tableId, recordId, userEmail }: RecordC
                   <span className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
                     {email}
                   </span>
-                  <span className="text-[10px] text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] shrink-0">
+                  <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] shrink-0">
                     {timeAgo(c.created_at)}
                   </span>
                   {c.user_email === userEmail && (

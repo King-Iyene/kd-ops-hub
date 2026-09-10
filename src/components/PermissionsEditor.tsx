@@ -406,19 +406,19 @@ export function PermissionsEditor({ value, onChange, disabled, roleDefaults = []
                   >
                     <span>{perm.label}</span>
                     {blocked.blocked ? (
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground border border-border/60 rounded px-1.5 py-0.5">
+                      <span className="text-3xs uppercase tracking-wider text-muted-foreground border border-border/60 rounded px-1.5 py-0.5">
                         {`needs ${friendlyRoles || 'higher role'}`}
                       </span>
                     ) : (
                       <>
                         {!explicit && checked && (
-                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">role</span>
+                          <span className="text-3xs uppercase tracking-wider text-muted-foreground">role</span>
                         )}
                         {explicit && value[perm.key] === true && !defaultsSet.has(perm.key) && (
-                          <span className="text-[10px] uppercase tracking-wider text-success">granted</span>
+                          <span className="text-3xs uppercase tracking-wider text-success">granted</span>
                         )}
                         {explicit && value[perm.key] === false && (
-                          <span className="text-[10px] uppercase tracking-wider text-destructive">denied</span>
+                          <span className="text-3xs uppercase tracking-wider text-destructive">denied</span>
                         )}
                       </>
                     )}

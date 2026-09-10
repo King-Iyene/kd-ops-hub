@@ -138,7 +138,7 @@ export default function LeaveCalendar() {
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+      <div className="flex flex-wrap gap-3 text-2xs text-muted-foreground">
         {(Object.entries(TYPE_DOT) as [LeaveType, string][]).map(([type, cls]) => (
           <span key={type} className="flex items-center gap-1.5 capitalize">
             <span className={cn('h-2 w-2 rounded-full', cls)} />
@@ -152,7 +152,7 @@ export default function LeaveCalendar() {
       </div>
 
       {/* Day-of-week headers */}
-      <div className="grid grid-cols-7 gap-1 text-[10px] font-semibold uppercase text-muted-foreground tracking-wide">
+      <div className="grid grid-cols-7 gap-1 text-3xs font-semibold uppercase text-muted-foreground tracking-wide">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
           <div key={d} className="px-1 py-1 text-center">{d}</div>
         ))}
@@ -174,7 +174,7 @@ export default function LeaveCalendar() {
               <div
                 key={i}
                 className={cn(
-                  'min-h-[78px] rounded-md border p-1.5 text-[11px] overflow-hidden',
+                  'min-h-[78px] rounded-md border p-1.5 text-2xs overflow-hidden',
                   inMonth ? 'bg-card' : 'bg-muted/20 opacity-60',
                   weekend && 'bg-muted/30',
                   isToday && 'ring-2 ring-primary',
@@ -221,9 +221,9 @@ export default function LeaveCalendar() {
       )}
 
       {!loading && rows.length > 0 && (
-        <div className="text-[11px] text-muted-foreground flex justify-between border-t pt-2">
+        <div className="text-2xs text-muted-foreground flex justify-between border-t pt-2">
           <span>Showing {rows.length} leave window{rows.length === 1 ? '' : 's'}</span>
-          <Badge variant="outline" className="text-[10px]">Source: leave_calendar_v</Badge>
+          <Badge variant="outline" className="text-3xs">Source: leave_calendar_v</Badge>
         </div>
       )}
     </Card>

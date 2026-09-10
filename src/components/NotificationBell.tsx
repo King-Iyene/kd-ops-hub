@@ -267,7 +267,7 @@ export function NotificationBell() {
         <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
           <Bell className={cn('h-5 w-5', unreadCount > 0 ? 'text-primary' : '')} />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground kd-status-live-danger">
+            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-3xs font-bold text-destructive-foreground kd-status-live-danger">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
@@ -285,7 +285,7 @@ export function NotificationBell() {
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
           <div>
             <h3 className="text-sm font-semibold leading-none">Notifications</h3>
-            <p className="text-[11px] text-muted-foreground mt-1">
+            <p className="text-2xs text-muted-foreground mt-1">
               {unreadCount > 0
                 ? `${unreadCount} unread${notifications.length > unreadCount ? ` of ${notifications.length}` : ''}`
                 : notifications.length > 0
@@ -319,7 +319,7 @@ export function NotificationBell() {
               </div>
               <div>
                 <p className="text-sm font-medium">All quiet</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <p className="text-2xs text-muted-foreground mt-0.5">
                   We'll ping you when there's something to look at.
                 </p>
               </div>
@@ -331,7 +331,7 @@ export function NotificationBell() {
                 if (items.length === 0) return null;
                 return (
                   <div key={bucket}>
-                    <div className="sticky top-0 z-10 bg-popover/95 backdrop-blur-sm px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground border-b border-border/60">
+                    <div className="sticky top-0 z-10 bg-popover/95 backdrop-blur-sm px-4 py-1.5 text-3xs font-bold uppercase tracking-[0.14em] text-muted-foreground border-b border-border/60">
                       {BUCKET_LABEL[bucket]}
                     </div>
                     {items.map((n: any) => {
@@ -402,7 +402,7 @@ export function NotificationBell() {
         </ScrollArea>
 
         {notifications.length >= 50 && (
-          <div className="px-4 py-2 text-[11px] text-muted-foreground text-center border-t border-border bg-muted/20">
+          <div className="px-4 py-2 text-2xs text-muted-foreground text-center border-t border-border bg-muted/20">
             Showing 50 most recent
           </div>
         )}

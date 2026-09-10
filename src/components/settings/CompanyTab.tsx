@@ -286,7 +286,7 @@ export default function CompanyTab({ settings, patch, uploadLogo }: Props) {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-3xs text-muted-foreground">
                 Used when an employee has no explicit state of residence.
               </p>
             </div>
