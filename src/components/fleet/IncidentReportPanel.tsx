@@ -23,6 +23,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -43,6 +53,7 @@ import {
   ChevronUp,
   Search,
   Filter,
+  Trash2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira, formatDate } from '@/lib/format';
@@ -234,6 +245,9 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
   const [sortField, setSortField] = useState<'incident_date' | 'severity' | 'created_at'>('incident_date');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const vehicleMap = new Map(vehicles.map((v) => [v.id, v]));
@@ -242,7 +256,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
   const fetchIncidents = useCallback(async () => {
     setLoading(true);
     try {
-      let query = supabase.from('fleet_incidents').select('id, vehicle_id, driver_id, incident_date, incident_time, incident_type, severity, location_description, description, police_report_number, police_station, insurance_claim_number, insurance_claim_status, estimated_repair_cost_ngn, actual_repair_cost_ngn, photo_urls, witness_names, third_party_involved, third_party_details, vehicle_driveable, injuries_reported, injury_details, resolution_status, resolution_notes, resolved_by, resolved_at, created_at');
+      let query = supabase.from('fleet_incidents').select('id, vehicle_id, driver_id, incident_date, incident_time, incident_type, severity, location_description, description, police_report_number, police_station, insurance_claim_number, insurance_claim_status, estimated_repair_cost_ngn, actual_repair_cost_ngn, photo_urls, witness_names, third_party_involved, third_party_details, vehicle_driveable, injuries_reported, injury_details, resolution_status, resolution_notes, resolved_by, resolved_at, created_at').is('deleted_at', null);
 
       if (isFieldStaff && profile) {
         query = query.eq('driver_id', profile.id);
@@ -462,6 +476,26 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
     }
   }
 
+  async function handleDeleteIncident() {
+    if (!confirmDeleteId) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('fleet_incidents')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', confirmDeleteId);
+      if (error) throw error;
+      toast({ title: 'Incident deleted' });
+      setConfirmDeleteId(null);
+      fetchIncidents();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to delete';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   function handleSort(field: typeof sortField) {
     if (sortField === field) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -663,6 +697,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
                   <TableHead>Status</TableHead>
                   <TableHead>Insurance</TableHead>
                   <TableHead className="text-right">Est. Cost</TableHead>
+                  {isAdmin && <TableHead className="w-10" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -688,6 +723,18 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
                       <TableCell className="text-right whitespace-nowrap currency">
                         {inc.estimated_repair_cost_ngn != null ? formatNaira(inc.estimated_repair_cost_ngn) : '--'}
                       </TableCell>
+                      {isAdmin && (
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(inc.id); }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}
@@ -965,6 +1012,28 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!confirmDeleteId} onOpenChange={(open) => !open && setConfirmDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete incident report?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the incident report from the list. This action can be undone by an administrator.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteIncident}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <IncidentDetailDialog
         incident={selectedIncident}

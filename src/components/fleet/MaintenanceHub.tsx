@@ -24,6 +24,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -41,6 +51,7 @@ import {
   Calendar,
   DollarSign,
   Filter,
+  Trash2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira, formatDate } from '@/lib/format';
@@ -185,6 +196,9 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
 
   const [view, setView] = useState<'table' | 'calendar'>('table');
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const vehicleMap = useMemo(() => {
     const map = new Map<string, (typeof vehicles)[number]>();
     for (const v of vehicles) map.set(v.id, v);
@@ -198,6 +212,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
       const { data, error: fetchErr } = await supabase
         .from('vehicle_maintenance')
         .select('id, vehicle_id, service_type, due_date, due_mileage_km, recurrence, status, last_done_date, last_done_mileage_km, cost_ngn, vendor')
+        .is('deleted_at', null)
         .order('due_date', { ascending: true, nullsFirst: false });
 
       if (fetchErr) throw fetchErr;
@@ -408,6 +423,27 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
       toast({ title: 'Error', description: msg, variant: 'destructive' });
     } finally {
       setMarkingDone(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDeleteId) return;
+    setDeleting(true);
+    try {
+      const { error: delErr } = await supabase
+        .from('vehicle_maintenance')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', confirmDeleteId);
+      if (delErr) throw delErr;
+      toast({ title: 'Work order deleted' });
+      setConfirmDeleteId(null);
+      await fetchMaintenance();
+      onRefresh?.();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete';
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -663,15 +699,25 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
                           {item.last_done_date ? formatDate(item.last_done_date) : '---'}
                         </TableCell>
                         <TableCell className="text-right">
-                          {item.effectiveStatus !== 'done' && (
+                          <div className="flex items-center justify-end gap-1">
+                            {item.effectiveStatus !== 'done' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openMarkDone(item)}
+                              >
+                                Mark Done
+                              </Button>
+                            )}
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
-                              onClick={() => openMarkDone(item)}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => setConfirmDeleteId(item.id)}
                             >
-                              Mark Done
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                          )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -916,6 +962,28 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!confirmDeleteId} onOpenChange={(open) => !open && setConfirmDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete work order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the maintenance work order. This action can be undone by an administrator.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={showMarkDoneDialog} onOpenChange={setShowMarkDoneDialog}>
         <DialogContent className="max-w-sm">

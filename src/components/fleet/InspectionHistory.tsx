@@ -28,6 +28,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -50,6 +60,7 @@ import {
   Eye,
   Plus,
   Wrench,
+  Trash2,
 } from 'lucide-react';
 import { VehicleInspectionForm } from '@/components/fleet/VehicleInspectionForm';
 
@@ -128,6 +139,9 @@ export function InspectionHistory({ vehicles }: Props) {
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('history');
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingInspection, setDeletingInspection] = useState(false);
+
   const [inspectVehicleId, setInspectVehicleId] = useState('');
   const [showInspectForm, setShowInspectForm] = useState(false);
   const [showVehiclePicker, setShowVehiclePicker] = useState(false);
@@ -151,6 +165,7 @@ export function InspectionHistory({ vehicles }: Props) {
           .select(
             'id, vehicle_id, inspector_id, inspection_type, checklist, has_defects, defect_notes, photo_urls, odometer_km, overall_status, reviewed_by, reviewed_at, review_note, created_at, inspector:profiles!inspector_id(full_name), reviewer:profiles!reviewed_by(full_name)',
           )
+          .is('deleted_at', null)
           .order('created_at', { ascending: false });
         if (richErr) throw richErr;
         data = (rich ?? []).map((r: any) => ({
@@ -164,6 +179,7 @@ export function InspectionHistory({ vehicles }: Props) {
         const { data: plain, error: plainErr } = await supabase
           .from('vehicle_inspections')
           .select('id, vehicle_id, inspector_id, inspection_type, checklist, has_defects, defect_notes, photo_urls, odometer_km, overall_status, reviewed_by, reviewed_at, review_note, created_at')
+          .is('deleted_at', null)
           .order('created_at', { ascending: false });
         if (plainErr) throw plainErr;
         data = (plain ?? []).map((r: any) => ({
@@ -235,6 +251,25 @@ export function InspectionHistory({ vehicles }: Props) {
     }
     return map;
   }, [inspections]);
+
+  const handleDeleteInspection = async () => {
+    if (!confirmDeleteId) return;
+    setDeletingInspection(true);
+    try {
+      const { error: err } = await supabase
+        .from('vehicle_inspections')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', confirmDeleteId);
+      if (err) throw err;
+      toast({ title: 'Inspection deleted' });
+      setConfirmDeleteId(null);
+      fetchInspections();
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
+    } finally {
+      setDeletingInspection(false);
+    }
+  };
 
   const openDetail = (inspection: Inspection) => {
     setSelectedInspection(inspection);
@@ -379,6 +414,8 @@ export function InspectionHistory({ vehicles }: Props) {
           filterDateTo={filterDateTo}
           setFilterDateTo={setFilterDateTo}
           onOpenDetail={openDetail}
+          isAdmin={isAdmin}
+          onDelete={setConfirmDeleteId}
         />
       )}
 
@@ -490,6 +527,28 @@ export function InspectionHistory({ vehicles }: Props) {
         </DialogContent>
       </Dialog>
 
+      <AlertDialog open={!!confirmDeleteId} onOpenChange={(open) => !open && setConfirmDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete inspection?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the inspection record. This action can be undone by an administrator.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingInspection}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteInspection}
+              disabled={deletingInspection}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingInspection ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Vehicle picker for starting a new inspection */}
       <Dialog open={showVehiclePicker} onOpenChange={setShowVehiclePicker}>
         <DialogContent className="max-w-sm">
@@ -576,6 +635,8 @@ function HistoryTab({
   filterDateTo: string;
   setFilterDateTo: (v: string) => void;
   onOpenDetail: (i: Inspection) => void;
+  isAdmin: boolean;
+  onDelete: (id: string) => void;
 }) {
   return (
     <Card>
@@ -660,6 +721,7 @@ function HistoryTab({
                   <TableHead>Status</TableHead>
                   <TableHead className="hidden sm:table-cell">Defects</TableHead>
                   <TableHead className="hidden sm:table-cell">Reviewed</TableHead>
+                  {isAdmin && <TableHead className="w-10" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -707,6 +769,18 @@ function HistoryTab({
                           <span className="text-muted-foreground text-xs">Pending</span>
                         )}
                       </TableCell>
+                      {isAdmin && (
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={(e) => { e.stopPropagation(); onDelete(i.id); }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}

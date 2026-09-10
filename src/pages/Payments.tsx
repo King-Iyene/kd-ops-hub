@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Plus, Search, RefreshCw, ArrowRight, Users, ChevronDown,
+  Plus, Search, RefreshCw, ArrowRight, Users, ChevronDown, Trash2, Loader2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -152,6 +152,9 @@ const Payments = () => {
 
   const [reconciling, setReconciling] = useState(false);
   const [confirmReconcile, setConfirmReconcile] = useState(false);
+
+  const [confirmDeleteBatchId, setConfirmDeleteBatchId] = useState<string | null>(null);
+  const [deletingBatch, setDeletingBatch] = useState(false);
 
   const fetchBalance = useCallback(async (isRetry = false) => {
     setBalanceLoading(true);
@@ -341,6 +344,26 @@ const Payments = () => {
     }
   };
 
+
+  const handleDeleteBatch = async () => {
+    if (!confirmDeleteBatchId) return;
+    setDeletingBatch(true);
+    try {
+      const { error } = await supabase
+        .from('payment_batches')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', confirmDeleteBatchId);
+      if (error) throw error;
+      toast({ title: 'Batch deleted' });
+      setConfirmDeleteBatchId(null);
+      fetchBatches();
+      fetchStats();
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
+    } finally {
+      setDeletingBatch(false);
+    }
+  };
 
   useEffect(() => { fetchBalance(); }, [fetchBalance]);
   useEffect(() => { fetchBatches(); fetchStats(); }, [statusFilter, page, effectiveRole]);
@@ -577,7 +600,18 @@ const Payments = () => {
                       <span>{batch.beneficiary_count} · {formatDate(batch.payment_date)}</span>
                     </div>
 
-                    <ArrowRight className="hidden md:block shrink-0 h-3 w-3 text-muted-foreground/30 group-hover:text-foreground kd-transition" />
+                    <div className="hidden md:flex items-center gap-1">
+                      {(isDraft || isPending) && (
+                        <button
+                          type="button"
+                          className="text-muted-foreground/30 hover:text-destructive transition-colors p-0.5"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmDeleteBatchId(batch.id); }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
+                      <ArrowRight className="shrink-0 h-3 w-3 text-muted-foreground/30 group-hover:text-foreground kd-transition" />
+                    </div>
                   </Link>
                 );
               })}
@@ -597,6 +631,28 @@ const Payments = () => {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!confirmDeleteBatchId} onOpenChange={(open) => !open && setConfirmDeleteBatchId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete payment batch?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the batch from the list. This action can be undone by an administrator.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingBatch}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteBatch}
+              disabled={deletingBatch}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingBatch ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={confirmReconcile} onOpenChange={setConfirmReconcile}>
         <AlertDialogContent>
