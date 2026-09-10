@@ -167,7 +167,6 @@ export default function WebhooksManager() {
       const payload: any = {
         base_id: PLATFORM_BASE_ID,
         table_id: PLATFORM_BASE_ID,
-        workspace_id: PLATFORM_BASE_ID,
         name: input.name,
         url: input.url,
         events: input.events,
