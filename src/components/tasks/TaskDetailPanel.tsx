@@ -187,6 +187,9 @@ export function TaskDetailPanel({
         created_by: profile.id, status: 'open', priority: 'normal',
         sort_order: subtasks.length, project_id: task.project_id,
         list_id: task.list_id, task_type: 'task',
+        // Every task must be tied to a Goal — a subtask inherits its
+        // parent's rather than prompting again for the same thing.
+        goal_id: task.goal_id,
       });
       if (error) throw error;
       setNewSubtask('');

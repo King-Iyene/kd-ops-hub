@@ -473,6 +473,10 @@ const Tasks = () => {
       toast({ title: 'Title is required', variant: 'destructive' });
       return;
     }
+    if (!form.goal_id) {
+      toast({ title: 'A Goal is required', description: 'Every task must be tied to a Goal.', variant: 'destructive' });
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -546,21 +550,13 @@ const Tasks = () => {
     }
   };
 
-  const handleQuickCreate = async (title: string, status: TaskStatus) => {
-    const maxSort = tasks.filter((t) => t.status === status).length;
-    const listId = await resolveListId();
-    const { error } = await supabase.from('tasks').insert({
-      title, status, priority: 'normal',
-      created_by: profile?.id || null, sort_order: maxSort,
-      ...(listId ? { list_id: listId } : {}),
-    });
-    if (error) {
-      toast({ title: 'Create failed', description: error.message, variant: 'destructive' });
-      return;
-    }
-    await logAudit('task_created', `Task "${title}" created`, profile);
-    toast({ title: 'Task created' });
-    load();
+  // Quick-create (the Kanban board's inline "type a title, hit Enter" add
+  // row) can't collect a Goal, and every task must be tied to one — so it
+  // just opens the full dialog pre-filled instead of inserting directly.
+  const handleQuickCreate = (title: string, status: TaskStatus) => {
+    reset();
+    setForm((f) => ({ ...f, title, status }));
+    setDialog(true);
   };
 
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
@@ -1414,20 +1410,24 @@ const Tasks = () => {
                 </Select>
               </div>
             </div>
-            {goals.length > 0 && (
-              <div className="space-y-1">
-                <Label className="flex items-center gap-1.5"><Target className="h-3.5 w-3.5" /> Goal</Label>
-                <Select value={form.goal_id || 'none'} onValueChange={(v) => setForm({ ...form, goal_id: v === 'none' ? '' : v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No goal</SelectItem>
-                    {goals.map((g) => (
+            <div className="space-y-1">
+              <Label className="flex items-center gap-1.5">
+                <Target className="h-3.5 w-3.5" /> Goal <span className="text-destructive">*</span>
+              </Label>
+              <Select value={form.goal_id || undefined} onValueChange={(v) => setForm({ ...form, goal_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Select a goal..." /></SelectTrigger>
+                <SelectContent>
+                  {goals.length === 0 ? (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">No goals available yet — create one first.</div>
+                  ) : (
+                    goals.map((g) => (
                       <SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">Every task must be tied to a Goal.</p>
+            </div>
             {availableTags.length > 0 && (
               <div className="space-y-1">
                 <Label>Tags</Label>
