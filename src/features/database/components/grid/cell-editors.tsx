@@ -320,7 +320,7 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
         }}
       />
       {invalid && (
-        <div className="absolute left-0 top-full z-50 bg-transparent border border-red-300 rounded px-2 py-1 shadow text-2xs text-red-600 whitespace-nowrap mt-0.5">
+        <div className="absolute left-0 top-full z-50 bg-transparent border border-destructive/30 rounded px-2 py-1 shadow text-2xs text-red-600 whitespace-nowrap mt-0.5">
           Enter a valid email address
         </div>
       )}
@@ -375,7 +375,7 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         }}
       />
       {invalid && (
-        <div className="absolute left-0 top-full z-50 bg-transparent border border-red-300 rounded px-2 py-1 shadow text-2xs text-red-600 whitespace-nowrap mt-0.5">
+        <div className="absolute left-0 top-full z-50 bg-transparent border border-destructive/30 rounded px-2 py-1 shadow text-2xs text-red-600 whitespace-nowrap mt-0.5">
           Enter a valid URL
         </div>
       )}

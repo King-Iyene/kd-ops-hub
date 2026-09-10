@@ -2370,7 +2370,7 @@ const EmployeeProfile = () => {
                 const meta = entry.metadata || {};
                 const kind = meta.kind || (entry.action_type.replace('profile_bank_account_', ''));
                 const kindColor = kind === 'cleared' ? 'bg-amber-50 text-amber-700 border-amber-200'
-                  : kind === 'set' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : kind === 'set' ? 'bg-success/5 text-emerald-700 border-success/20'
                   : 'bg-blue-50 text-blue-700 border-blue-200';
                 return (
                   <div key={entry.id} className="rounded-md border p-3 text-sm">

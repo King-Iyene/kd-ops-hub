@@ -694,7 +694,7 @@ function DataRetentionPanel() {
           <CardTitle className="text-base flex items-center gap-2">
             <ImageIcon className="h-4 w-4 text-primary" />
             Image compression on upload
-            <span className="text-3xs font-medium uppercase tracking-wider bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">
+            <span className="text-3xs font-medium uppercase tracking-wider bg-success/10 text-emerald-700 px-1.5 py-0.5 rounded">
               Active
             </span>
           </CardTitle>
@@ -742,7 +742,7 @@ function DataRetentionPanel() {
 
       {/* ── Pause-all banner (only shown if any policy is enabled) ─── */}
       {anyEnabled && (
-        <Card className={anyPaused ? 'border-red-300 bg-red-50/50' : 'border-emerald-200'}>
+        <Card className={anyPaused ? 'border-destructive/30 bg-destructive/5' : 'border-success/20'}>
           <CardContent className="pt-4 pb-4 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 text-sm">
               <ShieldCheck className={anyPaused ? 'h-4 w-4 text-red-600' : 'h-4 w-4 text-emerald-600'} />
@@ -792,12 +792,12 @@ function DataRetentionPanel() {
       )}
 
       {/* ── Documents — LOCKED ─────────────────────────────────────── */}
-      <Card className="border-emerald-200">
+      <Card className="border-success/20">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-emerald-600" />
             Employee &amp; HR documents
-            <span className="text-3xs font-medium uppercase tracking-wider bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">
+            <span className="text-3xs font-medium uppercase tracking-wider bg-success/10 text-emerald-700 px-1.5 py-0.5 rounded">
               Protected
             </span>
           </CardTitle>
@@ -1111,13 +1111,13 @@ function RetentionPolicyCard({
 
   let badge: { label: string; cls: string };
   if (policy.all_paused && enabled) {
-    badge = { label: 'Paused', cls: 'bg-red-100 text-red-700' };
+    badge = { label: 'Paused', cls: 'bg-destructive/10 text-red-700' };
   } else if (!enabled) {
     badge = { label: 'Off', cls: 'bg-muted text-muted-foreground' };
   } else if (inDelay) {
     badge = { label: '7-day delay', cls: 'bg-amber-100 text-amber-700' };
   } else {
-    badge = { label: 'Active', cls: 'bg-emerald-100 text-emerald-700' };
+    badge = { label: 'Active', cls: 'bg-success/10 text-emerald-700' };
   }
 
   return (
@@ -1309,7 +1309,7 @@ function ConfigureRetentionDialog({
 
         {step === 1 && (
           <div className="space-y-3 text-sm">
-            <div className="rounded-lg border-l-4 border-red-500 bg-red-50 px-3 py-2.5 text-xs">
+            <div className="rounded-lg border-l-4 border-red-500 bg-destructive/5 px-3 py-2.5 text-xs">
               <p className="font-bold text-red-900 mb-1">This will permanently move (and optionally delete) data.</p>
               <ul className="list-disc pl-5 space-y-0.5 text-red-900">
                 {meta.dangers.map((d, i) => <li key={i}>{d}</li>)}
@@ -1379,7 +1379,7 @@ function ConfigureRetentionDialog({
               </p>
             </div>
             {mode === 'archive_delete' && (
-              <div className="rounded-lg border-l-4 border-red-500 bg-red-50 px-3 py-2 text-xs text-red-900">
+              <div className="rounded-lg border-l-4 border-red-500 bg-destructive/5 px-3 py-2 text-xs text-red-900">
                 <span className="font-semibold">⚠ Archive + delete</span> permanently removes rows from the source table after the archive succeeds. The archive is your only recovery path.
               </div>
             )}

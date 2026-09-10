@@ -5,6 +5,7 @@ import { errorMessage } from '@/lib/db-errors';
 import { logAudit } from '@/lib/audit';
 import { cn } from '@/lib/utils';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -72,6 +73,8 @@ export function ContractorFormDialog({
   const [bank, setBank] = useState<BankAccountValue>(EMPTY_BANK);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  type Field = 'first_name' | 'last_name' | 'bank';
+  const { errors, setError, clearError, clearAll, hasErrors } = useFieldErrors<Field>();
 
   // Seed (or reset) internal form state whenever the dialog opens — for
   // "edit", from the contractor being edited; for "add" (editing === null),
@@ -79,7 +82,8 @@ export function ContractorFormDialog({
   // + tags — the other fields (email, phone, LinkedIn, onboarded date) are
   // add-only, matching handleSave's `...(!editing ? {...} : {})` payload.
   useEffect(() => {
-    if (!open) return;
+    if (!open) { clearAll(); return; }
+    clearAll();
     if (editing) {
       setForm({
         ...EMPTY_FORM,
@@ -102,14 +106,12 @@ export function ContractorFormDialog({
   }, [open, editing]);
 
   const handleSave = async () => {
-    if (!bank.verified) {
-      toast({
-        title: 'Verify the account first',
-        description: 'The bank account must be verified via Paystack before saving.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    clearAll();
+    let valid = true;
+    if (!form.first_name.trim()) { setError('first_name', 'First name is required'); valid = false; }
+    if (!form.last_name.trim()) { setError('last_name', 'Last name is required'); valid = false; }
+    if (!bank.verified) { setError('bank', 'Bank account must be verified before saving'); valid = false; }
+    if (!valid) return;
 
     setSubmitting(true);
     const computedFullName = `${form.first_name.trim()} ${form.last_name.trim()}`.trim() || bank.account_name;
@@ -166,17 +168,21 @@ export function ContractorFormDialog({
               <Label>First name *</Label>
               <Input
                 value={form.first_name}
-                onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                aria-invalid={!!errors.first_name}
+                onChange={(e) => { setForm({ ...form, first_name: e.target.value }); clearError('first_name'); }}
                 placeholder="Ada"
               />
+              <FieldError message={errors.first_name} />
             </div>
             <div className="space-y-1">
               <Label>Last name *</Label>
               <Input
                 value={form.last_name}
-                onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                aria-invalid={!!errors.last_name}
+                onChange={(e) => { setForm({ ...form, last_name: e.target.value }); clearError('last_name'); }}
                 placeholder="Okonkwo"
               />
+              <FieldError message={errors.last_name} />
             </div>
           </div>
           {!editing && (
@@ -211,7 +217,8 @@ export function ContractorFormDialog({
               </p>
             )}
 
-          <BankAccountField value={bank} onChange={setBank} provider={activeProvider} />
+          <BankAccountField value={bank} onChange={(v) => { setBank(v); clearError('bank'); }} provider={activeProvider} />
+          <FieldError message={errors.bank} />
 
           {!editing && (
             <div className="space-y-3">
@@ -317,7 +324,7 @@ export function ContractorFormDialog({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={submitting || !form.first_name.trim() || !bank.verified}
+            disabled={submitting}
           >
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {editing ? 'Update' : 'Add'}
