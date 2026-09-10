@@ -5023,6 +5023,7 @@ export type Database = {
           actual_repair_cost_ngn: number | null
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           description: string | null
           driver_id: string | null
           estimated_repair_cost_ngn: number | null
@@ -5055,6 +5056,7 @@ export type Database = {
           actual_repair_cost_ngn?: number | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           driver_id?: string | null
           estimated_repair_cost_ngn?: number | null
@@ -5087,6 +5089,7 @@ export type Database = {
           actual_repair_cost_ngn?: number | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           driver_id?: string | null
           estimated_repair_cost_ngn?: number | null
@@ -8361,6 +8364,7 @@ export type Database = {
           pension_ngn: number
           period: string
           period_type: string | null
+          run_options: Json | null
           run_type: string
           scheduled_disburse_at: string | null
           status: string
@@ -8392,6 +8396,7 @@ export type Database = {
           pension_ngn?: number
           period: string
           period_type?: string | null
+          run_options?: Json | null
           run_type?: string
           scheduled_disburse_at?: string | null
           status?: string
@@ -8423,6 +8428,7 @@ export type Database = {
           pension_ngn?: number
           period?: string
           period_type?: string | null
+          run_options?: Json | null
           run_type?: string
           scheduled_disburse_at?: string | null
           status?: string
@@ -13474,6 +13480,7 @@ export type Database = {
           parent_id: string | null
           priority: string
           project_id: string | null
+          recurrence_last_spawned_due: string | null
           recurrence_next: string | null
           recurrence_rule: Json | null
           recurrence_spawned: boolean
@@ -13503,6 +13510,7 @@ export type Database = {
           parent_id?: string | null
           priority?: string
           project_id?: string | null
+          recurrence_last_spawned_due?: string | null
           recurrence_next?: string | null
           recurrence_rule?: Json | null
           recurrence_spawned?: boolean
@@ -13532,6 +13540,7 @@ export type Database = {
           parent_id?: string | null
           priority?: string
           project_id?: string | null
+          recurrence_last_spawned_due?: string | null
           recurrence_next?: string | null
           recurrence_rule?: Json | null
           recurrence_spawned?: boolean
@@ -14689,6 +14698,7 @@ export type Database = {
           checklist: Json
           created_at: string
           defect_notes: string | null
+          deleted_at: string | null
           has_defects: boolean
           id: string
           inspection_type: string
@@ -14707,6 +14717,7 @@ export type Database = {
           checklist?: Json
           created_at?: string
           defect_notes?: string | null
+          deleted_at?: string | null
           has_defects?: boolean
           id?: string
           inspection_type?: string
@@ -14725,6 +14736,7 @@ export type Database = {
           checklist?: Json
           created_at?: string
           defect_notes?: string | null
+          deleted_at?: string | null
           has_defects?: boolean
           id?: string
           inspection_type?: string
@@ -14818,6 +14830,7 @@ export type Database = {
           cost_ngn: number | null
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           due_date: string | null
           due_mileage_km: number | null
           expense_id: string | null
@@ -14842,6 +14855,7 @@ export type Database = {
           cost_ngn?: number | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           due_date?: string | null
           due_mileage_km?: number | null
           expense_id?: string | null
@@ -14866,6 +14880,7 @@ export type Database = {
           cost_ngn?: number | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           due_date?: string | null
           due_mileage_km?: number | null
           expense_id?: string | null
@@ -15978,6 +15993,7 @@ export type Database = {
           pension_ngn: number
           period: string
           period_type: string | null
+          run_options: Json | null
           run_type: string
           scheduled_disburse_at: string | null
           status: string
@@ -16057,6 +16073,7 @@ export type Database = {
           pension_ngn: number
           period: string
           period_type: string | null
+          run_options: Json | null
           run_type: string
           scheduled_disburse_at: string | null
           status: string
@@ -16401,6 +16418,16 @@ export type Database = {
         Returns: string
       }
       decrypt_nin: { Args: { ciphertext: string }; Returns: string }
+      deduct_leave_balance: {
+        Args: {
+          p_accrued_cap?: number
+          p_days: number
+          p_employee_id: string
+          p_leave_type: string
+          p_year: number
+        }
+        Returns: boolean
+      }
       delete_transfer_limit: {
         Args: { p_id: string; p_ip_hash?: string; p_user_agent?: string }
         Returns: undefined
@@ -16497,6 +16524,7 @@ export type Database = {
           pension_ngn: number
           period: string
           period_type: string | null
+          run_options: Json | null
           run_type: string
           scheduled_disburse_at: string | null
           status: string
@@ -16635,6 +16663,7 @@ export type Database = {
           pension_ngn: number
           period: string
           period_type: string | null
+          run_options: Json | null
           run_type: string
           scheduled_disburse_at: string | null
           status: string
@@ -16946,6 +16975,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      record_loan_repayment: {
+        Args: { p_amount: number; p_loan_id: string }
+        Returns: number
+      }
       register_trusted_device: {
         Args: {
           p_days?: number
@@ -17213,6 +17246,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      restore_leave_balance: {
+        Args: {
+          p_days: number
+          p_employee_id: string
+          p_leave_type: string
+          p_year: number
+        }
+        Returns: undefined
+      }
       review_anomaly: {
         Args: { p_id: string; p_note?: string; p_status: string }
         Returns: {
@@ -17282,6 +17324,7 @@ export type Database = {
           pension_ngn: number
           period: string
           period_type: string | null
+          run_options: Json | null
           run_type: string
           scheduled_disburse_at: string | null
           status: string
@@ -17568,6 +17611,27 @@ export type Database = {
       tick_payroll_disburse: { Args: never; Returns: undefined }
       tick_payroll_scheduler: { Args: never; Returns: undefined }
       unresolve_batch_item: { Args: { p_item_id: string }; Returns: undefined }
+      upsert_payroll_draft: {
+        Args: {
+          p_allowances_json?: Json
+          p_bonuses_json?: Json
+          p_created_by: string
+          p_employee_count?: number
+          p_employer_pension_ngn: number
+          p_nhf_ngn: number
+          p_paye_ngn: number
+          p_pension_ngn: number
+          p_period: string
+          p_period_type?: string
+          p_run_options?: Json
+          p_segment_id: string
+          p_total_burn_ngn: number
+          p_total_contractor_ngn: number
+          p_total_employee_ngn: number
+          p_total_expenses_ngn: number
+        }
+        Returns: string
+      }
       verify_audit_chain: {
         Args: never
         Returns: {
