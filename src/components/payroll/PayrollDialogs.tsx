@@ -136,6 +136,7 @@ export interface PayrollDialogsProps {
   computedPreview: {
     empCount: number; totalEmployee: number; bonusTotal: number; totalAllowances: number;
     paye: number; pension: number; employerPension: number; nhf: number; nsitfCharge: number;
+    nhisEmployee: number; nhisEmployer: number;
     totalDeductions: number; totalAdvanceRepayments: number; totalContractor: number;
     totalExpenses: number; burn: number;
   } | null;
@@ -638,6 +639,8 @@ export const PayrollDialogs = ({
                       { label: 'Pension — employer', value: computedPreview.employerPension, muted: true },
                       { label: 'NHF', value: computedPreview.nhf, muted: true },
                       { label: 'NSITF', value: computedPreview.nsitfCharge, muted: true },
+                      ...(computedPreview.nhisEmployee > 0 ? [{ label: 'NHIS — employee', value: computedPreview.nhisEmployee, muted: true }] : []),
+                      ...(computedPreview.nhisEmployer > 0 ? [{ label: 'NHIS — employer', value: computedPreview.nhisEmployer, muted: true }] : []),
                       ...(computedPreview.totalDeductions > 0 ? [{ label: 'Deductions (offsets burn)', value: -computedPreview.totalDeductions, muted: true }] : []),
                       ...(computedPreview.totalAdvanceRepayments > 0 ? [{ label: 'Advance repayments (offsets burn)', value: -computedPreview.totalAdvanceRepayments, muted: true }] : []),
                     ].map((line) => (

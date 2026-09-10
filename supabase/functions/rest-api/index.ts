@@ -112,9 +112,19 @@ function checkRateLimit(keyHash: string): number | null {
 
 function hasScope(scopes: string[], needed: string): boolean {
   if (scopes.includes(needed)) return true;
-  // Map simplified scopes from UI (read/write/delete) to API scopes
-  if (needed === 'records:read' || needed === 'schema:read') return scopes.includes('read');
-  if (needed === 'records:write') return scopes.includes('write') || scopes.includes('delete');
+  // Wildcard scopes from the UI: *:read, *:write, *:delete
+  const neededAction = needed.split(':')[1]; // 'read' | 'write'
+  if (neededAction && scopes.includes(`*:${neededAction}`)) return true;
+  if (neededAction === 'read' && scopes.includes('*:write')) return true;
+  // Map simplified legacy scopes (read/write/delete)
+  if (needed === 'records:read' || needed === 'schema:read') {
+    return scopes.includes('read') || scopes.includes('data:read') || scopes.includes('*:read');
+  }
+  if (needed === 'records:write') {
+    return scopes.includes('write') || scopes.includes('delete')
+      || scopes.includes('data:write') || scopes.includes('data:delete')
+      || scopes.includes('*:write') || scopes.includes('*:delete');
+  }
   return false;
 }
 
@@ -373,12 +383,16 @@ async function autoCreateFields(
 async function handleListBases(pool: Pool, auth: ApiKeyInfo) {
   const conn = await pool.connect();
   try {
-    const { rows } = await conn.queryObject(
-      `SELECT b.id, b.name, b.slug, b.icon, b.color,
-              (SELECT count(*) FROM nc_meta.tables t WHERE t.base_id = b.id)::int AS table_count
-       FROM nc_meta.bases b WHERE b.workspace_id = $1 ORDER BY b.position`,
-      [auth.workspace_id],
-    );
+    // Platform keys (nil-UUID workspace) can list all bases
+    const isPlatform = auth.workspace_id === PLATFORM_WORKSPACE_ID;
+    const query = isPlatform
+      ? `SELECT b.id, b.name, b.slug, b.icon, b.color,
+                (SELECT count(*) FROM nc_meta.tables t WHERE t.base_id = b.id)::int AS table_count
+         FROM nc_meta.bases b WHERE b.workspace_id != $1 ORDER BY b.position`
+      : `SELECT b.id, b.name, b.slug, b.icon, b.color,
+                (SELECT count(*) FROM nc_meta.tables t WHERE t.base_id = b.id)::int AS table_count
+         FROM nc_meta.bases b WHERE b.workspace_id = $1 ORDER BY b.position`;
+    const { rows } = await conn.queryObject(query, [auth.workspace_id]);
     return json({ bases: rows });
   } finally {
     conn.release();
@@ -890,12 +904,16 @@ async function dispatchWebhooks(
           ...(wh.headers ?? {}),
         };
         if (wh.secret) {
+          const key = await crypto.subtle.importKey(
+            'raw', new TextEncoder().encode(wh.secret),
+            { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+          );
           const sig = encodeHex(new Uint8Array(
-            await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body + wh.secret)),
+            await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body)),
           ));
-          hdrs['X-KDOps-Signature'] = sig;
+          hdrs['X-KDOps-Signature'] = `sha256=${sig}`;
         }
-        fetch(wh.url, { method: 'POST', headers: hdrs, body }).catch(() => {});
+        fetch(wh.url, { method: 'POST', headers: hdrs, body, signal: AbortSignal.timeout(10_000) }).catch(() => {});
       }
 
       conn.queryObject(

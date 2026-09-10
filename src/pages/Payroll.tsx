@@ -339,7 +339,7 @@ const Payroll = () => {
     const [runsRes, advRes] = await Promise.all([
       supabase
         .from('payroll_runs')
-        .select('id, period, period_type, employee_count, total_contractor_ngn, total_employee_ngn, total_expenses_ngn, paye_ngn, pension_ngn, nhf_ngn, total_burn_ngn, employer_pension_ngn, bonuses_json, allowances_json, status, created_at, created_by, approved_by, payroll_segment_id, scheduled_disburse_at, is_auto_generated')
+        .select('id, period, period_type, employee_count, total_contractor_ngn, total_employee_ngn, total_expenses_ngn, paye_ngn, pension_ngn, nhf_ngn, total_burn_ngn, employer_pension_ngn, bonuses_json, allowances_json, status, created_at, created_by, approved_by, payroll_segment_id, scheduled_disburse_at, is_auto_generated, run_options')
         .order('period', { ascending: false })
         .limit(200),
       (supabase as any).from('advance_requests')
@@ -431,6 +431,7 @@ const Payroll = () => {
   const [computedPreview, setComputedPreview] = useState<{
     empCount: number; totalEmployee: number; bonusTotal: number; totalAllowances: number;
     paye: number; pension: number; employerPension: number; nhf: number; nsitfCharge: number;
+    nhisEmployee: number; nhisEmployer: number;
     totalDeductions: number; totalAdvanceRepayments: number; totalContractor: number;
     totalExpenses: number; burn: number;
   } | null>(null);
@@ -649,10 +650,12 @@ const Payroll = () => {
             (s: number, r: any) => s + (r.nhis_enabled === true ? nhfBaseFor(r) * NHIS_EMPLOYER_RATE : 0), 0)
         : 0;
 
+      // Employee statutory deductions (PAYE, pension employee, NHF, NHIS employee)
+      // are already included in totalEmployee (gross). Only employer-borne costs
+      // (employer pension, NSITF, NHIS employer) add to total cash outflow.
       const burn =
         totalContractor + totalEmployee + totalExpenses +
-        paye + pension + nhf + employerPension + nsitfCharge +
-        nhisEmployee + nhisEmployer +
+        employerPension + nsitfCharge + nhisEmployer +
         bonusTotal + totalAllowances - totalDeductions - totalAdvanceRepayments;
 
       // Find-or-create, NOT .upsert() — the real unique constraints here are
@@ -734,6 +737,7 @@ const Payroll = () => {
       setComputedPreview({
         empCount, totalEmployee, bonusTotal, totalAllowances,
         paye, pension, employerPension, nhf, nsitfCharge,
+        nhisEmployee, nhisEmployer,
         totalDeductions, totalAdvanceRepayments, totalContractor, totalExpenses, burn,
       });
       setEditingDraftId((savedRow as PayrollRun)?.id || null);
@@ -1368,12 +1372,12 @@ const Payroll = () => {
           const pensionBaseM  = empBreak.pensionBaseMonthlyNgn;
           const nhfBaseM      = empBreak.nhfBaseMonthlyNgn;
           const empUnpaidLeaveDeduction = empBreak.unpaidLeaveDeductionMonthlyNgn;
-          const empPaye    = effPayeOn    ? empBreak.payeMonthlyNgn          : 0;
-          const empPension = effPensionOn ? pensionBaseM * PENSION_RATE      : 0;
-          const empNhf     = effNhfOn     ? nhfBaseM     * NHF_RATE          : 0;
+          const empPaye    = effPayeOn    ? empBreak.payeMonthlyNgn             : 0;
+          const empPension = effPensionOn ? empBreak.pensionEmployeeMonthlyNgn : 0;
+          const empNhf     = effNhfOn     ? empBreak.nhfMonthlyNgn             : 0;
           const empNhis    = empBreak.nhisEmployeeMonthlyNgn;
           // Employer-side amounts surfaced on the payslip (informational).
-          const empPensionEmployer = effPensionOn ? pensionBaseM * EMPLOYER_PENSION_RATE : 0;
+          const empPensionEmployer = effPensionOn ? empBreak.pensionEmployerMonthlyNgn : 0;
           const empNhisEmployer    = empBreak.nhisEmployerMonthlyNgn;
           const empNsitf           = nsitfEnabled ? empBreak.nsitfMonthlyNgn : 0;
           const empAvc             = empBreak.voluntaryPensionMonthlyNgn;

@@ -131,10 +131,14 @@ Deno.serve(async (req) => {
       };
 
       if (wh.secret) {
+        const key = await crypto.subtle.importKey(
+          'raw', new TextEncoder().encode(wh.secret),
+          { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+        );
         const sig = encodeHex(new Uint8Array(
-          await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload + wh.secret)),
+          await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload)),
         ));
-        hdrs['X-KDOps-Signature'] = sig;
+        hdrs['X-KDOps-Signature'] = `sha256=${sig}`;
       }
 
       const resp = await fetch(wh.url, {
