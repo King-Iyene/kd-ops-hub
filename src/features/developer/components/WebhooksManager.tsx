@@ -170,6 +170,9 @@ export default function WebhooksManager() {
         name: input.name,
         url: input.url,
         events: input.events,
+        event: input.events?.[0] || 'record.created',
+        method: 'POST',
+        enabled: input.is_active,
         secret: input.secret || null,
         headers: headersObj,
         is_active: input.is_active,
@@ -196,7 +199,7 @@ export default function WebhooksManager() {
 
   const toggleMutation = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      const { error } = await supabase.schema('nc_meta').from('webhooks').update({ is_active: active }).eq('id', id);
+      const { error } = await supabase.schema('nc_meta').from('webhooks').update({ is_active: active, enabled: active }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['platform-webhooks'] }),
