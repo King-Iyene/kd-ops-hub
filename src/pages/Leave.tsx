@@ -517,6 +517,29 @@ const Leave = () => {
       .upsert(updates, { onConflict: 'employee_id,year' });
   };
 
+  const restoreBalanceFor = async (req: LeaveRequest) => {
+    const year = new Date(req.start_date).getFullYear();
+    const { data: existing } = await supabase
+      .from('leave_balances')
+      .select('*')
+      .eq('employee_id', req.employee_id)
+      .eq('year', year)
+      .maybeSingle();
+    if (existing) {
+      const updates = { ...(existing as LeaveBalance) };
+      if (req.leave_type === 'annual') updates.annual_used = Math.max(0, updates.annual_used - req.days_requested);
+      if (req.leave_type === 'sick') updates.sick_used = Math.max(0, updates.sick_used - req.days_requested);
+      if (req.leave_type === 'unpaid') updates.unpaid_used = Math.max(0, updates.unpaid_used - req.days_requested);
+      if (req.leave_type === 'maternity') updates.maternity_used = Math.max(0, (updates.maternity_used || 0) - req.days_requested);
+      if (req.leave_type === 'paternity') updates.paternity_used = Math.max(0, (updates.paternity_used || 0) - req.days_requested);
+      if (req.leave_type === 'compassionate') updates.compassionate_used = Math.max(0, (updates.compassionate_used || 0) - req.days_requested);
+      if (req.leave_type === 'study') updates.study_used = Math.max(0, (updates.study_used || 0) - req.days_requested);
+      await supabase
+        .from('leave_balances')
+        .upsert(updates, { onConflict: 'employee_id,year' });
+    }
+  };
+
   /**
    * Reverse an approval: set the request back to pending and decrement the
    * employee's used-days counter. Used when a manager approved by mistake or
@@ -614,11 +637,18 @@ const Leave = () => {
     }
     setActioning(req.id);
     try {
-      const { error } = await supabase
+      const { data: claimed, error } = await supabase
         .from('leave_requests')
         .update({ status: 'approved', reviewed_by: profile?.id })
-        .eq('id', req.id);
+        .eq('id', req.id)
+        .eq('status', 'pending')
+        .select('id');
       if (error) throw error;
+      if (!claimed || claimed.length === 0) {
+        toast({ title: 'Already actioned', description: 'This request was already approved or rejected by someone else.', variant: 'destructive' });
+        fetchAll();
+        return;
+      }
       await updateBalanceFor(req);
       await logAudit(
         'leave_approved',
@@ -729,11 +759,13 @@ const Leave = () => {
   const cancel = async (req: LeaveRequest) => {
     setActioning(req.id);
     try {
+      const wasApproved = req.status === 'approved';
       const { error } = await supabase
         .from('leave_requests')
         .update({ status: 'cancelled' })
         .eq('id', req.id);
       if (error) throw error;
+      if (wasApproved) await restoreBalanceFor(req);
       await logAudit('leave_cancelled', `Leave request cancelled (${req.days_requested} days)`, profile);
       toast({ title: 'Request cancelled' });
       fetchAll();
@@ -746,6 +778,7 @@ const Leave = () => {
   };
 
   const deleteLeaveRequest = async (req: LeaveRequest) => {
+    const wasApproved = req.status === 'approved';
     const { error } = await supabase
       .from('leave_requests')
       .update({ deleted_at: new Date().toISOString() })
@@ -754,6 +787,7 @@ const Leave = () => {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
       return;
     }
+    if (wasApproved) await restoreBalanceFor(req);
     const empName = profiles.get(req.employee_id)?.full_name || req.employee_id;
     await logAudit('leave_deleted', `Leave request for ${empName} deleted (${req.days_requested} days)`, profile);
     toast({ title: 'Leave request deleted' });

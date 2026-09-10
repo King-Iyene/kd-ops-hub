@@ -546,13 +546,13 @@ Deno.serve(async (req) => {
             actor_id: user.id,
             actor_role: actorRole,
             action: "integrity_mismatch",
-            outcome: "denied",
+            outcome: "integrity_override",
             amount_ngn: clientAmount,
             recipient_code: params.recipient_code,
             reference: params.reference,
             ip_hash: ipHash,
             user_agent: userAgent,
-            reason: `Client sent amount=${clientAmount}/recipient=${params.recipient_code} but DB has amount=${dbAmountNgn}/recipient=${dbRecipientCode}`,
+            reason: `Client sent amount=${clientAmount}/recipient=${params.recipient_code} but DB has amount=${dbAmountNgn}/recipient=${dbRecipientCode} — using DB values`,
           });
         }
 
@@ -677,8 +677,8 @@ Deno.serve(async (req) => {
           .map((t: any) => {
             const dbRow = dbMap.get(t.reference);
             if (!dbRow) {
-              console.warn("[INTEGRITY] bulk ref not found in DB:", t.reference);
-              return t;
+              console.warn("[INTEGRITY] bulk ref not found in DB — REJECTED:", t.reference);
+              return null;
             }
             const dbAmountKobo = Math.round(Number(dbRow.amount_ngn) * 100);
             const dbRecipient = dbRow.paystack_recipient_code;
@@ -696,7 +696,7 @@ Deno.serve(async (req) => {
               amount: dbAmountKobo,
               recipient: dbRecipient || t.recipient,
             };
-          });
+          }).filter(Boolean);
 
         if (verifiedTransfers.length === 0) {
           result = { transfers: [], skipped_already_dispatched: alreadyDispatched.map((t: any) => t.reference) };

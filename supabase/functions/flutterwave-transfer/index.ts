@@ -508,12 +508,12 @@ Deno.serve(async (req) => {
             actor_id: user.id,
             actor_role: actorRole,
             action: "integrity_mismatch",
-            outcome: "denied",
+            outcome: "integrity_override",
             amount_ngn: fwClientAmount,
             reference: params.reference,
             ip_hash: ipHash,
             user_agent: userAgent,
-            reason: `FW mismatch: client amount=${fwClientAmount}/acct=${fwClientAccount} vs DB amount=${fwDbAmount}/acct=${fwDbAccount}`,
+            reason: `FW mismatch: client amount=${fwClientAmount}/acct=${fwClientAccount} vs DB amount=${fwDbAmount}/acct=${fwDbAccount} — using DB values`,
             provider: "flutterwave",
           });
         }

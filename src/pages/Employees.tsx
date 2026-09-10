@@ -225,10 +225,11 @@ const Employees = () => {
       query = query.eq('department_id', deptFilter);
     }
     if (q) {
+      const safeQ = q.replace(/[%_(),.\\]/g, '');
       const orParts = [
-        `full_name.ilike.%${q}%`,
-        `email.ilike.%${q}%`,
-        `phone.ilike.%${q}%`,
+        `full_name.ilike.%${safeQ}%`,
+        `email.ilike.%${safeQ}%`,
+        `phone.ilike.%${safeQ}%`,
       ];
       if (deptMatchIds.length > 0) {
         orParts.push(`department_id.in.(${deptMatchIds.join(',')})`);

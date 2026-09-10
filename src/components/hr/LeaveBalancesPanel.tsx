@@ -124,6 +124,7 @@ export const LeaveBalancesPanel = ({
           .from('leave_requests')
           .select('id, leave_type, start_date, end_date, days_requested, status, reason, created_at')
           .eq('employee_id', employeeId)
+          .is('deleted_at', null)
           .order('created_at', { ascending: false })
           .limit(10),
       ]);

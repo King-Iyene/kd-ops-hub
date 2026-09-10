@@ -1392,9 +1392,9 @@ const Payroll = () => {
                   ...(overtimeSum ? { overtime_ngn: overtimeSum } : {}),
                 }
               : {
-                  basic_ngn:     Math.round(empGross * 0.60),
                   housing_ngn:   Math.round(empGross * 0.20),
                   transport_ngn: Math.round(empGross * 0.20),
+                  basic_ngn:     empGross - Math.round(empGross * 0.20) - Math.round(empGross * 0.20),
                   ...(allowanceLines.length ? { other_allowances: allowanceLines } : {}),
                   ...(bonusSum    ? { bonus_ngn: bonusSum }       : {}),
                   ...(overtimeSum ? { overtime_ngn: overtimeSum } : {}),

@@ -816,14 +816,15 @@ const EmployeeProfile = () => {
     }
     setDocUploading(true);
     try {
-      const compressed = await compressImage(docFile);
-      const safeName = compressed.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const isImage = docFile.type.startsWith('image/');
+      const fileToUpload = isImage ? await compressImage(docFile) : docFile;
+      const safeName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `employee-documents/${id}/${Date.now()}-${safeName}`;
       const { error: upErr } = await supabase.storage
         .from('documents')
-        .upload(path, compressed, {
+        .upload(path, fileToUpload, {
           upsert: false,
-          contentType: compressed.type || 'application/octet-stream',
+          contentType: fileToUpload.type || 'application/octet-stream',
         });
       if (upErr) throw upErr;
       const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);

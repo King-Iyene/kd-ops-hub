@@ -341,6 +341,16 @@ export const EmployeeCsvImport = ({
         status: 'invited',
         updated_at: new Date().toISOString(),
       };
+      // Check if an active employee already exists with this email — never overwrite
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id, status')
+        .eq('email', payload.email)
+        .maybeSingle();
+      if (existingProfile && existingProfile.status !== 'invited') {
+        fail++;
+        continue;
+      }
       const { error } = await (supabase as any).rpc('seed_invited_profile', {
         p_email: payload.email,
         p_full_name: fullName,
@@ -348,12 +358,25 @@ export const EmployeeCsvImport = ({
         p_role: payload.role,
       });
       if (error) {
-        const { error: upsertErr } = await supabase
-          .from('profiles')
-          .upsert(payload, { onConflict: 'email' });
-        if (upsertErr) {
-          fail++;
-          continue;
+        if (existingProfile) {
+          // Only update invited profiles, never upsert over active ones
+          const { error: updateErr } = await supabase
+            .from('profiles')
+            .update(payload)
+            .eq('email', payload.email)
+            .eq('status', 'invited');
+          if (updateErr) {
+            fail++;
+            continue;
+          }
+        } else {
+          const { error: insertErr } = await supabase
+            .from('profiles')
+            .insert(payload);
+          if (insertErr) {
+            fail++;
+            continue;
+          }
         }
       } else {
         await supabase.from('profiles').update(payload).eq('email', payload.email);
