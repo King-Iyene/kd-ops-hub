@@ -19,6 +19,12 @@ export function AdminToolsSection() {
       <VideoEmbed src={guideVideoUrl('11-ComplianceCentre.mp4')} title="Compliance Centre" caption="Watch: Compliance overview, filing processes, and document uploads" />
       <VideoEmbed src={guideVideoUrl('13-DocsReportsAdmin.mp4')} title="Documents, Reports & Admin" caption="Watch: Document management, generating reports, and admin settings" />
       <VideoEmbed src={guideVideoUrl('21-ApprovalsInbox.mp4')} title="Approvals Inbox" caption="Watch: Reviewing pending approvals, approving or rejecting requests, and the approval chain" />
+      <VideoEmbed src={guideVideoUrl('50-AuditLog.mp4')} title="Audit Log" caption="Watch: Viewing the audit trail, filtering by action type, and exporting audit records" />
+      <VideoEmbed src={guideVideoUrl('57-PlatformSettings.mp4')} title="Platform Settings" caption="Watch: Configuring company settings, branding, and platform-wide preferences" />
+      <VideoEmbed src={guideVideoUrl('71-SecurityAudit.mp4')} title="Security Audit" caption="Watch: Running security audits, reviewing access patterns, and compliance checks" />
+      <VideoEmbed src={guideVideoUrl('69-BulkOperations.mp4')} title="Bulk Operations" caption="Watch: Performing bulk updates, imports, and batch actions across modules" />
+      <VideoEmbed src={guideVideoUrl('70-ReportsAnalytics.mp4')} title="Reports & Analytics" caption="Watch: Generating reports, viewing analytics dashboards, and exporting data" />
+      <VideoEmbed src={guideVideoUrl('100-BackupRecovery.mp4')} title="Backup & Recovery" caption="Watch: Understanding backup schedules, data recovery procedures, and disaster preparedness" />
 
       <ModuleCard title="Audit Log" route="/audit" roles={['super_admin', 'admin']}>
         <p className="text-sm text-muted-foreground leading-relaxed">

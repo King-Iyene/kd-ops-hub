@@ -17,6 +17,11 @@ export function GrowthWellbeingSection() {
       <VideoEmbed src={guideVideoUrl('33-PerformanceReviews.mp4')} title="Performance Reviews" caption="Watch: Setting up review cycles, rating competencies, and the acknowledgement process" />
       <VideoEmbed src={guideVideoUrl('34-SurveysModule.mp4')} title="Surveys" caption="Watch: Creating surveys, anonymous responses, and analysing results" />
       <VideoEmbed src={guideVideoUrl('35-BenefitsEnrollment.mp4')} title="Benefits Enrollment" caption="Watch: Enrolling employees in HMO, pension, and other benefits, and tracking status" />
+      <VideoEmbed src={guideVideoUrl('84-EmployeeRecognition.mp4')} title="Employee Recognition" caption="Watch: Recognising achievements, peer nominations, and the recognition wall" />
+      <VideoEmbed src={guideVideoUrl('91-EmployeeWellness.mp4')} title="Employee Wellness" caption="Watch: Wellness programmes, health check-ins, and wellbeing resources" />
+      <VideoEmbed src={guideVideoUrl('88-PensionModule.mp4')} title="Pension Module" caption="Watch: Pension contributions, employer matching, and pension statements" />
+      <VideoEmbed src={guideVideoUrl('89-InsuranceModule.mp4')} title="Insurance Module" caption="Watch: Managing group insurance, claims, and coverage details" />
+      <VideoEmbed src={guideVideoUrl('85-HealthSafety.mp4')} title="Health & Safety" caption="Watch: Incident reporting, safety audits, and compliance tracking" />
 
       <ModuleCard title="Goals" route="/goals" roles={['everyone']}>
         <p className="text-sm text-muted-foreground leading-relaxed">

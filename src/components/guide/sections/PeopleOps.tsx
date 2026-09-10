@@ -21,6 +21,11 @@ export function PeopleOpsSection() {
       <VideoEmbed src={guideVideoUrl('29-HRLettersModule.mp4')} title="HR Letters" caption="Watch: Generating letters from templates, collecting e-signatures, and storing signed documents" />
       <VideoEmbed src={guideVideoUrl('30-GrievanceManagement.mp4')} title="Grievance Management" caption="Watch: Filing grievances (including anonymously), tracking resolution, and HR follow-up" />
       <VideoEmbed src={guideVideoUrl('31-SuccessionPlanning.mp4')} title="Succession Planning" caption="Watch: Identifying critical roles, assigning succession candidates, and development plans" />
+      <VideoEmbed src={guideVideoUrl('44-TrainingModule.mp4')} title="Training Module" caption="Watch: Creating training programmes, assigning courses, and tracking completion" />
+      <VideoEmbed src={guideVideoUrl('48-EmployeeHandbook.mp4')} title="Employee Handbook" caption="Watch: Building and maintaining the company handbook, acknowledgement tracking" />
+      <VideoEmbed src={guideVideoUrl('66-OrgChart.mp4')} title="Org Chart" caption="Watch: Viewing the organisation structure, reporting lines, and team hierarchy" />
+      <VideoEmbed src={guideVideoUrl('77-EmployeeExitProcess.mp4')} title="Employee Exit Process" caption="Watch: Managing resignations, exit interviews, final settlements, and clearance checklists" />
+      <VideoEmbed src={guideVideoUrl('96-EmployeeDirectory.mp4')} title="Employee Directory" caption="Watch: Searching employees, viewing profiles, and quick-access contact information" />
 
       <ModuleCard title="Employees Directory" route="/employees" roles={['super_admin', 'admin']}>
         <p className="text-sm text-muted-foreground leading-relaxed">

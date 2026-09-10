@@ -2,7 +2,7 @@
 // the questions people actually raise (access, deletes, approvals), plus a
 // short technical pointer for developers touching this codebase.
 import { HelpCircle, Code } from 'lucide-react';
-import { SectionIntro, RefSection, RefTable } from '@/components/guide/shared';
+import { SectionIntro, RefSection, RefTable, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
 
 interface QA {
   q: string;
@@ -56,6 +56,9 @@ export function FaqSection() {
         title="FAQ & Troubleshooting"
         blurb="The questions that actually come up day to day, answered based on how KDOps really behaves — not generic help-desk boilerplate. If your issue isn't here, the last question below tells you who to ask."
       />
+
+      <VideoEmbed src={guideVideoUrl('98-MobileAppGuide.mp4')} title="Mobile App Guide" caption="Watch: Installing the PWA, navigating on mobile, and using KDOps on the go" />
+      <VideoEmbed src={guideVideoUrl('58-PlatformGuide.mp4')} title="Platform Guide" caption="Watch: A walkthrough of this guide — how to find what you need and where to look for help" />
 
       <div className="space-y-3">
         {FAQS.map(({ q, a }) => (

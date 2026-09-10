@@ -14,6 +14,12 @@ export function EverydayWorkSection() {
       />
 
       <VideoEmbed src={guideVideoUrl('06-TasksAccountability.mp4')} title="Tasks & Accountability" caption="Watch: Using the task board, creating tasks, and tracking team accountability" />
+      <VideoEmbed src={guideVideoUrl('45-AttendanceTracking.mp4')} title="Attendance Tracking" caption="Watch: Clocking in and out, viewing attendance records, and understanding the location pin" />
+      <VideoEmbed src={guideVideoUrl('51-KnowledgeBase.mp4')} title="Knowledge Base" caption="Watch: Browsing articles, searching the knowledge base, and contributing content" />
+      <VideoEmbed src={guideVideoUrl('52-CommunicationsHub.mp4')} title="Communications Hub" caption="Watch: Company announcements, internal communications, and message management" />
+      <VideoEmbed src={guideVideoUrl('54-MessagingModule.mp4')} title="Messaging" caption="Watch: Direct messages, group chats, and real-time team communication" />
+      <VideoEmbed src={guideVideoUrl('67-CompanyCalendar.mp4')} title="Company Calendar" caption="Watch: Viewing company events, holidays, and scheduling team activities" />
+      <VideoEmbed src={guideVideoUrl('68-NotificationsCenter.mp4')} title="Notifications" caption="Watch: Managing notifications, setting preferences, and staying on top of updates" />
 
       <ModuleCard title="Clocking In & Attendance" route="/attendance" roles={['super_admin', 'admin', 'finance', 'operations']}>
         <p className="text-sm text-muted-foreground leading-relaxed">

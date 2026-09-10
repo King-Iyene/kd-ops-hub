@@ -12,6 +12,11 @@ export function CrmOutreachSection() {
 
       <VideoEmbed src={guideVideoUrl('36-ClientsManagement.mp4')} title="Clients Management" caption="Watch: Adding clients, viewing client profiles, linking projects and invoices" />
       <VideoEmbed src={guideVideoUrl('37-InvoicingClients.mp4')} title="Invoicing Clients" caption="Watch: Creating invoices, applying VAT, tracking payments, and sending reminders" />
+      <VideoEmbed src={guideVideoUrl('53-ContactsDirectory.mp4')} title="Contacts Directory" caption="Watch: Managing external contacts, linking contacts to clients, and search" />
+      <VideoEmbed src={guideVideoUrl('61-ReferralsModule.mp4')} title="Referrals" caption="Watch: Tracking referrals, referral bonuses, and the referral pipeline" />
+      <VideoEmbed src={guideVideoUrl('62-PlacementsModule.mp4')} title="Placements" caption="Watch: Managing placements, linking to clients and employees, and tracking revenue" />
+      <VideoEmbed src={guideVideoUrl('63-PublicLinksModule.mp4')} title="Public Links" caption="Watch: Creating public-facing forms, job listings, and shared application links" />
+      <VideoEmbed src={guideVideoUrl('80-ProjectTracking.mp4')} title="Project Tracking" caption="Watch: Creating projects, tracking milestones, budgets, and team assignments" />
 
       <ModuleCard title="Clients" route="/clients" roles={['super_admin', 'admin', 'finance', 'operations']}>
         <p className="text-sm text-muted-foreground leading-relaxed">

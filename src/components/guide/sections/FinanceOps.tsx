@@ -25,6 +25,14 @@ export function FinanceOpsSection() {
       <VideoEmbed src={guideVideoUrl('24-PayHubOverview.mp4')} title="Pay Hub Overview" caption="Watch: Your unified command centre for payroll, EWA, staff loans, and compliance" />
       <VideoEmbed src={guideVideoUrl('25-StaffLoans.mp4')} title="Staff Loans" caption="Watch: Creating loans, tracking repayments, and how deductions tie into payroll" />
       <VideoEmbed src={guideVideoUrl('10-BudgetsSubscriptions.mp4')} title="Budgets & Subscriptions" caption="Watch: Setting up budgets, tracking spend vs. allocation, and managing recurring subscriptions" />
+      <VideoEmbed src={guideVideoUrl('39-FinanceDashboard.mp4')} title="Finance Dashboard" caption="Watch: The finance overview — revenue, expenses, cash flow summary, and key financial metrics" />
+      <VideoEmbed src={guideVideoUrl('40-CashflowManagement.mp4')} title="Cashflow Management" caption="Watch: Tracking cash inflows and outflows, forecasting, and managing liquidity" />
+      <VideoEmbed src={guideVideoUrl('59-PrincipalDisbursements.mp4')} title="Principal Disbursements" caption="Watch: Managing principal payments, disbursement schedules, and tracking distributions" />
+      <VideoEmbed src={guideVideoUrl('76-MultiCurrencyPayments.mp4')} title="Multi-Currency Payments" caption="Watch: Processing payments in multiple currencies, exchange rates, and settlement" />
+      <VideoEmbed src={guideVideoUrl('72-TaxCompliance.mp4')} title="Tax Compliance" caption="Watch: Tax calculations, filing deadlines, and compliance reporting" />
+      <VideoEmbed src={guideVideoUrl('95-BankReconciliation.mp4')} title="Bank Reconciliation" caption="Watch: Matching bank statements, reconciling transactions, and resolving discrepancies" />
+      <VideoEmbed src={guideVideoUrl('87-LoanManagement.mp4')} title="Loan Management" caption="Watch: Setting up loan products, processing applications, and tracking repayments" />
+      <VideoEmbed src={guideVideoUrl('90-GratuityModule.mp4')} title="Gratuity Module" caption="Watch: Calculating end-of-service gratuity, eligibility rules, and payment processing" />
 
       <ModuleCard title="Pay Hub" route="/pay-hub" roles={['super_admin', 'admin', 'finance']}>
         <p className="text-sm text-muted-foreground leading-relaxed">

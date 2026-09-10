@@ -1,5 +1,5 @@
 import { Clock } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
 
 export function ShiftsSchedulingSection() {
   return (
@@ -9,6 +9,10 @@ export function ShiftsSchedulingSection() {
         title="Shifts & Scheduling"
         blurb="Plan and manage employee shifts, view the payment schedule for upcoming disbursements, and use My Portal for a self-service view of your own work life."
       />
+
+      <VideoEmbed src={guideVideoUrl('46-ShiftManagement.mp4')} title="Shift Management" caption="Watch: Creating shifts, assigning employees, and managing the shift calendar" />
+      <VideoEmbed src={guideVideoUrl('45-AttendanceTracking.mp4')} title="Attendance Tracking" caption="Watch: Clocking in/out, tracking attendance against shifts, and flagging discrepancies" />
+      <VideoEmbed src={guideVideoUrl('47-TimesheetModule.mp4')} title="Timesheets" caption="Watch: Reviewing timesheets, approving hours, and exporting for payroll" />
 
       <ModuleCard title="Shifts" route="/shifts" roles={['super_admin', 'admin', 'finance', 'operations']}>
         <p className="text-sm text-muted-foreground leading-relaxed">

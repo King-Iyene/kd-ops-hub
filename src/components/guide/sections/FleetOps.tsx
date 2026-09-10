@@ -17,6 +17,9 @@ export function FleetOpsSection() {
       <VideoEmbed src={guideVideoUrl('12-FleetFuel.mp4')} title="Fleet & Fuel Management" caption="Watch: Fleet overview, fuel tracking, and vendor management" />
       <VideoEmbed src={guideVideoUrl('18-FuelRequests.mp4')} title="Fuel Requests" caption="Watch: Submitting fuel requests, tracking status, and the bank details reminder" />
       <VideoEmbed src={guideVideoUrl('19-TripLogging.mp4')} title="Trip Logging" caption="Watch: Logging trips, recording mileage, and linking trips to fuel usage" />
+      <VideoEmbed src={guideVideoUrl('92-VehicleTracking.mp4')} title="Vehicle Tracking" caption="Watch: Real-time vehicle tracking, maintenance schedules, and fleet analytics" />
+      <VideoEmbed src={guideVideoUrl('43-AssetManagement.mp4')} title="Asset Management" caption="Watch: Managing company assets, tracking assignments, and depreciation schedules" />
+      <VideoEmbed src={guideVideoUrl('42-VendorManagement.mp4')} title="Vendor Management" caption="Watch: Managing fuel vendors, service providers, and vendor contracts" />
 
       <ModuleCard title="Fleet Dashboard" route="/fleet" roles={['everyone']}>
         <p className="text-sm text-muted-foreground leading-relaxed">

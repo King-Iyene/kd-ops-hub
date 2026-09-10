@@ -19,6 +19,9 @@ export function GettingStartedSection() {
       <VideoEmbed src={guideVideoUrl('14-MyPortal.mp4')} title="My Portal" caption="Watch: Your personal dashboard — leave balances, payslips, tasks, and quick actions all in one place" />
       <VideoEmbed src={guideVideoUrl('15-ProfileSetup.mp4')} title="Profile Setup" caption="Watch: Setting up your profile, uploading a photo, updating bank details, and enabling 2FA" />
       <VideoEmbed src={guideVideoUrl('16-SidebarNavigation.mp4')} title="Sidebar Navigation" caption="Watch: Understanding the sidebar structure — hubs, groups, and how to find any module" />
+      <VideoEmbed src={guideVideoUrl('55-AIAssistant.mp4')} title="AI Assistant" caption="Watch: Using the AI assistant for quick answers, data lookups, and platform guidance" />
+      <VideoEmbed src={guideVideoUrl('60-MyDashboard.mp4')} title="My Dashboard" caption="Watch: Personalising your dashboard, pinning widgets, and setting up your daily view" />
+      <VideoEmbed src={guideVideoUrl('73-EmployeeSelfService.mp4')} title="Employee Self-Service" caption="Watch: Updating personal info, downloading payslips, and managing your own records" />
 
       <Screenshot
         src="/guide/guide-desktop.jpg"

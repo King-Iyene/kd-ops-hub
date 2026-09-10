@@ -6,7 +6,7 @@
 import { Users, Shield, ShieldCheck, ShieldAlert, KeyRound, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { SectionIntro, RoleBadges, Callout, RefTable, RefSection, type Role } from '@/components/guide/shared';
+import { SectionIntro, RoleBadges, Callout, RefTable, RefSection, VideoEmbed, guideVideoUrl, type Role } from '@/components/guide/shared';
 
 const ROLE_SUMMARY: { role: Role; blurb: string }[] = [
   { role: 'super_admin', blurb: 'Full access to every page in the platform, including the 8 pages no other role can see: Settings, Finance Dashboard, Principal Disbursements, Assistant Admin, Employees, Placements, Approval Workflows, and Audit Log. The only role that can simulate other roles ("View As") for testing.' },
@@ -88,6 +88,8 @@ export function RolesPermissionsSection() {
         title="Roles & Permissions"
         blurb="KDOps has 5 real roles, assigned per employee in Settings → Employees. Every route in the app is gated to one of these role sets — there is no page that silently shows different content per role; if you can't see something, your role's guard doesn't include it, full stop."
       />
+
+      <VideoEmbed src={guideVideoUrl('99-RolePermissions.mp4')} title="Roles & Permissions" caption="Watch: Understanding the 5 roles, what each can access, and how to assign roles to employees" />
 
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="pt-4 pb-4 flex items-start gap-3">

@@ -1,5 +1,5 @@
 import { Code2 } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
 
 export function DeveloperIntegrationsSection() {
   return (
@@ -9,6 +9,12 @@ export function DeveloperIntegrationsSection() {
         title="Developer & Integrations"
         blurb="This section is for developers, super admins, and anyone who needs to work with KDOps at a technical level — the raw database browser, n8n automations, API access, webhooks, and how the platform's backend fits together. If you're not building integrations or troubleshooting data issues, you probably don't need any of this."
       />
+
+      <VideoEmbed src={guideVideoUrl('56-DeveloperHubVideo.mp4')} title="Developer Hub" caption="Watch: Navigating the Developer Hub — API keys, webhooks, integrations, and the API explorer" />
+      <VideoEmbed src={guideVideoUrl('97-APIIntegrations.mp4')} title="API Integrations" caption="Watch: Setting up API integrations, authentication, and making your first API call" />
+      <VideoEmbed src={guideVideoUrl('38-CustomDatabase.mp4')} title="Custom Database" caption="Watch: Creating custom tables, adding fields, and managing data in the database browser" />
+      <VideoEmbed src={guideVideoUrl('64-FlexTables.mp4')} title="Flex Tables" caption="Watch: Building flexible data tables for custom workflows and data collection" />
+      <VideoEmbed src={guideVideoUrl('74-WorkflowAutomation.mp4')} title="Workflow Automation" caption="Watch: Setting up n8n automations, webhook triggers, and automated workflows" />
 
       <ModuleCard title="Database Browser (/data)" route="/data" roles={['super_admin']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
