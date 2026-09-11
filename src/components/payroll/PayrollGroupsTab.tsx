@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Users } from 'lucide-react';
+import { ArrowRight, Users, UserPlus, UserMinus, Pencil, Search, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/lib/supabase';
 import { formatNaira } from '@/lib/format';
 import { displayName } from '@/lib/name';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PENSION_EMPLOYEE_RATE } from '@/lib/tax';
 
@@ -47,8 +51,12 @@ const PENSION_RATE = PENSION_EMPLOYEE_RATE;
  */
 export function PayrollGroupsTab() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [groups, setGroups] = useState<GroupCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editGroup, setEditGroup] = useState<GroupCard | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const reload = useCallback(() => setReloadKey(k => k + 1), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,7 +124,7 @@ export function PayrollGroupsTab() {
       setGroups(cards);
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [reloadKey]);
 
   if (error) {
     return <EmptyState title="Could not load pay groups" description={error} />;
@@ -146,6 +154,7 @@ export function PayrollGroupsTab() {
   }
 
   return (
+    <>
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {groups.map((g) => (
         <Card key={g.id} className="overflow-hidden">
@@ -199,17 +208,216 @@ export function PayrollGroupsTab() {
                   </span>
                 )}
               </div>
-              <button
-                className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-0.5"
-                onClick={() => navigate(`/employees?pay_group_id=${g.id}`)}
-              >
-                Manage members <ArrowRight className="h-3 w-3" />
-              </button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="xs"
+                  variant="outline"
+                  className="gap-1"
+                  onClick={() => setEditGroup(g)}
+                >
+                  <Pencil className="h-3 w-3" /> Edit members
+                </Button>
+                <button
+                  className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-0.5"
+                  onClick={() => navigate(`/employees?pay_group_id=${g.id}`)}
+                >
+                  Manage members <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
             </div>
           </CardContent>
         </Card>
       ))}
     </div>
+    {editGroup && (
+      <ManageMembersDialog
+        group={editGroup}
+        onClose={() => setEditGroup(null)}
+        onSaved={() => { setEditGroup(null); reload(); }}
+        toast={toast}
+      />
+    )}
+    </>
+  );
+}
+
+/* ─── Manage Members Dialog ─────────────────────────────────────────── */
+
+interface AvailableEmployee {
+  id: string;
+  name: string;
+  photo_url: string | null;
+  pay_group_id: string | null;
+  current_group_name: string | null;
+}
+
+function ManageMembersDialog({
+  group,
+  onClose,
+  onSaved,
+  toast,
+}: {
+  group: GroupCard;
+  onClose: () => void;
+  onSaved: () => void;
+  toast: ReturnType<typeof useToast>['toast'];
+}) {
+  const [search, setSearch] = useState('');
+  const [available, setAvailable] = useState<AvailableEmployee[]>([]);
+  const [currentMembers, setCurrentMembers] = useState<Member[]>(group.members);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, first_name, last_name, email, photo_url, pay_group_id, pay_groups:pay_group_id(name)')
+        .eq('status', 'active')
+        .order('full_name');
+      const employees: AvailableEmployee[] = ((data || []) as any[]).map((e) => ({
+        id: e.id,
+        name: displayName(e.first_name, e.last_name, e.full_name || e.email),
+        photo_url: e.photo_url || null,
+        pay_group_id: e.pay_group_id,
+        current_group_name: e.pay_groups?.name || null,
+      }));
+      setAvailable(employees);
+      setLoading(false);
+    })();
+  }, []);
+
+  const memberIds = new Set(currentMembers.map((m) => m.id));
+
+  const filtered = available.filter((e) => {
+    if (memberIds.has(e.id)) return false;
+    if (!search.trim()) return true;
+    return e.name.toLowerCase().includes(search.toLowerCase());
+  });
+
+  const addMember = async (emp: AvailableEmployee) => {
+    setSaving(true);
+    const { error } = await supabase.from('profiles').update({ pay_group_id: group.id }).eq('id', emp.id);
+    if (error) {
+      toast({ title: 'Failed to add member', description: error.message, variant: 'destructive' });
+      setSaving(false);
+      return;
+    }
+    setCurrentMembers((prev) => [...prev, { id: emp.id, name: emp.name, photo_url: emp.photo_url, basic_ngn: 0, housing_ngn: 0, transport_ngn: 0, other_allowances_ngn: 0, salary_ngn: 0, use_salary_components: false, pension_enabled: true }]);
+    toast({ title: `${emp.name} added to ${group.name}` });
+    setSaving(false);
+  };
+
+  const removeMember = async (member: Member) => {
+    setSaving(true);
+    const { error } = await supabase.from('profiles').update({ pay_group_id: null }).eq('id', member.id);
+    if (error) {
+      toast({ title: 'Failed to remove member', description: error.message, variant: 'destructive' });
+      setSaving(false);
+      return;
+    }
+    setCurrentMembers((prev) => prev.filter((m) => m.id !== member.id));
+    toast({ title: `${member.name} removed from ${group.name}` });
+    setSaving(false);
+  };
+
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) { onSaved(); } }}>
+      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Edit members — {group.name}</DialogTitle>
+          <DialogDescription>Add or remove employees from this pay group.</DialogDescription>
+        </DialogHeader>
+
+        {/* Current members */}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Current members ({currentMembers.length})
+          </p>
+          <div className="max-h-[200px] overflow-y-auto space-y-1">
+            {currentMembers.length === 0 && (
+              <p className="text-xs text-muted-foreground py-2">No members in this group.</p>
+            )}
+            {currentMembers.map((m) => (
+              <div key={m.id} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Avatar className="h-6 w-6">
+                    {m.photo_url && <AvatarImage src={m.photo_url} alt={m.name} />}
+                    <AvatarFallback className="text-3xs">{initials(m.name)}</AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm truncate">{m.name}</span>
+                </div>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                  disabled={saving}
+                  onClick={() => removeMember(m)}
+                >
+                  <UserMinus className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Add employees */}
+        <div className="space-y-2 flex-1 min-h-0">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Add employees
+          </p>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search employees…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 h-8 text-sm"
+            />
+            {search && (
+              <button className="absolute right-2 top-1/2 -translate-y-1/2" onClick={() => setSearch('')}>
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+          <div className="max-h-[200px] overflow-y-auto space-y-1">
+            {loading ? (
+              <p className="text-xs text-muted-foreground py-4 text-center">Loading employees…</p>
+            ) : filtered.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-4 text-center">
+                {search ? 'No matching employees' : 'All employees are already in a group'}
+              </p>
+            ) : (
+              filtered.slice(0, 50).map((emp) => (
+                <div key={emp.id} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Avatar className="h-6 w-6">
+                      {emp.photo_url && <AvatarImage src={emp.photo_url} alt={emp.name} />}
+                      <AvatarFallback className="text-3xs">{initials(emp.name)}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <span className="text-sm truncate block">{emp.name}</span>
+                      {emp.current_group_name && (
+                        <span className="text-2xs text-muted-foreground">Currently in {emp.current_group_name}</span>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    className="text-primary hover:text-primary hover:bg-primary/10 shrink-0"
+                    disabled={saving}
+                    onClick={() => addMember(emp)}
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

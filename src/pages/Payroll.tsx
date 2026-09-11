@@ -341,7 +341,7 @@ const Payroll = () => {
     const [runsRes, advRes] = await Promise.all([
       supabase
         .from('payroll_runs')
-        .select('id, period, period_type, employee_count, total_contractor_ngn, total_employee_ngn, total_expenses_ngn, paye_ngn, pension_ngn, nhf_ngn, total_burn_ngn, employer_pension_ngn, bonuses_json, allowances_json, status, created_at, created_by, approved_by, payroll_segment_id, scheduled_disburse_at, is_auto_generated, run_options')
+        .select('*')
         .order('period', { ascending: false })
         .limit(200),
       (supabase as any).from('advance_requests')

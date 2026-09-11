@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FileText, ExternalLink, Download, TrendingUp, Wallet,
   ArrowDownRight, ArrowUpRight, CheckCircle2, Clock, XCircle,
@@ -87,6 +88,7 @@ interface Props {
 }
 
 export default function PayrollTab({ payslips, payments = [], loading, humanPeriod, previewPayslip, downloadPayslip }: Props) {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<FilterType>('all');
   const [showAllPayslips, setShowAllPayslips] = useState(false);
 
@@ -126,6 +128,7 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
     const items: any[] = payments.map((p: any) => ({
       id: p.id,
       type: 'payment' as const,
+      batchId: p.batch_id || p.payment_batches?.id || null,
       batchType: p.payment_batches?.batch_type || 'unknown',
       batchName: p.payment_batches?.name || '—',
       amount: Number(p.amount_ngn) || 0,
@@ -351,7 +354,13 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
                 const StatusIcon = statusConf.icon;
                 const TypeIcon = BATCH_TYPE_ICON[txn.batchType] || FileText;
                 return (
-                  <div key={txn.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
+                  <div
+                    key={txn.id}
+                    role={txn.batchId ? 'button' : undefined}
+                    tabIndex={txn.batchId ? 0 : undefined}
+                    onClick={() => txn.batchId && navigate(`/payments/batches/${txn.batchId}`)}
+                    onKeyDown={(e) => { if (txn.batchId && (e.key === 'Enter' || e.key === ' ')) navigate(`/payments/batches/${txn.batchId}`); }}
+                    className={cn('flex items-center gap-3 px-4 py-3 transition-colors', txn.batchId ? 'hover:bg-muted/50 cursor-pointer' : 'hover:bg-muted/30')}>
                     <div className={cn(
                       'h-9 w-9 rounded-lg flex items-center justify-center shrink-0 border',
                       BATCH_TYPE_STYLE[txn.batchType] || 'bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20',

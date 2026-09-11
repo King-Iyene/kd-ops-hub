@@ -368,7 +368,7 @@ const EmployeeProfile = () => {
             supabase.from('payslips').select('id, period, created_at, storage_path, file_url, employee_name, employee_email, gross_ngn, paye_ngn, pension_ngn, nhf_ngn, net_ngn, employer_pension_ngn').eq('employee_id', id)
               .order('period', { ascending: false }).limit(24),
             supabase.from('batch_items')
-              .select('id, amount_ngn, status, created_at, processed_at, narration, payment_batches!inner(name, batch_type, payment_date, period)')
+              .select('id, batch_id, amount_ngn, status, created_at, processed_at, narration, payment_batches!inner(id, name, batch_type, payment_date, period)')
               .eq('employee_id', id).order('created_at', { ascending: false }).limit(50),
           ]);
           setPayslips(payRes.data || []);
