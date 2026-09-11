@@ -173,7 +173,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-700/50">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-              <ScanSearch size={16} className="text-amber-600 dark:text-amber-400" />
+              <ScanSearch size={16} className="text-warning" />
             </div>
             <div>
               <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Duplicate Detection</h2>
@@ -213,7 +213,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
                   onClick={() => toggleField(f.id)}
                   className={`px-2 py-0.5 rounded-full text-2xs border transition-colors ${
                     selectedFields.includes(f.id)
-                      ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300'
+                      ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-warning'
                       : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-amber-300'
                   }`}
                 >
@@ -262,7 +262,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle size={14} className="text-amber-500" />
                 <span className="text-xs text-zinc-600 dark:text-zinc-300">
-                  Found <strong className="text-amber-600 dark:text-amber-400">{totalDuplicates}</strong> potential duplicate{totalDuplicates !== 1 ? 's' : ''} in <strong>{groups.length}</strong> group{groups.length !== 1 ? 's' : ''}
+                  Found <strong className="text-warning">{totalDuplicates}</strong> potential duplicate{totalDuplicates !== 1 ? 's' : ''} in <strong>{groups.length}</strong> group{groups.length !== 1 ? 's' : ''}
                 </span>
               </div>
 
@@ -282,7 +282,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
                         <span className="text-2xs text-zinc-400 mx-1.5">·</span>
                         <span className="text-2xs text-zinc-500 dark:text-zinc-400 truncate">"{group.matchValue}"</span>
                       </div>
-                      <span className="text-3xs px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-medium">
+                      <span className="text-3xs px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-warning font-medium">
                         {group.rows.length} rows
                       </span>
                     </button>

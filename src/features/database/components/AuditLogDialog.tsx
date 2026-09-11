@@ -73,7 +73,7 @@ function ChangeDiff({ changes }: { changes: Record<string, { old: any; new: any 
             {oldVal === null || oldVal === undefined ? '(empty)' : String(oldVal)}
           </span>
           <span className="text-[#6A7184] dark:text-[hsl(200,25%,60%)]">&rarr;</span>
-          <span className="text-green-600 dark:text-green-400 truncate max-w-[180px]" title={String(newVal ?? '')}>
+          <span className="text-success truncate max-w-[180px]" title={String(newVal ?? '')}>
             {newVal === null || newVal === undefined ? '(empty)' : String(newVal)}
           </span>
         </div>

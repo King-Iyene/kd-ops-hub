@@ -244,7 +244,7 @@ const SECTIONS: TroubleshootingSection[] = [
         answer: (
           <div className="space-y-2">
             <p className="text-sm text-zinc-600 dark:text-zinc-400">Required for payroll processing. Fields: <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">bank_name</code>, <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">account_number</code>, <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">account_name</code>.</p>
-            <p className="text-sm font-medium text-red-600 dark:text-red-400">Without these, payroll will skip the employee.</p>
+            <p className="text-sm font-medium text-destructive">Without these, payroll will skip the employee.</p>
           </div>
         ),
       },
@@ -340,7 +340,7 @@ const SECTIONS: TroubleshootingSection[] = [
           <div className="space-y-2">
             <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60">
               <p className="text-sm font-semibold text-red-700 dark:text-red-400 flex items-center gap-2"><AlertTriangle size={14} /> CRITICAL: Bank details required</p>
-              <p className="text-sm text-red-600 dark:text-red-400 mt-1">Fuel request disbursements ONLY work if the requesting employee has valid bank details on file (<code className="text-xs font-mono">bank_name</code>, <code className="text-xs font-mono">account_number</code>, <code className="text-xs font-mono">account_name</code>). Without bank details, the request will be created but payment cannot be processed.</p>
+              <p className="text-sm text-destructive mt-1">Fuel request disbursements ONLY work if the requesting employee has valid bank details on file (<code className="text-xs font-mono">bank_name</code>, <code className="text-xs font-mono">account_number</code>, <code className="text-xs font-mono">account_name</code>). Without bank details, the request will be created but payment cannot be processed.</p>
             </div>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">Always remind employees to update their bank details in their profile.</p>
           </div>
@@ -786,7 +786,7 @@ export default function Troubleshooting({ onNavigate }: { onNavigate?: (tab: str
                       <Button
                         variant="ghost"
                         size="sm"
-                        className={cn('h-6 px-2 text-xs', helpfulSections[section.id] === true && 'text-emerald-600 dark:text-emerald-400')}
+                        className={cn('h-6 px-2 text-xs', helpfulSections[section.id] === true && 'text-success')}
                         onClick={() => setHelpfulSections(prev => ({ ...prev, [section.id]: true }))}
                       >
                         Yes
@@ -794,7 +794,7 @@ export default function Troubleshooting({ onNavigate }: { onNavigate?: (tab: str
                       <Button
                         variant="ghost"
                         size="sm"
-                        className={cn('h-6 px-2 text-xs', helpfulSections[section.id] === false && 'text-red-600 dark:text-red-400')}
+                        className={cn('h-6 px-2 text-xs', helpfulSections[section.id] === false && 'text-destructive')}
                         onClick={() => setHelpfulSections(prev => ({ ...prev, [section.id]: false }))}
                       >
                         No

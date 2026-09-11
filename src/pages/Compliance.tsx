@@ -1033,7 +1033,7 @@ const Compliance = () => {
                   ? 'border-destructive/40 bg-destructive/5'
                   : soon
                   ? 'border-warning/40 bg-warning/5'
-                  : 'border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20';
+                  : 'border-success/20 bg-success/5';
                 const badgeCls = expired
                   ? 'bg-destructive/10 text-destructive'
                   : soon

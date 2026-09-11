@@ -357,8 +357,8 @@ function GalleryCard({
         {confirmDelete ? (
           <button
             title="Confirm delete"
-            className="p-1.5 rounded-md bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800
-              text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors shadow-sm"
+            className="p-1.5 rounded-md bg-red-50 dark:bg-red-900/30 border border-destructive/20
+              text-destructive hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors shadow-sm"
             onClick={() => { onDelete?.(record.id); setConfirmDelete(false); }}
             onMouseLeave={() => setConfirmDelete(false)}
           >
@@ -402,7 +402,7 @@ function GalleryCard({
 
 function GallerySkeleton() {
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {Array.from({ length: 9 }).map((_, i) => (
         <div
           key={i}

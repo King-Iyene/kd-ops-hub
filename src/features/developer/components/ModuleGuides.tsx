@@ -1760,7 +1760,7 @@ function ModuleContent({ module: mod }: { module: ModuleDef }) {
       {/* Warnings */}
       {mod.warnings?.map((w, i) => (
         <div key={i} className="flex gap-3 p-4 rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/40">
-          <AlertTriangle size={18} className="shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+          <AlertTriangle size={18} className="shrink-0 text-warning mt-0.5" />
           <p className="text-sm font-medium text-amber-800 dark:text-amber-300 leading-relaxed">{w.text}</p>
         </div>
       ))}

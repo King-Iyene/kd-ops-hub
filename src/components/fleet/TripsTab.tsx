@@ -1344,7 +1344,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                     </div>
 
                     {t.is_anomaly && t.anomaly_reason && (
-                      <div className="flex items-start gap-1.5 rounded-md bg-red-50 dark:bg-red-950/20 px-2 py-1.5 text-2xs text-red-700 dark:text-red-300">
+                      <div className="flex items-start gap-1.5 rounded-md bg-red-50 dark:bg-red-950/20 px-2 py-1.5 text-2xs text-destructive">
                         <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
                         <span className="leading-snug">{t.anomaly_reason}</span>
                       </div>
@@ -1689,7 +1689,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                         {formatCoords(endCoords.lat, endCoords.lng)}
                       </p>
                     )}
-                    <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">
+                    <p className="text-xs text-success mt-0.5">
                       GPS · ±{Math.round(endCoords.accuracy)} m accuracy
                     </p>
                   </div>
@@ -1708,7 +1708,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                   <LocateOff className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-amber-800 dark:text-amber-200">GPS unavailable</p>
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                    <p className="text-xs text-warning mt-0.5">
                       {GEO_ERROR_MSG[endGeoState as Exclude<GeoState, 'idle' | 'acquiring' | 'ok'>]} Location won't be recorded — you can still end your trip.
                     </p>
                   </div>
@@ -2099,7 +2099,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                   <p className="font-medium"><LocationCell location={selectedTrip.end_location} lat={selectedTrip.end_lat} lng={selectedTrip.end_lng} showCoords /></p>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3 border rounded-lg p-3 bg-muted/30">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border rounded-lg p-3 bg-muted/30">
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Odometer Start</p>
                   <p className="font-semibold tabular-nums">{selectedTrip.odometer_start != null ? selectedTrip.odometer_start.toLocaleString() : '—'}</p>
@@ -2113,7 +2113,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                   <p className="font-semibold tabular-nums text-primary">{selectedTrip.km_driven != null ? selectedTrip.km_driven.toLocaleString() : '—'}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Fuel (₦)</p>
                   <p className="font-medium currency">{selectedTrip.fuel_amount_ngn ? formatNaira(selectedTrip.fuel_amount_ngn) : '—'}</p>

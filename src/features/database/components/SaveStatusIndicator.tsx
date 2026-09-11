@@ -59,13 +59,13 @@ export function SaveStatusIndicator() {
       {visible === 'saved' && (
         <>
           <Check size={12} className="text-emerald-500" />
-          <span className="text-emerald-600 dark:text-emerald-400">Saved</span>
+          <span className="text-success">Saved</span>
         </>
       )}
       {visible === 'offline' && (
         <>
           <CloudOff size={12} className="text-amber-500" />
-          <span className="text-amber-600 dark:text-amber-400">Offline</span>
+          <span className="text-warning">Offline</span>
         </>
       )}
     </div>

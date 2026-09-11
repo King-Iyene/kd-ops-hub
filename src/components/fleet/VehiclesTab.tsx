@@ -704,7 +704,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                   <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Please verify all details before submitting</p>
-                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                    <p className="text-xs text-warning mt-0.5">
                       Once saved, you will <strong>not be able to edit</strong> this vehicle record. Any corrections will require an administrator.
                     </p>
                   </div>

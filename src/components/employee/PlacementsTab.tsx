@@ -86,7 +86,7 @@ export default function PlacementsTab({ empPlacements, empPlacementPayments }: P
                         {p.placement_type === 'kd_receives' ? 'KD Receives' : 'Employee Receives'}
                       </TableCell>
                       <TableCell className="text-right font-medium currency">{formatNaira(p.client_rate_ngn)}</TableCell>
-                      <TableCell className="text-right font-medium text-emerald-600 dark:text-emerald-400 currency">
+                      <TableCell className="text-right font-medium text-success currency">
                         {formatNaira(p.employee_rate_ngn)}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground currency">
@@ -139,7 +139,7 @@ export default function PlacementsTab({ empPlacements, empPlacementPayments }: P
                         <TableCell className="text-sm">{placement?.clients?.name || '—'}</TableCell>
                         <TableCell className="text-right currency">{formatNaira(pp.gross_amount_ngn)}</TableCell>
                         <TableCell className="text-right text-muted-foreground currency">{formatNaira(pp.commission_ngn)}</TableCell>
-                        <TableCell className="text-right font-medium text-emerald-600 dark:text-emerald-400 currency">
+                        <TableCell className="text-right font-medium text-success currency">
                           {formatNaira(pp.net_employee_ngn)}
                         </TableCell>
                         <TableCell className="pr-4">

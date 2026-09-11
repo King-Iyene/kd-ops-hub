@@ -185,11 +185,11 @@ export default function CashConversionTab() {
               <ArrowRight className="h-5 w-5 text-primary mt-0.5 shrink-0" />
               <div className="text-sm space-y-1">
                 {data.ccc_days <= 0 ? (
-                  <p>Your CCC is <span className="font-semibold text-emerald-600 dark:text-emerald-400">negative</span> — you collect from clients before you pay suppliers. This is an ideal cash position.</p>
+                  <p>Your CCC is <span className="font-semibold text-success">negative</span> — you collect from clients before you pay suppliers. This is an ideal cash position.</p>
                 ) : data.ccc_days <= 30 ? (
                   <p>Your CCC is <span className="font-semibold">under 30 days</span> — cash cycles through the business quickly. Maintain this by staying on top of collections.</p>
                 ) : data.ccc_days <= 60 ? (
-                  <p>Your CCC is <span className="font-semibold text-amber-600 dark:text-amber-400">{data.ccc_days.toFixed(0)} days</span> — consider tightening invoice terms or negotiating longer supplier payment windows to improve cash flow.</p>
+                  <p>Your CCC is <span className="font-semibold text-warning">{data.ccc_days.toFixed(0)} days</span> — consider tightening invoice terms or negotiating longer supplier payment windows to improve cash flow.</p>
                 ) : (
                   <p>Your CCC is <span className="font-semibold text-destructive">{data.ccc_days.toFixed(0)} days</span> — cash is tied up for a long time. Prioritize collections and explore extended payment terms with suppliers.</p>
                 )}

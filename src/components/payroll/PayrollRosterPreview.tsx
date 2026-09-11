@@ -124,7 +124,7 @@ function RosterRow({ e }: { e: RosterEmployee }) {
       <span className="min-w-0 truncate text-foreground" title={name}>{name}</span>
       <span className="shrink-0 tabular-nums text-muted-foreground text-right w-[92px]">{formatNaira(e.salary_ngn)}</span>
       {missingBank && (
-        <span className="col-start-2 col-span-2 -mt-0.5 flex items-center gap-1 text-2xs text-amber-600 dark:text-amber-400">
+        <span className="col-start-2 col-span-2 -mt-0.5 flex items-center gap-1 text-2xs text-warning">
           <AlertTriangle className="h-3 w-3 shrink-0" />
           No bank account on file
           <Link

@@ -40,10 +40,10 @@ const BATCH_TYPE_STYLE: Record<string, string> = {
 };
 
 const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; style: string; label: string }> = {
-  succeeded: { icon: CheckCircle2, style: 'text-emerald-600 dark:text-emerald-400', label: 'Paid' },
-  pending: { icon: Clock, style: 'text-amber-600 dark:text-amber-400', label: 'Pending' },
-  failed: { icon: XCircle, style: 'text-red-600 dark:text-red-400', label: 'Failed' },
-  reversed: { icon: RotateCcw, style: 'text-red-600 dark:text-red-400', label: 'Reversed' },
+  succeeded: { icon: CheckCircle2, style: 'text-success', label: 'Paid' },
+  pending: { icon: Clock, style: 'text-warning', label: 'Pending' },
+  failed: { icon: XCircle, style: 'text-destructive', label: 'Failed' },
+  reversed: { icon: RotateCcw, style: 'text-destructive', label: 'Reversed' },
   processing: { icon: AlertCircle, style: 'text-blue-600 dark:text-blue-400', label: 'Processing' },
 };
 

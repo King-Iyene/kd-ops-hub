@@ -525,7 +525,7 @@ export default function Training() {
                 <Input value={form.score} onChange={e => setForm(p => ({ ...p, score: e.target.value }))} placeholder="e.g. 87%, Pass, Distinction" />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label>Cost (₦)</Label>
                 <Input type="number" min={0} value={form.cost_ngn} onChange={e => setForm(p => ({ ...p, cost_ngn: e.target.value }))} />

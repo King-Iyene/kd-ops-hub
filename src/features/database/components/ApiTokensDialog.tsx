@@ -161,7 +161,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 px-2 text-2xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
+                    className="h-7 px-2 text-2xs text-destructive hover:bg-red-50 dark:hover:bg-red-500/10"
                     onClick={() => setConfirmRevokeId(k.id)}
                   >
                     Revoke

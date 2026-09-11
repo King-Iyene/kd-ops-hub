@@ -12,8 +12,8 @@ import { errorMessage } from '@/lib/db-errors';
 import { fetchActionCenterData, type ActionCenterData, type ActionItem, type ActionSeverity } from '@/lib/action-center';
 
 const SEVERITY_STYLE: Record<ActionSeverity, { icon: typeof AlertOctagon; bg: string; border: string; iconColor: string; label: string }> = {
-  critical: { icon: AlertOctagon, bg: 'bg-red-500/[0.06]', border: 'border-red-500/20', iconColor: 'text-red-600 dark:text-red-400', label: 'Critical' },
-  warning:  { icon: AlertTriangle, bg: 'bg-amber-500/[0.06]', border: 'border-amber-500/20', iconColor: 'text-amber-600 dark:text-amber-400', label: 'Needs review' },
+  critical: { icon: AlertOctagon, bg: 'bg-red-500/[0.06]', border: 'border-red-500/20', iconColor: 'text-destructive', label: 'Critical' },
+  warning:  { icon: AlertTriangle, bg: 'bg-amber-500/[0.06]', border: 'border-amber-500/20', iconColor: 'text-warning', label: 'Needs review' },
   info:     { icon: AlertTriangle, bg: 'bg-muted/50', border: 'border-border', iconColor: 'text-muted-foreground', label: 'Info' },
 };
 
@@ -137,7 +137,7 @@ export default function ActionCenterTab() {
           <CardTitle className="text-base flex items-center gap-2">
             <ClipboardCheck className="h-4 w-4 text-primary" /> What needs your attention
             {criticalCount > 0 && (
-              <Badge variant="outline" className="text-3xs border-red-500/30 text-red-600 dark:text-red-400">
+              <Badge variant="outline" className="text-3xs border-red-500/30 text-destructive">
                 {criticalCount} critical
               </Badge>
             )}
@@ -152,7 +152,7 @@ export default function ActionCenterTab() {
             </div>
           ) : !data || data.items.length === 0 ? (
             <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.06] p-4">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
               <span className="text-sm">All clear — no pending approvals, cash risk, overdue filings, or unreviewed anomalies.</span>
             </div>
           ) : (

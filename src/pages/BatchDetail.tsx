@@ -1924,13 +1924,13 @@ const BatchDetail = () => {
       {processResults && (
         <div className="rounded-lg border border-border/60 bg-card p-4 space-y-3">
           <div className="flex items-center gap-4 text-sm flex-wrap">
-            <span className="text-green-600 dark:text-green-400 font-semibold">
+            <span className="text-success font-semibold">
               ✓ {processResults.succeeded} payments successful
             </span>
             <span className="text-destructive font-semibold">
               ✗ {processResults.failed} payments failed
             </span>
-            <span className="text-amber-600 dark:text-amber-400 font-semibold">
+            <span className="text-warning font-semibold">
               ◷ {processResults.pending} payments pending
             </span>
           </div>
@@ -2187,7 +2187,7 @@ const BatchDetail = () => {
                             return (
                               <>
                                 <span
-                                  className="text-3xs text-amber-600 dark:text-amber-400 inline-flex items-center gap-1 mr-1"
+                                  className="text-3xs text-warning inline-flex items-center gap-1 mr-1"
                                   title={`Stuck for ~${Math.round(ageHours)}h — Paystack hasn't responded`}
                                 >
                                   <AlertTriangle className="h-3 w-3" />
@@ -2236,7 +2236,7 @@ const BatchDetail = () => {
                                   </span>
                                 ) : (
                                   <span
-                                    className="text-3xs text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1"
+                                    className="text-3xs text-success inline-flex items-center gap-1"
                                     title={item.manual_resolution_note || 'Paid via another channel'}
                                   >
                                     <Check className="h-3 w-3" /> Paid externally

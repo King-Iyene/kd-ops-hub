@@ -96,19 +96,19 @@ const TONE_STYLES: Record<Tone, {
 }> = {
   success: {
     iconBg: 'bg-emerald-500/15 dark:bg-emerald-400/15',
-    iconFg: 'text-emerald-600 dark:text-emerald-400',
+    iconFg: 'text-success',
     outline: 'ring-emerald-500/20',
     unreadBar: 'bg-emerald-500',
   },
   warning: {
     iconBg: 'bg-amber-500/15 dark:bg-amber-400/15',
-    iconFg: 'text-amber-600 dark:text-amber-400',
+    iconFg: 'text-warning',
     outline: 'ring-amber-500/20',
     unreadBar: 'bg-amber-500',
   },
   error: {
     iconBg: 'bg-red-500/15 dark:bg-red-400/15',
-    iconFg: 'text-red-600 dark:text-red-400',
+    iconFg: 'text-destructive',
     outline: 'ring-red-500/20',
     unreadBar: 'bg-red-500',
   },

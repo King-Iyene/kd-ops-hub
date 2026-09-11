@@ -429,7 +429,7 @@ function YearCalendar({ schedules }: { schedules: PaySchedule[] }) {
                             isToday && 'ring-2 ring-primary ring-offset-1',
                             isPast && payHits.length === 0 && !holiday && 'text-muted-foreground/40',
                             !isPast && payHits.length === 0 && !holiday && 'text-muted-foreground hover:bg-muted/40',
-                            holiday && 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-semibold',
+                            holiday && 'bg-amber-100 dark:bg-amber-900/30 text-warning font-semibold',
                             payHits.length > 0 && 'font-bold',
                           )}
                         >
@@ -1396,7 +1396,7 @@ function PayScheduleForm({
 
       {isOffCycle && (
         <div className="space-y-4 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-4">
-          <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">Off-cycle configuration</p>
+          <p className="text-xs text-warning font-medium">Off-cycle configuration</p>
           <div className="space-y-1.5">
             <Label>Allowance context</Label>
             <Input
@@ -1742,7 +1742,7 @@ export function PayrollSchedules() {
                                 {s.is_active ? (
                                   <>
                                     <ToggleRight className="h-4 w-4 text-green-500" />
-                                    <span className="text-green-600 dark:text-green-400">Active</span>
+                                    <span className="text-success">Active</span>
                                   </>
                                 ) : (
                                   <>

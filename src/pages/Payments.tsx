@@ -563,8 +563,8 @@ const Payments = () => {
                     className={cn(
                       'group relative md:grid md:grid-cols-[12px_1fr_180px_110px_140px_12px] gap-3 items-center flex flex-wrap px-3 md:h-11 py-2.5 md:py-0 cursor-pointer kd-transition',
                       'hover:bg-muted/30',
-                      isFailed && 'bg-red-50/20 dark:bg-red-950/10',
-                      isPending && 'bg-amber-50/20 dark:bg-amber-950/10',
+                      isFailed && 'bg-destructive/5',
+                      isPending && 'bg-warning/5',
                       isDraft && 'opacity-60',
                     )}
                   >

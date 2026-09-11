@@ -55,7 +55,7 @@ type TimesheetStatus = Timesheet['status'];
 const STATUS_BADGE: Record<TimesheetStatus, { label: string; variant: 'secondary' | 'default' | 'destructive' | 'outline'; className?: string }> = {
   draft:     { label: 'Draft',     variant: 'secondary' },
   submitted: { label: 'Submitted', variant: 'default',  className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800' },
-  approved:  { label: 'Approved',  variant: 'default',  className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' },
+  approved:  { label: 'Approved',  variant: 'default',  className: 'bg-success/10 text-success border-success/20' },
   rejected:  { label: 'Rejected',  variant: 'destructive' },
 };
 

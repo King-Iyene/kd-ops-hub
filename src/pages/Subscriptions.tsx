@@ -726,13 +726,13 @@ const Subscriptions = () => {
   const priorityBadge = (p: string | null) => {
     if (!p) return <span className="text-xs text-muted-foreground">--</span>;
     if (p === 'high') return <Badge className="bg-destructive/10 text-destructive text-3xs px-1.5">High</Badge>;
-    if (p === 'medium') return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-3xs px-1.5">Medium</Badge>;
-    return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-3xs px-1.5">Low</Badge>;
+    if (p === 'medium') return <Badge className="bg-warning/10 text-warning text-3xs px-1.5">Medium</Badge>;
+    return <Badge className="bg-success/10 text-success text-3xs px-1.5">Low</Badge>;
   };
 
   const paymentStatusBadge = (status: string) => {
-    if (status === 'paid') return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-3xs px-1.5">Paid</Badge>;
-    if (status === 'pending') return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-3xs px-1.5">Pending</Badge>;
+    if (status === 'paid') return <Badge className="bg-success/10 text-success text-3xs px-1.5">Paid</Badge>;
+    if (status === 'pending') return <Badge className="bg-warning/10 text-warning text-3xs px-1.5">Pending</Badge>;
     if (status === 'overdue') return <Badge className="bg-destructive/10 text-destructive text-3xs px-1.5">Overdue</Badge>;
     return <Badge className="bg-slate-200/60 text-slate-600 dark:bg-slate-700/50 dark:text-slate-300 text-3xs px-1.5">Skipped</Badge>;
   };

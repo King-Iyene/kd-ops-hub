@@ -854,7 +854,7 @@ const NewPaymentBatch = () => {
               </div>
               {allowedBatchTypes.length === 0 && (
                 <div className="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 px-4 py-6 text-center">
-                  <p className="text-sm font-medium text-amber-700 dark:text-amber-300">No batch types unlocked</p>
+                  <p className="text-sm font-medium text-warning">No batch types unlocked</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Ask an admin to grant at least one of <span className="font-mono">payments.batch.contractor</span>,{' '}
                     <span className="font-mono">.salary</span>, <span className="font-mono">.advance</span> or{' '}
@@ -1194,10 +1194,10 @@ const NewPaymentBatch = () => {
                     className={cn(
                       'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-semibold tabular-nums',
                       items.length >= MAX_RECIPIENTS_PER_BATCH
-                        ? 'bg-red-500/15 text-red-700 dark:text-red-300'
+                        ? 'bg-red-500/15 text-destructive'
                         : items.length >= WARN_RECIPIENTS
-                          ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
-                          : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+                          ? 'bg-amber-500/15 text-warning'
+                          : 'bg-emerald-500/15 text-success',
                     )}
                   >
                     {items.length} / {MAX_RECIPIENTS_PER_BATCH}

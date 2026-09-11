@@ -44,7 +44,7 @@ function ServiceAlert({ v, todayStr, in30Str }: { v: VehicleSummary; todayStr: s
   if ((v as any).next_service_date && (v as any).next_service_date <= in30Str)
     msgs.push(`service due ${formatDate((v as any).next_service_date)}`);
   return (
-    <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+    <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning">
       <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
       <span><strong>{v.name}</strong> ({(v as any).plate_number}): {msgs.join(' · ')}</span>
     </div>

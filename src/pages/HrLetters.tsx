@@ -329,7 +329,7 @@ export default function HrLetters() {
                           </Button>
                         )}
                         {l.recipient_signature_url && (
-                          <span className="text-3xs font-medium text-emerald-600 dark:text-emerald-400 px-1">Signed</span>
+                          <span className="text-3xs font-medium text-success px-1">Signed</span>
                         )}
                         <Button variant="ghost" size="icon" onClick={() => openEdit(l)} aria-label="Edit letter">
                           <Pencil className="h-4 w-4" />

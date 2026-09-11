@@ -431,7 +431,7 @@ export function FuelPriceIntelligence() {
                 <div className="text-right shrink-0">
                   <div className="text-sm font-semibold tabular-nums">{formatNaira(Math.round(r.avgPrice))}/L</div>
                   {r.savingsPotential > 0 && (
-                    <div className="text-3xs text-green-600 dark:text-green-400 tabular-nums">
+                    <div className="text-3xs text-success tabular-nums">
                       Save ~{formatNaira(r.savingsPotential)}/mo
                     </div>
                   )}

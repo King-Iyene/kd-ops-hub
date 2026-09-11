@@ -22,10 +22,10 @@ const GRADE_STYLE: Record<HealthGrade, { bg: string; text: string; ring: string 
 };
 
 const STATUS_STYLE: Record<HealthDimension['status'], { color: string; Icon: typeof ShieldCheck }> = {
-  excellent: { color: 'text-emerald-600 dark:text-emerald-400', Icon: ShieldCheck },
+  excellent: { color: 'text-success', Icon: ShieldCheck },
   good:      { color: 'text-blue-600 dark:text-blue-400',      Icon: TrendingUp },
-  fair:      { color: 'text-amber-600 dark:text-amber-400',    Icon: AlertTriangle },
-  poor:      { color: 'text-red-600 dark:text-red-400',        Icon: XCircle },
+  fair:      { color: 'text-warning',    Icon: AlertTriangle },
+  poor:      { color: 'text-destructive',        Icon: XCircle },
 };
 
 function GaugeRing({ score, grade }: { score: number; grade: HealthGrade }) {

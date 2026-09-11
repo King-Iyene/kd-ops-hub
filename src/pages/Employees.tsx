@@ -857,7 +857,7 @@ const Employees = () => {
                       </p>
                     </div>
                     {e.status === 'invited' ? (
-                      <span className="text-2xs font-medium text-amber-600 dark:text-amber-400">Invited</span>
+                      <span className="text-2xs font-medium text-warning">Invited</span>
                     ) : (
                       <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0" />
                     )}

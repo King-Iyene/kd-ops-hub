@@ -381,7 +381,7 @@ function CopyLinkButton({ recordId }: { recordId: string }) {
       title="Copy record link"
     >
       {copied ? (
-        <span className="text-3xs font-medium text-green-600 dark:text-green-400 px-1">Copied!</span>
+        <span className="text-3xs font-medium text-success px-1">Copied!</span>
       ) : (
         <Link2 size={15} className="text-[#6A7184] dark:text-[#9AA2AF]" />
       )}
@@ -474,7 +474,7 @@ function ActivitySection({ record, fields }: { record: RecordRow; fields: FieldM
       <div className="space-y-3">
         <div className="flex items-start gap-2.5">
           <div className="mt-0.5 w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
-            <Clock size={10} className="text-green-600 dark:text-green-400" />
+            <Clock size={10} className="text-success" />
           </div>
           <div>
             <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Record created</p>

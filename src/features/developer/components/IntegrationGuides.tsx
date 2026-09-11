@@ -97,14 +97,14 @@ function Callout({ type, children }: { type: 'tip' | 'warning' | 'info'; childre
     tip: {
       border: 'border-emerald-300 dark:border-emerald-800',
       bg: 'bg-emerald-50 dark:bg-emerald-950/30',
-      icon: <Lightbulb size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />,
+      icon: <Lightbulb size={14} className="text-success shrink-0 mt-0.5" />,
       label: 'Pro Tip',
       labelColor: 'text-emerald-700 dark:text-emerald-400',
     },
     warning: {
       border: 'border-amber-300 dark:border-amber-800',
       bg: 'bg-amber-50 dark:bg-amber-950/30',
-      icon: <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />,
+      icon: <AlertTriangle size={14} className="text-warning shrink-0 mt-0.5" />,
       label: 'Important',
       labelColor: 'text-amber-700 dark:text-amber-400',
     },
@@ -970,13 +970,13 @@ function CommonIssues({ platform }: { platform: string }) {
   const issues = [
     {
       code: '401 Unauthorized',
-      color: 'text-red-600 dark:text-red-400',
+      color: 'text-destructive',
       cause: 'Your API key is invalid, expired, or revoked.',
       fix: 'Go to the API Keys tab and verify your key is active. Generate a new one if needed.',
     },
     {
       code: '403 Forbidden',
-      color: 'text-amber-600 dark:text-amber-400',
+      color: 'text-warning',
       cause: 'Your API key doesn\'t have the required scope for this operation.',
       fix: 'Check the key\'s scopes in the API Keys tab. You may need to create a new key with the correct scopes.',
     },
@@ -1000,7 +1000,7 @@ function CommonIssues({ platform }: { platform: string }) {
     },
     {
       code: '500 Internal Server Error',
-      color: 'text-red-600 dark:text-red-400',
+      color: 'text-destructive',
       cause: 'Something went wrong on the KDOps side.',
       fix: 'Wait a minute and retry. If it persists, check the KDOps status page or contact support.',
     },

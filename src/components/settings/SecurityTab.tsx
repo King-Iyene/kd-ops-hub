@@ -86,14 +86,14 @@ export default function SecurityTab({ settings, patch, approverMfaStatus, export
           </label>
           {approverMfaStatus && (
             approverMfaStatus.enrolled < approverMfaStatus.total ? (
-              <p className="text-xs flex items-start gap-1.5 text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-md px-2.5 py-1.5">
+              <p className="text-xs flex items-start gap-1.5 text-warning bg-amber-500/10 rounded-md px-2.5 py-1.5">
                 <ShieldAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 Only {approverMfaStatus.enrolled} of {approverMfaStatus.total} approvers
                 (admin/operations/super_admin) have 2FA enrolled. Turning this on blocks the
                 rest from approving anything until they set it up in Profile → Security.
               </p>
             ) : (
-              <p className="text-xs flex items-start gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded-md px-2.5 py-1.5">
+              <p className="text-xs flex items-start gap-1.5 text-success bg-emerald-500/10 rounded-md px-2.5 py-1.5">
                 <ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 All {approverMfaStatus.total} approvers have 2FA enrolled — safe to turn on.
               </p>
@@ -364,7 +364,7 @@ function LeaveQuotasPanel() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">{p.name}</span>
                     {p.paid && (
-                      <span className="text-3xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">Paid</span>
+                      <span className="text-3xs font-medium text-success bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">Paid</span>
                     )}
                     {!p.paid && p.accrual_type === 'unpaid' && (
                       <span className="text-3xs font-medium text-slate-500 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded">Unpaid</span>

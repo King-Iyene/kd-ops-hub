@@ -40,8 +40,8 @@ function RatioGauge({ label, value, threshold, thresholdLabel }: {
         <span className={cn(
           'text-2xl font-bold',
           value == null ? 'text-muted-foreground' :
-          isHealthy ? 'text-emerald-600 dark:text-emerald-400' :
-          'text-red-600 dark:text-red-400',
+          isHealthy ? 'text-success' :
+          'text-destructive',
         )}>
           {display}×
         </span>
@@ -120,7 +120,7 @@ export default function WorkingCapitalTab() {
                   <p className="text-xs text-muted-foreground mb-1">Net working capital</p>
                   <p className={cn(
                     'text-3xl font-bold currency',
-                    snap.working_capital_ngn >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
+                    snap.working_capital_ngn >= 0 ? 'text-success' : 'text-destructive',
                   )}>
                     {formatNaira(snap.working_capital_ngn)}
                   </p>
@@ -242,7 +242,7 @@ export default function WorkingCapitalTab() {
                       <p className="text-3xs text-muted-foreground">{w.label}</p>
                       <p className={cn(
                         'text-xs font-semibold tabular-nums',
-                        w.running_wc_ngn >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
+                        w.running_wc_ngn >= 0 ? 'text-success' : 'text-destructive',
                       )}>
                         {fmtCompact(w.running_wc_ngn)}
                       </p>

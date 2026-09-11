@@ -118,7 +118,7 @@ function statusClassName(s: LoanStatus) {
     pending: '',
     approved: 'bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300',
     active: '',
-    fully_paid: 'bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-300',
+    fully_paid: 'bg-success/10 text-success hover:bg-success/10',
     defaulted: '',
     written_off: '',
   };

@@ -483,8 +483,8 @@ export default function PaymentSchedule() {
           className={cn(
             'flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium',
             surplus7 >= 0
-              ? 'bg-green-50 text-green-800 border border-green-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30'
-              : 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/30',
+              ? 'bg-success/10 text-success border border-success/20'
+              : 'bg-destructive/10 text-destructive border border-destructive/20',
           )}
         >
           {surplus7 >= 0 ? (
@@ -589,7 +589,7 @@ export default function PaymentSchedule() {
                         className={cn(
                           'group relative flex items-center gap-2.5 pl-3 pr-3 h-11 cursor-pointer kd-transition',
                           'hover:bg-muted/40',
-                          isOverdue && 'bg-red-50/30 dark:bg-red-950/10',
+                          isOverdue && 'bg-destructive/5',
                         )}
                       >
                         <span className={cn('absolute left-0 top-0 h-full w-[3px]', railColor)} />

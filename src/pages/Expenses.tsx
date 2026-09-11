@@ -372,9 +372,9 @@ const Expenses = () => {
     if (status === 'processing')
       return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30">Processing</Badge>;
     if (status === 'processed')
-      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30">Paid</Badge>;
+      return <Badge variant="outline" className="bg-success/10 text-success border-success/20">Paid</Badge>;
     if (status === 'failed')
-      return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/30">Failed</Badge>;
+      return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">Failed</Badge>;
     return null;
   };
 
@@ -1645,8 +1645,8 @@ const Expenses = () => {
                                     className={cn(
                                       'gap-1 cursor-default',
                                       e.anomaly_type?.includes('duplicate_receipt')
-                                        ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/20'
-                                        : 'border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/20',
+                                        ? 'border-destructive/30 text-destructive bg-destructive/5'
+                                        : 'border-warning/30 text-warning bg-warning/5',
                                     )}
                                   >
                                     <AlertTriangle className="h-3 w-3" />
@@ -1897,8 +1897,8 @@ const Expenses = () => {
                               className={cn(
                                 'gap-1 cursor-default',
                                 e.anomaly_type?.includes('duplicate_receipt')
-                                  ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/20'
-                                  : 'border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/20',
+                                  ? 'border-destructive/30 text-destructive bg-destructive/5'
+                                  : 'border-warning/30 text-warning bg-warning/5',
                               )}
                             >
                               <AlertTriangle className="h-3 w-3" />
@@ -2013,7 +2013,7 @@ const Expenses = () => {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="flex-1 h-9 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                              className="flex-1 h-9 border-warning/40 text-warning hover:bg-warning/5"
                               onClick={(evt) => { evt.stopPropagation(); doReopen(e); }}
                             >
                               <RotateCcw className="h-4 w-4 mr-1.5" /> Reopen
@@ -2304,28 +2304,28 @@ const Expenses = () => {
               </div>
             )}
 
-            <div className="pt-3 border-t-2 border-amber-300 dark:border-amber-500/50">
+            <div className="pt-3 border-t-2 border-warning/30">
               {!showBankSection ? (
                 <div
-                  className="flex items-start gap-3 rounded-lg border-2 border-amber-400 dark:border-amber-500/60 bg-amber-50 dark:bg-amber-950/30 p-4 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-950/50 hover:border-amber-500 transition-colors shadow-sm"
+                  className="flex items-start gap-3 rounded-lg border-2 border-warning/40 bg-warning/5 p-4 cursor-pointer hover:bg-warning/10 hover:border-warning/60 transition-colors shadow-sm"
                   onClick={() => setShowBankSection(true)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') setShowBankSection(true); }}
                 >
                   <div className="shrink-0 rounded-full bg-amber-200 dark:bg-amber-800/50 p-2">
-                    <BanknoteIcon className="h-5 w-5 text-amber-700 dark:text-amber-300" />
+                    <BanknoteIcon className="h-5 w-5 text-warning" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">Add your bank details for payment</p>
-                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">Without bank details, approved expenses can't be paid out. Tap here to add your bank name, account number, and account name.</p>
+                    <p className="text-sm font-semibold text-warning">Add your bank details for payment</p>
+                    <p className="text-xs text-warning mt-1">Without bank details, approved expenses can't be paid out. Tap here to add your bank name, account number, and account name.</p>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3 rounded-lg border-2 border-amber-400 dark:border-amber-500/60 bg-amber-50/50 dark:bg-amber-950/20 p-4">
+                <div className="space-y-3 rounded-lg border-2 border-warning/40 bg-warning/5 p-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold inline-flex items-center gap-2 text-amber-900 dark:text-amber-200">
-                      <BanknoteIcon className="h-4 w-4 text-amber-700 dark:text-amber-300" />
+                    <span className="text-sm font-semibold inline-flex items-center gap-2 text-warning">
+                      <BanknoteIcon className="h-4 w-4 text-warning" />
                       Bank account for payment
                     </span>
                     <button
@@ -2444,7 +2444,7 @@ const Expenses = () => {
             {detailExpense && isApprover && detailExpense.status === 'approved' && !detailExpense.payment_reference && (detailExpense.payment_status === 'pending' || detailExpense.payment_status == null) && (
               <Button
                 variant="outline"
-                className="border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                className="border-warning/40 text-warning hover:bg-warning/5"
                 onClick={() => { setDetailExpense(null); if (detailExpense) doReopen(detailExpense); }}
               >
                 <RotateCcw className="h-4 w-4 mr-1.5" /> Reopen
@@ -2490,8 +2490,8 @@ const Expenses = () => {
                         className={cn(
                           'gap-1 cursor-default',
                           detailExpense.anomaly_type?.includes('duplicate_receipt')
-                            ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/20'
-                            : 'border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/20',
+                            ? 'border-destructive/30 text-destructive bg-destructive/5'
+                            : 'border-warning/30 text-warning bg-warning/5',
                         )}
                       >
                         <AlertTriangle className="h-3 w-3" />
@@ -2502,7 +2502,7 @@ const Expenses = () => {
                 </div>
               </div>
               {detailExpense.is_anomaly && detailExpense.admin_note && (
-                <div className="flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-400">
+                <div className="flex items-start gap-1.5 rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                   <span>{detailExpense.admin_note}</span>
                 </div>

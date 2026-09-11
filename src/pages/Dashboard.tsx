@@ -495,15 +495,15 @@ const Dashboard = () => {
           { label: 'Payments', icon: Layers, onClick: () => navigate('/payments'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
           { label: 'Fleet', icon: Truck, onClick: () => navigate('/fleet'), iconBg: 'bg-sky-100 dark:bg-sky-900/30', iconColor: 'text-sky-600 dark:text-sky-400' },
           { label: 'Clients', icon: Building2, onClick: () => navigate('/clients'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' },
-          { label: 'Timesheets', icon: CalendarClock, onClick: () => navigate('/timesheets'), iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400' },
-          { label: 'Leave', icon: CalendarDays, onClick: () => navigate('/leave'), iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Timesheets', icon: CalendarClock, onClick: () => navigate('/timesheets'), iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-success' },
+          { label: 'Leave', icon: CalendarDays, onClick: () => navigate('/leave'), iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-warning' },
           { label: 'Handbook', icon: FileText, onClick: () => navigate('/handbook'), iconBg: 'bg-rose-100 dark:bg-rose-900/25', iconColor: 'text-rose-600 dark:text-rose-400' },
         ]
       : [
           { label: 'Fleet', icon: Truck, onClick: () => navigate('/fleet'), iconBg: 'bg-sky-100 dark:bg-sky-900/30', iconColor: 'text-sky-600 dark:text-sky-400' },
           { label: 'Expenses', icon: Receipt, onClick: () => navigate('/expenses'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
-          { label: 'Leave', icon: CalendarDays, onClick: () => navigate('/leave'), iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400' },
-          { label: 'Tasks', icon: CheckCircle, onClick: () => navigate('/tasks'), iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400' },
+          { label: 'Leave', icon: CalendarDays, onClick: () => navigate('/leave'), iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-warning' },
+          { label: 'Tasks', icon: CheckCircle, onClick: () => navigate('/tasks'), iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-success' },
           { label: 'Handbook', icon: FileText, onClick: () => navigate('/handbook'), iconBg: 'bg-rose-100 dark:bg-rose-900/25', iconColor: 'text-rose-600 dark:text-rose-400' },
           { label: 'Knowledge', icon: BookOpen, onClick: () => navigate('/knowledge'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' },
         ];
@@ -735,7 +735,7 @@ const Dashboard = () => {
                     </div>
                     <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden mb-4">
                       <div
-                        className={cn('h-full rounded-full kd-transition', utilizationPct > 90 ? 'bg-rose-500 dark:bg-rose-400' : utilizationPct > 70 ? 'bg-amber-500 dark:bg-amber-400' : 'bg-primary')}
+                        className={cn('h-full rounded-full kd-transition', utilizationPct > 90 ? 'bg-destructive' : utilizationPct > 70 ? 'bg-warning' : 'bg-primary')}
                         style={{ width: `${Math.min(utilizationPct, 100)}%` }}
                       />
                     </div>
@@ -809,10 +809,10 @@ const Dashboard = () => {
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { label: 'New Payment', icon: Plus, onClick: () => navigate('/payments/new'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
-                  { label: 'Approvals', icon: CheckCircle, onClick: () => navigate('/approvals'), badge: approvalCounts.total, iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400' },
+                  { label: 'Approvals', icon: CheckCircle, onClick: () => navigate('/approvals'), badge: approvalCounts.total, iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-warning' },
                   { label: 'Clients', icon: Building2, onClick: () => navigate('/clients'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' },
                   { label: 'Subscriptions', icon: CalendarClock, onClick: () => navigate('/subscriptions'), iconBg: 'bg-sky-100 dark:bg-sky-900/30', iconColor: 'text-sky-600 dark:text-sky-400' },
-                  { label: 'Reports', icon: FileText, onClick: () => navigate('/reports'), iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400' },
+                  { label: 'Reports', icon: FileText, onClick: () => navigate('/reports'), iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-success' },
                   { label: 'Payroll', icon: DollarSign, onClick: () => navigate('/payroll'), iconBg: 'bg-rose-100 dark:bg-rose-900/25', iconColor: 'text-rose-600 dark:text-rose-400' },
                 ].map(({ label, icon: Icon, onClick, badge, iconBg, iconColor }) => (
                   <button
@@ -825,7 +825,7 @@ const Dashboard = () => {
                     </span>
                     <span className="text-2xs font-medium text-muted-foreground group-hover:text-foreground kd-transition leading-tight">{label}</span>
                     {badge !== undefined && badge > 0 && (
-                      <span className="absolute top-1.5 right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-amber-100 px-1 text-3xs font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                      <span className="absolute top-1.5 right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-warning/10 px-1 text-3xs font-bold text-warning">
                         {badge}
                       </span>
                     )}
@@ -866,7 +866,7 @@ const Dashboard = () => {
                         </div>
                         <div className="text-right shrink-0 ml-3">
                           <p className="text-sm font-semibold currency">{formatNaira(s.amount_ngn)}</p>
-                          <span className={cn('inline-block rounded-full px-2 py-0.5 text-3xs font-medium mt-0.5', urgent ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-muted text-muted-foreground')}>
+                          <span className={cn('inline-block rounded-full px-2 py-0.5 text-3xs font-medium mt-0.5', urgent ? 'bg-warning/10 text-warning' : 'bg-muted text-muted-foreground')}>
                             {urgent ? 'Soon' : 'Upcoming'}
                           </span>
                         </div>

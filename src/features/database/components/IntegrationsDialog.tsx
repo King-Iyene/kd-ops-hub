@@ -359,10 +359,10 @@ Headers:
       {/* Auth info */}
       <div className="rounded-lg border border-amber-200 dark:border-amber-800/40 p-3 bg-amber-50/50 dark:bg-amber-900/10">
         <div className="flex items-center gap-2 mb-1">
-          <Shield size={12} className="text-amber-600 dark:text-amber-400" />
+          <Shield size={12} className="text-warning" />
           <span className="text-2xs font-semibold text-amber-700 dark:text-amber-400">Authentication</span>
         </div>
-        <p className="text-2xs text-amber-600 dark:text-amber-400/80 leading-relaxed">
+        <p className="text-2xs text-warning/80 leading-relaxed">
           All requests require a <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded text-3xs">Bearer</code> token.
           Pass your API key in the Authorization header: <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded text-3xs">Authorization: Bearer kdops_YOUR_KEY</code>
         </p>
@@ -606,10 +606,10 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
       {/* Webhook tip */}
       <div className="rounded-lg border border-emerald-200 dark:border-emerald-800/40 p-3 bg-emerald-50/50 dark:bg-emerald-900/10">
         <div className="flex items-center gap-2 mb-1">
-          <Webhook size={12} className="text-emerald-600 dark:text-emerald-400" />
+          <Webhook size={12} className="text-success" />
           <span className="text-2xs font-semibold text-emerald-700 dark:text-emerald-400">Pro Tip: Two-Way Sync</span>
         </div>
-        <p className="text-2xs text-emerald-600 dark:text-emerald-400/80 leading-relaxed">
+        <p className="text-2xs text-success/80 leading-relaxed">
           Set up a <strong>Webhook</strong> in KDOps to push changes back to your tool. When a record is created/updated/deleted in KDOps,
           your n8n/Zapier workflow gets notified instantly.
         </p>

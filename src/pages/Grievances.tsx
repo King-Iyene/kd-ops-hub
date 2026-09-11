@@ -43,14 +43,14 @@ const CATEGORY_CONFIG: Record<Category, { label: string; className: string }> = 
 const SEVERITY_CONFIG: Record<Severity, { label: string; variant: 'secondary' | 'outline' | 'destructive'; className?: string }> = {
   low:      { label: 'Low',      variant: 'secondary' },
   medium:   { label: 'Medium',   variant: 'outline' },
-  high:     { label: 'High',     variant: 'outline', className: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-700' },
+  high:     { label: 'High',     variant: 'outline', className: 'bg-warning/10 text-warning border-warning/30' },
   critical: { label: 'Critical', variant: 'destructive' },
 };
 
 const STATUS_CONFIG: Record<Status, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; className?: string }> = {
   open:          { label: 'Open',          variant: 'default' },
   investigating: { label: 'Investigating', variant: 'outline', className: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700' },
-  resolved:      { label: 'Resolved',      variant: 'outline', className: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700' },
+  resolved:      { label: 'Resolved',      variant: 'outline', className: 'bg-success/10 text-success border-success/30' },
   dismissed:     { label: 'Dismissed',     variant: 'secondary' },
   escalated:     { label: 'Escalated',     variant: 'destructive' },
 };

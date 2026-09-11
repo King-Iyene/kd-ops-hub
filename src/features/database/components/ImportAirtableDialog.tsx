@@ -1318,7 +1318,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         {step === 'done' && (
           <div className="py-8 text-center space-y-3">
             <div className="mx-auto w-12 h-12 rounded-full bg-green-100 dark:bg-green-500/10 flex items-center justify-center">
-              <CheckCircle2 size={24} className="text-green-600 dark:text-green-400" />
+              <CheckCircle2 size={24} className="text-success" />
             </div>
             <p className="text-sm font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
               Import complete!

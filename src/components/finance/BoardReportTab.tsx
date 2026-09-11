@@ -21,10 +21,10 @@ const TONE_ICON: Record<HighlightTone, typeof CheckCircle2> = {
 };
 
 const TONE_STYLE: Record<HighlightTone, { bg: string; border: string; icon: string }> = {
-  positive: { bg: 'bg-emerald-500/[0.06]', border: 'border-emerald-500/20', icon: 'text-emerald-600 dark:text-emerald-400' },
+  positive: { bg: 'bg-emerald-500/[0.06]', border: 'border-emerald-500/20', icon: 'text-success' },
   neutral:  { bg: 'bg-muted/50',           border: 'border-border',         icon: 'text-muted-foreground' },
-  warning:  { bg: 'bg-amber-500/[0.06]',   border: 'border-amber-500/20',   icon: 'text-amber-600 dark:text-amber-400' },
-  critical: { bg: 'bg-red-500/[0.06]',     border: 'border-red-500/20',     icon: 'text-red-600 dark:text-red-400' },
+  warning:  { bg: 'bg-amber-500/[0.06]',   border: 'border-amber-500/20',   icon: 'text-warning' },
+  critical: { bg: 'bg-red-500/[0.06]',     border: 'border-red-500/20',     icon: 'text-destructive' },
 };
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -223,7 +223,7 @@ export default function BoardReportTab() {
                             ) : (
                               <span className={cn(
                                 'inline-flex items-center gap-1 text-xs font-medium',
-                                t.delta_pct > 0 ? 'text-red-600 dark:text-red-400' : t.delta_pct < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground',
+                                t.delta_pct > 0 ? 'text-destructive' : t.delta_pct < 0 ? 'text-success' : 'text-muted-foreground',
                               )}>
                                 {t.delta_pct > 0 ? <TrendingUp className="h-3 w-3" /> : t.delta_pct < 0 ? <TrendingDown className="h-3 w-3" /> : null}
                                 <span className="tabular-nums">{t.delta_pct >= 0 ? '+' : ''}{t.delta_pct.toFixed(1)}%</span>
@@ -243,7 +243,7 @@ export default function BoardReportTab() {
               <SectionHeading>Compliance Status</SectionHeading>
               {report.overdueCompliance.length === 0 ? (
                 <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.06] p-3">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                   <span className="text-sm">All statutory filings are up to date.</span>
                 </div>
               ) : (
@@ -251,7 +251,7 @@ export default function BoardReportTab() {
                   {report.overdueCompliance.map((c) => (
                     <div key={c.id} className="flex items-center justify-between gap-3 rounded-lg border border-red-500/20 bg-red-500/[0.06] p-3">
                       <div className="flex items-center gap-2">
-                        <XCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+                        <XCircle className="h-4 w-4 text-destructive shrink-0" />
                         <div>
                           <p className="text-sm font-medium">{c.kind.toUpperCase()} — {c.period}</p>
                           <p className="text-2xs text-muted-foreground">Due {formatDate(c.due_date)}</p>

@@ -214,7 +214,7 @@ export default function ApiOverview({
       <section>
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-            <Zap className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <Zap className="h-5 w-5 text-success" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
@@ -268,7 +268,7 @@ export default function ApiOverview({
 
       {/* Bank Details Warning */}
       <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-300/50 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-900/10">
-        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+        <AlertTriangle className="h-5 w-5 text-warning mt-0.5 shrink-0" />
         <div>
           <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-1">Bank Details Required for Disbursements</h3>
           <p className="text-sm text-amber-700 dark:text-amber-400/80 leading-relaxed">

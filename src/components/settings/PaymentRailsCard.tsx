@@ -441,7 +441,7 @@ function ProviderCard({
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <ProviderPill provider={provider} size="md" />
-          <span className={`text-xs font-semibold ${isActive ? (provider === 'flutterwave' ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300') : 'text-muted-foreground'}`}>
+          <span className={`text-xs font-semibold ${isActive ? (provider === 'flutterwave' ? 'text-warning' : 'text-success') : 'text-muted-foreground'}`}>
             {isActive ? '● LIVE' : '○ Standby'}
           </span>
         </div>

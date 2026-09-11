@@ -150,16 +150,16 @@ const monthLabel = (period: string) => {
 };
 
 const REQUEST_META: Record<RequestRow['kind'], { label: string; icon: typeof Receipt; bg: string; fg: string }> = {
-  expense: { label: 'Expense', icon: Receipt,      bg: 'bg-emerald-500/10', fg: 'text-emerald-600 dark:text-emerald-400' },
+  expense: { label: 'Expense', icon: Receipt,      bg: 'bg-emerald-500/10', fg: 'text-success' },
   leave:   { label: 'Leave',   icon: CalendarDays, bg: 'bg-violet-500/10',  fg: 'text-violet-600 dark:text-violet-400' },
-  fuel:    { label: 'Fuel',    icon: Truck,        bg: 'bg-amber-500/10',   fg: 'text-amber-600 dark:text-amber-400' },
+  fuel:    { label: 'Fuel',    icon: Truck,        bg: 'bg-amber-500/10',   fg: 'text-warning' },
 };
 
 const STATUS_TONE: Record<string, { Icon: typeof CheckCircle2; bg: string; fg: string; label: string }> = {
-  approved:  { Icon: CheckCircle2, bg: 'bg-emerald-500/15', fg: 'text-emerald-700 dark:text-emerald-400', label: 'Approved' },
-  paid:      { Icon: CheckCircle2, bg: 'bg-emerald-500/15', fg: 'text-emerald-700 dark:text-emerald-400', label: 'Paid' },
-  completed: { Icon: CheckCircle2, bg: 'bg-emerald-500/15', fg: 'text-emerald-700 dark:text-emerald-400', label: 'Completed' },
-  pending:   { Icon: Clock,        bg: 'bg-amber-500/15',   fg: 'text-amber-700 dark:text-amber-400',     label: 'Pending' },
+  approved:  { Icon: CheckCircle2, bg: 'bg-emerald-500/15', fg: 'text-success', label: 'Approved' },
+  paid:      { Icon: CheckCircle2, bg: 'bg-emerald-500/15', fg: 'text-success', label: 'Paid' },
+  completed: { Icon: CheckCircle2, bg: 'bg-emerald-500/15', fg: 'text-success', label: 'Completed' },
+  pending:   { Icon: Clock,        bg: 'bg-amber-500/15',   fg: 'text-warning',     label: 'Pending' },
   rejected:  { Icon: XCircle,      bg: 'bg-red-500/15',     fg: 'text-red-700 dark:text-red-400',         label: 'Rejected' },
   failed:    { Icon: XCircle,      bg: 'bg-red-500/15',     fg: 'text-red-700 dark:text-red-400',         label: 'Failed' },
   draft:     { Icon: Clock,        bg: 'bg-muted',          fg: 'text-muted-foreground',                  label: 'Draft' },
@@ -1642,7 +1642,7 @@ function HeroStat({
     )}>
       <p className={cn(
         'text-2xl font-bold tabular-nums',
-        toneVariant === 'warning' && value > 0 && 'text-amber-600 dark:text-amber-400',
+        toneVariant === 'warning' && value > 0 && 'text-warning',
       )}>
         {value}
       </p>

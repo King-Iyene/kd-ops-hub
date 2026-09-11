@@ -467,7 +467,7 @@ const Transactions = () => {
             return (
               <div className="mt-2 space-y-2 flex-1 flex flex-col justify-center">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-display-md font-semibold font-mono tabular-nums leading-none tracking-tight text-emerald-600 dark:text-emerald-400">
+                  <span className="text-display-md font-semibold font-mono tabular-nums leading-none tracking-tight text-success">
                     {successRate}%
                   </span>
                   <span className="text-2xs text-muted-foreground">success rate</span>
@@ -641,8 +641,8 @@ const Transactions = () => {
                       // the status column. Pending stays neutral so
                       // the eye isn't drawn to in-flight items.
                       const rowTint = wasCancelled ? ''
-                        : wasPaidExternally ? 'bg-emerald-50/30 hover:bg-emerald-50/50 dark:bg-emerald-950/10'
-                        : ledgerStatus === 'failed' ? 'bg-rose-50/30 hover:bg-rose-50/50 dark:bg-rose-950/10'
+                        : wasPaidExternally ? 'bg-success/5 hover:bg-success/10'
+                        : ledgerStatus === 'failed' ? 'bg-destructive/5 hover:bg-destructive/10'
                         : ledgerStatus === 'succeeded' ? 'hover:bg-muted/30'
                         : 'hover:bg-muted/30';
                       return (
@@ -835,9 +835,9 @@ export default Transactions;
 
 function LedgerStatusDot({ status }: { status: string }) {
   const config: Record<string, { label: string; dot: string; text: string }> = {
-    succeeded: { label: 'Succeeded', dot: 'bg-emerald-500',  text: 'text-emerald-700 dark:text-emerald-400' },
-    pending:   { label: 'Pending',   dot: 'bg-amber-500',    text: 'text-amber-700 dark:text-amber-400' },
-    failed:    { label: 'Failed',    dot: 'bg-red-500',      text: 'text-red-700 dark:text-red-400' },
+    succeeded: { label: 'Succeeded', dot: 'bg-emerald-500',  text: 'text-success' },
+    pending:   { label: 'Pending',   dot: 'bg-amber-500',    text: 'text-warning' },
+    failed:    { label: 'Failed',    dot: 'bg-red-500',      text: 'text-destructive' },
     reversed:  { label: 'Refunded',  dot: 'bg-slate-400',    text: 'text-slate-600 dark:text-slate-400' },
   };
   const c = config[status] ?? config.pending;

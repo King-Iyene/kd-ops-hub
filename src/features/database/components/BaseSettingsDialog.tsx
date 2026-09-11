@@ -263,7 +263,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
                 </Button>
               ) : (
                 <div className="space-y-2">
-                  <Label htmlFor="confirm-delete" className="text-xs text-red-600 dark:text-red-400">
+                  <Label htmlFor="confirm-delete" className="text-xs text-destructive">
                     Type <span className="font-semibold">{base.name}</span> to confirm
                   </Label>
                   <Input

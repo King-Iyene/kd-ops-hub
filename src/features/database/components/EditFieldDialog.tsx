@@ -525,7 +525,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                             </span>
                             <span className={cn(
                               'text-3xs ml-auto',
-                              rule.safety === 'safe' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400',
+                              rule.safety === 'safe' ? 'text-success' : 'text-warning',
                             )}>
                               {rule.safety === 'safe' ? 'safe' : 'lossy'}
                             </span>

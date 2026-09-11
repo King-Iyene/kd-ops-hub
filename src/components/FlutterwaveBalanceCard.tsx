@@ -62,7 +62,7 @@ const TONE: Record<Tone, {
   healthy: {
     accentBar:  'bg-gradient-to-r from-amber-400/40 via-amber-500 to-orange-400/40',
     iconWrap:   'bg-amber-500/10 dark:bg-amber-400/10',
-    icon:       'text-amber-600 dark:text-amber-400',
+    icon:       'text-warning',
     dot:        'bg-amber-500',
     dotPulse:   'kd-status-live-warning',
     amount:     'text-foreground',
@@ -71,24 +71,24 @@ const TONE: Record<Tone, {
   low: {
     accentBar:  'bg-gradient-to-r from-amber-500/50 via-amber-600 to-amber-400/40',
     iconWrap:   'bg-amber-500/10 dark:bg-amber-400/10',
-    icon:       'text-amber-700 dark:text-amber-300',
+    icon:       'text-warning',
     dot:        'bg-amber-500',
     dotPulse:   'kd-status-live-warning',
     amount:     'text-foreground',
     banner:     'bg-amber-500/10 border border-amber-500/20 dark:bg-amber-400/10 dark:border-amber-400/20',
-    bannerText: 'text-amber-700 dark:text-amber-300',
-    caption:    'text-amber-700 dark:text-amber-300/90',
+    bannerText: 'text-warning',
+    caption:    'text-warning/90',
   },
   critical: {
     accentBar:  'bg-gradient-to-r from-red-500/40 via-red-500 to-rose-400/40',
     iconWrap:   'bg-red-500/10 dark:bg-red-400/10',
-    icon:       'text-red-600 dark:text-red-400',
+    icon:       'text-destructive',
     dot:        'bg-red-500',
     dotPulse:   'kd-status-live-danger',
-    amount:     'text-red-600 dark:text-red-400',
+    amount:     'text-destructive',
     banner:     'bg-red-500/10 border border-red-500/20 dark:bg-red-400/10 dark:border-red-400/20',
-    bannerText: 'text-red-700 dark:text-red-300',
-    caption:    'text-red-700 dark:text-red-300/90',
+    bannerText: 'text-destructive',
+    caption:    'text-destructive/90',
   },
   unknown: {
     accentBar:  'bg-gradient-to-r from-slate-400/30 via-slate-500/40 to-slate-400/30',
@@ -455,7 +455,7 @@ function CopyButton({
     >
       {children}
       {copied ? (
-        <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+        <Check className="h-3 w-3 text-success shrink-0" />
       ) : (
         <Copy className="h-3 w-3 text-muted-foreground/40 group-hover:text-foreground shrink-0 kd-transition" />
       )}

@@ -35,9 +35,9 @@ import { cn } from '@/lib/utils';
 
 const STATUS_META: Record<string, { label: string; icon: React.ElementType; color: string; bg: string; dot: string }> = {
   planning:  { label: 'Planning',   icon: Clock,       color: 'text-blue-500',    bg: 'bg-blue-50 dark:bg-blue-950/30',    dot: 'bg-blue-500' },
-  active:    { label: 'Active',     icon: FolderKanban,color: 'text-success', bg: 'bg-emerald-50 dark:bg-emerald-950/30', dot: 'bg-emerald-500' },
-  on_hold:   { label: 'On Hold',    icon: PauseCircle, color: 'text-amber-500',   bg: 'bg-amber-50 dark:bg-amber-950/30',  dot: 'bg-amber-500' },
-  completed: { label: 'Completed',  icon: CheckCircle2,color: 'text-success', bg: 'bg-emerald-50/50 dark:bg-emerald-950/20', dot: 'bg-emerald-500' },
+  active:    { label: 'Active',     icon: FolderKanban,color: 'text-success', bg: 'bg-success/5', dot: 'bg-emerald-500' },
+  on_hold:   { label: 'On Hold',    icon: PauseCircle, color: 'text-warning',   bg: 'bg-warning/5',  dot: 'bg-amber-500' },
+  completed: { label: 'Completed',  icon: CheckCircle2,color: 'text-success', bg: 'bg-success/5', dot: 'bg-emerald-500' },
   cancelled: { label: 'Cancelled',  icon: XCircle,     color: 'text-muted-foreground', bg: 'bg-muted',  dot: 'bg-slate-400' },
 };
 

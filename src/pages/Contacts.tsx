@@ -19,6 +19,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -134,6 +135,9 @@ const Contacts = () => {
     notes: '',
   });
 
+  type ContactField = 'first_name' | 'last_name';
+  const { errors: fe, setError, clearError, clearAll } = useFieldErrors<ContactField>();
+
   const [noteDialog, setNoteDialog] = useState<Contact | null>(null);
   const [noteText, setNoteText] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<Contact | null>(null);
@@ -170,6 +174,7 @@ const Contacts = () => {
   };
 
   const openEdit = (c: Contact) => {
+    clearAll();
     setEditing(c);
     setForm({
       first_name: c.first_name || (c.full_name || '').split(' ')[0] || '',
@@ -185,10 +190,11 @@ const Contacts = () => {
   };
 
   const save = async () => {
-    if (!form.first_name.trim()) {
-      toast({ title: 'First name is required', variant: 'destructive' });
-      return;
-    }
+    clearAll();
+    let invalid = false;
+    if (!form.first_name.trim()) { setError('first_name', 'First name is required'); invalid = true; }
+    if (!form.last_name.trim()) { setError('last_name', 'Last name is required'); invalid = true; }
+    if (invalid) return;
     // Duplicate check by email (skip if editing same contact or no email).
     if (form.email && (!editing || editing.email !== form.email)) {
       const { data: existing } = await supabase
@@ -619,7 +625,7 @@ const Contacts = () => {
         )}
       </Tabs>
 
-      <Dialog open={dialog} onOpenChange={(v) => { setDialog(v); if (!v) reset(); }}>
+      <Dialog open={dialog} onOpenChange={(v) => { setDialog(v); if (!v) { reset(); clearAll(); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit contact' : 'New contact'}</DialogTitle>
@@ -630,17 +636,21 @@ const Contacts = () => {
                 <Label>First name *</Label>
                 <Input
                   value={form.first_name}
-                  onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                  aria-invalid={!!fe.first_name}
+                  onChange={(e) => { setForm({ ...form, first_name: e.target.value }); clearError('first_name'); }}
                   placeholder="Ada"
                 />
+                <FieldError message={fe.first_name} />
               </div>
               <div className="space-y-1">
                 <Label>Last name *</Label>
                 <Input
                   value={form.last_name}
-                  onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                  aria-invalid={!!fe.last_name}
+                  onChange={(e) => { setForm({ ...form, last_name: e.target.value }); clearError('last_name'); }}
                   placeholder="Okonkwo"
                 />
+                <FieldError message={fe.last_name} />
               </div>
               <div className="space-y-1 col-span-2 sm:col-span-1">
                 <Label>Email</Label>

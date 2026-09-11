@@ -699,7 +699,7 @@ export const EmployeeCsvImport = ({
               {importedCount} employee{importedCount === 1 ? '' : 's'} imported
               {failedCount > 0 ? ` · ${failedCount} failed` : ''}
             </p>
-            <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1">
+            <p className="text-xs text-success mt-1">
               Head back to the Employees list to send invite emails.
             </p>
           </div>

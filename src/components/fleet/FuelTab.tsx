@@ -2268,7 +2268,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                   </div>
 
                   {r.status === 'rejected' && r.rejection_reason && (
-                    <p className="text-xs text-red-600 dark:text-red-400">Rejected: {r.rejection_reason}</p>
+                    <p className="text-xs text-destructive">Rejected: {r.rejection_reason}</p>
                   )}
 
                   {r.reason && (

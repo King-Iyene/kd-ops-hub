@@ -1052,7 +1052,7 @@ function InspectionDetailDialog({
               <div className="flex items-center gap-3 mb-2">
                 <h4 className="text-sm font-semibold">Checklist</h4>
                 <div className="flex gap-2 text-xs text-muted-foreground">
-                  <span className="text-emerald-600 dark:text-emerald-400">{passCount} pass</span>
+                  <span className="text-success">{passCount} pass</span>
                   <span className="text-rose-600 dark:text-rose-400">{failCount} fail</span>
                   <span>{naCount} n/a</span>
                 </div>

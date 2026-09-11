@@ -509,7 +509,7 @@ const ClientProfile = () => {
                           <TableCell className="text-right font-medium tabular-nums">
                             {formatNaira(p.client_rate_ngn)}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+                          <TableCell className="text-right tabular-nums text-success">
                             {formatNaira(p.commission_ngn)}
                             <span className="text-xs text-muted-foreground ml-1">({Number(p.commission_pct || 0)}%)</span>
                           </TableCell>
@@ -705,7 +705,7 @@ const ClientProfile = () => {
                             {new Date(p.month + 'T00:00:00').toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">{formatNaira(p.gross_amount_ngn)}</TableCell>
-                          <TableCell className="text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatNaira(p.commission_ngn)}</TableCell>
+                          <TableCell className="text-right tabular-nums text-success">{formatNaira(p.commission_ngn)}</TableCell>
                           <TableCell className="text-right tabular-nums">{formatNaira(p.net_employee_ngn)}</TableCell>
                           <TableCell>
                             <Badge className={PAYMENT_STATUS_BADGE[p.status] || ''} variant="secondary">{p.status}</Badge>

@@ -106,8 +106,8 @@ const SCOPE_GROUPS: ScopeGroup[] = [
   },
   {
     label: 'Expenses',
-    color: 'text-emerald-600 dark:text-emerald-400',
-    badgeClass: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
+    color: 'text-success',
+    badgeClass: 'bg-emerald-100 dark:bg-emerald-900/30 text-success',
     scopes: [
       { value: 'expenses:read', label: 'Read' },
       { value: 'expenses:write', label: 'Write' },
@@ -115,7 +115,7 @@ const SCOPE_GROUPS: ScopeGroup[] = [
   },
   {
     label: 'Payroll',
-    color: 'text-green-600 dark:text-green-400',
+    color: 'text-success',
     badgeClass: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
     scopes: [{ value: 'payroll:read', label: 'Read only' }],
   },
@@ -130,8 +130,8 @@ const SCOPE_GROUPS: ScopeGroup[] = [
   },
   {
     label: 'Invoices',
-    color: 'text-amber-600 dark:text-amber-400',
-    badgeClass: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
+    color: 'text-warning',
+    badgeClass: 'bg-amber-100 dark:bg-amber-900/30 text-warning',
     scopes: [
       { value: 'invoices:read', label: 'Read' },
       { value: 'invoices:write', label: 'Write' },
@@ -558,7 +558,7 @@ export default function ApiKeysManager() {
       <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+            <DialogTitle className="flex items-center gap-2 text-success">
               <Check size={18} />
               API Key Created
             </DialogTitle>
@@ -570,8 +570,8 @@ export default function ApiKeysManager() {
           <div className="space-y-4 py-2">
             <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
               <div className="flex items-start gap-2 mb-3">
-                <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-                <p className="text-xs text-amber-700 dark:text-amber-300">
+                <AlertTriangle size={16} className="text-warning mt-0.5 shrink-0" />
+                <p className="text-xs text-warning">
                   This is the only time you will see this key. Store it securely.
                 </p>
               </div>
@@ -601,7 +601,7 @@ export default function ApiKeysManager() {
       <Dialog open={!!revokeTarget} onOpenChange={(open) => { if (!open) setRevokeTarget(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
+            <DialogTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle size={18} />
               Revoke API Key
             </DialogTitle>

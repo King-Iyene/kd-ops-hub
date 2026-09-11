@@ -346,9 +346,9 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
   // -------------------------------------------------------------------------
 
   function varianceColor(pct: number): string {
-    if (pct > 10) return 'text-red-600 dark:text-red-400';
-    if (pct >= -10) return 'text-amber-600 dark:text-amber-400';
-    return 'text-emerald-600 dark:text-emerald-400';
+    if (pct > 10) return 'text-destructive';
+    if (pct >= -10) return 'text-warning';
+    return 'text-success';
   }
 
   function varianceBg(pct: number): string {
@@ -387,10 +387,10 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
           <p className={cn(
             'text-lg font-semibold tabular-nums',
             summary.utilization > 100
-              ? 'text-red-600 dark:text-red-400'
+              ? 'text-destructive'
               : summary.utilization >= 80
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-amber-600 dark:text-amber-400',
+                ? 'text-success'
+                : 'text-warning',
           )}>
             {summary.utilization}%
           </p>
@@ -402,7 +402,7 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
           </div>
           <p className="text-lg font-semibold tabular-nums">{summary.activeTimers}</p>
           {summary.activeTimers > 0 && (
-            <span className="inline-flex items-center gap-1 text-3xs text-emerald-600 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-1 text-3xs text-success">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Running
             </span>
@@ -572,7 +572,7 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
                                   </td>
                                   <td className="py-2 pr-3 text-right tabular-nums whitespace-nowrap">
                                     {isRunning ? (
-                                      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                                      <span className="inline-flex items-center gap-1 text-success">
                                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                                         Running
                                       </span>
