@@ -31,7 +31,7 @@ function CopyButton({ text, size = 12 }: { text: string; size?: number }) {
   }, [text]);
   return (
     <button onClick={handleCopy} className="shrink-0 p-1 rounded hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60 text-zinc-400 dark:text-zinc-500 transition-colors" title="Copy">
-      {copied ? <Check size={size} className="text-emerald-500" /> : <Copy size={size} />}
+      {copied ? <Check size={size} className="text-success" /> : <Copy size={size} />}
     </button>
   );
 }
@@ -53,10 +53,10 @@ function CodeBlock({ label, code, language }: { label: string; code: string; lan
 
 function MethodBadge({ method }: { method: HttpMethod }) {
   const colors: Record<HttpMethod, string> = {
-    GET: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400',
-    POST: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400',
-    PATCH: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
-    DELETE: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
+    GET: 'bg-success/10 text-success dark:bg-success/10 dark:text-success',
+    POST: 'bg-primary/10 text-primary dark:bg-primary/10 dark:text-primary',
+    PATCH: 'bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning',
+    DELETE: 'bg-destructive/10 text-destructive dark:bg-destructive/10 dark:text-destructive',
   };
   return <span className={`text-3xs font-bold px-1.5 py-0.5 rounded ${colors[method]}`}>{method}</span>;
 }
@@ -67,7 +67,7 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
       onClick={onClick}
       className={`px-3 py-1.5 text-2xs font-medium rounded-lg transition-all ${
         active
-          ? 'bg-blue-600 text-white shadow-sm'
+          ? 'bg-primary text-white shadow-sm'
           : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
       }`}
     >
@@ -79,8 +79,8 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
 function SectionHeader({ icon: Icon, title, subtitle }: { icon: React.ElementType; title: string; subtitle?: string }) {
   return (
     <div className="flex items-start gap-2.5 mb-3">
-      <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 mt-0.5">
-        <Icon size={14} className="text-blue-600 dark:text-blue-400" />
+      <div className="p-1.5 rounded-lg bg-primary/5 dark:bg-primary/10 mt-0.5">
+        <Icon size={14} className="text-primary" />
       </div>
       <div>
         <h4 className="text-xs-plus font-semibold text-zinc-800 dark:text-zinc-200">{title}</h4>
@@ -100,21 +100,21 @@ function OverviewTab({ baseId, onSubDialog, onSwitchTab }: { baseId: string | nu
       {/* Hero */}
       <div className="rounded-xl bg-gradient-to-br from-blue-500/10 via-indigo-500/5 to-emerald-500/10 dark:from-blue-500/20 dark:via-indigo-500/10 dark:to-emerald-500/20 p-5 border border-blue-200/50 dark:border-blue-800/40">
         <div className="flex items-start gap-3">
-          <div className="p-2.5 rounded-xl bg-blue-600/15 dark:bg-blue-500/25">
-            <Cable size={22} className="text-blue-600 dark:text-blue-400" />
+          <div className="p-2.5 rounded-xl bg-primary/10 dark:bg-primary/10">
+            <Cable size={22} className="text-primary" />
           </div>
           <div className="flex-1">
             <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-100">Connect Your Tools</h3>
             <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1.5 leading-relaxed">
               KDOps has a full <strong>Airtable-compatible REST API</strong>. Connect n8n, Zapier, Make, or any tool
-              that speaks HTTP. Fields are <strong className="text-blue-600 dark:text-blue-400">auto-created</strong> when you send new data — no setup needed.
+              that speaks HTTP. Fields are <strong className="text-primary">auto-created</strong> when you send new data — no setup needed.
             </p>
             <div className="flex gap-2 mt-3">
-              <button onClick={() => onSwitchTab('api-reference')} className="text-2xs font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+              <button onClick={() => onSwitchTab('api-reference')} className="text-2xs font-medium text-primary hover:underline flex items-center gap-1">
                 <Code2 size={12} /> View API Reference
               </button>
               <span className="text-zinc-300 dark:text-zinc-600">|</span>
-              <button onClick={() => onSwitchTab('connect')} className="text-2xs font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+              <button onClick={() => onSwitchTab('connect')} className="text-2xs font-medium text-primary hover:underline flex items-center gap-1">
                 <Plug size={12} /> Connect n8n / Zapier
               </button>
             </div>
@@ -132,7 +132,7 @@ function OverviewTab({ baseId, onSubDialog, onSwitchTab }: { baseId: string | nu
             { step: 3, title: 'Set up webhooks (optional)', desc: 'Get notified in real-time when records change — push data to n8n, Slack, or any URL.', action: () => onSubDialog('webhooks') },
           ].map(({ step, title, desc, action }) => (
             <button key={step} onClick={action} className="w-full flex items-start gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/80 dark:border-zinc-700/50 hover:border-blue-300 dark:hover:border-blue-700 transition-colors text-left group">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-2xs font-bold shrink-0 mt-0.5">{step}</span>
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-2xs font-bold shrink-0 mt-0.5">{step}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{title}</p>
                 <p className="text-2xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">{desc}</p>
@@ -174,7 +174,7 @@ function OverviewTab({ baseId, onSubDialog, onSwitchTab }: { baseId: string | nu
             { id: 'webhooks' as SubDialog, icon: Webhook, title: 'Webhooks', desc: 'Push events externally', color: '#10B981' },
             { id: 'automations' as SubDialog, icon: Zap, title: 'Automations', desc: 'Auto-run on triggers', color: '#F59E0B' },
           ].map((card) => (
-            <button key={card.id} onClick={() => onSubDialog(card.id)} className="flex flex-col items-center gap-2 p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-700/60 hover:border-blue-300 dark:hover:border-blue-600/50 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all group text-center">
+            <button key={card.id} onClick={() => onSubDialog(card.id)} className="flex flex-col items-center gap-2 p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-700/60 hover:border-primary/30 dark:hover:border-primary/30 hover:bg-primary/5 dark:hover:bg-primary/10 transition-all group text-center">
               <div className="p-2 rounded-lg" style={{ backgroundColor: `${card.color}18` }}>
                 <card.icon size={18} style={{ color: card.color }} />
               </div>
@@ -357,14 +357,14 @@ Headers:
       </div>
 
       {/* Auth info */}
-      <div className="rounded-lg border border-warning/20/40 p-3 bg-amber-50/50 dark:bg-amber-900/10">
+      <div className="rounded-lg border border-warning/20 p-3 bg-warning/5 dark:bg-warning/10">
         <div className="flex items-center gap-2 mb-1">
           <Shield size={12} className="text-warning" />
-          <span className="text-2xs font-semibold text-amber-700 dark:text-amber-400">Authentication</span>
+          <span className="text-2xs font-semibold text-warning">Authentication</span>
         </div>
         <p className="text-2xs text-warning/80 leading-relaxed">
-          All requests require a <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded text-3xs">Bearer</code> token.
-          Pass your API key in the Authorization header: <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded text-3xs">Authorization: Bearer kdops_YOUR_KEY</code>
+          All requests require a <code className="px-1 py-0.5 bg-warning/10 dark:bg-warning/10 rounded text-3xs">Bearer</code> token.
+          Pass your API key in the Authorization header: <code className="px-1 py-0.5 bg-warning/10 dark:bg-warning/10 rounded text-3xs">Authorization: Bearer kdops_YOUR_KEY</code>
         </p>
       </div>
 
@@ -399,8 +399,8 @@ Headers:
         <CodeBlock label="Response" code={active.response} language="JSON" />
 
         {active.notes && (
-          <div className="rounded-lg border border-blue-200 dark:border-blue-800/40 p-3 bg-blue-50/50 dark:bg-blue-900/10">
-            <p className="text-2xs text-blue-700 dark:text-blue-400 leading-relaxed">
+          <div className="rounded-lg border border-primary/20 dark:border-primary/20 p-3 bg-primary/5 dark:bg-primary/10">
+            <p className="text-2xs text-primary leading-relaxed">
               <strong>Note:</strong> {active.notes}
             </p>
           </div>
@@ -604,10 +604,10 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
       <CodeBlock label={active.codeLabel} code={active.code} language={activeTool === 'curl' ? 'bash' : 'JSON'} />
 
       {/* Webhook tip */}
-      <div className="rounded-lg border border-success/20/40 p-3 bg-emerald-50/50 dark:bg-emerald-900/10">
+      <div className="rounded-lg border border-success/20 p-3 bg-success/5 dark:bg-success/10">
         <div className="flex items-center gap-2 mb-1">
           <Webhook size={12} className="text-success" />
-          <span className="text-2xs font-semibold text-emerald-700 dark:text-emerald-400">Pro Tip: Two-Way Sync</span>
+          <span className="text-2xs font-semibold text-success">Pro Tip: Two-Way Sync</span>
         </div>
         <p className="text-2xs text-success/80 leading-relaxed">
           Set up a <strong>Webhook</strong> in KDOps to push changes back to your tool. When a record is created/updated/deleted in KDOps,
@@ -639,7 +639,7 @@ export function IntegrationsDialog({ open, onOpenChange, tableId, baseId }: Inte
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200 dark:border-zinc-700/80">
             <div className="flex items-center gap-2">
-              <Cable size={16} className="text-blue-600 dark:text-blue-400" />
+              <Cable size={16} className="text-primary" />
               <h2 className="text-base font-bold text-zinc-800 dark:text-zinc-100">Integrations</h2>
             </div>
           </div>
@@ -652,7 +652,7 @@ export function IntegrationsDialog({ open, onOpenChange, tableId, baseId }: Inte
                 onClick={() => setTab(t.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-2xs font-medium transition-all ${
                   tab === t.id
-                    ? 'bg-blue-600 text-white shadow-sm'
+                    ? 'bg-primary text-white shadow-sm'
                     : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700/50'
                 }`}
               >

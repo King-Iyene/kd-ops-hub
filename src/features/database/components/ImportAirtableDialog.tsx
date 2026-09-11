@@ -1085,9 +1085,9 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                 airtable.com/create/tokens <ExternalLink size={11} />
               </a>
             </p>
-            <div className="rounded-lg border border-warning/20/40 bg-warning/10/10 px-3 py-2.5">
+            <div className="rounded-lg border border-warning/20 bg-warning/10 px-3 py-2.5">
               <p className="text-xs text-warning leading-relaxed">
-                <strong>Required scopes:</strong> <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded text-2xs">data.records:read</code> and <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded text-2xs">schema.bases:read</code> for the bases you want to import.
+                <strong>Required scopes:</strong> <code className="bg-warning/10 dark:bg-warning/10 px-1 rounded text-2xs">data.records:read</code> and <code className="bg-warning/10 dark:bg-warning/10 px-1 rounded text-2xs">schema.bases:read</code> for the bases you want to import.
               </p>
             </div>
             <div className="space-y-1.5">
@@ -1281,7 +1281,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                 </div>
                 <div className="w-full bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] rounded-full h-1.5">
                   <div
-                    className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
+                    className="bg-success h-1.5 rounded-full transition-all duration-300"
                     style={{ width: `${(progress.recordsInserted / progress.totalRecords) * 100}%` }}
                   />
                 </div>
@@ -1289,12 +1289,12 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             )}
 
             {progress.errors.length > 0 && (
-              <div className="rounded-lg border border-warning/20/40 bg-warning/10/10 px-3 py-2 space-y-1">
+              <div className="rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 space-y-1">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-warning">
                   <AlertTriangle size={12} /> {progress.errors.length} warning{progress.errors.length !== 1 ? 's' : ''}
                 </div>
                 {progress.errors.slice(-3).map((err, i) => (
-                  <p key={i} className="text-2xs text-amber-600 dark:text-amber-500 truncate">{err}</p>
+                  <p key={i} className="text-2xs text-warning truncate">{err}</p>
                 ))}
               </div>
             )}
@@ -1317,7 +1317,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
         {step === 'done' && (
           <div className="py-8 text-center space-y-3">
-            <div className="mx-auto w-12 h-12 rounded-full bg-green-100 dark:bg-green-500/10 flex items-center justify-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-success/10 dark:bg-success/10 flex items-center justify-center">
               <CheckCircle2 size={24} className="text-success" />
             </div>
             <p className="text-sm font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
@@ -1328,12 +1328,12 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               {importedRecordCount > 0 && ` with ${formatNumber(importedRecordCount)} records`} from Airtable.
             </p>
             {progress.errors.length > 0 && (
-              <div className="text-left rounded-lg border border-warning/20/40 bg-warning/10/10 px-3 py-2 space-y-1 max-h-32 overflow-y-auto">
+              <div className="text-left rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 space-y-1 max-h-32 overflow-y-auto">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-warning">
                   <AlertTriangle size={12} /> Some records had issues
                 </div>
                 {progress.errors.map((err, i) => (
-                  <p key={i} className="text-2xs text-amber-600 dark:text-amber-500">{err}</p>
+                  <p key={i} className="text-2xs text-warning">{err}</p>
                 ))}
               </div>
             )}
