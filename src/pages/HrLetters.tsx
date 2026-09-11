@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { useToast } from '@/hooks/use-toast';
 import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 
@@ -39,12 +40,12 @@ const TYPE_CONFIG: Record<LetterType, { label: string; variant: 'default' | 'sec
 };
 
 const TYPE_COLOR: Record<LetterType, string> = {
-  confirmation:            'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-  promotion:               'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  confirmation:            'bg-primary/10 text-primary',
+  promotion:               'bg-success/10 text-success',
   employment_verification: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
   reference:               'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300',
-  termination:             'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-  salary_review:           'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+  termination:             'bg-destructive/10 text-destructive',
+  salary_review:           'bg-warning/10 text-warning',
   warning:                 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
   custom:                  'bg-muted text-muted-foreground',
 };
@@ -286,7 +287,8 @@ export default function HrLetters() {
           }
         />
       ) : (
-        <div className="rounded-md border overflow-x-auto">
+        {/* Desktop table */}
+        <div className="hidden md:block rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -325,7 +327,7 @@ export default function HrLetters() {
                       <div className="flex items-center gap-1">
                         {l.status === 'issued' && !l.recipient_signature_url && (
                           <Button variant="ghost" size="icon" onClick={() => setSigningLetter(l)} aria-label="Sign letter" title="Sign & acknowledge receipt">
-                            <PenTool className="h-4 w-4 text-blue-500" />
+                            <PenTool className="h-4 w-4 text-primary" />
                           </Button>
                         )}
                         {l.recipient_signature_url && (
@@ -344,6 +346,53 @@ export default function HrLetters() {
               })}
             </TableBody>
           </Table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-2 p-3">
+          {filtered.map(l => {
+            const typeCfg = TYPE_CONFIG[l.letter_type];
+            const statusCfg = STATUS_CONFIG[l.status];
+            const statusAccent: Record<LetterStatus, string> = {
+              draft: 'bg-warning',
+              issued: 'bg-success',
+              revoked: 'bg-destructive',
+            };
+            return (
+              <MobileCard key={l.id} accentClassName={statusAccent[l.status]} chevron onClick={() => openEdit(l)}>
+                <MobileCardHeader>
+                  <MobileCardTitle>{l.title}</MobileCardTitle>
+                  <MobileCardMeta>{empName(l.employee_id)}</MobileCardMeta>
+                </MobileCardHeader>
+                <MobileCardRow label="Type">
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_COLOR[l.letter_type]}`}>
+                    {typeCfg.label}
+                  </span>
+                </MobileCardRow>
+                <MobileCardRow label="Status">
+                  <Badge variant={statusCfg.variant}>{statusCfg.label}</Badge>
+                </MobileCardRow>
+                <MobileCardRow label="Effective">
+                  {l.effective_date ? format(parseISO(l.effective_date), 'dd MMM yyyy') : '—'}
+                </MobileCardRow>
+                <MobileCardRow label="Created">
+                  {format(parseISO(l.created_at), 'dd MMM yyyy')}
+                </MobileCardRow>
+                {l.recipient_signature_url && (
+                  <MobileCardRow label="Signature">
+                    <span className="text-xs font-medium text-success">Signed</span>
+                  </MobileCardRow>
+                )}
+                {l.status === 'issued' && !l.recipient_signature_url && (
+                  <div className="pt-1">
+                    <Button variant="outline" size="sm" className="w-full gap-1" onClick={e => { e.stopPropagation(); setSigningLetter(l); }}>
+                      <PenTool className="h-3.5 w-3.5" /> Sign Letter
+                    </Button>
+                  </div>
+                )}
+              </MobileCard>
+            );
+          })}
         </div>
       )}
 

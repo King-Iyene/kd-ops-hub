@@ -58,6 +58,7 @@ import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
 import { Pagination } from '@/components/ui-kit/Pagination';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 
 type ClientStatus = 'active' | 'inactive' | 'prospect';
 
@@ -394,100 +395,156 @@ const Clients = () => {
             />
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Client</TableHead>
-                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Industry</TableHead>
-                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Contract Value</TableHead>
-                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-center">Placements</TableHead>
-                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Monthly Revenue</TableHead>
-                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Contact</TableHead>
-                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Status</TableHead>
-                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Start Date</TableHead>
-                      {canManage && <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Actions</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pagination.items.map((c) => (
-                      <TableRow
-                        key={c.id}
-                        className="cursor-pointer kd-transition hover:bg-muted/40"
-                        onClick={() => navigate(`/clients/${c.id}`)}
-                        onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/clients/${c.id}`, '_blank'); ev.preventDefault(); } }}
-                      >
-                        <TableCell>
-                          <div>
-                            <p className="font-medium"><Link to={`/clients/${c.id}`} className="hover:underline" onClick={(e) => e.preventDefault()}>{c.name}</Link></p>
-                            {c.email && (
-                              <p className="text-xs text-muted-foreground">{c.email}</p>
+              {/* Desktop table */}
+              <div className="hidden md:block">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Client</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Industry</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Contract Value</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-center">Placements</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Monthly Revenue</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Contact</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Status</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Start Date</TableHead>
+                        {canManage && <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Actions</TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pagination.items.map((c) => (
+                        <TableRow
+                          key={c.id}
+                          className="cursor-pointer kd-transition hover:bg-muted/40"
+                          onClick={() => navigate(`/clients/${c.id}`)}
+                          onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/clients/${c.id}`, '_blank'); ev.preventDefault(); } }}
+                        >
+                          <TableCell>
+                            <div>
+                              <p className="font-medium"><Link to={`/clients/${c.id}`} className="hover:underline" onClick={(e) => e.preventDefault()}>{c.name}</Link></p>
+                              {c.email && (
+                                <p className="text-xs text-muted-foreground">{c.email}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {c.industry || '—'}
+                          </TableCell>
+                          <TableCell className="text-right font-medium currency">
+                            {Number(c.contract_value_ngn || 0) > 0 ? formatNaira(c.contract_value_ngn) : '—'}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {placementStats[c.id]?.active ? (
+                              <Badge variant="secondary" className="bg-primary/10 text-primary">
+                                {placementStats[c.id].active}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
                             )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {c.industry || '—'}
-                        </TableCell>
-                        <TableCell className="text-right font-medium currency">
-                          {Number(c.contract_value_ngn || 0) > 0 ? formatNaira(c.contract_value_ngn) : '—'}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {placementStats[c.id]?.active ? (
-                            <Badge variant="secondary" className="bg-primary/10 text-primary">
-                              {placementStats[c.id].active}
+                          </TableCell>
+                          <TableCell className="text-right font-medium currency">
+                            {placementStats[c.id]?.monthlyRevenue
+                              ? formatNaira(placementStats[c.id].monthlyRevenue)
+                              : '—'}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              {c.contact_person && <p className="text-sm">{c.contact_person}</p>}
+                              {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={STATUS_TONE[c.status]}>
+                              {STATUS_LABELS[c.status]}
                             </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {c.start_date ? formatDate(c.start_date) : '—'}
+                          </TableCell>
+                          {canManage && (
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={(e) => { e.stopPropagation(); openEdit(c); }}
+                                  title="Edit"
+                                  aria-label={`Edit ${c.name}`}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={(e) => { e.stopPropagation(); setPendingDelete(c); }}
+                                  title="Delete"
+                                  aria-label={`Delete ${c.name}`}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </TableCell>
                           )}
-                        </TableCell>
-                        <TableCell className="text-right font-medium currency">
-                          {placementStats[c.id]?.monthlyRevenue
-                            ? formatNaira(placementStats[c.id].monthlyRevenue)
-                            : '—'}
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            {c.contact_person && <p className="text-sm">{c.contact_person}</p>}
-                            {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
-                          </div>
-                        </TableCell>
-                        <TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-2 p-3">
+                {pagination.items.map((c) => {
+                  const accent: Record<ClientStatus, string> = {
+                    active: 'bg-success',
+                    inactive: 'bg-muted-foreground',
+                    prospect: 'bg-info',
+                  };
+                  return (
+                    <MobileCard
+                      key={c.id}
+                      chevron
+                      accentClassName={accent[c.status]}
+                      onClick={() => navigate(`/clients/${c.id}`)}
+                    >
+                      <MobileCardHeader>
+                        <MobileCardTitle>{c.name}</MobileCardTitle>
+                        <MobileCardMeta>
                           <Badge className={STATUS_TONE[c.status]}>
                             {STATUS_LABELS[c.status]}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {c.start_date ? formatDate(c.start_date) : '—'}
-                        </TableCell>
-                        {canManage && (
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={(e) => { e.stopPropagation(); openEdit(c); }}
-                                title="Edit"
-                                aria-label={`Edit ${c.name}`}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={(e) => { e.stopPropagation(); setPendingDelete(c); }}
-                                title="Delete"
-                                aria-label={`Delete ${c.name}`}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        </MobileCardMeta>
+                      </MobileCardHeader>
+                      {c.industry && (
+                        <MobileCardRow label="Industry">{c.industry}</MobileCardRow>
+                      )}
+                      <MobileCardRow label="Contract">
+                        {Number(c.contract_value_ngn || 0) > 0 ? formatNaira(c.contract_value_ngn) : '—'}
+                      </MobileCardRow>
+                      {placementStats[c.id]?.active ? (
+                        <MobileCardRow label="Placements">
+                          <Badge variant="secondary" className="bg-primary/10 text-primary text-xs">
+                            {placementStats[c.id].active}
+                          </Badge>
+                        </MobileCardRow>
+                      ) : null}
+                      {placementStats[c.id]?.monthlyRevenue ? (
+                        <MobileCardRow label="Monthly Rev.">
+                          {formatNaira(placementStats[c.id].monthlyRevenue)}
+                        </MobileCardRow>
+                      ) : null}
+                      {c.contact_person && (
+                        <MobileCardRow label="Contact">{c.contact_person}</MobileCardRow>
+                      )}
+                      {c.start_date && (
+                        <MobileCardRow label="Start">{formatDate(c.start_date)}</MobileCardRow>
+                      )}
+                    </MobileCard>
+                  );
+                })}
               </div>
+
               <Pagination
                 page={pagination.page}
                 totalPages={pagination.totalPages}

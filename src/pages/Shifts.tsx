@@ -20,6 +20,7 @@ import {
   Plus, ChevronLeft, ChevronRight, CalendarDays, Clock,
   Users, AlertTriangle, XCircle, Pencil, Trash2,
 } from 'lucide-react';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 
 type ShiftStatus = 'scheduled' | 'confirmed' | 'swap_requested' | 'swapped' | 'cancelled';
 
@@ -268,8 +269,8 @@ export default function Shifts() {
 
   const statusBadge = (status: ShiftStatus) => {
     const className =
-      status === 'swap_requested' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-warning/20' :
-      status === 'swapped' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800' :
+      status === 'swap_requested' ? 'bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning border-warning/20' :
+      status === 'swapped' ? 'bg-primary/10 text-primary dark:bg-primary/10 dark:text-primary border-primary/20 dark:border-primary/20' :
       undefined;
 
     return (
@@ -321,55 +322,88 @@ export default function Shifts() {
           ) : profiles.length === 0 ? (
             <EmptyState title="No employees found" description="Add employees to start scheduling shifts." icon={Users} />
           ) : (
-            <Card>
-              <CardContent className="p-0 overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-3 font-medium text-muted-foreground sticky left-0 z-10 bg-card min-w-[160px]">Employee</th>
-                      {weekDays.map(day => (
-                        <th key={day.toISOString()} className="text-center p-3 font-medium text-muted-foreground min-w-[120px]">
-                          <div>{format(day, 'EEE')}</div>
-                          <div className="text-xs">{format(day, 'dd MMM')}</div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {profiles.map(emp => (
-                      <tr key={emp.id} className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
-                        <td className="p-3 font-medium sticky left-0 z-10 bg-card">{emp.full_name}</td>
-                        {weekDays.map(day => {
-                          const dateStr = format(day, 'yyyy-MM-dd');
-                          const assignment = assignmentGrid.get(`${emp.id}::${dateStr}`);
-                          const shift = assignment ? shiftMap.get(assignment.shift_id) : null;
-                          return (
-                            <td
-                              key={dateStr}
-                              className="p-2 text-center cursor-pointer hover:bg-muted/50 transition-colors"
-                              onClick={() => assignment ? openEditAssignment(assignment) : openAssignDialog(emp.id, day)}
-                            >
-                              {assignment && shift ? (
-                                <div
-                                  className="rounded-md px-2 py-1.5 text-xs font-medium text-white"
-                                  style={{ backgroundColor: shift.color }}
-                                >
-                                  <div>{shift.name}</div>
-                                  <div className="opacity-80">{shift.start_time.slice(0, 5)}&ndash;{shift.end_time.slice(0, 5)}</div>
-                                  <div className="mt-1">{statusBadge(assignment.status)}</div>
-                                </div>
-                              ) : (
-                                <div className="text-muted-foreground/40 text-xs py-2">+</div>
-                              )}
-                            </td>
-                          );
-                        })}
+            {/* Desktop roster grid */}
+            <div className="hidden md:block">
+              <Card>
+                <CardContent className="p-0 overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3 font-medium text-muted-foreground sticky left-0 z-10 bg-card min-w-[160px]">Employee</th>
+                        {weekDays.map(day => (
+                          <th key={day.toISOString()} className="text-center p-3 font-medium text-muted-foreground min-w-[120px]">
+                            <div>{format(day, 'EEE')}</div>
+                            <div className="text-xs">{format(day, 'dd MMM')}</div>
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
+                    </thead>
+                    <tbody>
+                      {profiles.map(emp => (
+                        <tr key={emp.id} className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
+                          <td className="p-3 font-medium sticky left-0 z-10 bg-card">{emp.full_name}</td>
+                          {weekDays.map(day => {
+                            const dateStr = format(day, 'yyyy-MM-dd');
+                            const assignment = assignmentGrid.get(`${emp.id}::${dateStr}`);
+                            const shift = assignment ? shiftMap.get(assignment.shift_id) : null;
+                            return (
+                              <td
+                                key={dateStr}
+                                className="p-2 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                                onClick={() => assignment ? openEditAssignment(assignment) : openAssignDialog(emp.id, day)}
+                              >
+                                {assignment && shift ? (
+                                  <div
+                                    className="rounded-md px-2 py-1.5 text-xs font-medium text-white"
+                                    style={{ backgroundColor: shift.color }}
+                                  >
+                                    <div>{shift.name}</div>
+                                    <div className="opacity-80">{shift.start_time.slice(0, 5)}&ndash;{shift.end_time.slice(0, 5)}</div>
+                                    <div className="mt-1">{statusBadge(assignment.status)}</div>
+                                  </div>
+                                ) : (
+                                  <div className="text-muted-foreground/40 text-xs py-2">+</div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Mobile roster cards */}
+            <div className="md:hidden space-y-2 p-3">
+              {assignments.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No shifts assigned this week.</p>
+              ) : (
+                assignments.map(a => {
+                  const shift = shiftMap.get(a.shift_id);
+                  const accentClass =
+                    a.status === 'confirmed' ? 'bg-success' :
+                    a.status === 'swap_requested' ? 'bg-warning' :
+                    a.status === 'cancelled' ? 'bg-destructive' :
+                    'bg-primary';
+                  return (
+                    <MobileCard key={a.id} chevron accentClassName={accentClass} onClick={() => openEditAssignment(a)}>
+                      <MobileCardHeader>
+                        <MobileCardTitle>{profileName(a.employee_id)}</MobileCardTitle>
+                        <MobileCardMeta>{statusBadge(a.status)}</MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Shift">{shift?.name ?? 'Unknown'}</MobileCardRow>
+                      <MobileCardRow label="Date">{format(parseISO(a.work_date), 'EEE dd MMM')}</MobileCardRow>
+                      <MobileCardRow label="Time">
+                        {shift ? `${shift.start_time.slice(0, 5)} – ${shift.end_time.slice(0, 5)}` : '—'}
+                      </MobileCardRow>
+                      {a.notes && <MobileCardRow label="Notes">{a.notes}</MobileCardRow>}
+                    </MobileCard>
+                  );
+                })
+              )}
+            </div>
           )}
         </TabsContent>
 
@@ -390,53 +424,88 @@ export default function Shifts() {
               action={<Button size="sm" onClick={() => openShiftDialog()}><Plus className="h-4 w-4 mr-1" /> Create Shift Type</Button>}
             />
           ) : (
-            <Card>
-              <CardContent className="p-0 overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-3 font-medium text-muted-foreground">Name</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Start Time</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">End Time</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Break (min)</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Color</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Active</th>
-                      <th className="text-right p-3 font-medium text-muted-foreground">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {shiftDefs.map(shift => (
-                      <tr key={shift.id} className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
-                        <td className="p-3 font-medium">{shift.name}</td>
-                        <td className="p-3">{shift.start_time.slice(0, 5)}</td>
-                        <td className="p-3">{shift.end_time.slice(0, 5)}</td>
-                        <td className="p-3">{shift.break_minutes}</td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded border" style={{ backgroundColor: shift.color }} />
-                            <span className="text-xs text-muted-foreground">{shift.color}</span>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <Badge
-                            variant={shift.is_active ? 'default' : 'secondary'}
-                            className="cursor-pointer"
-                            onClick={() => toggleShiftActive(shift)}
-                          >
-                            {shift.is_active ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </td>
-                        <td className="p-3 text-right">
-                          <Button variant="ghost" size="icon" aria-label="Edit shift" onClick={() => openShiftDialog(shift)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </td>
+            {/* Desktop shift types table */}
+            <div className="hidden md:block">
+              <Card>
+                <CardContent className="p-0 overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3 font-medium text-muted-foreground">Name</th>
+                        <th className="text-left p-3 font-medium text-muted-foreground">Start Time</th>
+                        <th className="text-left p-3 font-medium text-muted-foreground">End Time</th>
+                        <th className="text-left p-3 font-medium text-muted-foreground">Break (min)</th>
+                        <th className="text-left p-3 font-medium text-muted-foreground">Color</th>
+                        <th className="text-left p-3 font-medium text-muted-foreground">Active</th>
+                        <th className="text-right p-3 font-medium text-muted-foreground">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
+                    </thead>
+                    <tbody>
+                      {shiftDefs.map(shift => (
+                        <tr key={shift.id} className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
+                          <td className="p-3 font-medium">{shift.name}</td>
+                          <td className="p-3">{shift.start_time.slice(0, 5)}</td>
+                          <td className="p-3">{shift.end_time.slice(0, 5)}</td>
+                          <td className="p-3">{shift.break_minutes}</td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded border" style={{ backgroundColor: shift.color }} />
+                              <span className="text-xs text-muted-foreground">{shift.color}</span>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <Badge
+                              variant={shift.is_active ? 'default' : 'secondary'}
+                              className="cursor-pointer"
+                              onClick={() => toggleShiftActive(shift)}
+                            >
+                              {shift.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-right">
+                            <Button variant="ghost" size="icon" aria-label="Edit shift" onClick={() => openShiftDialog(shift)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Mobile shift types cards */}
+            <div className="md:hidden space-y-2 p-3">
+              {shiftDefs.map(shift => (
+                <MobileCard
+                  key={shift.id}
+                  chevron
+                  accentClassName={shift.is_active ? 'bg-success' : 'bg-muted-foreground/30'}
+                  onClick={() => openShiftDialog(shift)}
+                >
+                  <MobileCardHeader>
+                    <MobileCardTitle>
+                      <span className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full inline-block shrink-0" style={{ backgroundColor: shift.color }} />
+                        {shift.name}
+                      </span>
+                    </MobileCardTitle>
+                    <MobileCardMeta>
+                      <Badge
+                        variant={shift.is_active ? 'default' : 'secondary'}
+                        className="cursor-pointer"
+                        onClick={(e) => { e.stopPropagation(); toggleShiftActive(shift); }}
+                      >
+                        {shift.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Time">{shift.start_time.slice(0, 5)} – {shift.end_time.slice(0, 5)}</MobileCardRow>
+                  <MobileCardRow label="Break">{shift.break_minutes} min</MobileCardRow>
+                </MobileCard>
+              ))}
+            </div>
           )}
         </TabsContent>
       </Tabs>

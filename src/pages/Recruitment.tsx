@@ -29,6 +29,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter } from '@/components/ui-kit/MobileCard';
 
 type EmpType = 'full_time' | 'part_time' | 'contract' | 'intern';
 type OpeningStatus = 'draft' | 'published' | 'closed' | 'filled';
@@ -602,56 +603,116 @@ export default function Recruitment() {
                     {filteredApps.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No applicants{stageFilter !== 'all' ? ` in ${STAGE_LABEL[stageFilter as ApplicantStage]} stage` : ' yet'}.</p>
                     ) : (
-                      <div className="divide-y divide-border/50">
-                        {filteredApps.map(app => {
-                          const stageBadge = STAGE_BADGE[app.stage];
-                          return (
-                            <div key={app.id} className="py-2 flex items-center justify-between gap-3 group">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-medium text-sm">{app.full_name}</span>
-                                  <Badge variant={stageBadge.variant} className="text-xs">{STAGE_LABEL[app.stage]}</Badge>
-                                  <span className="text-xs text-muted-foreground">{SOURCE_LABEL[app.source]}</span>
+                      <>
+                        {/* Desktop applicant rows */}
+                        <div className="hidden md:block divide-y divide-border/50">
+                          {filteredApps.map(app => {
+                            const stageBadge = STAGE_BADGE[app.stage];
+                            return (
+                              <div key={app.id} className="py-2 flex items-center justify-between gap-3 group">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-medium text-sm">{app.full_name}</span>
+                                    <Badge variant={stageBadge.variant} className="text-xs">{STAGE_LABEL[app.stage]}</Badge>
+                                    <span className="text-xs text-muted-foreground">{SOURCE_LABEL[app.source]}</span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground mt-0.5">
+                                    {app.email && <span>{app.email}</span>}
+                                    {app.phone && <span>{app.phone}</span>}
+                                    {app.assigned_to && <span>→ {profileName(app.assigned_to)}</span>}
+                                    {app.interview_date && <span><Calendar className="h-3 w-3 inline mr-0.5" />{format(parseISO(app.interview_date), 'dd MMM HH:mm')}</span>}
+                                    {app.offer_amount_ngn != null && app.stage !== 'rejected' && (
+                                      <span>Offer: ₦{app.offer_amount_ngn.toLocaleString()}/yr</span>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground mt-0.5">
-                                  {app.email && <span>{app.email}</span>}
-                                  {app.phone && <span>{app.phone}</span>}
-                                  {app.assigned_to && <span>→ {profileName(app.assigned_to)}</span>}
-                                  {app.interview_date && <span><Calendar className="h-3 w-3 inline mr-0.5" />{format(parseISO(app.interview_date), 'dd MMM HH:mm')}</span>}
-                                  {app.offer_amount_ngn != null && app.stage !== 'rejected' && (
-                                    <span>Offer: ₦{app.offer_amount_ngn.toLocaleString()}/yr</span>
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                  {app.stage === 'offer' && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8"
+                                      onClick={() => setIssuingOffer({ applicant: app, opening })}
+                                      title="Generate & sign offer letter"
+                                    >
+                                      <FileSignature className="h-3.5 w-3.5 mr-1" /> Offer
+                                    </Button>
                                   )}
+                                  {(app.stage === 'offer' || app.stage === 'interview_2') && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 text-success hover:text-success hover:bg-success/5"
+                                      onClick={() => setHiring({ applicant: app, opening })}
+                                    >
+                                      <Sparkles className="h-3.5 w-3.5 mr-1" /> Hire
+                                    </Button>
+                                  )}
+                                  <Button variant="ghost" size="icon" onClick={() => openEditApplicant(app)} aria-label="Edit applicant"><Pencil className="h-4 w-4" /></Button>
+                                  <Button variant="ghost" size="icon" onClick={() => setDeleteApplicant(app)} aria-label="Remove applicant"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                {app.stage === 'offer' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8"
-                                    onClick={() => setIssuingOffer({ applicant: app, opening })}
-                                    title="Generate & sign offer letter"
-                                  >
-                                    <FileSignature className="h-3.5 w-3.5 mr-1" /> Offer
-                                  </Button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Mobile applicant cards */}
+                        <div className="md:hidden space-y-2">
+                          {filteredApps.map(app => {
+                            const stageAccent: Record<string, string> = {
+                              new: 'bg-primary', screening: 'bg-warning', interview_1: 'bg-warning',
+                              interview_2: 'bg-warning', offer: 'bg-success', hired: 'bg-success',
+                              rejected: 'bg-destructive',
+                            };
+                            return (
+                              <MobileCard
+                                key={app.id}
+                                chevron
+                                accentClassName={stageAccent[app.stage]}
+                                onClick={() => openEditApplicant(app)}
+                              >
+                                <MobileCardHeader>
+                                  <MobileCardTitle>{app.full_name}</MobileCardTitle>
+                                  <MobileCardMeta>
+                                    <Badge variant={STAGE_BADGE[app.stage].variant} className="text-xs">{STAGE_LABEL[app.stage]}</Badge>
+                                  </MobileCardMeta>
+                                </MobileCardHeader>
+                                <MobileCardRow label="Source">{SOURCE_LABEL[app.source]}</MobileCardRow>
+                                {app.email && <MobileCardRow label="Email">{app.email}</MobileCardRow>}
+                                {app.assigned_to && <MobileCardRow label="Interviewer">{profileName(app.assigned_to)}</MobileCardRow>}
+                                {app.interview_date && (
+                                  <MobileCardRow label="Interview">{format(parseISO(app.interview_date), 'dd MMM HH:mm')}</MobileCardRow>
+                                )}
+                                {app.offer_amount_ngn != null && app.stage !== 'rejected' && (
+                                  <MobileCardRow label="Offer">₦{app.offer_amount_ngn.toLocaleString()}/yr</MobileCardRow>
                                 )}
                                 {(app.stage === 'offer' || app.stage === 'interview_2') && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
-                                    onClick={() => setHiring({ applicant: app, opening })}
-                                  >
-                                    <Sparkles className="h-3.5 w-3.5 mr-1" /> Hire
-                                  </Button>
+                                  <MobileCardFooter>
+                                    {app.stage === 'offer' && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 text-xs"
+                                        onClick={(e) => { e.stopPropagation(); setIssuingOffer({ applicant: app, opening }); }}
+                                      >
+                                        <FileSignature className="h-3 w-3 mr-1" /> Offer Letter
+                                      </Button>
+                                    )}
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 text-xs text-success"
+                                      onClick={(e) => { e.stopPropagation(); setHiring({ applicant: app, opening }); }}
+                                    >
+                                      <Sparkles className="h-3 w-3 mr-1" /> Hire
+                                    </Button>
+                                  </MobileCardFooter>
                                 )}
-                                <Button variant="ghost" size="icon" onClick={() => openEditApplicant(app)} aria-label="Edit applicant"><Pencil className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" onClick={() => setDeleteApplicant(app)} aria-label="Remove applicant"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                              </MobileCard>
+                            );
+                          })}
+                        </div>
+                      </>
                     )}
 
                     <Button size="sm" variant="outline" className="gap-2" onClick={() => openAddApplicant(opening.id)}>

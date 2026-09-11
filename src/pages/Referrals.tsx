@@ -44,6 +44,7 @@ import { StatCard } from '@/components/ui-kit/StatCard';
 import ReferralCommissions from '@/components/ReferralCommissions';
 import { ContractorCombobox } from '@/components/ContractorCombobox';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
@@ -277,7 +278,7 @@ const Referrals = () => {
             />
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -344,6 +345,60 @@ const Referrals = () => {
                   })}
                 </TableBody>
               </Table>
+              </div>
+
+              {/* Mobile card view */}
+              <div className="md:hidden space-y-2 p-3">
+                {pagination.slice.map((r) => {
+                  const referrerName = r.referrer_contractor_id
+                    ? (contractors.find((c) => c.id === r.referrer_contractor_id)?.full_name || '—')
+                    : (r.referrer_id ? profiles.get(r.referrer_id)?.full_name || '—' : '—');
+                  return (
+                    <MobileCard
+                      key={r.id}
+                      accentClassName={r.status === 'active' ? 'bg-success' : 'bg-warning'}
+                    >
+                      <MobileCardHeader>
+                        <MobileCardTitle>{r.referred_email}</MobileCardTitle>
+                        <MobileCardMeta>
+                          <Badge
+                            variant="secondary"
+                            className={
+                              r.status === 'active'
+                                ? 'bg-success/10 text-success'
+                                : 'bg-warning/10 text-warning'
+                            }
+                          >
+                            {r.status}
+                          </Badge>
+                          {r.is_affiliate && (
+                            <Badge className="bg-accent/15 text-accent-foreground border border-accent/40">
+                              <Star className="h-3 w-3 mr-1" /> Affiliate
+                            </Badge>
+                          )}
+                        </MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Referrer" value={referrerName} />
+                      <MobileCardRow label="Date" value={formatDate(r.created_at)} />
+                      {isAdmin && (
+                        <MobileCardRow
+                          label="Actions"
+                          value={
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => toggleAffiliate(r)}
+                              title={r.is_affiliate ? 'Remove affiliate' : 'Make affiliate'}
+                              aria-label={r.is_affiliate ? 'Remove affiliate status' : 'Mark as affiliate'}
+                            >
+                              <Star className={`h-4 w-4 ${r.is_affiliate ? 'text-accent fill-accent' : ''}`} />
+                            </Button>
+                          }
+                        />
+                      )}
+                    </MobileCard>
+                  );
+                })}
               </div>
               <Pagination
                 page={pagination.page}

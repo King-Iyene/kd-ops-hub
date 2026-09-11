@@ -6,6 +6,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardList } from '@/components/ui-kit/MobileCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
@@ -81,10 +82,10 @@ const LOAN_TYPE_LABELS: Record<LoanType, string> = {
 };
 
 const LOAN_TYPE_COLORS: Record<LoanType, string> = {
-  salary_advance: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  salary_advance: 'bg-primary/10 text-primary dark:bg-primary/10 dark:text-primary',
   personal_loan: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-  emergency: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-  education: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+  emergency: 'bg-destructive/10 text-destructive dark:bg-destructive/10 dark:text-destructive',
+  education: 'bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning',
   housing: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
   other: 'bg-muted text-muted-foreground',
 };
@@ -113,10 +114,22 @@ function statusVariant(s: LoanStatus) {
   return map[s];
 }
 
+function statusAccent(s: LoanStatus) {
+  const map: Record<LoanStatus, string> = {
+    pending: 'bg-muted-foreground',
+    approved: 'bg-primary',
+    active: 'bg-primary',
+    fully_paid: 'bg-success',
+    defaulted: 'bg-destructive',
+    written_off: 'bg-muted-foreground',
+  };
+  return map[s];
+}
+
 function statusClassName(s: LoanStatus) {
   const map: Record<LoanStatus, string> = {
     pending: '',
-    approved: 'bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300',
+    approved: 'bg-primary/10 text-primary hover:bg-primary/10 dark:bg-primary/10 dark:text-primary',
     active: '',
     fully_paid: 'bg-success/10 text-success hover:bg-success/10',
     defaulted: '',
@@ -394,59 +407,92 @@ export default function StaffLoans() {
               action={<Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" /> New Loan</Button>}
             />
           ) : (
-            <Card>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Employee</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Loan Type</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Principal</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Outstanding</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Monthly Deduction</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-center">Tenure</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Status</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Repayment</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {loans.map(loan => (
-                        <TableRow
-                          key={loan.id}
-                          className="cursor-pointer hover:bg-muted/40 kd-transition"
-                          onClick={() => setDetailLoan(loan)}
-                        >
-                          <TableCell className="font-medium">
-                            {loan.employee?.full_name ?? 'Unknown'}
-                          </TableCell>
-                          <TableCell>
-                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${LOAN_TYPE_COLORS[loan.loan_type]}`}>
-                              {LOAN_TYPE_LABELS[loan.loan_type]}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">{formatNaira(loan.principal_ngn)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatNaira(loan.outstanding_ngn)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatNaira(loan.monthly_deduction_ngn)}</TableCell>
-                          <TableCell className="text-center">{loan.tenure_months}mo</TableCell>
-                          <TableCell>
-                            <Badge variant={statusVariant(loan.status)} className={statusClassName(loan.status)}>
-                              {STATUS_LABELS[loan.status]}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2 min-w-[120px]">
-                              <Progress value={repaymentPercent(loan)} className="h-2 flex-1" />
-                              <span className="text-xs text-muted-foreground tabular-nums">{repaymentPercent(loan)}%</span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
+            <MobileCardList
+              data={loans}
+              desktop={
+                <Card>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="hover:bg-transparent">
+                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Employee</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Loan Type</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Principal</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Outstanding</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Monthly Deduction</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-center">Tenure</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Status</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Repayment</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {loans.map(loan => (
+                            <TableRow
+                              key={loan.id}
+                              className="cursor-pointer hover:bg-muted/40 kd-transition"
+                              onClick={() => setDetailLoan(loan)}
+                            >
+                              <TableCell className="font-medium">
+                                {loan.employee?.full_name ?? 'Unknown'}
+                              </TableCell>
+                              <TableCell>
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${LOAN_TYPE_COLORS[loan.loan_type]}`}>
+                                  {LOAN_TYPE_LABELS[loan.loan_type]}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">{formatNaira(loan.principal_ngn)}</TableCell>
+                              <TableCell className="text-right tabular-nums">{formatNaira(loan.outstanding_ngn)}</TableCell>
+                              <TableCell className="text-right tabular-nums">{formatNaira(loan.monthly_deduction_ngn)}</TableCell>
+                              <TableCell className="text-center">{loan.tenure_months}mo</TableCell>
+                              <TableCell>
+                                <Badge variant={statusVariant(loan.status)} className={statusClassName(loan.status)}>
+                                  {STATUS_LABELS[loan.status]}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2 min-w-[120px]">
+                                  <Progress value={repaymentPercent(loan)} className="h-2 flex-1" />
+                                  <span className="text-xs text-muted-foreground tabular-nums">{repaymentPercent(loan)}%</span>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              }
+              mobile={(loan) => (
+                <MobileCard key={loan.id} chevron accentClassName={statusAccent(loan.status)} onClick={() => setDetailLoan(loan)}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{loan.employee?.full_name ?? 'Unknown'}</MobileCardTitle>
+                    <MobileCardMeta>{formatNaira(loan.principal_ngn)}</MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Type">
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${LOAN_TYPE_COLORS[loan.loan_type]}`}>
+                      {LOAN_TYPE_LABELS[loan.loan_type]}
+                    </span>
+                  </MobileCardRow>
+                  <MobileCardRow label="Outstanding">{formatNaira(loan.outstanding_ngn)}</MobileCardRow>
+                  <MobileCardRow label="Monthly">{formatNaira(loan.monthly_deduction_ngn)}</MobileCardRow>
+                  <MobileCardRow label="Tenure">{loan.tenure_months}mo</MobileCardRow>
+                  <MobileCardRow label="Status">
+                    <Badge variant={statusVariant(loan.status)} className={statusClassName(loan.status)}>
+                      {STATUS_LABELS[loan.status]}
+                    </Badge>
+                  </MobileCardRow>
+                  <MobileCardRow label="Repayment">
+                    <div className="flex items-center gap-2">
+                      <Progress value={repaymentPercent(loan)} className="h-2 w-16" />
+                      <span className="text-xs tabular-nums">{repaymentPercent(loan)}%</span>
+                    </div>
+                  </MobileCardRow>
+                </MobileCard>
+              )}
+              className="p-3"
+            />
           )}
         </TabsContent>
 
@@ -460,46 +506,72 @@ export default function StaffLoans() {
               description="Repayments will appear here once they are recorded."
             />
           ) : (
-            <Card>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Employee</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Loan Type</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Amount</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Type</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Period</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Date</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {repayments.map(r => (
-                        <TableRow key={r.id} className="hover:bg-muted/40 kd-transition">
-                          <TableCell className="font-medium">
-                            {r.loan?.employee?.full_name ?? 'Unknown'}
-                          </TableCell>
-                          <TableCell>
-                            {r.loan ? (
-                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${LOAN_TYPE_COLORS[r.loan.loan_type]}`}>
-                                {LOAN_TYPE_LABELS[r.loan.loan_type]}
-                              </span>
-                            ) : '—'}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">{formatNaira(r.amount_ngn)}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{REPAYMENT_TYPE_LABELS[r.repayment_type]}</Badge>
-                          </TableCell>
-                          <TableCell>{r.period ?? '—'}</TableCell>
-                          <TableCell>{format(parseISO(r.created_at), 'dd MMM yyyy')}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
+            <MobileCardList
+              data={repayments}
+              desktop={
+                <Card>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="hover:bg-transparent">
+                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Employee</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Loan Type</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Amount</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Type</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Period</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Date</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {repayments.map(r => (
+                            <TableRow key={r.id} className="hover:bg-muted/40 kd-transition">
+                              <TableCell className="font-medium">
+                                {r.loan?.employee?.full_name ?? 'Unknown'}
+                              </TableCell>
+                              <TableCell>
+                                {r.loan ? (
+                                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${LOAN_TYPE_COLORS[r.loan.loan_type]}`}>
+                                    {LOAN_TYPE_LABELS[r.loan.loan_type]}
+                                  </span>
+                                ) : '—'}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">{formatNaira(r.amount_ngn)}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{REPAYMENT_TYPE_LABELS[r.repayment_type]}</Badge>
+                              </TableCell>
+                              <TableCell>{r.period ?? '—'}</TableCell>
+                              <TableCell>{format(parseISO(r.created_at), 'dd MMM yyyy')}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              }
+              mobile={(r) => (
+                <MobileCard key={r.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{r.loan?.employee?.full_name ?? 'Unknown'}</MobileCardTitle>
+                    <MobileCardMeta>{formatNaira(r.amount_ngn)}</MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Loan Type">
+                    {r.loan ? (
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${LOAN_TYPE_COLORS[r.loan.loan_type]}`}>
+                        {LOAN_TYPE_LABELS[r.loan.loan_type]}
+                      </span>
+                    ) : '—'}
+                  </MobileCardRow>
+                  <MobileCardRow label="Type">
+                    <Badge variant="outline">{REPAYMENT_TYPE_LABELS[r.repayment_type]}</Badge>
+                  </MobileCardRow>
+                  <MobileCardRow label="Period">{r.period ?? '—'}</MobileCardRow>
+                  <MobileCardRow label="Date">{format(parseISO(r.created_at), 'dd MMM yyyy')}</MobileCardRow>
+                </MobileCard>
+              )}
+              className="p-3"
+            />
           )}
         </TabsContent>
       </Tabs>
