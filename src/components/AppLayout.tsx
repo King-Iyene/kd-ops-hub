@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -96,10 +97,20 @@ export default function AppLayout() {
   const effectiveRole = useEffectiveRole();
   const location = useLocation();
   const pageTitle = getRouteTitle(location.pathname);
-  // Sets <html data-tod="…"> so CSS picks up ambient palette shifts.
   useTimeOfDay();
-  // Idle-timeout enforcement (reads company_settings.session_timeout_minutes).
   useIdleTimeout();
+
+  const mainRef = useRef<HTMLElement>(null);
+  const [scrolled, setScrolled] = useState(false);
+  const onScroll = useCallback(() => {
+    setScrolled((mainRef.current?.scrollTop ?? 0) > 8);
+  }, []);
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [onScroll]);
 
   const openCommandPalette = () => {
     window.dispatchEvent(
@@ -130,7 +141,7 @@ export default function AppLayout() {
           <header
             role="banner"
             aria-label="Site header"
-            className="h-14 flex items-center justify-between border-b border-border/50 bg-card/90 backdrop-blur-xl px-4 sticky top-0 z-20 dark:bg-card/70 dark:border-border/30">
+            className={`h-14 flex items-center justify-between border-b bg-card/90 backdrop-blur-xl px-4 sticky top-0 z-20 dark:bg-card/70 kd-transition ${scrolled ? 'border-border/60 shadow-md shadow-black/5 dark:shadow-black/20' : 'border-border/50 dark:border-border/30'}`}>
             <div className="flex items-center gap-3 min-w-0">
               {/* Hamburger only on tablet+ where the sidebar exists */}
               <SidebarTrigger className="hidden md:inline-flex shrink-0 kd-transition hover:bg-primary/8 hover:text-primary rounded-md" />
@@ -181,7 +192,7 @@ export default function AppLayout() {
             </div>
           </header>
           {/* ── Main content ────────────────────────────────────────── */}
-          <main id="main-content" className="flex-1 p-4 md:p-5 lg:p-6 overflow-auto kd-gradient-mesh">
+          <main ref={mainRef} id="main-content" className="flex-1 p-4 md:p-5 lg:p-6 overflow-auto kd-gradient-mesh">
             <div key={location.pathname} className="kd-page-transition">
               {/* key={pathname} resets the boundary on navigation, so a
                   crash on one page doesn't permanently break the next. */}

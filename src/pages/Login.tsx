@@ -90,7 +90,7 @@ const Login = () => {
             platform reads from, so the login screen, sidebar header,
             and receipt all show the same emblem instead of a "KD"
             text glyph here and a real logo there. */}
-        <div className="flex flex-col items-center mb-7">
+        <div className="flex flex-col items-center mb-7 kd-stagger-in">
           <div className="relative mb-4">
             <div className="absolute inset-0 rounded-2xl bg-[hsl(var(--tod-glow))] blur-xl kd-glow-pulse" />
             <div className="relative h-16 w-16 rounded-2xl bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-2xl overflow-hidden">
@@ -112,7 +112,7 @@ const Login = () => {
               Access is by invitation only. Contact your KDOps administrator.
             </div>
           )}
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4 kd-stagger-in">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-white/80 text-xs uppercase tracking-wider">Email</Label>
               <div className="relative">
