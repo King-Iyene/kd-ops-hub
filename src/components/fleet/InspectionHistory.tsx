@@ -757,14 +757,14 @@ function HistoryTab({
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
                         {i.has_defects ? (
-                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                          <AlertTriangle className="h-4 w-4 text-warning" />
                         ) : (
                           <span className="text-muted-foreground text-xs">None</span>
                         )}
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
                         {i.reviewed_at ? (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                          <CheckCircle2 className="h-4 w-4 text-success" />
                         ) : (
                           <span className="text-muted-foreground text-xs">Pending</span>
                         )}
@@ -867,7 +867,7 @@ function DefectsTab({
                   <Button
                     size="sm"
                     onClick={() => onResolve(d)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="bg-success hover:bg-success/90 text-success-foreground"
                   >
                     <Wrench className="h-4 w-4 mr-1" />
                     Resolve
@@ -881,7 +881,7 @@ function DefectsTab({
                     <Badge
                       key={item.key}
                       variant="outline"
-                      className="text-xs text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800"
+                      className="text-xs text-destructive border-destructive/40"
                     >
                       {item.label}
                     </Badge>
@@ -1053,7 +1053,7 @@ function InspectionDetailDialog({
                 <h4 className="text-sm font-semibold">Checklist</h4>
                 <div className="flex gap-2 text-xs text-muted-foreground">
                   <span className="text-success">{passCount} pass</span>
-                  <span className="text-rose-600 dark:text-rose-400">{failCount} fail</span>
+                  <span className="text-destructive">{failCount} fail</span>
                   <span>{naCount} n/a</span>
                 </div>
               </div>
@@ -1063,20 +1063,20 @@ function InspectionDetailDialog({
                     key={item.key}
                     className={cn(
                       'flex items-start gap-3 px-3 py-2 text-sm',
-                      item.status === 'fail' && 'bg-rose-50 dark:bg-rose-950/30',
+                      item.status === 'fail' && 'bg-destructive/5',
                     )}
                   >
                     {item.status === 'pass' && (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                      <CheckCircle2 className="h-4 w-4 text-success mt-0.5 shrink-0" />
                     )}
                     {item.status === 'fail' && (
-                      <XCircle className="h-4 w-4 text-rose-500 mt-0.5 shrink-0" />
+                      <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                     )}
                     {item.status === 'na' && (
                       <MinusCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                     )}
                     <div className="min-w-0 flex-1">
-                      <span className={cn(item.status === 'fail' && 'font-medium text-rose-700 dark:text-rose-300')}>
+                      <span className={cn(item.status === 'fail' && 'font-medium text-destructive')}>
                         {item.label}
                       </span>
                       {item.note && (
@@ -1123,7 +1123,7 @@ function InspectionDetailDialog({
           {inspection.reviewed_at && (
             <div className="border-t pt-3">
               <h4 className="text-sm font-semibold mb-1 flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                <CheckCircle2 className="h-4 w-4 text-success" />
                 Resolved
               </h4>
               <div className="text-sm text-muted-foreground">
@@ -1133,7 +1133,7 @@ function InspectionDetailDialog({
                   {formatDate(inspection.reviewed_at)}
                 </p>
                 {inspection.review_note && (
-                  <p className="mt-1 bg-success/10/30 rounded-md px-3 py-2 text-emerald-800 dark:text-emerald-300 whitespace-pre-line">
+                  <p className="mt-1 bg-success/10 rounded-md px-3 py-2 text-success whitespace-pre-line">
                     {inspection.review_note}
                   </p>
                 )}
@@ -1145,12 +1145,12 @@ function InspectionDetailDialog({
             <div className="border-t pt-3">
               <div className="flex items-center justify-between bg-warning/10/30 border border-warning/20 rounded-lg p-4">
                 <div>
-                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">This inspection has unresolved defects</p>
-                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">Record what was done to fix the issue</p>
+                  <p className="text-sm font-semibold text-warning">This inspection has unresolved defects</p>
+                  <p className="text-xs text-warning mt-0.5">Record what was done to fix the issue</p>
                 </div>
                 <Button
                   onClick={() => onResolve(inspection)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
+                  className="bg-success hover:bg-success/90 text-success-foreground shrink-0"
                 >
                   <Wrench className="h-4 w-4 mr-1" />
                   Resolve

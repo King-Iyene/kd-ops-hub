@@ -36,7 +36,7 @@ export default function SecurityTab({ settings, patch, approverMfaStatus, export
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-emerald-500" />
+            <ShieldCheck className="h-4 w-4 text-success" />
             Two-factor authentication policy
           </CardTitle>
         </CardHeader>
@@ -63,7 +63,7 @@ export default function SecurityTab({ settings, patch, approverMfaStatus, export
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-emerald-500" />
+            <ShieldCheck className="h-4 w-4 text-success" />
             Re-verification for approvals
           </CardTitle>
         </CardHeader>
@@ -86,14 +86,14 @@ export default function SecurityTab({ settings, patch, approverMfaStatus, export
           </label>
           {approverMfaStatus && (
             approverMfaStatus.enrolled < approverMfaStatus.total ? (
-              <p className="text-xs flex items-start gap-1.5 text-warning bg-amber-500/10 rounded-md px-2.5 py-1.5">
+              <p className="text-xs flex items-start gap-1.5 text-warning bg-warning/10 rounded-md px-2.5 py-1.5">
                 <ShieldAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 Only {approverMfaStatus.enrolled} of {approverMfaStatus.total} approvers
                 (admin/operations/super_admin) have 2FA enrolled. Turning this on blocks the
                 rest from approving anything until they set it up in Profile → Security.
               </p>
             ) : (
-              <p className="text-xs flex items-start gap-1.5 text-success bg-emerald-500/10 rounded-md px-2.5 py-1.5">
+              <p className="text-xs flex items-start gap-1.5 text-success bg-success/10 rounded-md px-2.5 py-1.5">
                 <ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 All {approverMfaStatus.total} approvers have 2FA enrolled — safe to turn on.
               </p>
@@ -226,7 +226,7 @@ export default function SecurityTab({ settings, patch, approverMfaStatus, export
                     <td className="py-1.5 pr-4 font-medium">{module}</td>
                     {[sa, ad, fi, op, fs].map((allowed, i) => (
                       <td key={i} className="py-1.5 px-2 text-center">
-                        <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-3xs font-bold ${allowed ? 'bg-emerald-100 text-emerald-700' : 'bg-red-50 text-red-400'}`}>
+                        <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-3xs font-bold ${allowed ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
                           {allowed ? '✓' : '✕'}
                         </span>
                       </td>
@@ -367,7 +367,7 @@ function LeaveQuotasPanel() {
                       <span className="text-3xs font-medium text-success bg-success/10/20 px-1.5 py-0.5 rounded">Paid</span>
                     )}
                     {!p.paid && p.accrual_type === 'unpaid' && (
-                      <span className="text-3xs font-medium text-slate-500 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded">Unpaid</span>
+                      <span className="text-3xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Unpaid</span>
                     )}
                   </div>
                   <span className="text-2xs text-muted-foreground">{p.code}</span>

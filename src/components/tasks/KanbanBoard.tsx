@@ -21,17 +21,17 @@ import { TaskContextMenu } from './TaskContextMenu';
 import type { Space } from './TaskSidebar';
 
 const STATUS_COLUMNS: { key: TaskStatus; label: string; accent: string; bg: string }[] = [
-  { key: 'open', label: 'Open', accent: 'bg-slate-500', bg: 'bg-slate-50/50 dark:bg-slate-900/30' },
-  { key: 'in_progress', label: 'In Progress', accent: 'bg-blue-500', bg: 'bg-blue-50/40 dark:bg-blue-950/20' },
-  { key: 'blocked', label: 'Blocked', accent: 'bg-red-500', bg: 'bg-red-50/30 dark:bg-red-950/10' },
-  { key: 'complete', label: 'Complete', accent: 'bg-emerald-500', bg: 'bg-emerald-50/30 dark:bg-emerald-950/10' },
+  { key: 'open', label: 'Open', accent: 'bg-muted-foreground', bg: 'bg-muted/50' },
+  { key: 'in_progress', label: 'In Progress', accent: 'bg-primary', bg: 'bg-primary/10' },
+  { key: 'blocked', label: 'Blocked', accent: 'bg-destructive', bg: 'bg-destructive/10' },
+  { key: 'complete', label: 'Complete', accent: 'bg-success', bg: 'bg-success/10' },
 ];
 
 const PRIORITY_COLUMNS: { key: Priority; label: string; accent: string; bg: string }[] = [
-  { key: 'critical', label: 'Critical', accent: 'bg-red-500', bg: 'bg-red-50/30 dark:bg-red-950/10' },
-  { key: 'high', label: 'High', accent: 'bg-orange-400', bg: 'bg-orange-50/30 dark:bg-orange-950/10' },
-  { key: 'normal', label: 'Normal', accent: 'bg-blue-400', bg: 'bg-blue-50/30 dark:bg-blue-950/10' },
-  { key: 'low', label: 'Low', accent: 'bg-slate-400', bg: 'bg-slate-50/30 dark:bg-slate-900/20' },
+  { key: 'critical', label: 'Critical', accent: 'bg-destructive', bg: 'bg-destructive/10' },
+  { key: 'high', label: 'High', accent: 'bg-warning', bg: 'bg-warning/10' },
+  { key: 'normal', label: 'Normal', accent: 'bg-primary', bg: 'bg-primary/10' },
+  { key: 'low', label: 'Low', accent: 'bg-muted-foreground', bg: 'bg-muted/30' },
 ];
 
 export type BoardGroupBy = 'status' | 'priority' | 'assignee';
@@ -95,7 +95,7 @@ export function KanbanBoard({
     return sorted.map(([uid, data]) => ({
       key: uid,
       label: data.label,
-      accent: uid === '__unassigned' ? 'bg-slate-400' : 'bg-primary',
+      accent: uid === '__unassigned' ? 'bg-muted-foreground' : 'bg-primary',
       bg: 'bg-muted/20',
       tasks: data.tasks.sort((a, b) => a.sort_order - b.sort_order),
     }));
@@ -280,7 +280,7 @@ export function KanbanBoard({
                   return (
                     <div key={task.id}>
                       {showIndicatorBefore && (
-                        <div className="h-0.5 bg-blue-500 rounded-full mx-1 -mt-1 mb-1 transition-all" />
+                        <div className="h-0.5 bg-primary rounded-full mx-1 -mt-1 mb-1 transition-all" />
                       )}
                       <TaskCard
                         task={task}
@@ -307,7 +307,7 @@ export function KanbanBoard({
                   dropIndicator?.colKey === col.key &&
                   dropIndicator?.index === col.tasks.length &&
                   dragSourceCol.current === col.key && (
-                  <div className="h-0.5 bg-blue-500 rounded-full mx-1 -mt-1 mb-1 transition-all" />
+                  <div className="h-0.5 bg-primary rounded-full mx-1 -mt-1 mb-1 transition-all" />
                 )}
 
                 {isOver && col.tasks.length > 0 && dragSourceCol.current !== col.key && (
@@ -436,10 +436,10 @@ function TaskCard({
       {/* Priority strip + context menu */}
       <div className="flex items-start justify-between mb-2">
         <div className={cn('h-0.5 w-8 rounded-full mt-1', {
-          'bg-red-500': task.priority === 'critical',
-          'bg-orange-400': task.priority === 'high',
-          'bg-blue-400': task.priority === 'normal',
-          'bg-slate-300 dark:bg-slate-600': task.priority === 'low',
+          'bg-destructive': task.priority === 'critical',
+          'bg-warning': task.priority === 'high',
+          'bg-primary': task.priority === 'normal',
+          'bg-muted-foreground/60': task.priority === 'low',
         })} />
         <div onClick={(e) => e.stopPropagation()}>
           <TaskContextMenu task={task} spaces={spaces} folders={folders} lists={lists} profiles={profiles} onUpdate={onUpdate}>
@@ -479,7 +479,7 @@ function TaskCard({
       {subtaskCount && subtaskCount.total > 0 && (
         <div className="mt-2 flex items-center gap-2">
           <div className="flex-1 bg-muted rounded-full h-1">
-            <div className="bg-emerald-500 h-1 rounded-full transition-all"
+            <div className="bg-success h-1 rounded-full transition-all"
               style={{ width: `${(subtaskCount.done / subtaskCount.total) * 100}%` }} />
           </div>
           <span className="text-3xs text-muted-foreground tabular-nums shrink-0">

@@ -148,7 +148,7 @@ export function AnomaliesTab({
                   </TableHeader>
                   <TableBody>
                     {anomalousTrips.map((t) => (
-                      <TableRow key={t.id} className="bg-red-50/40 dark:bg-red-950/10 hover:bg-muted/40 kd-transition">
+                      <TableRow key={t.id} className="bg-destructive/5 hover:bg-muted/40 kd-transition">
                         <TableCell className="font-medium text-sm">{t.employee_name}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{formatDate(t.date)}</TableCell>
                         <TableCell className="text-xs max-w-[200px]">
@@ -166,7 +166,7 @@ export function AnomaliesTab({
                               </span>
                             )}
                             {t.is_out_of_area && (
-                              <span className="text-orange-600 flex items-center gap-1">
+                              <span className="text-warning flex items-center gap-1">
                                 <MapPin className="h-3 w-3" /> Out-of-area end location
                               </span>
                             )}
@@ -176,7 +176,7 @@ export function AnomaliesTab({
                           {t.anomaly_reviewed_at ? (
                             <span className="text-xs text-muted-foreground">{t.anomaly_review_note?.split(':')[0]}</span>
                           ) : (
-                            <Badge variant="outline" className="border-red-300 text-red-700 text-xs">Unreviewed</Badge>
+                            <Badge variant="outline" className="border-destructive/40 text-destructive text-xs">Unreviewed</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
@@ -190,12 +190,12 @@ export function AnomaliesTab({
                                 Review
                               </Button>
                             ) : (
-                              <Button size="sm" variant="ghost" className="text-xs h-7 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                              <Button size="sm" variant="ghost" className="text-xs h-7 text-warning hover:text-warning hover:bg-warning/10"
                                 onClick={() => revertAnomalyReview('trip', t.id, `${t.start_location} → ${t.end_location}`)}>
                                 <RotateCcw className="h-3 w-3 mr-1" /> Revert
                               </Button>
                             )}
-                            <Button size="sm" variant="ghost" className="text-xs h-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                               onClick={() => deleteAnomalyRecord('trip', t.id, `${t.start_location} → ${t.end_location}`)}>
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -238,13 +238,13 @@ export function AnomaliesTab({
                   </TableHeader>
                   <TableBody>
                     {anomalousFuelReqs.map((r) => (
-                      <TableRow key={r.id} className="bg-red-50/40 dark:bg-red-950/10 hover:bg-muted/40 kd-transition">
+                      <TableRow key={r.id} className="bg-destructive/5 hover:bg-muted/40 kd-transition">
                         <TableCell className="font-medium text-sm">{r.employee_name}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{formatDate(r.created_at.slice(0, 10))}</TableCell>
                         <TableCell className="text-sm">{r.station_name || '—'}</TableCell>
                         <TableCell className="text-sm tabular-nums">{formatNaira(r.amount_ngn || 0)}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="border-orange-300 text-orange-700 text-xs">
+                          <Badge variant="outline" className="border-warning/40 text-warning text-xs">
                             {r.anomaly_type === 'efficiency_anomaly' ? 'Efficiency' : r.anomaly_type || 'Anomaly'}
                           </Badge>
                         </TableCell>
@@ -252,7 +252,7 @@ export function AnomaliesTab({
                           {r.anomaly_reviewed_at ? (
                             <span className="text-xs text-muted-foreground">{r.anomaly_review_note?.split(':')[0]}</span>
                           ) : (
-                            <Badge variant="outline" className="border-red-300 text-red-700 text-xs">Unreviewed</Badge>
+                            <Badge variant="outline" className="border-destructive/40 text-destructive text-xs">Unreviewed</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
@@ -266,12 +266,12 @@ export function AnomaliesTab({
                                 Review
                               </Button>
                             ) : (
-                              <Button size="sm" variant="ghost" className="text-xs h-7 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                              <Button size="sm" variant="ghost" className="text-xs h-7 text-warning hover:text-warning hover:bg-warning/10"
                                 onClick={() => revertAnomalyReview('fuel', r.id, `${r.station_name} — ${r.employee_name}`)}>
                                 <RotateCcw className="h-3 w-3 mr-1" /> Revert
                               </Button>
                             )}
-                            <Button size="sm" variant="ghost" className="text-xs h-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                               onClick={() => deleteAnomalyRecord('fuel', r.id, `${r.station_name} — ${r.employee_name}`)}>
                               <Trash2 className="h-3 w-3" />
                             </Button>

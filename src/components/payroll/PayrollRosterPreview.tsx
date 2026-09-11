@@ -204,7 +204,7 @@ export function PayrollRosterPreview({
                 </span>
               )}
               {missingBankDetails.length > 0 && (
-                <Badge variant="outline" className="border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-400">
+                <Badge variant="outline" className="border-warning/40 text-warning">
                   {missingBankDetails.length} missing bank details
                 </Badge>
               )}
@@ -241,7 +241,7 @@ export function PayrollRosterPreview({
 
         {needsAttention.length > 0 && (
           <div>
-            <p className="flex items-center gap-1.5 font-medium text-amber-700 dark:text-amber-400 mb-1">
+            <p className="flex items-center gap-1.5 font-medium text-warning mb-1">
               <AlertTriangle className="h-3.5 w-3.5" /> Needs attention ({needsAttention.length})
             </p>
             <ul className="space-y-px max-h-64 overflow-y-auto">

@@ -98,8 +98,8 @@ function TripVehicleFuel({
     : null;
 
   const toPct = (v: number) => cap > 0 ? Math.round((v / cap) * 100) : 0;
-  const barColor = (pct: number) => pct >= 50 ? 'bg-green-500' : pct >= 20 ? 'bg-amber-500' : 'bg-red-500';
-  const txtColor = (pct: number) => pct >= 50 ? 'text-green-700' : pct >= 20 ? 'text-amber-700' : 'text-red-700';
+  const barColor = (pct: number) => pct >= 50 ? 'bg-success' : pct >= 20 ? 'bg-warning' : 'bg-destructive';
+  const txtColor = (pct: number) => pct >= 50 ? 'text-success' : pct >= 20 ? 'text-warning' : 'text-destructive';
 
   const startPct = toPct(startFuel);
   const endPct = endFuel != null ? toPct(endFuel) : null;
@@ -121,13 +121,13 @@ function TripVehicleFuel({
       {consumed != null && (
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Est. consumed ({kmDriven?.toLocaleString()} km ÷ {eff} km/L)</span>
-          <span className="text-red-600 font-medium">−{consumed.toFixed(1)}L</span>
+          <span className="text-destructive font-medium">−{consumed.toFixed(1)}L</span>
         </div>
       )}
       {added != null && (
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Fuel purchased this trip</span>
-          <span className="text-green-600 font-medium">+{added.toFixed(1)}L</span>
+          <span className="text-success font-medium">+{added.toFixed(1)}L</span>
         </div>
       )}
 
@@ -143,7 +143,7 @@ function TripVehicleFuel({
             <div className={`h-full rounded-full ${barColor(endPct)}`} style={{ width: `${endPct}%` }} />
           </div>
           {endPct < 20 && (
-            <p className="flex items-center gap-1 text-red-600 mt-0.5">
+            <p className="flex items-center gap-1 text-destructive mt-0.5">
               <AlertTriangle className="h-3 w-3" /> Low fuel after this trip
             </p>
           )}
@@ -151,7 +151,7 @@ function TripVehicleFuel({
       )}
 
       {startPct < 20 && !hasCalc && (
-        <p className="flex items-center gap-1 text-red-600">
+        <p className="flex items-center gap-1 text-destructive">
           <AlertTriangle className="h-3 w-3" /> Low fuel — consider refuelling before this trip
         </p>
       )}
@@ -1027,7 +1027,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
           )}
           {!activeTrip && (
             <Button
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-success hover:bg-success/90 text-success-foreground"
               onClick={openStartTrip}
             >
               <Navigation className="h-4 w-4 mr-2" /> Start Trip
@@ -1040,18 +1040,18 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
 
         {/* Active trip card — live clock-in panel */}
         {activeTrip && (
-          <div className="rounded-lg border-2 border-green-500 bg-green-50 dark:border-green-700 dark:bg-green-950/20 p-4 space-y-4">
+          <div className="rounded-lg border-2 border-success bg-success/10 p-4 space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <Radio className="h-4 w-4 text-green-600 animate-pulse shrink-0" />
-                <span className="font-semibold text-green-800 dark:text-green-300 text-sm">Trip In Progress</span>
+                <Radio className="h-4 w-4 text-success animate-pulse shrink-0" />
+                <span className="font-semibold text-success text-sm">Trip In Progress</span>
               </div>
               <div className="flex items-center gap-4">
                 {liveSpeed != null && (
                   <div className="flex items-center gap-1 text-sm">
                     <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className={`font-mono font-bold tabular-nums ${
-                      liveSpeed > 100 ? 'text-red-600' : liveSpeed > 80 ? 'text-amber-600' : 'text-success'
+                      liveSpeed > 100 ? 'text-destructive' : liveSpeed > 80 ? 'text-warning' : 'text-success'
                     }`}>
                       {liveSpeed} km/h
                     </span>
@@ -1085,13 +1085,13 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                 const av = vehicles.find((v) => v.id === activeTrip.vehicle_id);
                 if (!av || !av.tank_capacity_litres) return null;
                 const pct = Math.round(Math.min(100, (av.current_fuel_litres / av.tank_capacity_litres) * 100));
-                const col = pct < 25 ? 'text-red-600' : pct < 50 ? 'text-amber-600' : 'text-success';
+                const col = pct < 25 ? 'text-destructive' : pct < 50 ? 'text-warning' : 'text-success';
                 return (
                   <div className="col-span-2">
                     <p className="text-xs text-muted-foreground mb-1">Fuel Level</p>
                     <div className="flex items-center gap-3">
                       <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${pct < 25 ? 'bg-red-500' : pct < 50 ? 'bg-amber-500' : 'bg-green-500'}`} style={{ width: `${pct}%` }} />
+                        <div className={`h-full rounded-full transition-all ${pct < 25 ? 'bg-destructive' : pct < 50 ? 'bg-warning' : 'bg-success'}`} style={{ width: `${pct}%` }} />
                       </div>
                       <span className={`text-xs font-medium tabular-nums shrink-0 ${col}`}>
                         {pct}% · {av.current_fuel_litres.toFixed(1)} L
@@ -1105,14 +1105,14 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
             {/* Live GPS tracking status */}
             {lastBreadcrumbAt && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-success/20 pt-2">
-                <Radio className="h-3 w-3 text-green-500 animate-pulse shrink-0" />
+                <Radio className="h-3 w-3 text-success animate-pulse shrink-0" />
                 <span>
                   GPS tracking active · Last ping {formatTime(lastBreadcrumbAt)} · {breadcrumbCount} pings recorded
                 </span>
               </div>
             )}
             <div className="flex gap-2 pt-1 border-t border-success/20">
-              <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={openEndTrip}>
+              <Button className="flex-1 bg-success hover:bg-success/90 text-success-foreground" onClick={openEndTrip}>
                 <Navigation className="h-4 w-4 mr-2 rotate-180" /> End Trip
               </Button>
               <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-destructive" onClick={() => setConfirmCancelTrip(true)}>
@@ -1127,10 +1127,10 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
           const liveTrips = tripLogs.filter((t) => t.status === 'in_progress');
           if (!liveTrips.length) return null;
           return (
-            <div className="rounded-lg border border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950/20 p-3 space-y-2">
+            <div className="rounded-lg border border-success/40 bg-success/10 p-3 space-y-2">
               <div className="flex items-center gap-2">
-                <Radio className="h-3.5 w-3.5 text-green-600 animate-pulse shrink-0" />
-                <span className="text-sm font-semibold text-green-800 dark:text-green-300">
+                <Radio className="h-3.5 w-3.5 text-success animate-pulse shrink-0" />
+                <span className="text-sm font-semibold text-success">
                   {liveTrips.length} Live Trip{liveTrips.length > 1 ? 's' : ''}
                 </span>
               </div>
@@ -1211,7 +1211,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                 {visibleTrips.map((t) => (
                   <TableRow
                     key={t.id}
-                    className={`cursor-pointer hover:bg-muted/40 kd-transition ${t.is_anomaly ? 'bg-red-50/50 dark:bg-red-950/10' : ''}`}
+                    className={`cursor-pointer hover:bg-muted/40 kd-transition ${t.is_anomaly ? 'bg-destructive/5' : ''}`}
                     onClick={() => openTripDetail(t)}
                   >
                     <TableCell className="font-medium">{t.employee_name}</TableCell>
@@ -1222,7 +1222,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                     <TableCell className="text-xs tabular-nums">
                       {t.trip_end_time
                         ? formatTime(t.trip_end_time)
-                        : t.status === 'in_progress' ? <span className="text-green-600 font-medium">Live</span> : '—'}
+                        : t.status === 'in_progress' ? <span className="text-success font-medium">Live</span> : '—'}
                     </TableCell>
                     <TableCell className="text-xs tabular-nums">
                       {t.duration_minutes != null
@@ -1235,7 +1235,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                     <TableCell className="text-xs max-w-[160px]">
                       {t.end_location
                         ? <LocationCell location={t.end_location} lat={t.end_lat} lng={t.end_lng} showCoords />
-                        : t.status === 'in_progress' ? <span className="text-green-600 italic">In progress…</span> : '—'}
+                        : t.status === 'in_progress' ? <span className="text-success italic">In progress…</span> : '—'}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {t.km_driven != null ? t.km_driven.toLocaleString() : '—'}
@@ -1245,9 +1245,9 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                         variant="outline"
                         className={
                           t.status === 'in_progress'
-                            ? 'border-green-400 text-green-700 bg-green-50'
+                            ? 'border-success/40 text-success bg-success/10'
                             : t.status === 'completed'
-                            ? 'border-blue-300 text-blue-700 bg-blue-50'
+                            ? 'border-primary/40 text-primary bg-primary/10'
                             : ''
                         }
                       >
@@ -1258,7 +1258,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                       {t.is_anomaly ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="inline-flex items-center gap-1 text-xs text-red-600 font-medium cursor-help">
+                            <span className="inline-flex items-center gap-1 text-xs text-destructive font-medium cursor-help">
                               <AlertTriangle className="h-3.5 w-3.5" /> Flag
                             </span>
                           </TooltipTrigger>
@@ -1295,16 +1295,16 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
               ) : visibleTrips.map((t) => {
                 const isLive = t.status === 'in_progress';
                 const accent =
-                  isLive ? 'bg-green-500'
-                  : t.is_anomaly ? 'bg-red-500'
-                  : t.status === 'completed' ? 'bg-blue-500'
+                  isLive ? 'bg-success'
+                  : t.is_anomaly ? 'bg-destructive'
+                  : t.status === 'completed' ? 'bg-primary'
                   : 'bg-muted-foreground';
                 return (
                   <MobileCard
                     key={t.id}
                     onClick={() => openTripDetail(t)}
                     accentClassName={accent}
-                    className={t.is_anomaly ? 'bg-red-50/40 dark:bg-red-950/10' : ''}
+                    className={t.is_anomaly ? 'bg-destructive/5' : ''}
                   >
                     <MobileCardHeader>
                       <div className="min-w-0 flex-1">
@@ -1319,7 +1319,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                           <p className="text-base font-bold tabular-nums">{t.km_driven.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">km</span></p>
                         )}
                         {isLive ? (
-                          <Badge variant="outline" className="border-green-400 text-green-700 bg-green-50 mt-0.5">Live</Badge>
+                          <Badge variant="outline" className="border-success/40 text-success bg-success/10 mt-0.5">Live</Badge>
                         ) : t.duration_minutes != null && (
                           <p className="text-2xs text-muted-foreground tabular-nums">
                             {Math.floor(t.duration_minutes / 60)}h {t.duration_minutes % 60}m
@@ -1338,7 +1338,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                         <span className="text-2xs flex-1 min-w-0">
                           {t.end_location
                             ? <LocationCell location={t.end_location} lat={t.end_lat} lng={t.end_lng} showCoords />
-                            : isLive ? <span className="text-green-600 italic">In progress…</span> : '—'}
+                            : isLive ? <span className="text-success italic">In progress…</span> : '—'}
                         </span>
                       </div>
                     </div>
@@ -1524,7 +1524,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                           <SelectItem key={v.id} value={v.id}>
                             {v.name} — {(v as any).plate_number}
                             {v.current_fuel_litres != null && v.tank_capacity_litres > 0 && (
-                              <span className={`ml-2 text-xs ${(v.current_fuel_litres / v.tank_capacity_litres) < 0.2 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                              <span className={`ml-2 text-xs ${(v.current_fuel_litres / v.tank_capacity_litres) < 0.2 ? 'text-destructive' : 'text-muted-foreground'}`}>
                                 ({Math.round((v.current_fuel_litres / v.tank_capacity_litres) * 100)}% fuel)
                               </span>
                             )}
@@ -1538,7 +1538,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                       const pct = Math.round((veh.current_fuel_litres / veh.tank_capacity_litres) * 100);
                       if (pct >= 20) return null;
                       return (
-                        <p className="text-xs text-red-600 flex items-center gap-1">
+                        <p className="text-xs text-destructive flex items-center gap-1">
                           <AlertTriangle className="h-3 w-3" /> Low fuel: {pct}% — consider refuelling before departing.
                         </p>
                       );
@@ -1571,7 +1571,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
 
                   {lastVehicleOdometer != null && startTripForm.odometer_start && (
                     parseFloat(startTripForm.odometer_start) < lastVehicleOdometer ? (
-                      <p className="text-xs text-red-600 flex items-center gap-1">
+                      <p className="text-xs text-destructive flex items-center gap-1">
                         <AlertTriangle className="h-3 w-3 shrink-0" />
                         Odometer went backwards — last recorded was {lastVehicleOdometer.toLocaleString()} km. Please check.
                       </p>
@@ -1617,7 +1617,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                 <Button
                   className={`transition-all duration-300 text-white ${
                     odoOk && !startingTrip
-                      ? 'bg-green-600 hover:bg-green-700 ring-2 ring-green-400 ring-offset-2'
+                      ? 'bg-success hover:bg-success/90 ring-2 ring-success/60 ring-offset-2'
                       : 'bg-muted-foreground/60 cursor-not-allowed'
                   }`}
                   onClick={handleStartTrip}
@@ -1736,7 +1736,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                 <p className="text-xs text-muted-foreground">
                   Distance: <strong>{Math.max(0, parseFloat(endTripForm.odometer_end) - activeTrip.odometer_start).toLocaleString()} km</strong>
                   {parseFloat(endTripForm.odometer_end) - activeTrip.odometer_start > 500 && (
-                    <span className="text-amber-600 ml-2 flex items-center gap-0.5 inline-flex">
+                    <span className="text-warning ml-2 flex items-center gap-0.5 inline-flex">
                       <AlertTriangle className="h-3 w-3" /> Distance &gt; 500 km — will be flagged for review
                     </span>
                   )}
@@ -1817,7 +1817,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
         <DialogContent className="max-w-sm overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600" /> Trip Completed
+              <CheckCircle2 className="h-5 w-5 text-success" /> Trip Completed
             </DialogTitle>
           </DialogHeader>
           {tripSummary && (
@@ -1847,7 +1847,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                 </div>
               </div>
               {tripSummary.isAnomaly && (
-                <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
                   <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                   <div>
                     <p className="font-semibold">Anomaly flagged for admin review</p>
@@ -2134,7 +2134,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
               {selectedTrip.issues && (
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Issues Reported</p>
-                  <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">{selectedTrip.issues}</p>
+                  <p className="text-warning bg-warning/10 border border-warning/40 rounded px-2 py-1">{selectedTrip.issues}</p>
                 </div>
               )}
             </div>

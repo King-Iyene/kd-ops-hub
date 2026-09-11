@@ -1103,7 +1103,7 @@ export const PayrollDialogs = ({
         {preflightRun && (
           <div className="space-y-3">
             {preflightIssues.map((issue, i) => (
-              <div key={i} className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3.5 py-3">
+              <div key={i} className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/10 px-3.5 py-3">
                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-warning" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium leading-snug">{issue.message}</p>

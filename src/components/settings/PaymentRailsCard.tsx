@@ -236,7 +236,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
             <p className="text-sm mt-2">
               Currently paying through <ProviderPill provider={settings.active_payment_provider} size="sm" />
               {settings.active_payment_provider === 'flutterwave' && (
-                <> (mode: <strong className={settings.flutterwave_mode === 'live' ? 'text-red-600' : 'text-amber-600'}>
+                <> (mode: <strong className={settings.flutterwave_mode === 'live' ? 'text-destructive' : 'text-warning'}>
                   {settings.flutterwave_mode.toUpperCase()}
                 </strong>)</>
               )}
@@ -271,12 +271,12 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
           <div className="text-sm text-muted-foreground">
             Currently paying through <ProviderPill provider={active} size="md" />
             {active === 'flutterwave' && (
-              <> — mode: <strong className={settings.flutterwave_mode === 'live' ? 'text-red-600' : 'text-amber-600'}>
+              <> — mode: <strong className={settings.flutterwave_mode === 'live' ? 'text-destructive' : 'text-warning'}>
                 {settings.flutterwave_mode.toUpperCase()}
               </strong></>
             )}
             {active === 'paystack' && (
-              <> — mode: <strong className={settings.paystack_mode === 'live' ? 'text-red-600' : 'text-amber-600'}>
+              <> — mode: <strong className={settings.paystack_mode === 'live' ? 'text-destructive' : 'text-warning'}>
                 {settings.paystack_mode.toUpperCase()}
               </strong></>
             )}
@@ -331,7 +331,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
             <DialogTitle className="flex items-center gap-2">
               <ArrowRightLeft className="h-4 w-4" />
               {dialogModeOnly
-                ? <>Switch {providerLabel(dialogTargetProvider)} mode to <span className={dialogTargetMode === 'live' ? 'text-red-600' : 'text-amber-600'}>{dialogTargetMode.toUpperCase()}</span></>
+                ? <>Switch {providerLabel(dialogTargetProvider)} mode to <span className={dialogTargetMode === 'live' ? 'text-destructive' : 'text-warning'}>{dialogTargetMode.toUpperCase()}</span></>
                 : <>Switch payment provider to <ProviderPill provider={dialogTargetProvider} size="sm" /></>
               }
             </DialogTitle>
@@ -347,7 +347,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
               <p className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Verifying target provider is reachable…</p>
             ) : preflight?.ok ? (
               <div className="space-y-1">
-                <p className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400"><Check className="h-3.5 w-3.5" /> {providerLabel(dialogTargetProvider)} is reachable</p>
+                <p className="flex items-center gap-1.5 text-success"><Check className="h-3.5 w-3.5" /> {providerLabel(dialogTargetProvider)} is reachable</p>
                 <p className="text-muted-foreground">Balance: <strong>{formatNaira(preflight.balance)}</strong></p>
               </div>
             ) : (
@@ -383,7 +383,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
               />
             </div>
             {dialogTargetMode === 'live' && (
-              <div className="flex items-start gap-2 rounded-md border border-red-200 bg-destructive/10/30 p-2 text-xs text-red-800 dark:text-red-200">
+              <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
                 <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                 <span>Switching to <strong>LIVE</strong> mode on {providerLabel(dialogTargetProvider)}. Real money will move. Test with a small ₦100 batch before running payroll.</span>
               </div>
@@ -455,11 +455,11 @@ function ProviderCard({
           <span className="text-muted-foreground">Mode:</span>
           <button
             onClick={() => onSwitchMode?.('test')}
-            className={`px-2 py-0.5 rounded border ${mode === 'test' ? 'bg-amber-100 text-amber-800 border-amber-300 font-medium dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-600' : 'text-muted-foreground'}`}
+            className={`px-2 py-0.5 rounded border ${mode === 'test' ? 'bg-warning/10 text-warning border-warning/40 font-medium' : 'text-muted-foreground'}`}
           >TEST</button>
           <button
             onClick={() => onSwitchMode?.('live')}
-            className={`px-2 py-0.5 rounded border ${mode === 'live' ? 'bg-red-100 text-red-800 border-red-300 font-medium dark:bg-red-950/40 dark:text-red-200 dark:border-red-600' : 'text-muted-foreground'}`}
+            className={`px-2 py-0.5 rounded border ${mode === 'live' ? 'bg-destructive/10 text-destructive border-destructive/40 font-medium' : 'text-muted-foreground'}`}
           >LIVE</button>
         </div>
       )}

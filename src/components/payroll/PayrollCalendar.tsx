@@ -125,20 +125,20 @@ const KIND_META: Record<CalendarEvent['kind'], {
   holiday: {
     Icon: AlertCircle,
     label: 'Holiday',
-    dot: 'bg-red-500',
-    pill: 'bg-red-500/15 text-destructive border-red-500/30',
+    dot: 'bg-destructive',
+    pill: 'bg-destructive/10 text-destructive border-destructive/30',
   },
   pay_day: {
     Icon: CheckCircle2,
     label: 'Pay day',
-    dot: 'bg-emerald-500',
-    pill: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+    dot: 'bg-success',
+    pill: 'bg-success/10 text-success border-success/30',
   },
   cutoff: {
     Icon: Clock,
     label: 'Cutoff',
-    dot: 'bg-amber-500',
-    pill: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30',
+    dot: 'bg-warning',
+    pill: 'bg-warning/10 text-warning border-warning/30',
   },
 };
 
@@ -437,9 +437,9 @@ export function PayrollCalendar() {
             />
             {/* Legend */}
             <div className="flex flex-wrap items-center gap-3 px-3 py-2 text-2xs text-muted-foreground border-t mt-2">
-              <LegendDot className="bg-emerald-500" label="Pay day" />
-              <LegendDot className="bg-amber-500"   label="Cutoff" />
-              <LegendDot className="bg-red-500"     label="Holiday" />
+              <LegendDot className="bg-success" label="Pay day" />
+              <LegendDot className="bg-warning"   label="Cutoff" />
+              <LegendDot className="bg-destructive"     label="Holiday" />
               <span className="ml-auto text-3xs text-muted-foreground/70">
                 Nigerian public holidays · auto-rolled by next_pay_dates
               </span>

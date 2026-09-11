@@ -56,10 +56,10 @@ interface TaskDetailPanelProps {
 }
 
 const TASK_TYPE_CONFIG: Record<TaskType, { icon: typeof Bug; label: string; color: string }> = {
-  task: { icon: CheckSquare, label: 'Task', color: 'text-blue-500' },
-  bug: { icon: Bug, label: 'Bug', color: 'text-red-500' },
+  task: { icon: CheckSquare, label: 'Task', color: 'text-primary' },
+  bug: { icon: Bug, label: 'Bug', color: 'text-destructive' },
   feature: { icon: Sparkles, label: 'Feature', color: 'text-purple-500' },
-  milestone: { icon: Milestone, label: 'Milestone', color: 'text-amber-500' },
+  milestone: { icon: Milestone, label: 'Milestone', color: 'text-warning' },
 };
 
 export function TaskDetailPanel({
@@ -589,7 +589,7 @@ export function TaskDetailPanel({
                   <div key={sub.id} className="flex items-center gap-2 group rounded-md px-2 py-1.5 hover:bg-muted/50 transition-colors">
                     <button onClick={() => toggleSubtask(sub)} className="shrink-0">
                       <CheckCircle2 className={cn('h-4 w-4 transition-colors',
-                        sub.status === 'complete' ? 'text-emerald-500 fill-emerald-500/20' : 'text-muted-foreground/30 hover:text-muted-foreground/60',
+                        sub.status === 'complete' ? 'text-success fill-success/20' : 'text-muted-foreground/30 hover:text-muted-foreground/60',
                       )} />
                     </button>
                     <button
@@ -608,10 +608,10 @@ export function TaskDetailPanel({
                         </span>
                       )}
                       <div className={cn('h-1.5 w-1.5 rounded-full shrink-0',
-                        sub.priority === 'critical' && 'bg-red-500',
-                        sub.priority === 'high' && 'bg-orange-400',
-                        sub.priority === 'normal' && 'bg-blue-400',
-                        sub.priority === 'low' && 'bg-slate-300 dark:bg-slate-600',
+                        sub.priority === 'critical' && 'bg-destructive',
+                        sub.priority === 'high' && 'bg-warning',
+                        sub.priority === 'normal' && 'bg-primary',
+                        sub.priority === 'low' && 'bg-muted-foreground/60',
                       )} />
                     </div>
                     <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" aria-label="Delete subtask" onClick={() => deleteSubtask(sub.id)}>
@@ -688,7 +688,7 @@ export function TaskDetailPanel({
                           <div key={item.id} className="flex items-center gap-2 group rounded-md px-2 py-1 hover:bg-muted/50 transition-colors">
                             <button onClick={() => toggleChecklistItem(item)} className="shrink-0">
                               {item.is_checked
-                                ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500/20" />
+                                ? <CheckCircle2 className="h-3.5 w-3.5 text-success fill-success/20" />
                                 : <div className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/30" />
                               }
                             </button>
@@ -1185,7 +1185,7 @@ export function TaskDetailPanel({
               {task.status !== 'complete' && (
                 <Button size="sm" variant="outline" className="w-full h-8 text-xs justify-start"
                   onClick={() => updateField('status', 'complete')}>
-                  <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" /> Mark complete
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-success" /> Mark complete
                 </Button>
               )}
             </div>
@@ -1250,14 +1250,14 @@ function DependencySection({
         <Link2 className="h-3 w-3 inline mr-1" />Dependencies
       </Label>
       <div className="space-y-1 rounded-lg border border-border/40 p-2">
-        {blocking.map((dep) => renderDep(dep, dep.depends_on_id, 'Blocking', 'text-red-500'))}
+        {blocking.map((dep) => renderDep(dep, dep.depends_on_id, 'Blocking', 'text-destructive'))}
         {blockedBy.map((dep) => {
           const targetId = dep.task_id === task.id ? dep.depends_on_id : dep.task_id;
-          return renderDep(dep, targetId, 'Blocked by', 'text-amber-500');
+          return renderDep(dep, targetId, 'Blocked by', 'text-warning');
         })}
         {related.map((dep) => {
           const targetId = dep.task_id === task.id ? dep.depends_on_id : dep.task_id;
-          return renderDep(dep, targetId, 'Related', 'text-blue-500');
+          return renderDep(dep, targetId, 'Related', 'text-primary');
         })}
         {blocking.length === 0 && blockedBy.length === 0 && related.length === 0 && (
           <p className="text-2xs text-muted-foreground text-center py-1">No dependencies</p>
@@ -1298,8 +1298,8 @@ const ACTIVITY_ICONS: Record<string, typeof Activity> = {
 
 function ActivityIcon({ action }: { action: string }) {
   const Icon = ACTIVITY_ICONS[action] || Activity;
-  const color = action === 'completed' ? 'text-emerald-500'
-    : action === 'reopened' ? 'text-amber-500'
+  const color = action === 'completed' ? 'text-success'
+    : action === 'reopened' ? 'text-warning'
     : 'text-muted-foreground';
   return (
     <div className={cn('mt-0.5 h-5 w-5 rounded-full bg-muted/60 flex items-center justify-center shrink-0', color)}>

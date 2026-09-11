@@ -62,12 +62,12 @@ function dateBadge(dateStr: string | null) {
     return <Badge variant="destructive">{days} days left</Badge>;
   }
   if (days <= 30) {
-    return <Badge className="bg-amber-500 hover:bg-amber-600 text-white">{days} days left</Badge>;
+    return <Badge className="bg-warning text-warning-foreground hover:bg-warning/90">{days} days left</Badge>;
   }
   if (days <= 60) {
-    return <Badge className="bg-yellow-400 hover:bg-yellow-500 text-black">{days} days</Badge>;
+    return <Badge className="bg-warning/80 text-warning-foreground hover:bg-warning/70">{days} days</Badge>;
   }
-  return <Badge className="bg-green-600 hover:bg-green-700 text-white">{days} days</Badge>;
+  return <Badge className="bg-success text-success-foreground hover:bg-success/90">{days} days</Badge>;
 }
 
 function formatDate(dateStr: string | null) {
@@ -108,9 +108,9 @@ function statusBadge(status: VehicleStatus) {
     case 'blocked':
       return <Badge variant="destructive" className="gap-1"><XCircle className="h-3 w-3" /> Blocked</Badge>;
     case 'warning':
-      return <Badge className="bg-amber-500 hover:bg-amber-600 text-white gap-1"><AlertTriangle className="h-3 w-3" /> Warning</Badge>;
+      return <Badge className="bg-warning text-warning-foreground hover:bg-warning/90 gap-1"><AlertTriangle className="h-3 w-3" /> Warning</Badge>;
     case 'compliant':
-      return <Badge className="bg-green-600 hover:bg-green-700 text-white gap-1"><CheckCircle className="h-3 w-3" /> Compliant</Badge>;
+      return <Badge className="bg-success text-success-foreground hover:bg-success/90 gap-1"><CheckCircle className="h-3 w-3" /> Compliant</Badge>;
   }
 }
 
@@ -206,10 +206,10 @@ export function ComplianceDashboard({ vehicles, onUpdated }: Props) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Expiring Soon</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <AlertTriangle className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-500">{warningCount}</div>
+            <div className="text-2xl font-bold text-warning">{warningCount}</div>
           </CardContent>
         </Card>
 
@@ -297,7 +297,7 @@ export function ComplianceDashboard({ vehicles, onUpdated }: Props) {
                   const days = daysUntil(editForm[doc.key]);
                   if (days === null) return null;
                   if (days < 0) return <p className="text-xs text-destructive">Expired {Math.abs(days)} days ago</p>;
-                  if (days <= 30) return <p className="text-xs text-amber-600">Expires in {days} days</p>;
+                  if (days <= 30) return <p className="text-xs text-warning">Expires in {days} days</p>;
                   return <p className="text-xs text-success">Valid for {days} days</p>;
                 })()}
               </div>

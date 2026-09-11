@@ -473,7 +473,7 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
                         <TableCell className="text-right tabular-nums currency">{m.contractors > 0 ? formatNaira(m.contractors) : '—'}</TableCell>
                         <TableCell className="text-right tabular-nums currency font-semibold">{m.burn > 0 ? formatNaira(m.burn) : '—'}</TableCell>
                         <TableCell className="text-center">
-                          {m.status === 'paid' && <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-3xs">Paid</Badge>}
+                          {m.status === 'paid' && <Badge className="bg-success/10 text-success hover:bg-success/10 text-3xs">Paid</Badge>}
                           {m.status === 'pending' && <Badge variant="outline" className="text-3xs">Pending</Badge>}
                         </TableCell>
                       </TableRow>

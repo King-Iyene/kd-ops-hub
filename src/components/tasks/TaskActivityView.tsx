@@ -51,11 +51,11 @@ const ACTION_ICON: Record<string, typeof Plus> = {
 };
 
 const ACTION_COLOR: Record<string, string> = {
-  task_created: 'bg-emerald-500/10 text-emerald-600',
-  task_completed: 'bg-green-500/10 text-green-600',
-  task_updated: 'bg-blue-500/10 text-blue-600',
-  task_commented: 'bg-amber-500/10 text-amber-600',
-  comment: 'bg-amber-500/10 text-amber-600',
+  task_created: 'bg-success/10 text-success',
+  task_completed: 'bg-success/10 text-success',
+  task_updated: 'bg-primary/10 text-primary',
+  task_commented: 'bg-warning/10 text-warning',
+  comment: 'bg-warning/10 text-warning',
 };
 
 function relativeTime(iso: string): string {

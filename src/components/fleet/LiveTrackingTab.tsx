@@ -353,7 +353,7 @@ export function LiveTrackingTab() {
           <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" />{tripList.filter((r) => r.speeding).length} speeding</Badge>
         )}
         {tripList.some((r) => r.stale) && (
-          <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-800 hover:bg-amber-100">{tripList.filter((r) => r.stale).length} stale</Badge>
+          <Badge variant="secondary" className="gap-1 bg-warning/10 text-warning hover:bg-warning/10">{tripList.filter((r) => r.stale).length} stale</Badge>
         )}
         <div className="ml-auto relative w-full sm:w-72">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

@@ -30,8 +30,8 @@ function FuelGauge({ tank, current, lastRefuel }: { tank: number; current: numbe
   const cur = Math.min(current || 0, cap);
   const pct = cap > 0 ? Math.round((cur / cap) * 100) : 0;
   const isCritical = pct < 10;
-  const barColor = pct >= 50 ? 'bg-green-500' : pct >= 25 ? 'bg-amber-500' : 'bg-red-500';
-  const textColor = pct >= 50 ? 'text-success' : pct >= 25 ? 'text-amber-600' : 'text-destructive';
+  const barColor = pct >= 50 ? 'bg-success' : pct >= 25 ? 'bg-warning' : 'bg-destructive';
+  const textColor = pct >= 50 ? 'text-success' : pct >= 25 ? 'text-warning' : 'text-destructive';
   const daysSince = lastRefuel
     ? Math.floor((Date.now() - new Date(lastRefuel).getTime()) / 86_400_000)
     : null;
@@ -138,8 +138,8 @@ function FuelHistoryDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: ()
               </LineChart>
             </ResponsiveContainer>
             <div className="flex items-center gap-4 text-xs text-muted-foreground justify-center">
-              <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" /> Fuel added</span>
-              <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" /> Trip consumed</span>
+              <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-success" /> Fuel added</span>
+              <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-destructive" /> Trip consumed</span>
             </div>
             <div className="max-h-48 overflow-y-auto border rounded text-xs">
               <table className="w-full">
@@ -437,7 +437,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                   </TableRow>
                 )}
                 {vehicles.map((v) => (
-                  <TableRow key={v.id} className={`hover:bg-muted/40 kd-transition${isOutOfService(v) ? ' bg-red-50/40 dark:bg-red-950/10' : ''}`}>
+                  <TableRow key={v.id} className={`hover:bg-muted/40 kd-transition${isOutOfService(v) ? ' bg-destructive/5' : ''}`}>
                     <TableCell>
                       <div className="font-medium flex items-center gap-2">
                         {v.name}
@@ -702,11 +702,11 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
           <DialogFooter className="px-6 py-4 border-t border-border/60 bg-card/50 backdrop-blur-sm flex-col gap-3 mt-0">
             {/* Non-admin one-time warning — shown only when adding (not editing) */}
             {!isAdmin && !editing && (
-              <div className="w-full rounded-xl border border-amber-300 bg-warning/10/30 dark:border-amber-700 px-4 py-3 space-y-2">
+              <div className="w-full rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 space-y-2">
                 <div className="flex items-start gap-2.5">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Please verify all details before submitting</p>
+                    <p className="text-sm font-semibold text-warning">Please verify all details before submitting</p>
                     <p className="text-xs text-warning mt-0.5">
                       Once saved, you will <strong>not be able to edit</strong> this vehicle record. Any corrections will require an administrator.
                     </p>
@@ -717,9 +717,9 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                     type="checkbox"
                     checked={nonAdminConfirmed}
                     onChange={(e) => setNonAdminConfirmed(e.target.checked)}
-                    className="h-4 w-4 rounded border-amber-400 accent-amber-600"
+                    className="h-4 w-4 rounded border-warning/40 accent-warning"
                   />
-                  <span className="text-xs font-medium text-amber-800 dark:text-amber-200">
+                  <span className="text-xs font-medium text-warning">
                     I have verified all details and understand they cannot be changed after submission
                   </span>
                 </label>

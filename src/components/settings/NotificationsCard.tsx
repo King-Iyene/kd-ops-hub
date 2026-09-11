@@ -96,10 +96,10 @@ export function NotificationsCard() {
           </div>
         ) : publicKey ? (
           <>
-            <div className="flex items-start gap-2 rounded-md border border-emerald-300/40 bg-success/10/20 p-3">
-              <span className="mt-0.5 inline-block h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+            <div className="flex items-start gap-2 rounded-md border border-success/40 bg-success/10 p-3">
+              <span className="mt-0.5 inline-block h-2 w-2 rounded-full bg-success shrink-0" />
               <div className="text-xs">
-                <p className="font-semibold text-emerald-700 dark:text-emerald-400">Notifications are active</p>
+                <p className="font-semibold text-success">Notifications are active</p>
                 <p className="text-muted-foreground mt-0.5">
                   Operators can subscribe from the Dashboard. Notifications fire for approvals, transfers, and anomalies.
                 </p>
@@ -149,10 +149,10 @@ export function NotificationsCard() {
           </>
         ) : (
           <>
-            <div className="flex items-start gap-2 rounded-md border border-amber-300/40 bg-warning/10/20 p-3">
-              <span className="mt-0.5 inline-block h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+            <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3">
+              <span className="mt-0.5 inline-block h-2 w-2 rounded-full bg-warning shrink-0" />
               <div className="text-xs">
-                <p className="font-semibold text-amber-700 dark:text-amber-400">Notifications not yet configured</p>
+                <p className="font-semibold text-warning">Notifications not yet configured</p>
                 <p className="text-muted-foreground mt-0.5">
                   {isAdmin
                     ? 'Click "Generate keys" below to enable push notifications across the platform. Takes about 2 seconds — no CLI needed.'

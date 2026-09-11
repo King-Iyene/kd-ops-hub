@@ -134,10 +134,10 @@ function nextActionCopy(run: PayrollRun, canApprove: boolean, canDisburse: boole
 
 const STATUS_ACCENT: Record<string, string> = {
   draft: 'bg-muted-foreground/50',
-  pending_approval: 'bg-amber-500',
-  approved: 'bg-emerald-500',
-  processing: 'bg-emerald-500',
-  paid: 'bg-blue-500',
+  pending_approval: 'bg-warning',
+  approved: 'bg-success',
+  processing: 'bg-success',
+  paid: 'bg-primary',
 };
 
 

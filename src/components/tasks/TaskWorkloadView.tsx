@@ -141,9 +141,9 @@ export function TaskWorkloadView({ tasks, profiles, onTaskClick }: TaskWorkloadV
   };
 
   const utilizationColor = (pct: number) => {
-    if (pct > 90) return 'bg-red-500';
-    if (pct >= 70) return 'bg-amber-500';
-    return 'bg-emerald-500';
+    if (pct > 90) return 'bg-destructive';
+    if (pct >= 70) return 'bg-warning';
+    return 'bg-success';
   };
 
   const utilizationTextColor = (pct: number) => {

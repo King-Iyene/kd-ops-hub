@@ -228,8 +228,8 @@ export default function MfaSettings() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             {enabled
-              ? <ShieldCheck className="h-4 w-4 text-emerald-500" />
-              : <ShieldAlert className="h-4 w-4 text-amber-500" />}
+              ? <ShieldCheck className="h-4 w-4 text-success" />
+              : <ShieldAlert className="h-4 w-4 text-warning" />}
             Two-factor authentication
           </CardTitle>
         </CardHeader>
@@ -289,7 +289,7 @@ export default function MfaSettings() {
                       </div>
                     </div>
                     <Button size="icon" variant="ghost" aria-label="Revoke device" onClick={async () => { await revokeTrustedDevice(d.id); await reload(); }}>
-                      <Trash2 className="h-3 w-3 text-rose-500" />
+                      <Trash2 className="h-3 w-3 text-destructive" />
                     </Button>
                   </div>
                 ))}
@@ -378,7 +378,7 @@ export default function MfaSettings() {
           {step === 'backup' && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500" /> Save your backup codes</DialogTitle>
+                <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-success" /> Save your backup codes</DialogTitle>
                 <DialogDescription>
                   Each code can be used <strong>once</strong> if you lose your authenticator. Store them somewhere safe.
                 </DialogDescription>
@@ -386,7 +386,7 @@ export default function MfaSettings() {
               <div className="rounded-md bg-muted/40 p-3 grid grid-cols-2 gap-1.5 font-mono text-xs">
                 {codes.map((c) => <div key={c} className="select-all">{c}</div>)}
               </div>
-              <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+              <div className="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning flex items-start gap-2">
                 <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
                 These codes won't be shown again. Copy or download them now.
               </div>

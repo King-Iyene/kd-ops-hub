@@ -352,9 +352,9 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
   }
 
   function varianceBg(pct: number): string {
-    if (pct > 10) return 'bg-red-500/10';
-    if (pct >= -10) return 'bg-amber-500/10';
-    return 'bg-emerald-500/10';
+    if (pct > 10) return 'bg-destructive/10';
+    if (pct >= -10) return 'bg-warning/10';
+    return 'bg-success/10';
   }
 
   // -------------------------------------------------------------------------
@@ -367,7 +367,7 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 py-3 border-b">
         <Card className="p-3">
           <div className="flex items-center gap-2 mb-1">
-            <Clock className="h-4 w-4 text-blue-500" />
+            <Clock className="h-4 w-4 text-primary" />
             <span className="text-xs text-muted-foreground">Total Logged</span>
           </div>
           <p className="text-lg font-semibold tabular-nums">{formatHours(summary.totalLogged)}</p>
@@ -381,7 +381,7 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
         </Card>
         <Card className="p-3">
           <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
+            <TrendingUp className="h-4 w-4 text-success" />
             <span className="text-xs text-muted-foreground">Utilization</span>
           </div>
           <p className={cn(
@@ -397,13 +397,13 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
         </Card>
         <Card className="p-3">
           <div className="flex items-center gap-2 mb-1">
-            <Users className="h-4 w-4 text-amber-500" />
+            <Users className="h-4 w-4 text-warning" />
             <span className="text-xs text-muted-foreground">Active Timers</span>
           </div>
           <p className="text-lg font-semibold tabular-nums">{summary.activeTimers}</p>
           {summary.activeTimers > 0 && (
             <span className="inline-flex items-center gap-1 text-3xs text-success">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
               Running
             </span>
           )}
@@ -573,7 +573,7 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
                                   <td className="py-2 pr-3 text-right tabular-nums whitespace-nowrap">
                                     {isRunning ? (
                                       <span className="inline-flex items-center gap-1 text-success">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                        <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
                                         Running
                                       </span>
                                     ) : (

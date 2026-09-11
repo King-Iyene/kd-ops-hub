@@ -51,7 +51,7 @@ const fmtRate = (n: number | null | undefined) =>
 
 const STATUS_STYLE: Record<string, string> = {
   active: 'bg-success/10 text-success',
-  pending_review: 'bg-amber-500/10 text-amber-600',
+  pending_review: 'bg-warning/10 text-warning',
   superseded: 'bg-muted text-muted-foreground',
   rejected: 'bg-destructive/10 text-destructive',
 };
@@ -250,16 +250,16 @@ export default function FxRateSettings() {
 
       {/* Pending-review (deviation guard tripped) */}
       {pending && (
-        <Card className="border-amber-500/40">
+        <Card className="border-warning/40">
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2 text-amber-700">
+            <CardTitle className="text-base flex items-center gap-2 text-warning">
               <ShieldAlert className="h-4 w-4" /> Rate held for your approval
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
               A fetched rate of <span className="font-semibold text-foreground">₦{fmtRate(pending.rate)}</span> moved{' '}
-              <span className="font-semibold text-amber-700">{pending.deviation_pct}%</span> from the live rate
+              <span className="font-semibold text-warning">{pending.deviation_pct}%</span> from the live rate
               (₦{fmtRate(pending.prev_rate)}), beyond the {threshold}% guard. It is <b>not</b> in use until you approve it.
             </p>
             {canEdit && (
@@ -361,7 +361,7 @@ export default function FxRateSettings() {
                         {r.source === 'manual' ? 'Manual' : 'Auto'}
                       </TableCell>
                       <TableCell className={cn('text-right text-xs tabular-nums',
-                        up ? 'text-amber-600' : down ? 'text-success' : 'text-muted-foreground')}>
+                        up ? 'text-warning' : down ? 'text-success' : 'text-muted-foreground')}>
                         {r.deviation_pct == null ? '—' : `${up ? '▲' : down ? '▼' : ''} ${r.deviation_pct}%`}
                       </TableCell>
                       <TableCell className="text-right text-xs text-muted-foreground whitespace-nowrap">{formatDateTime(r.valid_from)}</TableCell>

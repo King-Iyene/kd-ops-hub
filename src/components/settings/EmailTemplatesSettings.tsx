@@ -323,7 +323,7 @@ export default function EmailTemplatesSettings() {
       </Card>
 
       {missingTable && (
-        <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2">
+        <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
           <div>
             <p className="font-medium">Migration not yet applied</p>
@@ -335,7 +335,7 @@ export default function EmailTemplatesSettings() {
       )}
 
       {error && !missingTable && (
-        <p className="text-sm text-rose-600">{error}</p>
+        <p className="text-sm text-destructive">{error}</p>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-4">
@@ -512,7 +512,7 @@ export default function EmailTemplatesSettings() {
                       />
                     </div>
                     <p className="text-2xs text-muted-foreground flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      <CheckCircle2 className="h-3 w-3 text-success" />
                       Rendered with each variable's example value.
                     </p>
                   </div>

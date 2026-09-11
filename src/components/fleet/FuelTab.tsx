@@ -139,11 +139,11 @@ function WeeklyBudgetBar({
   const barColour = total <= 0
     ? ''
     : isOver  ? '[&>div]:bg-destructive'
-    : isRed   ? '[&>div]:bg-red-500'
-    : isAmber ? '[&>div]:bg-amber-500'
-    :           '[&>div]:bg-green-500';
+    : isRed   ? '[&>div]:bg-destructive'
+    : isAmber ? '[&>div]:bg-warning'
+    :           '[&>div]:bg-success';
 
-  const remainColour = isOver ? 'text-destructive' : isRed ? 'text-destructive' : isAmber ? 'text-amber-600' : 'text-success';
+  const remainColour = isOver ? 'text-destructive' : isRed ? 'text-destructive' : isAmber ? 'text-warning' : 'text-success';
 
   return (
     <div className="rounded-md border px-3 py-2.5 space-y-2 bg-muted/30 text-xs">
@@ -172,13 +172,13 @@ function WeeklyBudgetBar({
         </div>
       </div>
       {carryForward > 0 && (
-        <p className="text-blue-600">
+        <p className="text-primary">
           Includes {formatNaira(carryForward)} carry-forward from last week.
         </p>
       )}
       {isOver  && <p className="text-destructive font-medium">Weekly budget exhausted.</p>}
       {isRed   && <p className="text-destructive">Less than 25% of budget remaining.</p>}
-      {isAmber && <p className="text-amber-600">Less than 50% of budget remaining.</p>}
+      {isAmber && <p className="text-warning">Less than 50% of budget remaining.</p>}
     </div>
   );
 }
@@ -191,7 +191,7 @@ function FuelRequestFuelLevel({ vehicleId, vehicles }: { vehicleId: string | nul
   const cur = Math.min(veh.current_fuel_litres || 0, cap);
   const pct = cap > 0 ? Math.round((cur / cap) * 100) : 0;
   return (
-    <span className={`font-medium ${pct < 20 ? 'text-destructive' : pct < 50 ? 'text-amber-600' : 'text-success'}`}>
+    <span className={`font-medium ${pct < 20 ? 'text-destructive' : pct < 50 ? 'text-warning' : 'text-success'}`}>
       {cur.toFixed(0)}L ({pct}%)
       {pct < 20 && <AlertTriangle className="inline h-3 w-3 ml-0.5 -mt-0.5" />}
     </span>
@@ -2050,7 +2050,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
                         {r.status === 'budget_blocked'
-                          ? <Badge variant="outline" className="border-red-300 text-red-700 bg-destructive/10/20 dark:text-red-400">Over Budget</Badge>
+                          ? <Badge variant="outline" className="border-destructive/40 text-destructive bg-destructive/10">Over Budget</Badge>
                           : <StatusBadge status={displayFuelStatus(r)} />}
                       </div>
                       {r.status === 'rejected' && r.rejection_reason && (
@@ -2067,8 +2067,8 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                             className={cn(
                               'ml-1.5 gap-1 cursor-default',
                               r.anomaly_type?.includes('duplicate_receipt')
-                                ? 'border-red-400 text-red-700 bg-destructive/10/20'
-                                : 'border-amber-400 text-amber-700 bg-warning/10/20',
+                                ? 'border-destructive/40 text-destructive bg-destructive/10'
+                                : 'border-warning/40 text-warning bg-warning/10',
                             )}
                           >
                             <AlertTriangle className="h-3 w-3" />
@@ -2092,7 +2092,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-xs text-amber-700 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                              className="text-xs text-warning border-warning/40 hover:bg-warning/10"
                               onClick={() => handleBudgetException(r)}
                             >
                               <Check className="h-3 w-3 mr-1" /> Approve as Budget Exception
@@ -2143,7 +2143,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                         </div>
                       ) : r.status === 'receipt_uploaded' ? (
                         <div className="flex justify-end items-center gap-1">
-                          <Button size="sm" variant="outline" className="text-xs text-green-700 border-green-300 hover:bg-green-50" onClick={() => handleMarkComplete(r)}>
+                          <Button size="sm" variant="outline" className="text-xs text-success border-success/40 hover:bg-success/10" onClick={() => handleMarkComplete(r)}>
                             <Check className="h-3 w-3 mr-1" /> Complete
                           </Button>
                           <DropdownMenu>
@@ -2237,11 +2237,11 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
               <p className="text-center text-muted-foreground text-sm py-8">No fuel requests yet.</p>
             ) : visibleFuel.map((r) => {
               const accent =
-                r.status === 'pending' ? 'bg-amber-500'
-                : r.status === 'approved' ? 'bg-emerald-500'
-                : r.status === 'rejected' ? 'bg-red-500'
-                : r.status === 'budget_blocked' ? 'bg-red-500'
-                : r.status === 'receipt_uploaded' ? 'bg-blue-500'
+                r.status === 'pending' ? 'bg-warning'
+                : r.status === 'approved' ? 'bg-success'
+                : r.status === 'rejected' ? 'bg-destructive'
+                : r.status === 'budget_blocked' ? 'bg-destructive'
+                : r.status === 'receipt_uploaded' ? 'bg-primary'
                 : 'bg-muted-foreground';
               return (
                 <MobileCard key={r.id} accentClassName={accent}>
@@ -2259,7 +2259,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
 
                   <div className="flex items-center gap-3 text-xs">
                     {r.status === 'budget_blocked'
-                      ? <Badge variant="outline" className="border-red-300 text-red-700 bg-destructive/10/20 dark:text-red-400">Over Budget</Badge>
+                      ? <Badge variant="outline" className="border-destructive/40 text-destructive bg-destructive/10">Over Budget</Badge>
                       : <StatusBadge status={displayFuelStatus(r)} />}
                     <span className="text-muted-foreground tabular-nums ml-auto">
                       {r.litres_est ? `${r.litres_est} L` : ''}
@@ -2308,7 +2308,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1 h-9 text-amber-700 border-amber-300 hover:bg-amber-50"
+                        className="flex-1 h-9 text-warning border-warning/40 hover:bg-warning/10"
                         onClick={() => handleBudgetException(r)}
                       >
                         <Check className="h-4 w-4 mr-1.5" /> Approve as Exception
@@ -2340,7 +2340,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1 h-9 text-green-700 border-green-300 hover:bg-green-50"
+                        className="flex-1 h-9 text-success border-success/40 hover:bg-success/10"
                         onClick={() => handleMarkComplete(r)}
                       >
                         <Check className="h-4 w-4 mr-1.5" /> Complete
@@ -2487,8 +2487,8 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
 
                 {/* Live amount display */}
                 {requested > 0 && (
-                  <div className={`rounded-xl border px-4 py-3 text-center transition-all duration-300 ${isOverBudget ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
-                    <p className={`text-2xl font-bold tracking-tight currency ${isOverBudget ? 'text-red-700' : 'text-emerald-700'}`}>
+                  <div className={`rounded-xl border px-4 py-3 text-center transition-all duration-300 ${isOverBudget ? 'bg-destructive/10 border-destructive/40' : 'bg-success/10 border-success/40'}`}>
+                    <p className={`text-2xl font-bold tracking-tight currency ${isOverBudget ? 'text-destructive' : 'text-success'}`}>
                       {formatNaira(requested)}
                     </p>
                     {weekBudget && weekBudget.total > 0 && (
@@ -2594,7 +2594,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" onClick={() => setShowFuelForm(false)}>Cancel</Button>
                 {isOverBudget ? (
-                  <Button variant="outline" className="border-amber-400 text-amber-700 hover:bg-amber-50" onClick={() => submitFuelRequest(true)} disabled={submitting || !fuelForm.employee_id || !fuelForm.station_name || !fuelForm.amount_ngn || !fuelVehicleId}>
+                  <Button variant="outline" className="border-warning/40 text-warning hover:bg-warning/10" onClick={() => submitFuelRequest(true)} disabled={submitting || !fuelForm.employee_id || !fuelForm.station_name || !fuelForm.amount_ngn || !fuelVehicleId}>
                     {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Request Budget Exception
                   </Button>
@@ -2769,7 +2769,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
               </div>
             )}
             {receiptScanWarning && (
-              <div className="flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
+              <div className="flex items-start gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-2.5 py-2 text-xs text-warning">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                 <span>{receiptScanWarning}</span>
               </div>
@@ -2822,7 +2822,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
               const check = checkReceiptRequestDivergence(amountNum, uploadingReceiptFor?.amount_ngn || 0);
               if (!check.flagged) return null;
               return (
-                <p className="text-xs text-amber-600 flex items-center gap-1">
+                <p className="text-xs text-warning flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3 shrink-0" /> {check.reason}
                 </p>
               );
@@ -2848,7 +2848,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
               const check = checkPumpPrice(amountNum, litresNum, fuelPriceBenchmark);
               if (!check.flagged) return null;
               return (
-                <p className="text-xs text-amber-600 flex items-center gap-1">
+                <p className="text-xs text-warning flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3 shrink-0" /> {check.reason}
                 </p>
               );
@@ -2867,7 +2867,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
               const staleReason = checkStaleReceipt(receiptForm.receipt_date, new Date().toISOString().slice(0, 10));
               if (!staleReason) return null;
               return (
-                <p className="text-xs text-amber-600 flex items-center gap-1">
+                <p className="text-xs text-warning flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3 shrink-0" /> {staleReason}
                 </p>
               );
@@ -3068,7 +3068,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                 placeholder="0.00"
               />
               {repairIsReimbursement && parseFloat(repairForm.amount_ngn) > 10000 && !repairReceipt && (
-                <p className="text-xs text-amber-600 flex items-center gap-1">
+                <p className="text-xs text-warning flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" /> Receipt required for reimbursements over ₦10,000
                 </p>
               )}
@@ -3084,9 +3084,9 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
               <Label>Priority</Label>
               <div className="grid grid-cols-3 gap-2">
                 {([
-                  { val: 'routine' as const, label: 'Routine', desc: 'Scheduled / planned', color: 'text-blue-600 border-blue-300 bg-blue-50 dark:bg-blue-950/20' },
-                  { val: 'urgent' as const, label: 'Urgent', desc: 'Needs attention soon', color: 'text-amber-600 border-amber-300 bg-warning/10/20' },
-                  { val: 'emergency' as const, label: 'Emergency', desc: 'Vehicle unsafe', color: 'text-red-600 border-red-300 bg-destructive/10/20' },
+                  { val: 'routine' as const, label: 'Routine', desc: 'Scheduled / planned', color: 'text-primary border-primary/40 bg-primary/10' },
+                  { val: 'urgent' as const, label: 'Urgent', desc: 'Needs attention soon', color: 'text-warning border-warning/40 bg-warning/10' },
+                  { val: 'emergency' as const, label: 'Emergency', desc: 'Vehicle unsafe', color: 'text-destructive border-destructive/40 bg-destructive/10' },
                 ]).map(({ val, label, desc, color }) => (
                   <button key={val} type="button"
                     className={cn('rounded-xl border p-2.5 text-center text-xs kd-transition',
@@ -3142,7 +3142,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                 }}
               />
               {repairReceipt ? (
-                <div className="flex items-center gap-3 rounded-xl border-2 border-green-400 bg-success/10/20 px-4 py-3">
+                <div className="flex items-center gap-3 rounded-xl border-2 border-success/40 bg-success/10 px-4 py-3">
                   <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                   <span className="text-sm text-success truncate flex-1">{repairReceipt.name}</span>
                   <button type="button" className="text-xs text-muted-foreground hover:text-destructive shrink-0" onClick={() => { setRepairReceipt(null); setRepairReceiptOcrAmount(''); }}>
@@ -3290,7 +3290,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-500" /> Duplicate fuel request today
+            <AlertTriangle className="h-5 w-5 text-warning" /> Duplicate fuel request today
           </DialogTitle>
           <DialogDescription>
             A fuel request for this vehicle has already been submitted today. Are you sure you want to submit another?

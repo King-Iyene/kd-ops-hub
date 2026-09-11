@@ -110,10 +110,10 @@ const RECURRENCE_OPTIONS = [
 ] as const;
 
 const STATUS_CONFIG: Record<EffectiveStatus, { label: string; className: string }> = {
-  overdue: { label: 'Overdue', className: 'bg-red-600 hover:bg-red-700 text-white' },
-  upcoming: { label: 'Upcoming', className: 'bg-amber-500 hover:bg-amber-600 text-white' },
-  pending: { label: 'Pending', className: 'bg-blue-500 hover:bg-blue-600 text-white' },
-  done: { label: 'Done', className: 'bg-green-600 hover:bg-green-700 text-white' },
+  overdue: { label: 'Overdue', className: 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' },
+  upcoming: { label: 'Upcoming', className: 'bg-warning hover:bg-warning/90 text-warning-foreground' },
+  pending: { label: 'Pending', className: 'bg-primary hover:bg-primary/90 text-primary-foreground' },
+  done: { label: 'Done', className: 'bg-success hover:bg-success/90 text-success-foreground' },
 };
 
 function computeEffectiveStatus(
@@ -490,11 +490,11 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
 
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
-            <div className="flex items-center gap-2 text-amber-600 text-xs font-medium mb-1">
+            <div className="flex items-center gap-2 text-warning text-xs font-medium mb-1">
               <Clock className="h-3.5 w-3.5" />
               Upcoming (30d)
             </div>
-            <p className="text-2xl font-bold text-amber-600">{loading ? '...' : stats.upcoming}</p>
+            <p className="text-2xl font-bold text-warning">{loading ? '...' : stats.upcoming}</p>
           </CardContent>
         </Card>
 

@@ -16,10 +16,10 @@ import {
 import type { SpaceStatus } from '@/lib/task-types';
 
 const STATUS_GROUPS = [
-  { value: 'not_started', label: 'Not Started', color: 'bg-slate-400' },
-  { value: 'active', label: 'Active', color: 'bg-blue-500' },
-  { value: 'done', label: 'Done', color: 'bg-emerald-500' },
-  { value: 'closed', label: 'Closed', color: 'bg-gray-500' },
+  { value: 'not_started', label: 'Not Started', color: 'bg-muted-foreground' },
+  { value: 'active', label: 'Active', color: 'bg-primary' },
+  { value: 'done', label: 'Done', color: 'bg-success' },
+  { value: 'closed', label: 'Closed', color: 'bg-muted-foreground/60' },
 ] as const;
 
 const PRESET_COLORS = [
@@ -162,7 +162,7 @@ export function SpaceStatusManager({ spaceId, spaceName, open, onClose }: SpaceS
                           </SelectContent>
                         </Select>
                         <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" aria-label="Save status" onClick={() => updateStatus(status.id)}>
-                          <Check className="h-3 w-3 text-emerald-500" />
+                          <Check className="h-3 w-3 text-success" />
                         </Button>
                         <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" aria-label="Cancel editing" onClick={() => setEditingId(null)}>
                           <X className="h-3 w-3" />

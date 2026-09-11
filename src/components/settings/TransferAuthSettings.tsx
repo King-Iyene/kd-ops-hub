@@ -95,19 +95,19 @@ const outcomeBadge = (outcome: string) => {
   switch (outcome) {
     case 'ok':
       return (
-        <Badge variant="outline" className="border-emerald-500/40 text-emerald-700 dark:text-emerald-400 bg-emerald-500/5">
+        <Badge variant="outline" className="border-success/40 text-success bg-success/10">
           <CheckCircle2 className="h-3 w-3 mr-1" /> ok
         </Badge>
       );
     case 'denied':
       return (
-        <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/5">
+        <Badge variant="outline" className="border-warning/40 text-warning bg-warning/10">
           <XCircle className="h-3 w-3 mr-1" /> denied
         </Badge>
       );
     case 'error':
       return (
-        <Badge variant="outline" className="border-rose-500/40 text-rose-700 dark:text-rose-400 bg-rose-500/5">
+        <Badge variant="outline" className="border-destructive/40 text-destructive bg-destructive/10">
           <AlertTriangle className="h-3 w-3 mr-1" /> error
         </Badge>
       );
@@ -127,27 +127,27 @@ const expiryBadge = (expiresAt: string | null) => {
 
   if (diffDays <= 0) {
     return (
-      <Badge variant="outline" className="border-rose-500/40 text-rose-700 dark:text-rose-400 bg-rose-500/5 text-xs">
+      <Badge variant="outline" className="border-destructive/40 text-destructive bg-destructive/10 text-xs">
         expired
       </Badge>
     );
   }
   if (diffDays === 1) {
     return (
-      <Badge variant="outline" className="border-rose-500/40 text-rose-700 dark:text-rose-400 bg-rose-500/5 text-xs">
+      <Badge variant="outline" className="border-destructive/40 text-destructive bg-destructive/10 text-xs">
         today
       </Badge>
     );
   }
   if (diffDays <= 7) {
     return (
-      <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/5 text-xs">
+      <Badge variant="outline" className="border-warning/40 text-warning bg-warning/10 text-xs">
         in {diffDays} days
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="border-emerald-500/40 text-emerald-700 dark:text-emerald-400 bg-emerald-500/5 text-xs">
+    <Badge variant="outline" className="border-success/40 text-success bg-success/10 text-xs">
       in {diffDays} days
     </Badge>
   );
@@ -504,7 +504,7 @@ export default function TransferAuthSettings() {
   return (
     <div className="space-y-3 sm:space-y-6">
       {migrationMissing && (
-        <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2">
+        <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
           <div className="space-y-1">
             <p className="font-medium">Migration not yet applied</p>
@@ -550,7 +550,7 @@ export default function TransferAuthSettings() {
               <Loader2 className="h-4 w-4 animate-spin" /> Loading caps…
             </div>
           ) : limitsError && !migrationMissing ? (
-            <p className="text-sm text-rose-600">{limitsError}</p>
+            <p className="text-sm text-destructive">{limitsError}</p>
           ) : (
             <div className="overflow-x-auto">
               <Table className="min-w-[700px]">
@@ -700,7 +700,7 @@ export default function TransferAuthSettings() {
             </div>
             <div className="space-y-1">
               <Label className="text-xs flex items-center gap-1">
-                Reason <span className="text-rose-500">*</span>
+                Reason <span className="text-destructive">*</span>
                 <span className="ml-auto text-muted-foreground font-normal">{overrideReason.length} chars</span>
               </Label>
               <Textarea
@@ -766,7 +766,7 @@ export default function TransferAuthSettings() {
                             disabled={isSelf}
                             title={isSelf ? 'Cannot remove your own override' : undefined}
                           >
-                            <Trash2 className={`h-3 w-3 ${isSelf ? 'text-muted-foreground' : 'text-rose-500'}`} />
+                            <Trash2 className={`h-3 w-3 ${isSelf ? 'text-muted-foreground' : 'text-destructive'}`} />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -963,7 +963,7 @@ export default function TransferAuthSettings() {
               <Loader2 className="h-4 w-4 animate-spin" /> Loading audit…
             </div>
           ) : auditError && !migrationMissing ? (
-            <p className="text-sm text-rose-600">{auditError}</p>
+            <p className="text-sm text-destructive">{auditError}</p>
           ) : auditRows.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No transfer activity yet.</p>
           ) : (

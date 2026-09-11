@@ -106,8 +106,8 @@ export function MyTasksView({
 
   const todoGroups: { key: string; title: string; icon: typeof Calendar; iconColor: string; tasks: Task[]; highlight?: 'destructive' }[] = [
     { key: 'overdue', title: 'Overdue', icon: AlertTriangle, iconColor: 'text-destructive', tasks: groupedTodo.overdue, highlight: 'destructive' },
-    { key: 'today', title: 'Today', icon: Calendar, iconColor: 'text-blue-500', tasks: groupedTodo.today },
-    { key: 'tomorrow', title: 'Tomorrow', icon: CalendarDays, iconColor: 'text-blue-400', tasks: groupedTodo.tomorrow },
+    { key: 'today', title: 'Today', icon: Calendar, iconColor: 'text-primary', tasks: groupedTodo.today },
+    { key: 'tomorrow', title: 'Tomorrow', icon: CalendarDays, iconColor: 'text-primary/80', tasks: groupedTodo.tomorrow },
     { key: 'thisWeek', title: 'This Week', icon: Clock, iconColor: 'text-indigo-500', tasks: groupedTodo.thisWeek },
     { key: 'nextWeek', title: 'Next Week', icon: Clock, iconColor: 'text-muted-foreground', tasks: groupedTodo.nextWeek },
     { key: 'later', title: 'Later', icon: Layers, iconColor: 'text-muted-foreground/70', tasks: groupedTodo.later },
@@ -372,10 +372,10 @@ function TaskRow({
         {/* Priority dot */}
         <div className={cn(
           'h-1.5 w-1.5 rounded-full shrink-0',
-          task.priority === 'critical' && 'bg-red-500',
-          task.priority === 'high' && 'bg-orange-400',
-          task.priority === 'normal' && 'bg-blue-400',
-          task.priority === 'low' && 'bg-slate-300 dark:bg-slate-600',
+          task.priority === 'critical' && 'bg-destructive',
+          task.priority === 'high' && 'bg-warning',
+          task.priority === 'normal' && 'bg-primary',
+          task.priority === 'low' && 'bg-muted-foreground/60',
         )} />
 
         {/* Due date */}

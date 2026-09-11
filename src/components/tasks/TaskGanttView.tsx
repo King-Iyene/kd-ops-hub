@@ -322,10 +322,10 @@ export function TaskGanttView({ tasks, profiles, onTaskClick, dependencies = [] 
                         <div
                           className={cn(
                             'h-5 w-5 rotate-45 rounded-sm transition-colors',
-                            t.status === 'complete' ? 'bg-green-500' :
-                            t.status === 'blocked' ? 'bg-red-500' :
-                            t.status === 'in_progress' ? 'bg-blue-500' :
-                            'bg-amber-500',
+                            t.status === 'complete' ? 'bg-success' :
+                            t.status === 'blocked' ? 'bg-destructive' :
+                            t.status === 'in_progress' ? 'bg-primary' :
+                            'bg-warning',
                           )}
                         />
                         <span className="text-3xs font-medium text-muted-foreground whitespace-nowrap -rotate-0 ml-1 group-hover/ms:text-foreground">
@@ -337,10 +337,10 @@ export function TaskGanttView({ tasks, profiles, onTaskClick, dependencies = [] 
                         onClick={() => onTaskClick(t)}
                         className={cn(
                           'absolute top-1 h-6 rounded text-3xs text-white font-medium px-1.5 truncate transition-colors hover:opacity-80',
-                          t.status === 'complete' ? 'bg-green-500' :
-                          t.status === 'blocked' ? 'bg-red-500' :
-                          t.status === 'in_progress' ? 'bg-blue-500' :
-                          'bg-slate-400',
+                          t.status === 'complete' ? 'bg-success' :
+                          t.status === 'blocked' ? 'bg-destructive' :
+                          t.status === 'in_progress' ? 'bg-primary' :
+                          'bg-muted-foreground',
                         )}
                         style={{ left, width }}
                       >

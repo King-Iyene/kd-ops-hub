@@ -47,10 +47,10 @@ const STATUS_ORDER: TaskStatus[] = ['open', 'in_progress', 'blocked', 'complete'
 const PRIORITY_ORDER = ['critical', 'high', 'normal', 'low'] as const;
 
 const STATUS_ACCENT: Record<TaskStatus, string> = {
-  open: 'bg-slate-500',
-  in_progress: 'bg-blue-500',
-  blocked: 'bg-red-500',
-  complete: 'bg-emerald-500',
+  open: 'bg-muted-foreground',
+  in_progress: 'bg-primary',
+  blocked: 'bg-destructive',
+  complete: 'bg-success',
 };
 
 export function TaskListView({
@@ -132,7 +132,7 @@ export function TaskListView({
       return PRIORITY_ORDER.filter((p) => map.has(p)).map((p) => ({
         key: p,
         label: p.charAt(0).toUpperCase() + p.slice(1),
-        accent: p === 'critical' ? 'bg-red-500' : p === 'high' ? 'bg-orange-400' : p === 'normal' ? 'bg-blue-400' : 'bg-slate-400',
+        accent: p === 'critical' ? 'bg-destructive' : p === 'high' ? 'bg-warning' : p === 'normal' ? 'bg-primary' : 'bg-muted-foreground',
         tasks: map.get(p)!,
       }));
     }

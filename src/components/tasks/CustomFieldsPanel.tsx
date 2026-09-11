@@ -201,7 +201,7 @@ export function CustomFieldsPanel({ taskId, spaceId }: CustomFieldsPanelProps) {
                       className={cn(
                         'h-5 w-5 rounded text-3xs font-bold transition-colors',
                         n <= (val || 0)
-                          ? 'bg-amber-400 text-white'
+                          ? 'bg-warning text-warning-foreground'
                           : 'bg-muted text-muted-foreground',
                       )}
                     >

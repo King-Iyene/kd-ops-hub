@@ -175,10 +175,10 @@ const EMPTY_FORM: IncidentForm = {
 
 function severityBadge(severity: Severity) {
   const config: Record<Severity, { className: string; label: string }> = {
-    critical: { className: 'bg-red-600 hover:bg-red-700 text-white', label: 'Critical' },
-    major: { className: 'bg-orange-500 hover:bg-orange-600 text-white', label: 'Major' },
-    moderate: { className: 'bg-amber-500 hover:bg-amber-600 text-white', label: 'Moderate' },
-    minor: { className: 'bg-gray-400 hover:bg-gray-500 text-white', label: 'Minor' },
+    critical: { className: 'bg-destructive hover:bg-destructive/90 text-destructive-foreground', label: 'Critical' },
+    major: { className: 'bg-warning hover:bg-warning/90 text-warning-foreground', label: 'Major' },
+    moderate: { className: 'bg-warning/80 hover:bg-warning/70 text-warning-foreground', label: 'Moderate' },
+    minor: { className: 'bg-muted hover:bg-muted/80 text-muted-foreground', label: 'Minor' },
   };
   const c = config[severity];
   return <Badge className={c.className}>{c.label}</Badge>;
@@ -186,9 +186,9 @@ function severityBadge(severity: Severity) {
 
 function resolutionBadge(status: ResolutionStatus) {
   const config: Record<ResolutionStatus, { className: string; label: string }> = {
-    open: { className: 'bg-red-100 text-red-800 border-red-200', label: 'Open' },
-    investigating: { className: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Investigating' },
-    resolved: { className: 'bg-green-100 text-green-800 border-green-200', label: 'Resolved' },
+    open: { className: 'bg-destructive/10 text-destructive border-destructive/40', label: 'Open' },
+    investigating: { className: 'bg-primary/10 text-primary border-primary/40', label: 'Investigating' },
+    resolved: { className: 'bg-success/10 text-success border-success/40', label: 'Resolved' },
     closed: { className: 'bg-muted text-muted-foreground border-border', label: 'Closed' },
   };
   const c = config[status];
@@ -198,11 +198,11 @@ function resolutionBadge(status: ResolutionStatus) {
 function insuranceBadge(status: InsuranceStatus) {
   const config: Record<InsuranceStatus, { className: string; label: string }> = {
     not_filed: { className: 'bg-muted text-muted-foreground', label: 'Not Filed' },
-    filed: { className: 'bg-blue-100 text-blue-700', label: 'Filed' },
-    processing: { className: 'bg-yellow-100 text-yellow-800', label: 'Processing' },
-    approved: { className: 'bg-green-100 text-green-700', label: 'Approved' },
-    rejected: { className: 'bg-red-100 text-red-700', label: 'Rejected' },
-    settled: { className: 'bg-emerald-100 text-emerald-800', label: 'Settled' },
+    filed: { className: 'bg-primary/10 text-primary', label: 'Filed' },
+    processing: { className: 'bg-warning/10 text-warning', label: 'Processing' },
+    approved: { className: 'bg-success/10 text-success', label: 'Approved' },
+    rejected: { className: 'bg-destructive/10 text-destructive', label: 'Rejected' },
+    settled: { className: 'bg-success/10 text-success', label: 'Settled' },
   };
   const c = config[status];
   return <Badge variant="outline" className={c.className}>{c.label}</Badge>;
@@ -525,7 +525,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
 
   if (!hasTable) {
     return (
-      <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+      <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-warning">
         Incident reporting module requires the latest migration. Deploy the <code>fleet_incidents_lifecycle_training</code> migration to enable this feature.
       </div>
     );
@@ -557,10 +557,10 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Insurance Pending</CardTitle>
-            <Clock className="h-4 w-4 text-amber-500" />
+            <Clock className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{insurancePending}</div>
+            <div className="text-2xl font-bold text-warning">{insurancePending}</div>
           </CardContent>
         </Card>
 
@@ -1140,15 +1140,15 @@ function IncidentDetailDialog({
           )}
 
           {incident.third_party_involved && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 dark:bg-amber-950/20 dark:border-amber-800">
+            <div className="rounded-md border border-warning/40 bg-warning/10 p-3">
               <p className="text-sm font-medium mb-1">Third Party Involved</p>
               <p className="text-sm">{incident.third_party_details || 'No details provided'}</p>
             </div>
           )}
 
           {incident.injuries_reported && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-3 dark:bg-red-950/20 dark:border-red-800">
-              <p className="text-sm font-medium mb-1 text-red-800 dark:text-red-400">Injuries Reported</p>
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
+              <p className="text-sm font-medium mb-1 text-destructive">Injuries Reported</p>
               <p className="text-sm">{incident.injury_details || 'No details provided'}</p>
             </div>
           )}
