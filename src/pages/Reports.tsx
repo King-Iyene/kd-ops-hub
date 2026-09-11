@@ -52,6 +52,7 @@ import { StatCard } from '@/components/ui-kit/StatCard';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 
 interface DateRange {
   start: string; // yyyy-mm-dd
@@ -1011,25 +1012,40 @@ function PnLReport({ range }: { range: DateRange }) {
             <CardTitle className="text-base">Revenue entries</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="sticky top-0 z-10 border-b border-border/50 bg-card/95 backdrop-blur-sm">
-                    <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Month</th>
-                    <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Category</th>
-                    <th className="text-right py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(data.revenue as any[]).map((r) => (
-                    <tr key={r.id} className="border-b border-border/50 last:border-0 hover:bg-muted/40 kd-transition">
-                      <td className="py-3 px-3">{r.month}</td>
-                      <td className="py-3 px-3 capitalize">{(r.category as string).replace(/_/g, ' ')}</td>
-                      <td className="py-3 px-3 text-right currency">{formatNaira(r.amount_ngn)}</td>
+            <div className="hidden md:block">
+              <div className="overflow-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="sticky top-0 z-10 border-b border-border/50 bg-card/95 backdrop-blur-sm">
+                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Month</th>
+                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Category</th>
+                      <th className="text-right py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Amount</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {(data.revenue as any[]).map((r) => (
+                      <tr key={r.id} className="border-b border-border/50 last:border-0 hover:bg-muted/40 kd-transition">
+                        <td className="py-3 px-3">{r.month}</td>
+                        <td className="py-3 px-3 capitalize">{(r.category as string).replace(/_/g, ' ')}</td>
+                        <td className="py-3 px-3 text-right currency">{formatNaira(r.amount_ngn)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="md:hidden space-y-2 p-3">
+              {(data.revenue as any[]).map((r) => (
+                <MobileCard key={r.id} accentClassName="bg-primary">
+                  <MobileCardHeader>
+                    <MobileCardTitle>{r.month}</MobileCardTitle>
+                    <MobileCardMeta>{formatNaira(r.amount_ngn)}</MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Category">
+                    <span className="capitalize">{(r.category as string).replace(/_/g, ' ')}</span>
+                  </MobileCardRow>
+                </MobileCard>
+              ))}
             </div>
           </CardContent>
         </Card>

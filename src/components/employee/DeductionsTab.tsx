@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { formatDate, formatNaira } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,51 +30,76 @@ export default function DeductionsTab({ deductions, canFinance, onShowDeductionD
           {deductions.length === 0 ? (
             <p className="px-4 py-6 text-sm text-muted-foreground">No deductions configured.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/40">
-                    <TableHead className="pl-4">Description</TableHead>
-                    <TableHead className="text-right">Amount (₦)</TableHead>
-                    <TableHead>Frequency</TableHead>
-                    <TableHead>Start</TableHead>
-                    <TableHead>End</TableHead>
-                    <TableHead className="text-right">Deducted to Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {deductions.map((d: any) => (
-                    <TableRow key={d.id}>
-                      <TableCell className="pl-4 font-medium">{d.description}</TableCell>
-                      <TableCell className="text-right currency">{formatNaira(d.amount_ngn)}</TableCell>
-                      <TableCell className="capitalize">{d.frequency.replace(/_/g, ' ')}</TableCell>
-                      <TableCell>{formatDate(d.start_date)}</TableCell>
-                      <TableCell>{d.end_date ? formatDate(d.end_date) : '—'}</TableCell>
-                      <TableCell className="text-right currency">
-                        {formatNaira(d.amount_deducted_to_date || 0)}
-                        {d.total_deductible_amount ? (
-                          <span className="text-xs text-muted-foreground"> / {formatNaira(d.total_deductible_amount)}</span>
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${d.status === 'active' ? 'bg-success/10 text-success' : d.status === 'completed' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                          {d.status}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {d.status === 'active' && (
-                          <Button size="xs" variant="ghost" className="text-muted-foreground"
-                            onClick={() => onDeactivateDeduction(d.id)}>
-                            Pause
-                          </Button>
-                        )}
-                      </TableCell>
+            <div className="hidden md:block">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="pl-4">Description</TableHead>
+                      <TableHead className="text-right">Amount (₦)</TableHead>
+                      <TableHead>Frequency</TableHead>
+                      <TableHead>Start</TableHead>
+                      <TableHead>End</TableHead>
+                      <TableHead className="text-right">Deducted to Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead />
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {deductions.map((d: any) => (
+                      <TableRow key={d.id}>
+                        <TableCell className="pl-4 font-medium">{d.description}</TableCell>
+                        <TableCell className="text-right currency">{formatNaira(d.amount_ngn)}</TableCell>
+                        <TableCell className="capitalize">{d.frequency.replace(/_/g, ' ')}</TableCell>
+                        <TableCell>{formatDate(d.start_date)}</TableCell>
+                        <TableCell>{d.end_date ? formatDate(d.end_date) : '—'}</TableCell>
+                        <TableCell className="text-right currency">
+                          {formatNaira(d.amount_deducted_to_date || 0)}
+                          {d.total_deductible_amount ? (
+                            <span className="text-xs text-muted-foreground"> / {formatNaira(d.total_deductible_amount)}</span>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
+                          <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${d.status === 'active' ? 'bg-success/10 text-success' : d.status === 'completed' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                            {d.status}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {d.status === 'active' && (
+                            <Button size="xs" variant="ghost" className="text-muted-foreground"
+                              onClick={() => onDeactivateDeduction(d.id)}>
+                              Pause
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+            <div className="md:hidden space-y-2 p-3">
+              {deductions.map((d: any) => (
+                <MobileCard key={d.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{d.description}</MobileCardTitle>
+                    <MobileCardMeta>
+                      <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${d.status === 'active' ? 'bg-success/10 text-success' : d.status === 'completed' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                        {d.status}
+                      </span>
+                    </MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Amount" value={formatNaira(d.amount_ngn)} />
+                  <MobileCardRow label="Frequency" value={<span className="capitalize">{d.frequency.replace(/_/g, ' ')}</span>} />
+                  <MobileCardRow label="Deducted" value={<>{formatNaira(d.amount_deducted_to_date || 0)}{d.total_deductible_amount ? <span className="text-muted-foreground"> / {formatNaira(d.total_deductible_amount)}</span> : null}</>} />
+                  <MobileCardRow label="Period" value={<>{formatDate(d.start_date)} — {d.end_date ? formatDate(d.end_date) : 'ongoing'}</>} />
+                  {d.status === 'active' && (
+                    <div className="pt-1 flex justify-end">
+                      <Button size="xs" variant="ghost" className="text-muted-foreground" onClick={() => onDeactivateDeduction(d.id)}>Pause</Button>
+                    </div>
+                  )}
+                </MobileCard>
+              ))}
             </div>
           )}
         </CardContent>

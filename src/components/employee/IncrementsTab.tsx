@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { formatDate, formatNaira } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,36 +29,58 @@ export default function IncrementsTab({ increments, canManage, onShowIncrementDi
           {increments.length === 0 ? (
             <p className="px-4 py-6 text-sm text-muted-foreground">No salary increments recorded.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/40">
-                    <TableHead className="pl-4">Date</TableHead>
-                    <TableHead className="text-right">Previous Salary</TableHead>
-                    <TableHead className="text-right">New Salary</TableHead>
-                    <TableHead className="text-right">Change</TableHead>
-                    <TableHead className="pr-4">Reason</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {increments.map((inc: any) => {
-                    const diff = (inc.new_salary_ngn || 0) - (inc.old_salary_ngn || 0);
-                    return (
-                      <TableRow key={inc.id}>
-                        <TableCell className="pl-4">{formatDate(inc.effective_date)}</TableCell>
-                        <TableCell className="text-right currency">{formatNaira(inc.old_salary_ngn || 0)}</TableCell>
-                        <TableCell className="text-right currency">{formatNaira(inc.new_salary_ngn || 0)}</TableCell>
-                        <TableCell className="text-right currency">
-                          <span className={diff >= 0 ? 'text-success' : 'text-destructive'}>
-                            {diff >= 0 ? '+' : ''}{formatNaira(diff)}
-                          </span>
-                        </TableCell>
-                        <TableCell className="pr-4 text-muted-foreground">{inc.reason || '—'}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+            <div className="hidden md:block">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="pl-4">Date</TableHead>
+                      <TableHead className="text-right">Previous Salary</TableHead>
+                      <TableHead className="text-right">New Salary</TableHead>
+                      <TableHead className="text-right">Change</TableHead>
+                      <TableHead className="pr-4">Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {increments.map((inc: any) => {
+                      const diff = (inc.new_salary_ngn || 0) - (inc.old_salary_ngn || 0);
+                      return (
+                        <TableRow key={inc.id}>
+                          <TableCell className="pl-4">{formatDate(inc.effective_date)}</TableCell>
+                          <TableCell className="text-right currency">{formatNaira(inc.old_salary_ngn || 0)}</TableCell>
+                          <TableCell className="text-right currency">{formatNaira(inc.new_salary_ngn || 0)}</TableCell>
+                          <TableCell className="text-right currency">
+                            <span className={diff >= 0 ? 'text-success' : 'text-destructive'}>
+                              {diff >= 0 ? '+' : ''}{formatNaira(diff)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="pr-4 text-muted-foreground">{inc.reason || '—'}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+            <div className="md:hidden space-y-2 p-3">
+              {increments.map((inc: any) => {
+                const diff = (inc.new_salary_ngn || 0) - (inc.old_salary_ngn || 0);
+                return (
+                  <MobileCard key={inc.id}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>{formatDate(inc.effective_date)}</MobileCardTitle>
+                      <MobileCardMeta>
+                        <span className={diff >= 0 ? 'text-success' : 'text-destructive'}>
+                          {diff >= 0 ? '+' : ''}{formatNaira(diff)}
+                        </span>
+                      </MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Previous" value={formatNaira(inc.old_salary_ngn || 0)} />
+                    <MobileCardRow label="New" value={formatNaira(inc.new_salary_ngn || 0)} />
+                    {inc.reason && <MobileCardRow label="Reason" value={inc.reason} />}
+                  </MobileCard>
+                );
+              })}
             </div>
           )}
         </CardContent>

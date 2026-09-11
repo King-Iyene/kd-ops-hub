@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
 import { toCsv, downloadCsv } from '@/lib/csv';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -331,124 +332,169 @@ export default function Disciplinary() {
           }
         />
       ) : (
-        <div className="space-y-3">
-          {filtered.map(r => {
-            const cfg = TYPE_CONFIG[r.incident_type];
-            const isExpanded = !!expanded[r.id];
-            const recordResponses = responses.filter(rs => rs.record_id === r.id);
+        <>
+          {/* Desktop cards */}
+          <div className="hidden md:block">
+            <div className="space-y-3">
+              {filtered.map(r => {
+                const cfg = TYPE_CONFIG[r.incident_type];
+                const isExpanded = !!expanded[r.id];
+                const recordResponses = responses.filter(rs => rs.record_id === r.id);
 
-            return (
-              <Card key={r.id} className={r.is_expunged ? 'opacity-60' : ''}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <CardTitle className="text-sm font-semibold">{r.subject}</CardTitle>
-                        <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                        {r.is_expunged && <Badge variant="outline">Expunged</Badge>}
-                        {!r.acknowledged_at && !r.is_expunged && (
-                          <Badge variant="secondary">Unacknowledged</Badge>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-x-4 text-xs text-muted-foreground mt-1">
-                        <span><strong>{empName(r.employee_id)}</strong></span>
-                        <span>{format(parseISO(r.incident_date), 'dd MMM yyyy')}</span>
-                        {r.issued_by && <span>Issued by: {empName(r.issued_by)}</span>}
-                        {r.suspension_days && <span>Suspension: {r.suspension_days} day{r.suspension_days !== 1 ? 's' : ''}</span>}
-                        {r.acknowledged_at && <span className="text-success font-medium">Acknowledged {format(parseISO(r.acknowledged_at), 'dd MMM')}</span>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(r)} aria-label="Edit record"><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(r)} aria-label="Delete record"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => setExpanded(p => ({ ...p, [r.id]: !p[r.id] }))} aria-label={isExpanded ? 'Collapse record' : 'Expand record'}>
-                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-
-                {isExpanded && (
-                  <CardContent className="pt-0 space-y-4">
-                    {r.description && (
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Details</p>
-                        <p className="text-sm whitespace-pre-wrap">{r.description}</p>
-                      </div>
-                    )}
-                    {r.outcome && (
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Outcome</p>
-                        <p className="text-sm">{r.outcome}</p>
-                      </div>
-                    )}
-                    {r.is_expunged && r.expunge_reason && (
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Expunge Reason</p>
-                        <p className="text-sm">{r.expunge_reason}</p>
-                      </div>
-                    )}
-
-                    {/* Responses */}
-                    {recordResponses.length > 0 && (
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                          <MessageSquare className="h-3 w-3 inline mr-1" />Employee Responses
-                        </p>
-                        <div className="space-y-2">
-                          {recordResponses.map(rs => (
-                            <div key={rs.id} className="bg-muted/40 rounded-lg p-3">
-                              <p className="text-sm">{rs.response_text}</p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {empName(rs.responded_by)} · {format(parseISO(rs.responded_at), 'dd MMM yyyy HH:mm')}
-                              </p>
-                            </div>
-                          ))}
+                return (
+                  <Card key={r.id} className={r.is_expunged ? 'opacity-60' : ''}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <CardTitle className="text-sm font-semibold">{r.subject}</CardTitle>
+                            <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                            {r.is_expunged && <Badge variant="outline">Expunged</Badge>}
+                            {!r.acknowledged_at && !r.is_expunged && (
+                              <Badge variant="secondary">Unacknowledged</Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-x-4 text-xs text-muted-foreground mt-1">
+                            <span><strong>{empName(r.employee_id)}</strong></span>
+                            <span>{format(parseISO(r.incident_date), 'dd MMM yyyy')}</span>
+                            {r.issued_by && <span>Issued by: {empName(r.issued_by)}</span>}
+                            {r.suspension_days && <span>Suspension: {r.suspension_days} day{r.suspension_days !== 1 ? 's' : ''}</span>}
+                            {r.acknowledged_at && <span className="text-success font-medium">Acknowledged {format(parseISO(r.acknowledged_at), 'dd MMM')}</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(r)} aria-label="Edit record"><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(r)} aria-label="Delete record"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => setExpanded(p => ({ ...p, [r.id]: !p[r.id] }))} aria-label={isExpanded ? 'Collapse record' : 'Expand record'}>
+                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </Button>
                         </div>
                       </div>
-                    )}
+                    </CardHeader>
 
-                    {/* Actions */}
-                    <div className="flex flex-wrap gap-2">
-                      {!r.acknowledged_at && !r.is_expunged && (
-                        <Button size="sm" variant="outline" className="gap-2" onClick={() => handleAcknowledge(r)}>
-                          <CheckCircle2 className="h-3 w-3" /> Mark Acknowledged
-                        </Button>
-                      )}
-                      {!r.is_expunged && (
-                        <>
-                          {responseTarget === r.id ? (
-                            <div className="flex-1 space-y-2">
-                              <Textarea
-                                rows={2}
-                                placeholder="Employee response text…"
-                                value={responseForm.response_text}
-                                onChange={e => setResponseForm({ response_text: e.target.value })}
-                              />
-                              <div className="flex gap-2">
-                                <Button size="sm" variant="outline" onClick={() => setResponseTarget(null)}>Cancel</Button>
-                                <Button size="sm" onClick={() => handleAddResponse(r.id)} disabled={savingResponse || !responseForm.response_text.trim()}>
-                                  {savingResponse ? 'Saving…' : 'Save Response'}
-                                </Button>
-                              </div>
+                    {isExpanded && (
+                      <CardContent className="pt-0 space-y-4">
+                        {r.description && (
+                          <div>
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Details</p>
+                            <p className="text-sm whitespace-pre-wrap">{r.description}</p>
+                          </div>
+                        )}
+                        {r.outcome && (
+                          <div>
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Outcome</p>
+                            <p className="text-sm">{r.outcome}</p>
+                          </div>
+                        )}
+                        {r.is_expunged && r.expunge_reason && (
+                          <div>
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Expunge Reason</p>
+                            <p className="text-sm">{r.expunge_reason}</p>
+                          </div>
+                        )}
+
+                        {/* Responses */}
+                        {recordResponses.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                              <MessageSquare className="h-3 w-3 inline mr-1" />Employee Responses
+                            </p>
+                            <div className="space-y-2">
+                              {recordResponses.map(rs => (
+                                <div key={rs.id} className="bg-muted/40 rounded-lg p-3">
+                                  <p className="text-sm">{rs.response_text}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {empName(rs.responded_by)} · {format(parseISO(rs.responded_at), 'dd MMM yyyy HH:mm')}
+                                  </p>
+                                </div>
+                              ))}
                             </div>
-                          ) : (
-                            <Button size="sm" variant="outline" className="gap-2" onClick={() => { setResponseTarget(r.id); setResponseForm({ ...EMPTY_RESPONSE }); }}>
-                              <MessageSquare className="h-3 w-3" /> Add Response
+                          </div>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex flex-wrap gap-2">
+                          {!r.acknowledged_at && !r.is_expunged && (
+                            <Button size="sm" variant="outline" className="gap-2" onClick={() => handleAcknowledge(r)}>
+                              <CheckCircle2 className="h-3 w-3" /> Mark Acknowledged
                             </Button>
                           )}
-                          <Button size="sm" variant="outline" className="text-muted-foreground" onClick={() => { setExpungeTarget(r); setExpungeReason(''); }}>
-                            Expunge Record
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </CardContent>
-                )}
-              </Card>
-            );
-          })}
-        </div>
+                          {!r.is_expunged && (
+                            <>
+                              {responseTarget === r.id ? (
+                                <div className="flex-1 space-y-2">
+                                  <Textarea
+                                    rows={2}
+                                    placeholder="Employee response text…"
+                                    value={responseForm.response_text}
+                                    onChange={e => setResponseForm({ response_text: e.target.value })}
+                                  />
+                                  <div className="flex gap-2">
+                                    <Button size="sm" variant="outline" onClick={() => setResponseTarget(null)}>Cancel</Button>
+                                    <Button size="sm" onClick={() => handleAddResponse(r.id)} disabled={savingResponse || !responseForm.response_text.trim()}>
+                                      {savingResponse ? 'Saving…' : 'Save Response'}
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <Button size="sm" variant="outline" className="gap-2" onClick={() => { setResponseTarget(r.id); setResponseForm({ ...EMPTY_RESPONSE }); }}>
+                                  <MessageSquare className="h-3 w-3" /> Add Response
+                                </Button>
+                              )}
+                              <Button size="sm" variant="outline" className="text-muted-foreground" onClick={() => { setExpungeTarget(r); setExpungeReason(''); }}>
+                                Expunge Record
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </CardContent>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-2 p-3">
+            {filtered.map(r => {
+              const cfg = TYPE_CONFIG[r.incident_type];
+              return (
+                <MobileCard
+                  key={r.id}
+                  onClick={() => setExpanded(p => ({ ...p, [r.id]: !p[r.id] }))}
+                  chevron
+                  accentClassName={
+                    r.incident_type === 'termination' || r.incident_type === 'suspension' ? 'bg-destructive' :
+                    r.incident_type === 'final_warning' ? 'bg-warning' :
+                    r.incident_type === 'query' ? 'bg-primary' :
+                    'bg-warning'
+                  }
+                  className={r.is_expunged ? 'opacity-60' : ''}
+                >
+                  <MobileCardHeader>
+                    <MobileCardTitle>{r.subject}</MobileCardTitle>
+                    <MobileCardMeta><Badge variant={cfg.variant}>{cfg.label}</Badge></MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Employee">{empName(r.employee_id)}</MobileCardRow>
+                  <MobileCardRow label="Date">{format(parseISO(r.incident_date), 'dd MMM yyyy')}</MobileCardRow>
+                  {r.suspension_days != null && r.suspension_days > 0 && (
+                    <MobileCardRow label="Suspension">{r.suspension_days} day{r.suspension_days !== 1 ? 's' : ''}</MobileCardRow>
+                  )}
+                  {r.is_expunged && (
+                    <MobileCardRow label="Status"><Badge variant="outline">Expunged</Badge></MobileCardRow>
+                  )}
+                  {!r.acknowledged_at && !r.is_expunged && (
+                    <MobileCardRow label="Status"><Badge variant="secondary">Unacknowledged</Badge></MobileCardRow>
+                  )}
+                  {r.acknowledged_at && (
+                    <MobileCardRow label="Acknowledged"><span className="text-success font-medium">{format(parseISO(r.acknowledged_at), 'dd MMM')}</span></MobileCardRow>
+                  )}
+                </MobileCard>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {/* Create/Edit dialog */}

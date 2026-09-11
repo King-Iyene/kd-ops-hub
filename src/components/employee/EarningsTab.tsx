@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { formatDate, formatNaira } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,48 +30,74 @@ export default function EarningsTab({ earnings, canFinance, onShowEarningDialog,
           {earnings.length === 0 ? (
             <p className="px-4 py-6 text-sm text-muted-foreground">No recurring earnings configured. Add allowances like meal, transport, utility, etc.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/40">
-                    <TableHead className="pl-4">Description</TableHead>
-                    <TableHead className="text-right">Amount (₦)</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Frequency</TableHead>
-                    <TableHead>Taxable</TableHead>
-                    <TableHead>Start</TableHead>
-                    <TableHead>End</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {earnings.map((e: any) => (
-                    <TableRow key={e.id}>
-                      <TableCell className="pl-4 font-medium">{e.description}</TableCell>
-                      <TableCell className="text-right currency">{formatNaira(e.amount_ngn)}</TableCell>
-                      <TableCell className="capitalize text-xs">{e.earning_type.replace(/_/g, ' ')}</TableCell>
-                      <TableCell className="capitalize text-xs">{e.frequency.replace(/_/g, ' ')}</TableCell>
-                      <TableCell>{e.is_taxable ? 'Yes' : 'No'}</TableCell>
-                      <TableCell>{formatDate(e.start_date)}</TableCell>
-                      <TableCell>{e.end_date ? formatDate(e.end_date) : '—'}</TableCell>
-                      <TableCell>
-                        <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${e.status === 'active' ? 'bg-success/10 text-success' : e.status === 'completed' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                          {e.status}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {e.status === 'active' && (
-                          <Button size="xs" variant="ghost" className="text-muted-foreground"
-                            onClick={() => onDeactivateEarning(e.id)}>
-                            Pause
-                          </Button>
-                        )}
-                      </TableCell>
+            <div className="hidden md:block">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="pl-4">Description</TableHead>
+                      <TableHead className="text-right">Amount (₦)</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Frequency</TableHead>
+                      <TableHead>Taxable</TableHead>
+                      <TableHead>Start</TableHead>
+                      <TableHead>End</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead />
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {earnings.map((e: any) => (
+                      <TableRow key={e.id}>
+                        <TableCell className="pl-4 font-medium">{e.description}</TableCell>
+                        <TableCell className="text-right currency">{formatNaira(e.amount_ngn)}</TableCell>
+                        <TableCell className="capitalize text-xs">{e.earning_type.replace(/_/g, ' ')}</TableCell>
+                        <TableCell className="capitalize text-xs">{e.frequency.replace(/_/g, ' ')}</TableCell>
+                        <TableCell>{e.is_taxable ? 'Yes' : 'No'}</TableCell>
+                        <TableCell>{formatDate(e.start_date)}</TableCell>
+                        <TableCell>{e.end_date ? formatDate(e.end_date) : '—'}</TableCell>
+                        <TableCell>
+                          <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${e.status === 'active' ? 'bg-success/10 text-success' : e.status === 'completed' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                            {e.status}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {e.status === 'active' && (
+                            <Button size="xs" variant="ghost" className="text-muted-foreground"
+                              onClick={() => onDeactivateEarning(e.id)}>
+                              Pause
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+            <div className="md:hidden space-y-2 p-3">
+              {earnings.map((e: any) => (
+                <MobileCard key={e.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{e.description}</MobileCardTitle>
+                    <MobileCardMeta>
+                      <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${e.status === 'active' ? 'bg-success/10 text-success' : e.status === 'completed' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                        {e.status}
+                      </span>
+                    </MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Amount" value={formatNaira(e.amount_ngn)} />
+                  <MobileCardRow label="Type" value={<span className="capitalize">{e.earning_type.replace(/_/g, ' ')}</span>} />
+                  <MobileCardRow label="Frequency" value={<span className="capitalize">{e.frequency.replace(/_/g, ' ')}</span>} />
+                  <MobileCardRow label="Taxable" value={e.is_taxable ? 'Yes' : 'No'} />
+                  <MobileCardRow label="Period" value={<>{formatDate(e.start_date)} — {e.end_date ? formatDate(e.end_date) : 'ongoing'}</>} />
+                  {e.status === 'active' && (
+                    <div className="pt-1 flex justify-end">
+                      <Button size="xs" variant="ghost" className="text-muted-foreground" onClick={() => onDeactivateEarning(e.id)}>Pause</Button>
+                    </div>
+                  )}
+                </MobileCard>
+              ))}
             </div>
           )}
         </CardContent>

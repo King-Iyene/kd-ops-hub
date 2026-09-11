@@ -21,6 +21,7 @@ import {
   Plus, Search, Clock, CheckCircle2, XCircle, Send,
   FileText, Eye, CalendarDays, Percent,
 } from 'lucide-react';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 
 interface Timesheet {
   id: string;
@@ -320,7 +321,7 @@ export default function Timesheets() {
           }
         />
       ) : (
-        <div className="rounded-xl border border-border/60 bg-card overflow-x-auto">
+        <div className="hidden md:block rounded-xl border border-border/60 bg-card overflow-x-auto">
           <table className="w-full text-sm min-w-[800px]">
             <thead className="bg-muted/50">
               <tr className="border-b border-border/50">
@@ -379,6 +380,32 @@ export default function Timesheets() {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile card fallback */}
+        <div className="md:hidden space-y-2 p-3">
+          {filtered.map(ts => {
+            const pct = billablePct(ts);
+            const badge = STATUS_BADGE[ts.status];
+            const accent =
+              ts.status === 'approved'  ? 'bg-success' :
+              ts.status === 'rejected'  ? 'bg-destructive' :
+              ts.status === 'submitted' ? 'bg-primary' :
+              'bg-warning';
+            return (
+              <MobileCard key={ts.id} onClick={() => openDetail(ts)} chevron accent={accent}>
+                <MobileCardHeader>
+                  <MobileCardTitle>{empName(ts.employee_id)}</MobileCardTitle>
+                  <MobileCardMeta>{format(parseISO(ts.week_start), 'dd MMM yyyy')}</MobileCardMeta>
+                </MobileCardHeader>
+                <MobileCardRow label="Total">{Number(ts.total_hours).toFixed(1)} hrs</MobileCardRow>
+                <MobileCardRow label="Billable">{Number(ts.billable_hours).toFixed(1)} hrs ({pct.toFixed(0)}%)</MobileCardRow>
+                <MobileCardRow label="Status">
+                  <Badge variant={badge.variant} className={badge.className}>{badge.label}</Badge>
+                </MobileCardRow>
+              </MobileCard>
+            );
+          })}
         </div>
       )}
 

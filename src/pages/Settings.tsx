@@ -66,6 +66,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import TransferAuthSettings from '@/components/settings/TransferAuthSettings';
 import EmailTemplatesSettings from '@/components/settings/EmailTemplatesSettings';
 import FxRateSettings from '@/components/settings/FxRateSettings';
@@ -1597,7 +1598,7 @@ function DepartmentsManager() {
               No departments yet. Add one to organize your team.
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
@@ -1629,6 +1630,39 @@ function DepartmentsManager() {
                 ))}
               </TableBody>
             </Table>
+            </div>
+            <div className="md:hidden space-y-2 p-3">
+              {depts.map((d) => (
+                <MobileCard key={d.id}>
+                  <MobileCardHeader>
+                    <div>
+                      <MobileCardTitle>{d.name}</MobileCardTitle>
+                      {d.description && (
+                        <MobileCardMeta>{d.description}</MobileCardMeta>
+                      )}
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(d)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(d)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Head" value={d.head?.full_name || '—'} />
+                  <MobileCardRow label="Members">
+                    <span className={cn(
+                      'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                      (memberCounts[d.id] || 0) > 0
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-muted text-muted-foreground'
+                    )}>
+                      {memberCounts[d.id] || 0}
+                    </span>
+                  </MobileCardRow>
+                </MobileCard>
+              ))}
             </div>
           )}
         </CardContent>

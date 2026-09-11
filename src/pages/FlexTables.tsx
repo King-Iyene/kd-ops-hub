@@ -40,6 +40,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import {
   flexApi, FLEX_FIELD_TYPES, type FlexTable, type FlexField, type FlexRecord,
   type FlexForm, type FlexFieldType, type FlexChoice, type FlexFormField,
@@ -1310,39 +1311,67 @@ function TableDashboard({
               {consistency.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">No people to report on yet.</p>
               ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left">
-                      <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Name</th>
-                      <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Last Submission</th>
-                      <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Submitted (period)</th>
-                      <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Missed Days</th>
-                      <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Completion Rate</th>
-                      <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <>
+                  <div className="hidden md:block">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border text-left">
+                          <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Name</th>
+                          <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Last Submission</th>
+                          <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Submitted (period)</th>
+                          <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Missed Days</th>
+                          <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Completion Rate</th>
+                          <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {consistency.map((c) => (
+                          <tr key={c.id} className={cn('border-b border-border/60', !c.consistent && 'bg-destructive/5')}>
+                            <td className="py-2 pr-3">{c.name}</td>
+                            <td className="py-2 pr-3">{c.lastSubmission ? formatDate(c.lastSubmission) : '—'}</td>
+                            <td className="py-2 pr-3">{c.submissionsInWindow}</td>
+                            <td className={cn('py-2 pr-3 font-medium', c.missedDays > 1 && 'text-destructive')}>{c.missedDays}</td>
+                            <td className="py-2 pr-3">{c.completionRate === null ? '—' : `${c.completionRate}%`}</td>
+                            <td className="py-2 pr-3">
+                              <span className={cn(
+                                'inline-flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full',
+                                c.consistent ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive',
+                              )}
+                              >
+                                {!c.consistent && <AlertTriangle className="h-3 w-3" />}
+                                {c.consistent ? 'Consistent' : 'Needs Attention'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="md:hidden space-y-2 p-3">
                     {consistency.map((c) => (
-                      <tr key={c.id} className={cn('border-b border-border/60', !c.consistent && 'bg-destructive/5')}>
-                        <td className="py-2 pr-3">{c.name}</td>
-                        <td className="py-2 pr-3">{c.lastSubmission ? formatDate(c.lastSubmission) : '—'}</td>
-                        <td className="py-2 pr-3">{c.submissionsInWindow}</td>
-                        <td className={cn('py-2 pr-3 font-medium', c.missedDays > 1 && 'text-destructive')}>{c.missedDays}</td>
-                        <td className="py-2 pr-3">{c.completionRate === null ? '—' : `${c.completionRate}%`}</td>
-                        <td className="py-2 pr-3">
-                          <span className={cn(
-                            'inline-flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full',
-                            c.consistent ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive',
-                          )}
-                          >
-                            {!c.consistent && <AlertTriangle className="h-3 w-3" />}
-                            {c.consistent ? 'Consistent' : 'Needs Attention'}
-                          </span>
-                        </td>
-                      </tr>
+                      <MobileCard key={c.id} accentClassName={c.consistent ? 'bg-success' : 'bg-destructive'}>
+                        <MobileCardHeader>
+                          <MobileCardTitle>{c.name}</MobileCardTitle>
+                          <MobileCardMeta>
+                            <span className={cn(
+                              'inline-flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full',
+                              c.consistent ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive',
+                            )}>
+                              {!c.consistent && <AlertTriangle className="h-3 w-3" />}
+                              {c.consistent ? 'Consistent' : 'Attention'}
+                            </span>
+                          </MobileCardMeta>
+                        </MobileCardHeader>
+                        <MobileCardRow label="Last Submission">{c.lastSubmission ? formatDate(c.lastSubmission) : '—'}</MobileCardRow>
+                        <MobileCardRow label="Submitted">{c.submissionsInWindow}</MobileCardRow>
+                        <MobileCardRow label="Missed Days">
+                          <span className={cn(c.missedDays > 1 && 'text-destructive font-medium')}>{c.missedDays}</span>
+                        </MobileCardRow>
+                        <MobileCardRow label="Completion Rate">{c.completionRate === null ? '—' : `${c.completionRate}%`}</MobileCardRow>
+                      </MobileCard>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

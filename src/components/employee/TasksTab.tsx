@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { ClipboardList, ExternalLink } from 'lucide-react';
+import { ChevronRight, ClipboardList, ExternalLink } from 'lucide-react';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { formatDate } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,7 +26,7 @@ export default function TasksTab({ tasks }: Props) {
           {tasks.length === 0 ? (
             <EmptyState compact icon={ClipboardList} title="No tasks assigned" description="Tasks assigned to this employee will appear here." />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40">
@@ -66,6 +67,30 @@ export default function TasksTab({ tasks }: Props) {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            <div className="md:hidden space-y-2 p-3">
+              {tasks.map((task: any) => (
+                <MobileCard key={task.id} onClick={() => navigate('/tasks')}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{task.title}</MobileCardTitle>
+                    <MobileCardMeta className="flex items-center gap-1.5">
+                      <Badge
+                        className={
+                          task.status === 'completed' || task.status === 'done'
+                            ? 'bg-success/10 text-success hover:bg-success/10'
+                            : task.status === 'in_progress'
+                              ? 'bg-primary/10 text-primary hover:bg-primary/10'
+                              : 'bg-warning/10 text-warning hover:bg-warning/10'
+                        }
+                      >
+                        {task.status || 'pending'}
+                      </Badge>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Due date" value={task.due_date ? formatDate(task.due_date) : '—'} />
+                </MobileCard>
+              ))}
             </div>
           )}
         </CardContent>

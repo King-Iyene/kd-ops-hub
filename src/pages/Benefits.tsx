@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { formatNairaCompact } from '@/lib/format';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -326,55 +327,96 @@ export default function Benefits() {
           }
         />
       ) : (
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(b => {
-            const Icon = TYPE_ICON[b.benefit_type];
-            const sb = STATUS_BADGE[b.status];
-            const monthly = b.premium_ngn != null ? monthlyEquivalent(b.premium_ngn, b.premium_frequency) : null;
-            return (
-              <Card key={b.id} className="relative">
-                <CardContent className="pt-4 pb-4 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div>
-                        <p className="font-medium text-sm leading-tight">{b.provider}</p>
-                        <p className="text-xs text-muted-foreground">{TYPE_LABEL[b.benefit_type]}{b.plan_name ? ` — ${b.plan_name}` : ''}</p>
+        <>
+          {/* Desktop card grid */}
+          <div className="hidden md:block">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {filtered.map(b => {
+                const Icon = TYPE_ICON[b.benefit_type];
+                const sb = STATUS_BADGE[b.status];
+                const monthly = b.premium_ngn != null ? monthlyEquivalent(b.premium_ngn, b.premium_frequency) : null;
+                return (
+                  <Card key={b.id} className="relative">
+                    <CardContent className="pt-4 pb-4 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div>
+                            <p className="font-medium text-sm leading-tight">{b.provider}</p>
+                            <p className="text-xs text-muted-foreground">{TYPE_LABEL[b.benefit_type]}{b.plan_name ? ` — ${b.plan_name}` : ''}</p>
+                          </div>
+                        </div>
+                        <Badge variant={sb.variant}>{sb.label}</Badge>
                       </div>
-                    </div>
-                    <Badge variant={sb.variant}>{sb.label}</Badge>
-                  </div>
 
-                  <p className="text-sm font-medium">{empName(b.employee_id)}</p>
+                      <p className="text-sm font-medium">{empName(b.employee_id)}</p>
 
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    {b.policy_number && <span>Policy: {b.policy_number}</span>}
-                    {b.pfa_rsa_pin && <span>RSA: {b.pfa_rsa_pin}</span>}
-                    {monthly != null && (
-                      <span>{formatNairaCompact(monthly)}/mo equiv</span>
-                    )}
-                  </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        {b.policy_number && <span>Policy: {b.policy_number}</span>}
+                        {b.pfa_rsa_pin && <span>RSA: {b.pfa_rsa_pin}</span>}
+                        {monthly != null && (
+                          <span>{formatNairaCompact(monthly)}/mo equiv</span>
+                        )}
+                      </div>
 
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    {b.enrollment_date && <span>Enrolled: {format(parseISO(b.enrollment_date), 'dd MMM yyyy')}</span>}
-                    {b.expiry_date && <span>Expires: {format(parseISO(b.expiry_date), 'dd MMM yyyy')}</span>}
-                  </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        {b.enrollment_date && <span>Enrolled: {format(parseISO(b.enrollment_date), 'dd MMM yyyy')}</span>}
+                        {b.expiry_date && <span>Expires: {format(parseISO(b.expiry_date), 'dd MMM yyyy')}</span>}
+                      </div>
 
-                  {expiryBadge(b.expiry_date)}
+                      {expiryBadge(b.expiry_date)}
 
-                  <div className="flex justify-end gap-2 pt-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(b)} aria-label="Edit benefit">
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(b)} aria-label="Delete benefit">
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                      <div className="flex justify-end gap-2 pt-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(b)} aria-label="Edit benefit">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(b)} aria-label="Delete benefit">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-2 p-3">
+            {filtered.map(b => {
+              const sb = STATUS_BADGE[b.status];
+              const monthly = b.premium_ngn != null ? monthlyEquivalent(b.premium_ngn, b.premium_frequency) : null;
+              return (
+                <MobileCard
+                  key={b.id}
+                  onClick={() => openEdit(b)}
+                  chevron
+                  accentClassName={
+                    b.status === 'active' ? 'bg-success' :
+                    b.status === 'suspended' ? 'bg-warning' :
+                    'bg-destructive'
+                  }
+                >
+                  <MobileCardHeader>
+                    <MobileCardTitle>{empName(b.employee_id)}</MobileCardTitle>
+                    <MobileCardMeta><Badge variant={sb.variant}>{sb.label}</Badge></MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Type">{TYPE_LABEL[b.benefit_type]}</MobileCardRow>
+                  <MobileCardRow label="Provider">{b.provider}{b.plan_name ? ` — ${b.plan_name}` : ''}</MobileCardRow>
+                  {monthly != null && (
+                    <MobileCardRow label="Premium">{formatNairaCompact(monthly)}/mo</MobileCardRow>
+                  )}
+                  {b.expiry_date && (
+                    <MobileCardRow label="Expires">{format(parseISO(b.expiry_date), 'dd MMM yyyy')}</MobileCardRow>
+                  )}
+                  {expiryBadge(b.expiry_date) && (
+                    <div className="pt-1">{expiryBadge(b.expiry_date)}</div>
+                  )}
+                </MobileCard>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {/* Add / Edit dialog */}

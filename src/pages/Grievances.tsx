@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -289,7 +290,7 @@ export default function Grievances() {
           }
         />
       ) : (
-        <Card>
+        <Card className="hidden md:block">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -349,6 +350,41 @@ export default function Grievances() {
             </div>
           </CardContent>
         </Card>
+
+        <div className="md:hidden space-y-2 p-3">
+          {filtered.map(g => {
+            const catCfg = CATEGORY_CONFIG[g.category];
+            const sevCfg = SEVERITY_CONFIG[g.severity];
+            const stsCfg = STATUS_CONFIG[g.status];
+            const accentClass =
+              g.severity === 'critical' ? 'bg-destructive' :
+              g.status === 'resolved' ? 'bg-success' :
+              g.status === 'investigating' ? 'bg-primary' :
+              g.status === 'open' ? 'bg-warning' : undefined;
+            return (
+              <MobileCard key={g.id} chevron onClick={() => openView(g)} accentClassName={accentClass}>
+                <MobileCardHeader>
+                  <MobileCardTitle>{g.subject}</MobileCardTitle>
+                  <MobileCardMeta>{format(parseISO(g.created_at), 'dd MMM yyyy')}</MobileCardMeta>
+                </MobileCardHeader>
+                <MobileCardRow label="Category">
+                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${catCfg.className}`}>
+                    {catCfg.label}
+                  </span>
+                </MobileCardRow>
+                <MobileCardRow label="Severity">
+                  <Badge variant={sevCfg.variant} className={sevCfg.className}>{sevCfg.label}</Badge>
+                </MobileCardRow>
+                <MobileCardRow label="Status">
+                  <Badge variant={stsCfg.variant} className={stsCfg.className}>{stsCfg.label}</Badge>
+                </MobileCardRow>
+                <MobileCardRow label="Reporter">
+                  {g.is_anonymous ? 'Anonymous' : profileName(g.reporter_id)}
+                </MobileCardRow>
+              </MobileCard>
+            );
+          })}
+        </div>
       )}
 
       {/* Create dialog */}

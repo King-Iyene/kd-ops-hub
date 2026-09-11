@@ -1,4 +1,5 @@
 import { Receipt } from 'lucide-react';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { formatDate, formatNaira } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +23,7 @@ export default function ExpensesTab({ expenses }: Props) {
           {expenses.length === 0 ? (
             <EmptyState compact icon={Receipt} title="No expenses raised" description="Expense claims submitted by this employee will appear here." />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40">
@@ -57,6 +58,31 @@ export default function ExpensesTab({ expenses }: Props) {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            <div className="md:hidden space-y-2 p-3">
+              {expenses.map((expense: any) => (
+                <MobileCard key={expense.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{expense.description || '—'}</MobileCardTitle>
+                    <MobileCardMeta>
+                      <Badge
+                        className={
+                          expense.status === 'approved'
+                            ? 'bg-success/10 text-success hover:bg-success/10'
+                            : expense.status === 'rejected' || expense.status === 'denied'
+                              ? 'bg-destructive/10 text-destructive hover:bg-destructive/10'
+                              : 'bg-warning/10 text-warning hover:bg-warning/10'
+                        }
+                      >
+                        {expense.status || 'pending'}
+                      </Badge>
+                    </MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Date" value={formatDate(expense.created_at)} />
+                  <MobileCardRow label="Category" value={expense.category || '—'} />
+                  <MobileCardRow label="Amount" value={<span className="font-medium">{formatNaira(expense.amount || 0)}</span>} />
+                </MobileCard>
+              ))}
             </div>
           )}
         </CardContent>

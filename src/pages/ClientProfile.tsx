@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Mail, Phone, Globe, MapPin, Save, Loader2, Trash2,
   Building2, CalendarDays, DollarSign, Users, TrendingUp, TrendingDown,
-  Briefcase, CheckCircle2, Clock, AlertTriangle, BarChart3,
+  Briefcase, CheckCircle2, Clock, AlertTriangle, BarChart3, ChevronRight,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -36,6 +36,7 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -491,7 +492,7 @@ const ClientProfile = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                   <Table>
                     <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                       <TableRow>
@@ -545,6 +546,32 @@ const ClientProfile = () => {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+                {/* Mobile cards */}
+                <div className="md:hidden space-y-2 p-3">
+                  {placements.map((p) => (
+                    <MobileCard key={p.id} onClick={() => navigate(`/employees/${p.employee_id}`)}>
+                      <MobileCardHeader>
+                        <MobileCardTitle className="flex items-center justify-between">
+                          <span>{(p.profiles as any)?.full_name || 'Unknown'}</span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                        </MobileCardTitle>
+                        <MobileCardMeta>
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {CATEGORY_LABELS[p.placement_category] || p.placement_category}
+                          </Badge>
+                          <Badge className={PLACEMENT_STATUS_BADGE[p.status] || ''} variant="secondary">
+                            {p.status}
+                          </Badge>
+                        </MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Client Rate" value={formatNaira(p.client_rate_ngn)} />
+                      <MobileCardRow label="KD Commission" value={<span className="text-success">{formatNaira(p.commission_ngn)} ({Number(p.commission_pct || 0)}%)</span>} />
+                      <MobileCardRow label="Employee Pay" value={formatNaira(p.employee_rate_ngn)} />
+                      <MobileCardRow label="Type" value={p.placement_type === 'kd_receives' ? 'KD Receives' : 'Employee Receives'} />
+                      <MobileCardRow label="Period" value={`${formatDate(p.start_date)}${p.end_date ? ` — ${formatDate(p.end_date)}` : ' — ongoing'}`} />
+                    </MobileCard>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -702,7 +729,7 @@ const ClientProfile = () => {
                 <CardTitle className="text-base">Payment History</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                   <Table>
                     <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                       <TableRow>
@@ -733,6 +760,25 @@ const ClientProfile = () => {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+                {/* Mobile cards */}
+                <div className="md:hidden space-y-2 p-3">
+                  {payments.slice(0, 24).map((p) => (
+                    <MobileCard key={p.id}>
+                      <MobileCardHeader>
+                        <MobileCardTitle>
+                          {new Date(p.month + 'T00:00:00').toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
+                        </MobileCardTitle>
+                        <MobileCardMeta>
+                          <Badge className={PAYMENT_STATUS_BADGE[p.status] || ''} variant="secondary">{p.status}</Badge>
+                        </MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Gross" value={formatNaira(p.gross_amount_ngn)} />
+                      <MobileCardRow label="Commission" value={<span className="text-success">{formatNaira(p.commission_ngn)}</span>} />
+                      <MobileCardRow label="Employee" value={formatNaira(p.net_employee_ngn)} />
+                      <MobileCardRow label="Paid At" value={p.paid_at ? formatDate(p.paid_at) : '—'} />
+                    </MobileCard>
+                  ))}
                 </div>
               </CardContent>
             </Card>

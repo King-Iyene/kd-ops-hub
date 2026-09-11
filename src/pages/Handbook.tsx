@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -298,7 +299,7 @@ export default function Handbook() {
           ) : filtered.length === 0 ? (
             <EmptyState icon={FileText} title="No policies found" description={search || catFilter !== 'all' ? 'Try adjusting your filters.' : 'Create your first policy to get started.'} />
           ) : (
-            <div className="rounded-lg border overflow-x-auto">
+            <div className="hidden md:block rounded-lg border overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
@@ -349,6 +350,32 @@ export default function Handbook() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile card fallback */}
+            <div className="md:hidden space-y-2 p-3">
+              {filtered.map(p => (
+                <MobileCard key={p.id} chevron onClick={() => setViewPolicy(p)}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{p.title}</MobileCardTitle>
+                    <MobileCardMeta>
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-3xs font-medium ${CATEGORY_COLOR[p.category]}`}>
+                        {CATEGORY_LABEL[p.category]}
+                      </span>
+                    </MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Version">v{p.version}</MobileCardRow>
+                  <MobileCardRow label="Active">
+                    <Badge variant={p.is_active ? 'default' : 'secondary'} className="text-3xs">
+                      {p.is_active ? 'Yes' : 'No'}
+                    </Badge>
+                  </MobileCardRow>
+                  <MobileCardRow label="Acknowledged">{ackCountByPolicy[p.id] || 0}</MobileCardRow>
+                  <MobileCardRow label="Published">
+                    {p.published_at ? format(parseISO(p.published_at), 'MMM d, yyyy') : '—'}
+                  </MobileCardRow>
+                </MobileCard>
+              ))}
             </div>
           )}
         </TabsContent>

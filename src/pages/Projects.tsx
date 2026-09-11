@@ -30,6 +30,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -561,87 +562,138 @@ export default function Projects() {
               ))}
             </div>
           ) : (
-            <Card>
-              <CardContent className="p-0 overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/30">
-                      <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Project</th>
-                      <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Status</th>
-                      <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Owner</th>
-                      <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Client</th>
-                      <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Progress</th>
-                      <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Due</th>
-                      <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right py-2.5 px-4 font-medium text-xs text-muted-foreground">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map(project => {
-                      const pMs = milestones.filter(m => m.project_id === project.id);
-                      const doneMs = pMs.filter(m => m.status === 'complete').length;
-                      const tc = taskCountsByProject.get(project.id);
-                      const isOverdue = project.status === 'active' && project.end_date && isPast(parseISO(project.end_date));
-                      const SM = STATUS_META[project.status];
-                      return (
-                        <tr key={project.id} className="border-b last:border-0 hover:bg-muted/40 kd-transition">
-                          <td className="py-3 px-4">
-                            <button className="text-left hover:underline" onClick={() => setDetailProject(project)}>
-                              <p className="font-medium">{project.name}</p>
-                              {project.space_id && (
-                                <span className="text-3xs text-muted-foreground">
-                                  {spaces.find(s => s.id === project.space_id)?.name}
-                                </span>
-                              )}
-                            </button>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-1.5">
-                              <div className={cn('h-2 w-2 rounded-full', SM?.dot)} />
-                              <span className="text-xs">{SM?.label}</span>
-                              {isOverdue && <Badge variant="destructive" className="text-3xs px-1 py-0">Late</Badge>}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4 text-xs text-muted-foreground">{nameOf(project.owner_id)}</td>
-                          <td className="py-3 px-4 text-xs text-muted-foreground">{clientOf(project.client_id)}</td>
-                          <td className="py-3 px-4">
-                            {(pMs.length > 0 || (tc && tc.total > 0)) ? (
-                              <div className="space-y-0.5 min-w-20">
-                                {pMs.length > 0 && (
-                                  <div className="flex items-center gap-2">
-                                    <Progress value={pMs.length > 0 ? (doneMs / pMs.length) * 100 : 0} className="h-1 flex-1" />
-                                    <span className="text-3xs text-muted-foreground tabular-nums">{doneMs}/{pMs.length}</span>
-                                  </div>
+            <div className="hidden md:block">
+              <Card>
+                <CardContent className="p-0 overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/30">
+                        <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Project</th>
+                        <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Status</th>
+                        <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Owner</th>
+                        <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Client</th>
+                        <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Progress</th>
+                        <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Due</th>
+                        <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right py-2.5 px-4 font-medium text-xs text-muted-foreground">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map(project => {
+                        const pMs = milestones.filter(m => m.project_id === project.id);
+                        const doneMs = pMs.filter(m => m.status === 'complete').length;
+                        const tc = taskCountsByProject.get(project.id);
+                        const isOverdue = project.status === 'active' && project.end_date && isPast(parseISO(project.end_date));
+                        const SM = STATUS_META[project.status];
+                        return (
+                          <tr key={project.id} className="border-b last:border-0 hover:bg-muted/40 kd-transition">
+                            <td className="py-3 px-4">
+                              <button className="text-left hover:underline" onClick={() => setDetailProject(project)}>
+                                <p className="font-medium">{project.name}</p>
+                                {project.space_id && (
+                                  <span className="text-3xs text-muted-foreground">
+                                    {spaces.find(s => s.id === project.space_id)?.name}
+                                  </span>
                                 )}
-                                {tc && tc.total > 0 && (
-                                  <span className="text-3xs text-muted-foreground">{tc.done}/{tc.total} tasks</span>
-                                )}
+                              </button>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-1.5">
+                                <div className={cn('h-2 w-2 rounded-full', SM?.dot)} />
+                                <span className="text-xs">{SM?.label}</span>
+                                {isOverdue && <Badge variant="destructive" className="text-3xs px-1 py-0">Late</Badge>}
                               </div>
-                            ) : <span className="text-3xs text-muted-foreground">—</span>}
-                          </td>
-                          <td className="py-3 px-4">
-                            {project.end_date ? (
-                              <span className={cn('text-xs', isOverdue && 'text-destructive font-medium')}>
-                                {format(parseISO(project.end_date), 'd MMM yyyy')}
-                              </span>
-                            ) : <span className="text-xs text-muted-foreground">—</span>}
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <div className="flex justify-end gap-1">
-                              <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => openEdit(project)}>
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon-sm" className="text-destructive" aria-label="Delete" onClick={() => setDeleteTarget(project)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
+                            </td>
+                            <td className="py-3 px-4 text-xs text-muted-foreground">{nameOf(project.owner_id)}</td>
+                            <td className="py-3 px-4 text-xs text-muted-foreground">{clientOf(project.client_id)}</td>
+                            <td className="py-3 px-4">
+                              {(pMs.length > 0 || (tc && tc.total > 0)) ? (
+                                <div className="space-y-0.5 min-w-20">
+                                  {pMs.length > 0 && (
+                                    <div className="flex items-center gap-2">
+                                      <Progress value={pMs.length > 0 ? (doneMs / pMs.length) * 100 : 0} className="h-1 flex-1" />
+                                      <span className="text-3xs text-muted-foreground tabular-nums">{doneMs}/{pMs.length}</span>
+                                    </div>
+                                  )}
+                                  {tc && tc.total > 0 && (
+                                    <span className="text-3xs text-muted-foreground">{tc.done}/{tc.total} tasks</span>
+                                  )}
+                                </div>
+                              ) : <span className="text-3xs text-muted-foreground">—</span>}
+                            </td>
+                            <td className="py-3 px-4">
+                              {project.end_date ? (
+                                <span className={cn('text-xs', isOverdue && 'text-destructive font-medium')}>
+                                  {format(parseISO(project.end_date), 'd MMM yyyy')}
+                                </span>
+                              ) : <span className="text-xs text-muted-foreground">—</span>}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => openEdit(project)}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon-sm" className="text-destructive" aria-label="Delete" onClick={() => setDeleteTarget(project)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            </div>
+            <div className="md:hidden space-y-2 p-3">
+              {filtered.map(project => {
+                const pMs = milestones.filter(m => m.project_id === project.id);
+                const doneMs = pMs.filter(m => m.status === 'complete').length;
+                const tc = taskCountsByProject.get(project.id);
+                const isOverdue = project.status === 'active' && project.end_date && isPast(parseISO(project.end_date));
+                const SM = STATUS_META[project.status];
+                return (
+                  <MobileCard key={project.id} chevron onClick={() => setDetailProject(project)}
+                    accentClassName={SM?.dot}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>{project.name}</MobileCardTitle>
+                      <MobileCardMeta>
+                        <div className="flex items-center gap-1.5">
+                          <div className={cn('h-2 w-2 rounded-full', SM?.dot)} />
+                          <span>{SM?.label}</span>
+                          {isOverdue && <Badge variant="destructive" className="text-3xs px-1 py-0">Late</Badge>}
+                        </div>
+                      </MobileCardMeta>
+                    </MobileCardHeader>
+                    {project.owner_id && (
+                      <MobileCardRow label="Owner">{nameOf(project.owner_id)}</MobileCardRow>
+                    )}
+                    {project.client_id && (
+                      <MobileCardRow label="Client">{clientOf(project.client_id)}</MobileCardRow>
+                    )}
+                    {(pMs.length > 0 || (tc && tc.total > 0)) && (
+                      <MobileCardRow label="Progress">
+                        <div className="flex items-center gap-2">
+                          {pMs.length > 0 && (
+                            <span className="text-2xs text-muted-foreground tabular-nums">{doneMs}/{pMs.length} milestones</span>
+                          )}
+                          {tc && tc.total > 0 && (
+                            <span className="text-2xs text-muted-foreground tabular-nums">{tc.done}/{tc.total} tasks</span>
+                          )}
+                        </div>
+                      </MobileCardRow>
+                    )}
+                    {project.end_date && (
+                      <MobileCardRow label="Due">
+                        <span className={cn(isOverdue && 'text-destructive font-medium')}>
+                          {format(parseISO(project.end_date), 'd MMM yyyy')}
+                        </span>
+                      </MobileCardRow>
+                    )}
+                  </MobileCard>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

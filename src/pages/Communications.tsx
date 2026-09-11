@@ -102,6 +102,7 @@ import {
   type EmailTemplate,
 } from '@/lib/email-templates';
 import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { useDepartments, useCompanySettings } from '@/queries';
 
 type Channel = 'email' | 'sms' | 'whatsapp';
@@ -1012,7 +1013,7 @@ export default function Communications() {
           ) : history.length === 0 ? (
             <EmptyState icon={History} title="No campaigns yet" description="Your sent campaigns will appear here." compact />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1063,6 +1064,46 @@ export default function Communications() {
                 ))}
               </TableBody>
             </Table>
+            </div>
+
+            <div className="md:hidden space-y-2 p-3">
+              {history.map((h) => (
+                <MobileCard key={`${h.channel}-${h.id}-mobile`}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{h.subject}</MobileCardTitle>
+                    <Badge variant="outline" className={
+                      h.status === 'sent' ? 'border-success/40 text-success' :
+                      h.status === 'sending' ? 'border-sky-500/40 text-sky-700 dark:text-sky-400' :
+                      h.status === 'scheduled' ? 'border-violet-500/40 text-violet-700 dark:text-violet-400' :
+                      h.status === 'partially_sent' ? 'border-warning/40 text-warning' :
+                      h.status === 'failed' ? 'border-destructive/40 text-destructive' :
+                      'border-slate-500/40 text-slate-700 dark:text-slate-400'
+                    }>
+                      {h.status === 'sending' && <Loader2 className="h-3 w-3 mr-1 animate-spin inline" />}
+                      {h.status === 'scheduled' && <CalendarClock className="h-3 w-3 mr-1 inline" />}
+                      {h.status}
+                    </Badge>
+                  </MobileCardHeader>
+                  <MobileCardMeta>
+                    {h.status === 'scheduled' && h.scheduled_for
+                      ? `Scheduled · ${new Date(h.scheduled_for).toLocaleString()}`
+                      : new Date(h.created_at).toLocaleString()}
+                  </MobileCardMeta>
+                  <MobileCardRow label="Channel">
+                    <span className="inline-flex items-center gap-1">
+                      {CHANNEL_META[h.channel].icon}
+                      {CHANNEL_META[h.channel].label}
+                    </span>
+                  </MobileCardRow>
+                  <MobileCardRow label="Sent">{h.total_sent}</MobileCardRow>
+                  <MobileCardRow label="Failed">
+                    {h.total_failed > 0
+                      ? <span className="text-destructive">{h.total_failed}</span>
+                      : 0}
+                  </MobileCardRow>
+                  <MobileCardRow label="Total">{h.total_recipients}</MobileCardRow>
+                </MobileCard>
+              ))}
             </div>
           )}
         </CardContent>

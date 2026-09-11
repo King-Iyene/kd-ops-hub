@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { formatNaira } from '@/lib/format';
 
 interface LeaveBalance {
@@ -249,19 +250,34 @@ export default function MyDashboard() {
             {leaveRequests.length === 0 ? (
               <EmptyState title="No leave requests" description="Your recent leave requests will show here" compact />
             ) : (
-              <div className="space-y-3">
-                {leaveRequests.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between gap-2 text-sm">
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">{formatLabel(r.leave_type)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(parseISO(r.start_date), 'dd MMM')} – {format(parseISO(r.end_date), 'dd MMM yyyy')}
-                      </p>
+              <>
+                <div className="hidden md:block space-y-3">
+                  {leaveRequests.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between gap-2 text-sm">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{formatLabel(r.leave_type)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(parseISO(r.start_date), 'dd MMM')} – {format(parseISO(r.end_date), 'dd MMM yyyy')}
+                        </p>
+                      </div>
+                      <StatusBadge status={r.status} size="sm" />
                     </div>
-                    <StatusBadge status={r.status} size="sm" />
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                <div className="md:hidden space-y-2">
+                  {leaveRequests.map((r) => (
+                    <MobileCard key={r.id} accentClassName={r.status === 'approved' ? 'bg-success' : r.status === 'rejected' ? 'bg-destructive' : 'bg-warning'}>
+                      <MobileCardHeader>
+                        <MobileCardTitle>{formatLabel(r.leave_type)}</MobileCardTitle>
+                        <MobileCardMeta><StatusBadge status={r.status} size="sm" /></MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Dates">
+                        {format(parseISO(r.start_date), 'dd MMM')} – {format(parseISO(r.end_date), 'dd MMM yyyy')}
+                      </MobileCardRow>
+                    </MobileCard>
+                  ))}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -275,20 +291,38 @@ export default function MyDashboard() {
             {goals.length === 0 ? (
               <EmptyState title="No goals" description="Goals assigned to you will appear here" compact />
             ) : (
-              <div className="space-y-3">
-                {goals.map((g) => (
-                  <div key={g.id} className="space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium truncate">{g.title}</span>
-                      <StatusBadge status={g.status} size="sm" />
+              <>
+                <div className="hidden md:block space-y-3">
+                  {goals.map((g) => (
+                    <div key={g.id} className="space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium truncate">{g.title}</span>
+                        <StatusBadge status={g.status} size="sm" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Progress value={g.progress_pct ?? 0} className="h-2 flex-1" />
+                        <span className="text-xs text-muted-foreground w-8 text-right">{g.progress_pct ?? 0}%</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Progress value={g.progress_pct ?? 0} className="h-2 flex-1" />
-                      <span className="text-xs text-muted-foreground w-8 text-right">{g.progress_pct ?? 0}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                <div className="md:hidden space-y-2">
+                  {goals.map((g) => (
+                    <MobileCard key={g.id} accentClassName={g.status === 'complete' ? 'bg-success' : g.status === 'at_risk' ? 'bg-destructive' : 'bg-primary'}>
+                      <MobileCardHeader>
+                        <MobileCardTitle>{g.title}</MobileCardTitle>
+                        <MobileCardMeta><StatusBadge status={g.status} size="sm" /></MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Progress">
+                        <div className="flex items-center gap-2">
+                          <Progress value={g.progress_pct ?? 0} className="h-2 w-16" />
+                          <span>{g.progress_pct ?? 0}%</span>
+                        </div>
+                      </MobileCardRow>
+                    </MobileCard>
+                  ))}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -302,19 +336,34 @@ export default function MyDashboard() {
             {timesheets.length === 0 ? (
               <EmptyState title="No timesheets" description="Recent timesheets will appear here" compact />
             ) : (
-              <div className="space-y-3">
-                {timesheets.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between gap-2 text-sm">
-                    <div className="min-w-0">
-                      <p className="font-medium">
-                        {format(parseISO(t.week_start), 'dd MMM')} – {format(addDays(parseISO(t.week_start), 6), 'dd MMM')}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{t.total_hours} hours</p>
+              <>
+                <div className="hidden md:block space-y-3">
+                  {timesheets.map((t) => (
+                    <div key={t.id} className="flex items-center justify-between gap-2 text-sm">
+                      <div className="min-w-0">
+                        <p className="font-medium">
+                          {format(parseISO(t.week_start), 'dd MMM')} – {format(addDays(parseISO(t.week_start), 6), 'dd MMM')}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{t.total_hours} hours</p>
+                      </div>
+                      <StatusBadge status={t.status} size="sm" />
                     </div>
-                    <StatusBadge status={t.status} size="sm" />
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                <div className="md:hidden space-y-2">
+                  {timesheets.map((t) => (
+                    <MobileCard key={t.id} accentClassName={t.status === 'approved' ? 'bg-success' : t.status === 'submitted' ? 'bg-primary' : 'bg-warning'}>
+                      <MobileCardHeader>
+                        <MobileCardTitle>
+                          {format(parseISO(t.week_start), 'dd MMM')} – {format(addDays(parseISO(t.week_start), 6), 'dd MMM')}
+                        </MobileCardTitle>
+                        <MobileCardMeta><StatusBadge status={t.status} size="sm" /></MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Hours">{t.total_hours} hours</MobileCardRow>
+                    </MobileCard>
+                  ))}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -353,29 +402,55 @@ export default function MyDashboard() {
             {loans.length === 0 ? (
               <EmptyState title="No active loans" description="Staff loan details will appear here" compact />
             ) : (
-              <div className="space-y-4">
-                {loans.map((l) => {
-                  const repaid = l.principal_ngn - l.outstanding_ngn;
-                  const pct =
-                    l.principal_ngn > 0
-                      ? Math.round((repaid / l.principal_ngn) * 100)
-                      : 0;
-                  return (
-                    <div key={l.id} className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium truncate">{l.purpose ?? formatLabel(l.loan_type)}</span>
-                        <span className="text-muted-foreground">
-                          {formatNaira(l.outstanding_ngn)} left
-                        </span>
+              <>
+                <div className="hidden md:block space-y-4">
+                  {loans.map((l) => {
+                    const repaid = l.principal_ngn - l.outstanding_ngn;
+                    const pct =
+                      l.principal_ngn > 0
+                        ? Math.round((repaid / l.principal_ngn) * 100)
+                        : 0;
+                    return (
+                      <div key={l.id} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium truncate">{l.purpose ?? formatLabel(l.loan_type)}</span>
+                          <span className="text-muted-foreground">
+                            {formatNaira(l.outstanding_ngn)} left
+                          </span>
+                        </div>
+                        <Progress value={pct} className="h-2" />
+                        <p className="text-xs text-muted-foreground">
+                          {formatNaira(repaid)} of {formatNaira(l.principal_ngn)} repaid
+                        </p>
                       </div>
-                      <Progress value={pct} className="h-2" />
-                      <p className="text-xs text-muted-foreground">
-                        {formatNaira(repaid)} of {formatNaira(l.principal_ngn)} repaid
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+                <div className="md:hidden space-y-2">
+                  {loans.map((l) => {
+                    const repaid = l.principal_ngn - l.outstanding_ngn;
+                    const pct =
+                      l.principal_ngn > 0
+                        ? Math.round((repaid / l.principal_ngn) * 100)
+                        : 0;
+                    return (
+                      <MobileCard key={l.id} accentClassName={l.status === 'active' ? 'bg-primary' : 'bg-success'}>
+                        <MobileCardHeader>
+                          <MobileCardTitle>{l.purpose ?? formatLabel(l.loan_type)}</MobileCardTitle>
+                          <MobileCardMeta>{formatNaira(l.outstanding_ngn)} left</MobileCardMeta>
+                        </MobileCardHeader>
+                        <MobileCardRow label="Repaid">
+                          <div className="flex items-center gap-2">
+                            <Progress value={pct} className="h-2 w-16" />
+                            <span>{pct}%</span>
+                          </div>
+                        </MobileCardRow>
+                        <MobileCardRow label="Total">{formatNaira(repaid)} of {formatNaira(l.principal_ngn)}</MobileCardRow>
+                      </MobileCard>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

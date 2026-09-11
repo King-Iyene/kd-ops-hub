@@ -1,4 +1,5 @@
 import { FileText, Plus, Trash2 } from 'lucide-react';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import SignedDocumentsList from '@/components/hr/SignedDocumentsList';
 import { formatDate } from '@/lib/format';
@@ -53,7 +54,7 @@ export default function DocumentsTab({ employeeId, documents, canManage, onOpenU
           {documents.length === 0 ? (
             <EmptyState compact icon={FileText} title="No documents yet" description="Upload contracts, IDs, or HR docs above." />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40">
@@ -113,6 +114,43 @@ export default function DocumentsTab({ employeeId, documents, canManage, onOpenU
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            <div className="md:hidden space-y-2 p-3">
+              {documents.map((doc: any) => (
+                <MobileCard key={doc.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{doc.title || doc.file_name || doc.name || '—'}</MobileCardTitle>
+                    <MobileCardMeta>
+                      <Badge variant="outline" className="capitalize text-xs">{doc.category || 'general'}</Badge>
+                    </MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Uploaded" value={formatDate(doc.created_at)} />
+                  <MobileCardRow label="Expires" value={doc.expires_at ? formatDate(doc.expires_at) : '—'} />
+                  <MobileCardRow label="Actions" value={
+                    <div className="flex items-center gap-1">
+                      {doc.storage_path && (
+                        <FilePreviewTrigger
+                          bucket="documents"
+                          path={doc.storage_path}
+                          label="View"
+                          fileName={doc.title || doc.file_name}
+                        />
+                      )}
+                      {canManage && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onDeleteDocument(doc)}
+                          title="Delete"
+                          aria-label={`Delete document ${doc.title || doc.file_name || ''}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  } />
+                </MobileCard>
+              ))}
             </div>
           )}
         </CardContent>

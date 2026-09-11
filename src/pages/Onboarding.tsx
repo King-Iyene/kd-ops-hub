@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -394,7 +395,7 @@ export default function Onboarding() {
           }
         />
       ) : (
-        <div className="space-y-4">
+        <div className="hidden md:block space-y-4">
           {filtered.map(cl => {
             const items = itemsMap[cl.id] ?? [];
             const status = deriveStatus(items);
@@ -533,6 +534,46 @@ export default function Onboarding() {
                   </CardContent>
                 )}
               </Card>
+            );
+          })}
+        </div>
+
+        <div className="md:hidden space-y-2 p-3">
+          {filtered.map(cl => {
+            const items = itemsMap[cl.id] ?? [];
+            const status = deriveStatus(items);
+            const done = items.filter(i => i.is_completed).length;
+            const accentClass =
+              status.pct === 100 ? 'bg-success' :
+              status.pct > 0 ? 'bg-primary' :
+              'bg-warning';
+            return (
+              <MobileCard
+                key={cl.id}
+                chevron
+                onClick={() => setExpanded(p => ({ ...p, [cl.id]: !p[cl.id] }))}
+                accentClassName={accentClass}
+              >
+                <MobileCardHeader>
+                  <MobileCardTitle>{empName(cl.employee_id)}</MobileCardTitle>
+                  <MobileCardMeta>
+                    <Badge variant={cl.checklist_type === 'onboarding' ? 'default' : 'secondary'} className="text-[10px]">
+                      {cl.checklist_type === 'onboarding' ? 'Onboarding' : 'Offboarding'}
+                    </Badge>
+                  </MobileCardMeta>
+                </MobileCardHeader>
+                <MobileCardRow label="Progress">
+                  <Badge variant={status.variant}>{status.label}</Badge>
+                  {items.length > 0 && (
+                    <span className="text-xs text-muted-foreground ml-1">{done}/{items.length}</span>
+                  )}
+                </MobileCardRow>
+                {cl.target_completion_date && (
+                  <MobileCardRow label="Target">
+                    {format(parseISO(cl.target_completion_date), 'dd MMM yyyy')}
+                  </MobileCardRow>
+                )}
+              </MobileCard>
             );
           })}
         </div>

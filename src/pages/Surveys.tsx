@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -377,7 +378,7 @@ export default function Surveys() {
               )}
             />
           ) : (
-            <div className="overflow-x-auto rounded-lg border">
+            <div className="hidden md:block overflow-x-auto rounded-lg border">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
@@ -430,6 +431,29 @@ export default function Surveys() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            <div className="md:hidden space-y-2 p-3">
+              {filtered.map(s => (
+                <MobileCard key={s.id} onClick={() => openEditSurvey(s)} chevron>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{s.title}</MobileCardTitle>
+                    <MobileCardMeta>
+                      {typeBadge(s.survey_type)}
+                      {statusBadge(s.status)}
+                    </MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Anonymous">{s.is_anonymous ? 'Yes' : 'No'}</MobileCardRow>
+                  <MobileCardRow label="Responses">{responseCounts[s.id] ?? 0}</MobileCardRow>
+                  <MobileCardRow label="Date Range">
+                    <span className="text-xs">
+                      {s.starts_at ? format(parseISO(s.starts_at), 'dd MMM yyyy') : '—'}
+                      {' — '}
+                      {s.ends_at ? format(parseISO(s.ends_at), 'dd MMM yyyy') : '—'}
+                    </span>
+                  </MobileCardRow>
+                </MobileCard>
+              ))}
             </div>
           )}
         </TabsContent>

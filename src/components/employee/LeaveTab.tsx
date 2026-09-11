@@ -1,4 +1,5 @@
 import { CalendarDays } from 'lucide-react';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import LeaveBalancesPanel from '@/components/hr/LeaveBalancesPanel';
 import { formatDate } from '@/lib/format';
@@ -54,7 +55,7 @@ export default function LeaveTab({ employeeId, employee, leaves, leaveTaken }: P
           {leaves.length === 0 ? (
             <EmptyState compact icon={CalendarDays} title="No leave requests" description="Leave requests submitted by this employee will appear here." />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40">
@@ -89,6 +90,31 @@ export default function LeaveTab({ employeeId, employee, leaves, leaveTaken }: P
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            <div className="md:hidden space-y-2 p-3">
+              {leaves.map((leave: any) => (
+                <MobileCard key={leave.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{leave.leave_type || leave.type || '—'}</MobileCardTitle>
+                    <MobileCardMeta>
+                      <Badge
+                        className={
+                          leave.status === 'approved'
+                            ? 'bg-success/10 text-success hover:bg-success/10'
+                            : leave.status === 'rejected' || leave.status === 'denied'
+                              ? 'bg-destructive/10 text-destructive hover:bg-destructive/10'
+                              : 'bg-warning/10 text-warning hover:bg-warning/10'
+                        }
+                      >
+                        {leave.status || 'pending'}
+                      </Badge>
+                    </MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Start" value={leave.start_date ? formatDate(leave.start_date) : '—'} />
+                  <MobileCardRow label="End" value={leave.end_date ? formatDate(leave.end_date) : '—'} />
+                  <MobileCardRow label="Days" value={leave.days ?? '—'} />
+                </MobileCard>
+              ))}
             </div>
           )}
         </CardContent>

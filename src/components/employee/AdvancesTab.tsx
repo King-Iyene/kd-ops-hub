@@ -1,6 +1,7 @@
 import { formatDate, formatNaira } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -49,41 +50,65 @@ export default function AdvancesTab({ advances }: Props) {
       <Card>
         <CardHeader><CardTitle className="text-base">Advance History</CardTitle></CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-right">Outstanding</TableHead>
-                  <TableHead className="text-right">Monthly Deduction</TableHead>
-                  <TableHead className="text-right">Months</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {advances.map((a: any) => {
-                  const repaid = a.amount_ngn - a.outstanding_ngn;
-                  const pct = a.amount_ngn > 0 ? Math.round((repaid / a.amount_ngn) * 100) : 0;
-                  return (
-                    <TableRow key={a.id}>
-                      <TableCell className="text-muted-foreground">{formatDate(a.created_at)}</TableCell>
-                      <TableCell>{a.start_period || '—'}</TableCell>
-                      <TableCell className="text-right currency">{formatNaira(a.amount_ngn)}</TableCell>
-                      <TableCell className="text-right currency font-semibold">{formatNaira(a.outstanding_ngn)}</TableCell>
-                      <TableCell className="text-right currency">{formatNaira(a.deduction_per_month)}</TableCell>
-                      <TableCell className="text-right">{a.repayment_months}m</TableCell>
-                      <TableCell>
-                        <Badge variant={a.status === 'active' ? 'destructive' : a.status === 'settled' ? 'default' : 'secondary'}>
-                          {a.status === 'active' ? `${pct}% repaid` : a.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+          <div className="hidden md:block">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Period</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Outstanding</TableHead>
+                    <TableHead className="text-right">Monthly Deduction</TableHead>
+                    <TableHead className="text-right">Months</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {advances.map((a: any) => {
+                    const repaid = a.amount_ngn - a.outstanding_ngn;
+                    const pct = a.amount_ngn > 0 ? Math.round((repaid / a.amount_ngn) * 100) : 0;
+                    return (
+                      <TableRow key={a.id}>
+                        <TableCell className="text-muted-foreground">{formatDate(a.created_at)}</TableCell>
+                        <TableCell>{a.start_period || '—'}</TableCell>
+                        <TableCell className="text-right currency">{formatNaira(a.amount_ngn)}</TableCell>
+                        <TableCell className="text-right currency font-semibold">{formatNaira(a.outstanding_ngn)}</TableCell>
+                        <TableCell className="text-right currency">{formatNaira(a.deduction_per_month)}</TableCell>
+                        <TableCell className="text-right">{a.repayment_months}m</TableCell>
+                        <TableCell>
+                          <Badge variant={a.status === 'active' ? 'destructive' : a.status === 'settled' ? 'default' : 'secondary'}>
+                            {a.status === 'active' ? `${pct}% repaid` : a.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+          <div className="md:hidden space-y-2 p-3">
+            {advances.map((a: any) => {
+              const repaid = a.amount_ngn - a.outstanding_ngn;
+              const pct = a.amount_ngn > 0 ? Math.round((repaid / a.amount_ngn) * 100) : 0;
+              return (
+                <MobileCard key={a.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{formatNaira(a.amount_ngn)}</MobileCardTitle>
+                    <MobileCardMeta>
+                      <Badge variant={a.status === 'active' ? 'destructive' : a.status === 'settled' ? 'default' : 'secondary'}>
+                        {a.status === 'active' ? `${pct}% repaid` : a.status}
+                      </Badge>
+                    </MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Date" value={formatDate(a.created_at)} />
+                  <MobileCardRow label="Outstanding" value={formatNaira(a.outstanding_ngn)} />
+                  <MobileCardRow label="Monthly" value={formatNaira(a.deduction_per_month)} />
+                  <MobileCardRow label="Term" value={`${a.repayment_months} months`} />
+                </MobileCard>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

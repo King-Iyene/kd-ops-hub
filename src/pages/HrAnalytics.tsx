@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import HrDataExport from '@/components/hr/HrDataExport';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { chartPalette, chartTheme, GlassTooltip, axisTick } from '@/components/ChartKit';
 
 /**
@@ -381,28 +382,42 @@ const HrAnalytics = () => {
               </ResponsiveContainer>
 
               <div className="border-t pt-3">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-xs text-muted-foreground uppercase tracking-wide">
-                      <th className="text-left py-1.5">Department</th>
-                      <th className="text-right">Headcount</th>
-                      <th className="text-right">Monthly cost</th>
-                      <th className="text-right">Avg / head</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {byDepartment.map((d) => (
-                      <tr key={d.name} className="border-t">
-                        <td className="py-1.5">{d.name}</td>
-                        <td className="text-right">{d.count}</td>
-                        <td className="text-right currency">{formatNaira(d.cost)}</td>
-                        <td className="text-right currency">
-                          {formatNaira(d.count ? Math.round(d.cost / d.count) : 0)}
-                        </td>
+                <div className="hidden md:block">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-xs text-muted-foreground uppercase tracking-wide">
+                        <th className="text-left py-1.5">Department</th>
+                        <th className="text-right">Headcount</th>
+                        <th className="text-right">Monthly cost</th>
+                        <th className="text-right">Avg / head</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {byDepartment.map((d) => (
+                        <tr key={d.name} className="border-t">
+                          <td className="py-1.5">{d.name}</td>
+                          <td className="text-right">{d.count}</td>
+                          <td className="text-right currency">{formatNaira(d.cost)}</td>
+                          <td className="text-right currency">
+                            {formatNaira(d.count ? Math.round(d.cost / d.count) : 0)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="md:hidden space-y-2 p-3">
+                  {byDepartment.map((d) => (
+                    <MobileCard key={d.name} accentClassName="bg-primary">
+                      <MobileCardHeader>
+                        <MobileCardTitle>{d.name}</MobileCardTitle>
+                        <MobileCardMeta>{d.count} staff</MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Monthly cost">{formatNaira(d.cost)}</MobileCardRow>
+                      <MobileCardRow label="Avg / head">{formatNaira(d.count ? Math.round(d.cost / d.count) : 0)}</MobileCardRow>
+                    </MobileCard>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
