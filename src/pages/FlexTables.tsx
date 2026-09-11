@@ -373,7 +373,15 @@ function sampleValueForField(f: FlexField): FormulaValue {
 interface ProfileLite { id: string; full_name: string; email: string; }
 interface TaskLite { id: string; title: string; status: string; completed_at: string | null; parent_id: string | null; due_date: string | null; }
 
-const taskOptionLabel = (t: TaskLite) => (t.due_date ? `${t.title} - ${formatDate(t.due_date)}` : t.title);
+const TASK_DATE_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+/** "10th Sept '26" — the date format used specifically next to a linked
+ *  task's title, distinct from the app-wide DD/MM/YYYY formatDate(). */
+function formatTaskDueDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const suffix = d >= 11 && d <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][d % 10] || 'th';
+  return `${d}${suffix} ${TASK_DATE_MONTHS[m - 1]} '${String(y).slice(-2)}`;
+}
+const taskOptionLabel = (t: TaskLite) => (t.due_date ? `${t.title} - ${formatTaskDueDate(t.due_date)}` : t.title);
 
 /** Orders a flat list of linkable tasks so subtasks render directly below
  *  their parent, indented — same idea as Airtable's linked-record picker.
