@@ -158,10 +158,10 @@ const ComplianceCard = () => {
                   <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                 )}
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">
+                  <p className="text-sm font-medium truncate" title={`${d.label} — ${formatDate(d.due)}`}>
                     {d.label} — {formatDate(d.due)}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">{d.detail}</p>
+                  <p className="text-xs text-muted-foreground truncate" title={d.detail}>{d.detail}</p>
                 </div>
               </div>
               <Badge
@@ -192,8 +192,8 @@ const ComplianceCard = () => {
               <AlertCircle className="h-4 w-4 text-warning shrink-0" />
             )}
             <div className="min-w-0">
-              <p className="text-sm font-medium truncate">Tax Clearance Certificate</p>
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-sm font-medium truncate" title="Tax Clearance Certificate">Tax Clearance Certificate</p>
+              <p className="text-xs text-muted-foreground truncate" title={loading ? 'Loading...' : tcc ? `${tcc.title}${tcc.expires_at ? ` · expires ${formatDate(tcc.expires_at)}` : ''}` : 'Upload your TCC to Documents (category "compliance")'}>
                 {loading
                   ? 'Loading...'
                   : tcc

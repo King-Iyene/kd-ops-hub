@@ -1104,7 +1104,7 @@ const Approvals = () => {
                                     {it.title}
                                   </p>
                                   {it.subtitle && (
-                                    <p className="text-xs text-muted-foreground truncate max-w-xs">
+                                    <p className="text-xs text-muted-foreground truncate max-w-xs" title={it.subtitle}>
                                       {it.subtitle}
                                     </p>
                                   )}

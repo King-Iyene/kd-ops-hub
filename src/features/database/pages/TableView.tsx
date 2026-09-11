@@ -545,7 +545,7 @@ export function TableView() {
           <div className="flex flex-col items-center justify-center h-full gap-3">
             <p className="text-sm text-gray-500 dark:text-[hsl(200,20%,55%)]">Failed to load records</p>
             <button
-              className="px-3 py-1.5 text-sm rounded-md bg-blue-500 text-white hover:bg-blue-600"
+              className="px-3 py-1.5 text-sm rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => refetch()}
             >
               Retry

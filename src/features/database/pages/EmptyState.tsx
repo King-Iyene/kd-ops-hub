@@ -49,7 +49,7 @@ function BaseCard({ base, onSelect }: { base: Base; onSelect: () => void }) {
   return (
     <button
       onClick={onSelect}
-      className="flex flex-col p-4 rounded-xl border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] hover:border-[#2D7FF9] dark:hover:border-[#2D7FF9] hover:shadow-md transition-all text-left group"
+      className="flex flex-col p-4 rounded-xl border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] hover:border-[#2D7FF9] dark:hover:border-[#2D7FF9] hover:shadow-md transition-all text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D7FF9] focus-visible:ring-offset-2"
     >
       <div className="flex items-start gap-3 mb-3">
         <div
@@ -63,7 +63,7 @@ function BaseCard({ base, onSelect }: { base: Base; onSelect: () => void }) {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] group-hover:text-[#2D7FF9] truncate">
+          <p className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] group-hover:text-[#2D7FF9] truncate transition-colors">
             {base.name}
           </p>
         </div>
@@ -156,12 +156,12 @@ export function EmptyState() {
           {/* Create Base card */}
           <button
             onClick={() => setCreateOpen(true)}
-            className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-[#D1D5DB] dark:border-[hsl(200,25%,22%)] hover:border-[#2D7FF9] dark:hover:border-[#2D7FF9] bg-white/50 dark:bg-[hsl(200,30%,12%)] transition-all min-h-[120px] group"
+            className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-[#D1D5DB] dark:border-[hsl(200,25%,22%)] hover:border-[#2D7FF9] dark:hover:border-[#2D7FF9] bg-white/50 dark:bg-[hsl(200,30%,12%)] transition-all min-h-[120px] group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D7FF9] focus-visible:ring-offset-2"
           >
             <div className="w-10 h-10 rounded-full bg-[#2D7FF9]/10 flex items-center justify-center mb-2 group-hover:bg-[#2D7FF9]/20 transition-colors">
               <Plus size={20} className="text-[#2D7FF9]" />
             </div>
-            <span className="text-xs-plus font-medium text-[#6A7184] group-hover:text-[#2D7FF9]">
+            <span className="text-xs-plus font-medium text-[#6A7184] group-hover:text-[#2D7FF9] transition-colors">
               Create Base
             </span>
           </button>

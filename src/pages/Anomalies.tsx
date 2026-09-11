@@ -417,7 +417,7 @@ export default function Anomalies() {
                           </Badge>
                         </TableCell>
                         <TableCell className="font-medium">{RULE_LABEL[r.rule_code]}</TableCell>
-                        <TableCell className="max-w-[420px] truncate text-sm text-muted-foreground">
+                        <TableCell className="max-w-[420px] truncate text-sm text-muted-foreground" title={r.title}>
                           {r.title}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
@@ -540,7 +540,7 @@ export default function Anomalies() {
                     </MobileCardMeta>
                   </MobileCardHeader>
                   <MobileCardRow label="Description">
-                    <span className="truncate max-w-[180px]">{r.title}</span>
+                    <span className="truncate max-w-[180px]" title={r.title}>{r.title}</span>
                   </MobileCardRow>
                   <MobileCardRow label="Date">
                     <span className="tabular-nums">{new Date(r.detected_at).toLocaleDateString()}</span>

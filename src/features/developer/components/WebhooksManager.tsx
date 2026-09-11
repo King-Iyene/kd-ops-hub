@@ -440,7 +440,7 @@ export default function WebhooksManager() {
                     {/* URL */}
                     <div className="flex items-center gap-2 text-sm text-muted-foreground font-mono">
                       <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">{wh.url}</span>
+                      <span className="truncate" title={wh.url}>{wh.url}</span>
                     </div>
 
                     {/* Events */}
