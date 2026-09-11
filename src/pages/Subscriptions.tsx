@@ -21,7 +21,7 @@ import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { errorMessage } from '@/lib/db-errors';
 import { APPROVER_ROLES, hasRole } from '@/lib/roles';
-import { daysUntil, formatDate, formatNaira, formatUsd, toIsoDate } from '@/lib/format';
+import { daysUntil, formatDate, formatNaira, formatNairaCompact, formatUsd, toIsoDate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -803,7 +803,7 @@ const Subscriptions = () => {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard
           title="Monthly Spend"
-          value={formatNaira(stats.monthlyNgn)}
+          value={formatNairaCompact(stats.monthlyNgn)}
           subtitle={stats.monthlyUsd > 0 ? `+ ${formatUsd(stats.monthlyUsd)} USD` : 'Normalised across cycles'}
           icon={DollarSign}
           tone="primary"
@@ -937,20 +937,20 @@ const Subscriptions = () => {
                 <div className="hidden md:block overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Cycle</TableHead>
-                        <TableHead>Priority</TableHead>
-                        <TableHead>Payment Method</TableHead>
-                        <TableHead>Next Renewal</TableHead>
-                        <TableHead>Days</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Name</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Amount</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Cycle</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Priority</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Payment Method</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Next Renewal</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Days</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {pagination.slice.map((s) => (
-                        <TableRow key={s.id} className="kd-transition">
+                        <TableRow key={s.id} className="kd-transition hover:bg-muted/40">
                           <TableCell>
                             <p className="font-medium">{s.name}</p>
                             {s.vendor && (

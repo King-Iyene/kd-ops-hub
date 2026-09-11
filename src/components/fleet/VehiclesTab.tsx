@@ -412,7 +412,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
           <CardContent className="p-0">
             <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
                   <TableHead>Vehicle</TableHead>
                   <TableHead>Plate</TableHead>

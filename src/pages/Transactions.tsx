@@ -20,7 +20,7 @@ import { friendlyPaystackError, paystackTransferFee } from '@/lib/paystack';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
-import { formatDate, formatDateTime, formatNaira, toIsoDate, maskAccountNumber } from '@/lib/format';
+import { formatDate, formatDateTime, formatNaira, formatNairaCompact, toIsoDate, maskAccountNumber } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

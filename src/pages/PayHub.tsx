@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { formatNaira, formatDate } from '@/lib/format';
+import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -128,24 +128,24 @@ export default function PayHub() {
           <div>
             <div className="text-2xs font-bold uppercase tracking-wide opacity-75">Money out this period, across every channel</div>
             <div className="text-3xl font-extrabold tracking-tight mt-1.5 currency">
-              {loading ? '—' : formatNaira(totalMoneyOut)}
+              {loading ? '—' : formatNairaCompact(totalMoneyOut)}
             </div>
           </div>
           <div className="flex-1 flex gap-0 sm:border-l sm:border-white/20 sm:pl-6 flex-wrap">
             <div className="flex-1 min-w-[90px] text-center">
-              <div className="font-bold currency">{formatNaira(stats.latestRun?.total_burn_ngn || 0)}</div>
+              <div className="font-bold currency">{formatNairaCompact(stats.latestRun?.total_burn_ngn || 0)}</div>
               <div className="text-2xs opacity-75 mt-0.5">Salary ({stats.latestRun?.period ? formatDate(`${stats.latestRun.period}-01`) : '—'})</div>
             </div>
             <div className="flex-1 min-w-[90px] text-center">
-              <div className="font-bold currency">{formatNaira(stats.ewaPendingNgn)}</div>
+              <div className="font-bold currency">{formatNairaCompact(stats.ewaPendingNgn)}</div>
               <div className="text-2xs opacity-75 mt-0.5">EWA pending</div>
             </div>
             <div className="flex-1 min-w-[90px] text-center">
-              <div className="font-bold currency">{formatNaira(stats.advancePendingNgn)}</div>
+              <div className="font-bold currency">{formatNairaCompact(stats.advancePendingNgn)}</div>
               <div className="text-2xs opacity-75 mt-0.5">Advances pending</div>
             </div>
             <div className="flex-1 min-w-[90px] text-center">
-              <div className="font-bold currency">{formatNaira(stats.staffLoanActiveOutstandingNgn)}</div>
+              <div className="font-bold currency">{formatNairaCompact(stats.staffLoanActiveOutstandingNgn)}</div>
               <div className="text-2xs opacity-75 mt-0.5">Staff loans outstanding</div>
             </div>
           </div>

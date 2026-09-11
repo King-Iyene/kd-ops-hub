@@ -336,7 +336,7 @@ export default function Training() {
         <>
         <div className="hidden md:block rounded-xl border overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b bg-muted/30">
+            <thead className="border-b bg-card/95 backdrop-blur-sm sticky top-0 z-10">
               <tr>
                 {['Employee', 'Title / Provider', 'Type', 'Category', 'Dates', 'Score', 'Status', ''].map(h => (
                   <th key={h} className="text-left text-2xs font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">{h}</th>
@@ -347,7 +347,7 @@ export default function Training() {
               {filtered.map(r => {
                 const eff = effectiveStatus(r);
                 return (
-                  <tr key={r.id} className="hover:bg-muted/20 transition-colors">
+                  <tr key={r.id} className="hover:bg-muted/40 kd-transition">
                     <td className="px-3 py-3 text-xs font-medium">{nameOf(r.employee_id)}</td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-1.5">

@@ -261,7 +261,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
 
       <div className="overflow-x-auto rounded-md border">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
             <TableRow>
               <TableHead>Vehicle</TableHead>
               <TableHead>Fuel Type</TableHead>
@@ -277,7 +277,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
             {vehicles.map((v) => {
               const dep = computeDepreciation(v);
               return (
-                <TableRow key={v.id}>
+                <TableRow key={v.id} className="hover:bg-muted/40 kd-transition">
                   <TableCell className="font-medium">
                     <div>{v.name}</div>
                     <div className="text-xs text-muted-foreground">{v.plate_number}{v.make_model ? ` · ${v.make_model}` : ''}{v.year ? ` (${v.year})` : ''}</div>

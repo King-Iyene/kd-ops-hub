@@ -194,7 +194,7 @@ export default function FinanceDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold currency">{formatNaira(pulse?.cash_on_hand_ngn ?? 0)}</p>
+            <p className="text-2xl font-bold currency">{formatNairaCompact(pulse?.cash_on_hand_ngn ?? 0)}</p>
             {pulse?.cash_is_stale && (
               <p className="text-xs text-amber-600 mt-1">Not updated in over 7 days</p>
             )}
@@ -208,7 +208,7 @@ export default function FinanceDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold currency">{formatNaira(pulse?.net_monthly_burn_ngn ?? 0)}</p>
+            <p className="text-2xl font-bold currency">{formatNairaCompact(pulse?.net_monthly_burn_ngn ?? 0)}</p>
             <p className="text-xs text-muted-foreground mt-1">External burn − revenue estimate</p>
           </CardContent>
         </Card>
@@ -278,7 +278,7 @@ export default function FinanceDashboard() {
         <CardHeader>
           <CardTitle className="text-base">People cost by department</CardTitle>
           <p className="text-xs text-muted-foreground currency">
-            Total cost-to-company: {formatNaira(totalCtc)} (gross salary + employer pension 10% + NSITF 1%)
+            Total cost-to-company: {formatNairaCompact(totalCtc)} (gross salary + employer pension 10% + NSITF 1%)
           </p>
         </CardHeader>
         <CardContent>
@@ -304,7 +304,7 @@ export default function FinanceDashboard() {
               {/* Desktop table */}
               <div className="hidden md:block overflow-x-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                     <TableRow>
                       <TableHead>Department</TableHead>
                       <TableHead className="text-right">Headcount</TableHead>
@@ -315,7 +315,7 @@ export default function FinanceDashboard() {
                   </TableHeader>
                   <TableBody>
                     {departments.map((d) => (
-                      <TableRow key={d.department_id ?? 'none'}>
+                      <TableRow key={d.department_id ?? 'none'} className="hover:bg-muted/40 kd-transition">
                         <TableCell className="font-medium">{d.department_name}</TableCell>
                         <TableCell className="text-right">{d.headcount}</TableCell>
                         <TableCell className="text-right currency">{formatNaira(d.total_gross_ngn)}</TableCell>

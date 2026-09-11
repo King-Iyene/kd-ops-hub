@@ -1182,7 +1182,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
           <CardContent className="p-0">
             <div className="hidden md:block overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
                   <TableHead>Employee</TableHead>
                   <TableHead>Date</TableHead>
@@ -1211,7 +1211,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                 {visibleTrips.map((t) => (
                   <TableRow
                     key={t.id}
-                    className={`cursor-pointer hover:bg-muted/50 ${t.is_anomaly ? 'bg-red-50/50 dark:bg-red-950/10' : ''}`}
+                    className={`cursor-pointer hover:bg-muted/40 kd-transition ${t.is_anomaly ? 'bg-red-50/50 dark:bg-red-950/10' : ''}`}
                     onClick={() => openTripDetail(t)}
                   >
                     <TableCell className="font-medium">{t.employee_name}</TableCell>

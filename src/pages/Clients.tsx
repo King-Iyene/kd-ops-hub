@@ -397,23 +397,23 @@ const Clients = () => {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Industry</TableHead>
-                      <TableHead className="text-right">Contract Value</TableHead>
-                      <TableHead className="text-center">Placements</TableHead>
-                      <TableHead className="text-right">Monthly Revenue</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Start Date</TableHead>
-                      {canManage && <TableHead className="text-right">Actions</TableHead>}
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Client</TableHead>
+                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Industry</TableHead>
+                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Contract Value</TableHead>
+                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-center">Placements</TableHead>
+                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Monthly Revenue</TableHead>
+                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Contact</TableHead>
+                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Status</TableHead>
+                      <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Start Date</TableHead>
+                      {canManage && <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {pagination.items.map((c) => (
                       <TableRow
                         key={c.id}
-                        className="cursor-pointer kd-transition"
+                        className="cursor-pointer kd-transition hover:bg-muted/40"
                         onClick={() => navigate(`/clients/${c.id}`)}
                         onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/clients/${c.id}`, '_blank'); ev.preventDefault(); } }}
                       >

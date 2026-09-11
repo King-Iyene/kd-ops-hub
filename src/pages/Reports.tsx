@@ -1014,7 +1014,7 @@ function PnLReport({ range }: { range: DateRange }) {
             <div className="overflow-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border/50 bg-muted/40">
+                  <tr className="sticky top-0 z-10 border-b border-border/50 bg-card/95 backdrop-blur-sm">
                     <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Month</th>
                     <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Category</th>
                     <th className="text-right py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Amount</th>
@@ -1022,7 +1022,7 @@ function PnLReport({ range }: { range: DateRange }) {
                 </thead>
                 <tbody>
                   {(data.revenue as any[]).map((r) => (
-                    <tr key={r.id} className="border-b border-border/50 last:border-0 hover:bg-muted/40 transition-colors">
+                    <tr key={r.id} className="border-b border-border/50 last:border-0 hover:bg-muted/40 kd-transition">
                       <td className="py-3 px-3">{r.month}</td>
                       <td className="py-3 px-3 capitalize">{(r.category as string).replace(/_/g, ' ')}</td>
                       <td className="py-3 px-3 text-right currency">{formatNaira(r.amount_ngn)}</td>

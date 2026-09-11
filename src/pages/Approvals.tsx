@@ -1046,7 +1046,7 @@ const Approvals = () => {
                   {/* Desktop table */}
                   <div className="hidden md:block overflow-x-auto">
                     <Table>
-                      <TableHeader>
+                      <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                         <TableRow>
                           {canApprove && (
                             <TableHead className="w-10">
@@ -1070,7 +1070,7 @@ const Approvals = () => {
                           const Icon = KIND_ICONS[it.kind];
                           const busy = actioning === it.id;
                           return (
-                            <TableRow key={it.id} className="kd-transition hover:bg-muted/50 transition-colors">
+                            <TableRow key={it.id} className="kd-transition hover:bg-muted/40">
                               {canApprove && (
                                 <TableCell>
                                   <Checkbox

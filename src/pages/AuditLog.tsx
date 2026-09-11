@@ -418,7 +418,7 @@ const AuditLog = () => {
             <>
               <div className="hidden md:block overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <TableRow>
                     <TableHead>When</TableHead>
                     <TableHead>Module</TableHead>
@@ -432,7 +432,7 @@ const AuditLog = () => {
                     const mod = MODULE_OF[r.action_type] || '—';
                     const Icon = ICON_OF[r.action_type] || AlertTriangle;
                     return (
-                      <TableRow key={r.id} className="kd-transition hover:bg-muted/50 transition-colors">
+                      <TableRow key={r.id} className="kd-transition hover:bg-muted/40">
                         <TableCell className="text-muted-foreground text-xs">
                           {r.created_at ? formatDateTime(r.created_at) : '—'}
                         </TableCell>

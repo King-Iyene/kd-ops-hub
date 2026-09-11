@@ -361,7 +361,7 @@ export default function Anomalies() {
             )}
             <div className="hidden md:block overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
                   {/* Select-all toggles every visible 'open' row. Only
                       open rows are selectable because bulk actions
@@ -398,7 +398,7 @@ export default function Anomalies() {
                   const expanded = expandedId === r.id;
                   return (
                     <Fragment key={r.id}>
-                      <TableRow className="cursor-pointer hover:bg-muted/40 transition-colors"
+                      <TableRow className="cursor-pointer hover:bg-muted/40 kd-transition"
                         onClick={() => setExpandedId(expanded ? null : r.id)}>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           {/* Only open rows can be bulk-actioned. Acked /

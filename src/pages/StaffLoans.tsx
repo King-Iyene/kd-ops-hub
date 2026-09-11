@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
-import { formatNaira } from '@/lib/format';
+import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -372,8 +372,8 @@ export default function StaffLoans() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard title="Total Loans" value={stats.total} icon={Users} />
         <StatCard title="Active Loans" value={stats.active} icon={CreditCard} tone="primary" />
-        <StatCard title="Total Disbursed" value={formatNaira(stats.disbursed)} icon={TrendingUp} tone="success" />
-        <StatCard title="Total Outstanding" value={formatNaira(stats.outstanding)} icon={Banknote} tone="warning" />
+        <StatCard title="Total Disbursed" value={formatNairaCompact(stats.disbursed)} icon={TrendingUp} tone="success" />
+        <StatCard title="Total Outstanding" value={formatNairaCompact(stats.outstanding)} icon={Banknote} tone="warning" />
         <StatCard title="Default Rate" value={`${stats.defaultRate.toFixed(1)}%`} icon={AlertTriangle} tone={stats.defaultRate > 10 ? 'danger' : 'default'} />
       </div>
 
@@ -399,22 +399,22 @@ export default function StaffLoans() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Employee</TableHead>
-                        <TableHead>Loan Type</TableHead>
-                        <TableHead className="text-right">Principal</TableHead>
-                        <TableHead className="text-right">Outstanding</TableHead>
-                        <TableHead className="text-right">Monthly Deduction</TableHead>
-                        <TableHead className="text-center">Tenure</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Repayment</TableHead>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Employee</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Loan Type</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Principal</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Outstanding</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Monthly Deduction</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-center">Tenure</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Status</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Repayment</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {loans.map(loan => (
                         <TableRow
                           key={loan.id}
-                          className="cursor-pointer hover:bg-muted/50"
+                          className="cursor-pointer hover:bg-muted/40 kd-transition"
                           onClick={() => setDetailLoan(loan)}
                         >
                           <TableCell className="font-medium">
@@ -465,18 +465,18 @@ export default function StaffLoans() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Employee</TableHead>
-                        <TableHead>Loan Type</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Period</TableHead>
-                        <TableHead>Date</TableHead>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Employee</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Loan Type</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Amount</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Type</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Period</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Date</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {repayments.map(r => (
-                        <TableRow key={r.id}>
+                        <TableRow key={r.id} className="hover:bg-muted/40 kd-transition">
                           <TableCell className="font-medium">
                             {r.loan?.employee?.full_name ?? 'Unknown'}
                           </TableCell>

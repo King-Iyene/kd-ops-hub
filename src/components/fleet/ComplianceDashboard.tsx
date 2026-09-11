@@ -226,7 +226,7 @@ export function ComplianceDashboard({ vehicles, onUpdated }: Props) {
 
       <div className="overflow-x-auto rounded-md border">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
             <TableRow>
               <TableHead>Vehicle</TableHead>
               <TableHead>Insurance</TableHead>
@@ -240,7 +240,7 @@ export function ComplianceDashboard({ vehicles, onUpdated }: Props) {
           </TableHeader>
           <TableBody>
             {sorted.map(({ vehicle, status }) => (
-              <TableRow key={vehicle.id}>
+              <TableRow key={vehicle.id} className="hover:bg-muted/40 kd-transition">
                 <TableCell className="font-medium">
                   <div>{vehicle.name}</div>
                   <div className="text-xs text-muted-foreground">{vehicle.plate_number}</div>

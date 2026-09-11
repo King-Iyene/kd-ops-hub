@@ -677,7 +677,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
         <Card>
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
                   <TableHead
                     className="cursor-pointer select-none whitespace-nowrap"
@@ -707,7 +707,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
                   return (
                     <TableRow
                       key={inc.id}
-                      className="cursor-pointer hover:bg-muted/50"
+                      className="cursor-pointer hover:bg-muted/40 kd-transition"
                       onClick={() => openDetail(inc)}
                     >
                       <TableCell className="whitespace-nowrap">{formatDate(inc.incident_date)}</TableCell>

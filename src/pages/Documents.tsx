@@ -1031,7 +1031,7 @@ const Documents = () => {
                   {/* Desktop table */}
                   <div className="hidden md:block overflow-x-auto">
                     <Table>
-                      <TableHeader>
+                      <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                         <TableRow>
                           <TableHead>Document</TableHead>
                           <TableHead>Category</TableHead>
@@ -1047,7 +1047,7 @@ const Documents = () => {
                         {pagination.slice.map((r) => {
                           const canDelete = canManage || r.uploaded_by === profile?.id;
                           return (
-                            <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => openDetail(r)}>
+                            <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40 kd-transition" onClick={() => openDetail(r)}>
                               <TableCell>
                                 <div className="flex items-center gap-3">
                                   <DocThumbnail doc={r} />

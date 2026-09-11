@@ -296,13 +296,13 @@ export default function Vendors() {
             <thead className="border-b bg-muted/30">
               <tr>
                 {['Vendor', 'Category', 'Status', 'Contact', 'Payment Terms', 'Contract', ''].map(h => (
-                  <th key={h} className="text-left text-2xs font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">{h}</th>
+                  <th key={h} className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left text-2xs font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
               {filtered.map(v => (
-                <tr key={v.id} className="hover:bg-muted/20 transition-colors">
+                <tr key={v.id} className="hover:bg-muted/40 kd-transition">
                   <td className="px-3 py-3">
                     <p className="font-medium">{v.name}</p>
                     {v.rc_number && <p className="text-2xs text-muted-foreground">RC: {v.rc_number}</p>}
