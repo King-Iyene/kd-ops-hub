@@ -288,24 +288,32 @@ input[type=number] {
     color: inherit;
   }
 
-  /* Custom scrollbar */
+  /* Custom scrollbar — premium thin track with hover feedback */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: hsl(var(--border));
+    background: hsl(var(--muted) / 0.3);
     border-radius: 9999px;
   }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 9999px;
+    transition: background 150ms ease;
+  }
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.4);
+    background: hsl(var(--muted-foreground) / 0.45);
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background: hsl(var(--primary) / 0.5);
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
   }
   * {
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--border)) transparent;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.2) hsl(var(--muted) / 0.3);
   }
 }
 
