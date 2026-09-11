@@ -750,8 +750,8 @@ const Budgets = () => {
                     : 'bg-success';
                   const accent =
                     r.status === 'draft' ? 'bg-muted-foreground'
-                    : r.status === 'pending_approval' ? 'bg-amber-500'
-                    : r.status === 'approved' ? 'bg-emerald-500'
+                    : r.status === 'pending_approval' ? 'bg-warning'
+                    : r.status === 'approved' ? 'bg-success'
                     : 'bg-muted-foreground';
                   return (
                     <MobileCard

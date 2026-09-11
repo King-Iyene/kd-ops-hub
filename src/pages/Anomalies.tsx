@@ -70,15 +70,15 @@ import {
 } from '@/lib/anomalies';
 
 const SEVERITY_TONE: Record<AnomalySeverity, string> = {
-  critical: 'bg-red-500/10 text-destructive border-red-500/30',
-  high: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30',
-  medium: 'bg-amber-500/10 text-warning border-amber-500/30',
-  low: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/30',
+  critical: 'bg-destructive/10 text-destructive border-destructive/30',
+  high: 'bg-warning/10 text-warning border-warning/30',
+  medium: 'bg-warning/10 text-warning border-warning/30',
+  low: 'bg-primary/10 text-primary border-primary/30',
 };
 
 const STATUS_TONE: Record<AnomalyStatus, string> = {
-  open: 'bg-rose-500/10 text-rose-700 dark:text-rose-400',
-  acknowledged: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+  open: 'bg-destructive/10 text-destructive',
+  acknowledged: 'bg-success/10 text-success',
   dismissed: 'bg-muted text-muted-foreground',
   escalated: 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
 };
