@@ -271,7 +271,7 @@ export default function Timesheets() {
         }
       />
 
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         <StatCard title="Total Timesheets" value={stats.total} icon={FileText} tone="default" />
         <StatCard title="Pending Approval" value={stats.pending} icon={Clock} tone="warning" />
         <StatCard title="Total Hours" value={`${stats.totalHours.toFixed(1)} hrs`} icon={CalendarDays} tone="primary" />

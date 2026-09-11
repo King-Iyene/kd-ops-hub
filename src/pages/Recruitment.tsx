@@ -425,7 +425,7 @@ export default function Recruitment() {
       />
 
       {/* Summary cards */}
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         {([
           { label: 'Active Openings', value: totalPublished, icon: Briefcase, tone: 'primary' },
           { label: 'Total Applicants', value: totalApplicants, icon: Users, tone: 'default' },

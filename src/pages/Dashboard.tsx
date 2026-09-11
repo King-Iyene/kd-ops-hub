@@ -522,7 +522,7 @@ const Dashboard = () => {
         <PushNotificationsBanner />
         <AnnouncementsBanner />
 
-        <div className="kd-stat-grid">
+        <div className="kd-stat-grid kd-stagger-in">
           <StatCard title="Pending Expenses" value={personalLoading ? '—' : personalKPIs.pendingExpenses} icon={Receipt} subtitle="Awaiting approval" tone="warning" onClick={() => navigate('/expenses')} />
           <StatCard title="Leave Days Left" value={personalLoading ? '—' : personalKPIs.leaveDaysRemaining} icon={CalendarDays} subtitle="Annual leave balance" tone="primary" onClick={() => navigate('/leave')} />
           <StatCard title="Assigned Tasks" value={personalLoading ? '—' : personalKPIs.assignedTasks} icon={CheckCircle} subtitle="Open tasks" tone="primary" onClick={() => navigate('/tasks')} />
@@ -674,7 +674,7 @@ const Dashboard = () => {
       )}
 
       {/* ── 1. KPI stats — first data visible ────────────────────── */}
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         <StatCard
           title="Total Employees"
           value={loading ? '—' : stats.totalEmployees}

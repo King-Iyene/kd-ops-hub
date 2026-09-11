@@ -238,7 +238,7 @@ const HrAnalytics = () => {
         description="Headcount, attrition, cost per head, gender split, tenure and a simple org chart. Read-only aggregates."
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 kd-stagger-in">
         <StatCard
           title="Active headcount"
           value={active.length}

@@ -346,7 +346,7 @@ export default function Onboarding() {
       />
 
       {/* Summary */}
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         <StatCard title="Onboarding" value={onboardingCount} icon={UserCheck} tone="primary" />
         <StatCard title="Offboarding" value={offboardingCount} icon={UserMinus} tone="default" />
         <StatCard title="Completed" value={completedCount} icon={CheckCircle2} tone="success" />

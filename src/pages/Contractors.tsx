@@ -1547,7 +1547,7 @@ const Contractors = () => {
       </div>
 
       {/* ── Stat cards ── */}
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         <StatCard
           title="Total Contractors"
           value={statusCounts.all}

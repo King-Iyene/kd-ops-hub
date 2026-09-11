@@ -337,7 +337,7 @@ export default function Surveys() {
         }
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 kd-stagger-in">
         <StatCard title="Total Surveys" value={stats.total} icon={ClipboardList} tone="primary" />
         <StatCard title="Active" value={stats.active} icon={CheckCircle2} tone="success" />
         <StatCard title="Closed" value={stats.closed} icon={BarChart3} tone="default" />

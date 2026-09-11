@@ -488,7 +488,7 @@ const Goals = () => {
         }
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 kd-stagger-in">
         <StatCard
           title="My goals this quarter"
           value={myStats.count}
@@ -513,7 +513,7 @@ const Goals = () => {
       </div>
 
       {isAdmin && orgStats.total > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 kd-stagger-in">
           <StatCard title="Org goals" value={orgStats.total} subtitle={currentQuarter()} icon={Building2} tone="primary" />
           <StatCard title="Completed" value={orgStats.complete} subtitle="This quarter" icon={CheckCircle2} tone="success" />
           <StatCard title="Missed" value={orgStats.missed} icon={Target} tone={orgStats.missed > 0 ? 'danger' : 'default'} />

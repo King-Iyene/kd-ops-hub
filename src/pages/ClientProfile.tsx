@@ -444,7 +444,7 @@ const ClientProfile = () => {
         {/* ── Placements tab ── */}
         <TabsContent value="placements" className="mt-4 space-y-4">
           {/* KPI cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 kd-stagger-in">
             <StatCard
               title="Active Placements"
               value={analytics.activePlacements}
@@ -587,7 +587,7 @@ const ClientProfile = () => {
         {/* ── Revenue Intelligence tab ── */}
         <TabsContent value="revenue" className="mt-4 space-y-4">
           {/* Revenue KPIs */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 kd-stagger-in">
             <StatCard
               title="Total Collected"
               value={formatNairaCompact(analytics.totalCollected)}

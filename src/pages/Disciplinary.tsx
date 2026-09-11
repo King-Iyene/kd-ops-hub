@@ -276,7 +276,7 @@ export default function Disciplinary() {
       />
 
       {/* Summary */}
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         {([
           { label: 'Active Records', value: activeCount, icon: FileWarning, tone: 'default' },
           { label: 'Open Queries', value: queriesCount, icon: Gavel, tone: 'warning' },

@@ -238,7 +238,7 @@ export default function HrLetters() {
         }
       />
 
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         {([
           { label: 'Total Letters', value: totalCount, icon: FileText, tone: 'default' },
           { label: 'Drafts', value: draftCount, icon: FilePlus, tone: 'warning' },

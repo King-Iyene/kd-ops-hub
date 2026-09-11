@@ -412,7 +412,7 @@ export default function TaskTeamDashboard() {
       </div>
 
       {/* Row 1 — Headline stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 kd-stagger-in">
         <StatCard label="Total Tasks in Period" value={cur.total} current={cur.total} previous={prev.total} />
         <StatCard label="Total Completed" value={cur.completed} current={cur.completed} previous={prev.completed} tone="text-success" />
         <CompletionRateCard current={cur.rate} previous={prev.rate} />

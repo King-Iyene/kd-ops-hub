@@ -277,7 +277,7 @@ export default function Attendance() {
       </div>
 
       {/* Summary cards */}
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         {([
           { status: 'present',  tone: 'success' },
           { status: 'late',     tone: 'warning' },
@@ -302,7 +302,7 @@ export default function Attendance() {
       )}
 
       {/* Monthly analytics summary */}
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         <StatCard
           title="Present Days"
           value={analytics.presentDays}

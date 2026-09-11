@@ -288,7 +288,7 @@ export default function Benefits() {
       </div>
 
       {/* Summary cards */}
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         {(['hmo', 'pension_pfa', 'group_life', 'dental', 'vision', 'life_insurance', 'other'] as BenefitType[]).map((t) => {
           const active = benefits.filter(b => b.benefit_type === t && b.status === 'active').length;
           if (active === 0 && !['hmo', 'pension_pfa', 'group_life'].includes(t)) return null;

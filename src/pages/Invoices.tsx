@@ -462,7 +462,7 @@ const Invoices = () => {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 print:hidden">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 print:hidden kd-stagger-in">
         <StatCard title="Total Invoiced" value={formatNairaCompact(stats.total)} icon={FileText} tone="primary" />
         <StatCard title="Outstanding" value={formatNairaCompact(stats.outstanding)} tone="warning" subtitle="Sent, not yet due" />
         <StatCard title="Overdue" value={formatNairaCompact(stats.overdue)} tone="danger" subtitle="Past due date" />

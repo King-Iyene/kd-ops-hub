@@ -41,9 +41,9 @@ const RISK_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destru
 };
 
 const RISK_CLASS: Record<string, string> = {
-  low: 'border-green-500/40 bg-green-500/10 text-success',
-  medium: 'border-amber-500/40 bg-amber-500/10 text-warning',
-  high: 'border-orange-500/40 bg-orange-500/10 text-orange-700 dark:text-orange-400',
+  low: 'border-success/40 bg-success/10 text-success',
+  medium: 'border-warning/40 bg-warning/10 text-warning',
+  high: 'border-destructive/40 bg-destructive/10 text-destructive',
   critical: '',
 };
 
@@ -57,7 +57,7 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline'> = {
 
 const STATUS_CLASS: Record<string, string> = {
   active: '',
-  filled: 'border-green-500/40 bg-green-500/10 text-success',
+  filled: 'border-success/40 bg-success/10 text-success',
   archived: '',
 };
 
@@ -316,7 +316,7 @@ export default function SuccessionPlanning() {
         actions={<Button onClick={() => openPlanDialog()}><Plus className="h-4 w-4 mr-2" />New Plan</Button>}
       />
 
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         {([
           { label: 'Total Plans', value: totalPlans, icon: Shield, tone: 'primary' },
           { label: 'Critical Risk', value: criticalRisk, icon: AlertTriangle, tone: criticalRisk > 0 ? 'danger' : 'default' },

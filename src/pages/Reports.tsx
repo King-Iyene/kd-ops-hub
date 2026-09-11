@@ -314,7 +314,7 @@ function PaymentReport({ range }: { range: DateRange }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 kd-stagger-in">
         <StatCard title="Total Disbursed" value={formatNaira(totalDisbursed)} icon={CreditCard} tone="primary" />
         <StatCard title="Paystack Fees" value={formatNaira(totalPaystackFees)} icon={Receipt} tone="warning" subtitle="Actual transfer fees" />
         <StatCard title="Batches" value={totalBatches} tone="success" />
@@ -425,7 +425,7 @@ function ExpenseReport({ range }: { range: DateRange }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 kd-stagger-in">
         <StatCard title="Approved Total" value={formatNaira(approvedTotal)} icon={Receipt} tone="primary" />
         <StatCard title="Submissions" value={submissions} tone="success" />
         <StatCard title="Pending" value={pending} tone="warning" />
@@ -537,7 +537,7 @@ function FleetReport({ range }: { range: DateRange }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 kd-stagger-in">
         <StatCard title="Approved Fuel Spend" value={formatNaira(fuelTotal)} icon={Truck} tone="primary" />
         <StatCard title="Approved Litres" value={fuelLitres.toFixed(0)} tone="warning" />
         <StatCard title="Trips Logged" value={tripsCount} tone="success" />
@@ -646,7 +646,7 @@ function ContractorReport({ range }: { range: DateRange }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 kd-stagger-in">
         <StatCard title="Contractors" value={totalContractors} icon={Users} tone="primary" />
         <StatCard title="Active" value={active} tone="success" />
         <StatCard title="Paid (period)" value={summary.length} tone="warning" />
@@ -757,7 +757,7 @@ function BudgetReport({ range }: { range: DateRange }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 kd-stagger-in">
         <StatCard title="Planned" value={formatNaira(totalPlanned)} icon={PiggyBank} tone="primary" />
         <StatCard title="Actual" value={formatNaira(totalActual)} tone="warning" />
         <StatCard
@@ -920,7 +920,7 @@ function PnLReport({ range }: { range: DateRange }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 kd-stagger-in">
         <StatCard title="Total Revenue" value={formatNaira(totalRevenue)} icon={TrendingUp} tone="success" />
         <StatCard title="Operating Costs" value={formatNaira(totalCosts)} icon={Receipt} tone="warning" subtitle="Disbursements + expenses" />
         <StatCard title="Paystack Fees" value={formatNaira(totalFees)} icon={CreditCard} tone="warning" subtitle="Actual transfer fees" />
@@ -1143,7 +1143,7 @@ function CashFlowReport({ range: _range }: { range: DateRange }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 kd-stagger-in">
         <StatCard title="Next 30 days" value={formatNaira(buckets.b30)} icon={Wallet} tone="primary" />
         <StatCard title="31–60 days" value={formatNaira(buckets.b60)} icon={Wallet} tone="warning" />
         <StatCard title="61–90 days" value={formatNaira(buckets.b90)} icon={Wallet} tone="warning" />
@@ -1241,7 +1241,7 @@ function ConcentrationRiskReport({ range }: { range: DateRange }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 kd-stagger-in">
         <StatCard title="Contractors paid" value={rows.length} icon={Users} tone="primary" />
         <StatCard title="Concentration flags" value={flagged.length} icon={AlertTriangle} tone={flagged.length > 0 ? 'danger' : 'success'} subtitle=">20% of monthly payments" />
         <StatCard title="Top contractor share" value={rows[0] ? `${(rows[0].share * 100).toFixed(1)}%` : '—'} icon={TrendingUp} />

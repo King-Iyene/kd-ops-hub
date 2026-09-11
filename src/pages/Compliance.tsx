@@ -972,7 +972,7 @@ const Compliance = () => {
         </div>
       </AuroraHero>
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 kd-stagger-in">
         <StatCard
           title="Overdue"
           value={counts.overdue}
@@ -1124,7 +1124,7 @@ const Compliance = () => {
       </Card>
 
       {/* ─── Payroll tax remittance tracking ──────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 kd-stagger-in">
         <StatCard
           title="Pending remittance"
           value={formatNairaCompact(remittanceStats.totalPending)}

@@ -278,7 +278,7 @@ export default function Assets() {
       </AuroraHero>
 
       {/* Stats */}
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         <StatCard title="Total cost (active)" value={formatNairaCompact(totalCost)} icon={Package} tone="primary" />
         <StatCard title="Net book value" value={formatNairaCompact(totalBookValue)} icon={CheckCircle2} tone="success" />
         <StatCard title="Total depreciation" value={formatNairaCompact(totalDepn)} icon={TrendingDown} tone="default" />

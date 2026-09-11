@@ -940,7 +940,7 @@ function Placements() {
            ════════════════════════════════════════════════════════════════════ */}
         <TabsContent value="overview" className="space-y-4 mt-4">
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 kd-stagger-in">
             <StatCard title="Active Placements" value={stats.active} icon={Users} tone="primary" subtitle={`${stats.total} total`} onClick={() => setActiveTab('placements')} />
             <StatCard title="Monthly Revenue" value={stats.totalGrossUsd > 0 ? formatUsd(stats.totalGrossUsd) : formatNaira(stats.totalGross)} icon={DollarSign} tone="gold" subtitle={stats.totalGrossUsd > 0 ? `${formatNaira(stats.totalGross)} NGN` : 'Gross client billing'} />
             <StatCard title="KD Commission" value={formatNaira(stats.totalRevenue)} icon={TrendingUp} tone="success" subtitle={`Avg ${stats.avgCommission.toFixed(0)}% rate`} />
@@ -951,7 +951,7 @@ function Placements() {
 
           {/* Currency & FX Strip */}
           {(stats.usdPlacementCount > 0 || currentFxRate) && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 kd-stagger-in">
               <StatCard title="USD Contracts" value={stats.usdPlacementCount} icon={Globe} tone="primary" subtitle={formatUsd(stats.fxExposure) + '/mo exposure'} onClick={() => setActiveTab('fx')} />
               <StatCard title="Current FX Rate" value={currentFxRate ? formatFxRate(currentFxRate) : '—'} icon={ArrowRightLeft} tone="default" subtitle="NGN per 1 USD" onClick={() => setActiveTab('fx')} />
               <StatCard
@@ -1149,7 +1149,7 @@ function Placements() {
            ════════════════════════════════════════════════════════════════════ */}
         <TabsContent value="placements" className="space-y-4 mt-4">
           {/* Stats row */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 kd-stagger-in">
             <StatCard title="Active" value={stats.active} icon={Users} tone="success" />
             <StatCard title="Monthly Commission" value={formatNaira(stats.totalRevenue)} icon={DollarSign} tone="gold" />
             <StatCard title="Monthly Payouts" value={formatNaira(stats.totalPayout)} icon={Briefcase} tone="primary" />
@@ -1337,7 +1337,7 @@ function Placements() {
            ════════════════════════════════════════════════════════════════════ */}
         <TabsContent value="payments" className="space-y-4 mt-4">
           {/* Payment KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 kd-stagger-in">
             <StatCard title="Total Collected" value={formatNaira(stats.totalCollected)} icon={CheckCircle2} tone="success" subtitle={`${stats.paidCount} payments`} />
             <StatCard title="Outstanding" value={formatNaira(stats.totalOutstanding)} icon={Clock} tone="warning" subtitle={`${stats.pendingCount} pending`} />
             <StatCard title="Overdue" value={stats.overdueCount} icon={AlertTriangle} tone={stats.overdueCount > 0 ? 'danger' : 'default'} />
@@ -1544,7 +1544,7 @@ function Placements() {
            ════════════════════════════════════════════════════════════════════ */}
         <TabsContent value="fx" className="space-y-4 mt-4">
           {/* FX KPI Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 kd-stagger-in">
             <StatCard
               title="Live FX Rate"
               value={currentFxRate ? formatFxRate(currentFxRate) : '—'}
@@ -1780,7 +1780,7 @@ function Placements() {
            ════════════════════════════════════════════════════════════════════ */}
         <TabsContent value="reports" className="space-y-4 mt-4">
           {/* Revenue Summary */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 kd-stagger-in">
             <StatCard title="Total Gross Revenue" value={formatNaira(allPayments.reduce((s, pp) => s + pp.gross_amount_ngn, 0))} icon={DollarSign} tone="gold" />
             <StatCard title="Total Commission" value={formatNaira(allPayments.reduce((s, pp) => s + pp.commission_ngn, 0))} icon={TrendingUp} tone="success" />
             <StatCard title="Total Payouts" value={formatNaira(allPayments.reduce((s, pp) => s + pp.net_employee_ngn, 0))} icon={Briefcase} tone="primary" />

@@ -404,7 +404,7 @@ export default function Performance() {
       />
 
       {/* Stats */}
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         {([
           { label: 'Active cycles', value: activeCycles, icon: BarChart3, tone: 'primary' },
           { label: 'Reviews completed', value: submitted, icon: Send, tone: 'success' },

@@ -348,7 +348,7 @@ const Clients = () => {
       </AuroraHero>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 kd-stagger-in">
         <StatCard title="Total Clients" value={stats.total} icon={Building2} tone="primary" />
         <StatCard title="Active" value={stats.active} tone="success" />
         <StatCard title="Prospects" value={stats.prospects} tone="warning" />

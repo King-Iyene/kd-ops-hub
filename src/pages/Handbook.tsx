@@ -265,7 +265,7 @@ export default function Handbook() {
         }
       />
 
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         <StatCard title="Total Policies" value={policies.length} icon={FileText} tone="primary" />
         <StatCard title="Active" value={activePolicies.length} icon={BookOpen} tone="success" />
         <StatCard title="Pending Acknowledgments" value={pendingCount} icon={ShieldCheck} tone="warning" />

@@ -238,7 +238,7 @@ export default function Training() {
       />
 
       {/* Stats */}
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         <StatCard title="Completed" value={completed} icon={CheckCircle2} tone="success" />
         <StatCard title="Mandatory" value={mandatory} icon={Award} tone="primary" />
         <StatCard title="Certs expiring ≤30d" value={expiring} icon={AlertTriangle} tone="warning" />
@@ -249,7 +249,7 @@ export default function Training() {
       </div>
 
       {/* Training Analytics */}
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         <StatCard title="Total training hours" value={analytics.totalHours} icon={BarChart3} tone="primary" />
         <StatCard title="Avg hrs / employee" value={analytics.avgHoursPerEmployee} icon={TrendingUp} tone="info" />
         <StatCard title="Completion rate" value={`${analytics.completionRate}%`} icon={CheckCircle2} tone="success" />

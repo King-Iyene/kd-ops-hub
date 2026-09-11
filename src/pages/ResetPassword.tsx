@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { Loader2, KeyRound, TriangleAlert } from 'lucide-react';
+import { BrandLogo } from '@/components/BrandLogo';
 
 /**
  * Reads the error Supabase appends to the redirect URL when an email link
@@ -145,9 +146,15 @@ const ResetPassword = () => {
     <div className="kd-gradient-mesh min-h-screen flex items-center justify-center px-4 py-10">
       <Card className="kd-card-tech w-full max-w-md rounded-2xl border-0 kd-animate-scale-in">
         <CardHeader className="text-center pb-2">
-          <div className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl text-primary-foreground shadow-md ${linkError ? 'bg-destructive' : 'kd-gradient-brand'}`}>
-            {linkError ? <TriangleAlert className="h-7 w-7" /> : <KeyRound className="h-7 w-7" />}
-          </div>
+          {linkError ? (
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive text-primary-foreground shadow-md">
+              <TriangleAlert className="h-7 w-7" />
+            </div>
+          ) : (
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-card border border-border shadow-md overflow-hidden">
+              <BrandLogo size={40} className="h-10 w-10 rounded-lg" />
+            </div>
+          )}
           <h1 className="text-2xl font-bold kd-text-gradient">{linkError ? 'Link no longer works' : 'Set new password'}</h1>
           {!linkError && (
             <p className="text-muted-foreground text-sm">

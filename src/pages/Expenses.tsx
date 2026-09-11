@@ -1355,7 +1355,7 @@ const Expenses = () => {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 kd-stagger-in">
         <StatCard
           title="Total Pending"
           value={expenseStats.pendingCount}

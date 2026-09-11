@@ -34,17 +34,17 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 const STATUS_META: Record<string, { label: string; icon: React.ElementType; color: string; bg: string; dot: string }> = {
-  planning:  { label: 'Planning',   icon: Clock,       color: 'text-blue-500',    bg: 'bg-blue-50 dark:bg-blue-950/30',    dot: 'bg-blue-500' },
-  active:    { label: 'Active',     icon: FolderKanban,color: 'text-success', bg: 'bg-success/5', dot: 'bg-emerald-500' },
-  on_hold:   { label: 'On Hold',    icon: PauseCircle, color: 'text-warning',   bg: 'bg-warning/5',  dot: 'bg-amber-500' },
-  completed: { label: 'Completed',  icon: CheckCircle2,color: 'text-success', bg: 'bg-success/5', dot: 'bg-emerald-500' },
+  planning:  { label: 'Planning',   icon: Clock,       color: 'text-primary',    bg: 'bg-primary/5',    dot: 'bg-primary' },
+  active:    { label: 'Active',     icon: FolderKanban,color: 'text-success', bg: 'bg-success/5', dot: 'bg-success' },
+  on_hold:   { label: 'On Hold',    icon: PauseCircle, color: 'text-warning',   bg: 'bg-warning/5',  dot: 'bg-warning' },
+  completed: { label: 'Completed',  icon: CheckCircle2,color: 'text-success', bg: 'bg-success/5', dot: 'bg-success' },
   cancelled: { label: 'Cancelled',  icon: XCircle,     color: 'text-muted-foreground', bg: 'bg-muted',  dot: 'bg-slate-400' },
 };
 
 const PRIORITY_META: Record<string, { label: string; color: string; dot: string }> = {
-  critical: { label: 'Critical', color: 'text-destructive',    dot: 'bg-red-500' },
-  high:     { label: 'High',     color: 'text-orange-500', dot: 'bg-orange-400' },
-  normal:   { label: 'Normal',   color: 'text-blue-500',   dot: 'bg-blue-400' },
+  critical: { label: 'Critical', color: 'text-destructive',    dot: 'bg-destructive' },
+  high:     { label: 'High',     color: 'text-warning', dot: 'bg-warning' },
+  normal:   { label: 'Normal',   color: 'text-primary',   dot: 'bg-primary' },
   low:      { label: 'Low',      color: 'text-slate-400',  dot: 'bg-slate-300 dark:bg-slate-600' },
 };
 
@@ -889,7 +889,7 @@ function ProjectCard({
       project.status === 'cancelled' && 'opacity-60',
     )} onClick={() => onClick(project)}>
       {/* Color accent strip */}
-      <div className="h-1" style={{ backgroundColor: space?.color ?? (SM?.dot === 'bg-emerald-500' ? '#10b981' : '#94a3b8') }} />
+      <div className="h-1" style={{ backgroundColor: space?.color ?? (SM?.dot === 'bg-success' ? '#10b981' : '#94a3b8') }} />
 
       <CardContent className="p-4 space-y-3">
         {/* Header */}

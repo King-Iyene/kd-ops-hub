@@ -800,7 +800,7 @@ const Subscriptions = () => {
       />
 
       {/* ── Stat cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 kd-stagger-in">
         <StatCard
           title="Monthly Spend"
           value={formatNairaCompact(stats.monthlyNgn)}

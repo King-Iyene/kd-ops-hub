@@ -369,7 +369,7 @@ export default function StaffLoans() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 kd-stagger-in">
         <StatCard title="Total Loans" value={stats.total} icon={Users} />
         <StatCard title="Active Loans" value={stats.active} icon={CreditCard} tone="primary" />
         <StatCard title="Total Disbursed" value={formatNairaCompact(stats.disbursed)} icon={TrendingUp} tone="success" />

@@ -285,7 +285,7 @@ export default function Shifts() {
     <div className="space-y-3 sm:space-y-6 p-6">
       <PageHeader title="Shifts" description="Manage shift definitions and weekly roster assignments" icon={Clock} />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 kd-stagger-in">
         <StatCard title="Active Shift Types" value={stats.activeTypes} icon={Clock} tone="primary" />
         <StatCard title="Assignments This Week" value={stats.thisWeek} icon={Users} tone="default" />
         <StatCard title="Swap Requests" value={stats.swapRequests} icon={AlertTriangle} tone="warning" />

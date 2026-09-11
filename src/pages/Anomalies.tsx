@@ -253,7 +253,7 @@ export default function Anomalies() {
         />
       </AuroraHero>
 
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         <StatCard title="Open" value={stats.open.toString()} icon={Flag} />
         <StatCard title="Critical" value={stats.critical.toString()} icon={ShieldAlert} tone="danger" />
         <StatCard title="High" value={stats.high.toString()} icon={AlertTriangle} tone="warning" />

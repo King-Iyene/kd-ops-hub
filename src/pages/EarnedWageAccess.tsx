@@ -357,7 +357,7 @@ export default function EarnedWageAccess() {
 
       {/* Stats */}
       {eligibility && (
-        <div className="kd-stat-grid">
+        <div className="kd-stat-grid kd-stagger-in">
           <StatCard title="Monthly salary"   value={formatNairaCompact(eligibility.monthly_salary_ngn)}  icon={Wallet}     tone="primary" />
           <StatCard title="Accrued so far"   value={formatNairaCompact(eligibility.accrued_to_date_ngn)} icon={TrendingUp} tone="success" />
           <StatCard title="Already drawn"    value={formatNairaCompact(eligibility.already_drawn_ngn)}   icon={Clock}      tone="warning" />

@@ -230,7 +230,7 @@ const Referrals = () => {
         />
       </AuroraHero>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 kd-stagger-in">
         <StatCard title="Total referrals" value={referrals.length} icon={Users} tone="primary" />
         <StatCard title="Affiliates" value={affiliateCount} icon={Star} tone="gold" />
         <StatCard

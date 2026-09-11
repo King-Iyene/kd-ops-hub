@@ -805,7 +805,7 @@ const Leave = () => {
         </div>
       </div>
 
-      <div className="kd-stat-grid">
+      <div className="kd-stat-grid kd-stagger-in">
         <StatCard
           title="Annual Leave Left"
           value={`${annualLeft} days`}
@@ -867,7 +867,7 @@ const Leave = () => {
         return (
           <div className="space-y-3">
             <h2 className="text-lg font-semibold tracking-tight">Team Analytics</h2>
-            <div className="kd-stat-grid">
+            <div className="kd-stat-grid kd-stagger-in">
               <StatCard
                 title="Total Requests"
                 value={totalRequests}
