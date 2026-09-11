@@ -33,6 +33,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { LocationCell } from '@/components/fleet/TripMapModal';
 import { Loader2, AlertTriangle, Fuel, MapPin, Trash2, RotateCcw } from 'lucide-react';
 import {
@@ -133,78 +141,125 @@ export function AnomaliesTab({
         ) : (
           <Card>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
-                    <TableRow>
-                      <TableHead>Employee</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Route</TableHead>
-                      <TableHead>Flags</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Reviewed</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {anomalousTrips.map((t) => (
-                      <TableRow key={t.id} className="bg-destructive/5 hover:bg-muted/40 kd-transition">
-                        <TableCell className="font-medium text-sm">{t.employee_name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{formatDate(t.date)}</TableCell>
-                        <TableCell className="text-xs max-w-[200px]">
-                          <div className="space-y-0.5">
-                            <LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} showCoords />
-                            <span className="text-muted-foreground/60">↓</span>
-                            <LocationCell location={t.end_location} lat={t.end_lat} lng={t.end_lng} showCoords />
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          <div className="flex flex-col gap-0.5">
-                            {t.is_anomaly && (
-                              <span className="text-destructive flex items-center gap-1">
-                                <AlertTriangle className="h-3 w-3" /> {t.anomaly_reason}
-                              </span>
-                            )}
-                            {t.is_out_of_area && (
-                              <span className="text-warning flex items-center gap-1">
-                                <MapPin className="h-3 w-3" /> Out-of-area end location
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {t.anomaly_reviewed_at ? (
-                            <span className="text-xs text-muted-foreground">{t.anomaly_review_note?.split(':')[0]}</span>
-                          ) : (
-                            <Badge variant="outline" className="border-destructive/40 text-destructive text-xs">Unreviewed</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {t.anomaly_reviewed_at ? formatDate(t.anomaly_reviewed_at.slice(0, 10)) : '—'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5">
-                            {!t.anomaly_reviewed_at ? (
-                              <Button size="sm" variant="outline" className="text-xs h-7"
-                                onClick={() => setReviewingAnomaly({ type: 'trip', id: t.id, label: `${t.start_location} → ${t.end_location}` })}>
-                                Review
-                              </Button>
-                            ) : (
-                              <Button size="sm" variant="ghost" className="text-xs h-7 text-warning hover:text-warning hover:bg-warning/10"
-                                onClick={() => revertAnomalyReview('trip', t.id, `${t.start_location} → ${t.end_location}`)}>
-                                <RotateCcw className="h-3 w-3 mr-1" /> Revert
-                              </Button>
-                            )}
-                            <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => deleteAnomalyRecord('trip', t.id, `${t.start_location} → ${t.end_location}`)}>
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
+              <div className="hidden md:block">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+                      <TableRow>
+                        <TableHead>Employee</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Route</TableHead>
+                        <TableHead>Flags</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Reviewed</TableHead>
+                        <TableHead></TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {anomalousTrips.map((t) => (
+                        <TableRow key={t.id} className="bg-destructive/5 hover:bg-muted/40 kd-transition">
+                          <TableCell className="font-medium text-sm">{t.employee_name}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{formatDate(t.date)}</TableCell>
+                          <TableCell className="text-xs max-w-[200px]">
+                            <div className="space-y-0.5">
+                              <LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} showCoords />
+                              <span className="text-muted-foreground/60">↓</span>
+                              <LocationCell location={t.end_location} lat={t.end_lat} lng={t.end_lng} showCoords />
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            <div className="flex flex-col gap-0.5">
+                              {t.is_anomaly && (
+                                <span className="text-destructive flex items-center gap-1">
+                                  <AlertTriangle className="h-3 w-3" /> {t.anomaly_reason}
+                                </span>
+                              )}
+                              {t.is_out_of_area && (
+                                <span className="text-warning flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" /> Out-of-area end location
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {t.anomaly_reviewed_at ? (
+                              <span className="text-xs text-muted-foreground">{t.anomaly_review_note?.split(':')[0]}</span>
+                            ) : (
+                              <Badge variant="outline" className="border-destructive/40 text-destructive text-xs">Unreviewed</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {t.anomaly_reviewed_at ? formatDate(t.anomaly_reviewed_at.slice(0, 10)) : '—'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              {!t.anomaly_reviewed_at ? (
+                                <Button size="sm" variant="outline" className="text-xs h-7"
+                                  onClick={() => setReviewingAnomaly({ type: 'trip', id: t.id, label: `${t.start_location} → ${t.end_location}` })}>
+                                  Review
+                                </Button>
+                              ) : (
+                                <Button size="sm" variant="ghost" className="text-xs h-7 text-warning hover:text-warning hover:bg-warning/10"
+                                  onClick={() => revertAnomalyReview('trip', t.id, `${t.start_location} → ${t.end_location}`)}>
+                                  <RotateCcw className="h-3 w-3 mr-1" /> Revert
+                                </Button>
+                              )}
+                              <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => deleteAnomalyRecord('trip', t.id, `${t.start_location} → ${t.end_location}`)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+              <div className="md:hidden space-y-2 p-3">
+                {anomalousTrips.map((t) => (
+                  <MobileCard key={t.id} accentClassName="bg-destructive">
+                    <MobileCardHeader>
+                      <MobileCardTitle>{t.employee_name}</MobileCardTitle>
+                      <MobileCardMeta className="text-muted-foreground text-xs">
+                        {formatDate(t.date)}
+                      </MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Route">
+                      <span className="text-xs">{t.start_location} → {t.end_location}</span>
+                    </MobileCardRow>
+                    <MobileCardRow label="Flags">
+                      <span className="text-xs">
+                        {t.is_anomaly && <span className="text-destructive">{t.anomaly_reason}</span>}
+                        {t.is_out_of_area && <span className="text-warning ml-1">Out-of-area</span>}
+                      </span>
+                    </MobileCardRow>
+                    <MobileCardRow label="Status">
+                      {t.anomaly_reviewed_at ? (
+                        <span className="text-muted-foreground">{t.anomaly_review_note?.split(':')[0]}</span>
+                      ) : (
+                        <Badge variant="outline" className="border-destructive/40 text-destructive text-xs">Unreviewed</Badge>
+                      )}
+                    </MobileCardRow>
+                    <MobileCardFooter>
+                      {!t.anomaly_reviewed_at ? (
+                        <Button size="sm" variant="outline" className="text-xs h-7"
+                          onClick={() => setReviewingAnomaly({ type: 'trip', id: t.id, label: `${t.start_location} → ${t.end_location}` })}>
+                          Review
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="ghost" className="text-xs h-7 text-warning hover:text-warning hover:bg-warning/10"
+                          onClick={() => revertAnomalyReview('trip', t.id, `${t.start_location} → ${t.end_location}`)}>
+                          <RotateCcw className="h-3 w-3 mr-1" /> Revert
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => deleteAnomalyRecord('trip', t.id, `${t.start_location} → ${t.end_location}`)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </MobileCardFooter>
+                  </MobileCard>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -222,65 +277,108 @@ export function AnomaliesTab({
         ) : (
           <Card>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
-                    <TableRow>
-                      <TableHead>Employee</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Station</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Reviewed</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {anomalousFuelReqs.map((r) => (
-                      <TableRow key={r.id} className="bg-destructive/5 hover:bg-muted/40 kd-transition">
-                        <TableCell className="font-medium text-sm">{r.employee_name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{formatDate(r.created_at.slice(0, 10))}</TableCell>
-                        <TableCell className="text-sm">{r.station_name || '—'}</TableCell>
-                        <TableCell className="text-sm tabular-nums">{formatNaira(r.amount_ngn || 0)}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="border-warning/40 text-warning text-xs">
-                            {r.anomaly_type === 'efficiency_anomaly' ? 'Efficiency' : r.anomaly_type || 'Anomaly'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {r.anomaly_reviewed_at ? (
-                            <span className="text-xs text-muted-foreground">{r.anomaly_review_note?.split(':')[0]}</span>
-                          ) : (
-                            <Badge variant="outline" className="border-destructive/40 text-destructive text-xs">Unreviewed</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {r.anomaly_reviewed_at ? formatDate(r.anomaly_reviewed_at.slice(0, 10)) : '—'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5">
-                            {!r.anomaly_reviewed_at ? (
-                              <Button size="sm" variant="outline" className="text-xs h-7"
-                                onClick={() => setReviewingAnomaly({ type: 'fuel', id: r.id, label: `${r.station_name} — ${r.employee_name}` })}>
-                                Review
-                              </Button>
-                            ) : (
-                              <Button size="sm" variant="ghost" className="text-xs h-7 text-warning hover:text-warning hover:bg-warning/10"
-                                onClick={() => revertAnomalyReview('fuel', r.id, `${r.station_name} — ${r.employee_name}`)}>
-                                <RotateCcw className="h-3 w-3 mr-1" /> Revert
-                              </Button>
-                            )}
-                            <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => deleteAnomalyRecord('fuel', r.id, `${r.station_name} — ${r.employee_name}`)}>
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
+              <div className="hidden md:block">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+                      <TableRow>
+                        <TableHead>Employee</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Station</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Reviewed</TableHead>
+                        <TableHead></TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {anomalousFuelReqs.map((r) => (
+                        <TableRow key={r.id} className="bg-destructive/5 hover:bg-muted/40 kd-transition">
+                          <TableCell className="font-medium text-sm">{r.employee_name}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{formatDate(r.created_at.slice(0, 10))}</TableCell>
+                          <TableCell className="text-sm">{r.station_name || '—'}</TableCell>
+                          <TableCell className="text-sm tabular-nums">{formatNaira(r.amount_ngn || 0)}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="border-warning/40 text-warning text-xs">
+                              {r.anomaly_type === 'efficiency_anomaly' ? 'Efficiency' : r.anomaly_type || 'Anomaly'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {r.anomaly_reviewed_at ? (
+                              <span className="text-xs text-muted-foreground">{r.anomaly_review_note?.split(':')[0]}</span>
+                            ) : (
+                              <Badge variant="outline" className="border-destructive/40 text-destructive text-xs">Unreviewed</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {r.anomaly_reviewed_at ? formatDate(r.anomaly_reviewed_at.slice(0, 10)) : '—'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              {!r.anomaly_reviewed_at ? (
+                                <Button size="sm" variant="outline" className="text-xs h-7"
+                                  onClick={() => setReviewingAnomaly({ type: 'fuel', id: r.id, label: `${r.station_name} — ${r.employee_name}` })}>
+                                  Review
+                                </Button>
+                              ) : (
+                                <Button size="sm" variant="ghost" className="text-xs h-7 text-warning hover:text-warning hover:bg-warning/10"
+                                  onClick={() => revertAnomalyReview('fuel', r.id, `${r.station_name} — ${r.employee_name}`)}>
+                                  <RotateCcw className="h-3 w-3 mr-1" /> Revert
+                                </Button>
+                              )}
+                              <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => deleteAnomalyRecord('fuel', r.id, `${r.station_name} — ${r.employee_name}`)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+              <div className="md:hidden space-y-2 p-3">
+                {anomalousFuelReqs.map((r) => (
+                  <MobileCard key={r.id} accentClassName="bg-destructive">
+                    <MobileCardHeader>
+                      <MobileCardTitle>{r.employee_name}</MobileCardTitle>
+                      <MobileCardMeta className="tabular-nums">{formatNaira(r.amount_ngn || 0)}</MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Date">{formatDate(r.created_at.slice(0, 10))}</MobileCardRow>
+                    <MobileCardRow label="Station">{r.station_name || '—'}</MobileCardRow>
+                    <MobileCardRow label="Type">
+                      <Badge variant="outline" className="border-warning/40 text-warning text-xs">
+                        {r.anomaly_type === 'efficiency_anomaly' ? 'Efficiency' : r.anomaly_type || 'Anomaly'}
+                      </Badge>
+                    </MobileCardRow>
+                    <MobileCardRow label="Status">
+                      {r.anomaly_reviewed_at ? (
+                        <span className="text-muted-foreground">{r.anomaly_review_note?.split(':')[0]}</span>
+                      ) : (
+                        <Badge variant="outline" className="border-destructive/40 text-destructive text-xs">Unreviewed</Badge>
+                      )}
+                    </MobileCardRow>
+                    <MobileCardFooter>
+                      {!r.anomaly_reviewed_at ? (
+                        <Button size="sm" variant="outline" className="text-xs h-7"
+                          onClick={() => setReviewingAnomaly({ type: 'fuel', id: r.id, label: `${r.station_name} — ${r.employee_name}` })}>
+                          Review
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="ghost" className="text-xs h-7 text-warning hover:text-warning hover:bg-warning/10"
+                          onClick={() => revertAnomalyReview('fuel', r.id, `${r.station_name} — ${r.employee_name}`)}>
+                          <RotateCcw className="h-3 w-3 mr-1" /> Revert
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => deleteAnomalyRecord('fuel', r.id, `${r.station_name} — ${r.employee_name}`)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </MobileCardFooter>
+                  </MobileCard>
+                ))}
               </div>
             </CardContent>
           </Card>

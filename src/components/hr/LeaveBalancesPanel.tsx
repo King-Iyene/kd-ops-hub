@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/table';
 import { CalendarDays, Plane, Stethoscope, Baby, Heart, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { Link } from 'react-router-dom';
 
 /**
@@ -312,7 +313,7 @@ export const LeaveBalancesPanel = ({
               No leave requests on file.
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -339,6 +340,24 @@ export const LeaveBalancesPanel = ({
                 ))}
               </TableBody>
             </Table>
+            </div>
+            <div className="md:hidden space-y-2 p-3">
+              {requests.map((r) => (
+                <MobileCard key={r.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle className="capitalize">{r.leave_type}</MobileCardTitle>
+                    <MobileCardMeta>{r.days_requested}d</MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Dates">
+                    {formatDate(r.start_date)} → {formatDate(r.end_date)}
+                  </MobileCardRow>
+                  <MobileCardRow label="Status">
+                    <Badge variant="secondary" className={cn('text-3xs', STATUS_TONE[r.status] || '')}>
+                      {r.status}
+                    </Badge>
+                  </MobileCardRow>
+                </MobileCard>
+              ))}
             </div>
           )}
         </CardContent>

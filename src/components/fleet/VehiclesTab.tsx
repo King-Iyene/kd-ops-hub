@@ -19,6 +19,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { VehicleInspectionForm } from '@/components/fleet/VehicleInspectionForm';
 import { Loader2, Plus, Car, Pencil, Trash2, AlertTriangle, Wrench, FileText, History, User, Fuel, Ban, CalendarOff, CheckSquare, ClipboardCheck } from 'lucide-react';
 import { type FieldStaff, type Vehicle, type MaintenanceRecord } from '@/lib/fleet-utils';
@@ -413,145 +421,216 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
 
         <Card>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
-                <TableRow>
-                  <TableHead>Vehicle</TableHead>
-                  <TableHead>Plate</TableHead>
-                  <TableHead>Assigned Employee</TableHead>
-                  <TableHead>Fuel Level</TableHead>
-                  <TableHead className="text-right">Weekly Budget</TableHead>
-                  <TableHead>Insurance</TableHead>
-                  <TableHead>Road Worthiness</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {vehicles.length === 0 && (
+            <div className="hidden md:block">
+              <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground text-sm py-8">
-                      No vehicles registered yet. Add your first vehicle to start tracking.
-                    </TableCell>
+                    <TableHead>Vehicle</TableHead>
+                    <TableHead>Plate</TableHead>
+                    <TableHead>Assigned Employee</TableHead>
+                    <TableHead>Fuel Level</TableHead>
+                    <TableHead className="text-right">Weekly Budget</TableHead>
+                    <TableHead>Insurance</TableHead>
+                    <TableHead>Road Worthiness</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                )}
-                {vehicles.map((v) => (
-                  <TableRow key={v.id} className={`hover:bg-muted/40 kd-transition${isOutOfService(v) ? ' bg-destructive/5' : ''}`}>
-                    <TableCell>
-                      <div className="font-medium flex items-center gap-2">
-                        {v.name}
-                        {isOutOfService(v) && (
-                          <Badge variant="secondary" className="bg-destructive/10 text-destructive border border-destructive/20 text-xs">
-                            <Ban className="h-3 w-3 mr-1" /> Out of Service
-                          </Badge>
-                        )}
-                      </div>
-                      {v.make_model && (
-                        <div className="text-xs text-muted-foreground">
-                          {v.make_model}{v.year ? ` (${v.year})` : ''}{v.color ? ` · ${v.color}` : ''}
+                </TableHeader>
+                <TableBody>
+                  {vehicles.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center text-muted-foreground text-sm py-8">
+                        No vehicles registered yet. Add your first vehicle to start tracking.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {vehicles.map((v) => (
+                    <TableRow key={v.id} className={`hover:bg-muted/40 kd-transition${isOutOfService(v) ? ' bg-destructive/5' : ''}`}>
+                      <TableCell>
+                        <div className="font-medium flex items-center gap-2">
+                          {v.name}
+                          {isOutOfService(v) && (
+                            <Badge variant="secondary" className="bg-destructive/10 text-destructive border border-destructive/20 text-xs">
+                              <Ban className="h-3 w-3 mr-1" /> Out of Service
+                            </Badge>
+                          )}
                         </div>
-                      )}
-                      {isOutOfService(v) && v.out_of_service_until && (
-                        <div className="text-xs text-destructive mt-0.5">Until {formatDate(v.out_of_service_until)}</div>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-mono">{v.plate_number}</TableCell>
-                    <TableCell className="text-sm">{employeeName(v.assigned_driver_id)}</TableCell>
-                    <TableCell className="min-w-[140px]">
-                      <FuelGauge
-                        tank={v.tank_capacity_litres}
-                        current={v.current_fuel_litres}
-                        lastRefuel={v.last_refuel_at}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right currency">{formatNaira(v.weekly_budget_ngn)}</TableCell>
-                    <TableCell>
-                      {v.insurance_expiry ? (
-                        <Badge
-                          variant="secondary"
-                          className={
-                            isExpired(v.insurance_expiry)
-                              ? 'bg-destructive/10 text-destructive'
-                              : isExpiringSoon(v.insurance_expiry)
-                              ? 'bg-warning/10 text-warning'
-                              : 'bg-success/10 text-success'
-                          }
-                        >
-                          {formatDate(v.insurance_expiry)}
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {v.road_worthiness_expiry ? (
-                        <Badge
-                          variant="secondary"
-                          className={
-                            isExpired(v.road_worthiness_expiry)
-                              ? 'bg-destructive/10 text-destructive'
-                              : isExpiringSoon(v.road_worthiness_expiry)
-                              ? 'bg-warning/10 text-warning'
-                              : 'bg-success/10 text-success'
-                          }
-                        >
-                          {formatDate(v.road_worthiness_expiry)}
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={
-                          v.status === 'active'
-                            ? `bg-success/10 text-success${canManageVehicles ? ' cursor-pointer' : ''}`
-                            : `bg-muted text-muted-foreground${canManageVehicles ? ' cursor-pointer' : ''}`
-                        }
-                        onClick={canManageVehicles ? () => toggleStatus(v) : undefined}
-                      >
-                        {v.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="ghost" title="Fuel history" onClick={() => setViewingFuelHistory(v)}>
-                          <History className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" title="Maintenance schedule" onClick={() => setViewingMaintenance(v)}>
-                          <Wrench className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" title="Run inspection" onClick={() => setInspectingVehicle(v)}>
-                          <ClipboardCheck className="h-4 w-4" />
-                        </Button>
-                        {canManageVehicles && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              title={isOutOfService(v) ? 'Return to service' : 'Mark out of service'}
-                              onClick={() => { setSettingOutOfService(v); setOutOfServiceDate(v.out_of_service_until || ''); }}
-                            >
-                              <CalendarOff className={`h-4 w-4 ${isOutOfService(v) ? 'text-destructive' : ''}`} />
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => openEdit(v)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                        {v.make_model && (
+                          <div className="text-xs text-muted-foreground">
+                            {v.make_model}{v.year ? ` (${v.year})` : ''}{v.color ? ` · ${v.color}` : ''}
+                          </div>
                         )}
-                        {canDeleteVehicle && (
-                          <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(v)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                        {isOutOfService(v) && v.out_of_service_until && (
+                          <div className="text-xs text-destructive mt-0.5">Until {formatDate(v.out_of_service_until)}</div>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-mono">{v.plate_number}</TableCell>
+                      <TableCell className="text-sm">{employeeName(v.assigned_driver_id)}</TableCell>
+                      <TableCell className="min-w-[140px]">
+                        <FuelGauge
+                          tank={v.tank_capacity_litres}
+                          current={v.current_fuel_litres}
+                          lastRefuel={v.last_refuel_at}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right currency">{formatNaira(v.weekly_budget_ngn)}</TableCell>
+                      <TableCell>
+                        {v.insurance_expiry ? (
+                          <Badge
+                            variant="secondary"
+                            className={
+                              isExpired(v.insurance_expiry)
+                                ? 'bg-destructive/10 text-destructive'
+                                : isExpiringSoon(v.insurance_expiry)
+                                ? 'bg-warning/10 text-warning'
+                                : 'bg-success/10 text-success'
+                            }
+                          >
+                            {formatDate(v.insurance_expiry)}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">--</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {v.road_worthiness_expiry ? (
+                          <Badge
+                            variant="secondary"
+                            className={
+                              isExpired(v.road_worthiness_expiry)
+                                ? 'bg-destructive/10 text-destructive'
+                                : isExpiringSoon(v.road_worthiness_expiry)
+                                ? 'bg-warning/10 text-warning'
+                                : 'bg-success/10 text-success'
+                            }
+                          >
+                            {formatDate(v.road_worthiness_expiry)}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">--</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={
+                            v.status === 'active'
+                              ? `bg-success/10 text-success${canManageVehicles ? ' cursor-pointer' : ''}`
+                              : `bg-muted text-muted-foreground${canManageVehicles ? ' cursor-pointer' : ''}`
+                          }
+                          onClick={canManageVehicles ? () => toggleStatus(v) : undefined}
+                        >
+                          {v.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" title="Fuel history" onClick={() => setViewingFuelHistory(v)}>
+                            <History className="h-4 w-4" />
                           </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          <Button size="sm" variant="ghost" title="Maintenance schedule" onClick={() => setViewingMaintenance(v)}>
+                            <Wrench className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" title="Run inspection" onClick={() => setInspectingVehicle(v)}>
+                            <ClipboardCheck className="h-4 w-4" />
+                          </Button>
+                          {canManageVehicles && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                title={isOutOfService(v) ? 'Return to service' : 'Mark out of service'}
+                                onClick={() => { setSettingOutOfService(v); setOutOfServiceDate(v.out_of_service_until || ''); }}
+                              >
+                                <CalendarOff className={`h-4 w-4 ${isOutOfService(v) ? 'text-destructive' : ''}`} />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => openEdit(v)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                          {canDeleteVehicle && (
+                            <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(v)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              </div>
+            </div>
+            <div className="md:hidden space-y-2 p-3">
+              {vehicles.length === 0 && (
+                <p className="text-center text-muted-foreground text-sm py-8">
+                  No vehicles registered yet. Add your first vehicle to start tracking.
+                </p>
+              )}
+              {vehicles.map((v) => (
+                <MobileCard
+                  key={v.id}
+                  accentClassName={isOutOfService(v) ? 'bg-destructive' : v.status === 'active' ? 'bg-success' : 'bg-muted-foreground'}
+                >
+                  <MobileCardHeader>
+                    <MobileCardTitle>
+                      {v.name}
+                      {isOutOfService(v) && (
+                        <Badge variant="secondary" className="bg-destructive/10 text-destructive border border-destructive/20 text-xs ml-2">
+                          <Ban className="h-3 w-3 mr-1" /> OOS
+                        </Badge>
+                      )}
+                    </MobileCardTitle>
+                    <MobileCardMeta className="font-mono text-xs">{v.plate_number}</MobileCardMeta>
+                  </MobileCardHeader>
+                  {v.make_model && (
+                    <MobileCardRow label="Model">
+                      {v.make_model}{v.year ? ` (${v.year})` : ''}
+                    </MobileCardRow>
+                  )}
+                  <MobileCardRow label="Assigned">{employeeName(v.assigned_driver_id)}</MobileCardRow>
+                  <MobileCardRow label="Weekly Budget">
+                    <span className="currency">{formatNaira(v.weekly_budget_ngn)}</span>
+                  </MobileCardRow>
+                  <MobileCardRow label="Status">
+                    <Badge
+                      variant="secondary"
+                      className={
+                        v.status === 'active'
+                          ? 'bg-success/10 text-success'
+                          : 'bg-muted text-muted-foreground'
+                      }
+                    >
+                      {v.status}
+                    </Badge>
+                  </MobileCardRow>
+                  <MobileCardFooter>
+                    <div className="flex gap-1 flex-wrap">
+                      <Button size="sm" variant="ghost" title="Fuel history" onClick={() => setViewingFuelHistory(v)}>
+                        <History className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" title="Maintenance" onClick={() => setViewingMaintenance(v)}>
+                        <Wrench className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" title="Inspect" onClick={() => setInspectingVehicle(v)}>
+                        <ClipboardCheck className="h-4 w-4" />
+                      </Button>
+                      {canManageVehicles && (
+                        <Button size="sm" variant="ghost" onClick={() => openEdit(v)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canDeleteVehicle && (
+                        <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(v)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  </MobileCardFooter>
+                </MobileCard>
+              ))}
             </div>
           </CardContent>
         </Card>

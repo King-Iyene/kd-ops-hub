@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { supabase } from '@/lib/supabase';
 import { useCompanySettings } from '@/queries';
 import {
@@ -378,7 +379,7 @@ export default function ScenarioPlannerTab() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -423,6 +424,44 @@ export default function ScenarioPlannerTab() {
                 </TableRow>
               </TableBody>
             </Table>
+            </div>
+            <div className="md:hidden space-y-2">
+              {adjustments.map(adj => {
+                const typeDef = ADJUSTMENT_TYPES.find(t => t.value === adj.type);
+                const signed = adj.monthlyImpact * (typeDef?.sign ?? -1);
+                return (
+                  <MobileCard key={adj.id}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>{adj.label || 'Untitled'}</MobileCardTitle>
+                      <MobileCardMeta className={cn(signed < 0 ? 'text-destructive' : 'text-success')}>
+                        {signed >= 0 ? '+' : ''}{formatNairaCompact(signed)}/mo
+                      </MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Type">
+                      <Badge variant="secondary" className="text-3xs">{typeDef?.label}</Badge>
+                    </MobileCardRow>
+                    <MobileCardRow label="Annual">
+                      <span className={cn(signed < 0 ? 'text-destructive' : 'text-success')}>
+                        {signed >= 0 ? '+' : ''}{formatNairaCompact(signed * 12)}
+                      </span>
+                    </MobileCardRow>
+                    <MobileCardRow label="Timing">
+                      Week {adj.startWeek} → {adj.startWeek + adj.durationWeeks - 1}
+                    </MobileCardRow>
+                  </MobileCard>
+                );
+              })}
+              <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 flex items-center justify-between font-bold text-sm">
+                <span>Total</span>
+                <div className="flex gap-4">
+                  <span className={cn(totalMonthlyImpact < 0 ? 'text-destructive' : 'text-success')}>
+                    {totalMonthlyImpact >= 0 ? '+' : ''}{formatNairaCompact(totalMonthlyImpact)}/mo
+                  </span>
+                  <span className={cn(totalMonthlyImpact < 0 ? 'text-destructive' : 'text-success')}>
+                    {totalMonthlyImpact >= 0 ? '+' : ''}{formatNairaCompact(totalMonthlyImpact * 12)}/yr
+                  </span>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

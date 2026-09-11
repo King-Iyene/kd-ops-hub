@@ -24,6 +24,14 @@ import {
 } from '@/components/ui/dialog';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Pencil, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 
 interface Vehicle {
   id: string;
@@ -224,7 +232,7 @@ export function ComplianceDashboard({ vehicles, onUpdated }: Props) {
         </Card>
       </div>
 
-      <div className="overflow-x-auto rounded-md border">
+      <div className="hidden md:block overflow-x-auto rounded-md border">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
             <TableRow>
@@ -277,6 +285,35 @@ export function ComplianceDashboard({ vehicles, onUpdated }: Props) {
             ))}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="md:hidden space-y-2 p-3">
+        {sorted.map(({ vehicle, status }) => (
+          <MobileCard
+            key={vehicle.id}
+            accentClassName={
+              status === 'blocked' ? 'bg-destructive' : status === 'warning' ? 'bg-warning' : 'bg-success'
+            }
+          >
+            <MobileCardHeader>
+              <MobileCardTitle>{vehicle.name}</MobileCardTitle>
+              <MobileCardMeta>{statusBadge(status)}</MobileCardMeta>
+            </MobileCardHeader>
+            <MobileCardRow label="Plate">{vehicle.plate_number}</MobileCardRow>
+            <MobileCardRow label="Insurance">{dateBadge(vehicle.insurance_expiry)}</MobileCardRow>
+            <MobileCardRow label="Road Worthiness">{dateBadge(vehicle.road_worthiness_expiry)}</MobileCardRow>
+            <MobileCardRow label="Hackney Permit">{dateBadge(vehicle.hackney_permit_expiry)}</MobileCardRow>
+            <MobileCardRow label="Vehicle License">{dateBadge(vehicle.vehicle_license_expiry)}</MobileCardRow>
+            <MobileCardRow label="Next Service">{dateBadge(vehicle.next_service_date)}</MobileCardRow>
+            {isAdmin && (
+              <MobileCardFooter>
+                <Button size="sm" variant="ghost" onClick={() => openEdit(vehicle)}>
+                  <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                </Button>
+              </MobileCardFooter>
+            )}
+          </MobileCard>
+        ))}
       </div>
 
       <Dialog open={!!editVehicle} onOpenChange={(v) => { if (!v) setEditVehicle(null); }}>

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -104,7 +105,7 @@ export default function AutopilotTab() {
             <p className="text-sm text-muted-foreground text-center py-8">No overdue filings — nothing to model.</p>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -136,6 +137,29 @@ export default function AutopilotTab() {
                   </TableBody>
                 </Table>
               </div>
+              <div className="md:hidden space-y-2">
+                {kindsPresent.map((kind) => (
+                  <MobileCard key={kind}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>{COMPLIANCE_KIND_LABEL[kind] ?? kind.toUpperCase()}</MobileCardTitle>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Flat filing penalty (₦)">
+                      <Input
+                        type="number" min={0} className="h-8 w-full text-right"
+                        value={rules[kind]?.flat_filing_penalty_ngn ?? 0}
+                        onChange={(e) => updateRule(kind, 'flat_filing_penalty_ngn', e.target.value)}
+                      />
+                    </MobileCardRow>
+                    <MobileCardRow label="% of amount / month">
+                      <Input
+                        type="number" min={0} step={0.1} className="h-8 w-full text-right"
+                        value={rules[kind]?.pct_per_month ?? 0}
+                        onChange={(e) => updateRule(kind, 'pct_per_month', e.target.value)}
+                      />
+                    </MobileCardRow>
+                  </MobileCard>
+                ))}
+              </div>
               <Button size="sm" onClick={saveRules}><Save className="h-4 w-4 mr-1.5" /> Save assumptions & recalculate</Button>
 
               <div className="rounded-lg border bg-muted/30 p-4">
@@ -144,7 +168,7 @@ export default function AutopilotTab() {
                 </p>
               </div>
 
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -174,6 +198,27 @@ export default function AutopilotTab() {
                   </TableBody>
                 </Table>
               </div>
+              <div className="md:hidden space-y-2">
+                {exposure.map((r) => (
+                  <MobileCard key={r.id}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>{COMPLIANCE_KIND_LABEL[r.kind] ?? r.kind.toUpperCase()}</MobileCardTitle>
+                      <MobileCardMeta>
+                        {!r.rule_configured ? (
+                          <span className="text-muted-foreground text-xs">Not configured</span>
+                        ) : (
+                          <span className="currency">{formatNaira(r.estimated_penalty_ngn)}</span>
+                        )}
+                      </MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Period">{r.period}</MobileCardRow>
+                    <MobileCardRow label="Days overdue">{r.days_overdue}</MobileCardRow>
+                    <MobileCardRow label="Amount owed">
+                      <span className="currency">{r.amount_ngn == null ? '—' : formatNaira(r.amount_ngn)}</span>
+                    </MobileCardRow>
+                  </MobileCard>
+                ))}
+              </div>
             </>
           )}
         </CardContent>
@@ -193,7 +238,7 @@ export default function AutopilotTab() {
           {schedule.length === 0 && !loading ? (
             <p className="text-sm text-muted-foreground text-center py-10">No pending payment batches to schedule.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -218,6 +263,23 @@ export default function AutopilotTab() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            <div className="md:hidden space-y-2">
+              {schedule.map((s) => (
+                <MobileCard key={s.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{s.label}</MobileCardTitle>
+                    <MobileCardMeta><span className="currency">{formatNaira(s.amount_ngn)}</span></MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Scheduled">{formatDate(s.scheduled_date)}</MobileCardRow>
+                  <MobileCardRow label="Signal">
+                    <Badge variant="outline" className={cn('text-3xs capitalize', ACTION_TONE[s.action])}>{s.action}</Badge>
+                  </MobileCardRow>
+                  <MobileCardRow label="Note">
+                    <span className="text-xs text-muted-foreground">{s.note}</span>
+                  </MobileCardRow>
+                </MobileCard>
+              ))}
             </div>
           )}
         </CardContent>

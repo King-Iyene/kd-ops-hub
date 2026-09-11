@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TrendingUp, TrendingDown, Landmark } from 'lucide-react';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { PENSION_EMPLOYER_RATE, NSITF_RATE } from '@/lib/tax';
@@ -446,7 +447,7 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
 
           <Card>
             <CardContent className="pt-6">
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <Table className="min-w-[800px]">
                   <TableHeader>
                     <TableRow>
@@ -491,6 +492,37 @@ export const AnnualSummaryTab = ({ summaryYear, setSummaryYear, availableYears, 
                     </TableRow>
                   </TableBody>
                 </Table>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-2">
+                {annualSummary.byMonth.map((m) => (
+                  <MobileCard
+                    key={m.label}
+                    className={m.status === 'none' && m.burn === 0 ? 'opacity-40' : ''}
+                    accentClassName={m.status === 'paid' ? 'bg-success' : undefined}
+                  >
+                    <MobileCardHeader>
+                      <MobileCardTitle>{m.label}</MobileCardTitle>
+                      <MobileCardMeta>{m.burn > 0 ? formatNaira(m.burn) : '—'}</MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Gross">{m.gross > 0 ? formatNaira(m.gross) : '—'}</MobileCardRow>
+                    <MobileCardRow label="PAYE">{m.paye > 0 ? formatNaira(m.paye) : '—'}</MobileCardRow>
+                    <MobileCardRow label="Pension">{m.pension > 0 ? formatNaira(m.pension) : '—'}</MobileCardRow>
+                    <MobileCardRow label="Contractors">{m.contractors > 0 ? formatNaira(m.contractors) : '—'}</MobileCardRow>
+                    <MobileCardRow label="Headcount">{m.headcount || '—'}</MobileCardRow>
+                    {m.status === 'paid' && (
+                      <MobileCardRow label="Status"><Badge className="bg-success/10 text-success hover:bg-success/10 text-3xs">Paid</Badge></MobileCardRow>
+                    )}
+                    {m.status === 'pending' && (
+                      <MobileCardRow label="Status"><Badge variant="outline" className="text-3xs">Pending</Badge></MobileCardRow>
+                    )}
+                  </MobileCard>
+                ))}
+                <div className="rounded-lg border bg-muted/30 p-3 flex items-center justify-between font-bold text-sm">
+                  <span>Total ({summaryYear})</span>
+                  <span className="tabular-nums">{formatNaira(annualSummary.totals.burn)}</span>
+                </div>
               </div>
             </CardContent>
           </Card>

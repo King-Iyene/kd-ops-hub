@@ -13,6 +13,9 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Task, ProfileRow, TaskTimeEntry } from '@/lib/task-types';
+import {
+  MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow,
+} from '@/components/ui-kit/MobileCard';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -504,101 +507,137 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
                         </div>
                       )}
 
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr className="border-b text-muted-foreground">
-                              <th className="text-left py-2 pr-3 font-medium">
-                                <button
-                                  className="flex items-center gap-1 hover:text-foreground transition-colors"
-                                  onClick={() => setSortDir((d) => d === 'desc' ? 'asc' : 'desc')}
-                                >
-                                  Date
-                                  <ArrowUpDown className="h-3 w-3" />
-                                </button>
-                              </th>
-                              <th className="text-left py-2 pr-3 font-medium">Person</th>
-                              <th className="text-left py-2 pr-3 font-medium">Task</th>
-                              <th className="text-right py-2 pr-3 font-medium">Duration</th>
-                              <th className="text-left py-2 font-medium">Description</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {group.entries.map((entry) => {
-                              const profile = profiles.get(entry.user_id);
-                              const task = taskMap.get(entry.task_id);
-                              const entryDate = new Date(entry.started_at);
-                              const isRunning = entry.ended_at === null;
+                      {/* Desktop table */}
+                      <div className="hidden md:block">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b text-muted-foreground">
+                                <th className="text-left py-2 pr-3 font-medium">
+                                  <button
+                                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                                    onClick={() => setSortDir((d) => d === 'desc' ? 'asc' : 'desc')}
+                                  >
+                                    Date
+                                    <ArrowUpDown className="h-3 w-3" />
+                                  </button>
+                                </th>
+                                <th className="text-left py-2 pr-3 font-medium">Person</th>
+                                <th className="text-left py-2 pr-3 font-medium">Task</th>
+                                <th className="text-right py-2 pr-3 font-medium">Duration</th>
+                                <th className="text-left py-2 font-medium">Description</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {group.entries.map((entry) => {
+                                const profile = profiles.get(entry.user_id);
+                                const task = taskMap.get(entry.task_id);
+                                const entryDate = new Date(entry.started_at);
+                                const isRunning = entry.ended_at === null;
 
-                              return (
-                                <tr key={entry.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                                  <td className="py-2 pr-3 whitespace-nowrap tabular-nums">
-                                    {entryDate.toLocaleDateString('en-US', {
-                                      month: 'short', day: 'numeric',
-                                    })}
-                                    <span className="text-muted-foreground ml-1">
-                                      {entryDate.toLocaleTimeString('en-US', {
-                                        hour: 'numeric', minute: '2-digit', hour12: true,
+                                return (
+                                  <tr key={entry.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                                    <td className="py-2 pr-3 whitespace-nowrap tabular-nums">
+                                      {entryDate.toLocaleDateString('en-US', {
+                                        month: 'short', day: 'numeric',
                                       })}
-                                    </span>
-                                  </td>
-                                  <td className="py-2 pr-3">
-                                    <div className="flex items-center gap-1.5">
-                                      <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 overflow-hidden">
-                                        {profile?.photo_url ? (
-                                          <img src={profile.photo_url} alt={profile?.full_name ?? ''} className="h-full w-full object-cover" />
-                                        ) : (
-                                          <span className="text-[7px] font-bold leading-none">
-                                            {getInitials(profile?.full_name ?? '?')}
-                                          </span>
-                                        )}
+                                      <span className="text-muted-foreground ml-1">
+                                        {entryDate.toLocaleTimeString('en-US', {
+                                          hour: 'numeric', minute: '2-digit', hour12: true,
+                                        })}
+                                      </span>
+                                    </td>
+                                    <td className="py-2 pr-3">
+                                      <div className="flex items-center gap-1.5">
+                                        <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 overflow-hidden">
+                                          {profile?.photo_url ? (
+                                            <img src={profile.photo_url} alt={profile?.full_name ?? ''} className="h-full w-full object-cover" />
+                                          ) : (
+                                            <span className="text-[7px] font-bold leading-none">
+                                              {getInitials(profile?.full_name ?? '?')}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <span className="truncate max-w-[120px]">
+                                          {profile?.full_name ?? 'Unknown'}
+                                        </span>
                                       </div>
-                                      <span className="truncate max-w-[120px]">
-                                        {profile?.full_name ?? 'Unknown'}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="py-2 pr-3">
-                                    {task ? (
-                                      <button
-                                        className="text-left truncate max-w-[200px] hover:text-primary transition-colors hover:underline"
-                                        onClick={() => onTaskClick(task)}
-                                      >
-                                        {task.title}
-                                      </button>
-                                    ) : (
-                                      <span className="text-muted-foreground">Unknown Task</span>
-                                    )}
-                                  </td>
-                                  <td className="py-2 pr-3 text-right tabular-nums whitespace-nowrap">
-                                    {isRunning ? (
-                                      <span className="inline-flex items-center gap-1 text-success">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-                                        Running
-                                      </span>
-                                    ) : (
-                                      formatMinutes(entry.duration_minutes ?? 0)
-                                    )}
-                                  </td>
-                                  <td className="py-2 text-muted-foreground truncate max-w-[200px]">
-                                    {entry.description ?? '-'}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                          <tfoot>
-                            <tr className="border-t-2 font-medium">
-                              <td className="py-2 pr-3" colSpan={3}>
-                                Total
-                              </td>
-                              <td className="py-2 pr-3 text-right tabular-nums">
-                                {formatMinutes(group.entries.reduce((s, e) => s + (e.duration_minutes ?? 0), 0))}
-                              </td>
-                              <td />
-                            </tr>
-                          </tfoot>
-                        </table>
+                                    </td>
+                                    <td className="py-2 pr-3">
+                                      {task ? (
+                                        <button
+                                          className="text-left truncate max-w-[200px] hover:text-primary transition-colors hover:underline"
+                                          onClick={() => onTaskClick(task)}
+                                        >
+                                          {task.title}
+                                        </button>
+                                      ) : (
+                                        <span className="text-muted-foreground">Unknown Task</span>
+                                      )}
+                                    </td>
+                                    <td className="py-2 pr-3 text-right tabular-nums whitespace-nowrap">
+                                      {isRunning ? (
+                                        <span className="inline-flex items-center gap-1 text-success">
+                                          <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+                                          Running
+                                        </span>
+                                      ) : (
+                                        formatMinutes(entry.duration_minutes ?? 0)
+                                      )}
+                                    </td>
+                                    <td className="py-2 text-muted-foreground truncate max-w-[200px]">
+                                      {entry.description ?? '-'}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                            <tfoot>
+                              <tr className="border-t-2 font-medium">
+                                <td className="py-2 pr-3" colSpan={3}>
+                                  Total
+                                </td>
+                                <td className="py-2 pr-3 text-right tabular-nums">
+                                  {formatMinutes(group.entries.reduce((s, e) => s + (e.duration_minutes ?? 0), 0))}
+                                </td>
+                                <td />
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Mobile cards */}
+                      <div className="md:hidden space-y-2">
+                        {group.entries.map((entry) => {
+                          const entryProfile = profiles.get(entry.user_id);
+                          const entryTask = taskMap.get(entry.task_id);
+                          const entryDate = new Date(entry.started_at);
+                          const isRunning = entry.ended_at === null;
+                          return (
+                            <MobileCard key={entry.id} onClick={entryTask ? () => onTaskClick(entryTask) : undefined} chevron={!!entryTask}>
+                              <MobileCardHeader>
+                                <MobileCardTitle>{entryTask?.title ?? 'Unknown Task'}</MobileCardTitle>
+                                <MobileCardMeta>
+                                  {isRunning ? (
+                                    <span className="inline-flex items-center gap-1 text-success text-xs">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+                                      Running
+                                    </span>
+                                  ) : (
+                                    formatMinutes(entry.duration_minutes ?? 0)
+                                  )}
+                                </MobileCardMeta>
+                              </MobileCardHeader>
+                              <MobileCardRow label="Person">{entryProfile?.full_name ?? 'Unknown'}</MobileCardRow>
+                              <MobileCardRow label="Date">
+                                {entryDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{' '}
+                                {entryDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                              </MobileCardRow>
+                              <MobileCardRow label="Description">{entry.description ?? '-'}</MobileCardRow>
+                            </MobileCard>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -671,47 +710,68 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
                   Estimate vs Actual
                 </h3>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b text-muted-foreground">
-                        <th className="text-left py-2 pr-3 font-medium">Task</th>
-                        <th className="text-right py-2 pr-3 font-medium">Estimated</th>
-                        <th className="text-right py-2 pr-3 font-medium">Actual</th>
-                        <th className="text-right py-2 font-medium">Variance</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {estimateComparisons.map((item) => (
-                        <tr key={item.task.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                          <td className="py-2 pr-3">
-                            <button
-                              className="text-left truncate max-w-[250px] hover:text-primary transition-colors hover:underline"
-                              onClick={() => onTaskClick(item.task)}
-                            >
-                              {item.task.title}
-                            </button>
-                          </td>
-                          <td className="py-2 pr-3 text-right tabular-nums">
-                            {formatMinutes(item.estimated)}
-                          </td>
-                          <td className="py-2 pr-3 text-right tabular-nums">
-                            {formatMinutes(item.actual)}
-                          </td>
-                          <td className="py-2 text-right">
-                            <span className={cn(
-                              'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-medium tabular-nums',
-                              varianceBg(item.variancePct),
-                              varianceColor(item.variancePct),
-                            )}>
-                              {item.variance > 0 ? '+' : ''}{formatMinutes(Math.abs(item.variance))}
-                              <span className="opacity-70">({item.variancePct > 0 ? '+' : ''}{item.variancePct}%)</span>
-                            </span>
-                          </td>
+                {/* Desktop table */}
+                <div className="hidden md:block">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b text-muted-foreground">
+                          <th className="text-left py-2 pr-3 font-medium">Task</th>
+                          <th className="text-right py-2 pr-3 font-medium">Estimated</th>
+                          <th className="text-right py-2 pr-3 font-medium">Actual</th>
+                          <th className="text-right py-2 font-medium">Variance</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {estimateComparisons.map((item) => (
+                          <tr key={item.task.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                            <td className="py-2 pr-3">
+                              <button
+                                className="text-left truncate max-w-[250px] hover:text-primary transition-colors hover:underline"
+                                onClick={() => onTaskClick(item.task)}
+                              >
+                                {item.task.title}
+                              </button>
+                            </td>
+                            <td className="py-2 pr-3 text-right tabular-nums">
+                              {formatMinutes(item.estimated)}
+                            </td>
+                            <td className="py-2 pr-3 text-right tabular-nums">
+                              {formatMinutes(item.actual)}
+                            </td>
+                            <td className="py-2 text-right">
+                              <span className={cn(
+                                'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-medium tabular-nums',
+                                varianceBg(item.variancePct),
+                                varianceColor(item.variancePct),
+                              )}>
+                                {item.variance > 0 ? '+' : ''}{formatMinutes(Math.abs(item.variance))}
+                                <span className="opacity-70">({item.variancePct > 0 ? '+' : ''}{item.variancePct}%)</span>
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Mobile cards */}
+                <div className="md:hidden space-y-2">
+                  {estimateComparisons.map((item) => (
+                    <MobileCard key={item.task.id} onClick={() => onTaskClick(item.task)} chevron>
+                      <MobileCardHeader>
+                        <MobileCardTitle>{item.task.title}</MobileCardTitle>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Estimated">{formatMinutes(item.estimated)}</MobileCardRow>
+                      <MobileCardRow label="Actual">{formatMinutes(item.actual)}</MobileCardRow>
+                      <MobileCardRow label="Variance">
+                        <span className={cn(varianceColor(item.variancePct))}>
+                          {item.variance > 0 ? '+' : ''}{formatMinutes(Math.abs(item.variance))} ({item.variancePct > 0 ? '+' : ''}{item.variancePct}%)
+                        </span>
+                      </MobileCardRow>
+                    </MobileCard>
+                  ))}
                 </div>
               </section>
             )}

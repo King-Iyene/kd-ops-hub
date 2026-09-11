@@ -5,6 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Fuel, TrendingUp } from 'lucide-react';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+} from '@/components/ui-kit/MobileCard';
 import { formatNaira } from '@/lib/format';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
 
@@ -203,7 +210,7 @@ export function FuelStationComparison() {
               No station data with 2+ transactions in the last 90 days.
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <TableRow>
@@ -255,6 +262,39 @@ export function FuelStationComparison() {
                   })}
                 </TableBody>
               </Table>
+            </div>
+
+            <div className="md:hidden space-y-2 p-3">
+              {stations.map((s, i) => {
+                const isCheapest = i === 0;
+                const isMostExpensive = i === stations.length - 1 && stations.length > 1;
+                return (
+                  <MobileCard
+                    key={s.name}
+                    accentClassName={isCheapest ? 'bg-success' : isMostExpensive ? 'bg-destructive' : undefined}
+                  >
+                    <MobileCardHeader>
+                      <MobileCardTitle>
+                        {s.name}
+                        {isCheapest && (
+                          <Badge className="text-3xs bg-success hover:bg-success/90 text-white ml-1.5">Cheapest</Badge>
+                        )}
+                        {isMostExpensive && (
+                          <Badge className="text-3xs bg-destructive hover:bg-destructive/90 text-white ml-1.5">Most Expensive</Badge>
+                        )}
+                      </MobileCardTitle>
+                      <MobileCardMeta>
+                        <span className="tabular-nums">{formatNaira(Math.round(s.avgPricePerLitre * 100) / 100)}/L</span>
+                      </MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Total Litres"><span className="tabular-nums">{s.totalLitres.toLocaleString()}</span></MobileCardRow>
+                    <MobileCardRow label="Transactions"><span className="tabular-nums">{s.transactions}</span></MobileCardRow>
+                    <MobileCardRow label="Savings vs Max">
+                      <span className="tabular-nums">{s.savingsVsMax > 0 ? formatNaira(Math.round(s.savingsVsMax)) : '—'}</span>
+                    </MobileCardRow>
+                  </MobileCard>
+                );
+              })}
             </div>
           )}
         </CardContent>

@@ -57,6 +57,14 @@ import { useToast } from '@/hooks/use-toast';
 import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 
 interface Props {
   vehicles: Array<{
@@ -649,81 +657,139 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
                 }
               />
             ) : (
-              <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
-                  <TableRow>
-                    <TableHead>Vehicle</TableHead>
-                    <TableHead>Service Type</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead className="text-right">Due Mileage</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Cost</TableHead>
-                    <TableHead>Vendor</TableHead>
-                    <TableHead>Last Done</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredItems.map((item) => {
-                    const cfg = STATUS_CONFIG[item.effectiveStatus];
-                    return (
-                      <TableRow key={item.id} className="hover:bg-muted/40 kd-transition">
-                        <TableCell>
-                          <div>
-                            <p className="font-medium text-sm">
-                              {item.vehicle?.name ?? 'Unknown'}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {item.vehicle?.plate_number ?? '---'}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm">{item.service_type}</TableCell>
-                        <TableCell className="text-sm">
-                          {item.due_date ? formatDate(item.due_date) : '---'}
-                        </TableCell>
-                        <TableCell className="text-sm text-right">
-                          {item.due_mileage_km != null
-                            ? `${item.due_mileage_km.toLocaleString()} km`
-                            : '---'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={cfg.className}>{cfg.label}</Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-right currency">
-                          {item.cost_ngn != null ? formatNaira(Number(item.cost_ngn)) : '---'}
-                        </TableCell>
-                        <TableCell className="text-sm">{item.vendor ?? '---'}</TableCell>
-                        <TableCell className="text-sm">
-                          {item.last_done_date ? formatDate(item.last_done_date) : '---'}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {item.effectiveStatus !== 'done' && (
+              <div className="hidden md:block">
+                <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+                    <TableRow>
+                      <TableHead>Vehicle</TableHead>
+                      <TableHead>Service Type</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead className="text-right">Due Mileage</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Cost</TableHead>
+                      <TableHead>Vendor</TableHead>
+                      <TableHead>Last Done</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredItems.map((item) => {
+                      const cfg = STATUS_CONFIG[item.effectiveStatus];
+                      return (
+                        <TableRow key={item.id} className="hover:bg-muted/40 kd-transition">
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-sm">
+                                {item.vehicle?.name ?? 'Unknown'}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {item.vehicle?.plate_number ?? '---'}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">{item.service_type}</TableCell>
+                          <TableCell className="text-sm">
+                            {item.due_date ? formatDate(item.due_date) : '---'}
+                          </TableCell>
+                          <TableCell className="text-sm text-right">
+                            {item.due_mileage_km != null
+                              ? `${item.due_mileage_km.toLocaleString()} km`
+                              : '---'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={cfg.className}>{cfg.label}</Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-right currency">
+                            {item.cost_ngn != null ? formatNaira(Number(item.cost_ngn)) : '---'}
+                          </TableCell>
+                          <TableCell className="text-sm">{item.vendor ?? '---'}</TableCell>
+                          <TableCell className="text-sm">
+                            {item.last_done_date ? formatDate(item.last_done_date) : '---'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {item.effectiveStatus !== 'done' && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openMarkDone(item)}
+                                >
+                                  Mark Done
+                                </Button>
+                              )}
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
-                                onClick={() => openMarkDone(item)}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => setConfirmDeleteId(item.id)}
                               >
-                                Mark Done
+                                <Trash2 className="h-4 w-4" />
                               </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => setConfirmDeleteId(item.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                </div>
+              </div>
+              <div className="md:hidden space-y-2 p-3">
+                {filteredItems.map((item) => {
+                  const cfg = STATUS_CONFIG[item.effectiveStatus];
+                  return (
+                    <MobileCard key={item.id}>
+                      <MobileCardHeader>
+                        <MobileCardTitle>
+                          {item.vehicle?.name ?? 'Unknown'}
+                          <span className="text-muted-foreground font-normal ml-1 text-xs">
+                            {item.vehicle?.plate_number ?? ''}
+                          </span>
+                        </MobileCardTitle>
+                        <MobileCardMeta>
+                          <Badge className={cfg.className}>{cfg.label}</Badge>
+                        </MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Service">{item.service_type}</MobileCardRow>
+                      <MobileCardRow label="Due Date">
+                        {item.due_date ? formatDate(item.due_date) : '---'}
+                      </MobileCardRow>
+                      {item.due_mileage_km != null && (
+                        <MobileCardRow label="Due Mileage">
+                          {item.due_mileage_km.toLocaleString()} km
+                        </MobileCardRow>
+                      )}
+                      {item.cost_ngn != null && (
+                        <MobileCardRow label="Cost">
+                          <span className="currency">{formatNaira(Number(item.cost_ngn))}</span>
+                        </MobileCardRow>
+                      )}
+                      {item.vendor && (
+                        <MobileCardRow label="Vendor">{item.vendor}</MobileCardRow>
+                      )}
+                      <MobileCardFooter>
+                        {item.effectiveStatus !== 'done' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openMarkDone(item)}
+                          >
+                            Mark Done
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setConfirmDeleteId(item.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </MobileCardFooter>
+                    </MobileCard>
+                  );
+                })}
               </div>
             )}
           </div>

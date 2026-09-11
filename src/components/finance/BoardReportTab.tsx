@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { fetchBoardReportData, type BoardReportData, type HighlightTone } from '@/lib/board-report';
 import { fmtCompact } from '@/lib/chart-theme';
 import { errorMessage } from '@/lib/db-errors';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 
 const TONE_ICON: Record<HighlightTone, typeof CheckCircle2> = {
   positive: CheckCircle2,
@@ -156,7 +157,7 @@ export default function BoardReportTab() {
             {report.departments.length > 0 && (
               <section>
                 <SectionHeading>Cost Structure by Department</SectionHeading>
-                <div className="overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -193,6 +194,21 @@ export default function BoardReportTab() {
                     </TableBody>
                   </Table>
                 </div>
+                <div className="md:hidden space-y-2">
+                  {report.departments.map((d) => {
+                    const pct = totalCtc > 0 ? (d.total_ctc_ngn / totalCtc) * 100 : 0;
+                    return (
+                      <MobileCard key={d.department_id ?? 'none'}>
+                        <MobileCardHeader>
+                          <MobileCardTitle>{d.department_name}</MobileCardTitle>
+                          <MobileCardMeta>{formatNaira(d.total_ctc_ngn)}</MobileCardMeta>
+                        </MobileCardHeader>
+                        <MobileCardRow label="Headcount" value={String(d.headcount)} />
+                        <MobileCardRow label="Share" value={`${pct.toFixed(0)}%`} />
+                      </MobileCard>
+                    );
+                  })}
+                </div>
                 <p className="text-2xs text-muted-foreground mt-2">
                   Total cost-to-company: {formatNaira(totalCtc)} (gross + employer pension 10% + NSITF 1%)
                 </p>
@@ -203,7 +219,7 @@ export default function BoardReportTab() {
             {recentTrend.length > 0 && (
               <section>
                 <SectionHeading>Payroll Trend — Last {recentTrend.length} Runs</SectionHeading>
-                <div className="overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -234,6 +250,32 @@ export default function BoardReportTab() {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+                <div className="md:hidden space-y-2">
+                  {recentTrend.map((t) => (
+                    <MobileCard key={t.period}>
+                      <MobileCardHeader>
+                        <MobileCardTitle>{t.period}</MobileCardTitle>
+                        <MobileCardMeta>{formatNaira(t.total_burn_ngn)}</MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow
+                        label="Change"
+                        value={
+                          t.delta_pct == null ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <span className={cn(
+                              'inline-flex items-center gap-1 text-xs font-medium',
+                              t.delta_pct > 0 ? 'text-destructive' : t.delta_pct < 0 ? 'text-success' : 'text-muted-foreground',
+                            )}>
+                              {t.delta_pct > 0 ? <TrendingUp className="h-3 w-3" /> : t.delta_pct < 0 ? <TrendingDown className="h-3 w-3" /> : null}
+                              <span className="tabular-nums">{t.delta_pct >= 0 ? '+' : ''}{t.delta_pct.toFixed(1)}%</span>
+                            </span>
+                          )
+                        }
+                      />
+                    </MobileCard>
+                  ))}
                 </div>
               </section>
             )}
@@ -287,7 +329,7 @@ export default function BoardReportTab() {
               </div>
 
               {report.compBands.length > 0 && (
-                <div className="overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                   <p className="text-xs text-muted-foreground mb-2">Compensation bands by department</p>
                   <Table>
                     <TableHeader>
@@ -328,6 +370,19 @@ export default function BoardReportTab() {
                       })}
                     </TableBody>
                   </Table>
+                </div>
+                <div className="md:hidden space-y-2">
+                  <p className="text-xs text-muted-foreground mb-2">Compensation bands by department</p>
+                  {report.compBands.map((b) => (
+                    <MobileCard key={b.department_id ?? 'none'}>
+                      <MobileCardHeader>
+                        <MobileCardTitle>{b.department_name}</MobileCardTitle>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Min" value={fmtCompact(b.min_ngn)} />
+                      <MobileCardRow label="Median" value={fmtCompact(b.median_ngn)} />
+                      <MobileCardRow label="Max" value={fmtCompact(b.max_ngn)} />
+                    </MobileCard>
+                  ))}
                 </div>
               )}
             </section>

@@ -13,6 +13,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { errorMessage } from '@/lib/db-errors';
 import { fetchRevenueConcentration, type ConcentrationResult, type ConcentrationBand } from '@/lib/revenue-concentration';
 import { SERIES, fmtCompact } from '@/lib/chart-theme';
@@ -188,7 +189,7 @@ export default function RevenueConcentrationTab() {
               <CardTitle className="text-sm">Client revenue breakdown — last 12 months</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -216,6 +217,17 @@ export default function RevenueConcentrationTab() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
+              <div className="md:hidden space-y-2">
+                {data.clients.slice(0, 15).map((c) => (
+                  <MobileCard key={c.client_id}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>{c.client_name}</MobileCardTitle>
+                      <MobileCardMeta>{formatNaira(c.total_ngn)}</MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Share">{c.share_pct.toFixed(1)}%</MobileCardRow>
+                  </MobileCard>
+                ))}
               </div>
               {data.clients.length > 15 && (
                 <p className="text-xs text-muted-foreground text-center mt-2">

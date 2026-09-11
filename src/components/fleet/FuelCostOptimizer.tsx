@@ -13,6 +13,13 @@ import {
   ArrowDownRight,
   DollarSign,
 } from 'lucide-react';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+} from '@/components/ui-kit/MobileCard';
 
 interface StationStats {
   station: string;
@@ -210,7 +217,7 @@ export function FuelCostOptimizer({ vehicles }: Props) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <tr className="border-b text-xs text-muted-foreground">
@@ -257,6 +264,43 @@ export function FuelCostOptimizer({ vehicles }: Props) {
                   })}
                 </tbody>
               </table>
+            </div>
+
+            <div className="md:hidden space-y-2 p-3">
+              {vehicleCosts.slice(0, 8).map((vc) => {
+                const isGood = vc.cost_per_km != null && avgCostPerKm != null && vc.cost_per_km <= avgCostPerKm;
+                return (
+                  <MobileCard key={vc.vehicle_id}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>
+                        <span className="text-muted-foreground mr-1.5">#{vc.rank}</span>
+                        {vc.name}
+                      </MobileCardTitle>
+                      <MobileCardMeta>
+                        {vc.cost_per_km != null ? (
+                          isGood ? (
+                            <Badge variant="outline" className="text-success border-success/20 text-3xs">
+                              <ArrowDownRight className="h-3 w-3 mr-0.5" /> Efficient
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-destructive border-destructive/20 text-3xs">
+                              <ArrowUpRight className="h-3 w-3 mr-0.5" /> High
+                            </Badge>
+                          )
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Plate">{vc.plate}</MobileCardRow>
+                    <MobileCardRow label="Spend"><span className="tabular-nums">{formatNaira(vc.spend_30d)}</span></MobileCardRow>
+                    <MobileCardRow label="Distance"><span className="tabular-nums">{vc.km_30d > 0 ? `${vc.km_30d.toLocaleString()} km` : '—'}</span></MobileCardRow>
+                    <MobileCardRow label="Cost/km">
+                      <span className="tabular-nums font-medium">{vc.cost_per_km != null ? formatNaira(vc.cost_per_km) : '—'}</span>
+                    </MobileCardRow>
+                  </MobileCard>
+                );
+              })}
             </div>
           </CardContent>
         </Card>

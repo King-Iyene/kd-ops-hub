@@ -20,6 +20,9 @@ import { cn } from '@/lib/utils';
 import { errorMessage } from '@/lib/db-errors';
 import { supabase } from '@/lib/supabase';
 import { Receipt, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import {
+  MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow,
+} from '@/components/ui-kit/MobileCard';
 
 interface MonthlyRow {
   month: string;
@@ -297,96 +300,126 @@ export default function ProfitLossTab() {
           <CardTitle className="text-sm">Profit &amp; Loss Statement</CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-[140px]">Line Item</TableHead>
-                {rows.map(r => (
-                  <TableHead key={r.month} className="text-right min-w-[90px]">{r.month}</TableHead>
-                ))}
-                <TableHead className="text-right min-w-[100px] font-bold">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {/* Revenue */}
-              <TableRow className="font-medium bg-success/[0.06]">
-                <TableCell className="flex items-center gap-1.5">
-                  <ArrowUpRight className="h-3 w-3 text-success" /> Revenue
-                </TableCell>
-                {rows.map(r => (
-                  <TableCell key={r.month} className="text-right">{formatNairaCompact(r.revenue)}</TableCell>
-                ))}
-                <TableCell className="text-right font-bold">{formatNairaCompact(totals.revenue)}</TableCell>
-              </TableRow>
+          {/* Desktop: pivot table */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[140px]">Line Item</TableHead>
+                  {rows.map(r => (
+                    <TableHead key={r.month} className="text-right min-w-[90px]">{r.month}</TableHead>
+                  ))}
+                  <TableHead className="text-right min-w-[100px] font-bold">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* Revenue */}
+                <TableRow className="font-medium bg-success/[0.06]">
+                  <TableCell className="flex items-center gap-1.5">
+                    <ArrowUpRight className="h-3 w-3 text-success" /> Revenue
+                  </TableCell>
+                  {rows.map(r => (
+                    <TableCell key={r.month} className="text-right">{formatNairaCompact(r.revenue)}</TableCell>
+                  ))}
+                  <TableCell className="text-right font-bold">{formatNairaCompact(totals.revenue)}</TableCell>
+                </TableRow>
 
-              {/* Cost lines */}
-              <TableRow>
-                <TableCell className="pl-6 text-muted-foreground">Payroll</TableCell>
-                {rows.map(r => (
-                  <TableCell key={r.month} className="text-right text-sm">{formatNairaCompact(r.payroll)}</TableCell>
-                ))}
-                <TableCell className="text-right font-medium">{formatNairaCompact(totals.payroll)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="pl-6 text-muted-foreground">Subscriptions</TableCell>
-                {rows.map(r => (
-                  <TableCell key={r.month} className="text-right text-sm">{formatNairaCompact(r.subscriptions)}</TableCell>
-                ))}
-                <TableCell className="text-right font-medium">{formatNairaCompact(totals.subscriptions)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="pl-6 text-muted-foreground">Expenses</TableCell>
-                {rows.map(r => (
-                  <TableCell key={r.month} className="text-right text-sm">{formatNairaCompact(r.expenses)}</TableCell>
-                ))}
-                <TableCell className="text-right font-medium">{formatNairaCompact(totals.expenses)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="pl-6 text-muted-foreground">Transfers</TableCell>
-                {rows.map(r => (
-                  <TableCell key={r.month} className="text-right text-sm">{formatNairaCompact(r.transfers)}</TableCell>
-                ))}
-                <TableCell className="text-right font-medium">{formatNairaCompact(totals.transfers)}</TableCell>
-              </TableRow>
+                {/* Cost lines */}
+                <TableRow>
+                  <TableCell className="pl-6 text-muted-foreground">Payroll</TableCell>
+                  {rows.map(r => (
+                    <TableCell key={r.month} className="text-right text-sm">{formatNairaCompact(r.payroll)}</TableCell>
+                  ))}
+                  <TableCell className="text-right font-medium">{formatNairaCompact(totals.payroll)}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="pl-6 text-muted-foreground">Subscriptions</TableCell>
+                  {rows.map(r => (
+                    <TableCell key={r.month} className="text-right text-sm">{formatNairaCompact(r.subscriptions)}</TableCell>
+                  ))}
+                  <TableCell className="text-right font-medium">{formatNairaCompact(totals.subscriptions)}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="pl-6 text-muted-foreground">Expenses</TableCell>
+                  {rows.map(r => (
+                    <TableCell key={r.month} className="text-right text-sm">{formatNairaCompact(r.expenses)}</TableCell>
+                  ))}
+                  <TableCell className="text-right font-medium">{formatNairaCompact(totals.expenses)}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="pl-6 text-muted-foreground">Transfers</TableCell>
+                  {rows.map(r => (
+                    <TableCell key={r.month} className="text-right text-sm">{formatNairaCompact(r.transfers)}</TableCell>
+                  ))}
+                  <TableCell className="text-right font-medium">{formatNairaCompact(totals.transfers)}</TableCell>
+                </TableRow>
 
-              {/* Total costs */}
-              <TableRow className="font-medium border-t-2">
-                <TableCell className="flex items-center gap-1.5">
-                  <ArrowDownRight className="h-3 w-3 text-destructive" /> Total Costs
-                </TableCell>
-                {rows.map(r => (
-                  <TableCell key={r.month} className="text-right text-destructive">{formatNairaCompact(r.totalCost)}</TableCell>
-                ))}
-                <TableCell className="text-right font-bold text-destructive">{formatNairaCompact(totals.totalCost)}</TableCell>
-              </TableRow>
+                {/* Total costs */}
+                <TableRow className="font-medium border-t-2">
+                  <TableCell className="flex items-center gap-1.5">
+                    <ArrowDownRight className="h-3 w-3 text-destructive" /> Total Costs
+                  </TableCell>
+                  {rows.map(r => (
+                    <TableCell key={r.month} className="text-right text-destructive">{formatNairaCompact(r.totalCost)}</TableCell>
+                  ))}
+                  <TableCell className="text-right font-bold text-destructive">{formatNairaCompact(totals.totalCost)}</TableCell>
+                </TableRow>
 
-              {/* Net income */}
-              <TableRow className="font-bold border-t-2 bg-muted/30">
-                <TableCell>Net Income</TableCell>
-                {rows.map(r => (
-                  <TableCell key={r.month} className={cn('text-right', r.netIncome >= 0 ? 'text-success' : 'text-destructive')}>
+                {/* Net income */}
+                <TableRow className="font-bold border-t-2 bg-muted/30">
+                  <TableCell>Net Income</TableCell>
+                  {rows.map(r => (
+                    <TableCell key={r.month} className={cn('text-right', r.netIncome >= 0 ? 'text-success' : 'text-destructive')}>
+                      {formatNairaCompact(r.netIncome)}
+                    </TableCell>
+                  ))}
+                  <TableCell className={cn('text-right', totals.netIncome >= 0 ? 'text-success' : 'text-destructive')}>
+                    {formatNairaCompact(totals.netIncome)}
+                  </TableCell>
+                </TableRow>
+
+                {/* Margin */}
+                <TableRow>
+                  <TableCell className="text-muted-foreground">Margin</TableCell>
+                  {rows.map(r => (
+                    <TableCell key={r.month} className={cn('text-right text-xs', r.margin >= 0 ? 'text-success' : 'text-destructive')}>
+                      {r.margin.toFixed(1)}%
+                    </TableCell>
+                  ))}
+                  <TableCell className={cn('text-right text-xs font-medium', avgMargin >= 0 ? 'text-success' : 'text-destructive')}>
+                    {avgMargin.toFixed(1)}%
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile: one card per month */}
+          <div className="md:hidden space-y-2">
+            {rows.map((r) => (
+              <MobileCard key={r.month}>
+                <MobileCardHeader>
+                  <MobileCardTitle>{r.month}</MobileCardTitle>
+                  <MobileCardMeta className={cn(r.netIncome >= 0 ? 'text-success' : 'text-destructive')}>
                     {formatNairaCompact(r.netIncome)}
-                  </TableCell>
-                ))}
-                <TableCell className={cn('text-right', totals.netIncome >= 0 ? 'text-success' : 'text-destructive')}>
-                  {formatNairaCompact(totals.netIncome)}
-                </TableCell>
-              </TableRow>
-
-              {/* Margin */}
-              <TableRow>
-                <TableCell className="text-muted-foreground">Margin</TableCell>
-                {rows.map(r => (
-                  <TableCell key={r.month} className={cn('text-right text-xs', r.margin >= 0 ? 'text-success' : 'text-destructive')}>
+                  </MobileCardMeta>
+                </MobileCardHeader>
+                <MobileCardRow label="Revenue">{formatNairaCompact(r.revenue)}</MobileCardRow>
+                <MobileCardRow label="Payroll">{formatNairaCompact(r.payroll)}</MobileCardRow>
+                <MobileCardRow label="Subscriptions">{formatNairaCompact(r.subscriptions)}</MobileCardRow>
+                <MobileCardRow label="Expenses">{formatNairaCompact(r.expenses)}</MobileCardRow>
+                <MobileCardRow label="Transfers">{formatNairaCompact(r.transfers)}</MobileCardRow>
+                <MobileCardRow label="Total Costs">
+                  <span className="text-destructive">{formatNairaCompact(r.totalCost)}</span>
+                </MobileCardRow>
+                <MobileCardRow label="Margin">
+                  <span className={cn(r.margin >= 0 ? 'text-success' : 'text-destructive')}>
                     {r.margin.toFixed(1)}%
-                  </TableCell>
-                ))}
-                <TableCell className={cn('text-right text-xs font-medium', avgMargin >= 0 ? 'text-success' : 'text-destructive')}>
-                  {avgMargin.toFixed(1)}%
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+                  </span>
+                </MobileCardRow>
+              </MobileCard>
+            ))}
+          </div>
         </CardContent>
       </Card>
 

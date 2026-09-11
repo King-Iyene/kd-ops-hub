@@ -20,6 +20,9 @@ import { useToast } from '@/hooks/use-toast';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { Loader2, Pencil, TrendingDown, Car, DollarSign, Calendar } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
+import {
+  MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 
 interface VehicleLifecycle {
   id: string;
@@ -259,7 +262,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
         </Card>
       </div>
 
-      <div className="overflow-x-auto rounded-md border">
+      <div className="hidden md:block overflow-x-auto rounded-md border">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
             <TableRow>
@@ -337,6 +340,72 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
             })}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="md:hidden space-y-2 p-3">
+        {vehicles.map((v) => {
+          const dep = computeDepreciation(v);
+          return (
+            <MobileCard key={v.id}>
+              <MobileCardHeader>
+                <MobileCardTitle>{v.name}</MobileCardTitle>
+                <MobileCardMeta>
+                  <Badge variant="outline" className={
+                    v.fuel_type === 'ago' ? 'border-amber-500 text-amber-700' :
+                    v.fuel_type === 'lpg' ? 'border-blue-500 text-blue-700' :
+                    'border-green-500 text-green-700'
+                  }>
+                    {(v.fuel_type || 'pms').toUpperCase()}
+                  </Badge>
+                </MobileCardMeta>
+              </MobileCardHeader>
+              <MobileCardRow label="Plate">
+                {v.plate_number}{v.make_model ? ` · ${v.make_model}` : ''}{v.year ? ` (${v.year})` : ''}
+              </MobileCardRow>
+              <MobileCardRow label="Purchase">
+                <span className="currency">{v.purchase_price_ngn ? formatNaira(v.purchase_price_ngn) : '--'}</span>
+                {v.purchase_date && <span className="text-muted-foreground ml-1 text-xs">{new Date(v.purchase_date).toLocaleDateString('en-NG', { month: 'short', year: 'numeric' })}</span>}
+              </MobileCardRow>
+              <MobileCardRow label="Value">
+                {dep ? (
+                  <span>
+                    <span className="font-medium currency">{formatNaira(dep.currentValue)}</span>
+                    <span className="text-destructive text-xs ml-1 currency">-{formatNairaCompact(dep.totalDep)}</span>
+                  </span>
+                ) : '--'}
+              </MobileCardRow>
+              <MobileCardRow label="Financing">
+                <Badge variant="outline" className="text-xs">
+                  {(v.financing_type || 'owned').replace('_', ' ')}
+                </Badge>
+                {v.financing_type === 'leased' && v.lease_monthly_ngn && (
+                  <span className="text-xs text-muted-foreground ml-1 currency">{formatNaira(v.lease_monthly_ngn)}/mo</span>
+                )}
+              </MobileCardRow>
+              <MobileCardRow label="Insurance">
+                {v.insurance_provider ? (
+                  <span>
+                    {v.insurance_provider}
+                    <span className="text-xs text-muted-foreground ml-1 currency">
+                      {v.insurance_type === 'comprehensive' ? 'Comp' : '3rd Party'}
+                      {v.insurance_premium_ngn ? ` · ${formatNairaCompact(v.insurance_premium_ngn)}` : ''}
+                    </span>
+                  </span>
+                ) : '--'}
+              </MobileCardRow>
+              <MobileCardRow label="Mileage">
+                {v.total_mileage_km != null ? `${Number(v.total_mileage_km).toLocaleString()} km` : '--'}
+              </MobileCardRow>
+              {isAdmin && (
+                <MobileCardFooter>
+                  <Button size="sm" variant="ghost" onClick={() => openEdit(v)}>
+                    <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
+                  </Button>
+                </MobileCardFooter>
+              )}
+            </MobileCard>
+          );
+        })}
       </div>
 
       <Dialog open={!!editVehicle} onOpenChange={(open) => { if (!open) setEditVehicle(null); }}>

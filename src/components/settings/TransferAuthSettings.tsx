@@ -52,6 +52,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
@@ -552,7 +560,7 @@ export default function TransferAuthSettings() {
           ) : limitsError && !migrationMissing ? (
             <p className="text-sm text-destructive">{limitsError}</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <Table className="min-w-[700px]">
                 <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <TableRow>
@@ -577,14 +585,6 @@ export default function TransferAuthSettings() {
                       return fmtAmt(v);
                     };
                     const isSelfRole = role === currentUserRole;
-                    // The "can't edit your own role's caps" guard exists to
-                    // stop a finance/admin user lifting their own ceiling
-                    // without a higher-up signing off. But super_admin sits
-                    // at the top of the role chain — there is no "higher up"
-                    // to sign off, so the guard would lock the cap-editor
-                    // entirely whenever the only person logged in is a
-                    // super_admin (i.e. the founder / org owner). Skip the
-                    // guard for super_admin only.
                     const lockSelf = isSelfRole && role !== 'super_admin';
                     return (
                       <TableRow key={role} className="hover:bg-muted/40 kd-transition">
@@ -645,6 +645,88 @@ export default function TransferAuthSettings() {
                   })}
                 </TableBody>
               </Table>
+            </div>
+
+            {/* Mobile cards for role default caps */}
+            <div className="md:hidden space-y-2">
+              {ROLES.map((role) => {
+                const row = roleRows[role];
+                const d = draft[role] ?? {};
+                const setField = (k: keyof TransferLimit, v: any) =>
+                  setDraft((prev) => ({ ...prev, [role]: { ...(prev[role] ?? {}), [k]: v } }));
+                const valueOf = (
+                  k: 'single_txn_limit_ngn' | 'daily_limit_ngn' | 'monthly_limit_ngn' | 'single_batch_limit_ngn'
+                ): string => {
+                  const v = (d as any)[k] ?? row?.[k];
+                  return fmtAmt(v);
+                };
+                const isSelfRole = role === currentUserRole;
+                const lockSelf = isSelfRole && role !== 'super_admin';
+                return (
+                  <MobileCard key={role}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>{roleLabel[role]}</MobileCardTitle>
+                    </MobileCardHeader>
+                    <div className="space-y-2 px-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Single transfer (₦)</Label>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="no cap (empty)"
+                          value={valueOf('single_txn_limit_ngn')}
+                          onChange={(e) => setField('single_txn_limit_ngn', parseAmt(e.target.value))}
+                          className="text-right tabular-nums font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Daily rolling 24h (₦)</Label>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="no cap (empty)"
+                          value={valueOf('daily_limit_ngn')}
+                          onChange={(e) => setField('daily_limit_ngn', parseAmt(e.target.value))}
+                          className="text-right tabular-nums font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Monthly (₦)</Label>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="no cap (empty)"
+                          value={valueOf('monthly_limit_ngn')}
+                          onChange={(e) => setField('monthly_limit_ngn', parseAmt(e.target.value))}
+                          className="text-right tabular-nums font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Max batch total (₦)</Label>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="no cap (empty)"
+                          value={valueOf('single_batch_limit_ngn')}
+                          onChange={(e) => setField('single_batch_limit_ngn', parseAmt(e.target.value))}
+                          className="text-right tabular-nums font-mono"
+                        />
+                      </div>
+                    </div>
+                    <MobileCardFooter>
+                      <Button
+                        size="sm"
+                        onClick={() => void handleSaveRoleLimit(role)}
+                        disabled={lockSelf}
+                        title={lockSelf ? 'Cannot edit your own role\'s caps — ask a higher-tier admin to update them' : undefined}
+                        className="w-full"
+                      >
+                        <Save className="h-3 w-3 mr-1" /> Save
+                      </Button>
+                    </MobileCardFooter>
+                  </MobileCard>
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -723,7 +805,7 @@ export default function TransferAuthSettings() {
           {userOverrides.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No per-user overrides yet — everyone is on their role default.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <Table className="min-w-[700px]">
                 <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <TableRow>
@@ -775,6 +857,45 @@ export default function TransferAuthSettings() {
                 </TableBody>
               </Table>
             </div>
+
+            {/* Mobile cards for per-user overrides */}
+            <div className="md:hidden space-y-2">
+              {userOverrides.map((o) => {
+                const p = o.user_id ? profilesById.get(o.user_id) : null;
+                const isSelf = o.user_id === currentUserId;
+                return (
+                  <MobileCard key={o.id}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>
+                        {p?.full_name || p?.email || o.user_id}
+                        {p?.role && (
+                          <span className="ml-2 text-xs text-muted-foreground font-normal">({p.role})</span>
+                        )}
+                      </MobileCardTitle>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Single" value={<span className="tabular-nums">{fmtCap(o.single_txn_limit_ngn)}</span>} />
+                    <MobileCardRow label="Daily" value={<span className="tabular-nums">{fmtCap(o.daily_limit_ngn)}</span>} />
+                    <MobileCardRow label="Monthly" value={<span className="tabular-nums">{fmtCap(o.monthly_limit_ngn)}</span>} />
+                    <MobileCardRow label="Max batch" value={<span className="tabular-nums">{fmtCap(o.single_batch_limit_ngn)}</span>} />
+                    <MobileCardRow label="Expires" value={expiryBadge(o.expires_at)} />
+                    <MobileCardRow label="Reason" value={<span className="text-muted-foreground">{o.granted_reason ?? ''}</span>} />
+                    <MobileCardFooter>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => void handleDeleteOverride(o.id)}
+                        disabled={isSelf}
+                        title={isSelf ? 'Cannot remove your own override' : undefined}
+                        className="w-full"
+                      >
+                        <Trash2 className={`h-3 w-3 mr-1 ${isSelf ? 'text-muted-foreground' : 'text-destructive'}`} />
+                        Remove override
+                      </Button>
+                    </MobileCardFooter>
+                  </MobileCard>
+                );
+              })}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -823,7 +944,7 @@ export default function TransferAuthSettings() {
           {pools.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No pools loaded yet.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
@@ -885,6 +1006,62 @@ export default function TransferAuthSettings() {
                 })}
               </TableBody>
             </Table>
+            </div>
+
+            {/* Mobile cards for approver pools */}
+            <div className="md:hidden space-y-2">
+              {pools.map((pool) => {
+                const draftRoles = poolDraft[pool.id] ?? pool.eligible_roles;
+                const dirty = poolDraft[pool.id] !== undefined;
+                const actionLabel = pool.action_type === 'payment_batch' ? 'Payment Batch'
+                  : pool.action_type === 'quick_pay' ? 'Quick Pay'
+                  : 'Expense Payment';
+                return (
+                  <MobileCard key={pool.id}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>{actionLabel}</MobileCardTitle>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Tier" value={<span className="capitalize">{pool.tier}</span>} />
+                    <div className="px-3 pb-2">
+                      <p className="text-xs text-muted-foreground mb-1">Eligible roles</p>
+                      <div className="flex flex-wrap gap-1">
+                        {APPROVAL_ROLE_OPTIONS.map((role) => {
+                          const on = draftRoles.includes(role);
+                          return (
+                            <button
+                              key={role}
+                              type="button"
+                              onClick={() => togglePoolRole(pool.id, role, !on)}
+                              className={`text-xs px-2 py-0.5 rounded-full border kd-transition ${
+                                on
+                                  ? 'border-primary/50 bg-primary/10 text-primary'
+                                  : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted'
+                              }`}
+                            >
+                              {role.replace(/_/g, ' ')}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <MobileCardFooter>
+                      <Button
+                        size="sm"
+                        disabled={!dirty || poolSaving === pool.id}
+                        onClick={() => void handleSavePool(pool.id)}
+                        className="w-full"
+                      >
+                        {poolSaving === pool.id ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Save className="h-3 w-3 mr-1" />
+                        )}
+                        Save
+                      </Button>
+                    </MobileCardFooter>
+                  </MobileCard>
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -968,7 +1145,7 @@ export default function TransferAuthSettings() {
             <p className="text-xs text-muted-foreground italic">No transfer activity yet.</p>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                     <TableRow>
@@ -1011,6 +1188,42 @@ export default function TransferAuthSettings() {
                     })}
                   </TableBody>
                 </Table>
+              </div>
+
+              {/* Mobile cards for transfer audit */}
+              <div className="md:hidden space-y-2">
+                {auditRows.map((row) => {
+                  const p = row.actor_id ? profilesById.get(row.actor_id) : null;
+                  return (
+                    <MobileCard key={row.id}>
+                      <MobileCardHeader>
+                        <MobileCardTitle className="font-mono text-xs">{row.action}</MobileCardTitle>
+                        <MobileCardMeta>{outcomeBadge(row.outcome)}</MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow label="When" value={new Date(row.created_at).toLocaleString()} />
+                      <MobileCardRow
+                        label="Actor"
+                        value={
+                          <>
+                            {p?.full_name || p?.email || row.actor_id?.slice(0, 8) || '—'}
+                            {row.actor_role && (
+                              <span className="ml-1 text-muted-foreground">({row.actor_role})</span>
+                            )}
+                          </>
+                        }
+                      />
+                      <MobileCardRow
+                        label="Amount"
+                        value={<span className="tabular-nums">{row.amount_ngn ? formatNaira(row.amount_ngn) : '—'}</span>}
+                      />
+                      <MobileCardRow
+                        label="IP hash"
+                        value={<span className="font-mono text-muted-foreground">{row.ip_hash ? row.ip_hash.slice(-6) : '—'}</span>}
+                      />
+                      <MobileCardRow label="Reason" value={row.reason || row.reference || '—'} />
+                    </MobileCard>
+                  );
+                })}
               </div>
 
               <div className="flex items-center justify-between pt-1">

@@ -57,6 +57,14 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 
 const INCIDENT_TYPES = [
   { value: 'accident', label: 'Road Accident' },
@@ -675,7 +683,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
         </Card>
       ) : (
         <Card>
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
@@ -740,6 +748,52 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
                 })}
               </TableBody>
             </Table>
+          </div>
+
+          <div className="md:hidden space-y-2 p-3">
+            {filtered.map((inc) => {
+              const vehicle = vehicleMap.get(inc.vehicle_id);
+              const driver = staffMap.get(inc.driver_id);
+              return (
+                <MobileCard
+                  key={inc.id}
+                  chevron
+                  onClick={() => openDetail(inc)}
+                  accentClassName={
+                    inc.severity === 'critical' ? 'bg-destructive'
+                    : inc.severity === 'major' ? 'bg-warning'
+                    : 'bg-muted-foreground/30'
+                  }
+                >
+                  <MobileCardHeader>
+                    <MobileCardTitle>{incidentTypeLabel(inc.incident_type)}</MobileCardTitle>
+                    <MobileCardMeta>{severityBadge(inc.severity)}</MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Date">{formatDate(inc.incident_date)}</MobileCardRow>
+                  <MobileCardRow label="Vehicle">{vehicle?.name ?? 'Unknown'}</MobileCardRow>
+                  <MobileCardRow label="Driver">{driver?.full_name ?? 'Unknown'}</MobileCardRow>
+                  <MobileCardRow label="Status">{resolutionBadge(inc.resolution_status)}</MobileCardRow>
+                  <MobileCardRow label="Insurance">{insuranceBadge(inc.insurance_claim_status)}</MobileCardRow>
+                  {inc.estimated_repair_cost_ngn != null && (
+                    <MobileCardRow label="Est. Cost">
+                      <span className="currency">{formatNaira(inc.estimated_repair_cost_ngn)}</span>
+                    </MobileCardRow>
+                  )}
+                  {isAdmin && (
+                    <MobileCardFooter>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(inc.id); }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" /> Delete
+                      </Button>
+                    </MobileCardFooter>
+                  )}
+                </MobileCard>
+              );
+            })}
           </div>
         </Card>
       )}

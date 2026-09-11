@@ -10,6 +10,9 @@ import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme, fmtNaira
 import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { Fuel, TrendingUp, Gauge, Zap, AlertTriangle, BarChart2 } from 'lucide-react';
 import type { VehicleSummary, FieldStaff } from '@/lib/fleet-utils';
+import {
+  MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow,
+} from '@/components/ui-kit/MobileCard';
 
 interface VehicleStat {
   vehicle_id: string;
@@ -292,7 +295,7 @@ function FleetAnalyticsDashboard({
           {analyticsLoading ? (
             <TableSkeleton />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
@@ -359,6 +362,57 @@ function FleetAnalyticsDashboard({
                 })}
               </TableBody>
             </Table>
+            </div>
+
+            <div className="md:hidden space-y-2 p-3">
+              {vehicleStats.length === 0 ? (
+                <p className="text-center text-muted-foreground text-sm py-8">No vehicle activity recorded for this period.</p>
+              ) : (
+                vehicleStats.map((s) => {
+                  const highCost = s.cost_per_km != null && s.cost_per_km > 50;
+                  return (
+                    <MobileCard
+                      key={s.vehicle_id}
+                      onClick={onNavigateToVehicles}
+                      chevron
+                      className={highCost ? 'border-warning/30 bg-warning/5' : undefined}
+                    >
+                      <MobileCardHeader>
+                        <MobileCardTitle>{s.name}</MobileCardTitle>
+                        <MobileCardMeta>
+                          <span className="font-mono text-muted-foreground">{s.plate_number}</span>
+                        </MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Employee">{s.assigned_employee ?? <span className="text-muted-foreground">--</span>}</MobileCardRow>
+                      <MobileCardRow label="Month Spend">
+                        <span className="currency">{s.month_spend > 0 ? formatNaira(s.month_spend) : '--'}</span>
+                      </MobileCardRow>
+                      <MobileCardRow label="Distance">
+                        {s.month_km != null ? `${s.month_km.toLocaleString()} km` : '--'}
+                      </MobileCardRow>
+                      <MobileCardRow label="Cost / km">
+                        {s.cost_per_km != null ? (
+                          <span className={highCost ? 'text-warning font-semibold currency' : 'currency'}>
+                            {formatNaira(s.cost_per_km)}/km
+                            {highCost && <AlertTriangle className="inline h-3 w-3 ml-1 -mt-0.5" />}
+                          </span>
+                        ) : '--'}
+                      </MobileCardRow>
+                      <MobileCardRow label="Budget (week)">
+                        {s.budget_used_pct != null ? (
+                          <span className={
+                            s.budget_used_pct > 90 ? 'text-destructive font-semibold' :
+                            s.budget_used_pct > 70 ? 'text-warning' :
+                            'text-success'
+                          }>
+                            {Math.round(s.budget_used_pct)}%
+                          </span>
+                        ) : '--'}
+                      </MobileCardRow>
+                    </MobileCard>
+                  );
+                })
+              )}
             </div>
           )}
         </CardContent>

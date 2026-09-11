@@ -17,6 +17,9 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { UserCheck, AlertTriangle, CheckCircle, XCircle, ShieldCheck, Pencil, Loader2, Car } from 'lucide-react';
+import {
+  MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { useToast } from '@/hooks/use-toast';
 
 interface DriverProfile {
@@ -306,7 +309,7 @@ export function DriverVerificationPanel() {
         )}
 
         {!isSelfService && (
-          <div className="overflow-x-auto rounded-md border">
+          <div className="hidden md:block overflow-x-auto rounded-md border">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
@@ -384,6 +387,69 @@ export function DriverVerificationPanel() {
                 )}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-2 p-3">
+            {visibleDrivers.length === 0 ? (
+              <p className="text-center text-muted-foreground py-6 text-sm">
+                No drivers found. Assign employees to vehicles in the Vehicles tab and they'll appear here automatically.
+              </p>
+            ) : (
+              visibleDrivers.map((driver) => {
+                const overall = getOverallStatus(driver);
+                const hasNin = !!driver.nin || !!driver.nin_last4;
+                const licenseDisplay = driver.driver_license_number
+                  ? `****${driver.driver_license_number.slice(-4)}`
+                  : 'Not on file';
+                const expiryDays = driver.driver_license_expiry ? daysUntil(driver.driver_license_expiry) : null;
+
+                return (
+                  <MobileCard key={driver.id}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>{driver.full_name}</MobileCardTitle>
+                      <MobileCardMeta><OverallBadge status={overall} /></MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Vehicle">
+                      {driver.assigned_vehicle ? (
+                        <span className="flex items-center gap-1.5">
+                          <Car className="h-3.5 w-3.5 text-primary shrink-0" />
+                          {driver.assigned_vehicle}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Unassigned</span>
+                      )}
+                    </MobileCardRow>
+                    <MobileCardRow label="Phone">{driver.phone || '-'}</MobileCardRow>
+                    <MobileCardRow label="NIN">
+                      {hasNin ? (
+                        <Badge variant="outline" className="border-success/20 bg-success/10 text-success">Verified</Badge>
+                      ) : (
+                        <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">Missing</Badge>
+                      )}
+                    </MobileCardRow>
+                    <MobileCardRow label="License">{licenseDisplay}</MobileCardRow>
+                    <MobileCardRow label="Expiry">
+                      {driver.driver_license_expiry ? (
+                        <span className="flex items-center gap-2">
+                          {new Date(driver.driver_license_expiry).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          <ExpiryBadge days={expiryDays!} />
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Not on file</span>
+                      )}
+                    </MobileCardRow>
+                    {isAdmin && (
+                      <MobileCardFooter>
+                        <Button size="sm" variant="ghost" onClick={() => openEditDialog(driver)}>
+                          <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
+                        </Button>
+                      </MobileCardFooter>
+                    )}
+                  </MobileCard>
+                );
+              })
+            )}
           </div>
         )}
 

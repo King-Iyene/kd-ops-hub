@@ -14,6 +14,14 @@ import {
 } from '@/components/ui/table';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { AlertTriangle, Plus, Wrench, Upload, Receipt } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -218,51 +226,84 @@ export function MyRequestsTab({
           <CardTitle className="text-base">My Fuel Requests</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
-                <TableRow>
-                  <TableHead>Station</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-right">Litres</TableHead>
-                  <TableHead>Purpose</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {myFuelRequests.length === 0 && (
+          <div className="hidden md:block">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground text-sm py-8">
-                      You have no fuel requests yet.
-                    </TableCell>
+                    <TableHead>Station</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Litres</TableHead>
+                    <TableHead>Purpose</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead />
                   </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {myFuelRequests.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground text-sm py-8">
+                        You have no fuel requests yet.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {myFuelRequests.map((r) => (
+                    <TableRow key={r.id} className="hover:bg-muted/40 kd-transition">
+                      <TableCell className="font-medium">{r.station_name}</TableCell>
+                      <TableCell className="text-right currency">{formatNaira(r.amount_ngn || 0)}</TableCell>
+                      <TableCell className="text-right">{r.litres_est ?? '—'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{r.reason || '—'}</TableCell>
+                      <TableCell><StatusBadge status={displayFuelStatus(r)} /></TableCell>
+                      <TableCell className="text-muted-foreground">{formatDate(r.created_at)}</TableCell>
+                      <TableCell>
+                        {r.status === 'payment_sent' && !r.receipt_url && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs"
+                            onClick={() => onUploadReceipt?.(r)}
+                          >
+                            <Upload className="h-3 w-3 mr-1" /> Upload Receipt
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+          <div className="md:hidden space-y-2 p-3">
+            {myFuelRequests.length === 0 && (
+              <p className="text-center text-muted-foreground text-sm py-8">
+                You have no fuel requests yet.
+              </p>
+            )}
+            {myFuelRequests.map((r) => (
+              <MobileCard key={r.id}>
+                <MobileCardHeader>
+                  <MobileCardTitle>{r.station_name}</MobileCardTitle>
+                  <MobileCardMeta className="currency">{formatNaira(r.amount_ngn || 0)}</MobileCardMeta>
+                </MobileCardHeader>
+                <MobileCardRow label="Litres">{r.litres_est ?? '—'}</MobileCardRow>
+                <MobileCardRow label="Purpose">{r.reason || '—'}</MobileCardRow>
+                <MobileCardRow label="Status"><StatusBadge status={displayFuelStatus(r)} /></MobileCardRow>
+                <MobileCardRow label="Date">{formatDate(r.created_at)}</MobileCardRow>
+                {r.status === 'payment_sent' && !r.receipt_url && (
+                  <MobileCardFooter>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs"
+                      onClick={() => onUploadReceipt?.(r)}
+                    >
+                      <Upload className="h-3 w-3 mr-1" /> Upload Receipt
+                    </Button>
+                  </MobileCardFooter>
                 )}
-                {myFuelRequests.map((r) => (
-                  <TableRow key={r.id} className="hover:bg-muted/40 kd-transition">
-                    <TableCell className="font-medium">{r.station_name}</TableCell>
-                    <TableCell className="text-right currency">{formatNaira(r.amount_ngn || 0)}</TableCell>
-                    <TableCell className="text-right">{r.litres_est ?? '—'}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{r.reason || '—'}</TableCell>
-                    <TableCell><StatusBadge status={displayFuelStatus(r)} /></TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(r.created_at)}</TableCell>
-                    <TableCell>
-                      {r.status === 'payment_sent' && !r.receipt_url && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-xs"
-                          onClick={() => onUploadReceipt?.(r)}
-                        >
-                          <Upload className="h-3 w-3 mr-1" /> Upload Receipt
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+              </MobileCard>
+            ))}
           </div>
         </CardContent>
       </Card>

@@ -22,6 +22,9 @@ import { formatDate } from '@/lib/format';
 import { Loader2, Plus, GraduationCap, AlertTriangle, CheckCircle, Clock, Award } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import {
+  MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow,
+} from '@/components/ui-kit/MobileCard';
 
 interface TrainingRecord {
   id: string;
@@ -254,34 +257,53 @@ export function DriverTrainingPanel({ staff }: Props) {
       ) : filtered.length === 0 ? (
         <EmptyState icon={Award} title="No training records" description="Add training records to track driver certifications and compliance." />
       ) : (
-        <div className="overflow-x-auto rounded-md border">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
-              <TableRow>
-                <TableHead>Driver</TableHead>
-                <TableHead>Training</TableHead>
-                <TableHead>Provider</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Expiry</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((r) => (
-                <TableRow key={r.id} className="hover:bg-muted/40 kd-transition">
-                  <TableCell className="font-medium text-sm">
-                    {(r.driver as any)?.full_name || staff.find((s) => s.id === r.driver_id)?.full_name || 'Unknown'}
-                  </TableCell>
-                  <TableCell className="text-sm">{trainingLabel(r.training_type, r.custom_type)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{r.provider || '—'}</TableCell>
-                  <TableCell className="text-sm">{formatDate(r.training_date)}</TableCell>
-                  <TableCell className="text-sm">{r.expiry_date ? formatDate(r.expiry_date) : 'No expiry'}</TableCell>
-                  <TableCell>{statusBadge(r.status, r.expiry_date)}</TableCell>
+        <>
+          <div className="hidden md:block overflow-x-auto rounded-md border">
+            <Table>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+                <TableRow>
+                  <TableHead>Driver</TableHead>
+                  <TableHead>Training</TableHead>
+                  <TableHead>Provider</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Expiry</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((r) => (
+                  <TableRow key={r.id} className="hover:bg-muted/40 kd-transition">
+                    <TableCell className="font-medium text-sm">
+                      {(r.driver as any)?.full_name || staff.find((s) => s.id === r.driver_id)?.full_name || 'Unknown'}
+                    </TableCell>
+                    <TableCell className="text-sm">{trainingLabel(r.training_type, r.custom_type)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{r.provider || '—'}</TableCell>
+                    <TableCell className="text-sm">{formatDate(r.training_date)}</TableCell>
+                    <TableCell className="text-sm">{r.expiry_date ? formatDate(r.expiry_date) : 'No expiry'}</TableCell>
+                    <TableCell>{statusBadge(r.status, r.expiry_date)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="md:hidden space-y-2 p-3">
+            {filtered.map((r) => (
+              <MobileCard key={r.id}>
+                <MobileCardHeader>
+                  <MobileCardTitle>
+                    {(r.driver as any)?.full_name || staff.find((s) => s.id === r.driver_id)?.full_name || 'Unknown'}
+                  </MobileCardTitle>
+                  <MobileCardMeta>{statusBadge(r.status, r.expiry_date)}</MobileCardMeta>
+                </MobileCardHeader>
+                <MobileCardRow label="Training">{trainingLabel(r.training_type, r.custom_type)}</MobileCardRow>
+                <MobileCardRow label="Provider">{r.provider || '—'}</MobileCardRow>
+                <MobileCardRow label="Date">{formatDate(r.training_date)}</MobileCardRow>
+                <MobileCardRow label="Expiry">{r.expiry_date ? formatDate(r.expiry_date) : 'No expiry'}</MobileCardRow>
+              </MobileCard>
+            ))}
+          </div>
+        </>
       )}
 
       <Dialog open={showAdd} onOpenChange={setShowAdd}>

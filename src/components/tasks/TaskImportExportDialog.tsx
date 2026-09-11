@@ -14,6 +14,9 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import type { Task, ProfileRow, Priority, TaskStatus } from '@/lib/task-types';
+import {
+  MobileCard, MobileCardHeader, MobileCardTitle, MobileCardRow,
+} from '@/components/ui-kit/MobileCard';
 
 interface TaskImportExportDialogProps {
   open: boolean;
@@ -513,35 +516,61 @@ export function TaskImportExportDialog({
                 <label className="text-sm font-medium">
                   Preview (first {previewRows.length} row{previewRows.length !== 1 ? 's' : ''})
                 </label>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs border-collapse">
-                    <thead>
-                      <tr>
-                        {parsedHeaders.map((h, i) => (
-                          <th
-                            key={i}
-                            className={cn(
-                              'border px-2 py-1 text-left font-medium bg-muted/50',
-                              columnMap[i] ? 'text-foreground' : 'text-muted-foreground',
-                            )}
-                          >
-                            {columnMap[i] ? COLUMN_LABELS[columnMap[i]!] : h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {previewRows.map((row, ri) => (
-                        <tr key={ri}>
-                          {parsedHeaders.map((_, ci) => (
-                            <td key={ci} className="border px-2 py-1 text-muted-foreground max-w-[200px] truncate">
-                              {row[ci] ?? ''}
-                            </td>
+                {/* Desktop table */}
+                <div className="hidden md:block">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs border-collapse">
+                      <thead>
+                        <tr>
+                          {parsedHeaders.map((h, i) => (
+                            <th
+                              key={i}
+                              className={cn(
+                                'border px-2 py-1 text-left font-medium bg-muted/50',
+                                columnMap[i] ? 'text-foreground' : 'text-muted-foreground',
+                              )}
+                            >
+                              {columnMap[i] ? COLUMN_LABELS[columnMap[i]!] : h}
+                            </th>
                           ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {previewRows.map((row, ri) => (
+                          <tr key={ri}>
+                            {parsedHeaders.map((_, ci) => (
+                              <td key={ci} className="border px-2 py-1 text-muted-foreground max-w-[200px] truncate">
+                                {row[ci] ?? ''}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Mobile cards */}
+                <div className="md:hidden space-y-2">
+                  {previewRows.map((row, ri) => {
+                    const titleIdx = columnMap.indexOf('title');
+                    const title = titleIdx >= 0 ? (row[titleIdx] ?? `Row ${ri + 1}`) : `Row ${ri + 1}`;
+                    return (
+                      <MobileCard key={ri}>
+                        <MobileCardHeader>
+                          <MobileCardTitle>{title}</MobileCardTitle>
+                        </MobileCardHeader>
+                        {parsedHeaders.map((h, ci) => {
+                          if (!columnMap[ci]) return null;
+                          return (
+                            <MobileCardRow key={ci} label={COLUMN_LABELS[columnMap[ci]!]}>
+                              {row[ci] ?? ''}
+                            </MobileCardRow>
+                          );
+                        })}
+                      </MobileCard>
+                    );
+                  })}
                 </div>
               </div>
             )}

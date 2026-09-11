@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
 import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import {
   fetchTerminationRecords,
   computeAttritionCost,
@@ -197,7 +198,7 @@ export default function TalentCostTab() {
             </>
           )}
           {bands.length > 0 && (
-            <div className="overflow-x-auto mt-4">
+            <div className="hidden md:block overflow-x-auto mt-4">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -220,6 +221,19 @@ export default function TalentCostTab() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            <div className="md:hidden space-y-2 mt-4">
+              {bands.map((b) => (
+                <MobileCard key={b.department_id ?? 'none'}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{b.department_name}</MobileCardTitle>
+                    <MobileCardMeta>{b.headcount} staff</MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Min" value={formatNaira(b.min_ngn)} />
+                  <MobileCardRow label="Median" value={formatNaira(b.median_ngn)} />
+                  <MobileCardRow label="Max" value={formatNaira(b.max_ngn)} />
+                </MobileCard>
+              ))}
             </div>
           )}
         </CardContent>
@@ -264,7 +278,7 @@ export default function TalentCostTab() {
           {attrition.length === 0 && !loading ? (
             <p className="text-sm text-muted-foreground text-center py-10">No completed exits in the last 12 months.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -293,6 +307,21 @@ export default function TalentCostTab() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            <div className="md:hidden space-y-2">
+              {attrition.map((a) => (
+                <MobileCard key={a.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{a.employee_name}</MobileCardTitle>
+                    <MobileCardMeta>{formatNaira(a.total_cost_ngn)}</MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Department" value={a.department_name} />
+                  <MobileCardRow label="Type" value={<Badge variant="outline">{TERMINATION_TYPE_LABEL[a.termination_type] ?? a.termination_type}</Badge>} />
+                  <MobileCardRow label="Last day" value={a.last_working_day ? formatDate(a.last_working_day) : '—'} />
+                  <MobileCardRow label="Settlement" value={formatNaira(a.final_settlement_ngn)} />
+                  <MobileCardRow label="Est. backfill" value={formatNairaCompact(a.estimated_backfill_cost_ngn)} />
+                </MobileCard>
+              ))}
             </div>
           )}
         </CardContent>

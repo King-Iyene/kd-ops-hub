@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination } from '@/components/ui-kit/Pagination';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { usePagination } from '@/hooks/usePagination';
 import { formatDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -331,46 +332,78 @@ export default function FxRateSettings() {
         </CardHeader>
         <CardContent>
           <div className="rounded-lg border border-border/70 overflow-hidden">
-            <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="text-right">Rate (₦/$)</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead className="text-right">Change</TableHead>
-                  <TableHead className="text-right">Effective</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {history.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No rates recorded yet.</TableCell></TableRow>
-                ) : histPage.items.map((r) => {
-                  const up = r.prev_rate != null && r.rate > r.prev_rate;
-                  const down = r.prev_rate != null && r.rate < r.prev_rate;
-                  return (
-                    <TableRow key={r.id} className="hover:bg-muted/40 kd-transition">
-                      <TableCell className="text-right font-mono tabular-nums font-medium">{fmtRate(r.rate)}</TableCell>
-                      <TableCell>
-                        <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium capitalize',
-                          STATUS_STYLE[r.status] ?? 'bg-muted text-muted-foreground')}>
-                          {r.status.replace('_', ' ')}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {r.source === 'manual' ? 'Manual' : 'Auto'}
-                      </TableCell>
-                      <TableCell className={cn('text-right text-xs tabular-nums',
-                        up ? 'text-warning' : down ? 'text-success' : 'text-muted-foreground')}>
-                        {r.deviation_pct == null ? '—' : `${up ? '▲' : down ? '▼' : ''} ${r.deviation_pct}%`}
-                      </TableCell>
-                      <TableCell className="text-right text-xs text-muted-foreground whitespace-nowrap">{formatDateTime(r.valid_from)}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-            </div>
+            {history.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">No rates recorded yet.</p>
+            ) : (
+              <>
+                <div className="hidden md:block overflow-x-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="text-right">Rate (₦/$)</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Source</TableHead>
+                        <TableHead className="text-right">Change</TableHead>
+                        <TableHead className="text-right">Effective</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {histPage.items.map((r) => {
+                        const up = r.prev_rate != null && r.rate > r.prev_rate;
+                        const down = r.prev_rate != null && r.rate < r.prev_rate;
+                        return (
+                          <TableRow key={r.id} className="hover:bg-muted/40 kd-transition">
+                            <TableCell className="text-right font-mono tabular-nums font-medium">{fmtRate(r.rate)}</TableCell>
+                            <TableCell>
+                              <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium capitalize',
+                                STATUS_STYLE[r.status] ?? 'bg-muted text-muted-foreground')}>
+                                {r.status.replace('_', ' ')}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {r.source === 'manual' ? 'Manual' : 'Auto'}
+                            </TableCell>
+                            <TableCell className={cn('text-right text-xs tabular-nums',
+                              up ? 'text-warning' : down ? 'text-success' : 'text-muted-foreground')}>
+                              {r.deviation_pct == null ? '—' : `${up ? '▲' : down ? '▼' : ''} ${r.deviation_pct}%`}
+                            </TableCell>
+                            <TableCell className="text-right text-xs text-muted-foreground whitespace-nowrap">{formatDateTime(r.valid_from)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="md:hidden space-y-2 p-2">
+                  {histPage.items.map((r) => {
+                    const up = r.prev_rate != null && r.rate > r.prev_rate;
+                    const down = r.prev_rate != null && r.rate < r.prev_rate;
+                    return (
+                      <MobileCard key={r.id}>
+                        <MobileCardHeader>
+                          <MobileCardTitle className="font-mono tabular-nums">{'₦' + fmtRate(r.rate) + '/USD'}</MobileCardTitle>
+                          <MobileCardMeta>
+                            <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium capitalize',
+                              STATUS_STYLE[r.status] ?? 'bg-muted text-muted-foreground')}>
+                              {r.status.replace('_', ' ')}
+                            </span>
+                          </MobileCardMeta>
+                        </MobileCardHeader>
+                        <MobileCardRow label="Source">{r.source === 'manual' ? 'Manual' : 'Auto'}</MobileCardRow>
+                        <MobileCardRow label="Change">
+                          <span className={cn('tabular-nums',
+                            up ? 'text-warning' : down ? 'text-success' : 'text-muted-foreground')}>
+                            {r.deviation_pct == null ? '—' : `${up ? '▲' : down ? '▼' : ''} ${r.deviation_pct}%`}
+                          </span>
+                        </MobileCardRow>
+                        <MobileCardRow label="Effective">{formatDateTime(r.valid_from)}</MobileCardRow>
+                      </MobileCard>
+                    );
+                  })}
+                </div>
+              </>
+            )}
             {histPage.totalPages > 1 && (
               <Pagination
                 page={histPage.page}

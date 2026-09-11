@@ -14,6 +14,14 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { cn } from '@/lib/utils';
 import { Loader2, Plus, Trash2, MapPin, Map as MapIcon } from 'lucide-react';
 import { type Geofence } from '@/lib/fleet-utils';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 
 const GEOFENCE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
@@ -192,7 +200,7 @@ function GeofencesTab() {
       ) : (
         <Card>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
@@ -226,6 +234,31 @@ function GeofencesTab() {
                 ))}
               </TableBody>
             </Table>
+            </div>
+
+            <div className="md:hidden space-y-2 p-3">
+              {geofences.map((g) => (
+                <MobileCard key={g.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>
+                      <span className="flex items-center gap-2">
+                        <span className="inline-block w-3 h-3 rounded-full shrink-0" style={{ background: g.color }} />
+                        {g.name}
+                      </span>
+                    </MobileCardTitle>
+                    <MobileCardMeta>{g.radius_meters.toLocaleString()} m</MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Center">
+                    <span className="font-mono">{g.center_lat.toFixed(4)}, {g.center_lng.toFixed(4)}</span>
+                  </MobileCardRow>
+                  {g.description && <MobileCardRow label="Description">{g.description}</MobileCardRow>}
+                  <MobileCardFooter>
+                    <Button size="sm" variant="ghost" onClick={() => handleDelete(g.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive mr-1" /> Remove
+                    </Button>
+                  </MobileCardFooter>
+                </MobileCard>
+              ))}
             </div>
           </CardContent>
         </Card>
