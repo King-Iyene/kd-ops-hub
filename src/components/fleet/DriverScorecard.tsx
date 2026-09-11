@@ -189,7 +189,7 @@ export function DriverScorecard() {
           <div key={d.driver_id} className="flex items-center gap-3">
             <div className="w-5 text-center">
               {i === 0 ? (
-                <Award className="h-4 w-4 text-amber-500 mx-auto" />
+                <Award className="h-4 w-4 text-warning mx-auto" />
               ) : (
                 <span className="text-xs text-muted-foreground">{i + 1}</span>
               )}

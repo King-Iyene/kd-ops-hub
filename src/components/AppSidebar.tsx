@@ -185,8 +185,8 @@ export function AppSidebar() {
       item.badge === 'anomalies' ? anomalyOpenCount : 0;
     const showBadge = badgeCount > 0;
     const badgeTone = item.badge === 'anomalies'
-      ? 'bg-red-500/90 text-white'
-      : 'bg-amber-400/90 text-amber-900';
+      ? 'bg-destructive/90 text-white'
+      : 'bg-warning/90 text-warning-foreground';
     const isQuickLink = UNGROUPED_SET.has(item.title);
 
     return (
@@ -243,7 +243,7 @@ export function AppSidebar() {
             {sidebarCollapsed && showBadge && (
               <span className={cn(
                 'absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full kd-status-live-warning',
-                item.badge === 'anomalies' ? 'bg-red-500' : 'bg-amber-400',
+                item.badge === 'anomalies' ? 'bg-destructive' : 'bg-warning',
               )} />
             )}
           </NavLink>
@@ -352,7 +352,7 @@ export function AppSidebar() {
             <SidebarMenuItem className="list-none">
               <SidebarMenuButton
                 onClick={signOut}
-                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs-plus font-medium text-sidebar-foreground/55 hover:bg-red-500/10 hover:text-red-300 kd-transition w-full"
+                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs-plus font-medium text-sidebar-foreground/55 hover:bg-destructive/10 hover:text-destructive kd-transition w-full"
               >
                 <LogOut className="h-3.5 w-3.5 shrink-0" />
                 <span>Sign Out</span>
@@ -376,7 +376,7 @@ export function AppSidebar() {
           <div className="flex items-center gap-2.5 px-0.5">
             <div className="relative shrink-0">
               <BrandLogo size={32} className="h-8 w-8 rounded-lg ring-1 ring-sidebar-border/40 bg-white/5" />
-              <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-sidebar-background" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-success ring-2 ring-sidebar-background" />
             </div>
             <div className="min-w-0">
               <p className="text-xs-plus font-semibold text-sidebar-primary leading-none tracking-tight">KDOps</p>
@@ -484,7 +484,7 @@ export function AppSidebar() {
                               <span className={cn(
                                 'flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1',
                                 'text-3xs font-bold tabular-nums kd-status-live-warning',
-                                badge.hasAnomaly ? 'bg-red-500/90 text-white' : 'bg-amber-400/90 text-amber-900',
+                                badge.hasAnomaly ? 'bg-destructive/90 text-white' : 'bg-warning/90 text-warning-foreground',
                               )}>
                                 {badge.total > 99 ? '99+' : badge.total}
                               </span>
@@ -532,7 +532,7 @@ export function AppSidebar() {
                         {badge && badge.total > 0 && (
                           <span className={cn(
                             'absolute top-0 right-0 h-2 w-2 rounded-full kd-status-live-warning',
-                            badge.hasAnomaly ? 'bg-red-500' : 'bg-amber-400',
+                            badge.hasAnomaly ? 'bg-destructive' : 'bg-warning',
                           )} />
                         )}
                       </SidebarMenuButton>
@@ -554,7 +554,7 @@ export function AppSidebar() {
             <SidebarMenuButton
               onClick={signOut}
               tooltip={sidebarCollapsed ? 'Sign Out' : undefined}
-              className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs-plus font-medium text-sidebar-foreground/55 hover:bg-red-500/10 hover:text-red-300 kd-transition w-full"
+              className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs-plus font-medium text-sidebar-foreground/55 hover:bg-destructive/10 hover:text-destructive kd-transition w-full"
             >
               <LogOut className="h-3.5 w-3.5 shrink-0" />
               {!sidebarCollapsed && <span>Sign Out</span>}

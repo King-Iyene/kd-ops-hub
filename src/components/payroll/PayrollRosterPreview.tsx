@@ -213,7 +213,7 @@ export function PayrollRosterPreview({
               <span className="flex items-center gap-2">
                 <span className="h-1.5 flex-1 max-w-[220px] overflow-hidden rounded-full bg-border/70">
                   <span
-                    className={cn('block h-full rounded-full', readyPct === 100 ? 'bg-success' : 'bg-amber-500')}
+                    className={cn('block h-full rounded-full', readyPct === 100 ? 'bg-success' : 'bg-warning')}
                     style={{ width: `${readyPct}%` }}
                   />
                 </span>

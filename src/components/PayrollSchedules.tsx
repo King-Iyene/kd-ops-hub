@@ -429,7 +429,7 @@ function YearCalendar({ schedules }: { schedules: PaySchedule[] }) {
                             isToday && 'ring-2 ring-primary ring-offset-1',
                             isPast && payHits.length === 0 && !holiday && 'text-muted-foreground/40',
                             !isPast && payHits.length === 0 && !holiday && 'text-muted-foreground hover:bg-muted/40',
-                            holiday && 'bg-amber-100 dark:bg-amber-900/30 text-warning font-semibold',
+                            holiday && 'bg-warning/10 text-warning font-semibold',
                             payHits.length > 0 && 'font-bold',
                           )}
                         >
@@ -1092,7 +1092,7 @@ function HolidaysManager() {
             return (
               <div key={h.id} className="group flex items-center gap-3.5 rounded-xl border border-border/70 bg-card px-4 py-3.5">
                 <div className="w-12 text-center shrink-0">
-                  <p className="text-3xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                  <p className="text-3xs font-bold uppercase tracking-wide text-warning">
                     {d.toLocaleDateString('en-US', { month: 'short' })}
                   </p>
                   <p className="kd-display text-lg font-extrabold leading-tight">{d.getDate()}</p>
@@ -1395,7 +1395,7 @@ function PayScheduleForm({
       </div>
 
       {isOffCycle && (
-        <div className="space-y-4 rounded-lg border border-warning/20 bg-amber-50/50 dark:bg-amber-950/20 p-4">
+        <div className="space-y-4 rounded-lg border border-warning/20 bg-warning/5 p-4">
           <p className="text-xs text-warning font-medium">Off-cycle configuration</p>
           <div className="space-y-1.5">
             <Label>Allowance context</Label>
@@ -1658,8 +1658,8 @@ export function PayrollSchedules() {
             </Button>
           </div>
 
-          <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 px-4 py-3 text-sm text-blue-800 dark:text-blue-200 flex gap-3">
-            <Info className="h-4 w-4 shrink-0 mt-0.5 text-blue-500" />
+          <div className="rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary flex gap-3">
+            <Info className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
             <div className="space-y-1">
               <p className="font-medium">How auto-scheduling works</p>
               <ol className="list-decimal pl-4 space-y-0.5 text-xs leading-relaxed">
@@ -1719,7 +1719,7 @@ export function PayrollSchedules() {
                                 </span>
                                 {s.name}
                                 {s.schedule_kind === 'off_cycle' && (
-                                  <span className="text-3xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-medium">
+                                  <span className="text-3xs px-1.5 py-0.5 rounded-full bg-warning/10 text-warning font-medium">
                                     Off-cycle
                                   </span>
                                 )}
@@ -1741,7 +1741,7 @@ export function PayrollSchedules() {
                               >
                                 {s.is_active ? (
                                   <>
-                                    <ToggleRight className="h-4 w-4 text-green-500" />
+                                    <ToggleRight className="h-4 w-4 text-success" />
                                     <span className="text-success">Active</span>
                                   </>
                                 ) : (
@@ -1792,8 +1792,8 @@ export function PayrollSchedules() {
                                                 <span className="text-sm font-medium">{formatDate(d)}</span>
                                                 <span className={cn(
                                                   'text-xs px-1.5 py-0.5 rounded-full font-medium',
-                                                  days <= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                    : days <= 7 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                  days <= 0 ? 'bg-success/10 text-success'
+                                                    : days <= 7 ? 'bg-warning/10 text-warning'
                                                       : 'bg-muted text-muted-foreground',
                                                 )}>
                                                   {days === 0 ? 'today' : days < 0 ? 'passed' : `in ${days}d`}
@@ -1838,7 +1838,7 @@ export function PayrollSchedules() {
                                       </div>
                                       <div className="flex justify-between">
                                         <dt className="text-muted-foreground">Auto-approve drafts</dt>
-                                        <dd className={cn('font-medium', s.auto_approve ? 'text-amber-600' : 'text-muted-foreground')}>
+                                        <dd className={cn('font-medium', s.auto_approve ? 'text-warning' : 'text-muted-foreground')}>
                                           {s.auto_approve ? 'Yes' : 'No (manual review)'}
                                         </dd>
                                       </div>
@@ -2016,8 +2016,8 @@ export function NextPayrollBanner({ onStartDraft }: { onStartDraft?: () => void 
         <div className={cn(
           'flex items-center gap-3 rounded-lg border px-4 py-3 text-sm',
           variance.severity === 'critical'
-            ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/40 text-red-800 dark:text-red-200'
-            : 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200',
+            ? 'border-destructive/20 bg-destructive/10 text-destructive'
+            : 'border-warning/20 bg-warning/10 text-warning',
         )}>
           {variance.severity === 'critical'
             ? <TrendingDown className="h-4 w-4 shrink-0" />

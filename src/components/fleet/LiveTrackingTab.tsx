@@ -345,8 +345,8 @@ export function LiveTrackingTab() {
 
       <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card px-4 py-3">
         <span className="relative flex h-2.5 w-2.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
         </span>
         <span className="text-sm font-semibold">{tripList.length} live trip{tripList.length === 1 ? '' : 's'}</span>
         {tripList.some((r) => r.speeding) && (
@@ -373,7 +373,7 @@ export function LiveTrackingTab() {
               return (
                 <button key={t.id} type="button"
                   onClick={() => { setSelectedId(t.id); if (row.lat != null && row.lng != null) setFlyTarget([row.lat, row.lng]); }}
-                  className={cn('w-full text-left rounded-xl border bg-card transition-all hover:border-primary/50 hover:shadow-sm', isSelected ? 'ring-2 ring-primary border-primary/60' : 'border-border', row.speeding && 'border-red-300 dark:border-red-800')}
+                  className={cn('w-full text-left rounded-xl border bg-card transition-all hover:border-primary/50 hover:shadow-sm', isSelected ? 'ring-2 ring-primary border-primary/60' : 'border-border', row.speeding && 'border-destructive/30')}
                 >
                   <div className="p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -390,7 +390,7 @@ export function LiveTrackingTab() {
                       <div className="text-right shrink-0">
                         <p className="text-xs font-mono text-muted-foreground flex items-center gap-1 justify-end"><Clock className="h-3 w-3" /> {formatElapsed(row.elapsedMs)}</p>
                         {row.lastPingMs != null && (
-                          <p className={cn('text-3xs mt-0.5', row.stale ? 'text-amber-600 font-semibold' : 'text-muted-foreground')}>ping {formatPingAge(now - row.lastPingMs)}</p>
+                          <p className={cn('text-3xs mt-0.5', row.stale ? 'text-warning font-semibold' : 'text-muted-foreground')}>ping {formatPingAge(now - row.lastPingMs)}</p>
                         )}
                       </div>
                     </div>

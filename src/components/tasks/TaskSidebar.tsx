@@ -512,7 +512,7 @@ function SpaceItem({
           <DropdownMenuItem onClick={onEdit}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
           {onToggleFavorite && (
             <DropdownMenuItem onClick={onToggleFavorite}>
-              <Star className={cn('h-3.5 w-3.5 mr-2', isFavorite && 'fill-amber-400 text-amber-400')} />
+              <Star className={cn('h-3.5 w-3.5 mr-2', isFavorite && 'fill-warning text-warning')} />
               {isFavorite ? 'Unfavorite' : 'Favorite'}
             </DropdownMenuItem>
           )}

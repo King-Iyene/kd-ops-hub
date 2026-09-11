@@ -105,11 +105,11 @@ export default function PrivacyPanel() {
 
   const statusBadge = (s: DsrRow['status']) => {
     const map: Record<DsrRow['status'], string> = {
-      pending: 'border-amber-500/40 text-amber-700 dark:text-amber-400',
-      in_progress: 'border-sky-500/40 text-sky-700 dark:text-sky-400',
-      completed: 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400',
-      rejected: 'border-rose-500/40 text-rose-700 dark:text-rose-400',
-      cancelled: 'border-slate-500/40 text-slate-700 dark:text-slate-400',
+      pending: 'border-warning/40 text-warning',
+      in_progress: 'border-primary/40 text-primary',
+      completed: 'border-success/40 text-success',
+      rejected: 'border-destructive/40 text-destructive',
+      cancelled: 'border-muted-foreground/40 text-muted-foreground',
     };
     return <Badge variant="outline" className={`text-3xs ${map[s]}`}>{s}</Badge>;
   };

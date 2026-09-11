@@ -388,7 +388,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
   const iconByType: Record<FleetInsight['type'], React.ReactNode> = {
     warning: <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />,
     opportunity: <Target className="h-4 w-4 text-primary shrink-0 mt-0.5" />,
-    action: <Zap className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />,
+    action: <Zap className="h-4 w-4 text-warning shrink-0 mt-0.5" />,
     positive: <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />,
   };
 
@@ -470,7 +470,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Zap className="h-4 w-4 text-amber-500" />
+                <Zap className="h-4 w-4 text-warning" />
                 Smart Insights
                 <Badge variant="secondary" className="ml-auto text-xs">{insights.length}</Badge>
               </CardTitle>
@@ -645,7 +645,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
           <span className="text-xs">Run Inspection</span>
         </Button>
         <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => onNavigate('maintenance')}>
-          <Wrench className="h-4 w-4 text-amber-500" />
+          <Wrench className="h-4 w-4 text-warning" />
           <span className="text-xs">Maintenance</span>
         </Button>
         <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => onNavigate('anomalies')}>

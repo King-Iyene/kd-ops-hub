@@ -21,9 +21,9 @@ import type { Space, SpaceMember } from './TaskSidebar';
 type MemberRole = 'owner' | 'admin' | 'member' | 'viewer';
 
 const ROLE_CONFIG: Record<MemberRole, { label: string; icon: typeof Shield; color: string }> = {
-  owner: { label: 'Owner', icon: Crown, color: 'text-amber-500' },
-  admin: { label: 'Admin', icon: Shield, color: 'text-blue-500' },
-  member: { label: 'Member', icon: Users, color: 'text-emerald-500' },
+  owner: { label: 'Owner', icon: Crown, color: 'text-warning' },
+  admin: { label: 'Admin', icon: Shield, color: 'text-primary' },
+  member: { label: 'Member', icon: Users, color: 'text-success' },
   viewer: { label: 'Viewer', icon: Eye, color: 'text-muted-foreground' },
 };
 
@@ -173,7 +173,7 @@ export function SpaceMembersDialog({ space, open, onClose, profiles }: SpaceMemb
                 <p className="text-sm font-medium truncate">{profiles.get(space.owner_id)?.full_name || 'Unknown'}</p>
                 <p className="text-2xs text-muted-foreground">Space owner</p>
               </div>
-              <div className="flex items-center gap-1.5 text-amber-500">
+              <div className="flex items-center gap-1.5 text-warning">
                 <Crown className="h-3.5 w-3.5" />
                 <span className="text-xs font-medium">Owner</span>
               </div>

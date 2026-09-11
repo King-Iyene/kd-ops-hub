@@ -132,7 +132,7 @@ export function ImpersonationBanner() {
             type="button"
             onClick={handleExit}
             disabled={exiting}
-            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-2xs font-medium bg-white/90 text-rose-800 hover:bg-white kd-transition disabled:opacity-60"
+            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-2xs font-medium bg-white/90 text-destructive hover:bg-white kd-transition disabled:opacity-60"
             title="Exit impersonation (Esc)"
           >
             <LogOut className="h-3 w-3" /> {exiting ? 'Exiting…' : 'Exit'}

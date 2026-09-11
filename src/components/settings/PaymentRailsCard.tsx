@@ -360,7 +360,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
 
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label htmlFor="switch-reason">Reason for switch <span className="text-red-500">*</span></Label>
+              <Label htmlFor="switch-reason">Reason for switch <span className="text-destructive">*</span></Label>
               <Textarea
                 id="switch-reason"
                 placeholder="e.g. Paystack balance low, testing Flutterwave, monthly rotation…"
@@ -432,8 +432,8 @@ function ProviderCard({
   const label = providerLabel(provider);
   const style = isActive
     ? 'border-2 shadow-sm ' + (provider === 'flutterwave'
-        ? 'border-amber-300 bg-amber-50/40 dark:bg-amber-950/20'
-        : 'border-emerald-300 bg-emerald-50/40 dark:bg-emerald-950/20')
+        ? 'border-warning/30 bg-warning/5'
+        : 'border-success/30 bg-success/5')
     : 'opacity-60 grayscale border';
 
   return (

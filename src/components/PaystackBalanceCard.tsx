@@ -63,21 +63,21 @@ const TONE: Record<Tone, {
 }> = {
   healthy: {
     accentBar:  'bg-gradient-to-r from-emerald-400/40 via-emerald-500 to-cyan-400/40',
-    iconWrap:   'bg-emerald-500/10 dark:bg-emerald-400/10',
+    iconWrap:   'bg-success/10',
     icon:       'text-success',
-    dot:        'bg-emerald-500',
+    dot:        'bg-success',
     dotPulse:   'kd-status-live-success',
     amount:     'text-foreground',
     caption:    'text-muted-foreground',
   },
   low: {
     accentBar:  'bg-gradient-to-r from-amber-400/40 via-amber-500 to-amber-300/40',
-    iconWrap:   'bg-amber-500/10 dark:bg-amber-400/10',
+    iconWrap:   'bg-warning/10',
     icon:       'text-warning',
-    dot:        'bg-amber-500',
+    dot:        'bg-warning',
     dotPulse:   'kd-status-live-warning',
     amount:     'text-foreground',
-    banner:     'bg-amber-500/10 border border-amber-500/20 dark:bg-amber-400/10 dark:border-amber-400/20',
+    banner:     'bg-warning/10 border border-warning/20',
     bannerText: 'text-warning',
     caption:    'text-warning/90',
   },
@@ -155,7 +155,7 @@ export function PaystackBalanceCard({
           ? [
               'shadow-[0_2px_16px_-4px_rgba(16,185,129,0.15)]',
               'hover:shadow-[0_4px_24px_-4px_rgba(16,185,129,0.25)]',
-              'ring-1 ring-emerald-500/20 dark:ring-emerald-400/20',
+              'ring-1 ring-success/20',
             ]
           : [
               'opacity-55 saturate-[0.35] scale-[0.97] hover:opacity-70 hover:saturate-100 hover:scale-100',

@@ -122,9 +122,9 @@ function computeScores(
 }
 
 const BADGE_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-  'top-performer': { label: 'Top Performer', icon: '🏆', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
-  'zero-incidents': { label: 'Zero Incidents', icon: '🛡️', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
-  'fuel-efficient': { label: 'Fuel Efficient', icon: '⛽', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
+  'top-performer': { label: 'Top Performer', icon: '🏆', color: 'bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning' },
+  'zero-incidents': { label: 'Zero Incidents', icon: '🛡️', color: 'bg-success/10 text-success dark:bg-success/10 dark:text-success' },
+  'fuel-efficient': { label: 'Fuel Efficient', icon: '⛽', color: 'bg-primary/10 text-primary dark:bg-primary/10 dark:text-primary' },
   'road-warrior': { label: 'Road Warrior', icon: '🛣️', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' },
 };
 

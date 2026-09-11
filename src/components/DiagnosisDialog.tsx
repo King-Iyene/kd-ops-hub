@@ -46,8 +46,8 @@ export function DiagnosisDialog({ diagnosis, onClose }: DiagnosisDialogProps) {
               <span className="text-muted-foreground">Account sent:</span>
               <span className="font-mono">{diagnosis.account} <span className="text-muted-foreground">({diagnosis.account.length} digits)</span></span>
             </div>
-            <div className={`rounded-md border p-3 ${diagnosis.ok ? 'border-emerald-500/40 bg-success/10/20' : 'border-destructive/40 bg-destructive/5'}`}>
-              <p className={`text-xs font-semibold mb-1 ${diagnosis.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'}`}>
+            <div className={`rounded-md border p-3 ${diagnosis.ok ? 'border-success/30 bg-success/10' : 'border-destructive/40 bg-destructive/5'}`}>
+              <p className={`text-xs font-semibold mb-1 ${diagnosis.ok ? 'text-success' : 'text-destructive'}`}>
                 {diagnosis.ok ? `${providerLabelFor(diagnosis.provider)} RESOLVED the account ✓` : `${providerLabelFor(diagnosis.provider)} REJECTED the request ✗`}
               </p>
               <p className="font-mono text-xs break-all">{diagnosis.result}</p>

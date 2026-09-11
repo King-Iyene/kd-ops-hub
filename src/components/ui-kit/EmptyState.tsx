@@ -27,7 +27,7 @@ const toneIcon: Record<NonNullable<Props['tone']>, string> = {
   default:  'text-muted-foreground/60',
   primary:  'text-primary/70',
   success:  'text-success',
-  warning:  'text-amber-500',
+  warning:  'text-warning',
   danger:   'text-destructive',
 };
 

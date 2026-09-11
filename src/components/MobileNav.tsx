@@ -171,7 +171,7 @@ export function MobileNav() {
                 <tab.icon className={cn('h-5 w-5 kd-transition', active && 'text-primary')} />
                 <span className={cn('text-3xs font-medium leading-tight', active && 'text-primary font-semibold')}>{tab.title}</span>
                 {tab.badge === 'approvals' && approvalTotal > 0 && (
-                  <span className="absolute top-0 right-[calc(50%-14px)] h-4 min-w-4 px-0.5 rounded-full bg-amber-400 text-3xs font-bold text-amber-900 flex items-center justify-center">
+                  <span className="absolute top-0 right-[calc(50%-14px)] h-4 min-w-4 px-0.5 rounded-full bg-warning text-3xs font-bold text-warning-foreground flex items-center justify-center">
                     {approvalTotal > 9 ? '9+' : approvalTotal}
                   </span>
                 )}
@@ -283,7 +283,7 @@ export function MobileNav() {
                     <item.icon className={cn('h-5 w-5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
                     <span className="flex-1 text-left truncate">{item.title}</span>
                     {item.badge === 'approvals' && approvalTotal > 0 && (
-                      <span className="h-5 min-w-5 px-1 rounded-full bg-amber-400 text-3xs font-bold text-amber-900 flex items-center justify-center">
+                      <span className="h-5 min-w-5 px-1 rounded-full bg-warning text-3xs font-bold text-warning-foreground flex items-center justify-center">
                         {approvalTotal > 9 ? '9+' : approvalTotal}
                       </span>
                     )}
@@ -348,7 +348,7 @@ export function MobileNav() {
                             <item.icon className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
                             <span className="flex-1 text-left truncate">{item.title}</span>
                             {item.badge === 'approvals' && approvalTotal > 0 && (
-                              <span className="h-5 min-w-5 px-1 rounded-full bg-amber-400 text-3xs font-bold text-amber-900 flex items-center justify-center">
+                              <span className="h-5 min-w-5 px-1 rounded-full bg-warning text-3xs font-bold text-warning-foreground flex items-center justify-center">
                                 {approvalTotal > 9 ? '9+' : approvalTotal}
                               </span>
                             )}

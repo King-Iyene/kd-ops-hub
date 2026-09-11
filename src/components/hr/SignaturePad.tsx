@@ -146,7 +146,7 @@ export const SignaturePad = ({
       <div
         className={cn(
           'rounded-md border-2 bg-white overflow-hidden touch-none',
-          hasStroke ? 'border-emerald-400' : 'border-dashed border-muted-foreground/30',
+          hasStroke ? 'border-success' : 'border-dashed border-muted-foreground/30',
           disabled && 'opacity-60 pointer-events-none',
         )}
         style={{ height }}
@@ -162,7 +162,7 @@ export const SignaturePad = ({
         />
       </div>
       {hasStroke ? (
-        <p className="text-2xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+        <p className="text-2xs text-success dark:text-success flex items-center gap-1">
           <Check className="h-3 w-3" /> Signature captured
         </p>
       ) : (

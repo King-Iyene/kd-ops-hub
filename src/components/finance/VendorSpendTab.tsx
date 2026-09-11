@@ -253,7 +253,7 @@ export default function VendorSpendTab() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-amber-500" /> Consolidation opportunities
+                  <AlertCircle className="h-4 w-4 text-warning" /> Consolidation opportunities
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">
                   Subscription categories with multiple active vendors — could any be consolidated?

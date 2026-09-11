@@ -1394,8 +1394,8 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
               {/* ── Header ─────────────────────────────────────────── */}
               <DialogHeader className="shrink-0 px-5 pt-5 pb-3">
                 <DialogTitle className="flex items-center gap-2 text-lg">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/40">
-                    <Navigation className="h-4 w-4 text-green-600" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-success/10 dark:bg-success/10">
+                    <Navigation className="h-4 w-4 text-success" />
                   </div>
                   Start Trip
                 </DialogTitle>
@@ -1448,7 +1448,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
               <div className="shrink-0 border-y px-5 py-3 bg-background">
                 {startGeoState === 'ok' && startPinnedCoords ? (
                   <div className="flex items-center gap-2.5">
-                    <LocateFixed className="h-4 w-4 text-green-500 shrink-0" />
+                    <LocateFixed className="h-4 w-4 text-success shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold leading-snug truncate">
                         {startAddress || formatCoords(startPinnedCoords.lat, startPinnedCoords.lng)}
@@ -1464,7 +1464,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                     </span>
                     <button
                       type="button"
-                      className="text-2xs text-green-600 hover:text-green-700 underline underline-offset-2 shrink-0"
+                      className="text-2xs text-success hover:text-success/80 underline underline-offset-2 shrink-0"
                       onClick={() => {
                         setStartPinnedCoords(null);
                         acquireGeo(setStartGeoState, setStartCoords, (addr) => setStartAddress(addr));
@@ -1516,7 +1516,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                         }
                       }}
                     >
-                      <SelectTrigger className={!startTripForm.vehicle_id ? 'border-amber-400 focus:ring-amber-400' : ''}>
+                      <SelectTrigger className={!startTripForm.vehicle_id ? 'border-warning focus:ring-warning' : ''}>
                         <SelectValue placeholder="Select vehicle (required)" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1589,7 +1589,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="w-full gap-2 border-blue-300 text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30"
+                    className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/5 dark:text-primary dark:hover:bg-primary/5"
                     onClick={() => {
                       const veh = vehicles.find((v) => v.id === startTripForm.vehicle_id);
                       setInspectionVehicleId(startTripForm.vehicle_id);
@@ -1602,7 +1602,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                 )}
 
                 {/* Privacy notice */}
-                <div className="flex items-start gap-2 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-3 py-2.5 text-xs text-blue-900 dark:text-blue-200">
+                <div className="flex items-start gap-2 rounded-xl bg-primary/5 dark:bg-primary/5 border border-primary/20 dark:border-primary/20 px-3 py-2.5 text-xs text-primary dark:text-primary">
                   <Radio className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                   <div>
                     <p className="font-semibold">Live tracking active during this trip</p>
@@ -1638,8 +1638,8 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
         <DialogContent className="max-w-md max-h-[90vh] flex flex-col gap-0 p-0">
           <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b">
             <DialogTitle className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100">
-                <Navigation className="h-4 w-4 text-red-600 rotate-180" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10">
+                <Navigation className="h-4 w-4 text-destructive rotate-180" />
               </div>
               End Trip
             </DialogTitle>
@@ -1678,14 +1678,14 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
               )}
 
               {endGeoState === 'ok' && endCoords && (
-                <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-success/10/30 dark:border-green-800 px-4 py-3.5">
-                  <LocateFixed className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3 rounded-xl border border-success/20 bg-success/10 dark:border-success/20 px-4 py-3.5">
+                  <LocateFixed className="h-4 w-4 text-success shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-green-800 dark:text-green-200 break-words leading-snug">
+                    <p className="text-sm font-medium text-success dark:text-success break-words leading-snug">
                       {endAddress || formatCoords(endCoords.lat, endCoords.lng)}
                     </p>
                     {endAddress && (
-                      <p className="text-3xs font-mono text-green-600/70 dark:text-green-400/70 leading-tight mt-0.5">
+                      <p className="text-3xs font-mono text-success/70 dark:text-success/70 leading-tight mt-0.5">
                         {formatCoords(endCoords.lat, endCoords.lng)}
                       </p>
                     )}
@@ -1695,7 +1695,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                   </div>
                   <button
                     type="button"
-                    className="text-xs text-green-600 underline shrink-0 mt-0.5"
+                    className="text-xs text-success underline shrink-0 mt-0.5"
                     onClick={() => acquireGeo(setEndGeoState, setEndCoords, (addr) => setEndAddress(addr))}
                   >
                     Re-acquire

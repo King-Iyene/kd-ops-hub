@@ -57,8 +57,8 @@ export function WhatsAppButton({
       title={label || 'Send WhatsApp message'}
       aria-label={label || 'Send WhatsApp message'}
       className={cn(
-        'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10',
-        'dark:text-emerald-400 dark:hover:text-emerald-300 dark:hover:bg-emerald-400/10',
+        'text-success hover:text-success hover:bg-success/10',
+        'dark:text-success dark:hover:text-success dark:hover:bg-success/10',
         className,
       )}
     >

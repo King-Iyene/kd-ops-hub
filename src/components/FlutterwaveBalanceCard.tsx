@@ -61,21 +61,21 @@ const TONE: Record<Tone, {
 }> = {
   healthy: {
     accentBar:  'bg-gradient-to-r from-amber-400/40 via-amber-500 to-orange-400/40',
-    iconWrap:   'bg-amber-500/10 dark:bg-amber-400/10',
+    iconWrap:   'bg-warning/10 dark:bg-warning/10',
     icon:       'text-warning',
-    dot:        'bg-amber-500',
+    dot:        'bg-warning',
     dotPulse:   'kd-status-live-warning',
     amount:     'text-foreground',
     caption:    'text-muted-foreground',
   },
   low: {
     accentBar:  'bg-gradient-to-r from-amber-500/50 via-amber-600 to-amber-400/40',
-    iconWrap:   'bg-amber-500/10 dark:bg-amber-400/10',
+    iconWrap:   'bg-warning/10 dark:bg-warning/10',
     icon:       'text-warning',
-    dot:        'bg-amber-500',
+    dot:        'bg-warning',
     dotPulse:   'kd-status-live-warning',
     amount:     'text-foreground',
-    banner:     'bg-amber-500/10 border border-amber-500/20 dark:bg-amber-400/10 dark:border-amber-400/20',
+    banner:     'bg-warning/10 border border-warning/20 dark:bg-warning/10 dark:border-warning/20',
     bannerText: 'text-warning',
     caption:    'text-warning/90',
   },
@@ -185,7 +185,7 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
           ? [
               'shadow-[0_2px_16px_-4px_rgba(245,158,11,0.20)]',
               'hover:shadow-[0_4px_24px_-4px_rgba(245,158,11,0.30)]',
-              'ring-1 ring-amber-500/25 dark:ring-amber-400/25',
+              'ring-1 ring-warning/25 dark:ring-warning/25',
             ]
           : [
               'opacity-55 saturate-[0.35] scale-[0.97] hover:opacity-70 hover:saturate-100 hover:scale-100',

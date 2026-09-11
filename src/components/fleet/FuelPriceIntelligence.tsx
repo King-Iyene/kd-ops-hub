@@ -254,7 +254,7 @@ export function FuelPriceIntelligence() {
         <Card className="border-warning/20">
           <CardHeader className="pb-2 pt-4">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertTriangle className="h-4 w-4 text-warning" />
               Price Alerts
               <Badge variant="destructive" className="text-3xs">{alerts.length} station{alerts.length > 1 ? 's' : ''}</Badge>
             </CardTitle>
@@ -397,7 +397,7 @@ export function FuelPriceIntelligence() {
                 key={r.station}
                 className={`flex items-center gap-3 rounded-md px-3 py-2 ${
                   i === 0
-                    ? 'bg-success/10/20 ring-1 ring-green-200 dark:ring-green-800'
+                    ? 'bg-success/10/20 ring-1 ring-success/20 dark:ring-success/20'
                     : 'bg-muted/50'
                 }`}
               >

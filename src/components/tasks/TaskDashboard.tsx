@@ -61,7 +61,7 @@ export function TaskDashboard({ tasks, allTasks, profiles, currentUserId, onTask
         <KpiCard icon={Target} label="Completion rate" value={`${completionRate}%`} color="text-primary" />
         <KpiCard icon={AlertTriangle} label="Overdue" value={overdueTasks.length}
           sub={overdueTasks.length > 0 ? 'Needs attention' : 'All on track'} color="text-destructive" />
-        <KpiCard icon={TrendingUp} label="Created this week" value={createdThisWeek.length} color="text-violet-600" />
+        <KpiCard icon={TrendingUp} label="Created this week" value={createdThisWeek.length} color="text-primary" />
       </div>
 
       {/* Status distribution */}
@@ -71,16 +71,16 @@ export function TaskDashboard({ tasks, allTasks, profiles, currentUserId, onTask
         </CardHeader>
         <CardContent>
           <div className="flex rounded-full h-3 overflow-hidden bg-muted">
-            {statusDist.complete > 0 && <div className="bg-emerald-500 transition-all" style={{ width: `${(statusDist.complete / total) * 100}%` }} />}
-            {statusDist.in_progress > 0 && <div className="bg-blue-500 transition-all" style={{ width: `${(statusDist.in_progress / total) * 100}%` }} />}
-            {statusDist.open > 0 && <div className="bg-slate-400 transition-all" style={{ width: `${(statusDist.open / total) * 100}%` }} />}
-            {statusDist.blocked > 0 && <div className="bg-red-500 transition-all" style={{ width: `${(statusDist.blocked / total) * 100}%` }} />}
+            {statusDist.complete > 0 && <div className="bg-success transition-all" style={{ width: `${(statusDist.complete / total) * 100}%` }} />}
+            {statusDist.in_progress > 0 && <div className="bg-primary transition-all" style={{ width: `${(statusDist.in_progress / total) * 100}%` }} />}
+            {statusDist.open > 0 && <div className="bg-muted-foreground transition-all" style={{ width: `${(statusDist.open / total) * 100}%` }} />}
+            {statusDist.blocked > 0 && <div className="bg-destructive transition-all" style={{ width: `${(statusDist.blocked / total) * 100}%` }} />}
           </div>
           <div className="flex flex-wrap gap-4 mt-3 text-xs">
-            <StatusLegend color="bg-emerald-500" label="Complete" count={statusDist.complete} />
-            <StatusLegend color="bg-blue-500" label="In Progress" count={statusDist.in_progress} />
-            <StatusLegend color="bg-slate-400" label="Open" count={statusDist.open} />
-            <StatusLegend color="bg-red-500" label="Blocked" count={statusDist.blocked} />
+            <StatusLegend color="bg-success" label="Complete" count={statusDist.complete} />
+            <StatusLegend color="bg-primary" label="In Progress" count={statusDist.in_progress} />
+            <StatusLegend color="bg-muted-foreground" label="Open" count={statusDist.open} />
+            <StatusLegend color="bg-destructive" label="Blocked" count={statusDist.blocked} />
           </div>
         </CardContent>
       </Card>
@@ -126,10 +126,10 @@ export function TaskDashboard({ tasks, allTasks, profiles, currentUserId, onTask
           <CardContent>
             <div className="space-y-3">
               {([
-                { key: 'critical', label: 'Critical', color: 'bg-red-500', text: 'text-destructive' },
-                { key: 'high', label: 'High', color: 'bg-orange-400', text: 'text-orange-600' },
-                { key: 'normal', label: 'Normal', color: 'bg-blue-400', text: 'text-blue-600' },
-                { key: 'low', label: 'Low', color: 'bg-slate-300 dark:bg-slate-600', text: 'text-muted-foreground' },
+                { key: 'critical', label: 'Critical', color: 'bg-destructive', text: 'text-destructive' },
+                { key: 'high', label: 'High', color: 'bg-warning', text: 'text-warning' },
+                { key: 'normal', label: 'Normal', color: 'bg-primary', text: 'text-primary' },
+                { key: 'low', label: 'Low', color: 'bg-muted-foreground', text: 'text-muted-foreground' },
               ] as const).map((p) => (
                 <div key={p.key} className="flex items-center gap-3">
                   <div className={cn('h-3 w-3 rounded-full shrink-0', p.color)} />
