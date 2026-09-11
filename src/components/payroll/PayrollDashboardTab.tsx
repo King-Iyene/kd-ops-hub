@@ -5,9 +5,10 @@ import {
   Bar,
   BarChart,
   ResponsiveContainer,
-  Tooltip as RTooltip,
+  Tooltip,
   XAxis,
 } from 'recharts';
+import { ChartGradients, GlassTooltip, axisTick, chartTheme, chartAnim } from '@/components/ChartKit';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -240,13 +241,10 @@ export function PayrollDashboardTab({
             {trend.length >= 2 ? (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={trend} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                  <RTooltip
-                    formatter={(v: number) => formatNaira(v)}
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }}
-                    labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
-                  />
-                  <Bar dataKey="burn" fill="hsl(200,90%,29%)" radius={[6, 6, 0, 0]} />
+                  <ChartGradients />
+                  <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
+                  <Tooltip content={<GlassTooltip formatter={(v: number) => formatNaira(v)} />} />
+                  <Bar dataKey="burn" fill="url(#kd-grad-primary)" radius={[6, 6, 0, 0]} {...chartAnim} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (

@@ -142,8 +142,13 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
 
 const PageSpinner = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
-    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+    <div className="relative h-10 w-10">
+      <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
+      <div className="absolute inset-1.5 rounded-full border-2 border-transparent border-t-cyan-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '600ms' }} />
+    </div>
+    <p className="text-xs text-muted-foreground font-medium tracking-wide animate-pulse">Loading…</p>
   </div>
 );
 

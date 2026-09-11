@@ -3,6 +3,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip as ReTooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
+import { ChartGradients, GlassTooltip, chartTheme, axisTick, chartAnim } from '@/components/ChartKit';
 import { PieChart as PieChartIcon, AlertTriangle, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +15,7 @@ import { formatNaira } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { errorMessage } from '@/lib/db-errors';
 import { fetchRevenueConcentration, type ConcentrationResult, type ConcentrationBand } from '@/lib/revenue-concentration';
-import { SERIES, GRID, AXIS_TICK, fmtCompact, ChartTooltip } from '@/lib/chart-theme';
+import { SERIES, fmtCompact } from '@/lib/chart-theme';
 
 const BAND_STYLE: Record<ConcentrationBand, { tone: string; label: string; Icon: typeof ShieldCheck }> = {
   diversified:   { tone: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30', label: 'Diversified',   Icon: ShieldCheck },
@@ -136,6 +137,7 @@ export default function RevenueConcentrationTab() {
                 <div className="h-[260px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
+                      <ChartGradients />
                       <Pie
                         data={pieData}
                         dataKey="value"
@@ -146,12 +148,13 @@ export default function RevenueConcentrationTab() {
                         outerRadius={90}
                         paddingAngle={2}
                         strokeWidth={0}
+                        {...chartAnim}
                       >
                         {pieData.map((_, i) => (
                           <Cell key={i} fill={i < SERIES.length ? SERIES[i] : PIE_DEEMPHASIS} />
                         ))}
                       </Pie>
-                      <ReTooltip content={<ChartTooltip valueFormatter={formatNaira} />} />
+                      <ReTooltip content={<GlassTooltip formatter={(v: number) => formatNaira(v)} />} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -166,11 +169,12 @@ export default function RevenueConcentrationTab() {
                 <div className="h-[310px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={barData} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }} barSize={14}>
-                      <CartesianGrid {...GRID} horizontal={false} vertical />
-                      <XAxis type="number" {...AXIS_TICK} tickFormatter={(v: number) => fmtCompact(v)} />
-                      <YAxis type="category" dataKey="name" {...AXIS_TICK} width={100} />
-                      <ReTooltip content={<ChartTooltip valueFormatter={formatNaira} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
-                      <Bar dataKey="revenue" name="Revenue" fill={SERIES[0]} radius={[0, 4, 4, 0]} />
+                      <ChartGradients />
+                      <CartesianGrid stroke={chartTheme.gridLine} strokeDasharray="3 3" horizontal={false} vertical />
+                      <XAxis type="number" tick={axisTick} axisLine={false} tickLine={false} tickFormatter={(v: number) => fmtCompact(v)} />
+                      <YAxis type="category" dataKey="name" tick={axisTick} axisLine={false} tickLine={false} width={100} />
+                      <ReTooltip content={<GlassTooltip formatter={(v: number) => formatNaira(v)} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
+                      <Bar dataKey="revenue" name="Revenue" fill="url(#kd-grad-primary)" radius={[0, 6, 6, 0]} {...chartAnim} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

@@ -6,7 +6,8 @@ import { logAudit } from '@/lib/audit';
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira, formatDate } from '@/lib/format';
 import { notifyUser } from '@/lib/notify';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { ChartGradients, GlassTooltip, chartTheme, axisTick, chartAnim } from '@/components/ChartKit';
 import { FilePreviewTrigger } from '@/components/FilePreview';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -117,15 +118,17 @@ function FuelHistoryDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: ()
           <div className="space-y-4">
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis unit="L" domain={[0, vehicle.tank_capacity_litres || 60]} tick={{ fontSize: 11 }} />
-                <ReTooltip formatter={(v: number) => [`${v}L`, 'Fuel level']} />
+                <ChartGradients />
+                <CartesianGrid stroke={chartTheme.gridLine} strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={axisTick} axisLine={false} tickLine={false} />
+                <YAxis unit="L" domain={[0, vehicle.tank_capacity_litres || 60]} tick={axisTick} axisLine={false} tickLine={false} />
+                <Tooltip content={<GlassTooltip formatter={(v: number) => `${v}L`} />} />
                 <Line
                   type="monotone"
                   dataKey="level"
-                  stroke="#3b82f6"
+                  stroke={chartTheme.primary}
                   strokeWidth={2}
+                  {...chartAnim}
                   dot={(props: any) => {
                     const { cx, cy, payload } = props;
                     const fill = payload.type === 'fuel_added' ? '#22c55e' : '#ef4444';

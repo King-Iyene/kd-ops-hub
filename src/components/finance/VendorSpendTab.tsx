@@ -3,6 +3,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as ReTooltip, AreaChart, Area,
 } from 'recharts';
+import { ChartGradients, GlassTooltip, chartTheme, axisTick, chartAnim } from '@/components/ChartKit';
 import { Store, Layers, TrendingUp, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatNaira } from '@/lib/format';
 import { errorMessage } from '@/lib/db-errors';
 import { fetchVendorSpendBoard, type VendorSpendBoard } from '@/lib/vendor-spend';
-import { SERIES, GRID, AXIS_TICK, fmtCompact, ChartTooltip } from '@/lib/chart-theme';
+import { SERIES, fmtCompact } from '@/lib/chart-theme';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 
 export default function VendorSpendTab() {
@@ -119,11 +120,12 @@ export default function VendorSpendTab() {
                 <div className="h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={barData} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }} barSize={16}>
-                      <CartesianGrid {...GRID} horizontal={false} vertical />
-                      <XAxis type="number" {...AXIS_TICK} tickFormatter={(v: number) => fmtCompact(v)} />
-                      <YAxis type="category" dataKey="name" {...AXIS_TICK} width={120} />
-                      <ReTooltip content={<ChartTooltip valueFormatter={formatNaira} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
-                      <Bar dataKey="total" name="Total spend" fill={SERIES[0]} radius={[0, 4, 4, 0]} />
+                      <ChartGradients />
+                      <CartesianGrid stroke={chartTheme.gridLine} strokeDasharray="3 3" horizontal={false} vertical />
+                      <XAxis type="number" tick={axisTick} axisLine={false} tickLine={false} tickFormatter={(v: number) => fmtCompact(v)} />
+                      <YAxis type="category" dataKey="name" tick={axisTick} axisLine={false} tickLine={false} width={120} />
+                      <ReTooltip content={<GlassTooltip formatter={(v: number) => formatNaira(v)} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
+                      <Bar dataKey="total" name="Total spend" fill="url(#kd-grad-primary)" radius={[0, 6, 6, 0]} {...chartAnim} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -151,6 +153,7 @@ export default function VendorSpendTab() {
                 <div className="h-[240px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={trendData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                      <ChartGradients />
                       <defs>
                         {trendVendors.map((_, i) => (
                           <linearGradient key={i} id={`vg${i}`} x1="0" y1="0" x2="0" y2="1">
@@ -159,10 +162,10 @@ export default function VendorSpendTab() {
                           </linearGradient>
                         ))}
                       </defs>
-                      <CartesianGrid {...GRID} />
-                      <XAxis dataKey="month" {...AXIS_TICK} />
-                      <YAxis {...AXIS_TICK} tickFormatter={(v: number) => fmtCompact(v)} />
-                      <ReTooltip content={<ChartTooltip valueFormatter={formatNaira} />} />
+                      <CartesianGrid stroke={chartTheme.gridLine} strokeDasharray="3 3" />
+                      <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
+                      <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={(v: number) => fmtCompact(v)} />
+                      <ReTooltip content={<GlassTooltip formatter={(v: number) => formatNaira(v)} />} />
                       {trendVendors.map((vendor, i) => (
                         <Area
                           key={vendor}
@@ -172,6 +175,7 @@ export default function VendorSpendTab() {
                           strokeWidth={2}
                           fill={`url(#vg${i})`}
                           dot={false}
+                          {...chartAnim}
                         />
                       ))}
                     </AreaChart>

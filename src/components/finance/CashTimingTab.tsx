@@ -3,7 +3,8 @@ import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip as ReTooltip, ReferenceLine, Cell,
 } from 'recharts';
-import { SERIES, GRID, AXIS_TICK, fmtMillions, ChartTooltip } from '@/lib/chart-theme';
+import { SERIES, fmtMillions } from '@/lib/chart-theme';
+import { ChartGradients, GlassTooltip, chartTheme, axisTick, chartAnim } from '@/components/ChartKit';
 import { CalendarRange, AlertOctagon, Receipt, PhoneCall } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -105,18 +106,13 @@ export default function CashTimingTab() {
               <div className="h-[240px] mb-3">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="balGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={SERIES[0]} stopOpacity={0.12} />
-                        <stop offset="100%" stopColor={SERIES[0]} stopOpacity={0.01} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid {...GRID} />
-                    <XAxis dataKey="label" {...AXIS_TICK} />
-                    <YAxis {...AXIS_TICK} tickFormatter={fmtMillions} />
-                    <ReTooltip content={<ChartTooltip valueFormatter={formatNaira} />} />
+                    <ChartGradients />
+                    <CartesianGrid stroke={chartTheme.gridLine} strokeDasharray="3 3" />
+                    <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
+                    <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={fmtMillions} />
+                    <ReTooltip content={<GlassTooltip formatter={(v: number) => formatNaira(v)} />} />
                     <ReferenceLine y={0} stroke="#e34948" strokeOpacity={0.5} />
-                    <Area type="monotone" dataKey="balance" name="Projected balance" stroke={SERIES[0]} strokeWidth={2} fill="url(#balGrad)" />
+                    <Area type="monotone" dataKey="balance" name="Projected balance" stroke={SERIES[0]} strokeWidth={2} fill="url(#kd-grad-primary)" {...chartAnim} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -196,11 +192,11 @@ export default function CashTimingTab() {
               <div className="h-[180px] mb-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={agingChartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }} barSize={20}>
-                    <CartesianGrid {...GRID} />
-                    <XAxis dataKey="bucket" {...AXIS_TICK} />
-                    <YAxis {...AXIS_TICK} tickFormatter={fmtMillions} />
-                    <ReTooltip content={<ChartTooltip valueFormatter={formatNaira} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
-                    <Bar dataKey="total" name="Outstanding" radius={[4, 4, 0, 0]}>
+                    <CartesianGrid stroke={chartTheme.gridLine} strokeDasharray="3 3" />
+                    <XAxis dataKey="bucket" tick={axisTick} axisLine={false} tickLine={false} />
+                    <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={fmtMillions} />
+                    <ReTooltip content={<GlassTooltip formatter={(v: number) => formatNaira(v)} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
+                    <Bar dataKey="total" name="Outstanding" radius={[6, 6, 0, 0]} {...chartAnim}>
                       {agingChartData.map((d, i) => <Cell key={i} fill={BUCKET_COLOR[d.key]} />)}
                     </Bar>
                   </BarChart>

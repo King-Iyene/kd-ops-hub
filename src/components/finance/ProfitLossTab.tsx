@@ -4,7 +4,8 @@ import {
   CartesianGrid, Tooltip as ReTooltip, Legend, Cell,
   AreaChart, Area, ReferenceLine,
 } from 'recharts';
-import { SERIES, GRID, AXIS_TICK, fmtMillions, ChartTooltip } from '@/lib/chart-theme';
+import { SERIES, fmtMillions } from '@/lib/chart-theme';
+import { ChartGradients, GlassTooltip, chartTheme, axisTick, chartAnim } from '@/components/ChartKit';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -253,14 +254,15 @@ export default function ProfitLossTab() {
           <div className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} stackOffset="sign">
-                <CartesianGrid {...GRID} />
-                <XAxis dataKey="month" {...AXIS_TICK} />
-                <YAxis {...AXIS_TICK} tickFormatter={fmtMillions} />
-                <ReTooltip content={<ChartTooltip formatter={(v: number) => formatNaira(Math.abs(v))} />} />
+                <ChartGradients />
+                <CartesianGrid stroke={chartTheme.gridLine} strokeDasharray="3 3" />
+                <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
+                <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={fmtMillions} />
+                <ReTooltip content={<GlassTooltip formatter={(v: number) => formatNaira(Math.abs(v))} />} />
                 <Legend />
                 <ReferenceLine y={0} stroke="var(--border)" />
-                <Bar name="Revenue" dataKey="revenue" fill={SERIES[0]} radius={[3, 3, 0, 0]} />
-                <Bar name="Costs" dataKey="costs" fill={SERIES[4] ?? '#dc2626'} radius={[0, 0, 3, 3]} />
+                <Bar name="Revenue" dataKey="revenue" fill="url(#kd-grad-primary)" radius={[6, 6, 0, 0]} {...chartAnim} />
+                <Bar name="Costs" dataKey="costs" fill="url(#kd-grad-danger)" radius={[0, 0, 6, 6]} {...chartAnim} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -276,18 +278,13 @@ export default function ProfitLossTab() {
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="netGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={SERIES[0]} stopOpacity={0.15} />
-                    <stop offset="100%" stopColor={SERIES[0]} stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid {...GRID} />
-                <XAxis dataKey="month" {...AXIS_TICK} />
-                <YAxis {...AXIS_TICK} tickFormatter={fmtMillions} />
-                <ReTooltip content={<ChartTooltip formatter={(v: number) => formatNaira(v)} />} />
+                <ChartGradients />
+                <CartesianGrid stroke={chartTheme.gridLine} strokeDasharray="3 3" />
+                <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
+                <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={fmtMillions} />
+                <ReTooltip content={<GlassTooltip formatter={(v: number) => formatNaira(v)} />} />
                 <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="4 2" />
-                <Area name="Net income" type="monotone" dataKey="net" stroke={SERIES[0]} strokeWidth={2} fill="url(#netGrad)" />
+                <Area name="Net income" type="monotone" dataKey="net" stroke={SERIES[0]} strokeWidth={2} fill="url(#kd-grad-primary)" {...chartAnim} />
               </AreaChart>
             </ResponsiveContainer>
           </div>

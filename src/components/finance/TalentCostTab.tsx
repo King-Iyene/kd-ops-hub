@@ -3,6 +3,7 @@ import {
   ResponsiveContainer, ComposedChart, Bar, Scatter, XAxis, YAxis,
   CartesianGrid, Tooltip as ReTooltip,
 } from 'recharts';
+import { ChartGradients, chartTheme, axisTick, chartAnim } from '@/components/ChartKit';
 import { Users2, UserMinus, Rows3, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +26,7 @@ import {
   type CostComparisonResult,
   type CompensationBand,
 } from '@/lib/talent-cost';
-import { SERIES, GRID, AXIS_TICK, fmtMillions } from '@/lib/chart-theme';
+import { SERIES, fmtMillions } from '@/lib/chart-theme';
 
 const TERMINATION_TYPE_LABEL: Record<string, string> = {
   resignation: 'Resignation', dismissal: 'Dismissal', redundancy: 'Redundancy',
@@ -182,13 +183,14 @@ export default function TalentCostTab() {
               <div className="h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={bandChartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }} barSize={20}>
-                    <CartesianGrid {...GRID} />
-                    <XAxis dataKey="name" {...AXIS_TICK} />
-                    <YAxis {...AXIS_TICK} tickFormatter={fmtMillions} />
+                    <ChartGradients />
+                    <CartesianGrid stroke={chartTheme.gridLine} strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tick={axisTick} axisLine={false} tickLine={false} />
+                    <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={fmtMillions} />
                     <ReTooltip content={<BandTooltip />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
                     <Bar dataKey="base" stackId="band" fill="transparent" />
-                    <Bar dataKey="range" stackId="band" fill={SERIES[0]} fillOpacity={0.25} radius={[4, 4, 4, 4]} />
-                    <Scatter dataKey="median" fill={SERIES[1]} />
+                    <Bar dataKey="range" stackId="band" fill={SERIES[0]} fillOpacity={0.25} radius={[6, 6, 6, 6]} {...chartAnim} />
+                    <Scatter dataKey="median" fill={SERIES[1]} {...chartAnim} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>

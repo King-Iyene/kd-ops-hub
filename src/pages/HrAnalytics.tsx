@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend,
 } from 'recharts';
 import { supabase } from '@/lib/supabase';
@@ -315,7 +315,7 @@ const HrAnalytics = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} />
                   <XAxis dataKey="month" tick={axisTick} />
                   <YAxis tick={axisTick} />
-                  <RTooltip content={<GlassTooltip />} cursor={{ stroke: chartTheme.primary, strokeOpacity: 0.3 }} />
+                  <Tooltip content={<GlassTooltip />} cursor={{ stroke: chartTheme.primary, strokeOpacity: 0.3 }} />
                   <Legend />
                   <Line
                     type="monotone"
@@ -339,7 +339,7 @@ const HrAnalytics = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} />
                   <XAxis dataKey="month" tick={axisTick} />
                   <YAxis tick={axisTick} />
-                  <RTooltip content={<GlassTooltip />} cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }} />
+                  <Tooltip content={<GlassTooltip />} cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }} />
                   <Legend />
                   <Bar dataKey="joined" fill={chartTheme.success} name="Joined" />
                   <Bar dataKey="left" fill={chartTheme.danger} name="Left" />
@@ -367,7 +367,7 @@ const HrAnalytics = () => {
                     tick={axisTick}
                     width={130}
                   />
-                  <RTooltip
+                  <Tooltip
                     content={
                       <GlassTooltip
                         formatter={(v: any, k: string) => (k === 'cost' ? formatNaira(Number(v)) : v)}
@@ -428,7 +428,7 @@ const HrAnalytics = () => {
                       <Cell key={i} fill={chartPalette[i % chartPalette.length]} />
                     ))}
                   </Pie>
-                  <RTooltip content={<GlassTooltip />} cursor={{ fill: 'transparent' }} />
+                  <Tooltip content={<GlassTooltip />} cursor={{ fill: 'transparent' }} />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>
@@ -444,7 +444,7 @@ const HrAnalytics = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} />
                   <XAxis dataKey="name" tick={axisTick} />
                   <YAxis tick={axisTick} />
-                  <RTooltip content={<GlassTooltip />} cursor={{ fill: chartTheme.violet, fillOpacity: 0.06 }} />
+                  <Tooltip content={<GlassTooltip />} cursor={{ fill: chartTheme.violet, fillOpacity: 0.06 }} />
                   <Bar dataKey="count" fill={chartTheme.violet} />
                 </BarChart>
               </ResponsiveContainer>

@@ -3,7 +3,8 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip as ReTooltip, Legend,
 } from 'recharts';
-import { SERIES, GRID, AXIS_TICK, fmtMillions, ChartTooltip } from '@/lib/chart-theme';
+import { SERIES, fmtMillions } from '@/lib/chart-theme';
+import { ChartGradients, GlassTooltip, chartTheme, axisTick, chartAnim } from '@/components/ChartKit';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -333,20 +334,11 @@ export default function ScenarioPlannerTab() {
             <div className="h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="baseGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={SERIES[0]} stopOpacity={0.15} />
-                      <stop offset="100%" stopColor={SERIES[0]} stopOpacity={0.02} />
-                    </linearGradient>
-                    <linearGradient id="scenarioGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={SERIES[3]} stopOpacity={0.2} />
-                      <stop offset="100%" stopColor={SERIES[3]} stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid {...GRID} />
-                  <XAxis dataKey="week" {...AXIS_TICK} interval="preserveStartEnd" />
-                  <YAxis {...AXIS_TICK} tickFormatter={fmtMillions} />
-                  <ReTooltip content={<ChartTooltip formatter={(v: number) => formatNaira(v)} />} />
+                  <ChartGradients />
+                  <CartesianGrid stroke={chartTheme.gridLine} strokeDasharray="3 3" />
+                  <XAxis dataKey="week" tick={axisTick} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                  <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={fmtMillions} />
+                  <ReTooltip content={<GlassTooltip formatter={(v: number) => formatNaira(v)} />} />
                   <Legend />
                   <Area
                     name="Base forecast"
@@ -354,7 +346,8 @@ export default function ScenarioPlannerTab() {
                     dataKey="base"
                     stroke={SERIES[0]}
                     strokeWidth={2}
-                    fill="url(#baseGrad)"
+                    fill="url(#kd-grad-primary)"
+                    {...chartAnim}
                   />
                   {adjustments.length > 0 && (
                     <Area
@@ -364,7 +357,8 @@ export default function ScenarioPlannerTab() {
                       stroke={SERIES[3]}
                       strokeWidth={2}
                       strokeDasharray="6 3"
-                      fill="url(#scenarioGrad)"
+                      fill="url(#kd-grad-violet)"
+                      {...chartAnim}
                     />
                   )}
                 </AreaChart>

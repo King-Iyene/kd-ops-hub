@@ -121,7 +121,7 @@ export function StatCard({
       onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
       onMouseMove={handleMouseMove}
       className={cn(
-        'kd-holographic relative rounded-xl border bg-card kd-transition overflow-hidden',
+        'kd-holographic relative rounded-xl border bg-card kd-transition kd-card-lift overflow-hidden',
         cfg.bg,
         cfg.border,
         onClick && 'cursor-pointer',

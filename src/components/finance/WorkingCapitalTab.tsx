@@ -11,7 +11,8 @@ import { formatNaira } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { errorMessage } from '@/lib/db-errors';
 import { fetchWorkingCapitalData, type WorkingCapitalResult, type WcBand } from '@/lib/working-capital';
-import { GRID, AXIS_TICK, fmtCompact, ChartTooltip } from '@/lib/chart-theme';
+import { fmtCompact } from '@/lib/chart-theme';
+import { ChartGradients, GlassTooltip, chartTheme, axisTick, chartAnim } from '@/components/ChartKit';
 
 const BAND_STYLE: Record<WcBand, { tone: string; label: string }> = {
   strong:   { tone: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30', label: 'Strong' },
@@ -218,17 +219,18 @@ export default function WorkingCapitalTab() {
                 <div className="h-[240px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={waterfallData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }} barSize={18}>
-                      <CartesianGrid {...GRID} />
-                      <XAxis dataKey="label" {...AXIS_TICK} />
-                      <YAxis {...AXIS_TICK} tickFormatter={(v: number) => fmtCompact(v)} />
-                      <ReTooltip content={<ChartTooltip valueFormatter={(v) => formatNaira(Math.abs(v))} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
+                      <ChartGradients />
+                      <CartesianGrid stroke={chartTheme.gridLine} strokeDasharray="3 3" />
+                      <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
+                      <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={(v: number) => fmtCompact(v)} />
+                      <ReTooltip content={<GlassTooltip formatter={(v: number) => formatNaira(Math.abs(v))} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
                       <ReferenceLine y={0} stroke="currentColor" strokeWidth={1} strokeOpacity={0.2} />
-                      <Bar dataKey="inflows" name="Inflows" radius={[4, 4, 0, 0]}>
+                      <Bar dataKey="inflows" name="Inflows" radius={[6, 6, 0, 0]} {...chartAnim}>
                         {waterfallData.map((_, i) => (
                           <Cell key={`in-${i}`} fill={INFLOW_COLOR} />
                         ))}
                       </Bar>
-                      <Bar dataKey="outflows" name="Outflows" radius={[0, 0, 4, 4]}>
+                      <Bar dataKey="outflows" name="Outflows" radius={[0, 0, 6, 6]} {...chartAnim}>
                         {waterfallData.map((_, i) => (
                           <Cell key={`out-${i}`} fill={OUTFLOW_COLOR} />
                         ))}
