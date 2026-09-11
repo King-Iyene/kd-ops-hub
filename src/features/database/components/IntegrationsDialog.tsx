@@ -131,13 +131,13 @@ function OverviewTab({ baseId, onSubDialog, onSwitchTab }: { baseId: string | nu
             { step: 2, title: 'Send data via HTTP', desc: 'POST records to the API. Unknown fields are auto-created with smart type detection (Email, URL, Date, Number, etc).', action: () => onSwitchTab('api-reference') },
             { step: 3, title: 'Set up webhooks (optional)', desc: 'Get notified in real-time when records change — push data to n8n, Slack, or any URL.', action: () => onSubDialog('webhooks') },
           ].map(({ step, title, desc, action }) => (
-            <button key={step} onClick={action} className="w-full flex items-start gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/80 dark:border-zinc-700/50 hover:border-blue-300 dark:hover:border-blue-700 transition-colors text-left group">
+            <button key={step} onClick={action} className="w-full flex items-start gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/80 dark:border-zinc-700/50 hover:border-primary/30 dark:hover:border-primary transition-colors text-left group">
               <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-2xs font-bold shrink-0 mt-0.5">{step}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{title}</p>
                 <p className="text-2xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">{desc}</p>
               </div>
-              <ChevronRight size={14} className="text-zinc-300 dark:text-zinc-600 group-hover:text-blue-500 transition-colors shrink-0 mt-1" />
+              <ChevronRight size={14} className="text-zinc-300 dark:text-zinc-600 group-hover:text-primary transition-colors shrink-0 mt-1" />
             </button>
           ))}
         </div>
@@ -182,7 +182,7 @@ function OverviewTab({ baseId, onSubDialog, onSwitchTab }: { baseId: string | nu
                 <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{card.title}</p>
                 <p className="text-3xs text-zinc-400 dark:text-zinc-500 mt-0.5">{card.desc}</p>
               </div>
-              <ArrowRight size={11} className="text-zinc-300 dark:text-zinc-600 group-hover:text-blue-500 transition-colors" />
+              <ArrowRight size={11} className="text-zinc-300 dark:text-zinc-600 group-hover:text-primary transition-colors" />
             </button>
           ))}
         </div>
