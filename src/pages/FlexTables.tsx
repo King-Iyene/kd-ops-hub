@@ -811,8 +811,12 @@ export default function FlexTables() {
   const tasksById = useMemo(() => new Map(tasksList.map((t) => [t.id, t])), [tasksList]);
   // Tasks completed today or later — the picker source for "Completed linked tasks" fields.
   const completedTasks = useMemo(() => {
-    const todayIso = new Date().toISOString().slice(0, 10);
-    return tasksList.filter((t) => t.status === 'complete' && t.completed_at && t.completed_at.slice(0, 10) >= todayIso);
+    // One day's grace: a task completed yesterday still shows up today,
+    // matching the same grace period as the public form's picker.
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 1);
+    const cutoffIso = cutoff.toISOString().slice(0, 10);
+    return tasksList.filter((t) => t.status === 'complete' && t.completed_at && t.completed_at.slice(0, 10) >= cutoffIso);
   }, [tasksList]);
 
   return (
@@ -2111,7 +2115,7 @@ function Cell({
               );
             })}
             {field.type === 'completed_task_link' && completedTasks.length === 0 && (
-              <p className="text-xs text-muted-foreground px-2 py-1">No tasks completed today or later.</p>
+              <p className="text-xs text-muted-foreground px-2 py-1">No tasks completed today or yesterday.</p>
             )}
           </div>
         )}

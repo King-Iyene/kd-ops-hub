@@ -414,9 +414,9 @@ function CompletedTaskLinkPicker({ token, personId, value, onChange, onNoOptions
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, personId]);
 
-  if (!personId) return <p className="text-xs text-muted-foreground italic">Select your name in the dropdown above to see your completed tasks from today forward.</p>;
+  if (!personId) return <p className="text-xs text-muted-foreground italic">Select your name in the dropdown above to see your tasks completed today or yesterday.</p>;
   if (loading) return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
-  if (options.length === 0) return <p className="text-xs text-muted-foreground italic">No tasks completed today or later for you — you can still submit; this will count as none.</p>;
+  if (options.length === 0) return <p className="text-xs text-muted-foreground italic">No tasks completed today or yesterday for you — you can still submit; this will count as none.</p>;
 
   const ids = Array.isArray(value) ? (value as string[]) : [];
   return (
