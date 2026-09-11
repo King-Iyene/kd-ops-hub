@@ -23,6 +23,9 @@ import {
   ArrowRight, ArrowLeft, Wand2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow,
+} from '@/components/ui-kit/MobileCard';
 
 /**
  * Universal bulk employee CSV importer.
@@ -553,60 +556,109 @@ export const EmployeeCsvImport = ({
             </div>
 
             <div className="border rounded-md overflow-hidden max-h-[440px] overflow-y-auto">
-              <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Your column</TableHead>
-                    <TableHead>Sample</TableHead>
-                    <TableHead className="w-64">Map to KDOps field</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sourceHeaders.map((h) => {
-                    const sample = rawRows
-                      .slice(0, 3)
-                      .map((r) => r[h])
-                      .filter(Boolean)[0];
-                    const current = mapping[h] || NONE;
-                    return (
-                      <TableRow key={h}>
-                        <TableCell className="font-medium text-sm">{h}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground truncate max-w-xs">
-                          {sample || '—'}
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={current}
-                            onValueChange={(v) =>
-                              setMapping({ ...mapping, [h]: v as any })
-                            }
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-72">
-                              <SelectItem value={NONE}>— Ignore this column —</SelectItem>
-                              {Object.entries(grouped).map(([groupName, fields]) => (
-                                <div key={groupName}>
-                                  <p className="px-2 pt-2 pb-1 text-3xs uppercase tracking-wide text-muted-foreground font-semibold">
-                                    {groupName}
-                                  </p>
-                                  {fields.map((f) => (
-                                    <SelectItem key={f.key} value={f.key}>
-                                      {f.label} {f.required && <span className="text-destructive">*</span>}
-                                    </SelectItem>
-                                  ))}
-                                </div>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              {/* Desktop table */}
+              <div className="hidden md:block">
+                <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Your column</TableHead>
+                      <TableHead>Sample</TableHead>
+                      <TableHead className="w-64">Map to KDOps field</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sourceHeaders.map((h) => {
+                      const sample = rawRows
+                        .slice(0, 3)
+                        .map((r) => r[h])
+                        .filter(Boolean)[0];
+                      const current = mapping[h] || NONE;
+                      return (
+                        <TableRow key={h}>
+                          <TableCell className="font-medium text-sm">{h}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground truncate max-w-xs">
+                            {sample || '—'}
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={current}
+                              onValueChange={(v) =>
+                                setMapping({ ...mapping, [h]: v as any })
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-72">
+                                <SelectItem value={NONE}>— Ignore this column —</SelectItem>
+                                {Object.entries(grouped).map(([groupName, fields]) => (
+                                  <div key={groupName}>
+                                    <p className="px-2 pt-2 pb-1 text-3xs uppercase tracking-wide text-muted-foreground font-semibold">
+                                      {groupName}
+                                    </p>
+                                    {fields.map((f) => (
+                                      <SelectItem key={f.key} value={f.key}>
+                                        {f.label} {f.required && <span className="text-destructive">*</span>}
+                                      </SelectItem>
+                                    ))}
+                                  </div>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                </div>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-2 p-2">
+                {sourceHeaders.map((h) => {
+                  const sample = rawRows
+                    .slice(0, 3)
+                    .map((r) => r[h])
+                    .filter(Boolean)[0];
+                  const current = mapping[h] || NONE;
+                  return (
+                    <MobileCard key={h}>
+                      <MobileCardHeader>
+                        <MobileCardTitle>{h}</MobileCardTitle>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Sample">{sample || '—'}</MobileCardRow>
+                      <div className="pt-1">
+                        <Select
+                          value={current}
+                          onValueChange={(v) =>
+                            setMapping({ ...mapping, [h]: v as any })
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-72">
+                            <SelectItem value={NONE}>— Ignore this column —</SelectItem>
+                            {Object.entries(grouped).map(([groupName, fields]) => (
+                              <div key={groupName}>
+                                <p className="px-2 pt-2 pb-1 text-3xs uppercase tracking-wide text-muted-foreground font-semibold">
+                                  {groupName}
+                                </p>
+                                {fields.map((f) => (
+                                  <SelectItem key={f.key} value={f.key}>
+                                    {f.label} {f.required && <span className="text-destructive">*</span>}
+                                  </SelectItem>
+                                ))}
+                              </div>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </MobileCard>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -629,59 +681,98 @@ export const EmployeeCsvImport = ({
               </span>
             </div>
             <div className="border rounded-md overflow-hidden max-h-[400px] overflow-y-auto">
-              <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-14">Row</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Salary</TableHead>
-                    <TableHead>Issues</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.slice(0, 40).map((r) => {
-                    const hasError = r.__errors.length > 0;
-                    return (
-                      <TableRow key={r.__rowIndex} className={cn(hasError && 'bg-destructive/5')}>
-                        <TableCell className="font-mono text-xs">{r.__rowIndex}</TableCell>
-                        <TableCell className="text-xs">
-                          {`${r.data.first_name || ''} ${r.data.last_name || ''}`.trim() || '—'}
-                        </TableCell>
-                        <TableCell className="text-xs">{r.data.email || '—'}</TableCell>
-                        <TableCell className="text-xs">{r.data.role || 'field_staff'}</TableCell>
-                        <TableCell className="text-xs">{r.data.department || '—'}</TableCell>
-                        <TableCell className="text-xs text-right">
-                          {r.data.salary_ngn
-                            ? Number(String(r.data.salary_ngn).replace(/[^\d.-]/g, '')).toLocaleString('en-NG')
-                            : '—'}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {hasError ? (
-                            <div className="space-y-0.5">
-                              {r.__errors.slice(0, 2).map((err, i) => (
-                                <p key={i} className="text-destructive text-2xs">
-                                  {err}
-                                </p>
-                              ))}
-                              {r.__errors.length > 2 && (
-                                <p className="text-destructive/70 text-3xs">
-                                  +{r.__errors.length - 2} more
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-success text-2xs">OK</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              {/* Desktop table */}
+              <div className="hidden md:block">
+                <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-14">Row</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Department</TableHead>
+                      <TableHead>Salary</TableHead>
+                      <TableHead>Issues</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.slice(0, 40).map((r) => {
+                      const hasError = r.__errors.length > 0;
+                      return (
+                        <TableRow key={r.__rowIndex} className={cn(hasError && 'bg-destructive/5')}>
+                          <TableCell className="font-mono text-xs">{r.__rowIndex}</TableCell>
+                          <TableCell className="text-xs">
+                            {`${r.data.first_name || ''} ${r.data.last_name || ''}`.trim() || '—'}
+                          </TableCell>
+                          <TableCell className="text-xs">{r.data.email || '—'}</TableCell>
+                          <TableCell className="text-xs">{r.data.role || 'field_staff'}</TableCell>
+                          <TableCell className="text-xs">{r.data.department || '—'}</TableCell>
+                          <TableCell className="text-xs text-right">
+                            {r.data.salary_ngn
+                              ? Number(String(r.data.salary_ngn).replace(/[^\d.-]/g, '')).toLocaleString('en-NG')
+                              : '—'}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {hasError ? (
+                              <div className="space-y-0.5">
+                                {r.__errors.slice(0, 2).map((err, i) => (
+                                  <p key={i} className="text-destructive text-2xs">
+                                    {err}
+                                  </p>
+                                ))}
+                                {r.__errors.length > 2 && (
+                                  <p className="text-destructive/70 text-3xs">
+                                    +{r.__errors.length - 2} more
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-success text-2xs">OK</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                </div>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-2 p-2">
+                {rows.slice(0, 40).map((r) => {
+                  const hasError = r.__errors.length > 0;
+                  const name = `${r.data.first_name || ''} ${r.data.last_name || ''}`.trim() || '—';
+                  return (
+                    <MobileCard
+                      key={r.__rowIndex}
+                      accentClassName={hasError ? 'bg-destructive' : 'bg-success'}
+                    >
+                      <MobileCardHeader>
+                        <MobileCardTitle>{name}</MobileCardTitle>
+                        <MobileCardMeta className="text-xs text-muted-foreground">#{r.__rowIndex}</MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Email">{r.data.email || '—'}</MobileCardRow>
+                      <MobileCardRow label="Role">{r.data.role || 'field_staff'}</MobileCardRow>
+                      <MobileCardRow label="Department">{r.data.department || '—'}</MobileCardRow>
+                      <MobileCardRow label="Salary">
+                        {r.data.salary_ngn
+                          ? Number(String(r.data.salary_ngn).replace(/[^\d.-]/g, '')).toLocaleString('en-NG')
+                          : '—'}
+                      </MobileCardRow>
+                      <MobileCardRow label="Issues">
+                        {hasError ? (
+                          <span className="text-destructive">
+                            {r.__errors[0]}{r.__errors.length > 1 ? ` +${r.__errors.length - 1} more` : ''}
+                          </span>
+                        ) : (
+                          <span className="text-success">OK</span>
+                        )}
+                      </MobileCardRow>
+                    </MobileCard>
+                  );
+                })}
               </div>
             </div>
             {rows.length > 40 && (

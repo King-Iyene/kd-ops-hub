@@ -11,6 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import {
+  MobileCard, MobileCardHeader, MobileCardTitle, MobileCardRow,
+} from '@/components/ui-kit/MobileCard';
 
 interface Props {
   settings: {
@@ -183,59 +186,86 @@ export default function SecurityTab({ settings, patch, approverMfaStatus, export
             Roles not listed for a module are blocked on both layers — they cannot see the page
             or read/write any data even via direct API calls.
           </p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left pb-2 pr-4 font-medium text-muted-foreground w-44">Module</th>
-                  {(['super_admin','admin','finance','operations','field_staff / driver'] as const).map(r => (
-                    <th key={r} className="text-center pb-2 px-2 font-medium text-muted-foreground capitalize">{r.replace('_',' ')}</th>
+          {(() => {
+            const ROLE_LABELS = ['Super admin', 'Admin', 'Finance', 'Operations', 'Field staff / driver'];
+            const MODULE_ROWS = [
+              { module: 'Dashboard',             sa: true,  ad: true,  fi: true,  op: true,  fs: true  },
+              { module: 'Payments (batches)',    sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+              { module: 'Expenses',              sa: true,  ad: true,  fi: true,  op: true,  fs: true  },
+              { module: 'Payroll / Payslips',    sa: true,  ad: true,  fi: true,  op: false, fs: false },
+              { module: 'Budgets',               sa: true,  ad: true,  fi: true,  op: false, fs: false },
+              { module: 'Fleet',                 sa: true,  ad: true,  fi: true,  op: true,  fs: true  },
+              { module: 'Contractors',           sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+              { module: 'Employees (HR)',        sa: true,  ad: true,  fi: false, op: false, fs: false },
+              { module: 'Leave',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+              { module: 'Performance Reviews',   sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+              { module: 'Training Records',      sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+              { module: 'Benefits',              sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+              { module: 'Onboarding',            sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+              { module: 'Recruitment',           sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+              { module: 'Attendance',            sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+              { module: 'Disciplinary',          sa: true,  ad: true,  fi: false, op: false, fs: false },
+              { module: 'Vendors',               sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+              { module: 'Clients / CRM',         sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+              { module: 'Invoices',              sa: true,  ad: true,  fi: true,  op: false, fs: false },
+              { module: 'Assets',                sa: true,  ad: true,  fi: true,  op: false, fs: false },
+              { module: 'Projects',              sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+              { module: 'Tasks',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+              { module: 'Goals',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+              { module: 'Documents',             sa: true,  ad: true,  fi: true,  op: false, fs: false },
+              { module: 'Audit Log',             sa: true,  ad: true,  fi: false, op: false, fs: false },
+              { module: 'Settings',              sa: true,  ad: true,  fi: false, op: false, fs: false },
+            ];
+            return (
+              <>
+                {/* Desktop table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left pb-2 pr-4 font-medium text-muted-foreground w-44">Module</th>
+                        {(['super_admin','admin','finance','operations','field_staff / driver'] as const).map(r => (
+                          <th key={r} className="text-center pb-2 px-2 font-medium text-muted-foreground capitalize">{r.replace('_',' ')}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {MODULE_ROWS.map(({ module, sa, ad, fi, op, fs }) => (
+                        <tr key={module} className="hover:bg-muted/30 transition-colors">
+                          <td className="py-1.5 pr-4 font-medium">{module}</td>
+                          {[sa, ad, fi, op, fs].map((allowed, i) => (
+                            <td key={i} className="py-1.5 px-2 text-center">
+                              <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-3xs font-bold ${allowed ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
+                                {allowed ? '✓' : '✕'}
+                              </span>
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile cards */}
+                <div className="md:hidden space-y-2">
+                  {MODULE_ROWS.map(({ module, sa, ad, fi, op, fs }) => (
+                    <MobileCard key={module}>
+                      <MobileCardHeader>
+                        <MobileCardTitle>{module}</MobileCardTitle>
+                      </MobileCardHeader>
+                      {[sa, ad, fi, op, fs].map((allowed, i) => (
+                        <MobileCardRow key={i} label={ROLE_LABELS[i]}>
+                          <span className={allowed ? 'text-success' : 'text-destructive'}>
+                            {allowed ? '✓ Allowed' : '✕ Blocked'}
+                          </span>
+                        </MobileCardRow>
+                      ))}
+                    </MobileCard>
                   ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/40">
-                {[
-                  { module: 'Dashboard',             sa: true,  ad: true,  fi: true,  op: true,  fs: true  },
-                  { module: 'Payments (batches)',    sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                  { module: 'Expenses',              sa: true,  ad: true,  fi: true,  op: true,  fs: true  },
-                  { module: 'Payroll / Payslips',    sa: true,  ad: true,  fi: true,  op: false, fs: false },
-                  { module: 'Budgets',               sa: true,  ad: true,  fi: true,  op: false, fs: false },
-                  { module: 'Fleet',                 sa: true,  ad: true,  fi: true,  op: true,  fs: true  },
-                  { module: 'Contractors',           sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                  { module: 'Employees (HR)',        sa: true,  ad: true,  fi: false, op: false, fs: false },
-                  { module: 'Leave',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                  { module: 'Performance Reviews',   sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                  { module: 'Training Records',      sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                  { module: 'Benefits',              sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                  { module: 'Onboarding',            sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                  { module: 'Recruitment',           sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                  { module: 'Attendance',            sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                  { module: 'Disciplinary',          sa: true,  ad: true,  fi: false, op: false, fs: false },
-                  { module: 'Vendors',               sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                  { module: 'Clients / CRM',         sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                  { module: 'Invoices',              sa: true,  ad: true,  fi: true,  op: false, fs: false },
-                  { module: 'Assets',                sa: true,  ad: true,  fi: true,  op: false, fs: false },
-                  { module: 'Projects',              sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                  { module: 'Tasks',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                  { module: 'Goals',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                  { module: 'Documents',             sa: true,  ad: true,  fi: true,  op: false, fs: false },
-                  { module: 'Audit Log',             sa: true,  ad: true,  fi: false, op: false, fs: false },
-                  { module: 'Settings',              sa: true,  ad: true,  fi: false, op: false, fs: false },
-                ].map(({ module, sa, ad, fi, op, fs }) => (
-                  <tr key={module} className="hover:bg-muted/30 transition-colors">
-                    <td className="py-1.5 pr-4 font-medium">{module}</td>
-                    {[sa, ad, fi, op, fs].map((allowed, i) => (
-                      <td key={i} className="py-1.5 px-2 text-center">
-                        <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-3xs font-bold ${allowed ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
-                          {allowed ? '✓' : '✕'}
-                        </span>
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </div>
+              </>
+            );
+          })()}
           <p className="text-2xs text-muted-foreground mt-3 border-t pt-2">
             Role changes are applied by editing the employee's profile in the <strong>Employees</strong> page.
             Changes take effect on the employee's next page load (no restart required).
@@ -509,29 +539,50 @@ function FailedLoginPanel() {
                 ? 'Full email addresses visible.'
                 : 'Email addresses partially masked for privacy.'}
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b bg-muted/30">
-                    <th className="text-left py-2 px-4 font-medium text-muted-foreground">Email</th>
-                    <th className="text-left py-2 px-4 font-medium text-muted-foreground">Reason</th>
-                    <th className="text-left py-2 px-4 font-medium text-muted-foreground">IP (hashed)</th>
-                    <th className="text-left py-2 px-4 font-medium text-muted-foreground">When</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {slice.map((r) => (
-                    <tr key={r.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="py-2 px-4 font-mono">{unmasked ? r.email : maskEmail(r.email)}</td>
-                      <td className="py-2 px-4 text-muted-foreground">{r.reason || '—'}</td>
-                      <td className="py-2 px-4 font-mono text-muted-foreground">
-                        {r.ip_hash ? r.ip_hash.slice(0, 8) + '…' : '—'}
-                      </td>
-                      <td className="py-2 px-4 text-muted-foreground">{relativeTime(r.attempted_at)}</td>
+            {/* Desktop table */}
+            <div className="hidden md:block">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b bg-muted/30">
+                      <th className="text-left py-2 px-4 font-medium text-muted-foreground">Email</th>
+                      <th className="text-left py-2 px-4 font-medium text-muted-foreground">Reason</th>
+                      <th className="text-left py-2 px-4 font-medium text-muted-foreground">IP (hashed)</th>
+                      <th className="text-left py-2 px-4 font-medium text-muted-foreground">When</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {slice.map((r) => (
+                      <tr key={r.id} className="hover:bg-muted/20 transition-colors">
+                        <td className="py-2 px-4 font-mono">{unmasked ? r.email : maskEmail(r.email)}</td>
+                        <td className="py-2 px-4 text-muted-foreground">{r.reason || '—'}</td>
+                        <td className="py-2 px-4 font-mono text-muted-foreground">
+                          {r.ip_hash ? r.ip_hash.slice(0, 8) + '…' : '—'}
+                        </td>
+                        <td className="py-2 px-4 text-muted-foreground">{relativeTime(r.attempted_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-2 px-4 py-2">
+              {slice.map((r) => (
+                <MobileCard key={r.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle className="font-mono text-xs">
+                      {unmasked ? r.email : maskEmail(r.email)}
+                    </MobileCardTitle>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Reason">{r.reason || '—'}</MobileCardRow>
+                  <MobileCardRow label="IP (hashed)">
+                    {r.ip_hash ? r.ip_hash.slice(0, 8) + '…' : '—'}
+                  </MobileCardRow>
+                  <MobileCardRow label="When">{relativeTime(r.attempted_at)}</MobileCardRow>
+                </MobileCard>
+              ))}
             </div>
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-2 border-t text-2xs text-muted-foreground">

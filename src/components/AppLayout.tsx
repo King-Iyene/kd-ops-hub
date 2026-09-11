@@ -10,6 +10,7 @@ import { MobileNav } from '@/components/MobileNav';
 import { CommandPalette } from '@/components/CommandPalette';
 import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
 import { ChatWidget } from '@/components/ChatWidget';
+import { ScrollToTop } from '@/components/ScrollToTop';
 import { Outlet, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -102,6 +103,10 @@ export default function AppLayout() {
 
   const mainRef = useRef<HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [location.pathname]);
   const onScroll = useCallback(() => {
     setScrolled((mainRef.current?.scrollTop ?? 0) > 8);
   }, []);
@@ -207,6 +212,7 @@ export default function AppLayout() {
       <KeyboardShortcuts />
       <MobileNav />
       <ChatWidget />
+      <ScrollToTop />
       <div className="h-14 md:hidden" />
     </div>
   );

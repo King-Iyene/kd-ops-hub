@@ -17,6 +17,9 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import {
+  MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow,
+} from '@/components/ui-kit/MobileCard';
 import { cn } from '@/lib/utils';
 
 interface CompensationBreakdown {
@@ -261,6 +264,7 @@ export default function JobPayTab({
                 No salary set — use Edit Profile to add salary
               </div>
             ) : (
+              <div className="hidden md:block">
               <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -328,6 +332,41 @@ export default function JobPayTab({
                   )}
                 </TableBody>
               </Table>
+              </div>
+              </div>
+
+              {/* Mobile compensation cards */}
+              <div className="md:hidden space-y-2 p-3">
+                <MobileCard>
+                  <MobileCardHeader>
+                    <MobileCardTitle>Gross Pay</MobileCardTitle>
+                    <MobileCardMeta className="currency">{formatNaira(salary)}</MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Annual" className="currency">{formatNaira(salary * 12)}</MobileCardRow>
+                </MobileCard>
+                <MobileCard>
+                  <MobileCardHeader>
+                    <MobileCardTitle className="text-muted-foreground">Deductions</MobileCardTitle>
+                  </MobileCardHeader>
+                  <MobileCardRow label="PAYE Tax">{formatNaira(payeMonthly)}/mo</MobileCardRow>
+                  {pensionOn && <MobileCardRow label="Pension (8%)">{formatNaira(pensionEmployeeMonthly)}/mo</MobileCardRow>}
+                  {avcMonthly > 0 && <MobileCardRow label="AVC">{formatNaira(avcMonthly)}/mo</MobileCardRow>}
+                  {nhfOn && <MobileCardRow label="NHF (2.5%)">{formatNaira(nhfMonthly)}/mo</MobileCardRow>}
+                  {nhisOn && <MobileCardRow label="NHIS (5%)">{formatNaira(nhisMonthly)}/mo</MobileCardRow>}
+                  <MobileCardRow label="Total deductions" className="font-medium pt-1 border-t border-border/40">{formatNaira(totalDeductMonthly)}/mo</MobileCardRow>
+                </MobileCard>
+                <MobileCard className="bg-success/5 border-success/20">
+                  <MobileCardHeader>
+                    <MobileCardTitle className="text-base font-bold">Net Pay</MobileCardTitle>
+                    <MobileCardMeta className="text-base font-bold currency">{formatNaira(netMonthly)}</MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Annual">{formatNaira(netMonthly * 12)}</MobileCardRow>
+                </MobileCard>
+                {pensionOn && (
+                  <MobileCard className="bg-muted/10">
+                    <MobileCardRow label="Employer pension (10%)">{formatNaira(employerContribMonthly)}/mo</MobileCardRow>
+                  </MobileCard>
+                )}
               </div>
             )}
           </CardContent>
