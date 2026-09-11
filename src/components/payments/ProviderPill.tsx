@@ -39,15 +39,15 @@ export function ProviderPill({
 
   // Tailwind classes chosen so the pill is legible in both light and dark mode.
   const colour = norm === 'flutterwave'
-    ? 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700/50'
-    : 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-700/50';
+    ? 'bg-warning/10 text-warning border-warning/20 dark:bg-warning/40 dark:text-warning/20 dark:border-warning/50'
+    : 'bg-success/10 text-success border-success/20 dark:bg-success/40 dark:text-success/20 dark:border-success/50';
 
   return (
     <span
       className={`inline-flex items-center rounded-full border font-medium leading-none ${SIZE_CLASSES[size]} ${colour} ${className}`}
       title={`Paid via ${providerLabel(norm)}`}
     >
-      <span className={`inline-block w-1.5 h-1.5 rounded-full ${norm === 'flutterwave' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+      <span className={`inline-block w-1.5 h-1.5 rounded-full ${norm === 'flutterwave' ? 'bg-warning' : 'bg-success'}`} />
       {label}
     </span>
   );

@@ -172,7 +172,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-700/50">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-warning/10 dark:bg-warning/10 flex items-center justify-center">
               <ScanSearch size={16} className="text-warning" />
             </div>
             <div>
@@ -197,7 +197,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
                 step={0.05}
                 value={threshold}
                 onChange={e => { setThreshold(+e.target.value); setScanned(false); }}
-                className="flex-1 h-1.5 accent-amber-500"
+                className="flex-1 h-1.5 accent-warning"
               />
               <span className="text-xs font-mono text-zinc-600 dark:text-zinc-300 w-10 text-right">{Math.round(threshold * 100)}%</span>
             </div>
@@ -213,8 +213,8 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
                   onClick={() => toggleField(f.id)}
                   className={`px-2 py-0.5 rounded-full text-2xs border transition-colors ${
                     selectedFields.includes(f.id)
-                      ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-warning'
-                      : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-amber-300'
+                      ? 'bg-warning/10 dark:bg-warning/10 border-warning/30 dark:border-warning text-warning'
+                      : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-warning/30'
                   }`}
                 >
                   {f.name}
@@ -228,7 +228,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
 
           <Button
             size="sm"
-            className="w-full h-8 text-xs font-medium bg-amber-500 hover:bg-amber-600 text-white"
+            className="w-full h-8 text-xs font-medium bg-warning hover:bg-warning text-white"
             onClick={runScan}
             disabled={scanning}
           >
@@ -251,7 +251,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
 
           {scanned && groups.length === 0 && (
             <div className="flex flex-col items-center justify-center py-10 text-center">
-              <CheckCircle2 size={32} className="text-green-400 mb-2" />
+              <CheckCircle2 size={32} className="text-success mb-2" />
               <p className="text-xs-plus font-medium text-zinc-600 dark:text-zinc-300">No duplicates found</p>
               <p className="text-2xs text-zinc-400 mt-1">Try lowering the match threshold to catch more similar entries</p>
             </div>
@@ -260,7 +260,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
           {scanned && groups.length > 0 && (
             <>
               <div className="flex items-center gap-2 mb-3">
-                <AlertTriangle size={14} className="text-amber-500" />
+                <AlertTriangle size={14} className="text-warning" />
                 <span className="text-xs text-zinc-600 dark:text-zinc-300">
                   Found <strong className="text-warning">{totalDuplicates}</strong> potential duplicate{totalDuplicates !== 1 ? 's' : ''} in <strong>{groups.length}</strong> group{groups.length !== 1 ? 's' : ''}
                 </span>
@@ -282,7 +282,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
                         <span className="text-2xs text-zinc-400 mx-1.5">·</span>
                         <span className="text-2xs text-zinc-500 dark:text-zinc-400 truncate">"{group.matchValue}"</span>
                       </div>
-                      <span className="text-3xs px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-warning font-medium">
+                      <span className="text-3xs px-1.5 py-0.5 rounded-full bg-warning/10 dark:bg-warning/10 text-warning font-medium">
                         {group.rows.length} rows
                       </span>
                     </button>
@@ -309,7 +309,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
                               return (
                                 <tr
                                   key={row.id}
-                                  className={`border-t border-zinc-100 dark:border-zinc-700/20 ${ri === 0 ? '' : 'bg-amber-50/50 dark:bg-amber-900/10'}`}
+                                  className={`border-t border-zinc-100 dark:border-zinc-700/20 ${ri === 0 ? '' : 'bg-warning/5 dark:bg-warning/10'}`}
                                 >
                                   <td className="px-3 py-1.5 text-zinc-400">{ri + 1}</td>
                                   <td className="px-3 py-1.5 text-zinc-700 dark:text-zinc-200 truncate max-w-[180px]">
@@ -321,7 +321,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
                                   <td className="px-2 py-1.5">
                                     {onScrollToRow && (
                                       <button
-                                        className="text-3xs text-blue-500 hover:text-blue-600 hover:underline"
+                                        className="text-3xs text-primary hover:text-primary hover:underline"
                                         onClick={() => onScrollToRow(row.id)}
                                       >
                                         Go to →

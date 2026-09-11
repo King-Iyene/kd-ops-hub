@@ -65,7 +65,7 @@ function CopyButton({ text, size = 12 }: { text: string; size?: number }) {
       className="shrink-0 p-1 rounded hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60 text-zinc-400 dark:text-zinc-500 transition-colors"
       title="Copy"
     >
-      {copied ? <Check size={size} className="text-emerald-500" /> : <Copy size={size} />}
+      {copied ? <Check size={size} className="text-success" /> : <Copy size={size} />}
     </button>
   );
 }
@@ -1462,7 +1462,7 @@ function EndpointCard({ endpoint, moduleId }: { endpoint: Endpoint; moduleId: st
                         <TableCell className="text-2xs text-zinc-500 dark:text-zinc-400 py-2">{f.type}</TableCell>
                         <TableCell className="py-2">
                           {f.required ? (
-                            <Badge variant="secondary" className="text-3xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-100">
+                            <Badge variant="secondary" className="text-3xs bg-destructive/10 text-destructive dark:bg-destructive/10 dark:text-destructive hover:bg-destructive/10">
                               Required
                             </Badge>
                           ) : (
@@ -1565,7 +1565,7 @@ export default function ApiReference() {
                   className={cn(
                     'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left text-xs transition-colors',
                     activeModule === m.id
-                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 font-medium'
+                      ? 'bg-primary/5 dark:bg-primary/10 text-primary dark:text-primary font-medium'
                       : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'
                   )}
                 >
@@ -1587,7 +1587,7 @@ export default function ApiReference() {
         <Card className="p-5 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <Shield size={16} className="text-blue-600 dark:text-blue-400" />
+              <Shield size={16} className="text-primary dark:text-primary" />
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Authentication & Conventions</h2>
             </div>
             <div className="grid sm:grid-cols-2 gap-3">

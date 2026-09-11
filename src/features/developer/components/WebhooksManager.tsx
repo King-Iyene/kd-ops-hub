@@ -611,7 +611,7 @@ export default function WebhooksManager() {
                         size="icon-sm"
                         onClick={copySecret}
                       >
-                        {copiedSecret ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                        {copiedSecret ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
                       </Button>
                     )}
                   </div>
@@ -721,7 +721,7 @@ export default function WebhooksManager() {
                 className={cn(
                   'rounded-lg border p-3 text-sm font-mono whitespace-pre-wrap max-h-48 overflow-y-auto',
                   testResult.ok
-                    ? 'border-green-500/30 bg-green-500/10 text-green-400'
+                    ? 'border-success/30 bg-success/10 text-success'
                     : 'border-destructive/30 bg-destructive/10 text-destructive'
                 )}
               >

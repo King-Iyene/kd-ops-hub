@@ -213,7 +213,7 @@ export default function ApiOverview({
       {/* Quick Start */}
       <section>
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+          <div className="p-2 rounded-lg bg-success/10 dark:bg-success/10">
             <Zap className="h-5 w-5 text-success" />
           </div>
           <div>
@@ -244,7 +244,7 @@ export default function ApiOverview({
                 </p>
                 {s.code && (
                   <div className="rounded-lg bg-zinc-950 dark:bg-zinc-900 p-3 overflow-x-auto">
-                    <code className="text-2xs leading-relaxed text-emerald-400 font-mono whitespace-pre">
+                    <code className="text-2xs leading-relaxed text-success font-mono whitespace-pre">
                       {s.code}
                     </code>
                   </div>
@@ -254,7 +254,7 @@ export default function ApiOverview({
                     variant="ghost"
                     size="sm"
                     onClick={() => onNavigate(s.action!)}
-                    className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 px-0"
+                    className="text-primary dark:text-primary hover:text-primary/80 dark:hover:text-primary/80 px-0"
                   >
                     {s.actionLabel}
                     <ArrowRight className="ml-1 h-3 w-3" />
@@ -267,11 +267,11 @@ export default function ApiOverview({
       </section>
 
       {/* Bank Details Warning */}
-      <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-300/50 dark:border-amber-500/30 bg-warning/10/10">
+      <div className="flex items-start gap-3 p-4 rounded-xl border border-warning/30 dark:border-warning/20 bg-warning/10/10">
         <AlertTriangle className="h-5 w-5 text-warning mt-0.5 shrink-0" />
         <div>
-          <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-1">Bank Details Required for Disbursements</h3>
-          <p className="text-sm text-amber-700 dark:text-amber-400/80 leading-relaxed">
+          <h3 className="text-sm font-semibold text-warning dark:text-warning mb-1">Bank Details Required for Disbursements</h3>
+          <p className="text-sm text-warning dark:text-warning/80 leading-relaxed">
             Any API operation involving payments — payroll, fuel requests, payment batches, expense reimbursements — requires the recipient to have valid bank details on file
             (<strong>bank_name</strong>, <strong>account_number</strong>, <strong>account_name</strong>). Without these, the payment will be created but <strong>cannot be processed</strong>.
             Always ensure employees and contractors have their bank details set before triggering disbursements via the API.
@@ -282,8 +282,8 @@ export default function ApiOverview({
       {/* Available Modules */}
       <section>
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-            <Layers className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <div className="p-2 rounded-lg bg-primary/10 dark:bg-primary/10">
+            <Layers className="h-5 w-5 text-primary dark:text-primary" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
@@ -340,8 +340,8 @@ export default function ApiOverview({
       {/* Integrations */}
       <section>
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 rounded-lg bg-violet-100 dark:bg-violet-900/30">
-            <Globe className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+          <div className="p-2 rounded-lg bg-primary/10 dark:bg-primary/10">
+            <Globe className="h-5 w-5 text-primary dark:text-primary" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
@@ -357,7 +357,7 @@ export default function ApiOverview({
           {integrations.map((i) => (
             <div
               key={i.name}
-              className="flex items-center gap-2.5 px-5 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md transition-all duration-200"
+              className="flex items-center gap-2.5 px-5 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 hover:border-primary/30 dark:hover:border-primary hover:shadow-md transition-all duration-200"
             >
               <i.icon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -376,7 +376,7 @@ export default function ApiOverview({
               key={s.label}
               className="flex items-center justify-center gap-2.5 py-4 px-3"
             >
-              <s.icon className="h-4 w-4 text-blue-500 dark:text-blue-400 shrink-0" />
+              <s.icon className="h-4 w-4 text-primary dark:text-primary shrink-0" />
               <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
                 {s.label}
               </span>

@@ -703,8 +703,8 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
           <div className="bg-white dark:bg-[hsl(220,20%,10%)] rounded-2xl border border-[#E2E8F0] dark:border-[hsl(220,15%,18%)] shadow-lg shadow-black/[0.04] overflow-hidden">
             <div className="h-2 rounded-t-2xl" style={{ background: coverColor }} />
             <div className="p-12 flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-full bg-success/10/20 flex items-center justify-center mb-6">
-                <CheckCircle size={36} className="text-emerald-500" />
+              <div className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center mb-6">
+                <CheckCircle size={36} className="text-success" />
               </div>
               <h2 className="text-xl font-semibold text-[#1E293B] dark:text-[hsl(210,20%,90%)] mb-2">
                 Thank you!
@@ -826,11 +826,11 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
                     <span className="text-xs text-[#1E293B] dark:text-[hsl(210,20%,85%)] truncate flex-1">{f.name}</span>
                     {fc.required && <span className="text-red-400 text-3xs">*</span>}
                     <button
-                      className="opacity-0 group-hover/field:opacity-100 p-0.5 hover:bg-[#FEE2E2] dark:hover:bg-red-900/20 rounded transition-all"
+                      className="opacity-0 group-hover/field:opacity-100 p-0.5 hover:bg-destructive/10 dark:hover:bg-destructive/10 rounded transition-all"
                       onClick={(e) => { e.stopPropagation(); updateFieldConfig(f.id, { hidden: true }); }}
                       title="Hide field from form"
                     >
-                      <EyeOff size={11} className="text-[#94A3B8] hover:text-red-500" />
+                      <EyeOff size={11} className="text-[#94A3B8] hover:text-destructive" />
                     </button>
                   </div>
                 );

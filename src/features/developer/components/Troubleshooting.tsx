@@ -25,7 +25,7 @@ function CopyButton({ text, size = 12 }: { text: string; size?: number }) {
       className="shrink-0 p-1 rounded hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60 text-zinc-400 dark:text-zinc-500 transition-colors"
       title="Copy"
     >
-      {copied ? <Check size={size} className="text-emerald-500" /> : <Copy size={size} />}
+      {copied ? <Check size={size} className="text-success" /> : <Copy size={size} />}
     </button>
   );
 }
@@ -75,10 +75,10 @@ const STATUS_CODES: StatusCodeEntry[] = [
 
 function statusBadgeClasses(color: StatusCodeEntry['color']) {
   switch (color) {
-    case 'green': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400';
-    case 'red': return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400';
-    case 'amber': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400';
-    case 'blue': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400';
+    case 'green': return 'bg-success/10 text-success dark:bg-success/10 dark:text-success';
+    case 'red': return 'bg-destructive/10 text-destructive dark:bg-destructive/10 dark:text-destructive';
+    case 'amber': return 'bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning';
+    case 'blue': return 'bg-primary/10 text-primary dark:bg-primary/10 dark:text-primary';
   }
 }
 
@@ -101,17 +101,17 @@ interface TroubleshootingItem {
 
 function severityColor(s: Severity) {
   switch (s) {
-    case 'critical': return 'border-red-300 dark:border-red-800/60';
-    case 'common': return 'border-amber-300 dark:border-amber-800/60';
-    case 'tip': return 'border-blue-300 dark:border-blue-800/60';
+    case 'critical': return 'border-destructive/30 dark:border-destructive/20';
+    case 'common': return 'border-warning/30 dark:border-warning/20';
+    case 'tip': return 'border-primary/30 dark:border-primary/20';
   }
 }
 
 function severityBadge(s: Severity) {
   switch (s) {
-    case 'critical': return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 text-3xs">Critical</Badge>;
-    case 'common': return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 text-3xs">Common</Badge>;
-    case 'tip': return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-3xs">Tip</Badge>;
+    case 'critical': return <Badge className="bg-destructive/10 text-destructive dark:bg-destructive/10 dark:text-destructive text-3xs">Critical</Badge>;
+    case 'common': return <Badge className="bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning text-3xs">Common</Badge>;
+    case 'tip': return <Badge className="bg-primary/10 text-primary dark:bg-primary/10 dark:text-primary text-3xs">Tip</Badge>;
   }
 }
 
@@ -651,12 +651,12 @@ export default function Troubleshooting({ onNavigate }: { onNavigate?: (tab: str
       </div>
 
       {/* Quick Diagnostics Checklist */}
-      <Card className="border-blue-200 dark:border-blue-800/60 bg-blue-50/50 dark:bg-blue-950/20">
+      <Card className="border-primary/20 dark:border-primary/20 bg-primary/5 dark:bg-primary/5">
         <CardContent className="p-5">
           <div className="flex items-center gap-2 mb-4">
-            <CheckCircle2 size={18} className="text-blue-600 dark:text-blue-400" />
+            <CheckCircle2 size={18} className="text-primary dark:text-primary" />
             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Quick Diagnostics Checklist</h3>
-            <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-3xs">Start here</Badge>
+            <Badge className="bg-primary/10 text-primary dark:bg-primary/10 dark:text-primary text-3xs">Start here</Badge>
           </div>
           <div className="space-y-2.5">
             {CHECKLIST_ITEMS.map((item, idx) => (

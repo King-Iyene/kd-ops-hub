@@ -490,7 +490,7 @@ function QuickFilterBar() {
         >
           <span className="max-w-[180px] truncate">{formatPill(filter)}</span>
           <span
-            className="ml-0.5 hover:text-red-500"
+            className="ml-0.5 hover:text-destructive"
             onClick={(e) => {
               e.stopPropagation();
               setFilters(filters.filter((f) => f.id !== filter.id));
@@ -1037,12 +1037,12 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className={`h-7 text-xs-plus gap-1 ${totalFilterCount > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`}
+              className={`h-7 text-xs-plus gap-1 ${totalFilterCount > 0 ? 'text-primary' : 'text-zinc-500 dark:text-zinc-400'}`}
               onClick={() => { setFilterOpen(!filterOpen); setSortOpen(false); setHideOpen(false); setGroupOpen(false); setColorOpen(false); }}
             >
               <Filter size={14} /> Filter
               {totalFilterCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-blue-600 text-white text-3xs font-bold leading-none">
+                <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-primary text-white text-3xs font-bold leading-none">
                   {totalFilterCount}
                 </span>
               )}
@@ -1053,7 +1053,7 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className={`h-7 text-xs-plus gap-1 ${groupByLevels.length > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`}
+              className={`h-7 text-xs-plus gap-1 ${groupByLevels.length > 0 ? 'text-primary' : 'text-zinc-500 dark:text-zinc-400'}`}
               onClick={() => { setGroupOpen(!groupOpen); setFilterOpen(false); setSortOpen(false); setHideOpen(false); setColorOpen(false); }}
             >
               <Layers size={14} /> Group{groupByLevels.length > 0 ? ` (${groupByLevels.length})` : ''}
@@ -1064,7 +1064,7 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className={`h-7 text-xs-plus gap-1 ${sorts.length > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`}
+              className={`h-7 text-xs-plus gap-1 ${sorts.length > 0 ? 'text-primary' : 'text-zinc-500 dark:text-zinc-400'}`}
               onClick={() => { setSortOpen(!sortOpen); setFilterOpen(false); setHideOpen(false); setGroupOpen(false); setColorOpen(false); }}
             >
               <ArrowUpDown size={14} /> Sort{sorts.length > 0 ? ` (${sorts.length})` : ''}
@@ -1075,7 +1075,7 @@ export function Toolbar() {
             <Button
               variant="ghost"
               size="sm"
-              className={`h-7 text-xs-plus gap-1 ${rowColorRules.length > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`}
+              className={`h-7 text-xs-plus gap-1 ${rowColorRules.length > 0 ? 'text-primary' : 'text-zinc-500 dark:text-zinc-400'}`}
               onClick={() => { setColorOpen(!colorOpen); setFilterOpen(false); setSortOpen(false); setHideOpen(false); setGroupOpen(false); }}
             >
               <Palette size={14} /> Color{rowColorRules.length > 0 ? ` (${rowColorRules.length})` : ''}
@@ -1094,7 +1094,7 @@ export function Toolbar() {
                 ref={searchRef}
                 type="text"
                 placeholder="Search..."
-                className="h-7 w-48 text-xs pl-2 pr-6 border border-zinc-200 dark:border-zinc-700 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                className="h-7 w-48 text-xs pl-2 pr-6 border border-zinc-200 dark:border-zinc-700 rounded focus:outline-none focus:ring-1 focus:ring-primary bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
                 value={searchQuery}
                 onChange={handleSearchChange}
               />
@@ -1120,7 +1120,7 @@ export function Toolbar() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-2xs text-zinc-500 dark:text-zinc-400 gap-1 px-2 hover:text-blue-600 dark:hover:text-blue-400"
+            className="h-7 text-2xs text-zinc-500 dark:text-zinc-400 gap-1 px-2 hover:text-primary"
             onClick={() => setIntegrationsOpen(true)}
             aria-label="Integrations"
           >
@@ -1130,7 +1130,7 @@ export function Toolbar() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-2xs text-zinc-500 dark:text-zinc-400 gap-1 px-2 hover:text-blue-600 dark:hover:text-blue-400"
+            className="h-7 text-2xs text-zinc-500 dark:text-zinc-400 gap-1 px-2 hover:text-primary"
             onClick={() => setRefreshAttOpen(true)}
             aria-label="Refresh Attachments"
           >
@@ -1173,7 +1173,7 @@ export function Toolbar() {
                         <Rows3 size={14} className="text-zinc-400 dark:text-zinc-500" />
                         {opt.label}
                       </span>
-                      {rowHeight === opt.value && <Check size={14} className="text-blue-600 dark:text-blue-400" />}
+                      {rowHeight === opt.value && <Check size={14} className="text-primary" />}
                     </button>
                   ))}
                   <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
@@ -1255,7 +1255,7 @@ export function Toolbar() {
                       setMoreOpen(false);
                     }}
                   >
-                    <ScanSearch size={14} className="text-amber-500" /> Find duplicates
+                    <ScanSearch size={14} className="text-warning" /> Find duplicates
                   </button>
                 </div>
               </>
@@ -1265,7 +1265,7 @@ export function Toolbar() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-2xs text-blue-600 dark:text-blue-400 gap-1 px-2 font-medium hover:bg-blue-50 dark:hover:bg-blue-500/10"
+            className="h-7 text-2xs text-primary gap-1 px-2 font-medium hover:bg-primary/5 dark:hover:bg-primary/10"
             onClick={() => setFieldDialogOpen(true)}
             title="Add new field"
           >

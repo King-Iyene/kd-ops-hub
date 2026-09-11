@@ -334,7 +334,7 @@ export function RefreshAttachmentsDialog({ open, onOpenChange, baseId }: Props) 
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <RefreshCw size={18} className="text-blue-500" />
+            <RefreshCw size={18} className="text-primary" />
             Refresh Airtable Attachments
           </DialogTitle>
           <DialogDescription>
@@ -361,7 +361,7 @@ export function RefreshAttachmentsDialog({ open, onOpenChange, baseId }: Props) 
                   href="https://airtable.com/create/tokens"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-500 hover:underline inline-flex items-center gap-0.5"
+                  className="text-primary hover:underline inline-flex items-center gap-0.5"
                 >
                   airtable.com/create/tokens <ExternalLink size={10} />
                 </a>
@@ -384,7 +384,7 @@ export function RefreshAttachmentsDialog({ open, onOpenChange, baseId }: Props) 
 
         {phase === 'scanning' && (
           <div className="flex flex-col items-center gap-3 py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
             <p className="text-sm text-muted-foreground">Scanning tables for expired Airtable URLs...</p>
           </div>
         )}
@@ -393,7 +393,7 @@ export function RefreshAttachmentsDialog({ open, onOpenChange, baseId }: Props) 
           <div className="space-y-4 py-2">
             {staleFields.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-6">
-                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+                <CheckCircle2 className="h-8 w-8 text-success" />
                 <p className="text-sm font-medium">No stale attachments found!</p>
                 <p className="text-xs text-muted-foreground">All attachment URLs in this base are up to date.</p>
               </div>
@@ -401,7 +401,7 @@ export function RefreshAttachmentsDialog({ open, onOpenChange, baseId }: Props) 
               <>
                 <div className="rounded-lg border p-3 space-y-2">
                   <p className="text-sm font-medium flex items-center gap-2">
-                    <AlertTriangle size={14} className="text-amber-500" />
+                    <AlertTriangle size={14} className="text-warning" />
                     Found {totalStale} records with expired URLs
                   </p>
                   <div className="space-y-1">
@@ -445,7 +445,7 @@ export function RefreshAttachmentsDialog({ open, onOpenChange, baseId }: Props) 
               <span>{pct}%</span>
             </div>
             <div className="flex gap-4 text-xs">
-              <span className="text-emerald-500">Fixed: {progress.fixed}</span>
+              <span className="text-success">Fixed: {progress.fixed}</span>
               {progress.failed > 0 && <span className="text-destructive">Failed: {progress.failed}</span>}
             </div>
             <Button
@@ -464,7 +464,7 @@ export function RefreshAttachmentsDialog({ open, onOpenChange, baseId }: Props) 
         {phase === 'done' && (
           <div className="space-y-4 py-4">
             <div className="flex flex-col items-center gap-2">
-              <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+              <CheckCircle2 className="h-8 w-8 text-success" />
               <p className="text-sm font-medium">Refresh complete!</p>
             </div>
             <div className="flex justify-center gap-6 text-sm">

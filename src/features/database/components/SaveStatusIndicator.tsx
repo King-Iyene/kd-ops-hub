@@ -52,19 +52,19 @@ export function SaveStatusIndicator() {
     <div className="flex items-center gap-1.5 text-2xs font-medium select-none">
       {visible === 'saving' && (
         <>
-          <Loader2 size={12} className="animate-spin text-blue-500" />
+          <Loader2 size={12} className="animate-spin text-primary" />
           <span className="text-[#6A7184] dark:text-[hsl(200,25%,55%)]">Saving…</span>
         </>
       )}
       {visible === 'saved' && (
         <>
-          <Check size={12} className="text-emerald-500" />
+          <Check size={12} className="text-success" />
           <span className="text-success">Saved</span>
         </>
       )}
       {visible === 'offline' && (
         <>
-          <CloudOff size={12} className="text-amber-500" />
+          <CloudOff size={12} className="text-warning" />
           <span className="text-warning">Offline</span>
         </>
       )}

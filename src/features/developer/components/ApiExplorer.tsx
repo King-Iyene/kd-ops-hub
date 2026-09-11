@@ -682,7 +682,7 @@ export default function ApiExplorer() {
               onChange={(e) => setBody(e.target.value)}
               rows={10}
               spellCheck={false}
-              className="mb-4 w-full rounded-md border border-slate-700 bg-slate-800 p-3 font-mono text-xs text-slate-200 placeholder:text-slate-600 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mb-4 w-full rounded-md border border-slate-700 bg-slate-800 p-3 font-mono text-xs text-slate-200 placeholder:text-slate-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </>
         )}
@@ -691,7 +691,7 @@ export default function ApiExplorer() {
         <Button
           onClick={sendRequest}
           disabled={loading}
-          className="w-full bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+          className="w-full bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
         >
           {loading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -718,7 +718,7 @@ export default function ApiExplorer() {
               onClick={copyResponse}
             >
               {copied ? (
-                <Check className="mr-1 h-3.5 w-3.5 text-emerald-400" />
+                <Check className="mr-1 h-3.5 w-3.5 text-success" />
               ) : (
                 <Copy className="mr-1 h-3.5 w-3.5" />
               )}
@@ -735,7 +735,7 @@ export default function ApiExplorer() {
 
         {loading && (
           <div className="flex h-64 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         )}
 

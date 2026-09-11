@@ -36,10 +36,10 @@ export function DeveloperHub() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-3xs font-mono px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-medium">
+              <span className="text-3xs font-mono px-2 py-1 rounded-full bg-success/10 dark:bg-success/10 text-success dark:text-success font-medium">
                 API v1
               </span>
-              <span className="text-3xs font-mono px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium">
+              <span className="text-3xs font-mono px-2 py-1 rounded-full bg-primary/10 dark:bg-primary/10 text-primary dark:text-primary font-medium">
                 REST
               </span>
             </div>
@@ -67,7 +67,7 @@ export function DeveloperHub() {
                 value={tab.value}
                 className={cn(
                   'rounded-none border-b-2 border-transparent px-4 py-2.5 text-sm font-medium transition-all',
-                  'data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 dark:data-[state=active]:border-blue-400',
+                  'data-[state=active]:border-primary data-[state=active]:text-primary dark:data-[state=active]:text-primary dark:data-[state=active]:border-primary',
                   'data-[state=inactive]:text-zinc-500 dark:data-[state=inactive]:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300',
                   'data-[state=active]:bg-transparent data-[state=active]:shadow-none',
                 )}
@@ -82,7 +82,7 @@ export function DeveloperHub() {
             <Suspense
               fallback={
                 <div className="flex items-center justify-center py-20">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                 </div>
               }
             >

@@ -282,8 +282,8 @@ export function DatabaseSidebar() {
                   className={cn(
                     'p-0.5 rounded transition-opacity shrink-0',
                     starredIds.has(base.id)
-                      ? 'opacity-100 text-amber-400'
-                      : 'opacity-0 group-hover:opacity-100 text-[#9AA2AF] hover:text-amber-400',
+                      ? 'opacity-100 text-warning'
+                      : 'opacity-0 group-hover:opacity-100 text-[#9AA2AF] hover:text-warning',
                   )}
                   onClick={(e) => toggleStar(base.id, e)}
                   title={starredIds.has(base.id) ? 'Unstar base' : 'Star base'}
@@ -368,7 +368,7 @@ export function DatabaseSidebar() {
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      className="text-xs gap-2 text-red-500 focus:text-red-500"
+                      className="text-xs gap-2 text-destructive focus:text-destructive"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteBase(base);

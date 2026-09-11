@@ -73,7 +73,7 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
     }
     return (
       <span className="truncate flex items-center gap-1">
-        <AlertTriangle size={12} className="shrink-0 text-amber-500" />
+        <AlertTriangle size={12} className="shrink-0 text-warning" />
         <HighlightedText text={text} className="truncate" style={{ color: colors.text }} />
       </span>
     );
@@ -108,7 +108,7 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
     }
     return (
       <span className="truncate flex items-center gap-1">
-        <AlertTriangle size={12} className="shrink-0 text-amber-500" />
+        <AlertTriangle size={12} className="shrink-0 text-warning" />
         <HighlightedText text={text} className="truncate" style={{ color: colors.text }} />
       </span>
     );
@@ -120,7 +120,7 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
     if (digits.length >= 7) {
       return (
         <span className="truncate flex items-center gap-1">
-          {hasLetters && <AlertTriangle size={12} className="shrink-0 text-amber-500" />}
+          {hasLetters && <AlertTriangle size={12} className="shrink-0 text-warning" />}
           <a
             href={`tel:${text}`}
             className="truncate hover:underline"
@@ -134,7 +134,7 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
     }
     return (
       <span className="truncate flex items-center gap-1">
-        {hasLetters && <AlertTriangle size={12} className="shrink-0 text-amber-500" />}
+        {hasLetters && <AlertTriangle size={12} className="shrink-0 text-warning" />}
         <HighlightedText text={text} className="truncate" />
       </span>
     );
@@ -421,7 +421,7 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
               <img
                 src={f.url}
                 alt={f.name}
-                className="h-7 w-7 rounded-[4px] object-cover cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
+                className="h-7 w-7 rounded-[4px] object-cover cursor-pointer hover:ring-2 hover:ring-primary transition-all"
                 loading="lazy"
                 style={{ border: `1px solid ${colors.dropdownBorder}` }}
                 title={f.name}
@@ -451,7 +451,7 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
             return (
               <span key={i} className="relative group shrink-0">
                 <span
-                  className="h-7 w-7 rounded-[4px] flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
+                  className="h-7 w-7 rounded-[4px] flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-primary transition-all"
                   style={{ backgroundColor: bg, border: `1px solid ${colors.dropdownBorder}` }}
                   title={f.name}
                   onClick={(e) => { e.stopPropagation(); setLightboxIndex(i); }}

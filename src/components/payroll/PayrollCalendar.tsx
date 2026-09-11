@@ -382,7 +382,7 @@ export function PayrollCalendar() {
             preset. Dismissed automatically the moment a schedule is
             saved (state will go isPreview=false on next refresh). */}
         {isPreview && (
-          <div className="mx-4 mt-4 mb-0 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+          <div className="mx-4 mt-4 mb-0 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2.5 text-xs text-warning flex items-start gap-2">
             <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
             <p className="leading-snug">
               <span className="font-semibold">Preview cadence —</span>{' '}
@@ -416,14 +416,14 @@ export function PayrollCalendar() {
               }
               .kd-cal-holiday { color: hsl(var(--destructive)); font-weight: 600; }
               .kd-cal-holiday::after { background: hsl(var(--destructive)); }
-              .kd-cal-payday  { color: rgb(5 150 105); font-weight: 600; }
-              .kd-cal-payday::after  { background: rgb(5 150 105); }
-              .kd-cal-cutoff  { color: rgb(217 119 6); font-weight: 600; }
-              .kd-cal-cutoff::after  { background: rgb(217 119 6); }
+              .kd-cal-payday  { color: hsl(var(--success)); font-weight: 600; }
+              .kd-cal-payday::after  { background: hsl(var(--success)); }
+              .kd-cal-cutoff  { color: hsl(var(--warning)); font-weight: 600; }
+              .kd-cal-cutoff::after  { background: hsl(var(--warning)); }
               .kd-cal-payday.kd-cal-holiday::after {
                 /* If both fall on the same date the pay-date dot wins;
                    the holiday tooltip still surfaces in the legend. */
-                background: rgb(5 150 105);
+                background: hsl(var(--success));
               }
             `}</style>
             <Calendar

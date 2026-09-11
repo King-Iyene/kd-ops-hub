@@ -357,8 +357,8 @@ function GalleryCard({
         {confirmDelete ? (
           <button
             title="Confirm delete"
-            className="p-1.5 rounded-md bg-destructive/10/30 border border-destructive/20
-              text-destructive hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors shadow-sm"
+            className="p-1.5 rounded-md bg-destructive/30 border border-destructive/20
+              text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/10 transition-colors shadow-sm"
             onClick={() => { onDelete?.(record.id); setConfirmDelete(false); }}
             onMouseLeave={() => setConfirmDelete(false)}
           >
@@ -368,7 +368,7 @@ function GalleryCard({
           <button
             title="Delete"
             className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(200,30%,15%)]/90 border border-[#E5E5E5] dark:border-[hsl(200,25%,22%)]
-              text-[#6A7184] dark:text-[hsl(200,25%,70%)] hover:text-red-500 hover:border-red-200 dark:hover:border-red-800 transition-colors shadow-sm"
+              text-[#6A7184] dark:text-[hsl(200,25%,70%)] hover:text-destructive hover:border-destructive/20 dark:hover:border-destructive transition-colors shadow-sm"
             onClick={() => setConfirmDelete(true)}
           >
             <Trash2 size={13} />

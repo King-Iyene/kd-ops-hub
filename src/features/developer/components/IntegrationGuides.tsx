@@ -55,7 +55,7 @@ function CopyButton({ text, size = 12 }: { text: string; size?: number }) {
       className="shrink-0 p-1 rounded hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60 text-zinc-400 dark:text-zinc-500 transition-colors"
       title="Copy to clipboard"
     >
-      {copied ? <Check size={size} className="text-emerald-500" /> : <Copy size={size} />}
+      {copied ? <Check size={size} className="text-success" /> : <Copy size={size} />}
     </button>
   );
 }
@@ -95,25 +95,25 @@ function StepNumber({ n, color }: { n: number; color: string }) {
 function Callout({ type, children }: { type: 'tip' | 'warning' | 'info'; children: React.ReactNode }) {
   const styles = {
     tip: {
-      border: 'border-emerald-300 dark:border-emerald-800',
+      border: 'border-success/30 dark:border-success',
       bg: 'bg-success/10/30',
       icon: <Lightbulb size={14} className="text-success shrink-0 mt-0.5" />,
       label: 'Pro Tip',
       labelColor: 'text-emerald-700 dark:text-emerald-400',
     },
     warning: {
-      border: 'border-amber-300 dark:border-amber-800',
+      border: 'border-warning/30 dark:border-warning',
       bg: 'bg-warning/10/30',
       icon: <AlertTriangle size={14} className="text-warning shrink-0 mt-0.5" />,
       label: 'Important',
       labelColor: 'text-amber-700 dark:text-amber-400',
     },
     info: {
-      border: 'border-blue-300 dark:border-blue-800',
-      bg: 'bg-blue-50 dark:bg-blue-950/30',
-      icon: <Shield size={14} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />,
+      border: 'border-primary/30 dark:border-primary',
+      bg: 'bg-primary/5 dark:bg-primary/10',
+      icon: <Shield size={14} className="text-primary dark:text-primary shrink-0 mt-0.5" />,
       label: 'Note',
-      labelColor: 'text-blue-700 dark:text-blue-400',
+      labelColor: 'text-primary dark:text-primary',
     },
   };
   const s = styles[type];

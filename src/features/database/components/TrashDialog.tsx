@@ -120,7 +120,7 @@ export function TrashDialog({ open, onOpenChange, baseId }: TrashDialogProps) {
                   </Button>
                 ) : (
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-red-500">Delete all permanently?</span>
+                    <span className="text-xs text-destructive">Delete all permanently?</span>
                     <Button
                       variant="destructive"
                       size="sm"
@@ -195,7 +195,7 @@ export function TrashDialog({ open, onOpenChange, baseId }: TrashDialogProps) {
                         {timeAgo(item.deleted_at)}
                       </span>
                       <span className="text-xs text-zinc-300 dark:text-zinc-600">·</span>
-                      <span className="text-xs text-amber-500 flex items-center gap-0.5">
+                      <span className="text-xs text-warning flex items-center gap-0.5">
                         <AlertTriangle size={10} />
                         {daysUntil(item.expires_at)}
                       </span>
@@ -205,7 +205,7 @@ export function TrashDialog({ open, onOpenChange, baseId }: TrashDialogProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 text-xs gap-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10"
+                      className="h-7 text-xs gap-1 text-primary hover:bg-primary/5 dark:hover:bg-primary/10"
                       onClick={() =>
                         restoreRecord.mutate({
                           trashId: item.id,
@@ -221,7 +221,7 @@ export function TrashDialog({ open, onOpenChange, baseId }: TrashDialogProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 text-xs gap-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+                      className="h-7 text-xs gap-1 text-destructive hover:bg-destructive/5 dark:hover:bg-destructive/10"
                       onClick={() =>
                         permanentlyDelete.mutate({
                           trashId: item.id,

@@ -102,7 +102,7 @@ function BurnExplainerCard({ explainer }: { explainer: BurnExplainer }) {
     <Card className="border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
       <CardContent className="pt-5 pb-5">
         <div className="flex items-start gap-3">
-          <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${up ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'}`}>
+          <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${up ? 'bg-warning/10 text-warning dark:bg-warning/30 dark:text-warning/30' : 'bg-success/10 text-success dark:bg-success/30 dark:text-success/30'}`}>
             {up ? <TrendingUp className="h-4.5 w-4.5" /> : <TrendingDown className="h-4.5 w-4.5" />}
           </div>
           <div className="flex-1 min-w-0">

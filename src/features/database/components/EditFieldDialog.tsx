@@ -138,7 +138,7 @@ function SortableOption({ choice, onRemove, onColorChange, isEditing, editValue,
       </Popover>
       <button
         type="button"
-        className="p-0.5 rounded hover:bg-red-50 text-[#9AA2AF] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+        className="p-0.5 rounded hover:bg-destructive/5 text-[#9AA2AF] hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
         onClick={() => onRemove(choice.title)}
       >
         <X size={14} />
@@ -536,10 +536,10 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                   )}
 
                   {selectedRule && selectedRule.warning && (
-                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-warning/10/30 border border-warning/20">
-                      <AlertTriangle size={14} className="text-amber-500 mt-0.5 shrink-0" />
+                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/20">
+                      <AlertTriangle size={14} className="text-warning mt-0.5 shrink-0" />
                       <div className="space-y-1.5">
-                        <p className="text-xs text-amber-800 dark:text-amber-300">{selectedRule.warning}</p>
+                        <p className="text-xs text-warning">{selectedRule.warning}</p>
                         {selectedRule.safety === 'lossy' && (
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -548,7 +548,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                               checked={typeChangeConfirmed}
                               onChange={(e) => setTypeChangeConfirmed(e.target.checked)}
                             />
-                            <span className="text-xs text-amber-800 dark:text-amber-300 font-medium">
+                            <span className="text-xs text-warning font-medium">
                               I understand some data may be lost
                             </span>
                           </label>
@@ -645,7 +645,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
           {isLookup && (
             <div className="space-y-3">
               {linkFields.length === 0 ? (
-                <div className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-[#2D7FF9] rounded-r-md p-3 flex items-start gap-2.5">
+                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-[#2D7FF9] rounded-r-md p-3 flex items-start gap-2.5">
                   <Info size={16} className="text-[#2D7FF9] shrink-0 mt-0.5" />
                   <p className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] leading-relaxed">
                     This table has no Link fields yet. Create a Link to Another Record field first, then set up your Lookup.
@@ -689,7 +689,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
           {isRollup && (
             <div className="space-y-3">
               {linkFields.length === 0 ? (
-                <div className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-[#2D7FF9] rounded-r-md p-3 flex items-start gap-2.5">
+                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-[#2D7FF9] rounded-r-md p-3 flex items-start gap-2.5">
                   <Info size={16} className="text-[#2D7FF9] shrink-0 mt-0.5" />
                   <p className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] leading-relaxed">
                     This table has no Link fields yet. Create a Link to Another Record field first, then set up your Rollup.
@@ -745,7 +745,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
           {isCount && (
             <div className="space-y-3">
               {linkFields.length === 0 ? (
-                <div className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-[#2D7FF9] rounded-r-md p-3 flex items-start gap-2.5">
+                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-[#2D7FF9] rounded-r-md p-3 flex items-start gap-2.5">
                   <Info size={16} className="text-[#2D7FF9] shrink-0 mt-0.5" />
                   <p className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] leading-relaxed">
                     This table has no Link fields yet. Create a Link to Another Record field first, then set up your Count.
@@ -887,7 +887,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
               type="button"
               variant="ghost"
               size="sm"
-              className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 gap-1.5 w-full justify-start text-xs"
+              className="text-destructive hover:text-destructive hover:bg-destructive/5 dark:hover:bg-destructive/10 gap-1.5 w-full justify-start text-xs"
               onClick={async () => {
                 const confirmed = await confirm({ description: `Delete field "${field.name}"? This cannot be undone.`, variant: 'destructive' });
                 if (confirmed) {

@@ -1139,7 +1139,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                   const lv = vehicles.find((v) => v.id === t.vehicle_id);
                   const elSec = t.trip_start_time ? Math.floor((Date.now() - Date.parse(t.trip_start_time)) / 1000) : null;
                   return (
-                    <div key={t.id} className="bg-white dark:bg-green-950/40 rounded border border-success/20 px-3 py-2 space-y-0.5">
+                    <div key={t.id} className="bg-white dark:bg-success/5 rounded border border-success/20 px-3 py-2 space-y-0.5">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-sm font-medium truncate">{t.employee_name}</span>
                         {elSec != null && (
@@ -1273,7 +1273,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                         <div className="flex items-center justify-end gap-0.5">
                           {(t.start_lat != null || t.end_lat != null) && (
                             <Button size="sm" variant="ghost" onClick={() => openTripMap(t)} title="View map">
-                              <MapIcon className="h-4 w-4 text-blue-600" />
+                              <MapIcon className="h-4 w-4 text-primary" />
                             </Button>
                           )}
                           <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteTrip(t)} title="Delete">
@@ -1358,7 +1358,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                           className="flex-1 h-9"
                           onClick={(e) => { e.stopPropagation(); openTripMap(t); }}
                         >
-                          <MapIcon className="h-4 w-4 mr-1.5 text-blue-600" /> View map
+                          <MapIcon className="h-4 w-4 mr-1.5 text-primary" /> View map
                         </Button>
                         <Button
                           size="sm"
@@ -1435,8 +1435,8 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full gap-2">
                     {isGeoError(startGeoState)
-                      ? <LocateOff className="h-7 w-7 text-amber-400" />
-                      : <Loader2 className="h-7 w-7 animate-spin text-blue-400" />}
+                      ? <LocateOff className="h-7 w-7 text-warning" />
+                      : <Loader2 className="h-7 w-7 animate-spin text-primary" />}
                     <p className="text-xs text-muted-foreground">
                       {isGeoError(startGeoState) ? 'Location unavailable' : 'Getting your location…'}
                     </p>
@@ -1475,13 +1475,13 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                   </div>
                 ) : isGeoError(startGeoState) ? (
                   <div className="flex items-center gap-2.5">
-                    <LocateOff className="h-4 w-4 text-amber-500 shrink-0" />
-                    <p className="flex-1 text-sm text-amber-700 dark:text-amber-400 font-medium truncate">
+                    <LocateOff className="h-4 w-4 text-warning shrink-0" />
+                    <p className="flex-1 text-sm text-warning dark:text-warning font-medium truncate">
                       {GEO_ERROR_MSG[startGeoState as Exclude<GeoState, 'idle' | 'acquiring' | 'ok'>].split('—')[0].trim()}
                     </p>
                     <button
                       type="button"
-                      className="text-2xs text-amber-600 underline underline-offset-2 shrink-0"
+                      className="text-2xs text-warning underline underline-offset-2 shrink-0"
                       onClick={() => acquireGeo(setStartGeoState, setStartCoords, (addr) => setStartAddress(addr))}
                     >
                       Retry
@@ -1669,7 +1669,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
 
               {(endGeoState === 'idle' || endGeoState === 'acquiring') && (
                 <div className="flex items-center gap-3 rounded-xl border bg-muted/30 px-4 py-3.5">
-                  <Loader2 className="h-4 w-4 animate-spin text-blue-500 shrink-0" />
+                  <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
                   <div>
                     <p className="text-sm font-medium">Detecting your location…</p>
                     <p className="text-xs text-muted-foreground mt-0.5">Using GPS and network signals</p>
@@ -1704,17 +1704,17 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
               )}
 
               {isGeoError(endGeoState) && (
-                <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-warning/10/30 dark:border-amber-800 px-4 py-3.5">
-                  <LocateOff className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3 rounded-xl border border-warning/20 bg-warning/10 dark:border-warning/20 px-4 py-3.5">
+                  <LocateOff className="h-4 w-4 text-warning shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-amber-800 dark:text-amber-200">GPS unavailable</p>
+                    <p className="text-sm font-medium text-warning dark:text-warning">GPS unavailable</p>
                     <p className="text-xs text-warning mt-0.5">
                       {GEO_ERROR_MSG[endGeoState as Exclude<GeoState, 'idle' | 'acquiring' | 'ok'>]} Location won't be recorded — you can still end your trip.
                     </p>
                   </div>
                   <button
                     type="button"
-                    className="text-xs text-amber-600 underline shrink-0 mt-0.5"
+                    className="text-xs text-warning underline shrink-0 mt-0.5"
                     onClick={() => acquireGeo(setEndGeoState, setEndCoords, (addr) => setEndAddress(addr))}
                   >
                     Retry
@@ -1754,7 +1754,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
               return (
                 <div className="space-y-2">
                   {estL != null && (
-                    <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800 px-3 py-2 text-xs text-blue-700 dark:text-blue-300">
+                    <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 dark:bg-primary/5 dark:border-primary/20 px-3 py-2 text-xs text-primary dark:text-primary">
                       <Fuel className="h-3.5 w-3.5 shrink-0" />
                       <span>Vehicle spec estimates <strong>{estL} L</strong> consumed this trip ({tripVehForFuel?.fuel_consumption_rate_lkm} L/km × {km?.toLocaleString()} km)</span>
                     </div>

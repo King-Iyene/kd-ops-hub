@@ -44,10 +44,10 @@ interface Recipe {
 
 const difficultyColors: Record<Difficulty, string> = {
   Beginner:
-    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400',
+    'bg-success/10 text-success dark:bg-success/10 dark:text-success',
   Intermediate:
-    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
-  Advanced: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
+    'bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning',
+  Advanced: 'bg-destructive/10 text-destructive dark:bg-destructive/10 dark:text-destructive',
 };
 
 const recipes: Recipe[] = [
@@ -591,9 +591,9 @@ function RecipeCard({ recipe }: { recipe: Recipe }) {
 
             {/* Pro tip */}
             {recipe.proTip && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                <Lightbulb className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-blue-800 dark:text-blue-300">
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 dark:bg-primary/10 border border-primary/20 dark:border-primary/20">
+                <Lightbulb className="h-4 w-4 text-primary dark:text-primary flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-primary dark:text-primary">
                   <span className="font-semibold">Pro Tip:</span>{' '}
                   {recipe.proTip}
                 </p>
