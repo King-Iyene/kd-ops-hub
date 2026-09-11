@@ -716,6 +716,7 @@ const ContractorProfile = () => {
                   {editMode ? (
                     <Input
                       type="email"
+                      autoComplete="email"
                       value={form.heyreach_email || ''}
                       onChange={(e) => patch({ heyreach_email: e.target.value })}
                     />

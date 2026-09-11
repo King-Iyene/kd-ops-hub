@@ -1023,7 +1023,7 @@ const ProfilePage = () => {
                   <div className="space-y-1"><Label htmlFor="personalNextOfKinName">Next of kin name</Label><Input id="personalNextOfKinName" value={personalForm.next_of_kin_name} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_name: e.target.value }))} /></div>
                   <div className="space-y-1"><Label htmlFor="personalNextOfKinRelationship">Relationship</Label><Input id="personalNextOfKinRelationship" value={personalForm.next_of_kin_relationship} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_relationship: e.target.value }))} /></div>
                   <div className="space-y-1"><Label htmlFor="personalNextOfKinPhone">Next of kin phone</Label><Input id="personalNextOfKinPhone" value={personalForm.next_of_kin_phone} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_phone: e.target.value }))} /></div>
-                  <div className="space-y-1"><Label htmlFor="personalNextOfKinEmail">Next of kin email</Label><Input id="personalNextOfKinEmail" type="email" value={personalForm.next_of_kin_email} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_email: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label htmlFor="personalNextOfKinEmail">Next of kin email</Label><Input id="personalNextOfKinEmail" type="email" autoComplete="email" value={personalForm.next_of_kin_email} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_email: e.target.value }))} /></div>
                 </>
               )}
             </CardContent>

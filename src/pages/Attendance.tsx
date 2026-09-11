@@ -350,7 +350,7 @@ export default function Attendance() {
           <Input className="pl-9" aria-label="Search employees" placeholder="Search employee…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <Select value={statusFilter} onValueChange={v => setStatusFilter(v as AttendanceStatus | 'all')}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-44"><SelectValue placeholder="All Statuses" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
             {(Object.keys(STATUS_CONFIG) as AttendanceStatus[]).map(s => (

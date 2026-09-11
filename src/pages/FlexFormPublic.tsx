@@ -210,9 +210,9 @@ function FieldInput({ field, value, onChange, token, personId, hasPersonFilter, 
     case 'url':
       return <Input type="url" value={(value as string) || ''} onChange={(e) => onChange(e.target.value)} />;
     case 'email':
-      return <Input type="email" value={(value as string) || ''} onChange={(e) => onChange(e.target.value)} />;
+      return <Input type="email" autoComplete="email" value={(value as string) || ''} onChange={(e) => onChange(e.target.value)} />;
     case 'phone':
-      return <Input type="tel" value={(value as string) || ''} onChange={(e) => onChange(e.target.value)} />;
+      return <Input type="tel" autoComplete="tel" value={(value as string) || ''} onChange={(e) => onChange(e.target.value)} />;
     case 'select':
       return (
         <Select value={(value as string) || undefined} onValueChange={onChange}>

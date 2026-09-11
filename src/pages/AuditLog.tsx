@@ -376,7 +376,7 @@ const AuditLog = () => {
               <>
                 <Select value={moduleFilter} onValueChange={setModuleFilter}>
                   <SelectTrigger className="flex-1 sm:flex-initial sm:w-[180px] h-10 sm:h-9" data-mobile-filter-row>
-                    <SelectValue />
+                    <SelectValue placeholder="All modules" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All modules</SelectItem>

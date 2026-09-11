@@ -803,7 +803,7 @@ const ClientProfile = () => {
                 </div>
                 <div className="space-y-1">
                   <Label>Email</Label>
-                  <Input type="email" value={form.email || ''} onChange={(e) => patch({ email: e.target.value })} placeholder="contact@company.com" />
+                  <Input type="email" autoComplete="email" value={form.email || ''} onChange={(e) => patch({ email: e.target.value })} placeholder="contact@company.com" />
                 </div>
                 <div className="space-y-1">
                   <Label>Phone</Label>

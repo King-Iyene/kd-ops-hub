@@ -427,7 +427,7 @@ export default function ApprovalWorkflows() {
                           onValueChange={(val) => updateStep(step.id, { role: val as ApproverRole })}
                         >
                           <SelectTrigger className="h-8 flex-1 text-xs">
-                            <SelectValue />
+                            <SelectValue placeholder="Select role" />
                           </SelectTrigger>
                           <SelectContent>
                             {AVAILABLE_ROLES.map((r) => (

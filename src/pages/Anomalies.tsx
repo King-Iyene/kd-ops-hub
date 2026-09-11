@@ -269,7 +269,7 @@ export default function Anomalies() {
             filters={
               <>
                 <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
-                  <SelectTrigger className="w-[140px]" data-mobile-filter-row><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-[140px]" data-mobile-filter-row><SelectValue placeholder="Status" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="open">Open</SelectItem>
                     <SelectItem value="acknowledged">Acknowledged</SelectItem>
@@ -279,7 +279,7 @@ export default function Anomalies() {
                   </SelectContent>
                 </Select>
                 <Select value={filterSeverity} onValueChange={(v) => setFilterSeverity(v as any)}>
-                  <SelectTrigger className="w-[140px]" data-mobile-filter-row><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-[140px]" data-mobile-filter-row><SelectValue placeholder="Severity" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All severities</SelectItem>
                     <SelectItem value="critical">Critical</SelectItem>
@@ -289,7 +289,7 @@ export default function Anomalies() {
                   </SelectContent>
                 </Select>
                 <Select value={filterModule} onValueChange={(v) => setFilterModule(v as any)}>
-                  <SelectTrigger className="w-[140px]" data-mobile-filter-row><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-[140px]" data-mobile-filter-row><SelectValue placeholder="Module" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All modules</SelectItem>
                     <SelectItem value="payroll">Payroll</SelectItem>

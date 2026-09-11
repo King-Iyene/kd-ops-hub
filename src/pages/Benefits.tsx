@@ -258,7 +258,7 @@ export default function Benefits() {
           <Input className="pl-9" aria-label="Search benefits" placeholder="Search provider, plan, employee…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <Select value={typeFilter} onValueChange={v => setTypeFilter(v as BenefitType | 'all')}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-44"><SelectValue placeholder="All Types" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
             {(Object.keys(TYPE_LABEL) as BenefitType[]).map(t => (
@@ -267,7 +267,7 @@ export default function Benefits() {
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={v => setStatusFilter(v as BenefitStatus | 'all')}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-36"><SelectValue placeholder="All Statuses" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="active">Active</SelectItem>

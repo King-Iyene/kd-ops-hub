@@ -104,11 +104,11 @@ function actionColor(action: string) {
     case 'INSERT':
       return 'bg-success/10 text-success';
     case 'UPDATE':
-      return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
+      return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300';
     case 'DELETE':
       return 'bg-destructive/10 text-destructive';
     default:
-      return 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400';
+      return 'bg-muted text-muted-foreground';
   }
 }
 
