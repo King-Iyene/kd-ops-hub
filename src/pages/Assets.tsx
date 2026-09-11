@@ -333,7 +333,7 @@ export default function Assets() {
         <>
         <div className="hidden md:block rounded-xl border border-border/50 overflow-x-auto bg-card">
           <table className="w-full text-sm">
-            <thead className="border-b border-border/50 bg-muted/40">
+            <thead className="sticky top-0 z-10 border-b border-border/50 bg-card/95 backdrop-blur-sm">
               <tr>
                 {['Asset', 'Category', 'Purchase Date', 'Cost', 'Book Value', 'Deprecn', 'Assigned', 'Insurance', 'Status', ''].map(h => (
                   <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3">{h}</th>
@@ -400,7 +400,7 @@ export default function Assets() {
         </div>
 
         {/* Mobile card list — same data, thumb-friendly */}
-        <div className="md:hidden space-y-2">
+        <div className="md:hidden divide-y divide-border/40">
           {filtered.map(a => {
             const bv = bookValue(a);
             const depn = totalDepreciation(a);

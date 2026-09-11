@@ -1544,7 +1544,7 @@ const Expenses = () => {
               <div className="hidden md:block">
               <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <TableRow>
                     {isApprover && (
                       <TableHead className="w-10">
@@ -1569,7 +1569,7 @@ const Expenses = () => {
                   {pagination.slice.map((e) => (
                     <TableRow
                       key={e.id}
-                      className="kd-transition cursor-pointer"
+                      className="kd-transition hover:bg-muted/40 cursor-pointer"
                       onClick={() => setDetailExpense(e)}
                     >
                       {isApprover && (

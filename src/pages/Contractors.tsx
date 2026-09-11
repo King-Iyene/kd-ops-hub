@@ -18,7 +18,7 @@ import { BulkActionBar } from '@/components/ui-kit/BulkActionBar';
 import { MaskedAccountNumber } from '@/components/ui-kit/MaskedAccountNumber';
 import { Checkbox } from '@/components/ui/checkbox';
 import { displayName } from '@/lib/name';
-import { formatDate, formatNaira } from '@/lib/format';
+import { formatDate, formatNaira, formatNairaCompact } from '@/lib/format';
 import { logAudit } from '@/lib/audit';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -1562,7 +1562,7 @@ const Contractors = () => {
         />
         <StatCard
           title="Default Payroll"
-          value={formatNaira(defaultPayrollTotal)}
+          value={formatNairaCompact(defaultPayrollTotal)}
           icon={Wallet}
           tone="primary"
         />
@@ -1685,7 +1685,7 @@ const Contractors = () => {
                 {/* Select-all checkbox in the header — toggles every
                     visible (filtered) row on/off. Indeterminate state
                     when only some rows are picked. */}
-                <TableHead className="w-10">
+                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm w-10">
                   <Checkbox
                     aria-label="Select all contractors on this page"
                     checked={
@@ -1704,13 +1704,13 @@ const Contractors = () => {
                     }}
                   />
                 </TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Bank</TableHead>
-                <TableHead>Account</TableHead>
-                <TableHead className="text-right">Default Amount</TableHead>
-                <TableHead>Onboarding</TableHead>
-                <TableHead>HeyReach Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Name</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Bank</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Account</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Default Amount</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Onboarding</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">HeyReach Status</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1727,7 +1727,7 @@ const Contractors = () => {
                 <TableRow
                   key={c.id}
                   className={cn(
-                    'cursor-pointer kd-transition',
+                    'cursor-pointer kd-transition hover:bg-muted/40',
                     selectedIds.has(c.id) && 'bg-primary/5',
                   )}
                   onClick={() => navigate(`/contractors/${c.id}`)}

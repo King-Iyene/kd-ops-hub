@@ -592,7 +592,7 @@ const Budgets = () => {
               <div className="hidden md:block">
               <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Period</TableHead>
@@ -615,7 +615,7 @@ const Budgets = () => {
                         ? 'bg-warning'
                         : 'bg-success';
                     return (
-                      <TableRow key={r.id} className="kd-transition hover:bg-muted/50 transition-colors">
+                      <TableRow key={r.id} className="kd-transition hover:bg-muted/40">
                         <TableCell>
                           <div className="flex items-center gap-2 flex-wrap">
                             <button

@@ -387,7 +387,7 @@ export default function Attendance() {
           {/* Desktop table */}
           <div className="hidden md:block rounded-xl border border-border/60 bg-card overflow-x-auto">
             <table className="w-full text-sm min-w-[640px]">
-              <thead className="bg-muted/50">
+              <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <tr className="border-b border-border/50">
                   <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Employee</th>
                   <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
@@ -402,7 +402,7 @@ export default function Attendance() {
                 {filtered.map(r => {
                   const cfg = STATUS_CONFIG[r.status];
                   return (
-                    <tr key={r.id} className="hover:bg-muted/40 transition-colors">
+                    <tr key={r.id} className="kd-transition hover:bg-muted/40">
                       <td className="py-3 px-3 font-medium text-foreground">{empName(r.employee_id)}</td>
                       <td className="py-3 px-3 text-muted-foreground">{format(parseISO(r.work_date), 'EEE, dd MMM')}</td>
                       <td className="py-3 px-3"><Badge variant={cfg.variant}>{cfg.label}</Badge></td>

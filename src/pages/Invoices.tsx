@@ -16,7 +16,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
-import { formatDate, formatNaira, toIsoDate } from '@/lib/format';
+import { formatDate, formatNaira, formatNairaCompact, toIsoDate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -463,10 +463,10 @@ const Invoices = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 print:hidden">
-        <StatCard title="Total Invoiced" value={formatNaira(stats.total)} icon={FileText} tone="primary" />
-        <StatCard title="Outstanding" value={formatNaira(stats.outstanding)} tone="warning" subtitle="Sent, not yet due" />
-        <StatCard title="Overdue" value={formatNaira(stats.overdue)} tone="danger" subtitle="Past due date" />
-        <StatCard title="Paid" value={formatNaira(stats.paid)} tone="success" />
+        <StatCard title="Total Invoiced" value={formatNairaCompact(stats.total)} icon={FileText} tone="primary" />
+        <StatCard title="Outstanding" value={formatNairaCompact(stats.outstanding)} tone="warning" subtitle="Sent, not yet due" />
+        <StatCard title="Overdue" value={formatNairaCompact(stats.overdue)} tone="danger" subtitle="Past due date" />
+        <StatCard title="Paid" value={formatNairaCompact(stats.paid)} tone="success" />
       </div>
 
       <Card>
@@ -517,21 +517,21 @@ const Invoices = () => {
               <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60 transition-colors">
-                    <TableHead className="text-xs">Invoice #</TableHead>
-                    <TableHead className="text-xs">Client</TableHead>
-                    <TableHead className="text-xs">Issued</TableHead>
-                    <TableHead className="text-xs">Due</TableHead>
-                    <TableHead className="text-right text-xs">Amount</TableHead>
-                    <TableHead className="text-xs">Status</TableHead>
-                    <TableHead className="text-xs print:hidden">Actions</TableHead>
+                  <TableRow className="border-b border-border/50 hover:bg-transparent">
+                    <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-xs">Invoice #</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-xs">Client</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-xs">Issued</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-xs">Due</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right text-xs">Amount</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-xs">Status</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-xs print:hidden">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pagination.slice.map((inv) => {
                     const eff = effectiveStatus(inv);
                     return (
-                      <TableRow key={inv.id} className="hover:bg-muted/30 transition-colors">
+                      <TableRow key={inv.id} className="kd-transition hover:bg-muted/40">
                         <TableCell className="font-mono text-xs font-medium">{inv.invoice_number}</TableCell>
                         <TableCell className="text-sm">
                           <div>

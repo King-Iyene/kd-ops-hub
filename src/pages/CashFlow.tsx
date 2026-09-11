@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { formatNaira } from '@/lib/format';
+import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { ChartGradients, GlassTooltip, chartTheme, axisTick, fmtNairaTick } from '@/components/ChartKit';
 import { cn } from '@/lib/utils';
 import {
@@ -158,7 +158,7 @@ export default function CashFlow() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold currency">{formatNaira(cashOnHand)}</p>
+            <p className="text-2xl font-bold currency">{formatNairaCompact(cashOnHand)}</p>
             <p className="text-xs text-muted-foreground mt-1">From Settings → Company</p>
           </CardContent>
         </Card>
@@ -171,7 +171,7 @@ export default function CashFlow() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold currency">
-              {formatNaira(Math.max(0, externalBurn - revenue))}
+              {formatNairaCompact(Math.max(0, externalBurn - revenue))}
             </p>
             <p className="text-xs text-muted-foreground mt-1">External − revenue (from Settings)</p>
           </CardContent>
@@ -205,7 +205,7 @@ export default function CashFlow() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold currency">{formatNaira(totalProjectedOutflow)}</p>
+            <p className="text-2xl font-bold currency">{formatNairaCompact(totalProjectedOutflow)}</p>
             <p className="text-xs text-muted-foreground mt-1">Sum of all upcoming outflows</p>
           </CardContent>
         </Card>
@@ -303,7 +303,7 @@ export default function CashFlow() {
             <>
               <div className="hidden md:block overflow-x-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                     <TableRow>
                       <TableHead>Week</TableHead>
                       <TableHead>Category</TableHead>
@@ -312,7 +312,7 @@ export default function CashFlow() {
                   </TableHeader>
                   <TableBody>
                     {topObs.map((o, i) => (
-                      <TableRow key={i}>
+                      <TableRow key={i} className="kd-transition hover:bg-muted/40">
                         <TableCell>{o.week_start}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{CATEGORY_LABEL[o.category] ?? o.category}</Badge>

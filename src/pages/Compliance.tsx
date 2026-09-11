@@ -1187,7 +1187,7 @@ const Compliance = () => {
             <>
             <div className="hidden md:block overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <TableRow>
                     <TableHead>Period</TableHead>
                     <TableHead>Type</TableHead>
@@ -1205,7 +1205,7 @@ const Compliance = () => {
                         const status = remittanceStatus(r);
                         const d = r.due_date ? daysUntil(r.due_date) : null;
                         return (
-                          <TableRow key={r.id} className="kd-transition">
+                          <TableRow key={r.id} className="kd-transition hover:bg-muted/40">
                             {idx === 0 && (
                               <TableCell rowSpan={group.length} className="align-top font-medium text-sm">
                                 {monthLabel(period)}
@@ -1358,7 +1358,7 @@ const Compliance = () => {
             <>
             <div className="hidden md:block overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
                   <TableHead>Filing</TableHead>
                   <TableHead>Period</TableHead>
@@ -1379,7 +1379,7 @@ const Compliance = () => {
                   const isExpanded = expandedId === r.id;
                   return (
                     <Fragment key={r.id}>
-                    <TableRow className="kd-transition">
+                    <TableRow className="kd-transition hover:bg-muted/40">
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <p className="font-medium">{KIND_LABELS[r.kind]}</p>
@@ -1506,7 +1506,7 @@ const Compliance = () => {
                             </p>
                             <div className="rounded-md border bg-background overflow-x-auto">
                               <Table>
-                                <TableHeader>
+                                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                                   <TableRow>
                                     <TableHead className="text-xs">PFA</TableHead>
                                     <TableHead className="text-xs text-right">RSAs</TableHead>
@@ -1517,7 +1517,7 @@ const Compliance = () => {
                                 </TableHeader>
                                 <TableBody>
                                   {pfaSlices.map((s, i) => (
-                                    <TableRow key={`${r.id}-${i}`}>
+                                    <TableRow key={`${r.id}-${i}`} className="kd-transition hover:bg-muted/40">
                                       <TableCell className="text-sm font-medium">{s.pfa}</TableCell>
                                       <TableCell className="text-sm text-right">{s.rsa_count}</TableCell>
                                       <TableCell className="text-sm text-right currency">{formatNaira(s.employee_amount_ngn)}</TableCell>

@@ -548,7 +548,7 @@ const Dashboard = () => {
                     <button
                       key={label}
                       onClick={onClick}
-                      className="group relative flex flex-col items-center gap-1.5 rounded-xl p-3 hover:bg-muted/60 kd-transition text-center"
+                      className="kd-card-interactive group relative flex flex-col items-center gap-1.5 rounded-xl p-3 hover:bg-muted/60 kd-transition text-center"
                     >
                       <span className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 kd-transition', iconBg)}>
                         <Icon className={cn('h-4.5 w-4.5', iconColor)} strokeWidth={2} />
@@ -652,7 +652,7 @@ const Dashboard = () => {
 
       {/* ── Birthdays & work anniversaries ────────────────────────── */}
       {celebrations.length > 0 && (
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-2">
+        <div className="kd-card-elevated rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-2">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary shrink-0" />
             <p className="text-sm font-semibold text-foreground">Celebrations coming up</p>
@@ -818,7 +818,7 @@ const Dashboard = () => {
                   <button
                     key={label}
                     onClick={onClick}
-                    className="group relative flex flex-col items-center gap-1.5 rounded-xl p-3 hover:bg-muted/60 kd-transition text-center"
+                    className="kd-card-interactive group relative flex flex-col items-center gap-1.5 rounded-xl p-3 hover:bg-muted/60 kd-transition text-center"
                   >
                     <span className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 kd-transition', iconBg)}>
                       <Icon className={cn('h-4.5 w-4.5', iconColor)} strokeWidth={2} />

@@ -971,7 +971,7 @@ const Leave = () => {
                   <div className="hidden md:block">
                   <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                       <TableRow>
                         {tab === 'team' && <TableHead>Employee</TableHead>}
                         <TableHead>Type</TableHead>
@@ -993,7 +993,7 @@ const Leave = () => {
                         const canRevertApproved =
                           isManager && canApprovePerm && r.status === 'approved';
                         return (
-                          <TableRow key={r.id} className="kd-transition">
+                          <TableRow key={r.id} className="kd-transition hover:bg-muted/40">
                             {tab === 'team' && (
                               <TableCell className="font-medium">
                                 {emp?.full_name || r.employee_id}
