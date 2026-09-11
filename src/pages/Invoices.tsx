@@ -74,6 +74,7 @@ import {
 } from '@/components/ui-kit/MobileCard';
 import { usePagination } from '@/hooks/usePagination';
 import { cn } from '@/lib/utils';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -181,6 +182,9 @@ const Invoices = () => {
   const [vatRate, setVatRate] = useState(7.5);
   const [notes, setNotes] = useState('');
 
+  type InvoiceField = 'clientName' | 'dueDate' | 'lineItems';
+  const { errors, setError, clearError, clearAll, hasErrors } = useFieldErrors<InvoiceField>();
+
   const load = useCallback(async () => {
     setLoading(true);
     const [invRes, clientRes] = await Promise.all([
@@ -239,6 +243,7 @@ const Invoices = () => {
   // ── Dialog helpers ──────────────────────────────────────────────────────────
 
   const openCreate = () => {
+    clearAll();
     setEditing(null);
     setClientId('');
     setClientName('');
@@ -253,6 +258,7 @@ const Invoices = () => {
   };
 
   const openEdit = (inv: Invoice) => {
+    clearAll();
     setEditing(inv);
     setClientId(inv.client_id || '');
     setClientName(inv.client_name);
@@ -272,6 +278,7 @@ const Invoices = () => {
       setClientId(c.id);
       setClientName(c.name);
       setClientEmail(c.email || '');
+      clearError('clientName');
     }
   };
 
@@ -282,6 +289,7 @@ const Invoices = () => {
         i === idx ? recalcLine({ ...item, [field]: value }) : item,
       ),
     );
+    if (field === 'description') clearError('lineItems');
   };
 
   const addLine = () => setLineItems((prev) => [...prev, newLineItem()]);
@@ -308,19 +316,21 @@ const Invoices = () => {
   // ── Save ────────────────────────────────────────────────────────────────────
 
   const handleSave = async () => {
+    let valid = true;
     if (!clientName.trim()) {
-      toast({ title: 'Client name is required', variant: 'destructive' });
-      return;
+      setError('clientName', 'Client name is required');
+      valid = false;
     }
     if (!dueDate) {
-      toast({ title: 'Due date is required', variant: 'destructive' });
-      return;
+      setError('dueDate', 'Due date is required');
+      valid = false;
     }
     const filledLines = lineItems.filter((l) => l.description.trim());
     if (filledLines.length === 0) {
-      toast({ title: 'Add at least one line item', variant: 'destructive' });
-      return;
+      setError('lineItems', 'Add at least one line item with a description');
+      valid = false;
     }
+    if (!valid) return;
     setSaving(true);
     const payload = {
       client_id: clientId || null,
@@ -695,7 +705,7 @@ const Invoices = () => {
       </Card>
 
       {/* ── Create / Edit dialog ──────────────────────────────────────── */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) clearAll(); setDialogOpen(open); }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? `Edit ${editing.invoice_number}` : 'New Invoice'}</DialogTitle>
@@ -708,7 +718,7 @@ const Invoices = () => {
                 <Label className="text-xs">Client</Label>
                 {clients.length > 0 ? (
                   <Select value={clientId || undefined} onValueChange={handleClientSelect}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-invalid={!!errors.clientName}>
                       <SelectValue placeholder="Select a client" />
                     </SelectTrigger>
                     <SelectContent>
@@ -721,9 +731,11 @@ const Invoices = () => {
                   <Input
                     placeholder="Client name"
                     value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
+                    aria-invalid={!!errors.clientName}
+                    onChange={(e) => { setClientName(e.target.value); clearError('clientName'); }}
                   />
                 )}
+                <FieldError message={errors.clientName} />
               </div>
               {clients.length > 0 && (
                 <div className="space-y-1.5">
@@ -731,7 +743,8 @@ const Invoices = () => {
                   <Input
                     placeholder="Client name"
                     value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
+                    aria-invalid={!!errors.clientName}
+                    onChange={(e) => { setClientName(e.target.value); clearError('clientName'); }}
                   />
                 </div>
               )}
@@ -764,8 +777,10 @@ const Invoices = () => {
                   value={dueDate}
                   min={issueDate}
                   max="2099-12-31"
-                  onChange={(e) => setDueDate(e.target.value)}
+                  aria-invalid={!!errors.dueDate}
+                  onChange={(e) => { setDueDate(e.target.value); clearError('dueDate'); }}
                 />
+                <FieldError message={errors.dueDate} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Payment terms</Label>
@@ -850,6 +865,7 @@ const Invoices = () => {
                   </tbody>
                 </table>
               </div>
+              <FieldError message={errors.lineItems} />
             </div>
 
             {/* Totals + VAT */}

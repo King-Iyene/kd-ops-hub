@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 
 // CITA capital allowance rates by category (initial %, annual %)
 const CATEGORY_META: Record<string, { label: string; initial: number; annual: number; life: number }> = {
@@ -131,6 +132,7 @@ export default function Assets() {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const { errors, setError, clearError, clearAll, hasErrors } = useFieldErrors<'name' | 'purchase_date' | 'cost_ngn'>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -149,6 +151,7 @@ export default function Assets() {
 
   const openCreate = () => {
     setEditing(null);
+    clearAll();
     const meta = CATEGORY_META['it_equipment'];
     setForm({ ...EMPTY_FORM, useful_life_years: String(meta.life), initial_allowance_rate: String(meta.initial), annual_allowance_rate: String(meta.annual) });
     setDialogOpen(true);
@@ -156,6 +159,7 @@ export default function Assets() {
 
   const openEdit = (a: Asset) => {
     setEditing(a);
+    clearAll();
     setForm({
       name: a.name, category: a.category, description: a.description ?? '',
       purchase_date: a.purchase_date, cost_ngn: String(a.cost_ngn),
@@ -177,9 +181,12 @@ export default function Assets() {
   };
 
   const save = async () => {
-    if (!form.name.trim() || !form.purchase_date || !form.cost_ngn) {
-      toast({ title: 'Name, purchase date and cost are required', variant: 'destructive' }); return;
-    }
+    clearAll();
+    let valid = true;
+    if (!form.name.trim()) { setError('name', 'Asset name is required'); valid = false; }
+    if (!form.purchase_date) { setError('purchase_date', 'Purchase date is required'); valid = false; }
+    if (!form.cost_ngn) { setError('cost_ngn', 'Cost is required'); valid = false; }
+    if (!valid) return;
     setSaving(true);
     const assetNumber = editing ? editing.asset_number : await nextAssetNumber();
     const payload = {
@@ -249,7 +256,10 @@ export default function Assets() {
   const insuranceExpiring = assets.filter(a => a.status === 'active' && a.insurance_expiry && differenceInDays(parseISO(a.insurance_expiry), new Date()) <= 30 && differenceInDays(parseISO(a.insurance_expiry), new Date()) >= 0).length;
 
   const nameOf = (id: string | null) => id ? (profiles.find(p => p.id === id)?.full_name ?? 'Unknown') : '—';
-  const f = (key: string, val: string) => setForm(p => ({ ...p, [key]: val }));
+  const f = (key: string, val: string) => {
+    setForm(p => ({ ...p, [key]: val }));
+    if (key === 'name' || key === 'purchase_date' || key === 'cost_ngn') clearError(key);
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
@@ -439,7 +449,7 @@ export default function Assets() {
       )}
 
       {/* Create / Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={o => { if (!o) clearAll(); setDialogOpen(o); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Asset' : 'Add Asset'}</DialogTitle>
@@ -448,7 +458,8 @@ export default function Assets() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
             <div className="sm:col-span-2 space-y-1.5">
               <Label>Asset name *</Label>
-              <Input value={form.name} onChange={e => f('name', e.target.value)} placeholder="e.g. Dell Latitude 5520, Toyota Corolla" />
+              <Input value={form.name} onChange={e => f('name', e.target.value)} placeholder="e.g. Dell Latitude 5520, Toyota Corolla" aria-invalid={!!errors.name} />
+              <FieldError message={errors.name} />
             </div>
             <div className="space-y-1.5">
               <Label>Category</Label>
@@ -470,11 +481,13 @@ export default function Assets() {
             </div>
             <div className="space-y-1.5">
               <Label>Purchase date *</Label>
-              <Input type="date" value={form.purchase_date} onChange={e => f('purchase_date', e.target.value)} />
+              <Input type="date" value={form.purchase_date} onChange={e => f('purchase_date', e.target.value)} aria-invalid={!!errors.purchase_date} />
+              <FieldError message={errors.purchase_date} />
             </div>
             <div className="space-y-1.5">
               <Label>Cost (₦) *</Label>
-              <Input type="number" min={0} value={form.cost_ngn} onChange={e => f('cost_ngn', e.target.value)} />
+              <Input type="number" min={0} value={form.cost_ngn} onChange={e => f('cost_ngn', e.target.value)} aria-invalid={!!errors.cost_ngn} />
+              <FieldError message={errors.cost_ngn} />
             </div>
             <div className="space-y-1.5">
               <Label>Useful life (years)</Label>

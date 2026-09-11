@@ -13,6 +13,7 @@ import {
   Info,
 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
@@ -161,6 +162,8 @@ const Budgets = () => {
   ]);
   const [confirmDelete, setConfirmDelete] = useState<BudgetRow | null>(null);
   const [acting, setActing] = useState<string | null>(null);
+  const { errors: fe, setError: setFe, clearError: clearFe, clearAll: clearAllFe } =
+    useFieldErrors<'name' | 'period_start' | 'period_end' | 'period_range' | 'line_items'>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -236,6 +239,7 @@ const Budgets = () => {
 
   const openCreate = () => {
     setEditing(null);
+    clearAllFe();
     setForm({
       name: '',
       period_start: toIsoDate(new Date()),
@@ -249,6 +253,7 @@ const Budgets = () => {
 
   const openEdit = async (r: BudgetRow) => {
     setEditing(r);
+    clearAllFe();
     setForm({
       name: r.name,
       period_start: r.period_start,
@@ -280,16 +285,20 @@ const Budgets = () => {
     setDialog(true);
   };
 
-  const addItemRow = () =>
+  const addItemRow = () => {
+    clearFe('line_items');
     setItemsDraft((prev) => [
       ...prev,
       { category: 'other', description: '', allocated_ngn: '' },
     ]);
+  };
 
-  const updateItem = (idx: number, patch: Partial<ItemDraft>) =>
+  const updateItem = (idx: number, patch: Partial<ItemDraft>) => {
+    clearFe('line_items');
     setItemsDraft((prev) =>
       prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)),
     );
+  };
 
   const removeItem = (idx: number) =>
     setItemsDraft((prev) => prev.filter((_, i) => i !== idx));
@@ -300,29 +309,32 @@ const Budgets = () => {
   );
 
   const save = async (submitForApproval: boolean) => {
+    clearAllFe();
+    let invalid = false;
     if (!form.name.trim()) {
-      toast({ title: 'Budget name is required', variant: 'destructive' });
-      return;
+      setFe('name', 'Budget name is required');
+      invalid = true;
     }
-    if (!form.period_start || !form.period_end) {
-      toast({ title: 'Period is required', variant: 'destructive' });
-      return;
+    if (!form.period_start) {
+      setFe('period_start', 'Start date is required');
+      invalid = true;
     }
-    if (new Date(form.period_end) < new Date(form.period_start)) {
-      toast({ title: 'Period end must be after start', variant: 'destructive' });
-      return;
+    if (!form.period_end) {
+      setFe('period_end', 'End date is required');
+      invalid = true;
+    }
+    if (form.period_start && form.period_end && new Date(form.period_end) < new Date(form.period_start)) {
+      setFe('period_range', 'End date must be after start date');
+      invalid = true;
     }
     const validItems = itemsDraft.filter(
       (it) => it.category.trim() && parseFloat(it.allocated_ngn) > 0,
     );
     if (validItems.length === 0) {
-      toast({
-        title: 'At least one line item is required',
-        description: 'Add a category and a planned amount above ₦0.',
-        variant: 'destructive',
-      });
-      return;
+      setFe('line_items', 'At least one line item with a category and amount above ₦0 is required');
+      invalid = true;
     }
+    if (invalid) return;
 
     setSaving(true);
     try {
@@ -868,7 +880,7 @@ const Budgets = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialog} onOpenChange={setDialog}>
+      <Dialog open={dialog} onOpenChange={(v) => { if (!v) clearAllFe(); setDialog(v); }}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Budget' : 'New Budget'}</DialogTitle>
@@ -880,9 +892,11 @@ const Budgets = () => {
                 <Label>Name</Label>
                 <Input
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  aria-invalid={!!fe.name || undefined}
+                  onChange={(e) => { setForm({ ...form, name: e.target.value }); clearFe('name'); }}
                   placeholder="e.g. FY 2026 Operations Budget"
                 />
+                <FieldError message={fe.name} />
               </div>
               <div className="space-y-1">
                 <Label>Department</Label>
@@ -910,8 +924,10 @@ const Budgets = () => {
                   min="2020-01-01"
                   max="2099-12-31"
                   value={form.period_start}
-                  onChange={(e) => setForm({ ...form, period_start: e.target.value })}
+                  aria-invalid={!!(fe.period_start || fe.period_range) || undefined}
+                  onChange={(e) => { setForm({ ...form, period_start: e.target.value }); clearFe('period_start'); clearFe('period_range'); }}
                 />
+                <FieldError message={fe.period_start} />
               </div>
               <div className="space-y-1">
                 <Label>Period end</Label>
@@ -920,8 +936,10 @@ const Budgets = () => {
                   min={form.period_start || '2020-01-01'}
                   max="2099-12-31"
                   value={form.period_end}
-                  onChange={(e) => setForm({ ...form, period_end: e.target.value })}
+                  aria-invalid={!!(fe.period_end || fe.period_range) || undefined}
+                  onChange={(e) => { setForm({ ...form, period_end: e.target.value }); clearFe('period_end'); clearFe('period_range'); }}
                 />
+                <FieldError message={fe.period_end || fe.period_range} />
               </div>
             </div>
 
@@ -1011,6 +1029,7 @@ const Budgets = () => {
                 <span className="text-muted-foreground mr-2">Total:</span>
                 <span className="font-bold currency">{formatNaira(draftTotal)}</span>
               </div>
+              <FieldError message={fe.line_items} />
             </div>
           </div>
 

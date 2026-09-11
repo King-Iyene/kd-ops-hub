@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 
 type EmpType = 'full_time' | 'part_time' | 'contract' | 'intern';
 type OpeningStatus = 'draft' | 'published' | 'closed' | 'filled';
@@ -167,6 +168,12 @@ export default function Recruitment() {
   const [savingApplicant, setSavingApplicant] = useState(false);
   const [deleteApplicant, setDeleteApplicant] = useState<JobApplicant | null>(null);
 
+  // Validation
+  const { errors: oErr, setError: setOErr, clearError: clearOErr, clearAll: clearAllOErr } =
+    useFieldErrors<'title'>();
+  const { errors: aErr, setError: setAErr, clearError: clearAErr, clearAll: clearAllAErr } =
+    useFieldErrors<'full_name' | 'email'>();
+
   // Hire flow
   const [hiring, setHiring] = useState<{ applicant: JobApplicant; opening: JobOpening } | null>(null);
   const [issuingOffer, setIssuingOffer] = useState<{ applicant: JobApplicant; opening: JobOpening } | null>(null);
@@ -189,6 +196,7 @@ export default function Recruitment() {
   function openCreateOpening() {
     setEditingOpening(null);
     setOpeningForm({ ...EMPTY_OPENING_FORM });
+    clearAllOErr();
     setOpeningDialog(true);
   }
 
@@ -208,13 +216,18 @@ export default function Recruitment() {
       status: o.status,
       notes: o.notes ?? '',
     });
+    clearAllOErr();
     setOpeningDialog(true);
   }
 
   async function handleSaveOpening() {
+    clearAllOErr();
+    let invalid = false;
     if (!openingForm.title.trim()) {
-      toast({ title: 'Job title is required', variant: 'destructive' }); return;
+      setOErr('title', 'Job title is required');
+      invalid = true;
     }
+    if (invalid) return;
     setSavingOpening(true);
     const payload = {
       title: openingForm.title.trim(),
@@ -256,6 +269,7 @@ export default function Recruitment() {
     setEditingApplicant(null);
     setActiveOpeningId(openingId);
     setApplicantForm({ ...EMPTY_APPLICANT_FORM });
+    clearAllAErr();
     setApplicantDialog(true);
   }
 
@@ -276,13 +290,22 @@ export default function Recruitment() {
       offer_amount_ngn: a.offer_amount_ngn != null ? String(a.offer_amount_ngn) : '',
       rejection_reason: a.rejection_reason ?? '',
     });
+    clearAllAErr();
     setApplicantDialog(true);
   }
 
   async function handleSaveApplicant() {
+    clearAllAErr();
+    let invalid = false;
     if (!applicantForm.full_name.trim()) {
-      toast({ title: 'Applicant name is required', variant: 'destructive' }); return;
+      setAErr('full_name', 'Applicant name is required');
+      invalid = true;
     }
+    if (applicantForm.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(applicantForm.email.trim())) {
+      setAErr('email', 'Enter a valid email address');
+      invalid = true;
+    }
+    if (invalid) return;
     if (!activeOpeningId) return;
     setSavingApplicant(true);
     const payload = {
@@ -652,7 +675,8 @@ export default function Recruitment() {
           <div className="space-y-4 py-2">
             <div className="space-y-1">
               <Label className="kd-label">Job Title *</Label>
-              <Input placeholder="e.g. Senior Software Engineer" value={openingForm.title} onChange={e => setOpeningForm(f => ({ ...f, title: e.target.value }))} />
+              <Input placeholder="e.g. Senior Software Engineer" value={openingForm.title} aria-invalid={!!oErr.title} onChange={e => { setOpeningForm(f => ({ ...f, title: e.target.value })); clearOErr('title'); }} />
+              <FieldError message={oErr.title} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -743,12 +767,14 @@ export default function Recruitment() {
           <div className="space-y-4 py-2">
             <div className="space-y-1">
               <Label className="kd-label">Full Name *</Label>
-              <Input placeholder="Applicant's full name" value={applicantForm.full_name} onChange={e => setApplicantForm(f => ({ ...f, full_name: e.target.value }))} />
+              <Input placeholder="Applicant's full name" value={applicantForm.full_name} aria-invalid={!!aErr.full_name} onChange={e => { setApplicantForm(f => ({ ...f, full_name: e.target.value })); clearAErr('full_name'); }} />
+              <FieldError message={aErr.full_name} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="kd-label">Email</Label>
-                <Input type="email" placeholder="email@example.com" value={applicantForm.email} onChange={e => setApplicantForm(f => ({ ...f, email: e.target.value }))} />
+                <Input type="email" placeholder="email@example.com" value={applicantForm.email} aria-invalid={!!aErr.email} onChange={e => { setApplicantForm(f => ({ ...f, email: e.target.value })); clearAErr('email'); }} />
+                <FieldError message={aErr.email} />
               </div>
               <div className="space-y-1">
                 <Label className="kd-label">Phone</Label>
