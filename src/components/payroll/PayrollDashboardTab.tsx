@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Wallet, Users2, CalendarClock, Layers } from 'lucide-react';
+import { ArrowRight, Wallet, Users2, CalendarClock, Layers, BarChart3 } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
-import { formatNaira, daysUntil } from '@/lib/format';
+import { formatNaira, formatNairaCompact, daysUntil } from '@/lib/format';
 import { displayName } from '@/lib/name';
 import { PayrollLifecycleRail, realStepIndex } from '@/components/payroll/PayrollLifecycleRail';
 import { cn } from '@/lib/utils';
@@ -139,33 +139,37 @@ export function PayrollDashboardTab({
 
   const heroStep = heroRun ? realStepIndex(heroRun.status) : -1;
 
+  const runsThisYear = runs.filter((r) => r.period.startsWith(String(new Date().getFullYear()))).length;
+
   return (
     <div className="space-y-6">
+      {/* ── Greeting ──────────────────────────────────────────────── */}
       <div>
         <h2 className="text-xl font-bold tracking-tight">{greeting}, {firstName}</h2>
         <p className="text-sm text-muted-foreground mt-0.5">Here's where payroll stands right now.</p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Hero run summary card */}
-        <Card className="lg:col-span-2 overflow-hidden border-0 bg-gradient-to-br from-[hsl(200,90%,14%)] to-[hsl(200,95%,8%)] text-white">
+      {/* ── Hero + KPIs ───────────────────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-12">
+        {/* Hero run summary — takes 8 of 12 cols */}
+        <Card className="lg:col-span-8 overflow-hidden border-0 bg-gradient-to-br from-[hsl(200,90%,14%)] via-[hsl(200,95%,10%)] to-[hsl(205,90%,7%)] text-white">
           <CardContent className="p-6 space-y-5">
             {heroRun ? (
               <>
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-white/60 font-medium">
+                    <p className="text-2xs uppercase tracking-[0.1em] text-white/50 font-semibold">
                       {heroRun.status === 'draft' ? 'Draft run' : monthLabel(heroRun.period)}
                     </p>
-                    <p className="text-3xl font-bold mt-1 tabular-nums">{formatNaira(heroRun.total_burn_ngn)}</p>
-                    <p className="text-xs text-white/60 mt-1">
+                    <p className="text-3xl sm:text-4xl font-extrabold mt-1.5 tabular-nums tracking-tight">{formatNairaCompact(heroRun.total_burn_ngn)}</p>
+                    <p className="text-xs text-white/50 mt-1.5 font-medium">
                       {heroRun.employee_count ?? '—'} employee{heroRun.employee_count === 1 ? '' : 's'} · {monthLabel(heroRun.period)}
                     </p>
                   </div>
                   {heroRun.status !== 'paid' && (
                     <Button
                       size="sm"
-                      className="bg-white text-[#00283d] hover:bg-white/90"
+                      className="bg-white text-[#00283d] hover:bg-white/90 shadow-lg shadow-black/20"
                       onClick={() => onOpenRun(heroRun.id)}
                     >
                       Review &amp; approve <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -187,12 +191,13 @@ export function PayrollDashboardTab({
           </CardContent>
         </Card>
 
-        {/* Stat tiles */}
-        <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+        {/* Right KPI column — 4 of 12 cols, 2×2 grid */}
+        <div className="lg:col-span-4 grid grid-cols-2 gap-3">
           <StatTile
             icon={<Wallet className="h-4 w-4" />}
-            label="In this month"
-            value={inflow != null ? formatNaira(inflow) : '—'}
+            label="This month"
+            value={inflow != null ? formatNairaCompact(inflow) : '—'}
+            tone="primary"
           />
           <StatTile
             icon={<CalendarClock className="h-4 w-4" />}
@@ -205,84 +210,83 @@ export function PayrollDashboardTab({
             hint={
               nextPayDate
                 ? `${Math.max(0, daysUntil(nextPayDate) ?? 0)} day${Math.abs(daysUntil(nextPayDate) ?? 0) === 1 ? '' : 's'} away`
-                : loadingExtras ? 'Loading…' : 'No active schedule'
+                : loadingExtras ? 'Loading…' : 'No schedule'
             }
+            tone="info"
+          />
+          <StatTile
+            icon={<Users2 className="h-4 w-4" />}
+            label="On payroll"
+            value={String(whoGetsPaid.length > 0 ? (heroRun?.employee_count ?? '—') : '—')}
+            tone="success"
+          />
+          <StatTile
+            icon={<Layers className="h-4 w-4" />}
+            label="Pay groups"
+            value={payGroupCount != null ? String(payGroupCount) : '—'}
           />
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <StatTile
-          icon={<Users2 className="h-4 w-4" />}
-          label="Active employees on payroll"
-          value={String(whoGetsPaid.length > 0 ? (heroRun?.employee_count ?? '—') : '—')}
-          card
-        />
-        <StatTile
-          icon={<Layers className="h-4 w-4" />}
-          label="Pay groups"
-          value={payGroupCount != null ? String(payGroupCount) : '—'}
-          card
-        />
-        <StatTile
-          icon={<CalendarClock className="h-4 w-4" />}
-          label="Runs this year"
-          value={String(runs.filter((r) => r.period.startsWith(String(new Date().getFullYear()))).length)}
-          card
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Burn history */}
-        <Card className="lg:col-span-2">
+      {/* ── Trend + Roster ────────────────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-12">
+        {/* Burn history — 8 cols */}
+        <Card className="lg:col-span-8">
           <CardContent className="p-5">
-            <p className="text-sm font-semibold mb-3">Burn history</p>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-semibold">Burn history</p>
+              <span className="text-2xs text-muted-foreground tabular-nums font-medium">{runsThisYear} run{runsThisYear !== 1 ? 's' : ''} this year</span>
+            </div>
             {trend.length >= 2 ? (
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={trend} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                   <RTooltip
                     formatter={(v: number) => formatNaira(v)}
-                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }}
+                    labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
                   />
-                  <Bar dataKey="burn" fill="hsl(200,90%,29%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="burn" fill="hsl(200,90%,29%)" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-xs text-muted-foreground py-8 text-center">Not enough history yet — run two or more payrolls to see a trend.</p>
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <BarChart3 className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                <p className="text-xs text-muted-foreground">Run two or more payrolls to see a trend.</p>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Who gets paid */}
-        <Card>
+        {/* Who gets paid — 4 cols */}
+        <Card className="lg:col-span-4">
           <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-4">
               <p className="text-sm font-semibold">Who gets paid</p>
               <button
-                className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5"
+                className="text-2xs text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5 kd-transition font-medium"
                 onClick={() => navigate('/employees')}
               >
                 View all <ArrowRight className="h-3 w-3" />
               </button>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {whoGetsPaid.length === 0 && (
-                <p className="text-xs text-muted-foreground">No salaried employees found.</p>
+                <p className="text-xs text-muted-foreground py-4 text-center">No salaried employees found.</p>
               )}
               {whoGetsPaid.map((p) => (
-                <div key={p.id} className="flex items-center gap-2.5">
-                  <Avatar className="h-8 w-8 shrink-0">
+                <div key={p.id} className="flex items-center gap-2.5 py-1 -mx-1.5 px-1.5 rounded-lg hover:bg-muted/50 kd-transition">
+                  <Avatar className="h-7 w-7 shrink-0">
                     {p.photo_url && <AvatarImage src={p.photo_url} alt={p.name} />}
-                    <AvatarFallback className="text-2xs font-semibold bg-[hsl(200,60%,92%)] text-[hsl(200,90%,25%)]">
+                    <AvatarFallback className="text-3xs font-semibold bg-primary/10 text-primary">
                       {initials(p.name)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium truncate">{p.name}</p>
-                    <p className="text-2xs text-muted-foreground truncate capitalize">{p.role || '—'}</p>
+                    <p className="text-xs font-medium truncate leading-tight">{p.name}</p>
+                    <p className="text-2xs text-muted-foreground truncate capitalize leading-tight">{p.role || '—'}</p>
                   </div>
-                  <p className="text-xs font-semibold tabular-nums shrink-0">{formatNaira(p.amount)}</p>
+                  <p className="text-xs font-semibold tabular-nums shrink-0 tracking-tight">{formatNairaCompact(p.amount)}</p>
                 </div>
               ))}
             </div>
@@ -300,19 +304,27 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+const TILE_TONE: Record<string, { iconBg: string; iconColor: string }> = {
+  default:  { iconBg: 'bg-muted',        iconColor: 'text-muted-foreground' },
+  primary:  { iconBg: 'bg-primary/10',    iconColor: 'text-primary' },
+  success:  { iconBg: 'bg-success/10/25', iconColor: 'text-success' },
+  info:     { iconBg: 'bg-sky-50 dark:bg-sky-900/25', iconColor: 'text-sky-600 dark:text-sky-400' },
+};
+
 function StatTile({
-  icon, label, value, hint, card,
-}: { icon: React.ReactNode; label: string; value: string; hint?: string; card?: boolean }) {
+  icon, label, value, hint, tone = 'default',
+}: { icon: React.ReactNode; label: string; value: string; hint?: string; tone?: keyof typeof TILE_TONE }) {
+  const t = TILE_TONE[tone] || TILE_TONE.default;
   return (
-    <Card className={cn(card ? '' : 'h-full')}>
+    <Card className="h-full">
       <CardContent className="p-4 flex items-start gap-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(200,60%,94%)] text-[hsl(200,90%,29%)] shrink-0">
+        <span className={cn('flex h-8 w-8 items-center justify-center rounded-xl shrink-0', t.iconBg, t.iconColor)}>
           {icon}
         </span>
         <div className="min-w-0">
           <p className="text-2xs text-muted-foreground font-medium leading-tight">{label}</p>
-          <p className="text-lg font-bold tabular-nums leading-tight mt-0.5">{value}</p>
-          {hint && <p className="text-2xs text-muted-foreground mt-0.5">{hint}</p>}
+          <p className="text-lg font-bold tabular-nums leading-none mt-1">{value}</p>
+          {hint && <p className="text-2xs text-muted-foreground mt-1">{hint}</p>}
         </div>
       </CardContent>
     </Card>

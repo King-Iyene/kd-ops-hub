@@ -1242,9 +1242,16 @@ input[type=number] {
     @apply max-w-screen-xl mx-auto;
   }
 
-  /* Responsive stat grid — single col → 2 → 4 */
+  /* Responsive stat grid — auto-fit for StatCard arrays */
   .kd-stat-grid {
-    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+  @media (min-width: 768px) {
+    .kd-stat-grid {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
   }
 
   /* Two-column content grid */
@@ -1257,8 +1264,13 @@ input[type=number] {
     @apply flex items-center justify-between gap-3 mb-3;
   }
   .kd-section-title {
-    font-family: 'Inter', system-ui, sans-serif;
-    @apply text-base font-semibold tracking-tight text-foreground;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: hsl(var(--foreground));
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid hsl(var(--border) / 0.5);
+    margin-bottom: 1rem;
   }
 
   /* ─── Phase 1: Form improvements ─────────────────────────────────── */
@@ -1414,6 +1426,31 @@ input[type=number] {
   /* Danger callout */
   .kd-card-danger {
     @apply rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-foreground;
+  }
+
+  /* ── Pro table styling ──────────────────────────────────────────────── */
+
+  /* Table row hover — consistent hover feedback on data rows */
+  .kd-table-row {
+    transition: background-color 120ms ease;
+  }
+  .kd-table-row:hover {
+    background-color: hsl(var(--muted) / 0.5);
+  }
+
+  /* Table header — sticky with frosted glass effect */
+  .kd-table-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: hsl(var(--card) / 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  /* Zebra striping */
+  .kd-table-zebra > :nth-child(even) {
+    background-color: hsl(var(--muted) / 0.25);
   }
 
   /* Select pill dark-mode color swap */

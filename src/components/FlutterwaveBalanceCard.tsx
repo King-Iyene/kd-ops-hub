@@ -176,7 +176,7 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
     <div
       className={cn(
         'relative rounded-2xl border bg-card overflow-hidden kd-transition',
-        'w-full sm:w-auto sm:min-w-[300px] sm:max-w-[340px]',
+        'w-full',
         // Two visual states — dramatically different so operators never
         // mistake which rail is active. Mercury / Ramp / Brex do exactly
         // this: active card sits forward with a subtle brand halo, standby

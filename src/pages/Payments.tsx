@@ -442,33 +442,36 @@ const Payments = () => {
 
       {/* ── Financial overview ─────────────────────────────────── */}
       {(canSeeWallet || effectiveRole !== 'operations') && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-4">
           {canSeeWallet && (
-            <PaystackBalanceCard
-              balance={balance}
-              balanceLoading={balanceLoading}
-              balanceError={balanceError}
-              balanceUpdatedAt={balanceUpdatedAt}
-              balanceHidden={balanceHidden}
-              toggleBalanceHidden={toggleBalanceHidden}
-              fetchBalance={fetchBalance}
-              funding={funding}
-            />
-          )}
-
-          {canSeeWallet && (
-            <FlutterwaveBalanceCard
-              balanceHidden={balanceHidden}
-              toggleBalanceHidden={toggleBalanceHidden}
-            />
-          )}
-
-          {canSeeWallet && (
-            <div className="lg:col-span-2">
-              <PendingPayoutsCard walletBalanceNgn={balance?.available ?? null} />
+            <div className="xl:col-span-3">
+              <PaystackBalanceCard
+                balance={balance}
+                balanceLoading={balanceLoading}
+                balanceError={balanceError}
+                balanceUpdatedAt={balanceUpdatedAt}
+                balanceHidden={balanceHidden}
+                toggleBalanceHidden={toggleBalanceHidden}
+                fetchBalance={fetchBalance}
+                funding={funding}
+              />
             </div>
           )}
 
+          {canSeeWallet && (
+            <div className="xl:col-span-3">
+              <FlutterwaveBalanceCard
+                balanceHidden={balanceHidden}
+                toggleBalanceHidden={toggleBalanceHidden}
+              />
+            </div>
+          )}
+
+          {canSeeWallet && (
+            <div className="xl:col-span-6">
+              <PendingPayoutsCard walletBalanceNgn={balance?.available ?? null} />
+            </div>
+          )}
         </div>
       )}
 
@@ -531,7 +534,7 @@ const Payments = () => {
           ) : (
             <>
               {/* Column header */}
-              <div className="hidden md:grid grid-cols-[12px_1fr_180px_110px_140px_12px] gap-3 items-center px-3 h-8 border-b border-border/70 bg-muted/30">
+              <div className="hidden md:grid grid-cols-[12px_1fr_180px_110px_140px_12px] gap-3 items-center px-3 h-8 border-b border-border/70 sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <span />
                 <p className="text-3xs font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Description</p>
                 <p className="text-3xs font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Recipients · Pay date</p>
@@ -540,7 +543,7 @@ const Payments = () => {
                 <span />
               </div>
               <div className="divide-y divide-border/50">
-              {filtered.map((batch) => {
+              {filtered.map((batch, idx) => {
                 const typeMeta = batch.batch_type ? BATCH_TYPE_META[batch.batch_type] : null;
                 const isProcessing = batch.status === 'processing' || batch.status === 'partially_processed';
                 const isFailed = batch.status === 'rejected' || batch.status === 'failed';
@@ -566,6 +569,7 @@ const Payments = () => {
                       isFailed && 'bg-destructive/5',
                       isPending && 'bg-warning/5',
                       isDraft && 'opacity-60',
+                      !isFailed && !isPending && idx % 2 === 1 && 'bg-muted/20',
                     )}
                   >
                     <span className={cn('absolute left-0 top-0 h-full w-[2px]', railColor, isProcessing && 'animate-pulse')} />
