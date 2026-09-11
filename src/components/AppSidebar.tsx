@@ -40,6 +40,7 @@ import {
   SidebarFooter,
   SidebarRail,
   useSidebar,
+  SIDEBAR_AUTO_ICON_WIDTH_PX,
 } from '@/components/ui/sidebar';
 
 const HUB_ICONS: Record<string, typeof Users> = {
@@ -63,8 +64,8 @@ function getInitials(name: string): string {
 }
 
 export function AppSidebar() {
-  const { state, setOpenMobile, setOpen, isMobile } = useSidebar();
-  const sidebarCollapsed = state === 'collapsed';
+  const { state, setOpenMobile, setOpen, isMobile, width } = useSidebar();
+  const sidebarCollapsed = state === 'collapsed' || (!isMobile && width < SIDEBAR_AUTO_ICON_WIDTH_PX);
   const { profile, signOut } = useAuthStore();
   const effectiveRole = useEffectiveRole();
   const location = useLocation();

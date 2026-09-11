@@ -71,6 +71,8 @@ interface TaskSidebarProps {
   onToggleFavorite?: (spaceId: string) => void;
   unorganizedCount: number;
   showTeamDashboard?: boolean;
+  /** Panel dragged narrow enough that labels should hide, showing icons only. */
+  iconOnly?: boolean;
 }
 
 export function TaskSidebar({
@@ -80,7 +82,7 @@ export function TaskSidebar({
   onEditSpace, onDeleteSpace, onManageMembers, onManageStatuses,
   onCreateFolder, onCreateList, onRenameFolder, onDeleteFolder,
   onRenameList, onDeleteList, favoriteSpaceIds, onToggleFavorite,
-  unorganizedCount, showTeamDashboard,
+  unorganizedCount, showTeamDashboard, iconOnly,
 }: TaskSidebarProps) {
   const [spacesExpanded, setSpacesExpanded] = useState(true);
   const [expandedSpaces, setExpandedSpaces] = useState<Set<string>>(new Set());
@@ -116,6 +118,7 @@ export function TaskSidebar({
           count={taskCounts.myTasks}
           active={currentView === 'my-tasks' && !selectedSpace}
           onClick={() => { onSelectSpace(null); onSelectList(null); onChangeView('my-tasks'); }}
+          iconOnly={iconOnly}
           badge={taskCounts.overdue > 0 ? (
             <span className="text-3xs bg-destructive/15 text-destructive rounded-full px-1.5 py-0.5 font-medium tabular-nums">
               {taskCounts.overdue}
@@ -128,6 +131,7 @@ export function TaskSidebar({
             label="Team Dashboard"
             active={currentView === 'team-dashboard'}
             onClick={() => { onSelectSpace(null); onSelectList(null); onChangeView('team-dashboard'); }}
+            iconOnly={iconOnly}
           />
         )}
       </div>
@@ -135,9 +139,11 @@ export function TaskSidebar({
       {/* ─── Favorites Section ─────────────────────────── */}
       {favoriteSpaceIds && favoriteSpaceIds.size > 0 && (
         <div className="space-y-0.5 mb-4">
-          <p className="text-3xs font-semibold text-muted-foreground uppercase tracking-widest px-2 mb-1.5">
-            Favorites
-          </p>
+          {!iconOnly && (
+            <p className="text-3xs font-semibold text-muted-foreground uppercase tracking-widest px-2 mb-1.5">
+              Favorites
+            </p>
+          )}
           {spaces.filter((s) => favoriteSpaceIds.has(s.id)).map((space) => (
             <SidebarItem
               key={`fav-${space.id}`}
@@ -146,6 +152,7 @@ export function TaskSidebar({
               count={spaceTaskCounts.get(space.id) ?? 0}
               active={selectedSpace === space.id && !selectedList}
               onClick={() => { onSelectSpace(space.id); onSelectList(null); ensureTaskView(); }}
+              iconOnly={iconOnly}
             />
           ))}
         </div>
@@ -157,9 +164,10 @@ export function TaskSidebar({
           <button
             onClick={() => setSpacesExpanded(!spacesExpanded)}
             className="flex items-center gap-1 text-3xs font-semibold text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors"
+            title="Folders"
           >
             {spacesExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            Folders
+            {!iconOnly && 'Folders'}
           </button>
           {onCreateSpace && (
             <TooltipProvider delayDuration={200}>
@@ -183,6 +191,7 @@ export function TaskSidebar({
               count={taskCounts.total}
               active={selectedSpace === null && !selectedList && currentView !== 'my-tasks' && currentView !== 'dashboard'}
               onClick={() => { onSelectSpace(null); onSelectList(null); ensureTaskView(); }}
+              iconOnly={iconOnly}
             />
 
             {spaces.map((space) => {
@@ -205,15 +214,20 @@ export function TaskSidebar({
                           ? 'bg-primary/10 text-primary'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
                       )}
+                      title={space.name}
                     >
-                      {hasChildren ? (
+                      {hasChildren && !iconOnly ? (
                         isExpanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />
-                      ) : (
+                      ) : !iconOnly ? (
                         <FolderOpen className="h-3.5 w-3.5 shrink-0" style={space.color ? { color: space.color } : undefined} />
-                      )}
+                      ) : null}
                       <FolderKanban className="h-3.5 w-3.5 shrink-0" style={space.color ? { color: space.color } : undefined} />
-                      <span className="flex-1 truncate">{space.name}</span>
-                      <span className="text-3xs tabular-nums opacity-50">{spaceTaskCounts.get(space.id) ?? 0}</span>
+                      {!iconOnly && (
+                        <>
+                          <span className="flex-1 truncate">{space.name}</span>
+                          <span className="text-3xs tabular-nums opacity-50">{spaceTaskCounts.get(space.id) ?? 0}</span>
+                        </>
+                      )}
                     </button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -254,11 +268,16 @@ export function TaskSidebar({
                               <button
                                 onClick={() => toggleFolder(folder.id)}
                                 className="flex items-center gap-2 flex-1 min-w-0 px-2 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                                title={folder.name}
                               >
-                                {isFolderExpanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
+                                {!iconOnly && (isFolderExpanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />)}
                                 <FolderKanban className="h-3 w-3 shrink-0" style={folder.color ? { color: folder.color } : undefined} />
-                                <span className="flex-1 truncate text-left">{folder.name}</span>
-                                <span className="text-3xs tabular-nums opacity-40">{folderLists.length}</span>
+                                {!iconOnly && (
+                                  <>
+                                    <span className="flex-1 truncate text-left">{folder.name}</span>
+                                    <span className="text-3xs tabular-nums opacity-40">{folderLists.length}</span>
+                                  </>
+                                )}
                               </button>
                               {(onRenameFolder || onDeleteFolder || onCreateList) && (
                                 <DropdownMenu>
@@ -301,6 +320,7 @@ export function TaskSidebar({
                                     onClick={() => { onSelectList(list.id); onSelectSpace(space.id); ensureTaskView(); }}
                                     onRename={onRenameList ? () => onRenameList(list) : undefined}
                                     onDelete={onDeleteList ? () => onDeleteList(list) : undefined}
+                                    iconOnly={iconOnly}
                                   />
                                 ))}
                               </div>
@@ -318,6 +338,7 @@ export function TaskSidebar({
                           onClick={() => { onSelectList(list.id); onSelectSpace(space.id); ensureTaskView(); }}
                           onRename={onRenameList ? () => onRenameList(list) : undefined}
                           onDelete={onDeleteList ? () => onDeleteList(list) : undefined}
+                          iconOnly={iconOnly}
                         />
                       ))}
                     </div>
@@ -334,7 +355,7 @@ export function TaskSidebar({
 }
 
 function SidebarItem({
-  icon: Icon, label, count, active, onClick, badge, muted,
+  icon: Icon, label, count, active, onClick, badge, muted, iconOnly,
 }: {
   icon: typeof Layers;
   label: string;
@@ -343,10 +364,12 @@ function SidebarItem({
   onClick: () => void;
   badge?: React.ReactNode;
   muted?: boolean;
+  iconOnly?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
+      title={iconOnly ? label : undefined}
       className={cn(
         'flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md text-xs-plus font-medium transition-all text-left',
         active
@@ -356,27 +379,33 @@ function SidebarItem({
       )}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" />
-      <span className="flex-1 truncate">{label}</span>
-      {badge}
-      {count !== undefined && !badge && (
-        <span className="text-3xs tabular-nums opacity-50">{count}</span>
+      {!iconOnly && (
+        <>
+          <span className="flex-1 truncate">{label}</span>
+          {badge}
+          {count !== undefined && !badge && (
+            <span className="text-3xs tabular-nums opacity-50">{count}</span>
+          )}
+        </>
       )}
     </button>
   );
 }
 
-function ListItem({ list, count, active, onClick, onRename, onDelete }: {
+function ListItem({ list, count, active, onClick, onRename, onDelete, iconOnly }: {
   list: TaskList;
   count: number;
   active: boolean;
   onClick: () => void;
   onRename?: () => void;
   onDelete?: () => void;
+  iconOnly?: boolean;
 }) {
   return (
     <div className="flex items-center group/list">
       <button
         onClick={onClick}
+        title={iconOnly ? list.name : undefined}
         className={cn(
           'flex items-center gap-2 flex-1 min-w-0 px-2 py-1 rounded-md text-xs font-medium transition-all text-left',
           active
@@ -385,8 +414,12 @@ function ListItem({ list, count, active, onClick, onRename, onDelete }: {
         )}
       >
         <ListTodo className="h-3 w-3 shrink-0" style={list.color ? { color: list.color } : undefined} />
-        <span className="flex-1 truncate">{list.name}</span>
-        <span className="text-3xs tabular-nums opacity-40">{count}</span>
+        {!iconOnly && (
+          <>
+            <span className="flex-1 truncate">{list.name}</span>
+            <span className="text-3xs tabular-nums opacity-40">{count}</span>
+          </>
+        )}
       </button>
       {(onRename || onDelete) && (
         <DropdownMenu>

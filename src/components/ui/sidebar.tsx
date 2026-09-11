@@ -23,6 +23,10 @@ const SIDEBAR_WIDTH_STORAGE_KEY = "kd-sidebar-width";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
+// Dragged this close to the minimum — auto-switch to icon-only, same look
+// as the manual collapse-to-icon-rail toggle, so labels never get squeezed
+// into an unreadable sliver.
+export const SIDEBAR_AUTO_ICON_WIDTH_PX = 190;
 
 type SidebarContext = {
   state: "expanded" | "collapsed";
@@ -127,13 +131,20 @@ const SidebarProvider = React.forwardRef<
     [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar, width, setWidth],
   );
 
+  // Once dragged below the auto-icon threshold (and not manually collapsed),
+  // shrink the actual rendered width to the icon rail instead of leaving a
+  // half-empty sliver — mirrors the manual collapsible="icon" width.
+  const cssWidth = state === "expanded" && width < SIDEBAR_AUTO_ICON_WIDTH_PX
+    ? SIDEBAR_WIDTH_ICON
+    : `${width}px`;
+
   return (
     <SidebarContext.Provider value={contextValue}>
       <TooltipProvider delayDuration={0}>
         <div
           style={
             {
-              "--sidebar-width": `${width}px`,
+              "--sidebar-width": cssWidth,
               "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
               ...style,
             } as React.CSSProperties
@@ -214,7 +225,11 @@ const Sidebar = React.forwardRef<
       />
       <div
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-200 ease-linear md:flex",
+          // z-[55]: above Dialog/Sheet/AlertDialog overlays (z-50) so the
+          // persistent nav stays clickable in one click even while a modal
+          // is open elsewhere — see dropdown-menu/popover/select (z-60),
+          // which stay above this for menus anchored inside the sidebar.
+          "fixed inset-y-0 z-[55] hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-200 ease-linear md:flex",
           side === "left"
             ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
             : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",

@@ -145,6 +145,8 @@ const Tasks = () => {
   const MODULE_SIDEBAR_WIDTH_DEFAULT = 200;
   const MODULE_SIDEBAR_WIDTH_MIN = 160;
   const MODULE_SIDEBAR_WIDTH_MAX = 340;
+  // Below this, labels hide and only icons show — dragged close to the floor.
+  const MODULE_SIDEBAR_ICON_ONLY_WIDTH = 170;
   const [moduleSidebarWidth, setModuleSidebarWidthState] = useState<number>(() => {
     try {
       const saved = Number(localStorage.getItem('kd-task-sidebar-width'));
@@ -979,6 +981,7 @@ const Tasks = () => {
             onToggleFavorite={toggleFavoriteSpace}
             unorganizedCount={unorganizedCount}
             showTeamDashboard={isAdmin}
+            iconOnly={moduleSidebarWidth < MODULE_SIDEBAR_ICON_ONLY_WIDTH}
           />
           <div
             role="separator"
