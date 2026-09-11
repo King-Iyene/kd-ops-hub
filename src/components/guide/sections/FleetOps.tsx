@@ -7,7 +7,7 @@ import { SectionIntro, ModuleCard, StepList, Callout, Screenshot, VideoEmbed, gu
 
 export function FleetOpsSection() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <SectionIntro
         icon={Car}
         title="Fleet & Assets"

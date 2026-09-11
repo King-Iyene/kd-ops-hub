@@ -841,7 +841,7 @@ const Approvals = () => {
   const oldestDays = items.length === 0 ? 0 : Math.max(0, Math.floor((Date.now() - oldestPending) / 86_400_000));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {/* Mission control hero */}
       <AuroraHero className="p-5 sm:p-6" scanLine={counts.total > 0} pattern="pulse">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

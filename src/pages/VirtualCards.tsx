@@ -253,7 +253,7 @@ const VirtualCards = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <PageHeader
         title="Virtual Cards"
         description="Track per-vendor spend controls. Assign a card to a subscription and monitor usage."

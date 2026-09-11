@@ -384,7 +384,7 @@ const ContractorProfile = () => {
 
   if (loading || !contractor) {
     return (
-      <div className="min-h-[50vh] max-w-5xl mx-auto space-y-6 py-8 px-4">
+      <div className="min-h-[50vh] max-w-5xl mx-auto space-y-3 sm:space-y-6 py-8 px-4">
         <div className="flex items-center gap-4">
           <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
           <div className="space-y-2 flex-1">

@@ -98,7 +98,7 @@ export default function WorkingCapitalTab() {
   const snap = data?.snapshot;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <p className="text-sm text-muted-foreground">
         Working capital = current assets − current liabilities. It measures the company's short-term financial cushion — can you cover obligations due within the next month?
       </p>

@@ -325,7 +325,7 @@ const Clients = () => {
   if (error) return <ErrorState message={error} onRetry={load} />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <AuroraHero className="p-5 sm:p-6" pattern="constellation">
         <PageHeader
           className="mb-0"

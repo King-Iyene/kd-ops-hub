@@ -341,7 +341,7 @@ const SettingsPage = () => {
     );
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto">
+    <div className="space-y-3 sm:space-y-6 max-w-[1400px] mx-auto">
       <PageHeader
         title="Settings"
         description="KDOps runs on these knobs. Take care."

@@ -502,7 +502,7 @@ export default function TransferAuthSettings() {
     overrideReason.length < 5;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {migrationMissing && (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />

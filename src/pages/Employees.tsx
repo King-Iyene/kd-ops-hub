@@ -551,7 +551,7 @@ const Employees = () => {
   const inviteCount = employees.filter((e) => e.status === 'invited').length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <AuroraHero className="p-5 sm:p-6" pattern="constellation">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>

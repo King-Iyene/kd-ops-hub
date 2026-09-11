@@ -309,7 +309,7 @@ export default function SuccessionPlanning() {
   );
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
+    <div className="p-4 md:p-6 space-y-3 sm:space-y-6 max-w-5xl mx-auto">
       <PageHeader
         title="Succession Planning"
         description="Identify critical roles, assess risk, and develop talent pipelines."

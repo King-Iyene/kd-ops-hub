@@ -207,7 +207,7 @@ const Referrals = () => {
   const affiliateCount = referrals.filter((r) => r.is_affiliate).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <AuroraHero className="p-5 sm:p-6" pattern="constellation">
         <PageHeader
           className="mb-0"

@@ -200,7 +200,7 @@ export const PayrollRunsTab = ({
   const visibleRuns = segmentFilter === '__all__' ? runs : runs.filter((r) => (r.payroll_segment_id || '__unfiltered__') === segmentFilter);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
 
       {!bannerDismissed && (
         <div className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-card px-3.5 py-2 text-xs text-muted-foreground">

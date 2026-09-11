@@ -82,7 +82,7 @@ const FULL_MATRIX: { a: string; b: string; c: string }[] = [
 
 export function RolesPermissionsSection() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <SectionIntro
         icon={Shield}
         title="Roles & Permissions"

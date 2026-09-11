@@ -325,7 +325,7 @@ export default function Surveys() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 md:p-6 space-y-3 sm:space-y-6 max-w-7xl mx-auto">
       <PageHeader
         title="Surveys"
         description="Employee pulse checks, engagement surveys, and feedback collection."

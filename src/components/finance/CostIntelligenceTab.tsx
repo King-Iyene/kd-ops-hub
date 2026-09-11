@@ -111,7 +111,7 @@ export default function CostIntelligenceTab() {
   const removeAction = (idx: number) => setActions((a) => a.filter((_, i) => i !== idx));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {/* ─── What-if headcount planner ────────────────────────────────── */}
       <Card>
         <CardHeader>

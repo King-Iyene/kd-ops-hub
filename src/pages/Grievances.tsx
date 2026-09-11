@@ -217,7 +217,7 @@ export default function Grievances() {
   const criticalCount = grievances.filter(g => g.severity === 'critical').length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <PageHeader
         title="Grievance Portal"
         description="Confidential reporting channel for workplace grievances and whistleblowing"

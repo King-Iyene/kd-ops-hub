@@ -466,7 +466,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <Card>
           <CardContent className="pt-4 pb-3 px-4">

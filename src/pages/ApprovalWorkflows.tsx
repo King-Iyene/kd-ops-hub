@@ -301,7 +301,7 @@ export default function ApprovalWorkflows() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-3 sm:space-y-6">
         <PageHeader title="Approval Workflows" description="Configure approval chains for HR processes" icon={GitBranch} />
         <TableSkeleton rows={4} cols={3} />
       </div>

@@ -202,7 +202,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
   if (loading) return <TableSkeleton rows={5} />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {!hasLifecycleCols && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
           Vehicle lifecycle columns have not been deployed yet. Run the latest migration to enable purchase price, depreciation, and insurance tracking.

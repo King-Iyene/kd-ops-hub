@@ -779,7 +779,7 @@ const Subscriptions = () => {
   /* ═══════════════════════ Render ═══════════════════════ */
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <PageHeader
         title="Subscriptions"
         description="Track recurring software and service subscriptions with renewal alerts."

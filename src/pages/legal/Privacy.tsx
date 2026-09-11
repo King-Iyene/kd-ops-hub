@@ -14,7 +14,7 @@ export default function Privacy() {
   usePageTitle('Privacy Policy');
   return (
     <div className="min-h-screen bg-background text-foreground p-6 md:p-10">
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="max-w-3xl mx-auto space-y-3 sm:space-y-6">
         <Link to="/" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-3 w-3" /> Back
         </Link>

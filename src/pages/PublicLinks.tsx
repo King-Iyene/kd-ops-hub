@@ -183,7 +183,7 @@ export default function PublicLinks() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <PageHeader
         title="Public Links"
         description="Every externally-shareable KDOps URL, in one place — the careers page, the contractor application, per-opening links, and employee referral links."

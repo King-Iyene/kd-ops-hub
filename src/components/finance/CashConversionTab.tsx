@@ -42,7 +42,7 @@ export default function CashConversionTab() {
   const band = data ? BAND_STYLE[data.band] : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <p className="text-sm text-muted-foreground">
         The cash conversion cycle measures how quickly money flows through the business — from paying suppliers to collecting from clients.
       </p>

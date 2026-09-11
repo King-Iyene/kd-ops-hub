@@ -1409,7 +1409,7 @@ const BatchDetail = () => {
 
   if (loading)
     return (
-      <div className="max-w-5xl mx-auto space-y-6 py-10 px-4">
+      <div className="max-w-5xl mx-auto space-y-3 sm:space-y-6 py-10 px-4">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
           <div className="h-6 w-64 rounded bg-muted animate-pulse" />

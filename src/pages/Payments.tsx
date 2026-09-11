@@ -388,7 +388,7 @@ const Payments = () => {
   }, [batches, debouncedSearch, effectiveRole]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 sm:space-y-5">
       {/* ── Header bar ─────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -442,7 +442,7 @@ const Payments = () => {
 
       {/* ── Financial overview ─────────────────────────────────── */}
       {(canSeeWallet || effectiveRole !== 'operations') && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3 sm:gap-4">
           {canSeeWallet && (
             <div className="xl:col-span-3">
               <PaystackBalanceCard

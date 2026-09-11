@@ -52,7 +52,7 @@ export function TaskDashboard({ tasks, allTasks, profiles, currentUserId, onTask
   const total = topLevel.length || 1;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard icon={CheckCircle2} label="Completed this week" value={completedThisWeek.length}

@@ -62,7 +62,7 @@ export default function VendorSpendTab() {
   const trendVendors = useMemo(() => data?.trends.slice(0, 5).map((t) => t.vendor) ?? [], [data]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <p className="text-sm text-muted-foreground">
         Aggregates all expenses and subscriptions by vendor to surface where money goes, month-over-month trends, and consolidation opportunities.
       </p>

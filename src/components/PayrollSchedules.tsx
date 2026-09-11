@@ -722,7 +722,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
   }, [availableEmployees, memberSearch]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 sm:space-y-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h3 className="text-base font-semibold flex items-center gap-2">

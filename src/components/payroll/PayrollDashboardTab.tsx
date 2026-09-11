@@ -142,7 +142,7 @@ export function PayrollDashboardTab({
   const runsThisYear = runs.filter((r) => r.period.startsWith(String(new Date().getFullYear()))).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {/* ── Greeting ──────────────────────────────────────────────── */}
       <div>
         <h2 className="text-xl font-bold tracking-tight">{greeting}, {firstName}</h2>
@@ -153,7 +153,7 @@ export function PayrollDashboardTab({
       <div className="grid gap-4 lg:grid-cols-12">
         {/* Hero run summary — takes 8 of 12 cols */}
         <Card className="lg:col-span-8 overflow-hidden border-0 bg-gradient-to-br from-[hsl(200,90%,14%)] via-[hsl(200,95%,10%)] to-[hsl(205,90%,7%)] text-white">
-          <CardContent className="p-6 space-y-5">
+          <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-5">
             {heroRun ? (
               <>
                 <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -161,7 +161,7 @@ export function PayrollDashboardTab({
                     <p className="text-2xs uppercase tracking-[0.1em] text-white/50 font-semibold">
                       {heroRun.status === 'draft' ? 'Draft run' : monthLabel(heroRun.period)}
                     </p>
-                    <p className="text-3xl sm:text-4xl font-extrabold mt-1.5 tabular-nums tracking-tight">{formatNairaCompact(heroRun.total_burn_ngn)}</p>
+                    <p className="text-2xl sm:text-3xl md:text-4xl font-extrabold mt-1.5 tabular-nums tracking-tight">{formatNairaCompact(heroRun.total_burn_ngn)}</p>
                     <p className="text-xs text-white/50 mt-1.5 font-medium">
                       {heroRun.employee_count ?? '—'} employee{heroRun.employee_count === 1 ? '' : 's'} · {monthLabel(heroRun.period)}
                     </p>

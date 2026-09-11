@@ -6,7 +6,7 @@ import { SectionIntro, ModuleCard, StepList, Callout, VideoEmbed, guideVideoUrl 
 
 export function GrowthWellbeingSection() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <SectionIntro
         icon={GraduationCap}
         title="Growth & Wellbeing"

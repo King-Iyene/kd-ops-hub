@@ -241,7 +241,7 @@ const Fleet = () => {
     : [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {/* Mission control hero */}
       <AuroraHero className="p-5 sm:p-6" scanLine={totalAnomalies > 0} pattern="route">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

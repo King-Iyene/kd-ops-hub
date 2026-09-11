@@ -390,7 +390,7 @@ export default function TaskTeamDashboard() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 sm:space-y-5">
       {/* Header + persistent filters */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

@@ -282,7 +282,7 @@ export default function Shifts() {
   const profileName = (id: string) => profiles.find(p => p.id === id)?.full_name ?? 'Unknown';
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-3 sm:space-y-6 p-6">
       <PageHeader title="Shifts" description="Manage shift definitions and weekly roster assignments" icon={Clock} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -181,7 +181,7 @@ export function ComplianceDashboard({ vehicles, onUpdated }: Props) {
   const sorted = [...statuses].sort((a, b) => statusOrder(a.status) - statusOrder(b.status));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">

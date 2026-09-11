@@ -116,7 +116,7 @@ export default function PayHub() {
   const hasUnwiredLoanRisk = stats.staffLoanActiveCount > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <PageHeader
         title="Pay Hub"
         icon={LayoutPanelTop}

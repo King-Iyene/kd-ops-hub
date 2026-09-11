@@ -275,7 +275,7 @@ export default function EarnedWageAccess() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <PageHeader
         title="Earned Wage Access"
         description="Draw a portion of the salary you've already earned this month. Repaid automatically on your next payslip."

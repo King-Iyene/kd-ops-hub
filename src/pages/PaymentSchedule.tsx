@@ -455,7 +455,7 @@ export default function PaymentSchedule() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <PageHeader
         title="Payment Schedule"
         description="Monitor upcoming obligations and manage recurring payment schedules"

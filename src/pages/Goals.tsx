@@ -472,7 +472,7 @@ const Goals = () => {
   }, [goals]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <PageHeader
         title="Goals & Performance"
         description="Track company, team and individual goals by quarter. Celebrate what ships."

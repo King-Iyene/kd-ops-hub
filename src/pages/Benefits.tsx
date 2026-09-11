@@ -240,7 +240,7 @@ export default function Benefits() {
   const empName = (id: string) => profiles.find(p => p.id === id)?.full_name ?? '—';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <PageHeader
         title="Employee Benefits"
         description="HMO, pension, group life and other statutory benefits"

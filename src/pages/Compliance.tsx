@@ -947,7 +947,7 @@ const Compliance = () => {
   }, [rows]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <AuroraHero className="p-5 sm:p-6" scanLine={counts.overdue > 0} pattern="pulse">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>

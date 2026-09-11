@@ -205,7 +205,7 @@ function GuideBody() {
 export default function Guide() {
   usePageTitle('Guide');
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto">
+    <div className="space-y-3 sm:space-y-6 max-w-[1400px] mx-auto">
       {/* Header */}
       <div>
         <div className="flex items-center gap-3">

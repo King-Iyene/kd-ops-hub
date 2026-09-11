@@ -84,7 +84,7 @@ export default function CashTimingTab() {
   const overdue90Plus = board?.aging.buckets.find((b) => b.bucket === '90+');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {/* ─── 13-week cash position ─────────────────────────────────── */}
       <Card>
         <CardHeader>

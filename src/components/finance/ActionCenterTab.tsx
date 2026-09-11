@@ -81,7 +81,7 @@ export default function ActionCenterTab() {
   const criticalCount = data?.items.filter((i) => i.severity === 'critical').length ?? 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <p className="text-sm text-muted-foreground">
         What actually needs your decision today — pending approvals, near-term cash risk, overdue filings and unreviewed anomalies, ranked by severity.
       </p>

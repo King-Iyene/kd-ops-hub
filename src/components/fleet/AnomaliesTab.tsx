@@ -121,7 +121,7 @@ export function AnomaliesTab({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {/* Flagged Trip Logs */}
       <div>
         <h2 className="text-base font-semibold mb-3 flex items-center gap-2">

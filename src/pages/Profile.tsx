@@ -834,7 +834,7 @@ const ProfilePage = () => {
   // ── Render ─────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12">
+    <div className="max-w-4xl mx-auto space-y-3 sm:space-y-6 pb-12">
       {/* Hero — centred identity card */}
       <div className="relative overflow-hidden rounded-3xl border border-border bg-card">
         {/* Brand accent strip — same teal gradient family the rest of

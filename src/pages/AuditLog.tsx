@@ -321,7 +321,7 @@ const AuditLog = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <PageHeader
         title="Audit Log"
         description="Every data-changing action is recorded here. Append-only — entries cannot be edited or deleted, even by Super Admin."

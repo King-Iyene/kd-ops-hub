@@ -237,7 +237,7 @@ export default function Anomalies() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <AuroraHero className="p-5 sm:p-6" scanLine={stats.open > 0} pattern="pulse">
         <PageHeader
           className="mb-0"

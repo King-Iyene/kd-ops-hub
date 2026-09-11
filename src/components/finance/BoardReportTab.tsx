@@ -69,7 +69,7 @@ export default function BoardReportTab() {
   const recentTrend = report ? report.trend.slice(-6) : [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <div className="flex items-center justify-between print:hidden">
         <p className="text-sm text-muted-foreground">
           A single, board-ready summary — generate and print or save as PDF.

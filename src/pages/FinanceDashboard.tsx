@@ -152,7 +152,7 @@ export default function FinanceDashboard() {
   const latestTrend = trend.length > 0 ? trend[trend.length - 1] : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <PageHeader
         title="Finance"
         description="The board-level view — people cost, cash runway, compliance and upcoming obligations in one place. Airtable stays your granular base; this is the summary."

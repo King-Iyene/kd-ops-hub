@@ -219,7 +219,7 @@ export default function Vendors() {
     setForm(p => ({ ...p, [key]: val }));
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 md:p-6 space-y-3 sm:space-y-6 max-w-7xl mx-auto">
       <AuroraHero className="p-5 sm:p-6" pattern="contour">
         <PageHeader
           className="mb-0"

@@ -396,7 +396,7 @@ export default function Performance() {
   const pipsActive = plans.filter(p => p.category === 'other' && p.status === 'in_progress' && p.title.toLowerCase().includes('pip')).length;
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
+    <div className="p-4 md:p-6 space-y-3 sm:space-y-6 max-w-5xl mx-auto">
       <PageHeader
         title="Performance Reviews"
         description="Manage review cycles, competency ratings, and development plans."

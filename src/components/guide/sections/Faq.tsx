@@ -50,7 +50,7 @@ const FAQS: QA[] = [
 
 export function FaqSection() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <SectionIntro
         icon={HelpCircle}
         title="FAQ & Troubleshooting"

@@ -113,7 +113,7 @@ export default function HealthScoreTab() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <p className="text-sm text-muted-foreground">
         A composite financial health rating that synthesises runway, compliance, cash efficiency, revenue diversity, and cost structure into a single score.
       </p>

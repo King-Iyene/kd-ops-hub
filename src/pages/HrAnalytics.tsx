@@ -232,7 +232,7 @@ const HrAnalytics = () => {
   if (loading) return <TableSkeleton rows={6} />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <PageHeader
         title="HR Analytics"
         description="Headcount, attrition, cost per head, gender split, tenure and a simple org chart. Read-only aggregates."

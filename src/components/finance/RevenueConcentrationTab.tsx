@@ -66,7 +66,7 @@ export default function RevenueConcentrationTab() {
   const band = data ? BAND_STYLE[data.band] : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <p className="text-sm text-muted-foreground">
         Revenue concentration measures how dependent the business is on its top clients. High concentration increases risk — losing one large client could destabilise cash flow.
       </p>

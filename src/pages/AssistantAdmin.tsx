@@ -225,7 +225,7 @@ export default function AssistantAdmin() {
 
   if (loading || !config) {
     return (
-      <div className="max-w-4xl mx-auto space-y-6 py-10 px-4">
+      <div className="max-w-4xl mx-auto space-y-3 sm:space-y-6 py-10 px-4">
         <div className="h-7 w-56 rounded bg-muted animate-pulse" />
         <div className="rounded-xl border bg-card p-6 space-y-5">
           {Array.from({ length: 4 }).map((_, i) => (

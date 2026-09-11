@@ -177,7 +177,7 @@ const ContactProfile = () => {
 
   if (loading || !contact) {
     return (
-      <div className="min-h-[50vh] max-w-4xl mx-auto space-y-6 py-8 px-4">
+      <div className="min-h-[50vh] max-w-4xl mx-auto space-y-3 sm:space-y-6 py-8 px-4">
         {/* Header skeleton */}
         <div className="flex items-center gap-4">
           <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />

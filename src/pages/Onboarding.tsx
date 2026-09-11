@@ -334,7 +334,7 @@ export default function Onboarding() {
   }, [checklists, itemsMap]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <PageHeader
         title="Onboarding & Offboarding"
         description="Manage employee joining and exit checklists"

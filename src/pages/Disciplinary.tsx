@@ -264,7 +264,7 @@ export default function Disciplinary() {
   const unacknowledgedCount = records.filter(r => !r.acknowledged_at && !r.is_expunged).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <PageHeader
         title="Disciplinary Records"
         description="Warning letters, queries, suspensions and formal actions"
