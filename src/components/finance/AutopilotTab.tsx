@@ -238,6 +238,7 @@ export default function AutopilotTab() {
           {schedule.length === 0 && !loading ? (
             <p className="text-sm text-muted-foreground text-center py-10">No pending payment batches to schedule.</p>
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -281,6 +282,7 @@ export default function AutopilotTab() {
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

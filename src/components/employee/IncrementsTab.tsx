@@ -29,6 +29,7 @@ export default function IncrementsTab({ increments, canManage, onShowIncrementDi
           {increments.length === 0 ? (
             <p className="px-4 py-6 text-sm text-muted-foreground">No salary increments recorded.</p>
           ) : (
+            <>
             <div className="hidden md:block">
               <div className="overflow-x-auto">
                 <Table>
@@ -82,6 +83,7 @@ export default function IncrementsTab({ increments, canManage, onShowIncrementDi
                 );
               })}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -22,6 +22,7 @@ export default function LogsTab({ auditLogs }: Props) {
           {auditLogs.length === 0 ? (
             <EmptyState compact icon={Activity} title="No activity yet" description="Profile changes and audit events will appear here." />
           ) : (
+            <>
             <div className="hidden md:block">
               <div className="overflow-x-auto">
                 <Table>
@@ -59,6 +60,7 @@ export default function LogsTab({ auditLogs }: Props) {
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

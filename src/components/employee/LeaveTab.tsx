@@ -55,6 +55,7 @@ export default function LeaveTab({ employeeId, employee, leaves, leaveTaken }: P
           {leaves.length === 0 ? (
             <EmptyState compact icon={CalendarDays} title="No leave requests" description="Leave requests submitted by this employee will appear here." />
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -116,6 +117,7 @@ export default function LeaveTab({ employeeId, employee, leaves, leaveTaken }: P
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

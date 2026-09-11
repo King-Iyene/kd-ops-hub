@@ -290,6 +290,7 @@ export default function Grievances() {
           }
         />
       ) : (
+        <>
         <Card className="hidden md:block">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -385,6 +386,7 @@ export default function Grievances() {
             );
           })}
         </div>
+        </>
       )}
 
       {/* Create dialog */}

@@ -295,6 +295,7 @@ function FleetAnalyticsDashboard({
           {analyticsLoading ? (
             <TableSkeleton />
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
@@ -414,6 +415,7 @@ function FleetAnalyticsDashboard({
                 })
               )}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

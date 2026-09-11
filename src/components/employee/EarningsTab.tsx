@@ -30,6 +30,7 @@ export default function EarningsTab({ earnings, canFinance, onShowEarningDialog,
           {earnings.length === 0 ? (
             <p className="px-4 py-6 text-sm text-muted-foreground">No recurring earnings configured. Add allowances like meal, transport, utility, etc.</p>
           ) : (
+            <>
             <div className="hidden md:block">
               <div className="overflow-x-auto">
                 <Table>
@@ -99,6 +100,7 @@ export default function EarningsTab({ earnings, canFinance, onShowEarningDialog,
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

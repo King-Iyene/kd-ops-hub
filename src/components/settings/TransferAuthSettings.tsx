@@ -560,6 +560,7 @@ export default function TransferAuthSettings() {
           ) : limitsError && !migrationMissing ? (
             <p className="text-sm text-destructive">{limitsError}</p>
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto">
               <Table className="min-w-[700px]">
                 <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
@@ -728,6 +729,7 @@ export default function TransferAuthSettings() {
                 );
               })}
             </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -805,6 +807,7 @@ export default function TransferAuthSettings() {
           {userOverrides.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No per-user overrides yet — everyone is on their role default.</p>
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto">
               <Table className="min-w-[700px]">
                 <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
@@ -896,6 +899,7 @@ export default function TransferAuthSettings() {
                 );
               })}
             </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -944,6 +948,7 @@ export default function TransferAuthSettings() {
           {pools.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No pools loaded yet.</p>
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
@@ -1063,6 +1068,7 @@ export default function TransferAuthSettings() {
                 );
               })}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

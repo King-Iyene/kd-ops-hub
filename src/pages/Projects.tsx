@@ -562,6 +562,7 @@ export default function Projects() {
               ))}
             </div>
           ) : (
+            <>
             <div className="hidden md:block">
               <Card>
                 <CardContent className="p-0 overflow-x-auto">
@@ -694,6 +695,7 @@ export default function Projects() {
                 );
               })}
             </div>
+            </>
           )}
         </div>
       </div>

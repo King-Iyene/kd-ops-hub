@@ -287,6 +287,7 @@ export default function HrLetters() {
           }
         />
       ) : (
+        <>
         {/* Desktop table */}
         <div className="hidden md:block rounded-md border overflow-x-auto">
           <Table>
@@ -394,6 +395,7 @@ export default function HrLetters() {
             );
           })}
         </div>
+        </>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) clearAll(); }}>

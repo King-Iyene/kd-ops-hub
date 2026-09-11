@@ -329,6 +329,7 @@ export default function BoardReportTab() {
               </div>
 
               {report.compBands.length > 0 && (
+                <>
                 <div className="hidden md:block overflow-x-auto">
                   <p className="text-xs text-muted-foreground mb-2">Compensation bands by department</p>
                   <Table>
@@ -384,6 +385,7 @@ export default function BoardReportTab() {
                     </MobileCard>
                   ))}
                 </div>
+                </>
               )}
             </section>
 

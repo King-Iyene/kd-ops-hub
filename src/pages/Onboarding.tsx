@@ -395,6 +395,7 @@ export default function Onboarding() {
           }
         />
       ) : (
+        <>
         <div className="hidden md:block space-y-4">
           {filtered.map(cl => {
             const items = itemsMap[cl.id] ?? [];
@@ -577,6 +578,7 @@ export default function Onboarding() {
             );
           })}
         </div>
+        </>
       )}
 
       {/* New/Edit Checklist dialog */}

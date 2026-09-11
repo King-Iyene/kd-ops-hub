@@ -299,6 +299,7 @@ export default function Handbook() {
           ) : filtered.length === 0 ? (
             <EmptyState icon={FileText} title="No policies found" description={search || catFilter !== 'all' ? 'Try adjusting your filters.' : 'Create your first policy to get started.'} />
           ) : (
+            <>
             <div className="hidden md:block rounded-lg border overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -377,6 +378,7 @@ export default function Handbook() {
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </TabsContent>
 

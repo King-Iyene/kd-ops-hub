@@ -1598,6 +1598,7 @@ function DepartmentsManager() {
               No departments yet. Add one to organize your team.
             </p>
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
@@ -1664,6 +1665,7 @@ function DepartmentsManager() {
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

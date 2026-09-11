@@ -62,6 +62,7 @@ export default function PlacementsTab({ empPlacements, empPlacementPayments }: P
           {empPlacements.length === 0 ? (
             <EmptyState compact icon={Briefcase} title="No placements" description="This employee has not been assigned to any client placement." />
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -123,6 +124,7 @@ export default function PlacementsTab({ empPlacements, empPlacementPayments }: P
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -322,6 +322,7 @@ export default function Shifts() {
           ) : profiles.length === 0 ? (
             <EmptyState title="No employees found" description="Add employees to start scheduling shifts." icon={Users} />
           ) : (
+            <>
             {/* Desktop roster grid */}
             <div className="hidden md:block">
               <Card>
@@ -404,6 +405,7 @@ export default function Shifts() {
                 })
               )}
             </div>
+            </>
           )}
         </TabsContent>
 
@@ -424,6 +426,7 @@ export default function Shifts() {
               action={<Button size="sm" onClick={() => openShiftDialog()}><Plus className="h-4 w-4 mr-1" /> Create Shift Type</Button>}
             />
           ) : (
+            <>
             {/* Desktop shift types table */}
             <div className="hidden md:block">
               <Card>
@@ -506,6 +509,7 @@ export default function Shifts() {
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </TabsContent>
       </Tabs>

@@ -54,6 +54,7 @@ export default function DocumentsTab({ employeeId, documents, canManage, onOpenU
           {documents.length === 0 ? (
             <EmptyState compact icon={FileText} title="No documents yet" description="Upload contracts, IDs, or HR docs above." />
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -152,6 +153,7 @@ export default function DocumentsTab({ employeeId, documents, canManage, onOpenU
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

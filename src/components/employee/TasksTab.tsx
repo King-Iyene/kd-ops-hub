@@ -26,6 +26,7 @@ export default function TasksTab({ tasks }: Props) {
           {tasks.length === 0 ? (
             <EmptyState compact icon={ClipboardList} title="No tasks assigned" description="Tasks assigned to this employee will appear here." />
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -92,6 +93,7 @@ export default function TasksTab({ tasks }: Props) {
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

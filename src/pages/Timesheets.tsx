@@ -321,6 +321,7 @@ export default function Timesheets() {
           }
         />
       ) : (
+        <>
         <div className="hidden md:block rounded-xl border border-border/60 bg-card overflow-x-auto">
           <table className="w-full text-sm min-w-[800px]">
             <thead className="bg-muted/50">
@@ -407,6 +408,7 @@ export default function Timesheets() {
             );
           })}
         </div>
+        </>
       )}
 
       {/* Create Timesheet Dialog */}

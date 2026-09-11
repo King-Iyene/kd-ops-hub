@@ -198,6 +198,7 @@ export default function TalentCostTab() {
             </>
           )}
           {bands.length > 0 && (
+            <>
             <div className="hidden md:block overflow-x-auto mt-4">
               <Table>
                 <TableHeader>
@@ -235,6 +236,7 @@ export default function TalentCostTab() {
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -278,6 +280,7 @@ export default function TalentCostTab() {
           {attrition.length === 0 && !loading ? (
             <p className="text-sm text-muted-foreground text-center py-10">No completed exits in the last 12 months.</p>
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -323,6 +326,7 @@ export default function TalentCostTab() {
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -1013,6 +1013,7 @@ export default function Communications() {
           ) : history.length === 0 ? (
             <EmptyState icon={History} title="No campaigns yet" description="Your sent campaigns will appear here." compact />
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
@@ -1105,6 +1106,7 @@ export default function Communications() {
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

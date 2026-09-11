@@ -23,6 +23,7 @@ export default function ExpensesTab({ expenses }: Props) {
           {expenses.length === 0 ? (
             <EmptyState compact icon={Receipt} title="No expenses raised" description="Expense claims submitted by this employee will appear here." />
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -84,6 +85,7 @@ export default function ExpensesTab({ expenses }: Props) {
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

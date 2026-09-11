@@ -313,6 +313,7 @@ export const LeaveBalancesPanel = ({
               No leave requests on file.
             </p>
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
@@ -359,6 +360,7 @@ export const LeaveBalancesPanel = ({
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

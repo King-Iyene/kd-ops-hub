@@ -30,6 +30,7 @@ export default function DeductionsTab({ deductions, canFinance, onShowDeductionD
           {deductions.length === 0 ? (
             <p className="px-4 py-6 text-sm text-muted-foreground">No deductions configured.</p>
           ) : (
+            <>
             <div className="hidden md:block">
               <div className="overflow-x-auto">
                 <Table>
@@ -101,6 +102,7 @@ export default function DeductionsTab({ deductions, canFinance, onShowDeductionD
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

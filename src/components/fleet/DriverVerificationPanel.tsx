@@ -309,6 +309,7 @@ export function DriverVerificationPanel() {
         )}
 
         {!isSelfService && (
+          <>
           <div className="hidden md:block overflow-x-auto rounded-md border">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
@@ -451,6 +452,7 @@ export function DriverVerificationPanel() {
               })
             )}
           </div>
+          </>
         )}
 
         {!hasExtColumns && isAdmin && (

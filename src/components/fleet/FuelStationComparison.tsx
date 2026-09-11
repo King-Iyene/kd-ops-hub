@@ -210,6 +210,7 @@ export function FuelStationComparison() {
               No station data with 2+ transactions in the last 90 days.
             </p>
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
@@ -296,6 +297,7 @@ export function FuelStationComparison() {
                 );
               })}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

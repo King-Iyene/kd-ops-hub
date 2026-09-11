@@ -378,6 +378,7 @@ export default function Surveys() {
               )}
             />
           ) : (
+            <>
             <div className="hidden md:block overflow-x-auto rounded-lg border">
               <table className="w-full text-sm">
                 <thead>
@@ -455,6 +456,7 @@ export default function Surveys() {
                 </MobileCard>
               ))}
             </div>
+            </>
           )}
         </TabsContent>
 
