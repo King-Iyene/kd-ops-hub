@@ -5,6 +5,7 @@ import {
   Check, X, Filter, Trash2, Target,
   User, ArrowRight, Download, CalendarDays, FileText,
   LayoutGrid, List, GanttChart, Weight, BarChart3,
+  PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -139,6 +140,47 @@ const Tasks = () => {
 
   // Sidebar collapsed on mobile
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Module sidebar (desktop) width + collapsed state — resizable/collapsible, persisted
+  const MODULE_SIDEBAR_WIDTH_DEFAULT = 200;
+  const MODULE_SIDEBAR_WIDTH_MIN = 160;
+  const MODULE_SIDEBAR_WIDTH_MAX = 340;
+  const [moduleSidebarWidth, setModuleSidebarWidthState] = useState<number>(() => {
+    try {
+      const saved = Number(localStorage.getItem('kd-task-sidebar-width'));
+      if (saved && saved >= MODULE_SIDEBAR_WIDTH_MIN && saved <= MODULE_SIDEBAR_WIDTH_MAX) return saved;
+    } catch { /* localStorage unavailable — fall through to default */ }
+    return MODULE_SIDEBAR_WIDTH_DEFAULT;
+  });
+  const [moduleSidebarCollapsed, setModuleSidebarCollapsedState] = useState<boolean>(() => {
+    try { return localStorage.getItem('kd-task-sidebar-collapsed') === '1'; } catch { return false; }
+  });
+  const setModuleSidebarWidth = useCallback((px: number) => {
+    const clamped = Math.min(MODULE_SIDEBAR_WIDTH_MAX, Math.max(MODULE_SIDEBAR_WIDTH_MIN, Math.round(px)));
+    setModuleSidebarWidthState(clamped);
+    try { localStorage.setItem('kd-task-sidebar-width', String(clamped)); } catch { /* best-effort only */ }
+  }, []);
+  const toggleModuleSidebarCollapsed = useCallback(() => {
+    setModuleSidebarCollapsedState((prev) => {
+      const next = !prev;
+      try { localStorage.setItem('kd-task-sidebar-collapsed', next ? '1' : '0'); } catch { /* best-effort only */ }
+      return next;
+    });
+  }, []);
+  const handleModuleSidebarResizeStart = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = moduleSidebarWidth;
+    const onMove = (ev: MouseEvent) => {
+      setModuleSidebarWidth(startWidth + (ev.clientX - startX));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [moduleSidebarWidth, setModuleSidebarWidth]);
 
   // Pagination
   const [hasMore, setHasMore] = useState(false);
@@ -881,37 +923,71 @@ const Tasks = () => {
   return (
     <div className="flex h-[calc(100dvh-theme(spacing.14)-theme(spacing.8)-3.5rem-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-theme(spacing.14)-theme(spacing.8))] -m-4 md:-m-5 lg:-m-6">
       {/* ─── Module Sidebar ─────────────────────────────────────────── */}
-      <div className="hidden md:flex w-[220px] lg:w-[240px] shrink-0 border-r border-border/60 bg-card/50 p-3 overflow-y-auto">
-        <TaskSidebar
-          spaces={spaces}
-          folders={folders}
-          lists={taskLists}
-          selectedSpace={selectedSpace}
-          selectedList={selectedList}
-          currentView={currentView}
-          taskCounts={taskCounts}
-          spaceTaskCounts={spaceTaskCounts}
-          listTaskCounts={listTaskCounts}
-          onSelectSpace={setSelectedSpace}
-          onSelectList={setSelectedList}
-          onChangeView={(v) => { if (v === 'my-tasks') { setCurrentView('list'); setAssigneeFilter(profile?.id || 'all'); } else { setCurrentView(v); } setSelectedTasks(new Set()); }}
-          onCreateSpace={isAdmin ? openCreateSpace : undefined}
-          onEditSpace={openEditSpace}
-          onDeleteSpace={(s) => setPendingDeleteSpace(s)}
-          onManageMembers={(s) => setMembersSpace(s)}
-          onManageStatuses={(s) => setStatusManagerSpace(s)}
-          onCreateFolder={handleCreateFolder}
-          onCreateList={handleCreateList}
-          onRenameFolder={handleRenameFolder}
-          onDeleteFolder={handleDeleteFolder}
-          onRenameList={handleRenameList}
-          onDeleteList={handleDeleteList}
-          favoriteSpaceIds={favoriteSpaceIds}
-          onToggleFavorite={toggleFavoriteSpace}
-          unorganizedCount={unorganizedCount}
-          showTeamDashboard={isAdmin}
-        />
-      </div>
+      {moduleSidebarCollapsed ? (
+        <div className="hidden md:flex flex-col items-center shrink-0 border-r border-border/60 bg-card/50 py-3 w-10">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={toggleModuleSidebarCollapsed}
+            title="Expand sidebar"
+          >
+            <PanelLeftOpen className="h-4 w-4" />
+          </Button>
+        </div>
+      ) : (
+        <div
+          className="hidden md:flex relative shrink-0 border-r border-border/60 bg-card/50 p-3 overflow-y-auto"
+          style={{ width: moduleSidebarWidth }}
+        >
+          <div className="flex items-center justify-end mb-1 absolute top-1 right-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={toggleModuleSidebarCollapsed}
+              title="Collapse sidebar"
+            >
+              <PanelLeftClose className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <TaskSidebar
+            spaces={spaces}
+            folders={folders}
+            lists={taskLists}
+            selectedSpace={selectedSpace}
+            selectedList={selectedList}
+            currentView={currentView}
+            taskCounts={taskCounts}
+            spaceTaskCounts={spaceTaskCounts}
+            listTaskCounts={listTaskCounts}
+            onSelectSpace={setSelectedSpace}
+            onSelectList={setSelectedList}
+            onChangeView={(v) => { if (v === 'my-tasks') { setCurrentView('list'); setAssigneeFilter(profile?.id || 'all'); } else { setCurrentView(v); } setSelectedTasks(new Set()); }}
+            onCreateSpace={isAdmin ? openCreateSpace : undefined}
+            onEditSpace={openEditSpace}
+            onDeleteSpace={(s) => setPendingDeleteSpace(s)}
+            onManageMembers={(s) => setMembersSpace(s)}
+            onManageStatuses={(s) => setStatusManagerSpace(s)}
+            onCreateFolder={handleCreateFolder}
+            onCreateList={handleCreateList}
+            onRenameFolder={handleRenameFolder}
+            onDeleteFolder={handleDeleteFolder}
+            onRenameList={handleRenameList}
+            onDeleteList={handleDeleteList}
+            favoriteSpaceIds={favoriteSpaceIds}
+            onToggleFavorite={toggleFavoriteSpace}
+            unorganizedCount={unorganizedCount}
+            showTeamDashboard={isAdmin}
+          />
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            onMouseDown={handleModuleSidebarResizeStart}
+            className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 -mr-[3px]"
+          />
+        </div>
+      )}
 
       {/* Mobile sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>

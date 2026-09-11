@@ -14,7 +14,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 const SIDEBAR_COOKIE_NAME = "sidebar:state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
-const SIDEBAR_WIDTH = "16rem";
+// Thinner default than shadcn's stock 16rem — drag the rail at the
+// sidebar's edge to make it wider or thinner; the choice is remembered.
+const SIDEBAR_WIDTH_DEFAULT_PX = 224;
+const SIDEBAR_WIDTH_MIN_PX = 180;
+const SIDEBAR_WIDTH_MAX_PX = 360;
+const SIDEBAR_WIDTH_STORAGE_KEY = "kd-sidebar-width";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
@@ -27,6 +32,8 @@ type SidebarContext = {
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
   toggleSidebar: () => void;
+  width: number;
+  setWidth: (px: number) => void;
 };
 
 const SidebarContext = React.createContext<SidebarContext | null>(null);
@@ -50,6 +57,19 @@ const SidebarProvider = React.forwardRef<
 >(({ defaultOpen = true, open: openProp, onOpenChange: setOpenProp, className, style, children, ...props }, ref) => {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
+
+  const [width, setWidthState] = React.useState<number>(() => {
+    try {
+      const saved = Number(localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
+      if (saved && saved >= SIDEBAR_WIDTH_MIN_PX && saved <= SIDEBAR_WIDTH_MAX_PX) return saved;
+    } catch { /* localStorage unavailable — fall through to default */ }
+    return SIDEBAR_WIDTH_DEFAULT_PX;
+  });
+  const setWidth = React.useCallback((px: number) => {
+    const clamped = Math.min(SIDEBAR_WIDTH_MAX_PX, Math.max(SIDEBAR_WIDTH_MIN_PX, Math.round(px)));
+    setWidthState(clamped);
+    try { localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clamped)); } catch { /* best-effort only */ }
+  }, []);
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
@@ -101,8 +121,10 @@ const SidebarProvider = React.forwardRef<
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      width,
+      setWidth,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar],
+    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar, width, setWidth],
   );
 
   return (
@@ -111,7 +133,7 @@ const SidebarProvider = React.forwardRef<
         <div
           style={
             {
-              "--sidebar-width": SIDEBAR_WIDTH,
+              "--sidebar-width": `${width}px`,
               "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
               ...style,
             } as React.CSSProperties
@@ -242,17 +264,45 @@ const SidebarTrigger = React.forwardRef<React.ElementRef<typeof Button>, React.C
 SidebarTrigger.displayName = "SidebarTrigger";
 
 const SidebarRail = React.forwardRef<HTMLButtonElement, React.ComponentProps<"button">>(
-  ({ className, ...props }, ref) => {
-    const { toggleSidebar } = useSidebar();
+  ({ className, onMouseDown, ...props }, ref) => {
+    const { toggleSidebar, state, width, setWidth } = useSidebar();
+
+    // Drag to resize when expanded (a plain click still toggles collapse —
+    // distinguished from a drag by how far the pointer actually moved);
+    // when collapsed, any click just expands, same as before. Only the
+    // left-side placement is used anywhere in this app, so dragging right
+    // always widens.
+    const handleMouseDown = (e: React.MouseEvent<HTMLButtonElement>) => {
+      onMouseDown?.(e);
+      if (e.defaultPrevented) return;
+      if (state !== "expanded") return;
+      e.preventDefault();
+      const startX = e.clientX;
+      const startWidth = width;
+      let moved = false;
+      const onMove = (ev: MouseEvent) => {
+        const delta = ev.clientX - startX;
+        if (Math.abs(delta) > 3) moved = true;
+        setWidth(startWidth + delta);
+      };
+      const onUp = () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        if (!moved) toggleSidebar();
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    };
 
     return (
       <button
         ref={ref}
         data-sidebar="rail"
-        aria-label="Toggle Sidebar"
+        aria-label="Resize or toggle sidebar"
         tabIndex={-1}
-        onClick={toggleSidebar}
-        title="Toggle Sidebar"
+        onClick={(e) => { if (state === "collapsed") toggleSidebar(); e.preventDefault(); }}
+        onMouseDown={handleMouseDown}
+        title="Drag to resize, click to collapse"
         className={cn(
           "absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] group-data-[side=left]:-right-4 group-data-[side=right]:left-0 hover:after:bg-sidebar-border sm:flex",
           "[[data-side=left]_&]:cursor-w-resize [[data-side=right]_&]:cursor-e-resize",
