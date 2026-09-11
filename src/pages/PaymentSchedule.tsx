@@ -468,7 +468,7 @@ export default function PaymentSchedule() {
       />
 
       {/* Recurring schedule info callout */}
-      <div className="flex items-start gap-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-4 py-3 text-sm text-blue-800 dark:text-blue-300">
+      <div className="flex items-start gap-3 rounded-lg bg-primary/5 dark:bg-primary/10 border border-primary/20 dark:border-primary/20 px-4 py-3 text-sm text-primary dark:text-primary">
         <Info className="h-4 w-4 mt-0.5 shrink-0" />
         <p>
           To create a recurring schedule, open any payment batch and click{' '}
@@ -534,7 +534,7 @@ export default function PaymentSchedule() {
             <div className="relative z-[2]">
               <p className="text-3xs font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1.5">
                 {label}
-                {warn && <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-red-500 animate-pulse" />}
+                {warn && <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-destructive animate-pulse" />}
               </p>
               <p className="mt-1.5 text-xl font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
                 {value}
@@ -579,8 +579,8 @@ export default function PaymentSchedule() {
                   {items.map((item) => {
                     const cfg = TYPE_CONFIG[item.type];
                     const isOverdue = group === 'Overdue';
-                    const railColor = isOverdue ? 'bg-red-500'
-                      : group === 'Today' || group === 'This Week' ? 'bg-amber-500'
+                    const railColor = isOverdue ? 'bg-destructive'
+                      : group === 'Today' || group === 'This Week' ? 'bg-warning'
                       : 'bg-slate-300';
                     return (
                       <div
@@ -611,7 +611,7 @@ export default function PaymentSchedule() {
                         </span>
                         <span className={cn(
                           'shrink-0 font-mono font-semibold text-xs-plus tabular-nums leading-none tracking-tight w-28 text-right',
-                          isOverdue && 'text-red-700',
+                          isOverdue && 'text-destructive',
                         )}>
                           {formatNaira(item.amount)}
                         </span>
@@ -677,7 +677,7 @@ export default function PaymentSchedule() {
                             {s.status === 'active' ? (
                               <PauseCircle className="h-3 w-3" />
                             ) : (
-                              <PlayCircle className="h-3 w-3 text-emerald-600" />
+                              <PlayCircle className="h-3 w-3 text-success" />
                             )}
                           </Button>
                           <Button variant="ghost" size="icon-sm" className="text-destructive hover:text-destructive" aria-label="Delete" onClick={() => setConfirmDelete(s)}>
@@ -723,7 +723,7 @@ export default function PaymentSchedule() {
                         </>
                       ) : (
                         <>
-                          <PlayCircle className="h-4 w-4 mr-1.5 text-emerald-600" /> Resume
+                          <PlayCircle className="h-4 w-4 mr-1.5 text-success" /> Resume
                         </>
                       )}
                     </Button>

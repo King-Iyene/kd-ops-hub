@@ -368,9 +368,9 @@ const Expenses = () => {
 
   const paymentBadge = (status: Expense['payment_status']) => {
     if (!status || status === 'pending')
-      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-500/10 dark:text-yellow-400 dark:border-yellow-500/30">Pending Payment</Badge>;
+      return <Badge variant="outline" className="bg-warning/5 text-warning border-warning/20">Pending Payment</Badge>;
     if (status === 'processing')
-      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30">Processing</Badge>;
+      return <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">Processing</Badge>;
     if (status === 'processed')
       return <Badge variant="outline" className="bg-success/10 text-success border-success/20">Paid</Badge>;
     if (status === 'failed')
@@ -1672,7 +1672,7 @@ const Expenses = () => {
                           {(() => {
                             const days = ageingDays(e);
                             if (days === null || days < 3) return null;
-                            const tone = days >= 7 ? 'text-destructive font-semibold' : days >= 5 ? 'text-amber-600 font-medium' : 'text-muted-foreground';
+                            const tone = days >= 7 ? 'text-destructive font-semibold' : days >= 5 ? 'text-warning font-medium' : 'text-muted-foreground';
                             return (
                               <span className={`text-3xs ${tone}`}>
                                 Awaiting {days}d
@@ -1801,7 +1801,7 @@ const Expenses = () => {
                                 title="Reopen — send back to pending"
                                 onClick={() => doReopen(e)}
                               >
-                                <RotateCcw className="h-4 w-4 text-amber-600" />
+                                <RotateCcw className="h-4 w-4 text-warning" />
                               </Button>
                             )}
                           </div>
@@ -1822,9 +1822,9 @@ const Expenses = () => {
                   const isRejected = e.status === 'rejected';
                   const isApproved = e.status === 'approved';
                   const accent =
-                    isPending || isPendingSecond ? 'bg-amber-500'
-                    : isApproved ? 'bg-emerald-500'
-                    : isRejected ? 'bg-red-500'
+                    isPending || isPendingSecond ? 'bg-warning'
+                    : isApproved ? 'bg-success'
+                    : isRejected ? 'bg-destructive'
                     : 'bg-muted-foreground';
                   const isSelected = selected.has(e.id);
                   return (
@@ -2313,7 +2313,7 @@ const Expenses = () => {
                   tabIndex={0}
                   onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') setShowBankSection(true); }}
                 >
-                  <div className="shrink-0 rounded-full bg-amber-200 dark:bg-amber-800/50 p-2">
+                  <div className="shrink-0 rounded-full bg-warning/20 dark:bg-warning/10 p-2">
                     <BanknoteIcon className="h-5 w-5 text-warning" />
                   </div>
                   <div>

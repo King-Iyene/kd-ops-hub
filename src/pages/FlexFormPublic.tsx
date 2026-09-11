@@ -127,7 +127,7 @@ export default function FlexFormPublic() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
-          <CheckCircle2 className="h-10 w-10 mx-auto mb-3 text-emerald-500" />
+          <CheckCircle2 className="h-10 w-10 mx-auto mb-3 text-success" />
           <p className="text-lg font-semibold">Thank you!</p>
           <p className="text-sm text-muted-foreground">Your response has been recorded.</p>
         </div>

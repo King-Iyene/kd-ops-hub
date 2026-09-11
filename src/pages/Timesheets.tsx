@@ -54,7 +54,7 @@ type TimesheetStatus = Timesheet['status'];
 
 const STATUS_BADGE: Record<TimesheetStatus, { label: string; variant: 'secondary' | 'default' | 'destructive' | 'outline'; className?: string }> = {
   draft:     { label: 'Draft',     variant: 'secondary' },
-  submitted: { label: 'Submitted', variant: 'default',  className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800' },
+  submitted: { label: 'Submitted', variant: 'default',  className: 'bg-primary/10 text-primary dark:bg-primary/10 dark:text-primary border-primary/20 dark:border-primary/20' },
   approved:  { label: 'Approved',  variant: 'default',  className: 'bg-success/10 text-success border-success/20' },
   rejected:  { label: 'Rejected',  variant: 'destructive' },
 };
@@ -475,7 +475,7 @@ export default function Timesheets() {
                                     <span className="text-xs text-muted-foreground truncate max-w-[120px]">{projName(entry.project_id)}</span>
                                   )}
                                   <span className="tabular-nums text-foreground font-medium shrink-0">{Number(entry.hours).toFixed(1)}h</span>
-                                  <Badge variant={entry.is_billable ? 'default' : 'secondary'} className={entry.is_billable ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' : ''}>
+                                  <Badge variant={entry.is_billable ? 'default' : 'secondary'} className={entry.is_billable ? 'bg-success/10 text-success dark:bg-success/10 dark:text-success' : ''}>
                                     {entry.is_billable ? 'Billable' : 'Non-bill'}
                                   </Badge>
                                 </div>

@@ -474,15 +474,15 @@ const Transactions = () => {
                 </div>
                 <div className="flex items-center gap-3 text-2xs tabular-nums">
                   <span className="flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-success shrink-0" />
                     <span className="text-muted-foreground">{succeededCount.toLocaleString()} succeeded</span>
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-warning shrink-0" />
                     <span className="text-muted-foreground">{pendingCount.toLocaleString()} pending</span>
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-destructive shrink-0" />
                     <span className="text-muted-foreground">{failedCount.toLocaleString()} failed</span>
                   </span>
                 </div>
@@ -740,9 +740,9 @@ const Transactions = () => {
                       className={cn(wasCancelled && 'bg-muted/20')}
                       accentClassName={
                         wasCancelled ? 'bg-slate-400'
-                        : wasPaidExternally ? 'bg-emerald-500'
-                        : r.txn_type === 'quick_pay' ? 'bg-blue-500'
-                        : 'bg-emerald-500'
+                        : wasPaidExternally ? 'bg-success'
+                        : r.txn_type === 'quick_pay' ? 'bg-primary'
+                        : 'bg-success'
                       }
                     >
                       <MobileCardHeader>
@@ -835,9 +835,9 @@ export default Transactions;
 
 function LedgerStatusDot({ status }: { status: string }) {
   const config: Record<string, { label: string; dot: string; text: string }> = {
-    succeeded: { label: 'Succeeded', dot: 'bg-emerald-500',  text: 'text-success' },
-    pending:   { label: 'Pending',   dot: 'bg-amber-500',    text: 'text-warning' },
-    failed:    { label: 'Failed',    dot: 'bg-red-500',      text: 'text-destructive' },
+    succeeded: { label: 'Succeeded', dot: 'bg-success',  text: 'text-success' },
+    pending:   { label: 'Pending',   dot: 'bg-warning',    text: 'text-warning' },
+    failed:    { label: 'Failed',    dot: 'bg-destructive',      text: 'text-destructive' },
     reversed:  { label: 'Refunded',  dot: 'bg-slate-400',    text: 'text-slate-600 dark:text-slate-400' },
   };
   const c = config[status] ?? config.pending;

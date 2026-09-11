@@ -665,15 +665,15 @@ function DataRetentionPanel() {
   return (
     <div className="space-y-4">
       {/* ── Top warning banner ─────────────────────────────────────── */}
-      <Card className="border-amber-300 bg-amber-50/50">
+      <Card className="border-warning/30 bg-warning/5">
         <CardContent className="pt-4 pb-4">
           <div className="flex gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
             <div className="text-sm space-y-1.5">
-              <p className="font-semibold text-amber-900">
+              <p className="font-semibold text-warning">
                 Read this before changing anything on this page
               </p>
-              <p className="text-amber-800 leading-relaxed">
+              <p className="text-warning leading-relaxed">
                 Data retention controls how long old records stay in the system.
                 Used incorrectly, they can delete information you legally need
                 (Nigerian tax law generally requires <strong>6 years</strong> of
@@ -681,9 +681,9 @@ function DataRetentionPanel() {
                 <strong>disabled by default</strong> and requires multiple
                 confirmations to enable.
               </p>
-              <p className="text-amber-800 leading-relaxed">
+              <p className="text-warning leading-relaxed">
                 <strong>Recovery window:</strong> archives are kept for 90 days
-                after deletion in a private <code className="text-2xs bg-amber-100 px-1 rounded">archives/</code>{' '}
+                after deletion in a private <code className="text-2xs bg-warning/10 px-1 rounded">archives/</code>{' '}
                 bucket and can be restored by support. After 90 days, archives
                 are also removed and recovery is no longer possible.
               </p>
@@ -698,7 +698,7 @@ function DataRetentionPanel() {
           <CardTitle className="text-base flex items-center gap-2">
             <ImageIcon className="h-4 w-4 text-primary" />
             Image compression on upload
-            <span className="text-3xs font-medium uppercase tracking-wider bg-success/10 text-emerald-700 px-1.5 py-0.5 rounded">
+            <span className="text-3xs font-medium uppercase tracking-wider bg-success/10 text-success px-1.5 py-0.5 rounded">
               Active
             </span>
           </CardTitle>
@@ -727,7 +727,7 @@ function DataRetentionPanel() {
             </div>
             <div className="rounded-lg border bg-card px-3 py-2">
               <p className="text-muted-foreground">Risk to existing data</p>
-              <p className="font-semibold mt-0.5 text-emerald-700">None — only new uploads</p>
+              <p className="font-semibold mt-0.5 text-success">None — only new uploads</p>
             </div>
           </div>
 
@@ -749,10 +749,10 @@ function DataRetentionPanel() {
         <Card className={anyPaused ? 'border-destructive/30 bg-destructive/5' : 'border-success/20'}>
           <CardContent className="pt-4 pb-4 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 text-sm">
-              <ShieldCheck className={anyPaused ? 'h-4 w-4 text-red-600' : 'h-4 w-4 text-emerald-600'} />
+              <ShieldCheck className={anyPaused ? 'h-4 w-4 text-destructive' : 'h-4 w-4 text-success'} />
               {anyPaused
-                ? <span className="font-medium text-red-900">All retention is paused — no scheduled runs will execute.</span>
-                : <span className="font-medium text-emerald-900">Retention is running normally on enabled policies.</span>}
+                ? <span className="font-medium text-destructive">All retention is paused — no scheduled runs will execute.</span>
+                : <span className="font-medium text-success">Retention is running normally on enabled policies.</span>}
             </div>
             <Button
               variant={anyPaused ? 'default' : 'destructive'}
@@ -799,9 +799,9 @@ function DataRetentionPanel() {
       <Card className="border-success/20">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            <ShieldCheck className="h-4 w-4 text-success" />
             Employee &amp; HR documents
-            <span className="text-3xs font-medium uppercase tracking-wider bg-success/10 text-emerald-700 px-1.5 py-0.5 rounded">
+            <span className="text-3xs font-medium uppercase tracking-wider bg-success/10 text-success px-1.5 py-0.5 rounded">
               Protected
             </span>
           </CardTitle>
@@ -1115,13 +1115,13 @@ function RetentionPolicyCard({
 
   let badge: { label: string; cls: string };
   if (policy.all_paused && enabled) {
-    badge = { label: 'Paused', cls: 'bg-destructive/10 text-red-700' };
+    badge = { label: 'Paused', cls: 'bg-destructive/10 text-destructive' };
   } else if (!enabled) {
     badge = { label: 'Off', cls: 'bg-muted text-muted-foreground' };
   } else if (inDelay) {
-    badge = { label: '7-day delay', cls: 'bg-amber-100 text-amber-700' };
+    badge = { label: '7-day delay', cls: 'bg-warning/10 text-warning' };
   } else {
-    badge = { label: 'Active', cls: 'bg-success/10 text-emerald-700' };
+    badge = { label: 'Active', cls: 'bg-success/10 text-success' };
   }
 
   return (
@@ -1179,7 +1179,7 @@ function RetentionPolicyCard({
           </div>
         </div>
 
-        <div className="rounded-lg border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <div className="rounded-lg border-l-4 border-warning bg-warning/5 px-3 py-2 text-xs text-warning">
           <span className="font-semibold">Legal note:</span> {meta.legalNote}
         </div>
 
@@ -1313,13 +1313,13 @@ function ConfigureRetentionDialog({
 
         {step === 1 && (
           <div className="space-y-3 text-sm">
-            <div className="rounded-lg border-l-4 border-red-500 bg-destructive/5 px-3 py-2.5 text-xs">
-              <p className="font-bold text-red-900 mb-1">This will permanently move (and optionally delete) data.</p>
-              <ul className="list-disc pl-5 space-y-0.5 text-red-900">
+            <div className="rounded-lg border-l-4 border-destructive bg-destructive/5 px-3 py-2.5 text-xs">
+              <p className="font-bold text-destructive mb-1">This will permanently move (and optionally delete) data.</p>
+              <ul className="list-disc pl-5 space-y-0.5 text-destructive">
                 {meta.dangers.map((d, i) => <li key={i}>{d}</li>)}
               </ul>
             </div>
-            <div className="rounded-lg border-l-4 border-amber-500 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+            <div className="rounded-lg border-l-4 border-warning bg-warning/5 px-3 py-2.5 text-xs text-warning">
               <p className="font-semibold mb-1">Legal note</p>
               <p>{meta.legalNote}</p>
             </div>
@@ -1383,7 +1383,7 @@ function ConfigureRetentionDialog({
               </p>
             </div>
             {mode === 'archive_delete' && (
-              <div className="rounded-lg border-l-4 border-red-500 bg-destructive/5 px-3 py-2 text-xs text-red-900">
+              <div className="rounded-lg border-l-4 border-destructive bg-destructive/5 px-3 py-2 text-xs text-destructive">
                 <span className="font-semibold">⚠ Archive + delete</span> permanently removes rows from the source table after the archive succeeds. The archive is your only recovery path.
               </div>
             )}

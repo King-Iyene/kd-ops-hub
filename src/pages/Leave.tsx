@@ -150,8 +150,8 @@ const TYPE_BADGE: Record<LeaveType, string> = {
   unpaid: 'bg-muted text-muted-foreground border-border',
   maternity: 'bg-pink-100 text-pink-700 border-pink-200',
   paternity: 'bg-violet-100 text-violet-700 border-violet-200',
-  compassionate: 'bg-rose-100 text-rose-700 border-rose-200',
-  study: 'bg-amber-100 text-amber-700 border-amber-200',
+  compassionate: 'bg-destructive/10 text-destructive border-destructive/20',
+  study: 'bg-warning/10 text-warning border-warning/20',
 };
 
 

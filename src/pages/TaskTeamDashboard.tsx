@@ -100,7 +100,7 @@ function DeltaBadge({ current, previous }: { current: number; previous: number }
   const pct = pctDelta(current, previous);
   const up = pct >= 0;
   return (
-    <span className={cn('inline-flex items-center gap-0.5 text-2xs font-medium', up ? 'text-emerald-500' : 'text-red-500')}>
+    <span className={cn('inline-flex items-center gap-0.5 text-2xs font-medium', up ? 'text-success' : 'text-destructive')}>
       {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
       {Math.abs(pct)}%
     </span>
@@ -129,7 +129,7 @@ function PointDeltaBadge({ current, previous }: { current: number; previous: num
   const diff = current - previous;
   const up = diff >= 0;
   return (
-    <span className={cn('inline-flex items-center gap-0.5 text-2xs font-medium', up ? 'text-emerald-500' : 'text-red-500')}>
+    <span className={cn('inline-flex items-center gap-0.5 text-2xs font-medium', up ? 'text-success' : 'text-destructive')}>
       {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
       {Math.abs(diff)}pt
     </span>
@@ -142,7 +142,7 @@ function CompletionRateCard({ current, previous }: { current: number; previous: 
       <CardContent className="p-4">
         <p className="text-xs text-muted-foreground mb-1.5">Task Completion Rate</p>
         <div className="flex items-end justify-between">
-          <span className="text-2xl font-bold tabular-nums text-emerald-500">{current}%</span>
+          <span className="text-2xl font-bold tabular-nums text-success">{current}%</span>
           <PointDeltaBadge current={current} previous={previous} />
         </div>
       </CardContent>
@@ -417,7 +417,7 @@ export default function TaskTeamDashboard() {
         <StatCard label="Total Completed" value={cur.completed} current={cur.completed} previous={prev.completed} tone="text-success" />
         <CompletionRateCard current={cur.rate} previous={prev.rate} />
         <StatCard label="Total Overdue" value={cur.overdue} current={cur.overdue} previous={prev.overdue} tone="text-destructive" />
-        <StatCard label="Total Blocked" value={cur.blocked} current={cur.blocked} previous={prev.blocked} tone="text-amber-500" />
+        <StatCard label="Total Blocked" value={cur.blocked} current={cur.blocked} previous={prev.blocked} tone="text-warning" />
         <StatCard label="Total In Progress" value={cur.inProgress} current={cur.inProgress} previous={prev.inProgress} tone="text-primary" />
         <StatCard label="Unassigned Tasks" value={cur.unassigned} current={cur.unassigned} previous={prev.unassigned} />
       </div>
@@ -581,7 +581,7 @@ export default function TaskTeamDashboard() {
                     key={b.id}
                     className={cn(
                       'border-b border-border/60',
-                      b.daysBlocked > 7 ? 'bg-red-500/10' : b.daysBlocked > 3 ? 'bg-amber-500/10' : undefined,
+                      b.daysBlocked > 7 ? 'bg-destructive/10' : b.daysBlocked > 3 ? 'bg-warning/10' : undefined,
                     )}
                   >
                     <td className="py-2 pr-3 max-w-[220px] truncate">{b.title}</td>
@@ -592,7 +592,7 @@ export default function TaskTeamDashboard() {
                     <td className="py-2 pr-3">
                       <span className={cn(
                         'text-2xs font-medium px-2 py-0.5 rounded-full',
-                        b.escalation === 'Escalated' ? 'bg-red-500/15 text-red-500' : b.escalation === 'Watch' ? 'bg-amber-500/15 text-amber-500' : 'bg-muted text-muted-foreground',
+                        b.escalation === 'Escalated' ? 'bg-destructive/15 text-destructive' : b.escalation === 'Watch' ? 'bg-warning/15 text-warning' : 'bg-muted text-muted-foreground',
                       )}
                       >
                         {b.escalation}

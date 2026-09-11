@@ -150,18 +150,18 @@ const monthLabel = (period: string) => {
 };
 
 const REQUEST_META: Record<RequestRow['kind'], { label: string; icon: typeof Receipt; bg: string; fg: string }> = {
-  expense: { label: 'Expense', icon: Receipt,      bg: 'bg-emerald-500/10', fg: 'text-success' },
+  expense: { label: 'Expense', icon: Receipt,      bg: 'bg-success/10', fg: 'text-success' },
   leave:   { label: 'Leave',   icon: CalendarDays, bg: 'bg-violet-500/10',  fg: 'text-violet-600 dark:text-violet-400' },
-  fuel:    { label: 'Fuel',    icon: Truck,        bg: 'bg-amber-500/10',   fg: 'text-warning' },
+  fuel:    { label: 'Fuel',    icon: Truck,        bg: 'bg-warning/10',   fg: 'text-warning' },
 };
 
 const STATUS_TONE: Record<string, { Icon: typeof CheckCircle2; bg: string; fg: string; label: string }> = {
-  approved:  { Icon: CheckCircle2, bg: 'bg-emerald-500/15', fg: 'text-success', label: 'Approved' },
-  paid:      { Icon: CheckCircle2, bg: 'bg-emerald-500/15', fg: 'text-success', label: 'Paid' },
-  completed: { Icon: CheckCircle2, bg: 'bg-emerald-500/15', fg: 'text-success', label: 'Completed' },
-  pending:   { Icon: Clock,        bg: 'bg-amber-500/15',   fg: 'text-warning',     label: 'Pending' },
-  rejected:  { Icon: XCircle,      bg: 'bg-red-500/15',     fg: 'text-destructive',         label: 'Rejected' },
-  failed:    { Icon: XCircle,      bg: 'bg-red-500/15',     fg: 'text-destructive',         label: 'Failed' },
+  approved:  { Icon: CheckCircle2, bg: 'bg-success/15', fg: 'text-success', label: 'Approved' },
+  paid:      { Icon: CheckCircle2, bg: 'bg-success/15', fg: 'text-success', label: 'Paid' },
+  completed: { Icon: CheckCircle2, bg: 'bg-success/15', fg: 'text-success', label: 'Completed' },
+  pending:   { Icon: Clock,        bg: 'bg-warning/15',   fg: 'text-warning',     label: 'Pending' },
+  rejected:  { Icon: XCircle,      bg: 'bg-destructive/15',     fg: 'text-destructive',         label: 'Rejected' },
+  failed:    { Icon: XCircle,      bg: 'bg-destructive/15',     fg: 'text-destructive',         label: 'Failed' },
   draft:     { Icon: Clock,        bg: 'bg-muted',          fg: 'text-muted-foreground',                  label: 'Draft' },
 };
 
@@ -193,7 +193,7 @@ const EnrolBadge = ({ on }: { on: boolean }) => (
     className={cn(
       'font-medium',
       on
-        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+        ? 'bg-success/10 text-success border-success/30'
         : 'bg-muted text-muted-foreground border-border',
     )}
   >
@@ -925,7 +925,7 @@ const ProfilePage = () => {
           <TabsTrigger value="requests">
             Requests
             {stats.pending > 0 && (
-              <span className="ml-1.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 text-3xs font-bold px-1">
+              <span className="ml-1.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-warning/20 text-warning text-3xs font-bold px-1">
                 {stats.pending}
               </span>
             )}
@@ -1156,7 +1156,7 @@ const ProfilePage = () => {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-base">Bank account</CardTitle>
                   {bankPending ? (
-                    <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30">Change pending review</Badge>
+                    <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">Change pending review</Badge>
                   ) : !showBankForm ? (
                     <Button size="sm" variant="outline" onClick={() => setShowBankForm(true)}>Request change</Button>
                   ) : null}
@@ -1484,7 +1484,7 @@ const ProfilePage = () => {
                               className={cn(
                                 'font-medium text-3xs',
                                 live
-                                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+                                  ? 'bg-success/10 text-success border-success/30'
                                   : 'bg-muted text-muted-foreground border-border',
                               )}
                             >
@@ -1643,7 +1643,7 @@ function HeroStat({
   return (
     <div className={cn(
       'rounded-xl border bg-background/50 backdrop-blur-sm p-3 text-center',
-      toneVariant === 'warning' && value > 0 && 'border-amber-500/30 bg-amber-500/5',
+      toneVariant === 'warning' && value > 0 && 'border-warning/30 bg-warning/5',
     )}>
       <p className={cn(
         'text-2xl font-bold tabular-nums',

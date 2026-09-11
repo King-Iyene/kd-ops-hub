@@ -325,7 +325,7 @@ export default function MyDashboard() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Pending Acknowledgments</CardTitle>
               {pendingPolicies.length > 0 && (
-                <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">{pendingPolicies.length}</Badge>
+                <Badge variant="secondary" className="bg-warning/10 text-warning">{pendingPolicies.length}</Badge>
               )}
             </div>
           </CardHeader>

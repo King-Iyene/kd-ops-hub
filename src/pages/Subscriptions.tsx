@@ -1303,8 +1303,8 @@ const Subscriptions = () => {
                     {detailPaymentSummary && (
                       <div className="flex flex-wrap items-center gap-3 px-2 py-2 border-t border-border/50 text-xs text-muted-foreground">
                         <span>{detailPaymentSummary.total} period{detailPaymentSummary.total !== 1 ? 's' : ''}</span>
-                        <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-emerald-500" /> {detailPaymentSummary.paid} paid</span>
-                        <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-amber-400" /> {detailPaymentSummary.pending} pending</span>
+                        <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-success" /> {detailPaymentSummary.paid} paid</span>
+                        <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-warning" /> {detailPaymentSummary.pending} pending</span>
                         <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-destructive" /> {detailPaymentSummary.overdue} overdue</span>
                         <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-slate-400" /> {detailPaymentSummary.skipped} skipped</span>
                       </div>

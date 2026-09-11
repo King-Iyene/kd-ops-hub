@@ -857,7 +857,7 @@ const NewPaymentBatch = () => {
                 ))}
               </div>
               {allowedBatchTypes.length === 0 && (
-                <div className="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 px-4 py-6 text-center">
+                <div className="rounded-lg border border-dashed border-warning/40 bg-warning/5 px-4 py-6 text-center">
                   <p className="text-sm font-medium text-warning">No batch types unlocked</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Ask an admin to grant at least one of <span className="font-mono">payments.batch.contractor</span>,{' '}
@@ -1064,7 +1064,7 @@ const NewPaymentBatch = () => {
                                     {e.bank_name} · {e.bank_account_number || '—'}
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 text-2xs text-amber-600 shrink-0">
+                                  <span className="inline-flex items-center gap-1 text-2xs text-warning shrink-0">
                                     <AlertTriangle className="h-2.5 w-2.5" /> No bank
                                   </span>
                                 )}
@@ -1198,10 +1198,10 @@ const NewPaymentBatch = () => {
                     className={cn(
                       'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-semibold tabular-nums',
                       items.length >= MAX_RECIPIENTS_PER_BATCH
-                        ? 'bg-red-500/15 text-destructive'
+                        ? 'bg-destructive/15 text-destructive'
                         : items.length >= WARN_RECIPIENTS
-                          ? 'bg-amber-500/15 text-warning'
-                          : 'bg-emerald-500/15 text-success',
+                          ? 'bg-warning/15 text-warning'
+                          : 'bg-success/15 text-success',
                     )}
                   >
                     {items.length} / {MAX_RECIPIENTS_PER_BATCH}
@@ -1421,11 +1421,11 @@ const NewPaymentBatch = () => {
             </div>
 
             {items.some((i) => i.item_type === 'adhoc' && !i.account_name) && (
-              <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-warning/10/30 dark:border-amber-700 p-3 text-sm">
-                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 dark:border-warning/30 p-3 text-sm">
+                <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-medium text-amber-800 dark:text-amber-300">Unverified bank accounts</p>
-                  <p className="text-amber-700 dark:text-amber-400 text-xs mt-0.5">
+                  <p className="font-medium text-warning">Unverified bank accounts</p>
+                  <p className="text-warning/80 text-xs mt-0.5">
                     {items.filter((i) => i.item_type === 'adhoc' && !i.account_name).length} CSV-imported beneficiar{items.filter((i) => i.item_type === 'adhoc' && !i.account_name).length === 1 ? 'y has' : 'ies have'} not been bank-verified. Payments may fail or reach the wrong account. Consider verifying accounts before submitting.
                   </p>
                 </div>

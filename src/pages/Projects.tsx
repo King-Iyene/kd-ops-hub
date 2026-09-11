@@ -489,7 +489,7 @@ export default function Projects() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { label: 'Active',    value: stats.active,    color: 'text-success', icon: FolderKanban },
-              { label: 'Planning',  value: stats.planning,  color: 'text-blue-500',    icon: Clock },
+              { label: 'Planning',  value: stats.planning,  color: 'text-primary',    icon: Clock },
               { label: 'Completed', value: stats.completed, color: 'text-muted-foreground', icon: CheckCircle2 },
               { label: 'Overdue',   value: stats.overdue,   color: 'text-destructive',     icon: Flag },
             ].map(s => (
@@ -1132,7 +1132,7 @@ function ProjectDetailPanel({
             {milestones.map(ms => (
               <div key={ms.id} className="flex items-center gap-2 group rounded-md px-2 py-1.5 hover:bg-muted/50">
                 <button onClick={() => onToggleMilestone(ms)} className="shrink-0">
-                  <CheckCircle2 className={cn('h-4 w-4', ms.status === 'complete' ? 'text-success fill-emerald-100' : 'text-muted-foreground/40')} />
+                  <CheckCircle2 className={cn('h-4 w-4', ms.status === 'complete' ? 'text-success fill-success/10' : 'text-muted-foreground/40')} />
                 </button>
                 <span className={cn('flex-1 text-sm', ms.status === 'complete' && 'line-through text-muted-foreground')}>{ms.title}</span>
                 {ms.due_date && (

@@ -175,7 +175,7 @@ const MODULE_COLOR: Record<string, string> = {
   Cards: 'bg-primary/10 text-primary border border-primary/30',
   Goals: 'bg-success/10 text-success border border-success/30',
   Audit: 'bg-muted text-muted-foreground border border-border',
-  Security: 'bg-destructive/5 text-red-700 border border-destructive/20',
+  Security: 'bg-destructive/5 text-destructive border border-destructive/20',
   '—': 'bg-muted text-muted-foreground border border-border',
 };
 

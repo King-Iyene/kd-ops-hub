@@ -172,7 +172,7 @@ export default function PayHub() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <HubCard
           icon={Banknote}
-          iconClass="bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300"
+          iconClass="bg-primary/5 text-primary"
           title="Payroll runs"
           value={stats.latestRun ? formatNaira(stats.latestRun.total_burn_ngn) : '—'}
           detail={
@@ -196,7 +196,7 @@ export default function PayHub() {
         />
         <HubCard
           icon={HandCoins}
-          iconClass="bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300"
+          iconClass="bg-warning/5 text-warning"
           title="Staff loans"
           value={`${stats.staffLoanActiveCount} active`}
           detail={stats.staffLoanPendingCount > 0 ? `${stats.staffLoanPendingCount} pending approval` : 'None pending'}
@@ -205,7 +205,7 @@ export default function PayHub() {
         />
         <HubCard
           icon={ShieldCheck}
-          iconClass="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+          iconClass="bg-success/5 text-success"
           title="Compliance"
           value={stats.complianceTotalCount > 0 ? `${stats.complianceFiledCount} of ${stats.complianceTotalCount} filed` : 'No filings yet'}
           detail={stats.complianceOutstanding.length > 0 ? `${stats.complianceOutstanding.join(', ')} outstanding` : 'All filed'}

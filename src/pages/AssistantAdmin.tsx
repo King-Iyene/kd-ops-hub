@@ -211,7 +211,7 @@ export default function AssistantAdmin() {
   if (!isSuperAdmin) {
     return (
       <div className="max-w-md mx-auto py-12 text-center">
-        <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto mb-3" />
+        <AlertTriangle className="h-10 w-10 text-warning mx-auto mb-3" />
         <h2 className="kd-display text-xl font-semibold mb-2">Super admin only</h2>
         <p className="text-sm text-muted-foreground mb-4">
           Assistant management is restricted to super admins.
@@ -341,21 +341,21 @@ export default function AssistantAdmin() {
 
               <div className="space-y-2 border-t border-border pt-3">
                 <ToggleRow
-                  icon={<Globe className="h-4 w-4 text-blue-500" />}
+                  icon={<Globe className="h-4 w-4 text-primary" />}
                   title="Web search (Tavily)"
                   description="Allow the bot to fetch live web results when users ask about news, current events, or hit the search button."
                   checked={config.enable_web_search}
                   onChange={(v) => setConfig({ ...config, enable_web_search: v })}
                 />
                 <ToggleRow
-                  icon={<Sparkles className="h-4 w-4 text-amber-500" />}
+                  icon={<Sparkles className="h-4 w-4 text-warning" />}
                   title="FX rates lookup"
                   description="Auto-fetch USD/NGN, GBP/NGN, EUR/NGN rates when users ask about currency."
                   checked={config.enable_fx_rates}
                   onChange={(v) => setConfig({ ...config, enable_fx_rates: v })}
                 />
                 <ToggleRow
-                  icon={<Database className="h-4 w-4 text-emerald-500" />}
+                  icon={<Database className="h-4 w-4 text-success" />}
                   title="Platform queries (read-only)"
                   description="Let the bot query platform data (filtered by user role) to answer questions about trips, expenses, etc."
                   checked={config.enable_platform_query}
@@ -413,7 +413,7 @@ export default function AssistantAdmin() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-medium truncate">{k.title}</p>
-                          <Badge variant="outline" className={`text-3xs ${k.tsv_content ? 'border-emerald-300 text-emerald-700 dark:border-emerald-500/40 dark:text-emerald-400' : 'border-amber-300 text-amber-700 dark:border-amber-500/40 dark:text-amber-400'}`}>
+                          <Badge variant="outline" className={`text-3xs ${k.tsv_content ? 'border-success/30 text-success' : 'border-warning/30 text-warning'}`}>
                             {k.tsv_content
                               ? <><Eye className="h-2.5 w-2.5 mr-0.5" /> Indexed</>
                               : <><EyeOff className="h-2.5 w-2.5 mr-0.5" /> Not indexed</>

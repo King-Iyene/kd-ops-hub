@@ -1235,13 +1235,13 @@ function TableDashboard({
             <Card>
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground mb-1.5">Task Completion Rate</p>
-                <p className="text-2xl font-bold tabular-nums text-emerald-500">{completionRate}%</p>
+                <p className="text-2xl font-bold tabular-nums text-success">{completionRate}%</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground mb-1.5">Missing Reports</p>
-                <p className={cn('text-2xl font-bold tabular-nums', missingCount > 0 ? 'text-red-500' : 'text-emerald-500')}>{missingCount}</p>
+                <p className={cn('text-2xl font-bold tabular-nums', missingCount > 0 ? 'text-destructive' : 'text-success')}>{missingCount}</p>
               </CardContent>
             </Card>
           </div>
@@ -1323,16 +1323,16 @@ function TableDashboard({
                   </thead>
                   <tbody>
                     {consistency.map((c) => (
-                      <tr key={c.id} className={cn('border-b border-border/60', !c.consistent && 'bg-red-500/5')}>
+                      <tr key={c.id} className={cn('border-b border-border/60', !c.consistent && 'bg-destructive/5')}>
                         <td className="py-2 pr-3">{c.name}</td>
                         <td className="py-2 pr-3">{c.lastSubmission ? formatDate(c.lastSubmission) : '—'}</td>
                         <td className="py-2 pr-3">{c.submissionsInWindow}</td>
-                        <td className={cn('py-2 pr-3 font-medium', c.missedDays > 1 && 'text-red-500')}>{c.missedDays}</td>
+                        <td className={cn('py-2 pr-3 font-medium', c.missedDays > 1 && 'text-destructive')}>{c.missedDays}</td>
                         <td className="py-2 pr-3">{c.completionRate === null ? '—' : `${c.completionRate}%`}</td>
                         <td className="py-2 pr-3">
                           <span className={cn(
                             'inline-flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full',
-                            c.consistent ? 'bg-emerald-500/15 text-emerald-500' : 'bg-red-500/15 text-red-500',
+                            c.consistent ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive',
                           )}
                           >
                             {!c.consistent && <AlertTriangle className="h-3 w-3" />}
@@ -1937,7 +1937,7 @@ function Cell({
     if (value === undefined || value === null || value === '') return <span className="text-muted-foreground/50">—</span>;
     switch (field.type) {
       case 'checkbox':
-        return value ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <span className="text-muted-foreground/50">—</span>;
+        return value ? <Check className="h-3.5 w-3.5 text-success" /> : <span className="text-muted-foreground/50">—</span>;
       case 'select': {
         const choice = field.options.choices?.find((c) => c.id === value);
         return choice ? <Badge style={{ backgroundColor: `${choice.color}22`, color: choice.color }} className="border-0">{choice.label}</Badge> : null;

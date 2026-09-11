@@ -108,7 +108,7 @@ const Login = () => {
 
         <div className="kd-glass-dark kd-glass-card-premium rounded-2xl border border-white/10 p-6 sm:p-7 kd-animate-scale-in">
           {isInviteOnly && (
-            <div className="mb-4 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-red-200">
               Access is by invitation only. Contact your KDOps administrator.
             </div>
           )}
@@ -162,7 +162,7 @@ const Login = () => {
               Sign In
             </Button>
             {loginError && (
-              <div role="alert" className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 text-center">
+              <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-red-200 text-center">
                 {loginError}
               </div>
             )}

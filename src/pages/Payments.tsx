@@ -550,14 +550,14 @@ const Payments = () => {
                 const isPending = batch.status === 'pending_approval';
                 const isProcessed = batch.status === 'processed';
                 const isDraft = batch.status === 'draft';
-                const railColor = isProcessing ? 'bg-blue-600'
-                  : isPending ? 'bg-amber-500'
-                  : isFailed ? 'bg-red-600'
-                  : isProcessed ? 'bg-emerald-600'
+                const railColor = isProcessing ? 'bg-primary'
+                  : isPending ? 'bg-warning'
+                  : isFailed ? 'bg-destructive'
+                  : isProcessed ? 'bg-success'
                   : isDraft ? 'bg-slate-300'
                   : 'bg-slate-400';
-                const amountColor = isFailed ? 'text-red-700'
-                  : isProcessed ? 'text-emerald-700'
+                const amountColor = isFailed ? 'text-destructive'
+                  : isProcessed ? 'text-success'
                   : 'text-foreground';
                 return (
                   <Link

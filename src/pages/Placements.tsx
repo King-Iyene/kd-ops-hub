@@ -164,9 +164,9 @@ const RATE_SUFFIX: Record<RateType, string> = {
 };
 
 const PAYMENT_STATUS_TONE: Record<PaymentStatus, string> = {
-  pending: 'bg-amber-500/10 text-amber-600',
-  paid: 'bg-emerald-500/10 text-emerald-600',
-  overdue: 'bg-red-500/10 text-red-600',
+  pending: 'bg-warning/10 text-warning',
+  paid: 'bg-success/10 text-success',
+  overdue: 'bg-destructive/10 text-destructive',
   partial: 'bg-orange-500/10 text-orange-600',
   waived: 'bg-slate-500/10 text-slate-600',
 };
@@ -893,7 +893,7 @@ function Placements() {
           actions={
             <div className="flex items-center gap-2">
               {currentFxRate && (
-                <Badge variant="outline" className="hidden sm:flex gap-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                <Badge variant="outline" className="hidden sm:flex gap-1.5 bg-success/10 text-success border-success/20">
                   <Globe className="h-3 w-3" />
                   1 USD = {formatFxRate(currentFxRate)}
                 </Badge>
@@ -924,7 +924,7 @@ function Placements() {
           <TabsTrigger value="payments" className="gap-1.5">
             <DollarSign className="h-3.5 w-3.5" /> Payment Tracker
             {stats.pendingCount > 0 && (
-              <Badge variant="outline" className="ml-1 text-3xs px-1.5 py-0 bg-amber-500/10 text-amber-600">{stats.pendingCount}</Badge>
+              <Badge variant="outline" className="ml-1 text-3xs px-1.5 py-0 bg-warning/10 text-warning">{stats.pendingCount}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="fx" className="gap-1.5">
@@ -970,7 +970,7 @@ function Placements() {
           {(stats.overdueCount > 0 || stats.expiringPlacements.length > 0) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {stats.overdueCount > 0 && (
-                <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 flex items-start gap-3">
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                   <div>
                     <p className="font-semibold text-sm text-destructive">Overdue Payments</p>
@@ -984,10 +984,10 @@ function Placements() {
                 </div>
               )}
               {stats.expiringPlacements.length > 0 && (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-semibold text-sm text-amber-600">Expiring Soon</p>
+                    <p className="font-semibold text-sm text-warning">Expiring Soon</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {stats.expiringPlacements.length} placement{stats.expiringPlacements.length !== 1 ? 's' : ''} ending within 30 days:
                     </p>
@@ -1441,7 +1441,7 @@ function Placements() {
                           <TableCell className="text-center">
                             {pp.client_paid ? (
                               <button
-                                className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
+                                className="inline-flex items-center gap-1 text-xs text-success hover:underline"
                                 onClick={() => isAdmin && toggleClientPaid(pp.id, false)}
                                 title={pp.client_paid_ref ? `Ref: ${pp.client_paid_ref}` : pp.client_paid_at ? `Paid ${formatDate(pp.client_paid_at)}` : 'Paid'}
                               >
@@ -1452,13 +1452,13 @@ function Placements() {
                                 Mark Paid
                               </Button>
                             ) : (
-                              <span className="text-xs text-amber-600">Unpaid</span>
+                              <span className="text-xs text-warning">Unpaid</span>
                             )}
                           </TableCell>
                           <TableCell className="text-center">
                             {pp.operator_paid ? (
                               <button
-                                className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
+                                className="inline-flex items-center gap-1 text-xs text-success hover:underline"
                                 onClick={() => isAdmin && toggleOperatorPaid(pp.id, false)}
                                 title={pp.operator_paid_ref ? `Ref: ${pp.operator_paid_ref}` : pp.operator_paid_at ? `Paid ${formatDate(pp.operator_paid_at)}` : 'Paid'}
                               >
@@ -1469,7 +1469,7 @@ function Placements() {
                                 Mark Paid
                               </Button>
                             ) : (
-                              <span className="text-xs text-amber-600">Unpaid</span>
+                              <span className="text-xs text-warning">Unpaid</span>
                             )}
                           </TableCell>
                         </TableRow>
@@ -1502,12 +1502,12 @@ function Placements() {
                       <MobileCardRow label="Client Paid">
                         {pp.client_paid
                           ? <span className="text-success flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Yes{pp.client_paid_at ? ` · ${formatDate(pp.client_paid_at)}` : ''}</span>
-                          : <span className="text-amber-600">No</span>}
+                          : <span className="text-warning">No</span>}
                       </MobileCardRow>
                       <MobileCardRow label="Operator Paid">
                         {pp.operator_paid
                           ? <span className="text-success flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Yes{pp.operator_paid_at ? ` · ${formatDate(pp.operator_paid_at)}` : ''}</span>
-                          : <span className="text-amber-600">No</span>}
+                          : <span className="text-warning">No</span>}
                       </MobileCardRow>
                       {isAdmin && (!pp.client_paid || !pp.operator_paid) && (
                         <MobileCardFooter>
@@ -1680,9 +1680,9 @@ function Placements() {
                 <h3 className="text-sm font-semibold">Placement-Level FX Impact Analysis</h3>
                 <div className="text-sm font-semibold">
                   {fxImpact.totalDiff >= 0 ? (
-                    <span className="text-emerald-600">+{formatNaira(fxImpact.totalDiff)}/mo gain</span>
+                    <span className="text-success">+{formatNaira(fxImpact.totalDiff)}/mo gain</span>
                   ) : (
-                    <span className="text-red-600">{formatNaira(fxImpact.totalDiff)}/mo loss</span>
+                    <span className="text-destructive">{formatNaira(fxImpact.totalDiff)}/mo loss</span>
                   )}
                 </div>
               </div>
@@ -1710,7 +1710,7 @@ function Placements() {
                         <TableCell className="text-right tabular-nums">{formatFxRate(r.currentFx)}</TableCell>
                         <TableCell className="text-right tabular-nums">{formatNaira(r.lockedNgn)}</TableCell>
                         <TableCell className="text-right tabular-nums">{formatNaira(r.currentNgn)}</TableCell>
-                        <TableCell className={`text-right font-semibold tabular-nums ${r.diff >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        <TableCell className={`text-right font-semibold tabular-nums ${r.diff >= 0 ? 'text-success' : 'text-destructive'}`}>
                           {r.diff >= 0 ? '+' : ''}{formatNaira(r.diff)}
                           <span className="block text-3xs font-normal">
                             {r.diffPct >= 0 ? '+' : ''}{r.diffPct.toFixed(1)}%
@@ -1765,7 +1765,7 @@ function Placements() {
                         </TableCell>
                         <TableCell className="text-right font-medium">{m.commissionPct}%</TableCell>
                         <TableCell className="text-right font-semibold tabular-nums">{formatNaira(m.commission)}</TableCell>
-                        <TableCell className="text-right font-semibold tabular-nums text-emerald-600">{formatNaira(m.annualCommission)}</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums text-success">{formatNaira(m.annualCommission)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -1983,7 +1983,7 @@ function Placements() {
                   <ArrowRightLeft className="h-3.5 w-3.5" /> Client Rate
                 </p>
                 {currentFxRate && (
-                  <Badge variant="outline" className="text-3xs bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                  <Badge variant="outline" className="text-3xs bg-success/10 text-success border-success/20">
                     1 USD = {formatFxRate(currentFxRate)}
                   </Badge>
                 )}
@@ -2039,7 +2039,7 @@ function Placements() {
                 </p>
               )}
               {!currentFxRate && (
-                <p className="text-2xs text-amber-600 flex items-center gap-1">
+                <p className="text-2xs text-warning flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
                   No live FX rate available. Enter the NGN rate directly, or set up an FX rate first.
                 </p>
@@ -2061,7 +2061,7 @@ function Placements() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">KD Commission ({form.commission_pct}%)</span>
-                  <span className="font-semibold text-emerald-600">{formatNaira(computedRate.commission)}</span>
+                  <span className="font-semibold text-success">{formatNaira(computedRate.commission)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Employee Pay ({100 - Number(form.commission_pct)}%)</span>
@@ -2166,7 +2166,7 @@ function Placements() {
                     return (
                       <>
                         {settled > 0 && <> · <span className="text-success">{settled} settled</span></>}
-                        {(clientOnly > 0 || operatorOnly > 0) && <> · <span className="text-amber-600">{clientOnly + operatorOnly} partial</span></>}
+                        {(clientOnly > 0 || operatorOnly > 0) && <> · <span className="text-warning">{clientOnly + operatorOnly} partial</span></>}
                         {unpaid > 0 && <> · <span className="text-destructive">{unpaid} unpaid</span></>}
                       </>
                     );
@@ -2254,7 +2254,7 @@ function Placements() {
                                     </button>
                                   )}
                                   {pp.fx_rate_edit_reason && (
-                                    <span title={`Edited: ${pp.fx_rate_edit_reason}`} className="text-amber-500">
+                                    <span title={`Edited: ${pp.fx_rate_edit_reason}`} className="text-warning">
                                       <AlertTriangle className="h-3 w-3" />
                                     </span>
                                   )}
@@ -2264,7 +2264,7 @@ function Placements() {
                             <TableCell className="text-center">
                               {pp.client_paid ? (
                                 <button
-                                  className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
+                                  className="inline-flex items-center gap-1 text-xs text-success hover:underline"
                                   onClick={() => isAdmin && toggleClientPaid(pp.id, false)}
                                   title={pp.client_paid_ref ? `Ref: ${pp.client_paid_ref}` : pp.client_paid_at ? `Paid ${formatDate(pp.client_paid_at)}` : 'Paid'}
                                 >
@@ -2275,13 +2275,13 @@ function Placements() {
                                   Mark Paid
                                 </Button>
                               ) : (
-                                <span className="text-xs text-amber-600">Unpaid</span>
+                                <span className="text-xs text-warning">Unpaid</span>
                               )}
                             </TableCell>
                             <TableCell className="text-center">
                               {pp.operator_paid ? (
                                 <button
-                                  className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
+                                  className="inline-flex items-center gap-1 text-xs text-success hover:underline"
                                   onClick={() => isAdmin && toggleOperatorPaid(pp.id, false)}
                                   title={pp.operator_paid_ref ? `Ref: ${pp.operator_paid_ref}` : pp.operator_paid_at ? `Paid ${formatDate(pp.operator_paid_at)}` : 'Paid'}
                                 >
@@ -2292,7 +2292,7 @@ function Placements() {
                                   Mark Paid
                                 </Button>
                               ) : (
-                                <span className="text-xs text-amber-600">Unpaid</span>
+                                <span className="text-xs text-warning">Unpaid</span>
                               )}
                             </TableCell>
                           </TableRow>
@@ -2308,11 +2308,11 @@ function Placements() {
                           <MobileCardTitle>{monthLabel(pp.month)}</MobileCardTitle>
                           <MobileCardMeta>
                             {pp.client_paid && pp.operator_paid ? (
-                              <Badge variant="outline" className="text-3xs bg-emerald-500/10 text-emerald-600">Settled</Badge>
+                              <Badge variant="outline" className="text-3xs bg-success/10 text-success">Settled</Badge>
                             ) : pp.client_paid || pp.operator_paid ? (
-                              <Badge variant="outline" className="text-3xs bg-amber-500/10 text-amber-600">Partial</Badge>
+                              <Badge variant="outline" className="text-3xs bg-warning/10 text-warning">Partial</Badge>
                             ) : (
-                              <Badge variant="outline" className="text-3xs bg-red-500/10 text-red-600">Unpaid</Badge>
+                              <Badge variant="outline" className="text-3xs bg-destructive/10 text-destructive">Unpaid</Badge>
                             )}
                           </MobileCardMeta>
                         </MobileCardHeader>
@@ -2328,7 +2328,7 @@ function Placements() {
                         {pp.fx_rate_used != null && (
                           <MobileCardRow label="FX Rate">
                             <span className="tabular-nums">{formatFxRate(pp.fx_rate_used)}</span>
-                            {pp.fx_rate_edit_reason && <span className="text-amber-500 ml-1" title={pp.fx_rate_edit_reason}>edited</span>}
+                            {pp.fx_rate_edit_reason && <span className="text-warning ml-1" title={pp.fx_rate_edit_reason}>edited</span>}
                             {isSuperAdmin && (
                               <button
                                 className="text-muted-foreground hover:text-foreground ml-1"
@@ -2342,12 +2342,12 @@ function Placements() {
                         <MobileCardRow label="Client Paid">
                           {pp.client_paid
                             ? <span className="text-success">Yes{pp.client_paid_at ? ` — ${formatDate(pp.client_paid_at)}` : ''}</span>
-                            : <span className="text-amber-600">No</span>}
+                            : <span className="text-warning">No</span>}
                         </MobileCardRow>
                         <MobileCardRow label="Operator Paid">
                           {pp.operator_paid
                             ? <span className="text-success">Yes{pp.operator_paid_at ? ` — ${formatDate(pp.operator_paid_at)}` : ''}</span>
-                            : <span className="text-amber-600">No</span>}
+                            : <span className="text-warning">No</span>}
                         </MobileCardRow>
                         {isAdmin && (
                           <MobileCardFooter>
@@ -2378,7 +2378,7 @@ function Placements() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-amber-500" />
+              <Shield className="h-5 w-5 text-warning" />
               Edit Locked FX Rate
             </DialogTitle>
           </DialogHeader>
@@ -2390,7 +2390,7 @@ function Placements() {
                 <p><span className="text-muted-foreground">Gross (USD):</span> {formatUsd(fxEditOpen.gross_amount_usd)}</p>
                 <p><span className="text-muted-foreground">Gross (NGN):</span> {formatNaira(fxEditOpen.gross_amount_ngn)}</p>
                 {fxEditOpen.fx_rate_edit_reason && (
-                  <p className="text-amber-600 text-xs">Previously edited: {fxEditOpen.fx_rate_edit_reason}</p>
+                  <p className="text-warning text-xs">Previously edited: {fxEditOpen.fx_rate_edit_reason}</p>
                 )}
               </div>
               <div className="space-y-1.5">
@@ -2407,7 +2407,7 @@ function Placements() {
                   <p className="text-xs text-muted-foreground">
                     New gross: {formatNaira(fxEditOpen.gross_amount_usd * parseFloat(fxEditRate))}
                     {fxEditOpen.fx_rate_used != null && (
-                      <span className={parseFloat(fxEditRate) > fxEditOpen.fx_rate_used ? ' text-amber-600' : parseFloat(fxEditRate) < fxEditOpen.fx_rate_used ? ' text-emerald-600' : ''}>
+                      <span className={parseFloat(fxEditRate) > fxEditOpen.fx_rate_used ? ' text-warning' : parseFloat(fxEditRate) < fxEditOpen.fx_rate_used ? ' text-success' : ''}>
                         {' '}({((parseFloat(fxEditRate) - fxEditOpen.fx_rate_used) / fxEditOpen.fx_rate_used * 100).toFixed(1)}% change)
                       </span>
                     )}

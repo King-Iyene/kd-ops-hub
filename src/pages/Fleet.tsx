@@ -267,14 +267,14 @@ const Fleet = () => {
             {isAdmin && (
               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-medium">
                 <Fuel className="h-3 w-3" />
-                <span className={`h-1.5 w-1.5 rounded-full ${pendingFuelCount > 0 ? 'bg-amber-300 kd-status-live-warning' : 'bg-emerald-400 kd-status-live-success'}`} />
+                <span className={`h-1.5 w-1.5 rounded-full ${pendingFuelCount > 0 ? 'bg-warning kd-status-live-warning' : 'bg-success kd-status-live-success'}`} />
                 {pendingFuelCount} pending fuel
               </span>
             )}
             {totalAnomalies > 0 && (
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/20 border border-red-300/30 text-xs font-medium">
-                <AlertTriangle className="h-3 w-3 text-red-200" />
-                <span className="h-1.5 w-1.5 rounded-full bg-red-400 kd-status-live-danger" />
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-destructive/20 border border-destructive/30 text-xs font-medium">
+                <AlertTriangle className="h-3 w-3 text-destructive/60" />
+                <span className="h-1.5 w-1.5 rounded-full bg-destructive kd-status-live-danger" />
                 {totalAnomalies} anomal{totalAnomalies === 1 ? 'y' : 'ies'}
               </span>
             )}
@@ -356,13 +356,13 @@ const Fleet = () => {
                       <Icon className="h-3.5 w-3.5" />
                       {(item as any).live && (
                         <span className="relative flex h-1.5 w-1.5 -ml-0.5">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-500" />
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
                         </span>
                       )}
                       <span>{item.label}</span>
                       {(item as any).badge && (
-                        <span className="inline-flex items-center justify-center rounded-full text-3xs font-bold min-w-[16px] h-4 px-1 bg-amber-500 text-white">
+                        <span className="inline-flex items-center justify-center rounded-full text-3xs font-bold min-w-[16px] h-4 px-1 bg-warning text-warning-foreground">
                           {(item as any).badge}
                         </span>
                       )}
