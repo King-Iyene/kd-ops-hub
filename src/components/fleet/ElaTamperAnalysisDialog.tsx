@@ -71,10 +71,10 @@ export function ElaTamperAnalysisDialog({ target, onClose }: ElaTamperAnalysisDi
           {result && target && (() => {
             const avg = result.avgBrightness;
             const verdict = avg < 15
-              ? { label: 'No signs of tampering', color: 'text-success', bg: 'bg-emerald-500/10 border-emerald-500/30', icon: '✓' }
+              ? { label: 'No signs of tampering', color: 'text-success', bg: 'bg-success/10 border-success/30', icon: '✓' }
               : avg < 40
-              ? { label: 'Low concern — likely normal compression artifacts', color: 'text-warning', bg: 'bg-amber-500/10 border-amber-500/30', icon: '~' }
-              : { label: 'Review recommended — possible editing detected', color: 'text-destructive', bg: 'bg-red-500/10 border-red-500/30', icon: '!' };
+              ? { label: 'Low concern — likely normal compression artifacts', color: 'text-warning', bg: 'bg-warning/10 border-warning/30', icon: '~' }
+              : { label: 'Review recommended — possible editing detected', color: 'text-destructive', bg: 'bg-destructive/10 border-destructive/30', icon: '!' };
             return (
               <>
                 <div className={`flex items-center gap-2 rounded-md border px-3 py-2.5 ${verdict.bg}`}>

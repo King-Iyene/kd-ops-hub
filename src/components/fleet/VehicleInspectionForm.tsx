@@ -144,8 +144,8 @@ export function VehicleInspectionForm({
       <DialogContent className="max-h-[90vh] flex flex-col gap-0 p-0">
         <DialogHeader className="shrink-0 px-6 pt-5 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-              <ClipboardCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 dark:bg-primary/10">
+              <ClipboardCheck className="h-4 w-4 text-primary dark:text-primary" />
             </div>
             <div>
               <span>{typeLabel} Inspection</span>
@@ -159,8 +159,8 @@ export function VehicleInspectionForm({
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1 min-h-0">
           {hasDefects && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-warning/10/20 border border-warning/20 mb-3">
-              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-              <span className="text-sm text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+              <span className="text-sm text-warning dark:text-warning">
                 {failCount} defect{failCount > 1 ? 's' : ''} found — vehicle may not be roadworthy
               </span>
             </div>
@@ -171,8 +171,8 @@ export function VehicleInspectionForm({
               key={item.key}
               className={cn(
                 'rounded-lg border px-3 py-2.5 transition-colors',
-                item.status === 'fail' && 'border-red-200 bg-red-50/50 dark:bg-red-950/10 dark:border-red-800',
-                item.status === 'pass' && 'border-green-200/60 bg-green-50/30 dark:bg-green-950/5 dark:border-green-900/40',
+                item.status === 'fail' && 'border-destructive/20 bg-destructive/5 dark:bg-destructive/5 dark:border-destructive/20',
+                item.status === 'pass' && 'border-success/20 bg-success/5 dark:bg-success/5 dark:border-success/10',
                 item.status === 'na' && 'border-muted bg-muted/30',
               )}
             >
@@ -192,9 +192,9 @@ export function VehicleInspectionForm({
                         'h-7 w-7 rounded-md flex items-center justify-center transition-colors',
                         item.status === s
                           ? s === 'pass'
-                            ? 'bg-green-500 text-white'
+                            ? 'bg-success text-white'
                             : s === 'fail'
-                            ? 'bg-red-500 text-white'
+                            ? 'bg-destructive text-white'
                             : 'bg-gray-400 text-white'
                           : 'bg-muted/60 text-muted-foreground hover:bg-muted',
                       )}
@@ -256,7 +256,7 @@ export function VehicleInspectionForm({
             <Button
               onClick={handleSubmit}
               disabled={submitting}
-              className={cn(hasDefects && 'bg-amber-600 hover:bg-amber-700')}
+              className={cn(hasDefects && 'bg-warning hover:bg-warning/90')}
             >
               {submitting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

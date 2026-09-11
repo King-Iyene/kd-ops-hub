@@ -20,15 +20,15 @@ const toneBg: Record<NonNullable<Props['tone']>, string> = {
   primary:  'bg-primary/8',
   success:  'bg-success/10/20',
   warning:  'bg-warning/10/20',
-  danger:   'bg-rose-50 dark:bg-rose-900/20',
+  danger:   'bg-destructive/5 dark:bg-destructive/10',
 };
 
 const toneIcon: Record<NonNullable<Props['tone']>, string> = {
   default:  'text-muted-foreground/60',
   primary:  'text-primary/70',
-  success:  'text-emerald-500',
+  success:  'text-success',
   warning:  'text-amber-500',
-  danger:   'text-rose-500',
+  danger:   'text-destructive',
 };
 
 export function EmptyState({

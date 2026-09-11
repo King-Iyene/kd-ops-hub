@@ -263,7 +263,7 @@ export const BeneficiaryCsvImport = ({ open, onOpenChange, onImport }: Props) =>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <FileText className="h-3.5 w-3.5" /> {fileName}
               </div>
-              <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
+              <Badge variant="secondary" className="bg-success/10 text-success">
                 <CheckCircle2 className="mr-1 h-3 w-3" /> {validRows.length} valid
               </Badge>
               {invalidRows.length > 0 && (

@@ -58,7 +58,7 @@ export function TaskDashboard({ tasks, allTasks, profiles, currentUserId, onTask
         <KpiCard icon={CheckCircle2} label="Completed this week" value={completedThisWeek.length}
           trend={weekTrend !== 0 ? `${weekTrend > 0 ? '+' : ''}${weekTrend}% vs last week` : undefined}
           trendUp={weekTrend > 0} color="text-success" />
-        <KpiCard icon={Target} label="Completion rate" value={`${completionRate}%`} color="text-blue-600" />
+        <KpiCard icon={Target} label="Completion rate" value={`${completionRate}%`} color="text-primary" />
         <KpiCard icon={AlertTriangle} label="Overdue" value={overdueTasks.length}
           sub={overdueTasks.length > 0 ? 'Needs attention' : 'All on track'} color="text-destructive" />
         <KpiCard icon={TrendingUp} label="Created this week" value={createdThisWeek.length} color="text-violet-600" />

@@ -230,7 +230,7 @@ export function DriverVerificationPanel() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <SummaryCard label="Total Drivers" value={totalDrivers} icon={<UserCheck className="h-4 w-4 text-muted-foreground" />} />
             <SummaryCard label="Verified" value={verifiedCount} icon={<CheckCircle className="h-4 w-4 text-success" />} className="text-success" />
-            <SummaryCard label="Assigned to Vehicle" value={assignedCount} icon={<Car className="h-4 w-4 text-blue-600" />} className="text-blue-600" />
+            <SummaryCard label="Assigned to Vehicle" value={assignedCount} icon={<Car className="h-4 w-4 text-primary" />} className="text-primary" />
             <SummaryCard label="License Expiring" value={expiringCount} icon={<XCircle className="h-4 w-4 text-destructive" />} className="text-destructive" />
           </div>
         )}
@@ -250,10 +250,10 @@ export function DriverVerificationPanel() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {driver.assigned_vehicle && (
-                      <div className="rounded-lg border p-3 space-y-1 sm:col-span-2 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+                      <div className="rounded-lg border p-3 space-y-1 sm:col-span-2 bg-primary/5 dark:bg-primary/10 border-primary/20 dark:border-primary/20">
                         <div className="text-xs text-muted-foreground">Assigned Vehicle</div>
                         <div className="font-medium flex items-center gap-2">
-                          <Car className="h-4 w-4 text-blue-600" />
+                          <Car className="h-4 w-4 text-primary" />
                           {driver.assigned_vehicle}
                         </div>
                       </div>
@@ -264,10 +264,10 @@ export function DriverVerificationPanel() {
                         {hasNin ? (
                           <span className="flex items-center gap-2">
                             ****{driver.nin_last4 || driver.nin?.slice(-4)}
-                            <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700 text-3xs">Verified</Badge>
+                            <Badge variant="outline" className="border-success/20 bg-success/10 text-success text-3xs">Verified</Badge>
                           </span>
                         ) : (
-                          <span className="text-amber-600">Not submitted</span>
+                          <span className="text-warning">Not submitted</span>
                         )}
                       </div>
                     </div>
@@ -276,7 +276,7 @@ export function DriverVerificationPanel() {
                       <div className="font-medium">
                         {driver.driver_license_number
                           ? `****${driver.driver_license_number.slice(-4)}`
-                          : <span className="text-amber-600">Not submitted</span>
+                          : <span className="text-warning">Not submitted</span>
                         }
                       </div>
                     </div>
@@ -289,13 +289,13 @@ export function DriverVerificationPanel() {
                             <ExpiryBadge days={daysUntil(driver.driver_license_expiry)} />
                           </span>
                         ) : (
-                          <span className="text-amber-600">Not submitted</span>
+                          <span className="text-warning">Not submitted</span>
                         )}
                       </div>
                     </div>
                   </div>
                   {overall === 'incomplete' && (
-                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-2">
+                    <p className="text-xs text-warning bg-warning/10 border border-warning/20 rounded-md p-2">
                       Please complete your verification details to avoid delays with fuel requests. Tap "Update My Details" above.
                     </p>
                   )}
@@ -342,7 +342,7 @@ export function DriverVerificationPanel() {
                         <TableCell>
                           {driver.assigned_vehicle ? (
                             <span className="flex items-center gap-1.5 text-sm">
-                              <Car className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                              <Car className="h-3.5 w-3.5 text-primary shrink-0" />
                               {driver.assigned_vehicle}
                             </span>
                           ) : (
@@ -352,9 +352,9 @@ export function DriverVerificationPanel() {
                         <TableCell>{driver.phone || '-'}</TableCell>
                         <TableCell>
                           {hasNin ? (
-                            <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">Verified</Badge>
+                            <Badge variant="outline" className="border-success/20 bg-success/10 text-success">Verified</Badge>
                           ) : (
-                            <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">Missing</Badge>
+                            <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">Missing</Badge>
                           )}
                         </TableCell>
                         <TableCell className="font-mono text-sm">{licenseDisplay}</TableCell>
@@ -388,7 +388,7 @@ export function DriverVerificationPanel() {
         )}
 
         {!hasExtColumns && isAdmin && (
-          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-2">
+          <p className="text-xs text-warning bg-warning/10 border border-warning/20 rounded-md p-2">
             Driver license columns are not yet available in the database. Apply the fleet_compliance_verification migration to enable license tracking.
           </p>
         )}
@@ -473,31 +473,31 @@ function SummaryCard({
 function ExpiryBadge({ days }: { days: number }) {
   if (days < 0) {
     return (
-      <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">Expired</Badge>
+      <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">Expired</Badge>
     );
   }
   if (days <= 30) {
     return (
-      <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">{days}d left</Badge>
+      <Badge variant="outline" className="border-warning/20 bg-warning/10 text-warning">{days}d left</Badge>
     );
   }
   return (
-    <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">{days}d left</Badge>
+    <Badge variant="outline" className="border-success/20 bg-success/10 text-success">{days}d left</Badge>
   );
 }
 
 function OverallBadge({ status }: { status: OverallStatus }) {
   if (status === 'verified') {
     return (
-      <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">Verified</Badge>
+      <Badge variant="outline" className="border-success/20 bg-success/10 text-success">Verified</Badge>
     );
   }
   if (status === 'blocked') {
     return (
-      <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">Blocked</Badge>
+      <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">Blocked</Badge>
     );
   }
   return (
-    <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">Incomplete</Badge>
+    <Badge variant="outline" className="border-warning/20 bg-warning/10 text-warning">Incomplete</Badge>
   );
 }

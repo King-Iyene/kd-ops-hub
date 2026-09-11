@@ -116,9 +116,9 @@ function TripGoogleMap({ trail, startPos, endPos, events, replayStep = null }: {
 }
 
 const EVENT_COLOR: Record<string, string> = {
-  speeding:      'bg-red-100 text-red-700 border-red-300',
-  hard_braking:  'bg-orange-100 text-orange-700 border-orange-300',
-  extended_stop: 'bg-blue-100 text-blue-700 border-blue-300',
+  speeding:      'bg-destructive/10 text-destructive border-destructive/30',
+  hard_braking:  'bg-warning/10 text-warning border-warning/30',
+  extended_stop: 'bg-primary/10 text-primary border-primary/30',
 };
 
 const EVENT_ICON: Record<string, React.ReactNode> = {
@@ -306,9 +306,9 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
               {litres != null ? `${litres} L` : '—'}
             </p>
           </div>
-          <div className={`rounded-lg border px-3 py-2 ${idleMinutes != null && idleMinutes > 30 ? 'border-amber-300 bg-amber-50/40 dark:bg-amber-950/20' : 'border-border/50 bg-muted/30'}`}>
+          <div className={`rounded-lg border px-3 py-2 ${idleMinutes != null && idleMinutes > 30 ? 'border-warning/30 bg-warning/10 dark:bg-warning/10' : 'border-border/50 bg-muted/30'}`}>
             <p className="text-3xs uppercase tracking-wider text-muted-foreground/80">Stopped</p>
-            <p className={`kd-stat-number text-base font-bold leading-tight ${idleMinutes != null && idleMinutes > 30 ? 'text-amber-600' : ''}`}>
+            <p className={`kd-stat-number text-base font-bold leading-tight ${idleMinutes != null && idleMinutes > 30 ? 'text-warning' : ''}`}>
               {idleMinutes != null ? `${idleMinutes} min` : '—'}
             </p>
           </div>

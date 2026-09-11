@@ -239,7 +239,7 @@ export function DriverLeaderboard() {
           <div
             key={d.driver_id}
             className={`flex items-center gap-3 rounded-md px-3 py-2 transition-colors ${
-              i === 0 ? 'bg-warning/10/20 ring-1 ring-amber-200 dark:ring-amber-800' :
+              i === 0 ? 'bg-warning/10/20 ring-1 ring-warning/20 dark:ring-warning/20' :
               i === 1 ? 'bg-slate-50 dark:bg-slate-900/30' :
               i === 2 ? 'bg-orange-50/50 dark:bg-orange-950/10' :
               'hover:bg-muted/50'
@@ -332,8 +332,8 @@ export function DriverLeaderboard() {
                 <p className="font-medium">{d.name}</p>
                 <p>{d.trip_count} trips · {d.total_km.toLocaleString()} km</p>
                 <p>Safety: {d.safety_score} · Efficiency: {d.efficiency_score} · Cost: {d.cost_score}</p>
-                {d.speeding_events > 0 && <p className="text-red-400">{d.speeding_events} speeding events</p>}
-                {d.hard_braking_events > 0 && <p className="text-amber-400">{d.hard_braking_events} hard braking</p>}
+                {d.speeding_events > 0 && <p className="text-destructive">{d.speeding_events} speeding events</p>}
+                {d.hard_braking_events > 0 && <p className="text-warning">{d.hard_braking_events} hard braking</p>}
                 <p>Fuel spend: {formatNaira(d.total_fuel_spend)}</p>
               </TooltipContent>
             </Tooltip>

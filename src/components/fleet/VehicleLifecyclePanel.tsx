@@ -204,7 +204,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
   return (
     <div className="space-y-3 sm:space-y-6">
       {!hasLifecycleCols && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning-foreground">
           Vehicle lifecycle columns have not been deployed yet. Run the latest migration to enable purchase price, depreciation, and insurance tracking.
         </div>
       )}
@@ -235,10 +235,10 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Insurance Premiums</CardTitle>
-            <Calendar className="h-4 w-4 text-blue-500" />
+            <Calendar className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600 currency">{totalInsurancePremium > 0 ? formatNairaCompact(totalInsurancePremium) : '—'}</div>
+            <div className="text-2xl font-bold text-primary currency">{totalInsurancePremium > 0 ? formatNairaCompact(totalInsurancePremium) : '—'}</div>
             <p className="text-xs text-muted-foreground">Total annual premiums</p>
           </CardContent>
         </Card>
@@ -299,7 +299,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
                     {dep ? (
                       <>
                         <div className="font-medium currency">{formatNaira(dep.currentValue)}</div>
-                        <div className="text-xs text-red-500 currency">-{formatNaira(dep.totalDep)} dep.</div>
+                        <div className="text-xs text-destructive currency">-{formatNaira(dep.totalDep)} dep.</div>
                       </>
                     ) : '—'}
                   </TableCell>

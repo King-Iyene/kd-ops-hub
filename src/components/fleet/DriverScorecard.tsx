@@ -21,14 +21,14 @@ interface DriverScore {
 
 function scoreColor(score: number): string {
   if (score >= 90) return 'text-success';
-  if (score >= 70) return 'text-amber-600';
+  if (score >= 70) return 'text-warning';
   return 'text-destructive';
 }
 
 function scoreBg(score: number): string {
-  if (score >= 90) return 'bg-green-500';
-  if (score >= 70) return 'bg-amber-500';
-  return 'bg-red-500';
+  if (score >= 90) return 'bg-success';
+  if (score >= 70) return 'bg-warning';
+  return 'bg-destructive';
 }
 
 function scoreLabel(score: number): string {
@@ -213,10 +213,10 @@ export function DriverScorecard() {
                     variant="secondary"
                     className={`text-3xs px-1.5 ${
                       d.safety_score >= 90
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        ? 'bg-success/10 text-success dark:bg-success/10 dark:text-success'
                         : d.safety_score >= 70
-                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                        ? 'bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning'
+                        : 'bg-destructive/10 text-destructive dark:bg-destructive/10 dark:text-destructive'
                     }`}
                   >
                     {scoreLabel(d.safety_score)}
@@ -226,8 +226,8 @@ export function DriverScorecard() {
               <TooltipContent side="left" className="text-xs space-y-1">
                 <p className="font-medium">{d.name}</p>
                 <p>{d.trip_count} trips · {d.total_km.toLocaleString()} km</p>
-                {d.speeding_events > 0 && <p className="text-red-400">{d.speeding_events} speeding events</p>}
-                {d.hard_braking_events > 0 && <p className="text-amber-400">{d.hard_braking_events} hard braking events</p>}
+                {d.speeding_events > 0 && <p className="text-destructive">{d.speeding_events} speeding events</p>}
+                {d.hard_braking_events > 0 && <p className="text-warning">{d.hard_braking_events} hard braking events</p>}
                 {d.fuel_efficiency != null && <p>{d.fuel_efficiency} km/L</p>}
                 <p>Fuel: {formatNaira(d.total_fuel_spend)}</p>
               </TooltipContent>

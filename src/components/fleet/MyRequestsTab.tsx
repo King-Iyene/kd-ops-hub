@@ -165,7 +165,7 @@ export function MyRequestsTab({
         return (
           <div
             key={r.id}
-            className="flex items-start gap-3 rounded-md border px-4 py-3 border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-950/30 dark:text-red-200"
+            className="flex items-start gap-3 rounded-md border px-4 py-3 border-destructive/30 bg-destructive/5 text-destructive dark:border-destructive/30 dark:bg-destructive/10 dark:text-destructive"
           >
             <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-destructive" />
             <div className="flex-1 min-w-0">
@@ -177,7 +177,7 @@ export function MyRequestsTab({
             </div>
             <Button
               size="sm"
-              className="shrink-0 text-white bg-red-600 hover:bg-red-700"
+              className="shrink-0 text-white bg-destructive hover:bg-destructive/90"
               onClick={() => onUploadReceipt?.(r)}
             >
               <Upload className="h-3.5 w-3.5 mr-1.5" /> Upload Receipt
@@ -192,7 +192,7 @@ export function MyRequestsTab({
         return (
           <div
             key={r.id}
-            className="flex items-start gap-3 rounded-md border px-4 py-3 border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-950/30 dark:text-red-200"
+            className="flex items-start gap-3 rounded-md border px-4 py-3 border-destructive/30 bg-destructive/5 text-destructive dark:border-destructive/30 dark:bg-destructive/10 dark:text-destructive"
           >
             <Wrench className="h-5 w-5 mt-0.5 shrink-0 text-destructive" />
             <div className="flex-1 min-w-0">
@@ -203,7 +203,7 @@ export function MyRequestsTab({
             </div>
             <Button
               size="sm"
-              className="shrink-0 text-white bg-red-600 hover:bg-red-700"
+              className="shrink-0 text-white bg-destructive hover:bg-destructive/90"
               onClick={() => onUploadRepairReceipt?.(r)}
             >
               <Upload className="h-3.5 w-3.5 mr-1.5" /> Attach Receipt

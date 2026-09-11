@@ -45,7 +45,7 @@ export function KpiCard({
     <Card
       ref={cardRef}
       onMouseMove={handleMouseMove}
-      className={`kd-holographic relative overflow-hidden ${warn ? 'border-red-300 dark:border-red-800' : ''}`}
+      className={`kd-holographic relative overflow-hidden ${warn ? 'border-destructive/30 dark:border-destructive/30' : ''}`}
     >
       <CardContent className="pt-4 pb-4">
         <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
@@ -317,7 +317,7 @@ function FleetAnalyticsDashboard({
                   return (
                     <TableRow
                       key={s.vehicle_id}
-                      className={`cursor-pointer kd-transition hover:bg-muted/40 ${highCost ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/20 dark:hover:bg-amber-950/40' : ''}`}
+                      className={`cursor-pointer kd-transition hover:bg-muted/40 ${highCost ? 'bg-warning/10 hover:bg-warning/15 dark:bg-warning/10 dark:hover:bg-warning/15' : ''}`}
                       onClick={onNavigateToVehicles}
                     >
                       <TableCell>
@@ -337,7 +337,7 @@ function FleetAnalyticsDashboard({
                       </TableCell>
                       <TableCell className="text-right">
                         {s.cost_per_km != null ? (
-                          <span className={highCost ? 'text-amber-600 font-semibold currency' : 'currency'}>
+                          <span className={highCost ? 'text-warning font-semibold currency' : 'currency'}>
                             {formatNaira(s.cost_per_km)}/km
                             {highCost && <AlertTriangle className="inline h-3 w-3 ml-1 -mt-0.5" />}
                           </span>
@@ -347,7 +347,7 @@ function FleetAnalyticsDashboard({
                         {s.budget_used_pct != null ? (
                           <span className={
                             s.budget_used_pct > 90 ? 'text-destructive font-semibold' :
-                            s.budget_used_pct > 70 ? 'text-amber-600' :
+                            s.budget_used_pct > 70 ? 'text-warning' :
                             'text-success'
                           }>
                             {Math.round(s.budget_used_pct)}%

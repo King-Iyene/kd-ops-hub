@@ -264,9 +264,9 @@ export function FuelPriceIntelligence() {
               <div key={a.station} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
                   {a.direction === 'up' ? (
-                    <TrendingUp className="h-3.5 w-3.5 text-red-500" />
+                    <TrendingUp className="h-3.5 w-3.5 text-destructive" />
                   ) : (
-                    <TrendingDown className="h-3.5 w-3.5 text-green-500" />
+                    <TrendingDown className="h-3.5 w-3.5 text-success" />
                   )}
                   <span className="font-medium truncate max-w-[200px]">{a.station}</span>
                 </div>
@@ -278,8 +278,8 @@ export function FuelPriceIntelligence() {
                     variant="secondary"
                     className={`text-3xs ${
                       a.direction === 'up'
-                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                        : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        ? 'bg-destructive/10 text-destructive dark:bg-destructive/10 dark:text-destructive'
+                        : 'bg-success/10 text-success dark:bg-success/10 dark:text-success'
                     }`}
                   >
                     {a.direction === 'up' ? '+' : ''}{a.changePct}%
@@ -415,9 +415,9 @@ export function FuelPriceIntelligence() {
                       variant="secondary"
                       className={`text-3xs ${
                         r.trend === 'falling'
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          ? 'bg-success/10 text-success dark:bg-success/10 dark:text-success'
                           : r.trend === 'rising'
-                          ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                          ? 'bg-destructive/10 text-destructive dark:bg-destructive/10 dark:text-destructive'
                           : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                       }`}
                     >

@@ -227,12 +227,12 @@ export function FuelStationComparison() {
                           <span className="flex items-center gap-2">
                             {s.name}
                             {isCheapest && (
-                              <Badge className="text-3xs bg-green-600 hover:bg-green-700 text-white">
+                              <Badge className="text-3xs bg-success hover:bg-success/90 text-white">
                                 Cheapest
                               </Badge>
                             )}
                             {isMostExpensive && (
-                              <Badge className="text-3xs bg-red-600 hover:bg-red-700 text-white">
+                              <Badge className="text-3xs bg-destructive hover:bg-destructive/90 text-white">
                                 Most Expensive
                               </Badge>
                             )}

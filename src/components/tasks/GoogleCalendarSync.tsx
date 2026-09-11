@@ -399,10 +399,10 @@ export function GoogleCalendarSync({ tasks }: GoogleCalendarSyncProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-start gap-2 rounded-md border border-amber-300/40 bg-warning/10/20 p-3">
-            <span className="mt-0.5 inline-block h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+          <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3">
+            <span className="mt-0.5 inline-block h-2 w-2 rounded-full bg-warning shrink-0" />
             <div className="text-xs">
-              <p className="font-semibold text-amber-700 dark:text-amber-400">
+              <p className="font-semibold text-warning dark:text-warning">
                 Not connected
               </p>
               <p className="text-muted-foreground mt-0.5">
@@ -474,7 +474,7 @@ export function GoogleCalendarSync({ tasks }: GoogleCalendarSyncProps) {
             variant={isTokenExpired ? 'destructive' : 'default'}
             className={cn(
               !isTokenExpired &&
-                'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800',
+                'bg-success/10 text-success border-success/20 dark:bg-success/10 dark:text-success dark:border-success/20',
             )}
           >
             {isTokenExpired ? (
@@ -628,7 +628,7 @@ export function GoogleCalendarSync({ tasks }: GoogleCalendarSyncProps) {
                   className="flex items-center gap-2 text-xs"
                 >
                   {r.success ? (
-                    <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                    <Check className="h-3.5 w-3.5 text-success shrink-0" />
                   ) : (
                     <X className="h-3.5 w-3.5 text-destructive shrink-0" />
                   )}

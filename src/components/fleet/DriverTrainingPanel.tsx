@@ -68,9 +68,9 @@ function statusBadge(status: string, expiryDate: string | null) {
     exp.setHours(0, 0, 0, 0);
     const days = Math.ceil((exp.getTime() - today.getTime()) / (86400000));
     if (days < 0) return <Badge variant="destructive">Expired</Badge>;
-    if (days <= 30) return <Badge className="bg-amber-500 text-white">Expiring ({days}d)</Badge>;
+    if (days <= 30) return <Badge className="bg-warning text-warning-foreground">Expiring ({days}d)</Badge>;
   }
-  if (status === 'valid') return <Badge className="bg-green-600 text-white">Valid</Badge>;
+  if (status === 'valid') return <Badge className="bg-success text-white">Valid</Badge>;
   if (status === 'expired') return <Badge variant="destructive">Expired</Badge>;
   return <Badge variant="outline">Pending</Badge>;
 }
@@ -173,7 +173,7 @@ export function DriverTrainingPanel({ staff }: Props) {
 
   if (!hasTable) {
     return (
-      <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+      <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-foreground">
         Driver training module requires the latest migration. Deploy the <code>fleet_incidents_lifecycle_training</code> migration to enable this feature.
       </div>
     );
@@ -206,10 +206,10 @@ export function DriverTrainingPanel({ staff }: Props) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Expiring Soon</CardTitle>
-            <Clock className="h-4 w-4 text-amber-500" />
+            <Clock className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-500">{expiringSoon}</div>
+            <div className="text-2xl font-bold text-warning">{expiringSoon}</div>
             <p className="text-xs text-muted-foreground">Within 30 days</p>
           </CardContent>
         </Card>

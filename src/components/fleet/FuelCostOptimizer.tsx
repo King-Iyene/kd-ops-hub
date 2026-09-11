@@ -160,7 +160,7 @@ export function FuelCostOptimizer({ vehicles }: Props) {
         {avgCostPerKm != null && (
           <Card>
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <BarChart2 className="h-5 w-5" />
               </div>
               <div>
@@ -173,7 +173,7 @@ export function FuelCostOptimizer({ vehicles }: Props) {
         {potentialSavings > 0 && (
           <Card>
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 text-green-700">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10 text-success">
                 <DollarSign className="h-5 w-5" />
               </div>
               <div>
@@ -187,7 +187,7 @@ export function FuelCostOptimizer({ vehicles }: Props) {
         {bestStation?.avg_price_per_litre && (
           <Card>
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10 text-warning">
                 <MapPin className="h-5 w-5" />
               </div>
               <div>
@@ -240,11 +240,11 @@ export function FuelCostOptimizer({ vehicles }: Props) {
                         <td className="text-right py-2 pl-2">
                           {vc.cost_per_km != null ? (
                             isGood ? (
-                              <Badge variant="outline" className="text-success border-green-200 text-3xs">
+                              <Badge variant="outline" className="text-success border-success/20 text-3xs">
                                 <ArrowDownRight className="h-3 w-3 mr-0.5" /> Efficient
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="text-destructive border-red-200 text-3xs">
+                              <Badge variant="outline" className="text-destructive border-destructive/20 text-3xs">
                                 <ArrowUpRight className="h-3 w-3 mr-0.5" /> High
                               </Badge>
                             )

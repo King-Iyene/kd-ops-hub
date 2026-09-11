@@ -56,14 +56,14 @@ interface Props {
 
 function healthColor(score: number) {
   if (score >= 85) return 'text-success';
-  if (score >= 65) return 'text-amber-600';
+  if (score >= 65) return 'text-warning';
   return 'text-destructive';
 }
 
 function healthBg(score: number) {
-  if (score >= 85) return 'bg-green-500';
-  if (score >= 65) return 'bg-amber-500';
-  return 'bg-red-500';
+  if (score >= 85) return 'bg-success';
+  if (score >= 65) return 'bg-warning';
+  return 'bg-destructive';
 }
 
 function healthLabel(score: number) {
@@ -387,16 +387,16 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
 
   const iconByType: Record<FleetInsight['type'], React.ReactNode> = {
     warning: <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />,
-    opportunity: <Target className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />,
+    opportunity: <Target className="h-4 w-4 text-primary shrink-0 mt-0.5" />,
     action: <Zap className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />,
-    positive: <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />,
+    positive: <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />,
   };
 
   const bgByType: Record<FleetInsight['type'], string> = {
-    warning: 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30',
-    opportunity: 'border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30',
-    action: 'border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30',
-    positive: 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30',
+    warning: 'border-destructive/20 bg-destructive/5 dark:border-destructive/20 dark:bg-destructive/10',
+    opportunity: 'border-primary/20 bg-primary/5 dark:border-primary/20 dark:bg-primary/10',
+    action: 'border-warning/20 bg-warning/5 dark:border-warning/20 dark:bg-warning/10',
+    positive: 'border-success/20 bg-success/5 dark:border-success/20 dark:bg-success/10',
   };
 
   const atRiskVehicles = vehicleHealths.filter((v) => v.health_score < 65);
@@ -409,7 +409,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
         <Card className="col-span-2 lg:col-span-1">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className={`flex h-12 w-12 items-center justify-center rounded-full ${overallHealth >= 85 ? 'bg-green-100 text-green-700' : overallHealth >= 65 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+              <div className={`flex h-12 w-12 items-center justify-center rounded-full ${overallHealth >= 85 ? 'bg-success/10 text-success' : overallHealth >= 65 ? 'bg-warning/10 text-warning' : 'bg-destructive/10 text-destructive'}`}>
                 <Activity className="h-6 w-6" />
               </div>
               <div>
@@ -455,7 +455,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
             </div>
             <p className="text-2xl font-bold text-destructive">{atRiskVehicles.length}</p>
             {weekOverWeekChange !== null && (
-              <p className={`text-xs flex items-center gap-1 ${weekOverWeekChange > 0 ? 'text-red-500' : 'text-green-500'}`}>
+              <p className={`text-xs flex items-center gap-1 ${weekOverWeekChange > 0 ? 'text-destructive' : 'text-success'}`}>
                 {weekOverWeekChange > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                 {Math.abs(weekOverWeekChange)}% fuel WoW
               </p>
@@ -547,7 +547,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
                   <div className="flex flex-wrap gap-1 mt-1">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className={`text-3xs px-1.5 py-0.5 rounded ${vh.fuel_efficiency_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.fuel_efficiency_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
+                        <span className={`text-3xs px-1.5 py-0.5 rounded ${vh.fuel_efficiency_score >= 85 ? 'bg-success/10 text-success dark:bg-success/10 dark:text-success' : vh.fuel_efficiency_score >= 65 ? 'bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning' : 'bg-destructive/10 text-destructive dark:bg-destructive/10 dark:text-destructive'} cursor-help`}>
                           Fuel {vh.fuel_efficiency_score}%
                         </span>
                       </TooltipTrigger>
@@ -555,7 +555,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className={`text-3xs px-1.5 py-0.5 rounded ${vh.maintenance_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.maintenance_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
+                        <span className={`text-3xs px-1.5 py-0.5 rounded ${vh.maintenance_score >= 85 ? 'bg-success/10 text-success dark:bg-success/10 dark:text-success' : vh.maintenance_score >= 65 ? 'bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning' : 'bg-destructive/10 text-destructive dark:bg-destructive/10 dark:text-destructive'} cursor-help`}>
                           Maint {vh.maintenance_score}%
                         </span>
                       </TooltipTrigger>
@@ -563,7 +563,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className={`text-3xs px-1.5 py-0.5 rounded ${vh.compliance_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.compliance_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
+                        <span className={`text-3xs px-1.5 py-0.5 rounded ${vh.compliance_score >= 85 ? 'bg-success/10 text-success dark:bg-success/10 dark:text-success' : vh.compliance_score >= 65 ? 'bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning' : 'bg-destructive/10 text-destructive dark:bg-destructive/10 dark:text-destructive'} cursor-help`}>
                           Compl {vh.compliance_score}%
                         </span>
                       </TooltipTrigger>
@@ -571,7 +571,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className={`text-3xs px-1.5 py-0.5 rounded ${vh.inspection_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.inspection_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
+                        <span className={`text-3xs px-1.5 py-0.5 rounded ${vh.inspection_score >= 85 ? 'bg-success/10 text-success dark:bg-success/10 dark:text-success' : vh.inspection_score >= 65 ? 'bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning' : 'bg-destructive/10 text-destructive dark:bg-destructive/10 dark:text-destructive'} cursor-help`}>
                           Insp {vh.inspection_score}%
                         </span>
                       </TooltipTrigger>
@@ -587,7 +587,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
                   )}
                 </div>
                 <div className="shrink-0">
-                  {vh.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
+                  {vh.trend === 'up' && <TrendingUp className="h-4 w-4 text-success" />}
                   {vh.trend === 'down' && <TrendingDown className="h-4 w-4 text-destructive" />}
                   {vh.trend === 'stable' && <Activity className="h-4 w-4 text-muted-foreground" />}
                 </div>
@@ -641,7 +641,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
       {/* Quick Actions */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
         <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => onNavigate('inspections')}>
-          <CheckCircle2 className="h-4 w-4 text-blue-500" />
+          <CheckCircle2 className="h-4 w-4 text-primary" />
           <span className="text-xs">Run Inspection</span>
         </Button>
         <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => onNavigate('maintenance')}>
@@ -653,7 +653,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
           <span className="text-xs">Review Anomalies</span>
         </Button>
         <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => onNavigate('compliance')}>
-          <Shield className="h-4 w-4 text-green-500" />
+          <Shield className="h-4 w-4 text-success" />
           <span className="text-xs">Compliance</span>
         </Button>
       </div>
