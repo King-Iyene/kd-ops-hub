@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 
 type IncidentType = 'verbal_warning' | 'written_warning' | 'final_warning' | 'query' | 'suspension' | 'termination' | 'counselling' | 'other';
 
@@ -104,6 +105,8 @@ export default function Disciplinary() {
   const [expungeTarget, setExpungeTarget] = useState<DisciplinaryRecord | null>(null);
   const [expungeReason, setExpungeReason] = useState('');
 
+  const { errors, setError, clearError, clearAll, hasErrors } = useFieldErrors<'employee_id' | 'subject'>();
+
   // Response
   const [responseTarget, setResponseTarget] = useState<string | null>(null);
   const [responseForm, setResponseForm] = useState({ ...EMPTY_RESPONSE });
@@ -125,6 +128,7 @@ export default function Disciplinary() {
   function openCreate() {
     setEditing(null);
     setForm({ ...EMPTY_FORM });
+    clearAll();
     setDialogOpen(true);
   }
 
@@ -140,16 +144,19 @@ export default function Disciplinary() {
       suspension_days: r.suspension_days != null ? String(r.suspension_days) : '',
       issued_by: r.issued_by ?? '__none__',
     });
+    clearAll();
     setDialogOpen(true);
   }
 
   async function handleSave() {
+    let valid = true;
     if (!form.employee_id || form.employee_id === '__none__') {
-      toast({ title: 'Please select an employee', variant: 'destructive' }); return;
+      setError('employee_id', 'Please select an employee'); valid = false;
     }
     if (!form.subject.trim()) {
-      toast({ title: 'Subject is required', variant: 'destructive' }); return;
+      setError('subject', 'Subject is required'); valid = false;
     }
+    if (!valid) return;
     setSaving(true);
     const payload = {
       employee_id: form.employee_id,
@@ -445,7 +452,7 @@ export default function Disciplinary() {
       )}
 
       {/* Create/Edit dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) clearAll(); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Record' : 'New Disciplinary Record'}</DialogTitle>
@@ -454,13 +461,14 @@ export default function Disciplinary() {
           <div className="space-y-4 py-2">
             <div className="space-y-1">
               <Label className="kd-label">Employee *</Label>
-              <Select value={form.employee_id} onValueChange={v => setForm(f => ({ ...f, employee_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+              <Select value={form.employee_id} onValueChange={v => { setForm(f => ({ ...f, employee_id: v })); clearError('employee_id'); }}>
+                <SelectTrigger aria-invalid={!!errors.employee_id}><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">— Select employee —</SelectItem>
                   {profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <FieldError message={errors.employee_id} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -481,7 +489,8 @@ export default function Disciplinary() {
             </div>
             <div className="space-y-1">
               <Label className="kd-label">Subject *</Label>
-              <Input placeholder="e.g. Unauthorised absence — 14 April 2026" value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} />
+              <Input aria-invalid={!!errors.subject} placeholder="e.g. Unauthorised absence — 14 April 2026" value={form.subject} onChange={e => { setForm(f => ({ ...f, subject: e.target.value })); clearError('subject'); }} />
+              <FieldError message={errors.subject} />
             </div>
             <div className="space-y-1">
               <Label className="kd-label">Description / Incident Details</Label>

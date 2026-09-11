@@ -51,6 +51,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 import { AuroraHero } from '@/components/AuroraHero';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
@@ -130,6 +131,7 @@ const Clients = () => {
   const [pendingDelete, setPendingDelete] = useState<Client | null>(null);
 
   const canManage = hasRole(profile?.role, MANAGER_ROLES);
+  const { errors: fe, setError: setFieldError, clearError, clearAll: clearFieldErrors, hasErrors: hasFieldErrors } = useFieldErrors<'name' | 'email'>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -213,6 +215,7 @@ const Clients = () => {
   const openAdd = () => {
     setEditing(null);
     setForm(emptyForm);
+    clearFieldErrors();
     setDialog(true);
   };
 
@@ -231,14 +234,22 @@ const Clients = () => {
       start_date: c.start_date || '',
       notes: c.notes || '',
     });
+    clearFieldErrors();
     setDialog(true);
   };
 
   const save = async () => {
+    clearFieldErrors();
+    let valid = true;
     if (!form.name.trim()) {
-      toast({ title: 'Client name is required', variant: 'destructive' });
-      return;
+      setFieldError('name', 'Client name is required');
+      valid = false;
     }
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setFieldError('email', 'Enter a valid email address');
+      valid = false;
+    }
+    if (!valid) return;
     setSaving(true);
     try {
       const payload = {
@@ -489,7 +500,7 @@ const Clients = () => {
       </Card>
 
       {/* Add / Edit Dialog */}
-      <Dialog open={dialog} onOpenChange={(v) => { if (!v) setDialog(false); }}>
+      <Dialog open={dialog} onOpenChange={(v) => { if (!v) { setDialog(false); clearFieldErrors(); } }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit client' : 'Add client'}</DialogTitle>
@@ -501,9 +512,11 @@ const Clients = () => {
                 <Input
                   autoFocus
                   value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  aria-invalid={!!fe.name}
+                  onChange={(e) => { setForm((f) => ({ ...f, name: e.target.value })); clearError('name'); }}
                   placeholder="e.g. Acme Corporation"
                 />
+                <FieldError message={fe.name} />
               </div>
               <div className="space-y-1">
                 <Label>Industry</Label>
@@ -570,9 +583,11 @@ const Clients = () => {
                 <Input
                   type="email"
                   value={form.email}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  aria-invalid={!!fe.email}
+                  onChange={(e) => { setForm((f) => ({ ...f, email: e.target.value })); clearError('email'); }}
                   placeholder="contact@company.com"
                 />
+                <FieldError message={fe.email} />
               </div>
               <div className="space-y-1">
                 <Label>Phone</Label>

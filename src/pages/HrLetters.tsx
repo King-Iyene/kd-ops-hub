@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 
 type LetterType = 'confirmation' | 'promotion' | 'employment_verification' | 'reference' | 'termination' | 'salary_review' | 'warning' | 'custom';
 type LetterStatus = 'draft' | 'issued' | 'revoked';
@@ -102,6 +103,7 @@ export default function HrLetters() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<HrLetter | null>(null);
   const [signingLetter, setSigningLetter] = useState<HrLetter | null>(null);
+  const { errors, setError, clearError, clearAll, hasErrors } = useFieldErrors<'employee_id' | 'title' | 'body_html'>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -119,6 +121,7 @@ export default function HrLetters() {
   function openCreate() {
     setEditing(null);
     setForm({ ...EMPTY_FORM });
+    clearAll();
     setDialogOpen(true);
   }
 
@@ -132,19 +135,23 @@ export default function HrLetters() {
       effective_date: letter.effective_date ?? '',
       status: letter.status,
     });
+    clearAll();
     setDialogOpen(true);
   }
 
   async function handleSave() {
+    clearAll();
+    let valid = true;
     if (!form.employee_id || form.employee_id === '__none__') {
-      toast({ title: 'Please select an employee', variant: 'destructive' }); return;
+      setError('employee_id', 'Please select an employee'); valid = false;
     }
     if (!form.title.trim()) {
-      toast({ title: 'Title is required', variant: 'destructive' }); return;
+      setError('title', 'Title is required'); valid = false;
     }
     if (!form.body_html.trim()) {
-      toast({ title: 'Letter body is required', variant: 'destructive' }); return;
+      setError('body_html', 'Letter body is required'); valid = false;
     }
+    if (!valid) return;
     setSaving(true);
     const payload: Record<string, unknown> = {
       employee_id: form.employee_id,
@@ -340,7 +347,7 @@ export default function HrLetters() {
         </div>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) clearAll(); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Letter' : 'New HR Letter'}</DialogTitle>
@@ -349,13 +356,14 @@ export default function HrLetters() {
           <div className="space-y-4 py-2">
             <div className="space-y-1">
               <Label className="kd-label">Employee *</Label>
-              <Select value={form.employee_id} onValueChange={v => setForm(f => ({ ...f, employee_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+              <Select value={form.employee_id} onValueChange={v => { setForm(f => ({ ...f, employee_id: v })); clearError('employee_id'); }}>
+                <SelectTrigger aria-invalid={!!errors.employee_id}><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">{'—'} Select employee {'—'}</SelectItem>
                   {profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <FieldError message={errors.employee_id} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -383,11 +391,13 @@ export default function HrLetters() {
             </div>
             <div className="space-y-1">
               <Label className="kd-label">Title *</Label>
-              <Input placeholder="e.g. Confirmation of Employment" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+              <Input placeholder="e.g. Confirmation of Employment" value={form.title} aria-invalid={!!errors.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); clearError('title'); }} />
+              <FieldError message={errors.title} />
             </div>
             <div className="space-y-1">
               <Label className="kd-label">Letter Body *</Label>
-              <Textarea rows={8} placeholder="Full letter content (HTML supported)..." value={form.body_html} onChange={e => setForm(f => ({ ...f, body_html: e.target.value }))} />
+              <Textarea rows={8} placeholder="Full letter content (HTML supported)..." value={form.body_html} aria-invalid={!!errors.body_html} onChange={e => { setForm(f => ({ ...f, body_html: e.target.value })); clearError('body_html'); }} />
+              <FieldError message={errors.body_html} />
             </div>
             <div className="space-y-1">
               <Label className="kd-label">Effective Date</Label>

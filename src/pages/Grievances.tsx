@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -97,6 +98,7 @@ export default function Grievances() {
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
+  const { errors: fe, setError, clearError, clearAll: clearFieldErrors, hasErrors } = useFieldErrors<'subject' | 'description'>();
 
   const [viewTarget, setViewTarget] = useState<Grievance | null>(null);
   const [updateStatus, setUpdateStatus] = useState<Status>('open');
@@ -119,6 +121,7 @@ export default function Grievances() {
 
   function openCreate() {
     setForm({ ...EMPTY_FORM });
+    clearFieldErrors();
     setCreateOpen(true);
   }
 
@@ -130,12 +133,11 @@ export default function Grievances() {
   }
 
   async function handleCreate() {
-    if (!form.subject.trim()) {
-      toast({ title: 'Subject is required', variant: 'destructive' }); return;
-    }
-    if (!form.description.trim()) {
-      toast({ title: 'Description is required', variant: 'destructive' }); return;
-    }
+    clearFieldErrors();
+    let valid = true;
+    if (!form.subject.trim()) { setError('subject', 'Subject is required'); valid = false; }
+    if (!form.description.trim()) { setError('description', 'Description is required'); valid = false; }
+    if (!valid) return;
     setSaving(true);
     const payload = {
       subject: form.subject.trim(),
@@ -350,7 +352,7 @@ export default function Grievances() {
       )}
 
       {/* Create dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={createOpen} onOpenChange={o => { setCreateOpen(o); if (!o) clearFieldErrors(); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Report a Grievance</DialogTitle>
@@ -359,11 +361,13 @@ export default function Grievances() {
           <div className="space-y-4 py-2">
             <div className="space-y-1">
               <Label className="kd-label">Subject *</Label>
-              <Input placeholder="Brief summary of the grievance" value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} />
+              <Input placeholder="Brief summary of the grievance" value={form.subject} aria-invalid={!!fe.subject} onChange={e => { setForm(f => ({ ...f, subject: e.target.value })); clearError('subject'); }} />
+              <FieldError message={fe.subject} />
             </div>
             <div className="space-y-1">
               <Label className="kd-label">Description *</Label>
-              <Textarea rows={5} placeholder="Provide as much detail as possible including dates, people involved, and any evidence..." value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+              <Textarea rows={5} placeholder="Provide as much detail as possible including dates, people involved, and any evidence..." value={form.description} aria-invalid={!!fe.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); clearError('description'); }} />
+              <FieldError message={fe.description} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
