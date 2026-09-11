@@ -46,7 +46,7 @@ const TYPE_COLOR: Record<LetterType, string> = {
   termination:             'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
   salary_review:           'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
   warning:                 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
-  custom:                  'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+  custom:                  'bg-muted text-muted-foreground',
 };
 
 const STATUS_CONFIG: Record<LetterStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {

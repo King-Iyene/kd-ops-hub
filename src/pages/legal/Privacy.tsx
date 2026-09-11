@@ -101,7 +101,7 @@ export default function Privacy() {
 
           <h2 className="text-lg font-semibold">9. Contact us</h2>
           <p>
-            For privacy questions or to exercise any right: <a href="mailto:privacy@kdsquares.com" className="text-primary underline">privacy@kdsquares.com</a>.
+            For privacy questions or to exercise any right: <a href="mailto:privacy@kdsquares.com" className="text-primary underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded">privacy@kdsquares.com</a>.
             You may also lodge a complaint with the Nigeria Data Protection Commission (NDPC).
           </p>
 

@@ -1135,7 +1135,7 @@ const Tasks = () => {
                   <X className="h-3 w-3" />
                 </button>
               ))}
-              <button onClick={clearFilters} className="text-2xs text-muted-foreground hover:text-foreground ml-1">
+              <button onClick={clearFilters} className="text-2xs text-muted-foreground hover:text-foreground ml-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded">
                 Clear all
               </button>
             </div>

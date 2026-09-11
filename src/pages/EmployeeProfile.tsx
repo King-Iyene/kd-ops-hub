@@ -1138,8 +1138,13 @@ const EmployeeProfile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-[50vh] flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <div className="space-y-4 p-4">
+        <div className="h-8 w-48 bg-muted animate-pulse rounded-lg" />
+        <div className="h-24 bg-muted animate-pulse rounded-xl" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-24 bg-muted animate-pulse rounded-xl" />)}
+        </div>
+        <div className="h-64 bg-muted animate-pulse rounded-xl" />
       </div>
     );
   }

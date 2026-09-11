@@ -2041,7 +2041,7 @@ const BatchDetail = () => {
                 ref). Each row is ~40px tall with subtle dividers and
                 font-mono on every numeric / identifier so dense lists
                 scan cleanly at a glance. */}
-            <div className="hidden md:block">
+            <div className="hidden md:block overflow-x-auto">
             <Table className="text-xs-plus">
               <TableHeader>
                 <TableRow className="border-b border-border/50 hover:bg-transparent">

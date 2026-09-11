@@ -310,7 +310,7 @@ export default function Disciplinary() {
           </SelectContent>
         </Select>
         <label className="flex items-center gap-2 text-sm cursor-pointer">
-          <input type="checkbox" checked={showExpunged} onChange={e => setShowExpunged(e.target.checked)} className="h-4 w-4" />
+          <input type="checkbox" checked={showExpunged} onChange={e => setShowExpunged(e.target.checked)} className="h-4 w-4 focus-visible:ring-2 focus-visible:ring-ring" />
           Show expunged
         </label>
         <Button variant="outline" size="sm" onClick={exportCSV} className="gap-2">

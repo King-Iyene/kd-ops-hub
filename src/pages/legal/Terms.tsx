@@ -38,7 +38,7 @@ export default function Terms() {
           <p>
             You are responsible for the security of your account credentials. We strongly recommend
             enabling two-factor authentication. You agree to notify us promptly at
-            <a href="mailto:security@kdsquares.com" className="text-primary underline mx-1">security@kdsquares.com</a>
+            <a href="mailto:security@kdsquares.com" className="text-primary underline mx-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded">security@kdsquares.com</a>
             of any suspected unauthorised access.
           </p>
 

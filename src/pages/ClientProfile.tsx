@@ -378,7 +378,7 @@ const ClientProfile = () => {
                 <p className="text-sm flex items-center gap-2 text-muted-foreground">
                   <Globe className="h-3.5 w-3.5 shrink-0" />
                   {safeHref(client.website) ? (
-                    <a href={safeHref(client.website)!} target="_blank" rel="noopener noreferrer" className="hover:underline truncate">
+                    <a href={safeHref(client.website)!} target="_blank" rel="noopener noreferrer" className="hover:underline truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded">
                       {client.website}
                     </a>
                   ) : (

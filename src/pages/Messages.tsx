@@ -391,7 +391,7 @@ export default function Messages() {
             ) : (
               <>
                 <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-                  <button className="md:hidden text-muted-foreground" onClick={() => setActiveId(null)} aria-label="Back">
+                  <button className="md:hidden text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded" onClick={() => setActiveId(null)} aria-label="Back">
                     <X className="h-4 w-4" />
                   </button>
                   <div className="min-w-0">

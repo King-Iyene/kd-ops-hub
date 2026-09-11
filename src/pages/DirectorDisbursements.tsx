@@ -2489,7 +2489,7 @@ function PersonalTransferBatchDialog({
               return (
                 <div key={b.id} className={`rounded-lg border px-3 py-2.5 kd-transition ${isSelected ? 'border-primary/40 bg-primary/5' : 'border-border/60'}`}>
                   <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" checked={isSelected} onChange={() => toggle(b.id)} className="h-4 w-4 accent-primary" />
+                    <input type="checkbox" checked={isSelected} onChange={() => toggle(b.id)} className="h-4 w-4 accent-primary focus-visible:ring-2 focus-visible:ring-ring" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{b.label}</p>
                       <p className="text-xs text-muted-foreground truncate">{b.bank_name} · {b.account_number}</p>

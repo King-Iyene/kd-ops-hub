@@ -86,7 +86,7 @@ const LOAN_TYPE_COLORS: Record<LoanType, string> = {
   emergency: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
   education: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
   housing: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
-  other: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300',
+  other: 'bg-muted text-muted-foreground',
 };
 
 const REPAYMENT_TYPE_LABELS: Record<RepaymentType, string> = {

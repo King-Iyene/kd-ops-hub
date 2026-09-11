@@ -363,7 +363,7 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
                     className={cn('flex items-center gap-3 px-4 py-3 transition-colors', txn.batchId ? 'hover:bg-muted/50 cursor-pointer' : 'hover:bg-muted/30')}>
                     <div className={cn(
                       'h-9 w-9 rounded-lg flex items-center justify-center shrink-0 border',
-                      BATCH_TYPE_STYLE[txn.batchType] || 'bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20',
+                      BATCH_TYPE_STYLE[txn.batchType] || 'bg-muted text-muted-foreground border-border',
                     )}>
                       <TypeIcon className="h-4 w-4" />
                     </div>
@@ -372,7 +372,7 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
                         <span className="text-sm font-medium truncate">{txn.batchName}</span>
                         <span className={cn(
                           'inline-flex items-center px-1.5 py-0.5 rounded text-3xs font-medium border',
-                          BATCH_TYPE_STYLE[txn.batchType] || 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20',
+                          BATCH_TYPE_STYLE[txn.batchType] || 'bg-muted text-muted-foreground border-border',
                         )}>
                           {BATCH_TYPE_LABEL[txn.batchType] || txn.batchType}
                         </span>

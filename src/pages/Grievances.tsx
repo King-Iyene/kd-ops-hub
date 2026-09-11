@@ -37,7 +37,7 @@ const CATEGORY_CONFIG: Record<Category, { label: string; className: string }> = 
   management:       { label: 'Management',         className: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800' },
   policy_violation: { label: 'Policy Violation',   className: 'bg-slate-100 text-slate-800 dark:bg-slate-900/40 dark:text-slate-300 border-slate-200 dark:border-slate-800' },
   whistleblowing:   { label: 'Whistleblowing',     className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border-success/20' },
-  general:          { label: 'General',            className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-300 border-gray-200 dark:border-gray-800' },
+  general:          { label: 'General',            className: 'bg-muted text-muted-foreground border-border' },
 };
 
 const SEVERITY_CONFIG: Record<Severity, { label: string; variant: 'secondary' | 'outline' | 'destructive'; className?: string }> = {
@@ -394,7 +394,7 @@ export default function Grievances() {
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={form.is_anonymous} onChange={e => setForm(f => ({ ...f, is_anonymous: e.target.checked }))} className="h-4 w-4" />
+              <input type="checkbox" checked={form.is_anonymous} onChange={e => setForm(f => ({ ...f, is_anonymous: e.target.checked }))} className="h-4 w-4 focus-visible:ring-2 focus-visible:ring-ring" />
               Submit anonymously
             </label>
           </div>

@@ -1476,7 +1476,7 @@ const Contractors = () => {
               <Plus className="mr-1.5 h-3.5 w-3.5" /> Add condition
             </Button>
             <div className="flex items-center justify-between pt-2 border-t border-border/60">
-              <button type="button" onClick={clearAdvFilters} className="text-xs text-muted-foreground hover:text-foreground">
+              <button type="button" onClick={clearAdvFilters} className="text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded">
                 Clear
               </button>
               <Button size="xs" onClick={applyAdvFilters}>Apply</Button>
@@ -1667,7 +1667,7 @@ const Contractors = () => {
                       </span>
                     </span>
                   ))}
-                  <button type="button" onClick={clearAdvFilters} className="text-xs text-primary hover:underline ml-1">
+                  <button type="button" onClick={clearAdvFilters} className="text-xs text-primary hover:underline ml-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded">
                     Clear
                   </button>
                 </div>

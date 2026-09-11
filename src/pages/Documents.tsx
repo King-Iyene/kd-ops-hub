@@ -1224,7 +1224,7 @@ const Documents = () => {
                       <FileIcon className="h-3 w-3 shrink-0" />
                       <span className="truncate flex-1" title={f.name}>{f.name}</span>
                       <span className="shrink-0">{formatBytes(f.size)}</span>
-                      <button onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}>
+                      <button onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded">
                         <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                       </button>
                     </div>

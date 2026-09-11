@@ -318,7 +318,7 @@ export default function Vendors() {
                   <td className="px-3 py-3 space-y-0.5">
                     {v.contact_name && <p className="text-xs">{v.contact_name}</p>}
                     {v.contact_email && (
-                      <a href={`mailto:${v.contact_email}`} className="flex items-center gap-1 text-2xs text-primary">
+                      <a href={`mailto:${v.contact_email}`} className="flex items-center gap-1 text-2xs text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded">
                         <Mail className="h-3 w-3" />{v.contact_email}
                       </a>
                     )}

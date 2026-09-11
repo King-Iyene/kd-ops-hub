@@ -1622,7 +1622,7 @@ function GridView({
   const renderRow = (r: FlexRecord) => (
     <tr key={r.id} className="group hover:bg-muted/20">
       <td className="px-2 text-center border-r border-b border-border/60">
-        <button onClick={() => onDeleteRow(r.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive" aria-label="Delete row">
+        <button onClick={() => onDeleteRow(r.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded" aria-label="Delete row">
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </td>

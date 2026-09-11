@@ -155,7 +155,7 @@ function SortHeader({ label, field, sortField, sortDir, onSort }: {
 }) {
   const active = sortField === field;
   return (
-    <button onClick={() => onSort(field)} className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
+    <button onClick={() => onSort(field)} className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded">
       {label}
       {active && (sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
     </button>

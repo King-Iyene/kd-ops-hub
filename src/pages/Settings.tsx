@@ -331,8 +331,12 @@ const SettingsPage = () => {
 
   if (loading || !settings)
     return (
-      <div className="min-h-[40vh] flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="space-y-4 p-4">
+        <div className="h-8 w-36 bg-muted animate-pulse rounded-lg" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 bg-muted animate-pulse rounded-xl" />)}
+        </div>
+        <div className="h-48 bg-muted animate-pulse rounded-xl" />
       </div>
     );
 

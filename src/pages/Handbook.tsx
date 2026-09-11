@@ -56,7 +56,7 @@ const CATEGORY_COLOR: Record<PolicyCategory, string> = {
   data_privacy: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
   dress_code: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300',
   remote_work: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300',
-  other: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  other: 'bg-muted text-muted-foreground',
 };
 
 interface Policy {
