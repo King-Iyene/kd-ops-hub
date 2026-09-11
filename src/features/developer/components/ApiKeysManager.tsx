@@ -568,7 +568,7 @@ export default function ApiKeysManager() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+            <div className="p-4 rounded-lg bg-warning/10/30 border border-warning/20">
               <div className="flex items-start gap-2 mb-3">
                 <AlertTriangle size={16} className="text-warning mt-0.5 shrink-0" />
                 <p className="text-xs text-warning">
@@ -576,7 +576,7 @@ export default function ApiKeysManager() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <code className="flex-1 text-sm font-mono bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-800 rounded px-3 py-2.5 text-zinc-900 dark:text-zinc-100 break-all select-all">
+                <code className="flex-1 text-sm font-mono bg-white dark:bg-zinc-900 border border-warning/20 rounded px-3 py-2.5 text-zinc-900 dark:text-zinc-100 break-all select-all">
                   {createdRawKey}
                 </code>
                 <Button

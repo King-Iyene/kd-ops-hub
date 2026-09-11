@@ -703,7 +703,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
           <div className="bg-white dark:bg-[hsl(220,20%,10%)] rounded-2xl border border-[#E2E8F0] dark:border-[hsl(220,15%,18%)] shadow-lg shadow-black/[0.04] overflow-hidden">
             <div className="h-2 rounded-t-2xl" style={{ background: coverColor }} />
             <div className="p-12 flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-success/10/20 flex items-center justify-center mb-6">
                 <CheckCircle size={36} className="text-emerald-500" />
               </div>
               <h2 className="text-xl font-semibold text-[#1E293B] dark:text-[hsl(210,20%,90%)] mb-2">

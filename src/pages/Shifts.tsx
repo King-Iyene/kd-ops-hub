@@ -268,7 +268,7 @@ export default function Shifts() {
 
   const statusBadge = (status: ShiftStatus) => {
     const className =
-      status === 'swap_requested' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800' :
+      status === 'swap_requested' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-warning/20' :
       status === 'swapped' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800' :
       undefined;
 

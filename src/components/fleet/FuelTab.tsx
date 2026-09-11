@@ -2050,7 +2050,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
                         {r.status === 'budget_blocked'
-                          ? <Badge variant="outline" className="border-red-300 text-red-700 bg-red-50 dark:bg-red-950/20 dark:text-red-400">Over Budget</Badge>
+                          ? <Badge variant="outline" className="border-red-300 text-red-700 bg-destructive/10/20 dark:text-red-400">Over Budget</Badge>
                           : <StatusBadge status={displayFuelStatus(r)} />}
                       </div>
                       {r.status === 'rejected' && r.rejection_reason && (
@@ -2067,8 +2067,8 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                             className={cn(
                               'ml-1.5 gap-1 cursor-default',
                               r.anomaly_type?.includes('duplicate_receipt')
-                                ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/20'
-                                : 'border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/20',
+                                ? 'border-red-400 text-red-700 bg-destructive/10/20'
+                                : 'border-amber-400 text-amber-700 bg-warning/10/20',
                             )}
                           >
                             <AlertTriangle className="h-3 w-3" />
@@ -2259,7 +2259,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
 
                   <div className="flex items-center gap-3 text-xs">
                     {r.status === 'budget_blocked'
-                      ? <Badge variant="outline" className="border-red-300 text-red-700 bg-red-50 dark:bg-red-950/20 dark:text-red-400">Over Budget</Badge>
+                      ? <Badge variant="outline" className="border-red-300 text-red-700 bg-destructive/10/20 dark:text-red-400">Over Budget</Badge>
                       : <StatusBadge status={displayFuelStatus(r)} />}
                     <span className="text-muted-foreground tabular-nums ml-auto">
                       {r.litres_est ? `${r.litres_est} L` : ''}
@@ -3085,8 +3085,8 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
               <div className="grid grid-cols-3 gap-2">
                 {([
                   { val: 'routine' as const, label: 'Routine', desc: 'Scheduled / planned', color: 'text-blue-600 border-blue-300 bg-blue-50 dark:bg-blue-950/20' },
-                  { val: 'urgent' as const, label: 'Urgent', desc: 'Needs attention soon', color: 'text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/20' },
-                  { val: 'emergency' as const, label: 'Emergency', desc: 'Vehicle unsafe', color: 'text-red-600 border-red-300 bg-red-50 dark:bg-red-950/20' },
+                  { val: 'urgent' as const, label: 'Urgent', desc: 'Needs attention soon', color: 'text-amber-600 border-amber-300 bg-warning/10/20' },
+                  { val: 'emergency' as const, label: 'Emergency', desc: 'Vehicle unsafe', color: 'text-red-600 border-red-300 bg-destructive/10/20' },
                 ]).map(({ val, label, desc, color }) => (
                   <button key={val} type="button"
                     className={cn('rounded-xl border p-2.5 text-center text-xs kd-transition',
@@ -3142,7 +3142,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                 }}
               />
               {repairReceipt ? (
-                <div className="flex items-center gap-3 rounded-xl border-2 border-green-400 bg-green-50 dark:bg-green-950/20 px-4 py-3">
+                <div className="flex items-center gap-3 rounded-xl border-2 border-green-400 bg-success/10/20 px-4 py-3">
                   <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                   <span className="text-sm text-green-700 dark:text-green-400 truncate flex-1">{repairReceipt.name}</span>
                   <button type="button" className="text-xs text-muted-foreground hover:text-destructive shrink-0" onClick={() => { setRepairReceipt(null); setRepairReceiptOcrAmount(''); }}>

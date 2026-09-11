@@ -233,7 +233,7 @@ export default function IntegrationsTab({ settings, patch, isSuperAdmin }: Props
           <CardTitle className="text-base">Termii (WhatsApp &amp; SMS)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300">
+          <div className="flex items-start gap-2 rounded-lg bg-warning/10/30 border border-warning/20 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300">
             <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
             <p>SMS and WhatsApp delivery via Termii is not yet active in KDOps. Configuration saved here will be used when this integration is enabled. No messages are currently being sent via Termii.</p>
           </div>

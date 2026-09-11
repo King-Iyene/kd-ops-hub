@@ -1085,7 +1085,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                 airtable.com/create/tokens <ExternalLink size={11} />
               </a>
             </p>
-            <div className="rounded-lg border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/10 px-3 py-2.5">
+            <div className="rounded-lg border border-warning/20/40 bg-warning/10/10 px-3 py-2.5">
               <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
                 <strong>Required scopes:</strong> <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded text-2xs">data.records:read</code> and <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded text-2xs">schema.bases:read</code> for the bases you want to import.
               </p>
@@ -1289,7 +1289,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             )}
 
             {progress.errors.length > 0 && (
-              <div className="rounded-lg border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/10 px-3 py-2 space-y-1">
+              <div className="rounded-lg border border-warning/20/40 bg-warning/10/10 px-3 py-2 space-y-1">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
                   <AlertTriangle size={12} /> {progress.errors.length} warning{progress.errors.length !== 1 ? 's' : ''}
                 </div>
@@ -1328,7 +1328,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               {importedRecordCount > 0 && ` with ${formatNumber(importedRecordCount)} records`} from Airtable.
             </p>
             {progress.errors.length > 0 && (
-              <div className="text-left rounded-lg border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/10 px-3 py-2 space-y-1 max-h-32 overflow-y-auto">
+              <div className="text-left rounded-lg border border-warning/20/40 bg-warning/10/10 px-3 py-2 space-y-1 max-h-32 overflow-y-auto">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
                   <AlertTriangle size={12} /> Some records had issues
                 </div>

@@ -239,7 +239,7 @@ export function DriverLeaderboard() {
           <div
             key={d.driver_id}
             className={`flex items-center gap-3 rounded-md px-3 py-2 transition-colors ${
-              i === 0 ? 'bg-amber-50 dark:bg-amber-950/20 ring-1 ring-amber-200 dark:ring-amber-800' :
+              i === 0 ? 'bg-warning/10/20 ring-1 ring-amber-200 dark:ring-amber-800' :
               i === 1 ? 'bg-slate-50 dark:bg-slate-900/30' :
               i === 2 ? 'bg-orange-50/50 dark:bg-orange-950/10' :
               'hover:bg-muted/50'

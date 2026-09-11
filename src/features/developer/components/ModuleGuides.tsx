@@ -1759,7 +1759,7 @@ function ModuleContent({ module: mod }: { module: ModuleDef }) {
 
       {/* Warnings */}
       {mod.warnings?.map((w, i) => (
-        <div key={i} className="flex gap-3 p-4 rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/40">
+        <div key={i} className="flex gap-3 p-4 rounded-lg border border-amber-300 dark:border-amber-700/60 bg-warning/10/40">
           <AlertTriangle size={18} className="shrink-0 text-warning mt-0.5" />
           <p className="text-sm font-medium text-amber-800 dark:text-amber-300 leading-relaxed">{w.text}</p>
         </div>
@@ -1882,7 +1882,7 @@ function ModuleContent({ module: mod }: { module: ModuleDef }) {
         </h3>
         <div className="space-y-2">
           {mod.mistakes.map((m, i) => (
-            <div key={i} className="flex gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
+            <div key={i} className="flex gap-2.5 p-3 rounded-lg bg-warning/10/30 border border-warning/20/50">
               <AlertTriangle size={14} className="shrink-0 text-amber-500 mt-0.5" />
               <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">{m.text}</p>
             </div>

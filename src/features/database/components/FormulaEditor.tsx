@@ -279,7 +279,7 @@ export function FormulaEditor({ value, onChange, fields, error, sampleRecords: s
 
       {/* Live preview panel */}
       {preview.status === 'error' && (
-        <div className="mt-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40">
+        <div className="mt-2 px-3 py-2 rounded-lg bg-destructive/10/20 border border-destructive/20/40">
           <p className="text-xs text-destructive font-mono">{preview.message}</p>
         </div>
       )}
@@ -299,7 +299,7 @@ export function FormulaEditor({ value, onChange, fields, error, sampleRecords: s
         </div>
       )}
       {preview.status === 'ok' && preview.rows.length === 0 && value.trim() && (
-        <div className="mt-2 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-900/15 border border-green-200 dark:border-green-800/40">
+        <div className="mt-2 px-3 py-2 rounded-lg bg-success/10/15 border border-success/20/40">
           <p className="text-xs text-success">Formula parses successfully. Add records to see preview values.</p>
         </div>
       )}

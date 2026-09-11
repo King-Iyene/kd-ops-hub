@@ -837,7 +837,7 @@ function DefectsTab({
         const veh = vehicleMap.get(d.vehicle_id);
         const failedItems = d.checklist?.items?.filter((item) => item.status === 'fail') ?? [];
         return (
-          <Card key={d.id} className="border-amber-200 dark:border-amber-800/50">
+          <Card key={d.id} className="border-warning/20/50">
             <CardContent className="pt-4 pb-4 space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -1133,7 +1133,7 @@ function InspectionDetailDialog({
                   {formatDate(inspection.reviewed_at)}
                 </p>
                 {inspection.review_note && (
-                  <p className="mt-1 bg-emerald-50 dark:bg-emerald-950/30 rounded-md px-3 py-2 text-emerald-800 dark:text-emerald-300 whitespace-pre-line">
+                  <p className="mt-1 bg-success/10/30 rounded-md px-3 py-2 text-emerald-800 dark:text-emerald-300 whitespace-pre-line">
                     {inspection.review_note}
                   </p>
                 )}
@@ -1143,7 +1143,7 @@ function InspectionDetailDialog({
 
           {hasUnresolvedDefect && (
             <div className="border-t pt-3">
-              <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+              <div className="flex items-center justify-between bg-warning/10/30 border border-warning/20 rounded-lg p-4">
                 <div>
                   <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">This inspection has unresolved defects</p>
                   <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">Record what was done to fix the issue</p>

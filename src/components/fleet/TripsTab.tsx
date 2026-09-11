@@ -1104,14 +1104,14 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
             </div>
             {/* Live GPS tracking status */}
             {lastBreadcrumbAt && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-green-200 dark:border-green-800 pt-2">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-success/20 pt-2">
                 <Radio className="h-3 w-3 text-green-500 animate-pulse shrink-0" />
                 <span>
                   GPS tracking active · Last ping {formatTime(lastBreadcrumbAt)} · {breadcrumbCount} pings recorded
                 </span>
               </div>
             )}
-            <div className="flex gap-2 pt-1 border-t border-green-200 dark:border-green-800">
+            <div className="flex gap-2 pt-1 border-t border-success/20">
               <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={openEndTrip}>
                 <Navigation className="h-4 w-4 mr-2 rotate-180" /> End Trip
               </Button>
@@ -1139,7 +1139,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                   const lv = vehicles.find((v) => v.id === t.vehicle_id);
                   const elSec = t.trip_start_time ? Math.floor((Date.now() - Date.parse(t.trip_start_time)) / 1000) : null;
                   return (
-                    <div key={t.id} className="bg-white dark:bg-green-950/40 rounded border border-green-200 dark:border-green-800 px-3 py-2 space-y-0.5">
+                    <div key={t.id} className="bg-white dark:bg-green-950/40 rounded border border-success/20 px-3 py-2 space-y-0.5">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-sm font-medium truncate">{t.employee_name}</span>
                         {elSec != null && (
@@ -1344,7 +1344,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                     </div>
 
                     {t.is_anomaly && t.anomaly_reason && (
-                      <div className="flex items-start gap-1.5 rounded-md bg-red-50 dark:bg-red-950/20 px-2 py-1.5 text-2xs text-destructive">
+                      <div className="flex items-start gap-1.5 rounded-md bg-destructive/10/20 px-2 py-1.5 text-2xs text-destructive">
                         <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
                         <span className="leading-snug">{t.anomaly_reason}</span>
                       </div>
@@ -1678,7 +1678,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
               )}
 
               {endGeoState === 'ok' && endCoords && (
-                <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 dark:bg-green-950/30 dark:border-green-800 px-4 py-3.5">
+                <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-success/10/30 dark:border-green-800 px-4 py-3.5">
                   <LocateFixed className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-green-800 dark:text-green-200 break-words leading-snug">
@@ -1704,7 +1704,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
               )}
 
               {isGeoError(endGeoState) && (
-                <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-3.5">
+                <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-warning/10/30 dark:border-amber-800 px-4 py-3.5">
                   <LocateOff className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-amber-800 dark:text-amber-200">GPS unavailable</p>

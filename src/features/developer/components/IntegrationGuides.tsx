@@ -96,14 +96,14 @@ function Callout({ type, children }: { type: 'tip' | 'warning' | 'info'; childre
   const styles = {
     tip: {
       border: 'border-emerald-300 dark:border-emerald-800',
-      bg: 'bg-emerald-50 dark:bg-emerald-950/30',
+      bg: 'bg-success/10/30',
       icon: <Lightbulb size={14} className="text-success shrink-0 mt-0.5" />,
       label: 'Pro Tip',
       labelColor: 'text-emerald-700 dark:text-emerald-400',
     },
     warning: {
       border: 'border-amber-300 dark:border-amber-800',
-      bg: 'bg-amber-50 dark:bg-amber-950/30',
+      bg: 'bg-warning/10/30',
       icon: <AlertTriangle size={14} className="text-warning shrink-0 mt-0.5" />,
       label: 'Important',
       labelColor: 'text-amber-700 dark:text-amber-400',

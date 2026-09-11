@@ -267,7 +267,7 @@ export default function ApiOverview({
       </section>
 
       {/* Bank Details Warning */}
-      <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-300/50 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-900/10">
+      <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-300/50 dark:border-amber-500/30 bg-warning/10/10">
         <AlertTriangle className="h-5 w-5 text-warning mt-0.5 shrink-0" />
         <div>
           <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-1">Bank Details Required for Disbursements</h3>

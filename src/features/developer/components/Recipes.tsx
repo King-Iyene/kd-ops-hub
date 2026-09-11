@@ -580,7 +580,7 @@ function RecipeCard({ recipe }: { recipe: Recipe }) {
 
             {/* Important warning */}
             {recipe.important && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10/20 border border-warning/20">
                 <AlertTriangle className="h-4 w-4 text-warning flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-800 dark:text-amber-300">
                   <span className="font-semibold">Important:</span>{' '}

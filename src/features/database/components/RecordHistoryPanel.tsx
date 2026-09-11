@@ -81,13 +81,13 @@ function DiffView({
             <span className="font-medium text-[#6A7184] dark:text-[#9AA2AF]">{name}</span>
             <div className="flex items-start gap-1 mt-0.5 flex-wrap">
               {oldVal != null && (
-                <span className="inline-block px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-900/20 text-destructive line-through break-all">
+                <span className="inline-block px-1.5 py-0.5 rounded bg-destructive/10/20 text-destructive line-through break-all">
                   {formatValue(oldVal)}
                 </span>
               )}
               <ArrowRight size={10} className="text-[#9AA2AF] mt-1 shrink-0" />
               {newVal != null && (
-                <span className="inline-block px-1.5 py-0.5 rounded bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 break-all">
+                <span className="inline-block px-1.5 py-0.5 rounded bg-success/10/20 text-green-700 dark:text-green-300 break-all">
                   {formatValue(newVal)}
                 </span>
               )}

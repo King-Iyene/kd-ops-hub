@@ -399,7 +399,7 @@ export function GoogleCalendarSync({ tasks }: GoogleCalendarSyncProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-start gap-2 rounded-md border border-amber-300/40 bg-amber-50 dark:bg-amber-950/20 p-3">
+          <div className="flex items-start gap-2 rounded-md border border-amber-300/40 bg-warning/10/20 p-3">
             <span className="mt-0.5 inline-block h-2 w-2 rounded-full bg-amber-500 shrink-0" />
             <div className="text-xs">
               <p className="font-semibold text-amber-700 dark:text-amber-400">

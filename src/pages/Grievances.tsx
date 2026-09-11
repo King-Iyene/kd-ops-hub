@@ -30,13 +30,13 @@ type Severity = 'low' | 'medium' | 'high' | 'critical';
 type Status = 'open' | 'investigating' | 'resolved' | 'dismissed' | 'escalated';
 
 const CATEGORY_CONFIG: Record<Category, { label: string; className: string }> = {
-  harassment:       { label: 'Harassment',        className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800' },
+  harassment:       { label: 'Harassment',        className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-destructive/20' },
   discrimination:   { label: 'Discrimination',    className: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300 border-orange-200 dark:border-orange-800' },
   safety:           { label: 'Safety',             className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800' },
   pay_dispute:      { label: 'Pay Dispute',        className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200 dark:border-blue-800' },
   management:       { label: 'Management',         className: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800' },
   policy_violation: { label: 'Policy Violation',   className: 'bg-slate-100 text-slate-800 dark:bg-slate-900/40 dark:text-slate-300 border-slate-200 dark:border-slate-800' },
-  whistleblowing:   { label: 'Whistleblowing',     className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' },
+  whistleblowing:   { label: 'Whistleblowing',     className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border-success/20' },
   general:          { label: 'General',            className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-300 border-gray-200 dark:border-gray-800' },
 };
 

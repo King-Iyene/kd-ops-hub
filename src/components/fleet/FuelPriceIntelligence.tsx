@@ -251,7 +251,7 @@ export function FuelPriceIntelligence() {
     <div className="space-y-4">
       {/* Price Alerts */}
       {alerts.length > 0 && (
-        <Card className="border-amber-200 dark:border-amber-800">
+        <Card className="border-warning/20">
           <CardHeader className="pb-2 pt-4">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -397,7 +397,7 @@ export function FuelPriceIntelligence() {
                 key={r.station}
                 className={`flex items-center gap-3 rounded-md px-3 py-2 ${
                   i === 0
-                    ? 'bg-green-50 dark:bg-green-950/20 ring-1 ring-green-200 dark:ring-green-800'
+                    ? 'bg-success/10/20 ring-1 ring-green-200 dark:ring-green-800'
                     : 'bg-muted/50'
                 }`}
               >

@@ -364,7 +364,7 @@ function LeaveQuotasPanel() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">{p.name}</span>
                     {p.paid && (
-                      <span className="text-3xs font-medium text-success bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">Paid</span>
+                      <span className="text-3xs font-medium text-success bg-success/10/20 px-1.5 py-0.5 rounded">Paid</span>
                     )}
                     {!p.paid && p.accrual_type === 'unpaid' && (
                       <span className="text-3xs font-medium text-slate-500 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded">Unpaid</span>

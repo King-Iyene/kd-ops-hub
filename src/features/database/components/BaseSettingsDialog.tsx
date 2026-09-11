@@ -795,7 +795,7 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
       </div>
 
       {createdKey && (
-        <div className="rounded-lg border border-green-200 dark:border-green-800/40 bg-green-50 dark:bg-green-900/10 p-3 space-y-2">
+        <div className="rounded-lg border border-success/20/40 bg-success/10/10 p-3 space-y-2">
           <p className="text-xs font-medium text-green-700 dark:text-green-400">
             API key created — copy it now, you won't see it again
           </p>

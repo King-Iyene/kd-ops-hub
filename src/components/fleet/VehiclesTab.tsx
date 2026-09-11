@@ -699,7 +699,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
           <DialogFooter className="px-6 py-4 border-t border-border/60 bg-card/50 backdrop-blur-sm flex-col gap-3 mt-0">
             {/* Non-admin one-time warning — shown only when adding (not editing) */}
             {!isAdmin && !editing && (
-              <div className="w-full rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 px-4 py-3 space-y-2">
+              <div className="w-full rounded-xl border border-amber-300 bg-warning/10/30 dark:border-amber-700 px-4 py-3 space-y-2">
                 <div className="flex items-start gap-2.5">
                   <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                   <div>

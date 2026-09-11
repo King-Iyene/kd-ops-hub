@@ -383,7 +383,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
               />
             </div>
             {dialogTargetMode === 'live' && (
-              <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 dark:bg-red-950/30 p-2 text-xs text-red-800 dark:text-red-200">
+              <div className="flex items-start gap-2 rounded-md border border-red-200 bg-destructive/10/30 p-2 text-xs text-red-800 dark:text-red-200">
                 <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                 <span>Switching to <strong>LIVE</strong> mode on {providerLabel(dialogTargetProvider)}. Real money will move. Test with a small ₦100 batch before running payroll.</span>
               </div>

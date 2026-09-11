@@ -219,8 +219,8 @@ export function FuelStationComparison() {
                     const isCheapest = i === 0;
                     const isMostExpensive = i === stations.length - 1 && stations.length > 1;
                     let rowClass = '';
-                    if (isCheapest) rowClass = 'bg-green-50 dark:bg-green-950/30';
-                    if (isMostExpensive) rowClass = 'bg-red-50 dark:bg-red-950/30';
+                    if (isCheapest) rowClass = 'bg-success/10/30';
+                    if (isMostExpensive) rowClass = 'bg-destructive/10/30';
                     return (
                       <TableRow key={s.name} className={rowClass}>
                         <TableCell className="font-medium">

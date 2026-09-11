@@ -96,7 +96,7 @@ export function NotificationsCard() {
           </div>
         ) : publicKey ? (
           <>
-            <div className="flex items-start gap-2 rounded-md border border-emerald-300/40 bg-emerald-50 dark:bg-emerald-950/20 p-3">
+            <div className="flex items-start gap-2 rounded-md border border-emerald-300/40 bg-success/10/20 p-3">
               <span className="mt-0.5 inline-block h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
               <div className="text-xs">
                 <p className="font-semibold text-emerald-700 dark:text-emerald-400">Notifications are active</p>
@@ -149,7 +149,7 @@ export function NotificationsCard() {
           </>
         ) : (
           <>
-            <div className="flex items-start gap-2 rounded-md border border-amber-300/40 bg-amber-50 dark:bg-amber-950/20 p-3">
+            <div className="flex items-start gap-2 rounded-md border border-amber-300/40 bg-warning/10/20 p-3">
               <span className="mt-0.5 inline-block h-2 w-2 rounded-full bg-amber-500 shrink-0" />
               <div className="text-xs">
                 <p className="font-semibold text-amber-700 dark:text-amber-400">Notifications not yet configured</p>

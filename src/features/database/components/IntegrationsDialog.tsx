@@ -357,7 +357,7 @@ Headers:
       </div>
 
       {/* Auth info */}
-      <div className="rounded-lg border border-amber-200 dark:border-amber-800/40 p-3 bg-amber-50/50 dark:bg-amber-900/10">
+      <div className="rounded-lg border border-warning/20/40 p-3 bg-amber-50/50 dark:bg-amber-900/10">
         <div className="flex items-center gap-2 mb-1">
           <Shield size={12} className="text-warning" />
           <span className="text-2xs font-semibold text-amber-700 dark:text-amber-400">Authentication</span>
@@ -604,7 +604,7 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
       <CodeBlock label={active.codeLabel} code={active.code} language={activeTool === 'curl' ? 'bash' : 'JSON'} />
 
       {/* Webhook tip */}
-      <div className="rounded-lg border border-emerald-200 dark:border-emerald-800/40 p-3 bg-emerald-50/50 dark:bg-emerald-900/10">
+      <div className="rounded-lg border border-success/20/40 p-3 bg-emerald-50/50 dark:bg-emerald-900/10">
         <div className="flex items-center gap-2 mb-1">
           <Webhook size={12} className="text-success" />
           <span className="text-2xs font-semibold text-emerald-700 dark:text-emerald-400">Pro Tip: Two-Way Sync</span>

@@ -158,7 +158,7 @@ export function VehicleInspectionForm({
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1 min-h-0">
           {hasDefects && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 mb-3">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-warning/10/20 border border-warning/20 mb-3">
               <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
               <span className="text-sm text-amber-700 dark:text-amber-400">
                 {failCount} defect{failCount > 1 ? 's' : ''} found — vehicle may not be roadworthy

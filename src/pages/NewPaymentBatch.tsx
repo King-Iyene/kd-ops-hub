@@ -1417,7 +1417,7 @@ const NewPaymentBatch = () => {
             </div>
 
             {items.some((i) => i.item_type === 'adhoc' && !i.account_name) && (
-              <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 p-3 text-sm">
+              <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-warning/10/30 dark:border-amber-700 p-3 text-sm">
                 <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                 <div>
                   <p className="font-medium text-amber-800 dark:text-amber-300">Unverified bank accounts</p>

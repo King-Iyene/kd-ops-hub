@@ -60,8 +60,8 @@ interface SurveyResponse {
 const TYPE_BADGE: Record<Survey['survey_type'], { label: string; className: string }> = {
   pulse:       { label: 'Pulse',       className: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800' },
   engagement:  { label: 'Engagement',  className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800' },
-  exit:        { label: 'Exit',        className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800' },
-  onboarding:  { label: 'Onboarding',  className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800' },
+  exit:        { label: 'Exit',        className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-destructive/20' },
+  onboarding:  { label: 'Onboarding',  className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-success/20' },
   custom:      { label: 'Custom',      className: '' },
 };
 

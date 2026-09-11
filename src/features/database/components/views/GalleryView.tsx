@@ -357,7 +357,7 @@ function GalleryCard({
         {confirmDelete ? (
           <button
             title="Confirm delete"
-            className="p-1.5 rounded-md bg-red-50 dark:bg-red-900/30 border border-destructive/20
+            className="p-1.5 rounded-md bg-destructive/10/30 border border-destructive/20
               text-destructive hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors shadow-sm"
             onClick={() => { onDelete?.(record.id); setConfirmDelete(false); }}
             onMouseLeave={() => setConfirmDelete(false)}

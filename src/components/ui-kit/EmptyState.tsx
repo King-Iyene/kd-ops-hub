@@ -18,8 +18,8 @@ interface Props {
 const toneBg: Record<NonNullable<Props['tone']>, string> = {
   default:  'bg-muted/50',
   primary:  'bg-primary/8',
-  success:  'bg-emerald-50 dark:bg-emerald-900/20',
-  warning:  'bg-amber-50 dark:bg-amber-900/20',
+  success:  'bg-success/10/20',
+  warning:  'bg-warning/10/20',
   danger:   'bg-rose-50 dark:bg-rose-900/20',
 };
 

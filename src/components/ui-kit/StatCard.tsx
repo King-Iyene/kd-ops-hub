@@ -44,7 +44,7 @@ const toneConfig: Record<NonNullable<Props['tone']>, {
     border:  '',
   },
   success: {
-    iconBg:  'bg-emerald-50 dark:bg-emerald-900/25',
+    iconBg:  'bg-success/10/25',
     iconColor: 'text-success',
     dot:     'bg-emerald-500',
     trendUp: 'text-success',
@@ -53,7 +53,7 @@ const toneConfig: Record<NonNullable<Props['tone']>, {
     border:  '',
   },
   warning: {
-    iconBg:  'bg-amber-50 dark:bg-amber-900/25',
+    iconBg:  'bg-warning/10/25',
     iconColor: 'text-warning',
     dot:     'bg-amber-500',
     trendUp: 'text-success',
@@ -71,7 +71,7 @@ const toneConfig: Record<NonNullable<Props['tone']>, {
     border:  'border-l-[3px] border-l-rose-500/70',
   },
   gold: {
-    iconBg:  'bg-amber-50 dark:bg-amber-900/25',
+    iconBg:  'bg-warning/10/25',
     iconColor: 'text-amber-500 dark:text-amber-400',
     dot:     'bg-amber-400',
     trendUp: 'text-success',
