@@ -1245,8 +1245,14 @@ input[type=number] {
   /* Responsive stat grid — auto-fit for StatCard arrays */
   .kd-stat-grid {
     display: grid;
-    gap: 1rem;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (min-width: 640px) {
+    .kd-stat-grid {
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
   }
   @media (min-width: 768px) {
     .kd-stat-grid {

@@ -135,22 +135,22 @@ export function StatCard({
         <div className="pointer-events-none absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-200 bg-gradient-to-br from-transparent to-[hsl(var(--primary)/0.04)]" />
       )}
 
-      <div className={cn('relative z-[2]', compact ? 'p-3' : 'p-4 sm:p-5')}>
+      <div className={cn('relative z-[2]', compact ? 'p-3' : 'p-3 sm:p-4 md:p-5')}>
         {/* Header row: label + icon */}
-        <div className={cn('flex items-start justify-between gap-2', compact ? 'mb-1.5' : 'mb-3')}>
+        <div className={cn('flex items-start justify-between gap-1.5 sm:gap-2', compact ? 'mb-1.5' : 'mb-2 sm:mb-3')}>
           <div className="flex items-center gap-1.5 min-w-0">
             <span className={cn('h-1.5 w-1.5 rounded-full shrink-0 mt-px', cfg.dot)} />
-            <p className={cn('font-semibold uppercase tracking-[0.08em] text-muted-foreground/80 leading-tight pt-px', compact ? 'text-3xs' : 'text-2xs')}>
+            <p className={cn('font-semibold uppercase tracking-[0.08em] text-muted-foreground/80 leading-tight pt-px', compact ? 'text-3xs' : 'text-3xs sm:text-2xs')}>
               {title}
             </p>
           </div>
           {Icon && (
             <div className={cn(
               'rounded-xl flex items-center justify-center shrink-0 -mt-0.5',
-              compact ? 'h-7 w-7 rounded-lg' : 'h-9 w-9',
+              compact ? 'h-7 w-7 rounded-lg' : 'h-7 w-7 sm:h-9 sm:w-9',
               cfg.iconBg,
             )}>
-              <Icon className={cn(compact ? 'h-3.5 w-3.5' : 'h-4 w-4', cfg.iconColor)} strokeWidth={2} />
+              <Icon className={cn(compact ? 'h-3.5 w-3.5' : 'h-3.5 w-3.5 sm:h-4 sm:w-4', cfg.iconColor)} strokeWidth={2} />
             </div>
           )}
         </div>
@@ -158,9 +158,9 @@ export function StatCard({
         {/* Value — display-weight number */}
         <div className={cn(
           'kd-stat-number font-extrabold text-foreground leading-none tabular-nums',
-          compact ? 'text-lg' : 'text-stat-md',
-          typeof value === 'string' && value.length > 10 && !compact && 'text-xl sm:text-stat-md',
-          typeof value === 'string' && value.length > 14 && !compact && '!text-lg sm:!text-xl',
+          compact ? 'text-lg' : 'text-xl sm:text-stat-md',
+          typeof value === 'string' && value.length > 10 && !compact && 'text-lg sm:text-xl md:text-stat-md',
+          typeof value === 'string' && value.length > 14 && !compact && '!text-base sm:!text-lg md:!text-xl',
         )}>
           {typeof value === 'number' && Number.isFinite(value)
             ? <CountUp value={value} />

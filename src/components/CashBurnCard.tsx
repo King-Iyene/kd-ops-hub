@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Flame, TrendingDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { formatNaira } from '@/lib/format';
+import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 /**
@@ -67,7 +67,7 @@ export function CashBurnCard() {
       </CardHeader>
       <CardContent>
         <p className="text-3xl font-bold currency">
-          {burn30 !== null ? formatNaira(burn30) : '—'}
+          {burn30 !== null ? formatNairaCompact(burn30) : '—'}
         </p>
         <p className="text-xs text-muted-foreground mt-1">
           Approved expenses + processed payment batches in the last 30 days.

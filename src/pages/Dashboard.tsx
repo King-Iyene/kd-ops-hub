@@ -509,15 +509,15 @@ const Dashboard = () => {
         ];
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {/* Greeting */}
-        <AuroraHero className="p-5 sm:p-6" pattern="grid">
+        <AuroraHero className="p-4 sm:p-5 md:p-6" pattern="grid">
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="h-4 w-4 text-muted-foreground" />
             <span className="text-2xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">My Overview</span>
           </div>
-          <h1 className="kd-display text-3xl sm:text-4xl font-bold">{greeting}, {firstName}.</h1>
-          <p className="text-sm text-muted-foreground mt-1.5">{todSubtitle[tod]}</p>
+          <h1 className="kd-display text-2xl sm:text-3xl md:text-4xl font-bold">{greeting}, {firstName}.</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-1.5">{todSubtitle[tod]}</p>
         </AuroraHero>
 
         <PushNotificationsBanner />
@@ -567,19 +567,19 @@ const Dashboard = () => {
 
   /* ── Finance / admin / operations view ─────────────────────────── */
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* ── Aurora greeting hero ─────────────────────────────────── */}
-      <AuroraHero className="p-5 sm:p-7" scanLine pattern="grid">
+      <AuroraHero className="p-4 sm:p-5 md:p-7" scanLine pattern="grid">
         <div className="flex items-center gap-2 mb-1">
           <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
           <span className="text-2xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Operations Overview</span>
         </div>
-        <h1 className="kd-display text-3xl sm:text-4xl font-bold tracking-tight">
+        <h1 className="kd-display text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight">
           {greeting}, {firstName}.
         </h1>
-        <p className="text-sm text-muted-foreground mt-1.5">
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-1.5">
           {todSubtitle[tod]}
-          <span className="text-muted-foreground/60"> · {new Date().toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+          <span className="hidden sm:inline text-muted-foreground/60"> · {new Date().toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
         </p>
       </AuroraHero>
 
@@ -710,9 +710,9 @@ const Dashboard = () => {
       </div>
 
       {/* ── 2. Main two-column layout ────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">
         {/* ── Left column: charts & intelligence (8/12) ──────────── */}
-        <div className="lg:col-span-8 space-y-4">
+        <div className="lg:col-span-8 space-y-3 sm:space-y-4">
           {/* Budget Utilisation */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
@@ -799,7 +799,7 @@ const Dashboard = () => {
         </div>
 
         {/* ── Right column: actions & lists (4/12) ───────────────── */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className="lg:col-span-4 space-y-3 sm:space-y-4">
           {/* Quick Actions — icon tile grid */}
           <Card>
             <CardHeader className="pb-3 border-b">
