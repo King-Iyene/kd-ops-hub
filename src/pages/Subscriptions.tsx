@@ -1096,7 +1096,7 @@ const Subscriptions = () => {
                         <MobileCardTitle>
                           {s.name}
                           {s.vendor && (
-                            <span className="block text-xs font-normal text-muted-foreground truncate">{s.vendor}</span>
+                            <span className="block text-xs font-normal text-muted-foreground truncate" title={s.vendor}>{s.vendor}</span>
                           )}
                         </MobileCardTitle>
                         <MobileCardMeta className="currency">

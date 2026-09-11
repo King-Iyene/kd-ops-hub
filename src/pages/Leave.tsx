@@ -1017,7 +1017,7 @@ const Leave = () => {
                             <TableCell className="text-right font-medium">
                               {r.days_requested}
                             </TableCell>
-                            <TableCell className="max-w-xs truncate text-muted-foreground">
+                            <TableCell className="max-w-xs truncate text-muted-foreground" title={r.reason || '—'}>
                               {r.reason || '—'}
                             </TableCell>
                             <TableCell>
@@ -1132,7 +1132,7 @@ const Leave = () => {
                           <MobileCardRow label="Dates">{formatDate(r.start_date)} → {formatDate(r.end_date)}</MobileCardRow>
                           <MobileCardRow label="Status"><StatusBadge status={r.status} /></MobileCardRow>
                           {r.reason && (
-                            <MobileCardRow label="Reason"><span className="truncate">{r.reason}</span></MobileCardRow>
+                            <MobileCardRow label="Reason"><span className="truncate" title={r.reason}>{r.reason}</span></MobileCardRow>
                           )}
                           {(canManageRow || canCancelOwn || canRevertApproved || isManager) && (
                             <MobileCardFooter>

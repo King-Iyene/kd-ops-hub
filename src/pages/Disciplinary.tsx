@@ -460,7 +460,7 @@ export default function Disciplinary() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label className="kd-label">Employee *</Label>
+              <Label className="kd-label">Employee <span className="text-destructive">*</span></Label>
               <Select value={form.employee_id} onValueChange={v => { setForm(f => ({ ...f, employee_id: v })); clearError('employee_id'); }}>
                 <SelectTrigger aria-invalid={!!errors.employee_id}><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
@@ -488,7 +488,7 @@ export default function Disciplinary() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="kd-label">Subject *</Label>
+              <Label className="kd-label">Subject <span className="text-destructive">*</span></Label>
               <Input aria-invalid={!!errors.subject} placeholder="e.g. Unauthorised absence — 14 April 2026" value={form.subject} onChange={e => { setForm(f => ({ ...f, subject: e.target.value })); clearError('subject'); }} />
               <FieldError message={errors.subject} />
             </div>

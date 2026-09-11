@@ -2056,7 +2056,7 @@ const Contractors = () => {
                           <TableCell className="text-right currency">
                             {formatNaira(r.default_amount_ngn || 0)}
                           </TableCell>
-                          <TableCell className="text-muted-foreground font-mono text-2xs truncate max-w-[160px]">
+                          <TableCell className="text-muted-foreground font-mono text-2xs truncate max-w-[160px]" title={r.linkedin_url || '—'}>
                             {r.linkedin_url || '—'}
                           </TableCell>
                           <TableCell>

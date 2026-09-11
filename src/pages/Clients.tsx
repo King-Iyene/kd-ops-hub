@@ -508,7 +508,7 @@ const Clients = () => {
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2 space-y-1">
-                <Label>Client name *</Label>
+                <Label>Client name <span className="text-destructive">*</span></Label>
                 <Input
                   autoFocus
                   value={form.name}
@@ -579,7 +579,7 @@ const Clients = () => {
                 />
               </div>
               <div className="space-y-1">
-                <Label>Email</Label>
+                <Label>Email <span className="text-destructive">*</span></Label>
                 <Input
                   type="email"
                   autoComplete="email"

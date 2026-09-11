@@ -904,7 +904,7 @@ const Employees = () => {
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>First Name</Label>
+                <Label>First Name <span className="text-destructive">*</span></Label>
                 <Input
                   value={form.first_name}
                   onChange={(e) => { setForm({ ...form, first_name: e.target.value }); clearFieldError('first_name'); }}
@@ -922,7 +922,7 @@ const Employees = () => {
                 />
               </div>
               <div className="space-y-1 col-span-2 sm:col-span-1">
-                <Label>Email</Label>
+                <Label>Email <span className="text-destructive">*</span></Label>
                 <Input
                   type="email"
                   autoComplete="email"
@@ -944,7 +944,7 @@ const Employees = () => {
                 />
               </div>
               <div className="space-y-1">
-                <Label>Role</Label>
+                <Label>Role <span className="text-destructive">*</span></Label>
                 <Select
                   value={form.role}
                   onValueChange={(v) => { setForm({ ...form, role: v as Role }); clearFieldError('role'); }}

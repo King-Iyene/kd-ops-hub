@@ -457,7 +457,7 @@ export default function Assets() {
           </DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
             <div className="sm:col-span-2 space-y-1.5">
-              <Label>Asset name *</Label>
+              <Label>Asset name <span className="text-destructive">*</span></Label>
               <Input value={form.name} onChange={e => f('name', e.target.value)} placeholder="e.g. Dell Latitude 5520, Toyota Corolla" aria-invalid={!!errors.name} />
               <FieldError message={errors.name} />
             </div>
@@ -480,12 +480,12 @@ export default function Assets() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Purchase date *</Label>
+              <Label>Purchase date <span className="text-destructive">*</span></Label>
               <Input type="date" value={form.purchase_date} onChange={e => f('purchase_date', e.target.value)} aria-invalid={!!errors.purchase_date} />
               <FieldError message={errors.purchase_date} />
             </div>
             <div className="space-y-1.5">
-              <Label>Cost (₦) *</Label>
+              <Label>Cost (₦) <span className="text-destructive">*</span></Label>
               <Input type="number" min={0} value={form.cost_ngn} onChange={e => f('cost_ngn', e.target.value)} aria-invalid={!!errors.cost_ngn} />
               <FieldError message={errors.cost_ngn} />
             </div>

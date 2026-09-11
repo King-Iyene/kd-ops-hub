@@ -360,12 +360,12 @@ export default function Grievances() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label className="kd-label">Subject *</Label>
+              <Label className="kd-label">Subject <span className="text-destructive">*</span></Label>
               <Input placeholder="Brief summary of the grievance" value={form.subject} aria-invalid={!!fe.subject} onChange={e => { setForm(f => ({ ...f, subject: e.target.value })); clearError('subject'); }} />
               <FieldError message={fe.subject} />
             </div>
             <div className="space-y-1">
-              <Label className="kd-label">Description *</Label>
+              <Label className="kd-label">Description <span className="text-destructive">*</span></Label>
               <Textarea rows={5} placeholder="Provide as much detail as possible including dates, people involved, and any evidence..." value={form.description} aria-invalid={!!fe.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); clearError('description'); }} />
               <FieldError message={fe.description} />
             </div>
