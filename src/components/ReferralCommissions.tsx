@@ -275,7 +275,7 @@ export default function ReferralCommissions() {
         <b> auto-counted</b>; type an <b>Override</b> only for accounts referred before tracking (it replaces the auto-count).
       </p>
       {rate == null && (
-        <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-500/5 border border-amber-500/30 rounded-lg p-3">
+        <div className="flex items-start gap-2 text-sm text-warning bg-warning/5 border border-warning/30 rounded-lg p-3">
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
           <span>No active exchange rate — set one in <b>Settings → Exchange rate</b> to see Naira amounts.</span>
         </div>

@@ -95,22 +95,22 @@ const TONE_STYLES: Record<Tone, {
   unreadBar: string;
 }> = {
   success: {
-    iconBg: 'bg-emerald-500/15 dark:bg-emerald-400/15',
+    iconBg: 'bg-success/15',
     iconFg: 'text-success',
-    outline: 'ring-emerald-500/20',
-    unreadBar: 'bg-emerald-500',
+    outline: 'ring-success/20',
+    unreadBar: 'bg-success',
   },
   warning: {
-    iconBg: 'bg-amber-500/15 dark:bg-amber-400/15',
+    iconBg: 'bg-warning/15',
     iconFg: 'text-warning',
-    outline: 'ring-amber-500/20',
-    unreadBar: 'bg-amber-500',
+    outline: 'ring-warning/20',
+    unreadBar: 'bg-warning',
   },
   error: {
-    iconBg: 'bg-red-500/15 dark:bg-red-400/15',
+    iconBg: 'bg-destructive/15',
     iconFg: 'text-destructive',
-    outline: 'ring-red-500/20',
-    unreadBar: 'bg-red-500',
+    outline: 'ring-destructive/20',
+    unreadBar: 'bg-destructive',
   },
   info: {
     iconBg: 'bg-primary/10',

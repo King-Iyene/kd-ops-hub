@@ -58,7 +58,7 @@ export default function DeductionsTab({ deductions, canFinance, onShowDeductionD
                         ) : null}
                       </TableCell>
                       <TableCell>
-                        <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${d.status === 'active' ? 'bg-emerald-100 text-emerald-700' : d.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-muted text-muted-foreground'}`}>
+                        <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${d.status === 'active' ? 'bg-success/10 text-success' : d.status === 'completed' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                           {d.status}
                         </span>
                       </TableCell>

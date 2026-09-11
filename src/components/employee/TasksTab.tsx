@@ -44,10 +44,10 @@ export default function TasksTab({ tasks }: Props) {
                         <Badge
                           className={
                             task.status === 'completed' || task.status === 'done'
-                              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                              ? 'bg-success/10 text-success hover:bg-success/10'
                               : task.status === 'in_progress'
-                                ? 'bg-blue-100 text-blue-700 hover:bg-blue-100'
-                                : 'bg-amber-100 text-amber-700 hover:bg-amber-100'
+                                ? 'bg-primary/10 text-primary hover:bg-primary/10'
+                                : 'bg-warning/10 text-warning hover:bg-warning/10'
                           }
                         >
                           {task.status || 'pending'}

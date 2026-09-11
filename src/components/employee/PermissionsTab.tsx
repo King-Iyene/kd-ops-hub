@@ -37,7 +37,7 @@ export default function PermissionsTab({ employee, permissions, onPermissionsCha
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 mb-4 text-xs text-foreground/80 space-y-1">
+          <div className="rounded-md border border-primary/30 bg-primary/5 p-3 mb-4 text-xs text-foreground/80 space-y-1">
             <p>
               <span className="font-semibold">ON (no badge)</span> — comes from this user's role default.
             </p>

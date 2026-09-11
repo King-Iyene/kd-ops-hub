@@ -28,17 +28,17 @@ export default function PlacementsTab({ empPlacements, empPlacementPayments }: P
     maintenance: 'Maintenance', general: 'General',
   };
   const statusColors: Record<string, string> = {
-    active: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400',
-    completed: 'bg-slate-100 text-slate-600 dark:bg-slate-500/10 dark:text-slate-400',
-    suspended: 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400',
-    pending: 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400',
+    active: 'bg-success/10 text-success',
+    completed: 'bg-muted text-muted-foreground',
+    suspended: 'bg-warning/10 text-warning',
+    pending: 'bg-primary/10 text-primary',
   };
   const payBadge: Record<string, string> = {
-    paid: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400',
-    pending: 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400',
-    overdue: 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-400',
-    partial: 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400',
-    waived: 'bg-slate-100 text-slate-600 dark:bg-slate-500/10 dark:text-slate-400',
+    paid: 'bg-success/10 text-success',
+    pending: 'bg-warning/10 text-warning',
+    overdue: 'bg-destructive/10 text-destructive',
+    partial: 'bg-primary/10 text-primary',
+    waived: 'bg-muted text-muted-foreground',
   };
 
   return (

@@ -309,9 +309,9 @@ export default function ProfitLossTab() {
             </TableHeader>
             <TableBody>
               {/* Revenue */}
-              <TableRow className="font-medium bg-emerald-50/50 dark:bg-emerald-950/20">
+              <TableRow className="font-medium bg-success/[0.06]">
                 <TableCell className="flex items-center gap-1.5">
-                  <ArrowUpRight className="h-3 w-3 text-emerald-600" /> Revenue
+                  <ArrowUpRight className="h-3 w-3 text-success" /> Revenue
                 </TableCell>
                 {rows.map(r => (
                   <TableCell key={r.month} className="text-right">{formatNairaCompact(r.revenue)}</TableCell>

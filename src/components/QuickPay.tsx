@@ -585,8 +585,8 @@ export function QuickPayDialog() {
         ) : (
           <div className="space-y-3">
             {quickPayEnabled === false && (
-              <Alert className="border-amber-500/40 bg-amber-500/5">
-                <ShieldAlert className="h-4 w-4 text-amber-600" />
+              <Alert className="border-warning/40 bg-warning/5">
+                <ShieldAlert className="h-4 w-4 text-warning" />
                 <AlertDescription className="text-sm">
                   Quick Pay is disabled.{' '}
                   <button
@@ -694,8 +694,8 @@ export function QuickPayDialog() {
               </p>
             )}
             {willRequireCoApproval && (
-              <Alert className="border-amber-500/40 bg-amber-500/5">
-                <ShieldAlert className="h-4 w-4 text-amber-600" />
+              <Alert className="border-warning/40 bg-warning/5">
+                <ShieldAlert className="h-4 w-4 text-warning" />
                 <AlertDescription className="text-sm">
                   This amount exceeds your co-approval threshold ({formatNaira(coThreshold ?? 0)}). The payment will be created as a pending batch — an approver must review before funds move.
                 </AlertDescription>

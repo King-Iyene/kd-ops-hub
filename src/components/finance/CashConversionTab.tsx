@@ -9,9 +9,9 @@ import { fetchCashConversionData, type CashConversionResult, type CccBand } from
 import { errorMessage } from '@/lib/db-errors';
 
 const BAND_STYLE: Record<CccBand, { tone: string; label: string }> = {
-  excellent: { tone: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30', label: 'Excellent' },
-  good:      { tone: 'bg-blue-500/15 text-blue-700 border-blue-500/30',          label: 'Good' },
-  fair:      { tone: 'bg-amber-500/15 text-amber-700 border-amber-500/30',       label: 'Fair' },
+  excellent: { tone: 'bg-success/15 text-success border-success/30',     label: 'Excellent' },
+  good:      { tone: 'bg-primary/15 text-primary border-primary/30',     label: 'Good' },
+  fair:      { tone: 'bg-warning/15 text-warning border-warning/30',     label: 'Fair' },
   poor:      { tone: 'bg-destructive/15 text-destructive border-destructive/30',  label: 'Poor' },
 };
 
@@ -95,7 +95,7 @@ export default function CashConversionTab() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
-                <Receipt className="h-4 w-4 text-blue-500" /> Receivables (DSO)
+                <Receipt className="h-4 w-4 text-primary" /> Receivables (DSO)
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -119,7 +119,7 @@ export default function CashConversionTab() {
                 <span>DSO</span>
                 <span className="flex items-center gap-1">
                   {fmt(data.dso.dso_days)}
-                  {data.dso.dso_days != null && data.dso.dso_days <= 30 && <TrendingDown className="h-3.5 w-3.5 text-emerald-500" />}
+                  {data.dso.dso_days != null && data.dso.dso_days <= 30 && <TrendingDown className="h-3.5 w-3.5 text-success" />}
                   {data.dso.dso_days != null && data.dso.dso_days > 45 && <TrendingUp className="h-3.5 w-3.5 text-destructive" />}
                 </span>
               </div>
@@ -138,7 +138,7 @@ export default function CashConversionTab() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-amber-500" /> Payables (DPO)
+                <CreditCard className="h-4 w-4 text-warning" /> Payables (DPO)
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -162,7 +162,7 @@ export default function CashConversionTab() {
                 <span>DPO</span>
                 <span className="flex items-center gap-1">
                   {fmt(data.dpo.dpo_days)}
-                  {data.dpo.dpo_days != null && data.dpo.dpo_days >= 30 && <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />}
+                  {data.dpo.dpo_days != null && data.dpo.dpo_days >= 30 && <TrendingUp className="h-3.5 w-3.5 text-success" />}
                 </span>
               </div>
               <p className="text-3xs text-muted-foreground">

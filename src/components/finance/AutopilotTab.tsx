@@ -29,8 +29,8 @@ const COMPLIANCE_KIND_LABEL: Record<string, string> = {
 };
 
 const ACTION_TONE: Record<string, string> = {
-  release: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-  review: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  release: 'bg-success/15 text-success border-success/30',
+  review: 'bg-warning/15 text-warning border-warning/30',
   hold: 'bg-destructive/15 text-destructive border-destructive/30',
 };
 
@@ -227,7 +227,7 @@ export default function AutopilotTab() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Siren className="h-4 w-4 text-amber-600" /> Expense anomaly detection
+            <Siren className="h-4 w-4 text-warning" /> Expense anomaly detection
           </CardTitle>
           <p className="text-xs text-muted-foreground">
             Runs nightly: outlier spend vs category average, possible duplicate claims, and stale backdated claims.

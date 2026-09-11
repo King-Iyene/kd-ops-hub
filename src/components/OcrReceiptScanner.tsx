@@ -812,8 +812,8 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
           size="sm"
           className={cn(
             'gap-2 relative overflow-hidden',
-            state === 'done' && 'border-emerald-500 text-emerald-600 bg-emerald-50',
-            state === 'warning' && 'border-amber-500 text-amber-700 bg-amber-50',
+            state === 'done' && 'border-success text-success bg-success/10',
+            state === 'warning' && 'border-warning text-warning bg-warning/10',
             state === 'error' && 'border-destructive text-destructive bg-destructive/5',
           )}
           disabled={state === 'checking' || state === 'scanning' || state === 'fallback'}
@@ -852,7 +852,7 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
       </div>
 
       {state === 'warning' && (
-        <p className="text-3xs text-amber-700 leading-tight">{errorMsg}</p>
+        <p className="text-3xs text-warning leading-tight">{errorMsg}</p>
       )}
 
       {qualityWarning && (state === 'scanning' || state === 'fallback' || state === 'done' || state === 'warning') && (

@@ -286,7 +286,7 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
                   {isStuckTab && count > 0 && (
                     <span className={cn(
                       'h-1 w-1 rounded-full',
-                      isActive ? 'bg-background' : 'bg-amber-500 kd-status-live-warning',
+                      isActive ? 'bg-background' : 'bg-warning kd-status-live-warning',
                     )} />
                   )}
                   <span>{TAB_META[k].label}</span>
@@ -339,12 +339,12 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
                   to={`/payments/${b.id}`}
                   className={cn(
                     'w-full grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 px-3 h-8 text-left hover:bg-muted/40 kd-transition',
-                    stuck && 'bg-amber-500/[0.04]',
+                    stuck && 'bg-warning/[0.04]',
                   )}
                   title={subtitle}
                 >
                   {stuck ? (
-                    <Hourglass className="h-3 w-3 text-amber-500 shrink-0" />
+                    <Hourglass className="h-3 w-3 text-warning shrink-0" />
                   ) : (
                     <span className="h-3 w-3 shrink-0" />
                   )}
@@ -371,9 +371,9 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
         )}
 
         {fundingGap != null && fundingGap > 0 && (
-          <div className="border-t px-3 py-1.5 flex items-start gap-1.5 bg-amber-500/5">
-            <AlertTriangle className="h-3 w-3 text-amber-600 mt-0.5 shrink-0" />
-            <p className="text-3xs leading-snug text-amber-800 dark:text-amber-300">
+          <div className="border-t px-3 py-1.5 flex items-start gap-1.5 bg-warning/5">
+            <AlertTriangle className="h-3 w-3 text-warning mt-0.5 shrink-0" />
+            <p className="text-3xs leading-snug text-warning">
               Top up <span className="font-semibold font-mono">{formatNaira(fundingGap)}</span> before processing.
             </p>
           </div>

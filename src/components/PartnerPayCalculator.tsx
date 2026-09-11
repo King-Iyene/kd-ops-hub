@@ -447,7 +447,7 @@ export default function PartnerPayCalculator() {
                 </div>
               ) : (
                 <div className="h-10 flex items-center px-3 rounded-md border bg-muted/30 tabular-nums">
-                  {rate == null ? <span className="text-amber-600 text-sm">No active rate — set one in Settings, or switch to manual</span>
+                  {rate == null ? <span className="text-warning text-sm">No active rate — set one in Settings, or switch to manual</span>
                           : <>1 USD = ₦{rate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</>}
                 </div>
               )}
@@ -495,14 +495,14 @@ export default function PartnerPayCalculator() {
           </div>
 
           {noRate && (
-            <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-500/5 border border-amber-500/30 rounded-lg p-3">
+            <div className="flex items-start gap-2 text-sm text-warning bg-warning/5 border border-warning/30 rounded-lg p-3">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
               <span>{usingManual ? <>Enter a valid <b>manual rate</b> above to see the Naira total. The USD figures are already final.</> : <>Set an active exchange rate in <b>Settings → Exchange rate</b> (or switch to a manual rate) to see the Naira total. The USD figures above are already final.</>}</span>
             </div>
           )}
 
           {needsBank.length > 0 && (
-            <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-500/5 border border-amber-500/30 rounded-lg p-3">
+            <div className="flex items-start gap-2 text-sm text-warning bg-warning/5 border border-warning/30 rounded-lg p-3">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
               <span>
                 <b>{needsBank.length}</b> active partner{needsBank.length === 1 ? '' : 's'}{' '}
@@ -583,7 +583,7 @@ export default function PartnerPayCalculator() {
           </div>
 
           <div className="flex items-center justify-between text-sm">
-            <span className={selected.size >= MAX_BATCH ? 'text-amber-600' : 'text-muted-foreground'}>
+            <span className={selected.size >= MAX_BATCH ? 'text-warning' : 'text-muted-foreground'}>
               <b>{selected.size}</b> / {MAX_BATCH} selected{selected.size >= MAX_BATCH ? ' (max reached)' : ''}
             </span>
             <span className="text-muted-foreground">{eligible.length} eligible</span>

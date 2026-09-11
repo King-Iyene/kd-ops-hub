@@ -289,12 +289,12 @@ export default function PersonalTab({
                         {relationshipLabel(dep.relationship)}
                       </Badge>
                       {dep.is_beneficiary && (
-                        <Badge className="text-3xs bg-amber-100 text-amber-700 hover:bg-amber-100">
+                        <Badge className="text-3xs bg-warning/10 text-warning hover:bg-warning/10">
                           Beneficiary
                         </Badge>
                       )}
                       {dep.is_hmo_enrolled && (
-                        <Badge className="text-3xs bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                        <Badge className="text-3xs bg-success/10 text-success hover:bg-success/10">
                           HMO enrolled
                         </Badge>
                       )}

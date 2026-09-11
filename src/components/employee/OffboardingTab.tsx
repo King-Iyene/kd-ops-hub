@@ -38,8 +38,8 @@ const prettyType = (t: string) =>
 
 const STATUS_TONE: Record<string, string> = {
   initiated: 'bg-info/10 text-info border-info/30',
-  in_progress: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
-  completed: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+  in_progress: 'bg-warning/10 text-warning border-warning/30',
+  completed: 'bg-success/10 text-success border-success/30',
   cancelled: 'bg-muted text-muted-foreground border-border',
 };
 
@@ -272,7 +272,7 @@ export default function OffboardingTab({
               const gap = Math.round((lwd.getTime() - notice.getTime()) / 86400000);
               if (gap < noticeDays) {
                 return (
-                  <div className="sm:col-span-2 rounded-lg border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300">
+                  <div className="sm:col-span-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
                     Notice period is {gap} day{gap === 1 ? '' : 's'} but the employee's contractual notice is {noticeDays} days (Labour Act s.11). This may expose the company to a claim for payment in lieu of notice.
                   </div>
                 );

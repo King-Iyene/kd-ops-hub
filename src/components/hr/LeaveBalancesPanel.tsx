@@ -71,8 +71,8 @@ const ICON: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 const STATUS_TONE: Record<string, string> = {
-  pending:  'bg-amber-100 text-amber-700',
-  approved: 'bg-emerald-100 text-emerald-700',
+  pending:  'bg-warning/10 text-warning',
+  approved: 'bg-success/10 text-success',
   rejected: 'bg-destructive/10 text-destructive',
 };
 
@@ -150,10 +150,10 @@ export const LeaveBalancesPanel = ({
   }, [balance, requests, year, employeeStartDate, policies]);
 
   const tone = stats.pctRemaining >= 30
-    ? { ring: 'text-emerald-600', bg: 'bg-emerald-500', bar: 'bg-emerald-500' }
+    ? { ring: 'text-success', bg: 'bg-success', bar: 'bg-success' }
     : stats.pctRemaining >= 10
-    ? { ring: 'text-amber-600',   bg: 'bg-amber-500',   bar: 'bg-amber-500' }
-    : { ring: 'text-red-600',     bg: 'bg-red-500',     bar: 'bg-red-500' };
+    ? { ring: 'text-warning',   bg: 'bg-warning',   bar: 'bg-warning' }
+    : { ring: 'text-destructive',     bg: 'bg-destructive',     bar: 'bg-destructive' };
 
   // Per-policy used count — pulls the matching *_used column when it exists.
   const usedFor = (code: string): number => {
@@ -221,7 +221,7 @@ export const LeaveBalancesPanel = ({
                 </div>
                 <div className="rounded-md border p-2">
                   <p className="text-muted-foreground">Pending</p>
-                  <p className="font-bold text-lg tabular-nums text-amber-600">{stats.pending}</p>
+                  <p className="font-bold text-lg tabular-nums text-warning">{stats.pending}</p>
                 </div>
                 <div className="rounded-md border p-2">
                   <p className="text-muted-foreground">Available</p>

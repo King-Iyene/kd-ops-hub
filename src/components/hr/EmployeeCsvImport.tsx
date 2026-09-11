@@ -532,7 +532,7 @@ export const EmployeeCsvImport = ({
                   className={cn(
                     'text-3xs',
                     mappedRequired
-                      ? 'bg-emerald-100 text-emerald-700'
+                      ? 'bg-success/10 text-success'
                       : 'bg-warning/10 text-warning',
                   )}
                 >
@@ -616,7 +616,7 @@ export const EmployeeCsvImport = ({
         {step === 'preview' && (
           <>
             <div className="flex items-center gap-3 text-sm">
-              <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
+              <Badge variant="secondary" className="bg-success/10 text-success">
                 <CheckCircle2 className="mr-1 h-3 w-3" /> {validRows.length} valid
               </Badge>
               {invalidRows.length > 0 && (
@@ -694,8 +694,8 @@ export const EmployeeCsvImport = ({
 
         {/* ── STEP 4: DONE ───────────────────────────────────────────── */}
         {step === 'done' && (
-          <div className="rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20 p-4">
-            <p className="font-semibold text-emerald-800 dark:text-emerald-200">
+          <div className="rounded-md border border-success/20 bg-success/5 p-4">
+            <p className="font-semibold text-success">
               {importedCount} employee{importedCount === 1 ? '' : 's'} imported
               {failedCount > 0 ? ` · ${failedCount} failed` : ''}
             </p>

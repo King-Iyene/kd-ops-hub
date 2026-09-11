@@ -272,9 +272,9 @@ function NextPayDatePill({ row }: { row: NextPayDateRow }) {
       <TooltipTrigger asChild>
         <div className={cn(
           'flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium w-fit cursor-help',
-          urgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-            : soon ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-              : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+          urgent ? 'bg-destructive/10 text-destructive'
+            : soon ? 'bg-warning/10 text-warning'
+              : 'bg-success/10 text-success',
         )}>
           <CalendarClock className="h-3 w-3 shrink-0" />
           <span>{formatDate(date)}</span>

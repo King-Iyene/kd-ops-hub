@@ -15,9 +15,9 @@ import { fmtCompact } from '@/lib/chart-theme';
 import { ChartGradients, GlassTooltip, chartTheme, axisTick, chartAnim } from '@/components/ChartKit';
 
 const BAND_STYLE: Record<WcBand, { tone: string; label: string }> = {
-  strong:   { tone: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30', label: 'Strong' },
-  adequate: { tone: 'bg-blue-500/15 text-blue-700 border-blue-500/30',          label: 'Adequate' },
-  tight:    { tone: 'bg-amber-500/15 text-amber-700 border-amber-500/30',       label: 'Tight' },
+  strong:   { tone: 'bg-success/15 text-success border-success/30',   label: 'Strong' },
+  adequate: { tone: 'bg-primary/15 text-primary border-primary/30',   label: 'Adequate' },
+  tight:    { tone: 'bg-warning/15 text-warning border-warning/30',   label: 'Tight' },
   negative: { tone: 'bg-destructive/15 text-destructive border-destructive/30',  label: 'Negative' },
 };
 
@@ -51,7 +51,7 @@ function RatioGauge({ label, value, threshold, thresholdLabel }: {
         <div
           className={cn(
             'h-full rounded-full transition-all duration-700',
-            isHealthy ? 'bg-emerald-500' : 'bg-red-500',
+            isHealthy ? 'bg-success' : 'bg-destructive',
           )}
           style={{ width: `${pct}%` }}
         />

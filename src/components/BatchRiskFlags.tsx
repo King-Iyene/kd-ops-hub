@@ -28,9 +28,9 @@ const SEVERITY_LABEL: Record<BatchRiskFlag['severity'], string> = {
 };
 
 const SEVERITY_CLASSES: Record<BatchRiskFlag['severity'], string> = {
-  low:    'border-blue-500/40   bg-blue-500/5',
-  medium: 'border-amber-500/50  bg-amber-500/5',
-  high:   'border-red-500/50    bg-red-500/5',
+  low:    'border-primary/40   bg-primary/5',
+  medium: 'border-warning/50  bg-warning/5',
+  high:   'border-destructive/50    bg-destructive/5',
 };
 
 /**
@@ -86,7 +86,7 @@ export function BatchRiskFlags({ batchId, onAcknowledgedChange, readOnly }: Prop
 
   if (flags.length === 0) {
     return (
-      <Alert className="border-emerald-500/40 bg-emerald-500/5">
+      <Alert className="border-success/40 bg-success/5">
         <ShieldCheck className="h-4 w-4 text-success" />
         <AlertDescription className="text-sm">
           No risk indicators detected for this batch.
@@ -99,7 +99,7 @@ export function BatchRiskFlags({ batchId, onAcknowledgedChange, readOnly }: Prop
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTriangle className="h-4 w-4 text-warning" />
           Risk indicators ({flags.length})
         </span>
       </div>
@@ -110,8 +110,8 @@ export function BatchRiskFlags({ batchId, onAcknowledgedChange, readOnly }: Prop
               f.severity === 'high'
                 ? 'h-4 w-4 text-destructive'
                 : f.severity === 'medium'
-                ? 'h-4 w-4 text-amber-600'
-                : 'h-4 w-4 text-blue-600'
+                ? 'h-4 w-4 text-warning'
+                : 'h-4 w-4 text-primary'
             }
           />
           <AlertDescription className="text-sm">

@@ -31,11 +31,11 @@ const BATCH_TYPE_ICON: Record<string, typeof Banknote> = {
 };
 
 const BATCH_TYPE_STYLE: Record<string, string> = {
-  employee_salary: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
+  employee_salary: 'bg-success/10 text-success border-success/20',
   employee_allowance: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/20',
   employee_reimbursement: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500/20',
-  contractor: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
-  advance: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
+  contractor: 'bg-primary/10 text-primary border-primary/20',
+  advance: 'bg-warning/10 text-warning border-warning/20',
   prize: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20',
 };
 
@@ -44,7 +44,7 @@ const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; style: string; 
   pending: { icon: Clock, style: 'text-warning', label: 'Pending' },
   failed: { icon: XCircle, style: 'text-destructive', label: 'Failed' },
   reversed: { icon: RotateCcw, style: 'text-destructive', label: 'Reversed' },
-  processing: { icon: AlertCircle, style: 'text-blue-600 dark:text-blue-400', label: 'Processing' },
+  processing: { icon: AlertCircle, style: 'text-primary', label: 'Processing' },
 };
 
 function formatNgn(n: number | string | null | undefined): string {
@@ -167,8 +167,8 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
           <Card className="relative overflow-hidden">
             <CardContent className="p-3">
               <div className="flex items-center gap-1.5 mb-1">
-                <div className="h-5 w-5 rounded-md bg-emerald-500/10 flex items-center justify-center">
-                  <TrendingUp className="h-3 w-3 text-emerald-500" />
+                <div className="h-5 w-5 rounded-md bg-success/10 flex items-center justify-center">
+                  <TrendingUp className="h-3 w-3 text-success" />
                 </div>
                 <p className="text-xs text-muted-foreground font-medium">YTD Gross</p>
               </div>
@@ -179,8 +179,8 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
           <Card className="relative overflow-hidden">
             <CardContent className="p-3">
               <div className="flex items-center gap-1.5 mb-1">
-                <div className="h-5 w-5 rounded-md bg-blue-500/10 flex items-center justify-center">
-                  <Banknote className="h-3 w-3 text-blue-500" />
+                <div className="h-5 w-5 rounded-md bg-primary/10 flex items-center justify-center">
+                  <Banknote className="h-3 w-3 text-primary" />
                 </div>
                 <p className="text-xs text-muted-foreground font-medium">YTD Net</p>
               </div>
@@ -190,7 +190,7 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
           <Card className="relative overflow-hidden">
             <CardContent className="p-3">
               <div className="flex items-center gap-1.5 mb-1">
-                <div className="h-5 w-5 rounded-md bg-red-500/10 flex items-center justify-center">
+                <div className="h-5 w-5 rounded-md bg-destructive/10 flex items-center justify-center">
                   <ArrowDownRight className="h-3 w-3 text-destructive" />
                 </div>
                 <p className="text-xs text-muted-foreground font-medium">YTD Deductions</p>
@@ -206,8 +206,8 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
           <Card className="relative overflow-hidden">
             <CardContent className="p-3">
               <div className="flex items-center gap-1.5 mb-1">
-                <div className="h-5 w-5 rounded-md bg-amber-500/10 flex items-center justify-center">
-                  <Wallet className="h-3 w-3 text-amber-500" />
+                <div className="h-5 w-5 rounded-md bg-warning/10 flex items-center justify-center">
+                  <Wallet className="h-3 w-3 text-warning" />
                 </div>
                 <p className="text-xs text-muted-foreground font-medium">Total Disbursed</p>
               </div>
@@ -259,7 +259,7 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
                           <span>Pension {formatNgn(slip.pension_ngn)}</span>
                         )}
                         <span className="font-medium text-foreground">
-                          <ArrowUpRight className="h-3 w-3 inline text-emerald-500" />
+                          <ArrowUpRight className="h-3 w-3 inline text-success" />
                           Net {formatNgn(slip.net_ngn)}
                         </span>
                       </div>

@@ -65,7 +65,7 @@ export function MfaRequiredBanner() {
   return (
     <div
       role="alert"
-      className="sticky top-0 z-50 bg-amber-500 text-amber-950 dark:bg-amber-600 dark:text-amber-50 border-b border-amber-600 px-4 py-2 flex items-center gap-3 shadow-sm"
+      className="sticky top-0 z-50 bg-warning text-warning-foreground border-b border-warning/80 px-4 py-2 flex items-center gap-3 shadow-sm"
     >
       <ShieldAlert className="h-4 w-4 shrink-0" />
       <p className="text-xs-plus font-medium flex-1 min-w-0">
@@ -75,7 +75,7 @@ export function MfaRequiredBanner() {
       </p>
       <Link
         to="/profile"
-        className="text-xs-plus font-semibold rounded-md bg-amber-950/15 hover:bg-amber-950/25 dark:bg-amber-50/15 dark:hover:bg-amber-50/25 px-2.5 py-1 kd-transition shrink-0"
+        className="text-xs-plus font-semibold rounded-md bg-warning-foreground/15 hover:bg-warning-foreground/25 px-2.5 py-1 kd-transition shrink-0"
       >
         Enable now
       </Link>

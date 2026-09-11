@@ -192,8 +192,8 @@ export default function StatutoryTab({
                   <Badge className={cn(
                     'text-xs',
                     isOn
-                      ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-100',
+                      ? 'bg-success/10 text-success hover:bg-success/10'
+                      : 'bg-muted text-muted-foreground hover:bg-muted',
                   )}>
                     {isOn ? 'Active' : 'Inactive'}
                   </Badge>

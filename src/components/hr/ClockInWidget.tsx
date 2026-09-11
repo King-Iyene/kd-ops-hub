@@ -302,7 +302,7 @@ export const ClockInWidget = ({ lateThreshold = '09:15' }: ClockInWidgetProps) =
                 className={cn(
                   'text-2xs',
                   today_?.status === 'late' ? 'bg-warning/10 text-warning' :
-                  today_?.status === 'present' ? 'bg-emerald-100 text-emerald-700' :
+                  today_?.status === 'present' ? 'bg-success/10 text-success' :
                   'bg-muted text-muted-foreground',
                 )}
               >

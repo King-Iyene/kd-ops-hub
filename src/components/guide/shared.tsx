@@ -61,12 +61,12 @@ export function ModuleCard({
 
 export function Callout({ tone, children }: { tone: 'tip' | 'warn' | 'caution'; children: ReactNode }) {
   const TONE: Record<typeof tone, string> = {
-    tip: 'bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-800 dark:text-emerald-300/90',
-    warn: 'bg-amber-500/[0.06] border-amber-500/20 text-amber-800 dark:text-amber-300/90',
-    caution: 'bg-rose-500/[0.06] border-rose-500/20 text-rose-800 dark:text-rose-300/90',
+    tip: 'bg-success/[0.06] border-success/20 text-success',
+    warn: 'bg-warning/[0.06] border-warning/20 text-warning',
+    caution: 'bg-destructive/[0.06] border-destructive/20 text-destructive',
   };
   const LABEL: Record<typeof tone, string> = { tip: 'TIP', warn: 'NOTE', caution: 'CAUTION' };
-  const DOT: Record<typeof tone, string> = { tip: 'bg-emerald-500', warn: 'bg-amber-500', caution: 'bg-rose-500' };
+  const DOT: Record<typeof tone, string> = { tip: 'bg-success', warn: 'bg-warning', caution: 'bg-destructive' };
   return (
     <div className={cn('flex gap-3 rounded-xl border px-4 py-3 text-xs-plus leading-relaxed', TONE[tone])}>
       <div className="flex items-center gap-1.5 shrink-0 mt-0.5">

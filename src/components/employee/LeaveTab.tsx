@@ -76,10 +76,10 @@ export default function LeaveTab({ employeeId, employee, leaves, leaveTaken }: P
                         <Badge
                           className={
                             leave.status === 'approved'
-                              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                              ? 'bg-success/10 text-success hover:bg-success/10'
                               : leave.status === 'rejected' || leave.status === 'denied'
-                                ? 'bg-red-100 text-red-700 hover:bg-red-100'
-                                : 'bg-amber-100 text-amber-700 hover:bg-amber-100'
+                                ? 'bg-destructive/10 text-destructive hover:bg-destructive/10'
+                                : 'bg-warning/10 text-warning hover:bg-warning/10'
                           }
                         >
                           {leave.status || 'pending'}

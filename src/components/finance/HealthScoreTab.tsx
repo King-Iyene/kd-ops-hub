@@ -14,16 +14,16 @@ import {
 import { errorMessage } from '@/lib/db-errors';
 
 const GRADE_STYLE: Record<HealthGrade, { bg: string; text: string; ring: string }> = {
-  A: { bg: 'bg-emerald-500', text: 'text-white', ring: 'ring-emerald-500/30' },
-  B: { bg: 'bg-blue-500',    text: 'text-white', ring: 'ring-blue-500/30' },
-  C: { bg: 'bg-amber-500',   text: 'text-white', ring: 'ring-amber-500/30' },
-  D: { bg: 'bg-orange-500',  text: 'text-white', ring: 'ring-orange-500/30' },
-  F: { bg: 'bg-red-600',     text: 'text-white', ring: 'ring-red-600/30' },
+  A: { bg: 'bg-success',     text: 'text-white', ring: 'ring-success/30' },
+  B: { bg: 'bg-primary',     text: 'text-white', ring: 'ring-primary/30' },
+  C: { bg: 'bg-warning',     text: 'text-white', ring: 'ring-warning/30' },
+  D: { bg: 'bg-warning',     text: 'text-white', ring: 'ring-warning/30' },
+  F: { bg: 'bg-destructive', text: 'text-white', ring: 'ring-destructive/30' },
 };
 
 const STATUS_STYLE: Record<HealthDimension['status'], { color: string; Icon: typeof ShieldCheck }> = {
   excellent: { color: 'text-success', Icon: ShieldCheck },
-  good:      { color: 'text-blue-600 dark:text-blue-400',      Icon: TrendingUp },
+  good:      { color: 'text-primary',      Icon: TrendingUp },
   fair:      { color: 'text-warning',    Icon: AlertTriangle },
   poor:      { color: 'text-destructive',        Icon: XCircle },
 };
@@ -78,10 +78,10 @@ function DimensionCard({ dim }: { dim: HealthDimension }) {
         <div
           className={cn(
             'h-full rounded-full transition-all duration-700',
-            dim.score >= 80 ? 'bg-emerald-500' :
-            dim.score >= 60 ? 'bg-blue-500' :
-            dim.score >= 40 ? 'bg-amber-500' :
-            'bg-red-500',
+            dim.score >= 80 ? 'bg-success' :
+            dim.score >= 60 ? 'bg-primary' :
+            dim.score >= 40 ? 'bg-warning' :
+            'bg-destructive',
           )}
           style={{ width: barWidth }}
         />
@@ -147,7 +147,7 @@ export default function HealthScoreTab() {
                   {result.dimensions.filter((d) => d.status === 'poor').length > 0 && (
                     <div className="flex flex-wrap gap-1.5 justify-center sm:justify-start">
                       {result.dimensions.filter((d) => d.status === 'poor').map((d) => (
-                        <Badge key={d.key} variant="outline" className="bg-red-500/10 text-red-600 border-red-500/30 text-xs">
+                        <Badge key={d.key} variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-xs">
                           {d.label}
                         </Badge>
                       ))}
@@ -177,11 +177,11 @@ export default function HealthScoreTab() {
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
                   {[
-                    { label: 'A (90–100)', desc: 'Excellent', color: 'bg-emerald-500' },
-                    { label: 'B (75–89)', desc: 'Good', color: 'bg-blue-500' },
-                    { label: 'C (60–74)', desc: 'Adequate', color: 'bg-amber-500' },
-                    { label: 'D (40–59)', desc: 'Below avg', color: 'bg-orange-500' },
-                    { label: 'F (0–39)', desc: 'Critical', color: 'bg-red-600' },
+                    { label: 'A (90–100)', desc: 'Excellent', color: 'bg-success' },
+                    { label: 'B (75–89)', desc: 'Good', color: 'bg-primary' },
+                    { label: 'C (60–74)', desc: 'Adequate', color: 'bg-warning' },
+                    { label: 'D (40–59)', desc: 'Below avg', color: 'bg-warning' },
+                    { label: 'F (0–39)', desc: 'Critical', color: 'bg-destructive' },
                   ].map((g) => (
                     <div key={g.label} className="flex items-center gap-2 text-xs text-muted-foreground">
                       <div className={cn('w-2.5 h-2.5 rounded-full', g.color)} />

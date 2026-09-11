@@ -37,11 +37,11 @@ interface CfoNote {
 }
 
 const CATEGORIES = [
-  { value: 'decision',   label: 'Decision',    icon: Target,         color: 'text-blue-600 bg-blue-500/10' },
-  { value: 'risk',       label: 'Risk',         icon: AlertTriangle,  color: 'text-amber-600 bg-amber-500/10' },
+  { value: 'decision',   label: 'Decision',    icon: Target,         color: 'text-primary bg-primary/10' },
+  { value: 'risk',       label: 'Risk',         icon: AlertTriangle,  color: 'text-warning bg-warning/10' },
   { value: 'insight',    label: 'Insight',      icon: Lightbulb,      color: 'text-purple-600 bg-purple-500/10' },
-  { value: 'forecast',   label: 'Forecast',     icon: TrendingUp,     color: 'text-emerald-600 bg-emerald-500/10' },
-  { value: 'general',    label: 'General',      icon: StickyNote,     color: 'text-slate-600 bg-slate-500/10' },
+  { value: 'forecast',   label: 'Forecast',     icon: TrendingUp,     color: 'text-success bg-success/10' },
+  { value: 'general',    label: 'General',      icon: StickyNote,     color: 'text-muted-foreground bg-muted' },
 ] as const;
 
 type Category = typeof CATEGORIES[number]['value'];

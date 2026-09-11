@@ -25,8 +25,8 @@ import {
 import { errorMessage } from '@/lib/db-errors';
 
 const RISK_TONE: Record<string, { tone: string; label: string; dot: string }> = {
-  safe:     { tone: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30', label: 'Safe',     dot: '#3FAE6F' },
-  tight:    { tone: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30',          label: 'Tight',    dot: '#D6AC50' },
+  safe:     { tone: 'bg-success/15 text-success border-success/30', label: 'Safe',     dot: '#3FAE6F' },
+  tight:    { tone: 'bg-warning/15 text-warning border-warning/30',   label: 'Tight',    dot: '#D6AC50' },
   critical: { tone: 'bg-destructive/15 text-destructive border-destructive/30',                        label: 'Critical', dot: '#dc2626' },
 };
 
@@ -143,7 +143,7 @@ export default function CashTimingTab() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <AlertOctagon className="h-4 w-4 text-amber-600" /> Payment timing signal
+            <AlertOctagon className="h-4 w-4 text-warning" /> Payment timing signal
           </CardTitle>
           <p className="text-xs text-muted-foreground">Weeks that need a decision before releasing discretionary payments.</p>
         </CardHeader>

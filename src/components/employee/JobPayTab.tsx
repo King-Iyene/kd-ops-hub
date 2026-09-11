@@ -256,7 +256,7 @@ export default function JobPayTab({
           )}
           <CardContent className="p-0">
             {!hasSalary ? (
-              <div className="mx-4 my-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-700">
+              <div className="mx-4 my-3 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm text-warning">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 No salary set — use Edit Profile to add salary
               </div>
@@ -314,7 +314,7 @@ export default function JobPayTab({
                     <TableCell className="text-right currency">{formatNaira(totalDeductMonthly * 12)}</TableCell>
                     <TableCell className="text-right pr-4 currency">{formatNaira(totalDeductMonthly)}</TableCell>
                   </TableRow>
-                  <TableRow className="font-bold bg-emerald-50/60">
+                  <TableRow className="font-bold bg-success/10">
                     <TableCell className="pl-4 text-base">Net Pay</TableCell>
                     <TableCell className="text-right text-base currency">{formatNaira(netMonthly * 12)}</TableCell>
                     <TableCell className="text-right pr-4 text-base currency">{formatNaira(netMonthly)}</TableCell>
@@ -643,10 +643,10 @@ export default function JobPayTab({
                       <Badge className={cn(
                         'text-xs',
                         employee.employment_type === 'Full-time'
-                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                          ? 'bg-success/10 text-success hover:bg-success/10'
                           : employee.employment_type === 'Part-time'
-                            ? 'bg-blue-100 text-blue-700 hover:bg-blue-100'
-                            : 'bg-amber-100 text-amber-700 hover:bg-amber-100',
+                            ? 'bg-primary/10 text-primary hover:bg-primary/10'
+                            : 'bg-warning/10 text-warning hover:bg-warning/10',
                       )}>
                         {employee.employment_type}
                       </Badge>
@@ -793,8 +793,8 @@ export default function JobPayTab({
 
             {/* Pending change requests (visible to admins reviewing this profile) */}
             {canManage && bankRequests.filter(r => r.status === 'pending').length > 0 && (
-              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-3">
-                <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Pending bank change request</p>
+              <div className="rounded-md border border-warning/30 bg-warning/10 p-3 space-y-3">
+                <p className="text-xs font-semibold text-warning uppercase tracking-wide">Pending bank change request</p>
                 {bankRequests.filter(r => r.status === 'pending').map((req) => (
                   <div key={req.id} className="space-y-2">
                     <div className="text-sm space-y-1">
@@ -807,7 +807,7 @@ export default function JobPayTab({
                       <Button size="sm" variant="outline" className="flex-1 text-destructive border-destructive/40 hover:bg-destructive/5" onClick={() => { setRejectingBankRequest(req.id); setBankRejectReason(''); }}>
                         <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
                       </Button>
-                      <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleApproveBankRequest(req.id)}>
+                      <Button size="sm" className="flex-1 bg-success hover:bg-success/90 text-white" onClick={() => handleApproveBankRequest(req.id)}>
                         <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approve
                       </Button>
                     </div>
@@ -843,7 +843,7 @@ export default function JobPayTab({
 
             {/* Pending badge for self */}
             {isSelf && !canManage && bankRequests.some(r => r.status === 'pending') && (
-              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <div className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
                 Your bank account change request is <strong>pending admin review</strong>.
               </div>
             )}

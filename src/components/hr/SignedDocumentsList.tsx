@@ -42,12 +42,12 @@ const KIND_LABELS: Record<string, string> = {
 
 const KIND_TONE: Record<string, string> = {
   offer_letter: 'bg-primary/10 text-primary',
-  contract: 'bg-emerald-100 text-emerald-700',
+  contract: 'bg-success/10 text-success',
   contract_addendum: 'bg-sky-100 text-sky-700',
-  disciplinary_response: 'bg-amber-100 text-amber-700',
+  disciplinary_response: 'bg-warning/10 text-warning',
   policy_acknowledgement: 'bg-violet-100 text-violet-700',
-  ndpr_consent: 'bg-slate-100 text-slate-700',
-  exit_clearance: 'bg-rose-100 text-rose-700',
+  ndpr_consent: 'bg-muted text-muted-foreground',
+  exit_clearance: 'bg-destructive/10 text-destructive',
   other: 'bg-muted text-muted-foreground',
 };
 
@@ -180,7 +180,7 @@ export const SignedDocumentsList = ({
                       {KIND_LABELS[d.document_kind] || d.document_kind}
                     </Badge>
                     {verified === true && (
-                      <Badge variant="secondary" className="text-3xs bg-emerald-100 text-emerald-700">
+                      <Badge variant="secondary" className="text-3xs bg-success/10 text-success">
                         <ShieldCheck className="h-3 w-3 mr-1" /> Verified
                       </Badge>
                     )}

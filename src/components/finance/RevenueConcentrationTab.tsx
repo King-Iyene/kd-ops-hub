@@ -18,8 +18,8 @@ import { fetchRevenueConcentration, type ConcentrationResult, type Concentration
 import { SERIES, fmtCompact } from '@/lib/chart-theme';
 
 const BAND_STYLE: Record<ConcentrationBand, { tone: string; label: string; Icon: typeof ShieldCheck }> = {
-  diversified:   { tone: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30', label: 'Diversified',   Icon: ShieldCheck },
-  moderate:      { tone: 'bg-amber-500/15 text-amber-700 border-amber-500/30',       label: 'Moderate risk', Icon: AlertTriangle },
+  diversified:   { tone: 'bg-success/15 text-success border-success/30',   label: 'Diversified',   Icon: ShieldCheck },
+  moderate:      { tone: 'bg-warning/15 text-warning border-warning/30',   label: 'Moderate risk', Icon: AlertTriangle },
   concentrated:  { tone: 'bg-destructive/15 text-destructive border-destructive/30',  label: 'Concentrated',  Icon: ShieldAlert },
 };
 
@@ -235,8 +235,8 @@ export default function RevenueConcentrationTab() {
                   to 10,000 (one client with 100% of revenue). Regulators and investors use the same scale:
                 </p>
                 <ul className="space-y-1 text-muted-foreground">
-                  <li className="flex items-center gap-2"><Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 border-emerald-500/30 text-3xs">{'< 1,500'}</Badge> Diversified — low client risk</li>
-                  <li className="flex items-center gap-2"><Badge variant="outline" className="bg-amber-500/15 text-amber-700 border-amber-500/30 text-3xs">1,500–2,500</Badge> Moderate concentration</li>
+                  <li className="flex items-center gap-2"><Badge variant="outline" className="bg-success/15 text-success border-success/30 text-3xs">{'< 1,500'}</Badge> Diversified — low client risk</li>
+                  <li className="flex items-center gap-2"><Badge variant="outline" className="bg-warning/15 text-warning border-warning/30 text-3xs">1,500–2,500</Badge> Moderate concentration</li>
                   <li className="flex items-center gap-2"><Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-3xs">{'> 2,500'}</Badge> Highly concentrated — diversify revenue sources</li>
                 </ul>
               </div>

@@ -55,7 +55,7 @@ export default function EarningsTab({ earnings, canFinance, onShowEarningDialog,
                       <TableCell>{formatDate(e.start_date)}</TableCell>
                       <TableCell>{e.end_date ? formatDate(e.end_date) : '—'}</TableCell>
                       <TableCell>
-                        <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${e.status === 'active' ? 'bg-emerald-100 text-emerald-700' : e.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-muted text-muted-foreground'}`}>
+                        <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${e.status === 'active' ? 'bg-success/10 text-success' : e.status === 'completed' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                           {e.status}
                         </span>
                       </TableCell>
