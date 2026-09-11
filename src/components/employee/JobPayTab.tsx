@@ -264,6 +264,7 @@ export default function JobPayTab({
                 No salary set — use Edit Profile to add salary
               </div>
             ) : (
+              <>
               <div className="hidden md:block">
               <div className="overflow-x-auto">
               <Table>
@@ -368,6 +369,7 @@ export default function JobPayTab({
                   </MobileCard>
                 )}
               </div>
+              </>
             )}
           </CardContent>
         </Card>

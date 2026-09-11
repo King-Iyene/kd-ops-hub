@@ -1087,7 +1087,7 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
               {pending.length > 0 && (
                 <Card>
                   <CardContent className="p-0">
-                    <div className="overflow-x-auto">
+                    <div className="hidden md:block overflow-x-auto">
                     <Table>
                       <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                         <TableRow>
@@ -1134,6 +1134,40 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
                       </TableBody>
                     </Table>
                     </div>
+                    <div className="md:hidden space-y-2 p-3">
+                      {pending.map((item) => {
+                        const st = effectiveMaintStatus(item, vehicle.total_mileage_km);
+                        return (
+                          <MobileCard key={item.id}>
+                            <MobileCardHeader>
+                              <MobileCardTitle>{item.service_type}</MobileCardTitle>
+                              <MobileCardMeta>
+                                <Badge variant="secondary" className={`text-xs border ${maintStatusBadge(st)}`}>
+                                  {st.charAt(0).toUpperCase() + st.slice(1)}
+                                </Badge>
+                              </MobileCardMeta>
+                            </MobileCardHeader>
+                            {item.due_date && <MobileCardRow label="Due Date">{formatDate(item.due_date)}</MobileCardRow>}
+                            {item.due_mileage_km != null && <MobileCardRow label="Due Mileage">{item.due_mileage_km.toLocaleString()} km</MobileCardRow>}
+                            {item.last_done_date && (
+                              <MobileCardRow label="Last Done">
+                                {formatDate(item.last_done_date)}
+                                {item.last_done_mileage_km != null && ` / ${item.last_done_mileage_km.toLocaleString()} km`}
+                              </MobileCardRow>
+                            )}
+                            {item.notes && <MobileCardRow label="Notes">{item.notes}</MobileCardRow>}
+                            <MobileCardFooter>
+                              <Button size="sm" variant="ghost" title="Mark done" onClick={() => handleMarkDone(item)}>
+                                <CheckSquare className="h-4 w-4 text-success" /> Done
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleDelete(item.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" /> Delete
+                              </Button>
+                            </MobileCardFooter>
+                          </MobileCard>
+                        );
+                      })}
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -1143,7 +1177,7 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Completed</p>
                   <Card>
                     <CardContent className="p-0">
-                      <div className="overflow-x-auto">
+                      <div className="hidden md:block overflow-x-auto">
                       <Table>
                         <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                           <TableRow>
@@ -1179,6 +1213,26 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
                           ))}
                         </TableBody>
                       </Table>
+                      </div>
+                      <div className="md:hidden space-y-2 p-3">
+                        {done.map((item) => (
+                          <MobileCard key={item.id} className="opacity-70">
+                            <MobileCardHeader>
+                              <MobileCardTitle>{item.service_type}</MobileCardTitle>
+                            </MobileCardHeader>
+                            {item.last_done_date && <MobileCardRow label="Done">{formatDate(item.last_done_date)}</MobileCardRow>}
+                            {item.last_done_mileage_km != null && <MobileCardRow label="Mileage">{item.last_done_mileage_km.toLocaleString()} km</MobileCardRow>}
+                            {item.notes && <MobileCardRow label="Notes">{item.notes}</MobileCardRow>}
+                            <MobileCardFooter>
+                              {item.receipt_url && (
+                                <FilePreviewTrigger url={item.receipt_url} label="Receipt" fileName={`${item.service_type}-receipt`} />
+                              )}
+                              <Button size="sm" variant="ghost" onClick={() => handleDelete(item.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" /> Delete
+                              </Button>
+                            </MobileCardFooter>
+                          </MobileCard>
+                        ))}
                       </div>
                     </CardContent>
                   </Card>
