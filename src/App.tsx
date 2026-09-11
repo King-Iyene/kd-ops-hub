@@ -429,11 +429,11 @@ function AppRoutes() {
           }
         />
 
-        {/* Fleet / Expenses — all authenticated roles. */}
+        {/* Fleet — Operations module, admin/super_admin only. */}
         <Route
           path="/fleet"
           element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <Fleet />
             </RoleGuard>
           }
@@ -624,11 +624,11 @@ function AppRoutes() {
           }
         />
 
-        {/* Vendor Registry — Managers (Finance, Ops, Admin). */}
+        {/* Vendor Registry — Operations module, admin/super_admin only. */}
         <Route
           path="/vendors"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <Vendors />
             </RoleGuard>
           }
@@ -696,11 +696,11 @@ function AppRoutes() {
           }
         />
 
-        {/* Public Links — every externally-shareable URL, in one place. Managers. */}
+        {/* Public Links — CRM module, admin/super_admin only. */}
         <Route
           path="/public-links"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <PublicLinks />
             </RoleGuard>
           }
@@ -866,21 +866,21 @@ function AppRoutes() {
           }
         />
 
-        {/* Contacts CRM — managers. */}
+        {/* Contacts CRM — admin/super_admin only. */}
         <Route
           path="/contacts"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <Contacts />
             </RoleGuard>
           }
         />
 
-        {/* Communications composer — admin / super_admin / finance only. */}
+        {/* Communications composer — CRM module, admin/super_admin only. */}
         <Route
           path="/communications"
           element={
-            <RoleGuard roles={['super_admin','admin','finance']}>
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <Communications />
             </RoleGuard>
           }
@@ -888,27 +888,27 @@ function AppRoutes() {
         <Route
           path="/contacts/:id"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <ContactProfile />
             </RoleGuard>
           }
         />
 
-        {/* Referrals — every signed-in user. */}
+        {/* Referrals — CRM module, admin/super_admin only. */}
         <Route
           path="/referrals"
           element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <Referrals />
             </RoleGuard>
           }
         />
 
-        {/* Clients CRM — managers. */}
+        {/* Clients CRM — admin/super_admin only. */}
         <Route
           path="/clients"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <Clients />
             </RoleGuard>
           }
@@ -916,7 +916,7 @@ function AppRoutes() {
         <Route
           path="/clients/:id"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <ClientProfile />
             </RoleGuard>
           }

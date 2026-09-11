@@ -113,7 +113,9 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Finance',          url: '/finance',           icon: Gauge,           roles: ['super_admin'] },
   // Operations
   { title: 'Expenses',         url: '/expenses',          icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'], permission: 'expenses.submit' },
-  { title: 'Fleet',            url: '/fleet',             icon: Truck,           roles: ['super_admin', 'admin', 'operations', 'field_staff'], permission: 'fleet.view' },
+  // Operations module (Fleet, Vendors) — admin/super_admin only, no
+  // per-user permission override: matches the RoleGuard on these routes.
+  { title: 'Fleet',            url: '/fleet',             icon: Truck,           roles: ['super_admin', 'admin'] },
   { title: 'Contractors',      url: '/contractors',       icon: Users,           roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'contractors.view' },
   // Employees, Disciplinary, Audit Log, Settings — STRICT role only.
   // These touch HR records, financial audit, and platform configuration;
@@ -139,7 +141,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Succession',       url: '/succession',        icon: Replace,         roles: ['super_admin', 'admin'] },
   { title: 'Handbook',         url: '/handbook',          icon: BookMarked,      roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Timesheets',       url: '/timesheets',        icon: Timer,           roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'timesheets.view' },
-  { title: 'Vendors',          url: '/vendors',           icon: Store,           roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'vendors.view' },
+  { title: 'Vendors',          url: '/vendors',           icon: Store,           roles: ['super_admin', 'admin'] },
   // Workspace
   { title: 'Tasks',            url: '/tasks',             icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Goals',            url: '/goals',             icon: Target,          roles: ['super_admin', 'admin'] },
@@ -148,12 +150,13 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Documents',        url: '/documents',         icon: FileText,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Reports',          url: '/reports',           icon: BarChart3,       roles: ['super_admin', 'admin', 'finance'], permission: 'reports.view' },
   { title: 'HR Analytics',     url: '/hr-analytics',      icon: BarChart3,       roles: ['super_admin', 'admin', 'finance'], permission: 'reports.view' },
-  // CRM
-  { title: 'Clients',          url: '/clients',           icon: Building2,       roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'clients.view' },
-  { title: 'Contacts',         url: '/contacts',          icon: Contact2,        roles: ['super_admin', 'admin', 'finance', 'operations'] },
-  { title: 'Referrals',        url: '/referrals',         icon: Gift,            roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
-  { title: 'Public Links',     url: '/public-links',      icon: Link2,           roles: ['super_admin', 'admin', 'finance', 'operations'] },
-  { title: 'Communications',   url: '/communications',    icon: Mail,            roles: ['super_admin', 'admin', 'finance'] },
+  // CRM module — admin/super_admin only, no per-user permission override:
+  // matches the RoleGuard on these routes.
+  { title: 'Clients',          url: '/clients',           icon: Building2,       roles: ['super_admin', 'admin'] },
+  { title: 'Contacts',         url: '/contacts',          icon: Contact2,        roles: ['super_admin', 'admin'] },
+  { title: 'Referrals',        url: '/referrals',         icon: Gift,            roles: ['super_admin', 'admin'] },
+  { title: 'Public Links',     url: '/public-links',      icon: Link2,           roles: ['super_admin', 'admin'] },
+  { title: 'Communications',   url: '/communications',    icon: Mail,            roles: ['super_admin', 'admin'] },
   // Admin — strict role only (see comment block above).
   { title: 'Approval Workflows', url: '/approval-workflows', icon: GitBranch,    roles: ['super_admin', 'admin'] },
   { title: 'Audit Log',        url: '/audit',             icon: ScrollText,      roles: ['super_admin', 'admin'] },

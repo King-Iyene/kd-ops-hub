@@ -19,6 +19,7 @@ import {
   Landmark,
   Layers,
   Contact2,
+  CalendarDays,
 } from 'lucide-react';
 import { useApprovalStore } from '@/store/approvalStore';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
@@ -65,15 +66,17 @@ const ROLE_TABS: Record<string, TabDef[]> = {
     { title: 'Payments',  url: '/payments',  icon: CreditCard },
     { title: 'Expenses',  url: '/expenses',  icon: Receipt },
   ],
+  // Fleet is an Operations module page, restricted to admin/super_admin
+  // only — replaced with Leave in the non-admin bottom tabs.
   operations: [
     { title: 'Home',      url: '/',          icon: LayoutDashboard },
-    { title: 'Fleet',     url: '/fleet',     icon: Truck },
+    { title: 'Leave',     url: '/leave',     icon: CalendarDays },
     { title: 'Expenses',  url: '/expenses',  icon: Receipt },
     { title: 'Tasks',     url: '/tasks',     icon: ListTodo },
   ],
   field_staff: [
     { title: 'Home',      url: '/',          icon: LayoutDashboard },
-    { title: 'Fleet',     url: '/fleet',     icon: Truck },
+    { title: 'Leave',     url: '/leave',     icon: CalendarDays },
     { title: 'Expenses',  url: '/expenses',  icon: Receipt },
     { title: 'Tasks',     url: '/tasks',     icon: ListTodo },
   ],

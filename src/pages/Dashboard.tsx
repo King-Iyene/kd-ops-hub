@@ -32,7 +32,6 @@ import {
   Building2,
   Bell,
   Layers,
-  Truck,
   BookOpen,
 } from 'lucide-react';
 import {
@@ -490,17 +489,17 @@ const Dashboard = () => {
     // Quick links tailored to what each role actually has access to and
     // uses day to day — Goals and other admin-only modules are deliberately
     // left off since those roles have no route to them at all.
+    // Fleet/Clients are Operations & CRM modules, restricted to
+    // admin/super_admin only — left off every non-admin role's quick links.
     const quickLinks = isOperations
       ? [
           { label: 'Payments', icon: Layers, onClick: () => navigate('/payments'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
-          { label: 'Fleet', icon: Truck, onClick: () => navigate('/fleet'), iconBg: 'bg-sky-100 dark:bg-sky-900/30', iconColor: 'text-sky-600 dark:text-sky-400' },
-          { label: 'Clients', icon: Building2, onClick: () => navigate('/clients'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' },
+          { label: 'Expenses', icon: Receipt, onClick: () => navigate('/expenses'), iconBg: 'bg-rose-100 dark:bg-rose-900/25', iconColor: 'text-rose-600 dark:text-rose-400' },
           { label: 'Timesheets', icon: CalendarClock, onClick: () => navigate('/timesheets'), iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-success' },
           { label: 'Leave', icon: CalendarDays, onClick: () => navigate('/leave'), iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-warning' },
-          { label: 'Handbook', icon: FileText, onClick: () => navigate('/handbook'), iconBg: 'bg-rose-100 dark:bg-rose-900/25', iconColor: 'text-rose-600 dark:text-rose-400' },
+          { label: 'Handbook', icon: FileText, onClick: () => navigate('/handbook'), iconBg: 'bg-violet-100 dark:bg-violet-900/25', iconColor: 'text-violet-600 dark:text-violet-400' },
         ]
       : [
-          { label: 'Fleet', icon: Truck, onClick: () => navigate('/fleet'), iconBg: 'bg-sky-100 dark:bg-sky-900/30', iconColor: 'text-sky-600 dark:text-sky-400' },
           { label: 'Expenses', icon: Receipt, onClick: () => navigate('/expenses'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
           { label: 'Leave', icon: CalendarDays, onClick: () => navigate('/leave'), iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-warning' },
           { label: 'Tasks', icon: CheckCircle, onClick: () => navigate('/tasks'), iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-success' },
@@ -527,7 +526,6 @@ const Dashboard = () => {
           <StatCard title="Pending Expenses" value={personalLoading ? '—' : personalKPIs.pendingExpenses} icon={Receipt} subtitle="Awaiting approval" tone="warning" onClick={() => navigate('/expenses')} />
           <StatCard title="Leave Days Left" value={personalLoading ? '—' : personalKPIs.leaveDaysRemaining} icon={CalendarDays} subtitle="Annual leave balance" tone="primary" onClick={() => navigate('/leave')} />
           <StatCard title="Assigned Tasks" value={personalLoading ? '—' : personalKPIs.assignedTasks} icon={CheckCircle} subtitle="Open tasks" tone="primary" onClick={() => navigate('/tasks')} />
-          <StatCard title="Fuel Requests" value={personalLoading ? '—' : personalKPIs.pendingFuel} icon={Fuel} subtitle="Pending requests" tone="warning" onClick={() => navigate('/fleet')} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -810,7 +808,8 @@ const Dashboard = () => {
                 {[
                   { label: 'New Payment', icon: Plus, onClick: () => navigate('/payments/new'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
                   { label: 'Approvals', icon: CheckCircle, onClick: () => navigate('/approvals'), badge: approvalCounts.total, iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-warning' },
-                  { label: 'Clients', icon: Building2, onClick: () => navigate('/clients'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' },
+                  // Clients is a CRM module page, restricted to admin/super_admin only.
+                  ...(isAdminRole ? [{ label: 'Clients', icon: Building2, onClick: () => navigate('/clients'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' }] : []),
                   { label: 'Subscriptions', icon: CalendarClock, onClick: () => navigate('/subscriptions'), iconBg: 'bg-sky-100 dark:bg-sky-900/30', iconColor: 'text-sky-600 dark:text-sky-400' },
                   { label: 'Reports', icon: FileText, onClick: () => navigate('/reports'), iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-success' },
                   { label: 'Payroll', icon: DollarSign, onClick: () => navigate('/payroll'), iconBg: 'bg-rose-100 dark:bg-rose-900/25', iconColor: 'text-rose-600 dark:text-rose-400' },
