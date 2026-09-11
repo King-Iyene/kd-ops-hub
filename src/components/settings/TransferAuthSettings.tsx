@@ -554,7 +554,7 @@ export default function TransferAuthSettings() {
           ) : (
             <div className="overflow-x-auto">
               <Table className="min-w-[700px]">
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <TableRow>
                     <TableHead className="w-[130px]">Role</TableHead>
                     <TableHead className="min-w-[160px]">Single transfer (₦)</TableHead>
@@ -587,7 +587,7 @@ export default function TransferAuthSettings() {
                     // guard for super_admin only.
                     const lockSelf = isSelfRole && role !== 'super_admin';
                     return (
-                      <TableRow key={role}>
+                      <TableRow key={role} className="hover:bg-muted/40 kd-transition">
                         <TableCell className="font-medium">{roleLabel[role]}</TableCell>
                         <TableCell>
                           <Input
@@ -725,7 +725,7 @@ export default function TransferAuthSettings() {
           ) : (
             <div className="overflow-x-auto">
               <Table className="min-w-[700px]">
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead className="text-right">Single</TableHead>
@@ -742,7 +742,7 @@ export default function TransferAuthSettings() {
                     const p = o.user_id ? profilesById.get(o.user_id) : null;
                     const isSelf = o.user_id === currentUserId;
                     return (
-                      <TableRow key={o.id}>
+                      <TableRow key={o.id} className="hover:bg-muted/40 kd-transition">
                         <TableCell className="font-medium">
                           {p?.full_name || p?.email || o.user_id}
                           {p?.role && (
@@ -825,7 +825,7 @@ export default function TransferAuthSettings() {
           ) : (
             <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
                   <TableHead className="w-[160px]">Action</TableHead>
                   <TableHead className="w-[100px]">Tier</TableHead>
@@ -838,7 +838,7 @@ export default function TransferAuthSettings() {
                   const draftRoles = poolDraft[pool.id] ?? pool.eligible_roles;
                   const dirty = poolDraft[pool.id] !== undefined;
                   return (
-                    <TableRow key={pool.id}>
+                    <TableRow key={pool.id} className="hover:bg-muted/40 kd-transition">
                       <TableCell className="font-medium">
                         {pool.action_type === 'payment_batch' ? 'Payment Batch'
                           : pool.action_type === 'quick_pay' ? 'Quick Pay'
@@ -970,7 +970,7 @@ export default function TransferAuthSettings() {
             <>
               <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                     <TableRow>
                       <TableHead className="whitespace-nowrap">When</TableHead>
                       <TableHead>Actor</TableHead>
@@ -985,7 +985,7 @@ export default function TransferAuthSettings() {
                     {auditRows.map((row) => {
                       const p = row.actor_id ? profilesById.get(row.actor_id) : null;
                       return (
-                        <TableRow key={row.id}>
+                        <TableRow key={row.id} className="hover:bg-muted/40 kd-transition">
                           <TableCell className="whitespace-nowrap text-xs">
                             {new Date(row.created_at).toLocaleString()}
                           </TableCell>

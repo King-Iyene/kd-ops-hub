@@ -333,7 +333,7 @@ export default function FxRateSettings() {
           <div className="rounded-lg border border-border/70 overflow-hidden">
             <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="text-right">Rate (₦/$)</TableHead>
                   <TableHead>Status</TableHead>
@@ -349,7 +349,7 @@ export default function FxRateSettings() {
                   const up = r.prev_rate != null && r.rate > r.prev_rate;
                   const down = r.prev_rate != null && r.rate < r.prev_rate;
                   return (
-                    <TableRow key={r.id}>
+                    <TableRow key={r.id} className="hover:bg-muted/40 kd-transition">
                       <TableCell className="text-right font-mono tabular-nums font-medium">{fmtRate(r.rate)}</TableCell>
                       <TableCell>
                         <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium capitalize',

@@ -14,7 +14,7 @@ import { useAuthStore } from '@/store/authStore';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { logAudit } from '@/lib/audit';
 import { MANAGER_ROLES, hasRole } from '@/lib/roles';
-import { formatDate, formatNaira } from '@/lib/format';
+import { formatDate, formatNaira, formatNairaCompact } from '@/lib/format';
 import { safeHref } from '@/lib/safe-href';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { chartTheme, chartPalette, ChartGradients, GlassTooltip, axisTick, chartAnim, fmtNairaTick } from '@/components/ChartKit';
@@ -454,14 +454,14 @@ const ClientProfile = () => {
             />
             <StatCard
               title="Monthly Revenue"
-              value={formatNaira(analytics.totalMonthlyRevenue)}
+              value={formatNairaCompact(analytics.totalMonthlyRevenue)}
               subtitle="Gross from placements"
               icon={TrendingUp}
               tone="gold"
             />
             <StatCard
               title="KD Commission"
-              value={formatNaira(analytics.totalMonthlyCommission)}
+              value={formatNairaCompact(analytics.totalMonthlyCommission)}
               subtitle={`${analytics.activePlacements > 0 ? Math.round(analytics.totalMonthlyCommission / analytics.totalMonthlyRevenue * 100) : 0}% avg rate`}
               icon={DollarSign}
               tone="success"
@@ -493,7 +493,7 @@ const ClientProfile = () => {
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                       <TableRow>
                         <TableHead>Employee</TableHead>
                         <TableHead>Category</TableHead>
@@ -507,7 +507,7 @@ const ClientProfile = () => {
                     </TableHeader>
                     <TableBody>
                       {placements.map((p) => (
-                        <TableRow key={p.id} className="kd-transition cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate(`/employees/${p.employee_id}`)} onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/employees/${p.employee_id}`, '_blank'); ev.preventDefault(); } }}>
+                        <TableRow key={p.id} className="hover:bg-muted/40 kd-transition cursor-pointer" onClick={() => navigate(`/employees/${p.employee_id}`)} onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/employees/${p.employee_id}`, '_blank'); ev.preventDefault(); } }}>
                           <TableCell>
                             <div>
                               <p className="font-medium"><Link to={`/employees/${p.employee_id}`} className="hover:underline" onClick={(e) => e.preventDefault()}>{(p.profiles as any)?.full_name || 'Unknown'}</Link></p>
@@ -590,19 +590,19 @@ const ClientProfile = () => {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard
               title="Total Collected"
-              value={formatNaira(analytics.totalCollected)}
+              value={formatNairaCompact(analytics.totalCollected)}
               icon={CheckCircle2}
               tone="success"
             />
             <StatCard
               title="Outstanding"
-              value={formatNaira(analytics.totalOutstanding)}
+              value={formatNairaCompact(analytics.totalOutstanding)}
               icon={Clock}
               tone={analytics.totalOutstanding > 0 ? 'warning' : 'success'}
             />
             <StatCard
               title="Employee Cost"
-              value={formatNaira(analytics.totalEmployeeCost)}
+              value={formatNairaCompact(analytics.totalEmployeeCost)}
               subtitle="Monthly payout"
               tone="primary"
             />
@@ -611,7 +611,7 @@ const ClientProfile = () => {
               value={analytics.totalMonthlyRevenue > 0
                 ? `${Math.round((analytics.totalMonthlyCommission / analytics.totalMonthlyRevenue) * 100)}%`
                 : '—'}
-              subtitle={formatNaira(analytics.totalMonthlyCommission) + '/mo'}
+              subtitle={formatNairaCompact(analytics.totalMonthlyCommission) + '/mo'}
               icon={TrendingUp}
               tone="gold"
             />
@@ -704,7 +704,7 @@ const ClientProfile = () => {
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                       <TableRow>
                         <TableHead>Month</TableHead>
                         <TableHead className="text-right">Gross</TableHead>
@@ -716,7 +716,7 @@ const ClientProfile = () => {
                     </TableHeader>
                     <TableBody>
                       {payments.slice(0, 24).map((p) => (
-                        <TableRow key={p.id}>
+                        <TableRow key={p.id} className="hover:bg-muted/40 kd-transition">
                           <TableCell className="font-medium">
                             {new Date(p.month + 'T00:00:00').toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
                           </TableCell>

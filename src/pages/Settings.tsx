@@ -1599,7 +1599,7 @@ function DepartmentsManager() {
           ) : (
             <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
@@ -1610,7 +1610,7 @@ function DepartmentsManager() {
               </TableHeader>
               <TableBody>
                 {depts.map((d) => (
-                  <TableRow key={d.id}>
+                  <TableRow key={d.id} className="hover:bg-muted/40 kd-transition">
                     <TableCell className="font-medium">{d.name}</TableCell>
                     <TableCell className="text-muted-foreground">{d.description || '—'}</TableCell>
                     <TableCell className="text-sm">{d.head?.full_name || '—'}</TableCell>

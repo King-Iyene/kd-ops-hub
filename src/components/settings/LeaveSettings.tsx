@@ -165,7 +165,7 @@ export default function LeaveSettings() {
           {/* Desktop table */}
           <div className="hidden md:block overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
                   <TableHead>Leave type</TableHead>
                   <TableHead className="w-[100px] text-center">Days / yr</TableHead>
@@ -183,7 +183,7 @@ export default function LeaveSettings() {
                   const active = getPolicyValue(p, 'active');
                   const paid = getPolicyValue(p, 'paid');
                   return (
-                    <TableRow key={p.id} className={!active ? 'opacity-50' : ''}>
+                    <TableRow key={p.id} className={`hover:bg-muted/40 kd-transition ${!active ? 'opacity-50' : ''}`}>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {p.color && (
