@@ -46,7 +46,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { useApprovalStore } from '@/store/approvalStore';
-import { daysUntil, formatDate, formatDateTime, formatNaira } from '@/lib/format';
+import { daysUntil, formatDate, formatDateTime, formatNaira, formatNairaCompact } from '@/lib/format';
 import ComplianceCard from '@/components/ComplianceCard';
 import { AnnouncementsBanner } from '@/components/AnnouncementsBanner';
 import { PushNotificationsBanner } from '@/components/PushNotificationsBanner';
@@ -687,7 +687,7 @@ const Dashboard = () => {
         />
         <StatCard
           title="Total Disbursed"
-          value={loading ? '—' : formatNaira(stats.totalDisbursed)}
+          value={loading ? '—' : formatNairaCompact(stats.totalDisbursed)}
           icon={CreditCard}
           subtitle="This month"
           tone="success"
@@ -702,7 +702,7 @@ const Dashboard = () => {
         />
         <StatCard
           title="Fleet Fuel Spend"
-          value={loading ? '—' : formatNaira(stats.fuelSpend)}
+          value={loading ? '—' : formatNairaCompact(stats.fuelSpend)}
           icon={Fuel}
           subtitle="This week"
           tone="primary"

@@ -140,7 +140,7 @@ export function StatCard({
         <div className={cn('flex items-start justify-between gap-2', compact ? 'mb-1.5' : 'mb-3')}>
           <div className="flex items-center gap-1.5 min-w-0">
             <span className={cn('h-1.5 w-1.5 rounded-full shrink-0 mt-px', cfg.dot)} />
-            <p className={cn('font-semibold uppercase tracking-[0.08em] text-muted-foreground/80 truncate leading-none pt-px', compact ? 'text-3xs' : 'text-label-xs')}>
+            <p className={cn('font-semibold uppercase tracking-[0.08em] text-muted-foreground/80 leading-tight pt-px', compact ? 'text-3xs' : 'text-2xs')}>
               {title}
             </p>
           </div>
@@ -156,7 +156,12 @@ export function StatCard({
         </div>
 
         {/* Value — display-weight number */}
-        <div className={cn('kd-stat-number font-extrabold text-foreground leading-none tabular-nums truncate', compact ? 'text-lg' : 'text-stat-md')}>
+        <div className={cn(
+          'kd-stat-number font-extrabold text-foreground leading-none tabular-nums',
+          compact ? 'text-lg' : 'text-stat-md',
+          typeof value === 'string' && value.length > 10 && !compact && 'text-xl sm:text-stat-md',
+          typeof value === 'string' && value.length > 14 && !compact && '!text-lg sm:!text-xl',
+        )}>
           {typeof value === 'number' && Number.isFinite(value)
             ? <CountUp value={value} />
             : value}

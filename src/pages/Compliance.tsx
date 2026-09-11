@@ -1127,7 +1127,7 @@ const Compliance = () => {
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <StatCard
           title="Pending remittance"
-          value={formatNaira(remittanceStats.totalPending)}
+          value={formatNairaCompact(remittanceStats.totalPending)}
           subtitle="Not yet paid out"
           icon={Wallet}
           tone="warning"
@@ -1148,7 +1148,7 @@ const Compliance = () => {
         />
         <StatCard
           title="Remitted YTD"
-          value={formatNaira(remittanceStats.ytdRemitted)}
+          value={formatNairaCompact(remittanceStats.ytdRemitted)}
           subtitle={`${new Date().getFullYear()} total`}
           icon={BadgeCheck}
           tone="success"

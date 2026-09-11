@@ -6,7 +6,7 @@ import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { MANAGER_ROLES, hasRole } from '@/lib/roles';
-import { formatDate, formatNaira, toIsoDate } from '@/lib/format';
+import { formatDate, formatNaira, formatNairaCompact, toIsoDate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { useDebounce } from '@/hooks/useDebounce';
 import { usePagination } from '@/hooks/usePagination';
@@ -353,8 +353,8 @@ const Clients = () => {
         <StatCard title="Active" value={stats.active} tone="success" />
         <StatCard title="Prospects" value={stats.prospects} tone="warning" />
         <StatCard title="Active Placements" value={stats.totalPlacements} icon={Users} tone="primary" subtitle="Employees deployed" />
-        <StatCard title="Monthly Revenue" value={formatNaira(stats.totalMonthlyRevenue)} icon={TrendingUp} tone="gold" subtitle="All active placements" />
-        <StatCard title="KD Commission" value={formatNaira(stats.totalCommission)} tone="success" subtitle="Monthly earnings" />
+        <StatCard title="Monthly Revenue" value={formatNairaCompact(stats.totalMonthlyRevenue)} icon={TrendingUp} tone="gold" subtitle="All active placements" />
+        <StatCard title="KD Commission" value={formatNairaCompact(stats.totalCommission)} tone="success" subtitle="Monthly earnings" />
       </div>
 
       {/* Filters */}

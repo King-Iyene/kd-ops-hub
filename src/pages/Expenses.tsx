@@ -1372,14 +1372,14 @@ const Expenses = () => {
         />
         <StatCard
           title="Total Spent"
-          value={formatNaira(expenseStats.totalSpent)}
+          value={formatNairaCompact(expenseStats.totalSpent)}
           subtitle={`${expenses.filter((e) => e.status === 'approved').length} claims`}
           icon={Wallet}
           tone="primary"
         />
         <StatCard
           title="Average Claim"
-          value={formatNaira(expenseStats.avgClaim)}
+          value={formatNairaCompact(expenseStats.avgClaim)}
           subtitle={`${expenses.length} total claims`}
           icon={Calculator}
           tone="info"

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
-import { formatNaira } from '@/lib/format';
+import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { format, parseISO, differenceInDays, differenceInMonths } from 'date-fns';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -279,9 +279,9 @@ export default function Assets() {
 
       {/* Stats */}
       <div className="kd-stat-grid">
-        <StatCard title="Total cost (active)" value={formatNaira(totalCost)} icon={Package} tone="primary" />
-        <StatCard title="Net book value" value={formatNaira(totalBookValue)} icon={CheckCircle2} tone="success" />
-        <StatCard title="Total depreciation" value={formatNaira(totalDepn)} icon={TrendingDown} tone="default" />
+        <StatCard title="Total cost (active)" value={formatNairaCompact(totalCost)} icon={Package} tone="primary" />
+        <StatCard title="Net book value" value={formatNairaCompact(totalBookValue)} icon={CheckCircle2} tone="success" />
+        <StatCard title="Total depreciation" value={formatNairaCompact(totalDepn)} icon={TrendingDown} tone="default" />
         <StatCard title="Insurance expiring ≤30d" value={insuranceExpiring} icon={AlertTriangle} tone="warning" />
       </div>
 
