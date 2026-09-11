@@ -215,7 +215,7 @@ export function AppSidebar() {
                 'h-[15px] w-[15px] shrink-0 transition-all duration-200 ease-out',
                 active
                   ? 'text-[hsl(var(--sidebar-ring))] scale-110'
-                  : 'text-sidebar-foreground/40 group-hover/nav:text-sidebar-foreground/90 group-hover/nav:scale-110',
+                  : 'text-sidebar-foreground/40 group-hover/nav:text-sidebar-foreground/90 group-hover/nav:animate-[kd-icon-jiggle_400ms_ease-out_both]',
               )}
             />
             {!sidebarCollapsed && (
@@ -469,7 +469,7 @@ export function AppSidebar() {
                       )}
                     >
                       <div className="h-9 w-9 flex items-center justify-center shrink-0">
-                        <Icon className={cn('h-5 w-5 kd-transition', hub.color)} />
+                        <Icon className={cn('h-5 w-5 kd-transition group-hover/hub:animate-[kd-icon-jiggle_400ms_ease-out_both]', hub.color)} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
@@ -523,9 +523,9 @@ export function AppSidebar() {
                         className="relative"
                         onClick={() => { setActiveHub(hub.key); setOpen(true); }}
                       >
-                        <div className="flex items-center justify-center w-full py-0.5">
+                        <div className="flex items-center justify-center w-full py-0.5 group/icon">
                           <Icon className={cn(
-                            'h-[15px] w-[15px] kd-transition',
+                            'h-[15px] w-[15px] kd-transition group-hover/icon:animate-[kd-icon-jiggle_400ms_ease-out_both]',
                             active ? hub.color : 'text-sidebar-foreground/40',
                           )} />
                         </div>
