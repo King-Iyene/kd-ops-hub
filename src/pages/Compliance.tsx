@@ -1052,7 +1052,7 @@ const Compliance = () => {
                         <p className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
                           {CERT_LABELS[c.certificate_type] || c.certificate_type}
                         </p>
-                        <p className="font-medium truncate">{c.title}</p>
+                        <p className="font-medium truncate" title={c.title}>{c.title}</p>
                       </div>
                       <Badge variant="secondary" className={cn('text-3xs', badgeCls)}>
                         {expired ? 'expired' : soon ? 'expiring' : 'valid'}

@@ -191,6 +191,7 @@ export function ContractorFormDialog({
                 <Label>Email</Label>
                 <Input
                   type="email"
+                  autoComplete="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   placeholder="ada@example.com"
@@ -235,6 +236,7 @@ export function ContractorFormDialog({
                   <Label>LinkedIn Email</Label>
                   <Input
                     type="email"
+                    autoComplete="email"
                     value={form.heyreach_email}
                     onChange={(e) => setForm({ ...form, heyreach_email: e.target.value })}
                     placeholder="LinkedIn login email"

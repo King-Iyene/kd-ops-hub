@@ -606,7 +606,7 @@ const Dashboard = () => {
                     onClick={() => navigate('/documents')}
                     className="flex items-center justify-between w-full text-left rounded-lg px-3 py-2 bg-background/60 hover:bg-background text-xs kd-transition border border-border/50"
                   >
-                    <span className="font-medium truncate max-w-[160px]">{d.title}</span>
+                    <span className="font-medium truncate max-w-[160px]" title={d.title}>{d.title}</span>
                     <span className="text-warning ml-2 shrink-0">{formatDate(d.expires_at)}</span>
                   </button>
                 ))}
@@ -640,7 +640,7 @@ const Dashboard = () => {
                     to={`/employees/${c.id}`}
                     className="flex items-center justify-between w-full text-left rounded-lg px-3 py-2 bg-background/60 hover:bg-background text-xs kd-transition border border-border/50"
                   >
-                    <span className="font-medium truncate max-w-[160px]">{c.name}</span>
+                    <span className="font-medium truncate max-w-[160px]" title={c.name}>{c.name}</span>
                     <span className="text-warning ml-2 shrink-0">{formatDate(c.contract_end_date)}</span>
                   </Link>
                 ))}
@@ -858,7 +858,7 @@ const Dashboard = () => {
                     return (
                       <div key={s.id} className={cn('flex items-center justify-between px-4 py-3 hover:bg-muted/30 kd-transition', i === 0 && 'pt-4')}>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{s.name}</p>
+                          <p className="text-sm font-medium truncate" title={s.name}>{s.name}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {formatDate(s.next_renewal_date)}
                             {d !== null && d >= 0 ? ` · in ${d}d` : d === null ? '' : ' · overdue'}
@@ -899,7 +899,7 @@ const Dashboard = () => {
                     {upcomingPayments.map((p, i) => (
                       <div key={p.id} className={cn('flex items-center justify-between px-4 py-3 hover:bg-muted/30 kd-transition', i === 0 && 'pt-4')}>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{p.name}</p>
+                          <p className="text-sm font-medium truncate" title={p.name}>{p.name}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">{formatDate(p.scheduled_date)}</p>
                         </div>
                         <p className="text-sm font-semibold currency shrink-0 ml-3">{formatNaira(p.total_amount)}</p>

@@ -582,6 +582,7 @@ const Clients = () => {
                 <Label>Email</Label>
                 <Input
                   type="email"
+                  autoComplete="email"
                   value={form.email}
                   aria-invalid={!!fe.email}
                   onChange={(e) => { setForm((f) => ({ ...f, email: e.target.value })); clearError('email'); }}

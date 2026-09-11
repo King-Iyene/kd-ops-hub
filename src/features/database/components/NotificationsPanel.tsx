@@ -121,6 +121,7 @@ export function NotificationsPanel() {
       <Button
         variant="ghost"
         size="icon"
+        aria-label="Notifications"
         className="h-7 w-7 text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] relative"
         onClick={() => setOpen((v) => !v)}
       >

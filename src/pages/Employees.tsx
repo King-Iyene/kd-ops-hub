@@ -716,9 +716,9 @@ const Employees = () => {
                           />
                           <div className="min-w-0">
                             {e.status !== 'invited' ? (
-                              <Link to={`/employees/${e.id}`} className="truncate block font-semibold text-foreground group-hover:text-primary kd-transition" onClick={(ev) => ev.preventDefault()}>{displayName(e.first_name, e.last_name, e.full_name)}</Link>
+                              <Link to={`/employees/${e.id}`} className="truncate block font-semibold text-foreground group-hover:text-primary kd-transition" title={displayName(e.first_name, e.last_name, e.full_name)} onClick={(ev) => ev.preventDefault()}>{displayName(e.first_name, e.last_name, e.full_name)}</Link>
                             ) : (
-                              <div className="truncate font-semibold text-foreground">{displayName(e.first_name, e.last_name, e.full_name)}</div>
+                              <div className="truncate font-semibold text-foreground" title={displayName(e.first_name, e.last_name, e.full_name)}>{displayName(e.first_name, e.last_name, e.full_name)}</div>
                             )}
                             {e.tags && e.tags.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
@@ -845,7 +845,7 @@ const Employees = () => {
                       size={40}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="text-base font-medium text-foreground truncate leading-tight">
+                      <p className="text-base font-medium text-foreground truncate leading-tight" title={displayName(e.first_name, e.last_name, e.full_name)}>
                         {displayName(e.first_name, e.last_name, e.full_name)}
                       </p>
                       <p className="text-xs-plus text-muted-foreground/70 truncate mt-0.5 capitalize">
@@ -925,6 +925,7 @@ const Employees = () => {
                 <Label>Email</Label>
                 <Input
                   type="email"
+                  autoComplete="email"
                   value={form.email}
                   onChange={(e) => { setForm({ ...form, email: e.target.value }); clearFieldError('email'); }}
                   placeholder="teammate@kdsquares.com"

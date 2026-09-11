@@ -1603,9 +1603,9 @@ const Expenses = () => {
                       </TableCell>
                       <TableCell>{formatDate(e.date)}</TableCell>
                       <TableCell className="max-w-xs">
-                        <div className="truncate">{e.description || '—'}</div>
+                        <div className="truncate" title={e.description || '—'}>{e.description || '—'}</div>
                         {e.vendor_name && (
-                          <div className="text-3xs text-muted-foreground truncate">{e.vendor_name}</div>
+                          <div className="text-3xs text-muted-foreground truncate" title={e.vendor_name}>{e.vendor_name}</div>
                         )}
                         {e.receipt_url && (
                           <div className="flex items-center gap-2 mt-0.5" onClick={(evt) => evt.stopPropagation()}>
@@ -2243,7 +2243,7 @@ const Expenses = () => {
               {receiptFile ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Paperclip className="h-3.5 w-3.5 shrink-0" />
-                  <span className="font-medium text-foreground truncate">{receiptFile.name}</span>
+                  <span className="font-medium text-foreground truncate" title={receiptFile.name}>{receiptFile.name}</span>
                   <span>— {(receiptFile.size / 1024).toFixed(1)} KB</span>
                   <button
                     type="button"

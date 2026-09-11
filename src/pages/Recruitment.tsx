@@ -493,7 +493,7 @@ export default function Recruitment() {
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Search job title, location…" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input className="pl-9" aria-label="Search recruitment openings" placeholder="Search job title, location…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <Select value={statusFilter} onValueChange={v => setStatusFilter(v as OpeningStatus | 'all')}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
@@ -773,7 +773,7 @@ export default function Recruitment() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="kd-label">Email</Label>
-                <Input type="email" placeholder="email@example.com" value={applicantForm.email} aria-invalid={!!aErr.email} onChange={e => { setApplicantForm(f => ({ ...f, email: e.target.value })); clearAErr('email'); }} />
+                <Input type="email" autoComplete="email" placeholder="email@example.com" value={applicantForm.email} aria-invalid={!!aErr.email} onChange={e => { setApplicantForm(f => ({ ...f, email: e.target.value })); clearAErr('email'); }} />
                 <FieldError message={aErr.email} />
               </div>
               <div className="space-y-1">

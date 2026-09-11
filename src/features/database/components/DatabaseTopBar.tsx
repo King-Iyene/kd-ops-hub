@@ -71,6 +71,7 @@ export function DatabaseTopBar() {
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Toggle sidebar"
             className="h-7 w-7 text-white/70 hover:bg-white/10 hover:text-white"
             onClick={toggleSidebar}
           >
@@ -103,6 +104,7 @@ export function DatabaseTopBar() {
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Help"
             className="h-7 w-7 text-white/70 hover:bg-white/10 hover:text-white"
             onClick={() => setHelpOpen(true)}
           >

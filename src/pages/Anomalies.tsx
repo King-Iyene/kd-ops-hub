@@ -70,9 +70,9 @@ import {
 } from '@/lib/anomalies';
 
 const SEVERITY_TONE: Record<AnomalySeverity, string> = {
-  critical: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30',
+  critical: 'bg-red-500/10 text-destructive border-red-500/30',
   high: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30',
-  medium: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  medium: 'bg-amber-500/10 text-warning border-amber-500/30',
   low: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/30',
 };
 

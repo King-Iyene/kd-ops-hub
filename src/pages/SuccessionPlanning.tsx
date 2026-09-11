@@ -41,8 +41,8 @@ const RISK_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destru
 };
 
 const RISK_CLASS: Record<string, string> = {
-  low: 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400',
-  medium: 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400',
+  low: 'border-green-500/40 bg-green-500/10 text-success',
+  medium: 'border-amber-500/40 bg-amber-500/10 text-warning',
   high: 'border-orange-500/40 bg-orange-500/10 text-orange-700 dark:text-orange-400',
   critical: '',
 };
@@ -57,7 +57,7 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline'> = {
 
 const STATUS_CLASS: Record<string, string> = {
   active: '',
-  filled: 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400',
+  filled: 'border-green-500/40 bg-green-500/10 text-success',
   archived: '',
 };
 

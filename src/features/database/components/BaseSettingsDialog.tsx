@@ -245,7 +245,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
         {tab === 'danger' && (
           <div className="space-y-4">
             <div className="rounded-md border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/5 p-4">
-              <h4 className="text-sm font-medium text-red-700 dark:text-red-400 mb-1">
+              <h4 className="text-sm font-medium text-destructive mb-1">
                 Delete this base
               </h4>
               <p className="text-xs text-red-600/80 dark:text-red-400/70 mb-3">
@@ -796,7 +796,7 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
 
       {createdKey && (
         <div className="rounded-lg border border-success/20/40 bg-success/10/10 p-3 space-y-2">
-          <p className="text-xs font-medium text-green-700 dark:text-green-400">
+          <p className="text-xs font-medium text-success">
             API key created — copy it now, you won't see it again
           </p>
           <div className="flex items-center gap-2">

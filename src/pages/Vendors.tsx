@@ -452,7 +452,7 @@ export default function Vendors() {
             </div>
             <div className="space-y-1.5">
               <Label>Contact email</Label>
-              <Input type="email" value={form.contact_email ?? ''} onChange={e => f('contact_email', e.target.value)} />
+              <Input type="email" autoComplete="email" value={form.contact_email ?? ''} onChange={e => f('contact_email', e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label>Contact phone</Label>

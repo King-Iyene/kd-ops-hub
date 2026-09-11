@@ -513,7 +513,7 @@ export default function Projects() {
           <div className="flex flex-wrap gap-2">
             <div className="relative flex-1 min-w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-9 h-9" placeholder="Search projects…" value={search} onChange={e => setSearch(e.target.value)} />
+              <Input className="pl-9 h-9" aria-label="Search projects" placeholder="Search projects…" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <div className="flex gap-1 flex-wrap">
               {[['active','Active'],['planning','Planning'],['on_hold','On Hold'],['completed','Completed'],['all','All']].map(([v,l]) => (

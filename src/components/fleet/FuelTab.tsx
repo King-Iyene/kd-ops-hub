@@ -3144,7 +3144,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
               {repairReceipt ? (
                 <div className="flex items-center gap-3 rounded-xl border-2 border-green-400 bg-success/10/20 px-4 py-3">
                   <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
-                  <span className="text-sm text-green-700 dark:text-green-400 truncate flex-1">{repairReceipt.name}</span>
+                  <span className="text-sm text-success truncate flex-1">{repairReceipt.name}</span>
                   <button type="button" className="text-xs text-muted-foreground hover:text-destructive shrink-0" onClick={() => { setRepairReceipt(null); setRepairReceiptOcrAmount(''); }}>
                     Change
                   </button>

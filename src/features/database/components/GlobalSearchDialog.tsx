@@ -102,7 +102,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
       >
         {/* Search input */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-[hsl(200,25%,18%)]">
-          <Search size={18} className="text-gray-400 dark:text-[hsl(200,20%,50%)] shrink-0" />
+          <Search size={18} className="text-muted-foreground/70 shrink-0" />
           <input
             ref={inputRef}
             value={query}
@@ -123,7 +123,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
           )}
           <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-3xs font-medium
             bg-gray-100 dark:bg-[hsl(200,25%,15%)]
-            text-gray-500 dark:text-[hsl(200,20%,50%)]
+            text-muted-foreground
             border border-gray-200 dark:border-[hsl(200,25%,22%)]">
             ESC
           </kbd>
@@ -132,20 +132,20 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
         {/* Results */}
         <div className="max-h-80 overflow-y-auto">
           {isLoading && (
-            <div className="flex items-center justify-center py-8 gap-2 text-sm text-gray-400 dark:text-[hsl(200,20%,50%)]">
+            <div className="flex items-center justify-center py-8 gap-2 text-sm text-muted-foreground/70">
               <Loader2 size={16} className="animate-spin" />
               Searching...
             </div>
           )}
 
           {!isLoading && query.length >= 2 && results && results.length === 0 && (
-            <div className="py-8 text-center text-sm text-gray-400 dark:text-[hsl(200,20%,50%)]">
+            <div className="py-8 text-center text-sm text-muted-foreground/70">
               No results found for &ldquo;{query}&rdquo;
             </div>
           )}
 
           {!isLoading && query.length < 2 && (
-            <div className="py-8 text-center text-sm text-gray-400 dark:text-[hsl(200,20%,50%)]">
+            <div className="py-8 text-center text-sm text-muted-foreground/70">
               Type at least 2 characters to search
             </div>
           )}
@@ -168,7 +168,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
                     className={`shrink-0 mt-0.5 ${
                       idx === selectedIdx
                         ? 'text-blue-500'
-                        : 'text-gray-400 dark:text-[hsl(200,20%,45%)]'
+                        : 'text-muted-foreground/60'
                     }`}
                   />
                   <div className="flex-1 min-w-0">
@@ -181,7 +181,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
                         {highlight(r.matchValue, query)}
                       </div>
                     )}
-                    <div className="flex items-center gap-1.5 mt-1 text-3xs text-gray-400 dark:text-[hsl(200,20%,42%)]">
+                    <div className="flex items-center gap-1.5 mt-1 text-3xs text-muted-foreground/50">
                       <Database size={10} />
                       <span>{r.baseName}</span>
                       <span className="opacity-50">/</span>
@@ -197,7 +197,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
 
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 dark:border-[hsl(200,25%,18%)]
-          text-3xs text-gray-400 dark:text-[hsl(200,20%,42%)]">
+          text-3xs text-muted-foreground/50">
           <span>
             <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-[hsl(200,25%,15%)] border border-gray-200 dark:border-[hsl(200,25%,22%)] font-mono">↑↓</kbd>
             {' '}navigate

@@ -1339,7 +1339,7 @@ const EmployeeProfile = () => {
                 label="WhatsApp"
               />
             </div>
-            <p className="text-muted-foreground text-sm mt-0.5 truncate">
+            <p className="text-muted-foreground text-sm mt-0.5 truncate" title={`${employee.job_title || roleLabel(employee.role)} · ${employee.email}`}>
               {employee.job_title || roleLabel(employee.role)} &middot; {employee.email}
             </p>
           </div>

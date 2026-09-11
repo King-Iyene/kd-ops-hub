@@ -339,7 +339,7 @@ const SECTIONS: TroubleshootingSection[] = [
         answer: (
           <div className="space-y-2">
             <div className="p-3 rounded-lg bg-destructive/10/40 border border-destructive/20/60">
-              <p className="text-sm font-semibold text-red-700 dark:text-red-400 flex items-center gap-2"><AlertTriangle size={14} /> CRITICAL: Bank details required</p>
+              <p className="text-sm font-semibold text-destructive flex items-center gap-2"><AlertTriangle size={14} /> CRITICAL: Bank details required</p>
               <p className="text-sm text-destructive mt-1">Fuel request disbursements ONLY work if the requesting employee has valid bank details on file (<code className="text-xs font-mono">bank_name</code>, <code className="text-xs font-mono">account_number</code>, <code className="text-xs font-mono">account_name</code>). Without bank details, the request will be created but payment cannot be processed.</p>
             </div>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">Always remind employees to update their bank details in their profile.</p>
@@ -382,9 +382,9 @@ const SECTIONS: TroubleshootingSection[] = [
             <span>&rarr;</span>
             <code className="px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">sent</code>
             <span>&rarr;</span>
-            <code className="px-2 py-1 rounded bg-emerald-100 dark:bg-emerald-900/40 text-xs font-mono text-emerald-700 dark:text-emerald-400">paid</code>
+            <code className="px-2 py-1 rounded bg-success/10 text-xs font-mono text-success">paid</code>
             <span>/</span>
-            <code className="px-2 py-1 rounded bg-red-100 dark:bg-red-900/40 text-xs font-mono text-red-700 dark:text-red-400">overdue</code>
+            <code className="px-2 py-1 rounded bg-destructive/10 text-xs font-mono text-destructive">overdue</code>
           </div>
         ),
       },

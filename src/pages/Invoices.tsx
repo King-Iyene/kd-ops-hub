@@ -752,6 +752,7 @@ const Invoices = () => {
                 <Label className="text-xs">Client email</Label>
                 <Input
                   type="email"
+                  autoComplete="email"
                   placeholder="billing@client.com"
                   value={clientEmail}
                   onChange={(e) => setClientEmail(e.target.value)}

@@ -126,7 +126,7 @@ const KIND_META: Record<CalendarEvent['kind'], {
     Icon: AlertCircle,
     label: 'Holiday',
     dot: 'bg-red-500',
-    pill: 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30',
+    pill: 'bg-red-500/15 text-destructive border-red-500/30',
   },
   pay_day: {
     Icon: CheckCircle2,

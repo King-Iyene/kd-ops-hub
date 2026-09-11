@@ -975,7 +975,7 @@ const Documents = () => {
                           >
                             <FolderIcon className="h-5 w-5 shrink-0" style={{ color: folder.color }} />
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium truncate">{folder.name}</p>
+                              <p className="text-sm font-medium truncate" title={folder.name}>{folder.name}</p>
                               <p className="text-3xs text-muted-foreground">{docCount} file{docCount !== 1 ? 's' : ''}</p>
                             </div>
                           </button>
@@ -1052,9 +1052,9 @@ const Documents = () => {
                                 <div className="flex items-center gap-3">
                                   <DocThumbnail doc={r} />
                                   <div className="min-w-0">
-                                    <p className="font-medium truncate max-w-[200px]">{r.title}</p>
+                                    <p className="font-medium truncate max-w-[200px]" title={r.title}>{r.title}</p>
                                     {r.description && (
-                                      <p className="text-xs text-muted-foreground truncate max-w-[200px]">{r.description}</p>
+                                      <p className="text-xs text-muted-foreground truncate max-w-[200px]" title={r.description}>{r.description}</p>
                                     )}
                                   </div>
                                   {r.is_template && <Badge variant="outline" className="text-3xs shrink-0">Template</Badge>}
@@ -1162,7 +1162,7 @@ const Documents = () => {
                           <div className="mb-2">
                             <DocThumbnail doc={r} size="lg" />
                           </div>
-                          <p className="text-sm font-medium truncate w-full">{r.title}</p>
+                          <p className="text-sm font-medium truncate w-full" title={r.title}>{r.title}</p>
                           <p className="text-3xs text-muted-foreground capitalize">{r.category.replace(/_/g, ' ')}</p>
                           <p className="text-3xs text-muted-foreground">{formatBytes(r.file_size_bytes)}</p>
                           {entityBadge(r) && <div className="mt-1">{entityBadge(r)}</div>}
@@ -1222,7 +1222,7 @@ const Documents = () => {
                   {files.map((f, i) => (
                     <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground bg-muted rounded px-2 py-1">
                       <FileIcon className="h-3 w-3 shrink-0" />
-                      <span className="truncate flex-1">{f.name}</span>
+                      <span className="truncate flex-1" title={f.name}>{f.name}</span>
                       <span className="shrink-0">{formatBytes(f.size)}</span>
                       <button onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}>
                         <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
@@ -1527,7 +1527,7 @@ const Documents = () => {
                       <Icon className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate">{detailDoc.title}</p>
+                      <p className="truncate" title={detailDoc.title}>{detailDoc.title}</p>
                       <p className="text-xs text-muted-foreground font-normal capitalize">{detailDoc.category.replace(/_/g, ' ')}</p>
                     </div>
                   </DialogTitle>

@@ -1524,7 +1524,7 @@ const BatchDetail = () => {
             </Button>
             <div className="min-w-0">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-xl font-bold tracking-tight truncate">{batch.name}</h1>
+                <h1 className="text-xl font-bold tracking-tight truncate" title={batch.name}>{batch.name}</h1>
                 {canRenameBatch && (
                   <Button
                     variant="ghost"

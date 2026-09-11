@@ -53,7 +53,7 @@ function daysUntil(dateStr: string | null): number | null {
 function dateBadge(dateStr: string | null) {
   const days = daysUntil(dateStr);
   if (days === null) {
-    return <Badge variant="outline" className="bg-gray-100 text-gray-500">Not set</Badge>;
+    return <Badge variant="outline" className="bg-muted text-muted-foreground">Not set</Badge>;
   }
   if (days < 0) {
     return <Badge variant="destructive">Expired {Math.abs(days)} days ago</Badge>;

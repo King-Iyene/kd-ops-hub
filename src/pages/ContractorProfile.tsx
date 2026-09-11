@@ -1144,7 +1144,7 @@ const ContractorProfile = () => {
                     {deductions.map((d: any) => (
                       <div key={d.id} className="flex items-center gap-3 px-4 py-3 flex-wrap">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{d.description}</p>
+                          <p className="text-sm font-medium truncate" title={d.description}>{d.description}</p>
                           <p className="text-xs text-muted-foreground capitalize">
                             {d.frequency.replace(/_/g, ' ')} · {formatDate(d.start_date)}{d.end_date ? ` → ${formatDate(d.end_date)}` : ''}
                           </p>

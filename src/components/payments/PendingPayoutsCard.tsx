@@ -394,9 +394,9 @@ function KpiCell({
   hint?: React.ReactNode;
 }) {
   const valueClass: Record<string, string> = {
-    warning: 'text-amber-700 dark:text-amber-400',
-    success: 'text-emerald-700 dark:text-emerald-400',
-    danger:  'text-red-700 dark:text-red-400',
+    warning: 'text-warning',
+    success: 'text-success',
+    danger:  'text-destructive',
     info:    'text-foreground',
     neutral: 'text-foreground',
   };

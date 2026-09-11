@@ -560,7 +560,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
                       <TableRow key={r.id} className="cursor-pointer" onClick={() => viewDetail(r)}>
                         <TableCell>{formatDateTime(r.created_at)}</TableCell>
                         <TableCell><Badge variant="outline">{directorDisbursementCategoryLabel(r.payment_category)}</Badge></TableCell>
-                        <TableCell className="max-w-[280px] truncate">{r.payment_description || '—'}</TableCell>
+                        <TableCell className="max-w-[280px] truncate" title={r.payment_description || '—'}>{r.payment_description || '—'}</TableCell>
                         <TableCell className="text-right font-medium currency">{formatNaira(r.total_amount)}</TableCell>
                         <TableCell><StatusBadge status={r.status} /></TableCell>
                         <TableCell>

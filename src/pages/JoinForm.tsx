@@ -292,6 +292,7 @@ const JoinForm = () => {
                   <Label className="kd-label">Email *</Label>
                   <Input
                     type="email"
+                    autoComplete="email"
                     value={form.email}
                     onChange={(e) => { setForm({ ...form, email: e.target.value }); clearError('email'); }}
                     placeholder="ada@example.com"
@@ -344,6 +345,7 @@ const JoinForm = () => {
                 <Label className="kd-label">LinkedIn Email *</Label>
                 <Input
                   type="email"
+                  autoComplete="email"
                   value={form.linkedin_email}
                   onChange={(e) => { setForm({ ...form, linkedin_email: e.target.value }); clearError('linkedin_email'); }}
                   placeholder="Email you use to log in to LinkedIn"

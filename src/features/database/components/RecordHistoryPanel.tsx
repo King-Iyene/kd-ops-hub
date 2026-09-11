@@ -102,11 +102,11 @@ function DiffView({
 function actionColor(action: string) {
   switch (action) {
     case 'INSERT':
-      return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400';
+      return 'bg-success/10 text-success';
     case 'UPDATE':
       return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
     case 'DELETE':
-      return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
+      return 'bg-destructive/10 text-destructive';
     default:
       return 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400';
   }

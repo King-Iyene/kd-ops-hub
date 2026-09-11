@@ -347,7 +347,7 @@ export default function Attendance() {
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Search employee…" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input className="pl-9" aria-label="Search employees" placeholder="Search employee…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <Select value={statusFilter} onValueChange={v => setStatusFilter(v as AttendanceStatus | 'all')}>
           <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>

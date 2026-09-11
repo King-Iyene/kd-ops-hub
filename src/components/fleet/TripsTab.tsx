@@ -1051,13 +1051,13 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                   <div className="flex items-center gap-1 text-sm">
                     <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className={`font-mono font-bold tabular-nums ${
-                      liveSpeed > 100 ? 'text-red-600' : liveSpeed > 80 ? 'text-amber-600' : 'text-green-700 dark:text-green-400'
+                      liveSpeed > 100 ? 'text-red-600' : liveSpeed > 80 ? 'text-amber-600' : 'text-success'
                     }`}>
                       {liveSpeed} km/h
                     </span>
                   </div>
                 )}
-                <span className="text-2xl font-mono font-bold text-green-700 dark:text-green-400 tabular-nums">
+                <span className="text-2xl font-mono font-bold text-success tabular-nums">
                   {formatDuration(elapsedSeconds)}
                 </span>
               </div>
@@ -1085,7 +1085,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                 const av = vehicles.find((v) => v.id === activeTrip.vehicle_id);
                 if (!av || !av.tank_capacity_litres) return null;
                 const pct = Math.round(Math.min(100, (av.current_fuel_litres / av.tank_capacity_litres) * 100));
-                const col = pct < 25 ? 'text-red-600' : pct < 50 ? 'text-amber-600' : 'text-green-700 dark:text-green-400';
+                const col = pct < 25 ? 'text-red-600' : pct < 50 ? 'text-amber-600' : 'text-success';
                 return (
                   <div className="col-span-2">
                     <p className="text-xs text-muted-foreground mb-1">Fuel Level</p>
@@ -1143,7 +1143,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-sm font-medium truncate">{t.employee_name}</span>
                         {elSec != null && (
-                          <span className="text-xs font-mono text-green-700 dark:text-green-400 shrink-0">{formatDuration(elSec)}</span>
+                          <span className="text-xs font-mono text-success shrink-0">{formatDuration(elSec)}</span>
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">{lv ? `${lv.plate_number} — ${lv.name}` : '—'}</p>

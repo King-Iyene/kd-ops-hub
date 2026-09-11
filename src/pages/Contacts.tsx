@@ -656,6 +656,7 @@ const Contacts = () => {
                 <Label>Email</Label>
                 <Input
                   type="email"
+                  autoComplete="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />

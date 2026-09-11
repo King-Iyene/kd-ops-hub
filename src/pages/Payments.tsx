@@ -572,7 +572,7 @@ const Payments = () => {
                     <span />
 
                     <div className="min-w-0 flex items-center gap-2">
-                      <p className="font-medium text-xs-plus text-foreground truncate">{batch.name}</p>
+                      <p className="font-medium text-xs-plus text-foreground truncate" title={batch.name}>{batch.name}</p>
                       {typeMeta && (
                         <span className={cn('hidden lg:inline-flex items-center rounded px-1.5 py-0 text-3xs font-semibold uppercase tracking-[0.06em] shrink-0', typeMeta.bg, typeMeta.text)}>
                           {typeMeta.label}

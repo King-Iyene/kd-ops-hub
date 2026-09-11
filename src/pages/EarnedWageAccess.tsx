@@ -403,7 +403,7 @@ export default function EarnedWageAccess() {
                     <TableRow key={r.id}>
                       <TableCell className="font-medium">{r.full_name || r.employee_id.slice(0, 8)}</TableCell>
                       <TableCell className="text-right currency">{formatNaira(r.amount_ngn)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{r.reason || '—'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate" title={r.reason || '—'}>{r.reason || '—'}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{formatDate(r.created_at)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">

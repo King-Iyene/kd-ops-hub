@@ -380,6 +380,7 @@ const Referrals = () => {
                 <Label className="kd-label">Or enter email manually</Label>
                 <Input
                   type="email"
+                  autoComplete="email"
                   value={form.referred_email}
                   onChange={(e) => setForm({ ...form, referred_email: e.target.value })}
                   placeholder="person@example.com"

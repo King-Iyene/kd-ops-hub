@@ -248,7 +248,7 @@ export function VehicleInspectionForm({
               <> · <span className="text-destructive font-medium">{failCount}</span> fail</>
             )}
             {items.filter((i) => i.status === 'na').length > 0 && (
-              <> · <span className="text-gray-500">{items.filter((i) => i.status === 'na').length}</span> N/A</>
+              <> · <span className="text-muted-foreground">{items.filter((i) => i.status === 'na').length}</span> N/A</>
             )}
           </div>
           <div className="flex gap-2">

@@ -590,6 +590,7 @@ export default function ApiExplorer() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label="Remove header"
                   className="h-8 w-8 shrink-0 text-slate-500 hover:text-red-400"
                   onClick={() => removeParam(headers, setHeaders, i)}
                 >
@@ -648,6 +649,7 @@ export default function ApiExplorer() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label="Remove query parameter"
                     className="h-8 w-8 shrink-0 text-slate-500 hover:text-red-400"
                     onClick={() =>
                       removeParam(queryParams, setQueryParams, i)

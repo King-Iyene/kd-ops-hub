@@ -160,8 +160,8 @@ const STATUS_TONE: Record<string, { Icon: typeof CheckCircle2; bg: string; fg: s
   paid:      { Icon: CheckCircle2, bg: 'bg-emerald-500/15', fg: 'text-success', label: 'Paid' },
   completed: { Icon: CheckCircle2, bg: 'bg-emerald-500/15', fg: 'text-success', label: 'Completed' },
   pending:   { Icon: Clock,        bg: 'bg-amber-500/15',   fg: 'text-warning',     label: 'Pending' },
-  rejected:  { Icon: XCircle,      bg: 'bg-red-500/15',     fg: 'text-red-700 dark:text-red-400',         label: 'Rejected' },
-  failed:    { Icon: XCircle,      bg: 'bg-red-500/15',     fg: 'text-red-700 dark:text-red-400',         label: 'Failed' },
+  rejected:  { Icon: XCircle,      bg: 'bg-red-500/15',     fg: 'text-destructive',         label: 'Rejected' },
+  failed:    { Icon: XCircle,      bg: 'bg-red-500/15',     fg: 'text-destructive',         label: 'Failed' },
   draft:     { Icon: Clock,        bg: 'bg-muted',          fg: 'text-muted-foreground',                  label: 'Draft' },
 };
 
@@ -944,12 +944,12 @@ const ProfilePage = () => {
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="phone">Phone number</Label>
-                  <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234..." />
+                  <Input id="phone" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234..." />
                 </div>
                 <div className="space-y-1 sm:col-span-2">
                   <Label htmlFor="newEmail">Email</Label>
                   <div className="flex gap-2 flex-wrap">
-                    <Input id="newEmail" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="you@example.com" className="flex-1 min-w-[200px]" />
+                    <Input id="newEmail" type="email" autoComplete="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="you@example.com" className="flex-1 min-w-[200px]" />
                     <Button variant="outline" onClick={updateEmail} disabled={updatingEmail || !newEmail.trim() || newEmail.trim() === profile.email}>
                       {updatingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                       Update email

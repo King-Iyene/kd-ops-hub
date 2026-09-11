@@ -293,7 +293,7 @@ export default function Assets() {
           search={
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-9" placeholder="Search assets…" value={search} onChange={e => setSearch(e.target.value)} />
+              <Input className="pl-9" aria-label="Search assets" placeholder="Search assets…" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
           }
           filters={

@@ -425,7 +425,7 @@ export default function WebhooksManager() {
                   <div className="min-w-0 flex-1 space-y-3">
                     {/* Title row */}
                     <div className="flex items-center gap-3">
-                      <h3 className="font-semibold text-base truncate">{wh.name}</h3>
+                      <h3 className="font-semibold text-base truncate" title={wh.name}>{wh.name}</h3>
                       <Badge variant={wh.is_active ? 'default' : 'secondary'} className="text-2xs">
                         {wh.is_active ? 'Active' : 'Inactive'}
                       </Badge>
@@ -656,6 +656,7 @@ export default function WebhooksManager() {
                         type="button"
                         variant="ghost"
                         size="icon"
+                        aria-label="Remove header"
                         className="shrink-0 text-destructive hover:text-destructive"
                         onClick={() => removeHeader(idx)}
                       >
@@ -708,7 +709,7 @@ export default function WebhooksManager() {
           <div className="space-y-4 py-2">
             <div>
               <Label className="text-xs text-muted-foreground">Endpoint</Label>
-              <p className="font-mono text-sm truncate">{testUrl}</p>
+              <p className="font-mono text-sm truncate" title={testUrl}>{testUrl}</p>
             </div>
 
             <p className="text-sm text-muted-foreground">

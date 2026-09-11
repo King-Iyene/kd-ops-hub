@@ -352,7 +352,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
               </div>
             ) : (
               <div className="space-y-1">
-                <p className="flex items-center gap-1.5 text-red-700 dark:text-red-400"><X className="h-3.5 w-3.5" /> {preflight?.error || 'Preflight failed'}</p>
+                <p className="flex items-center gap-1.5 text-destructive"><X className="h-3.5 w-3.5" /> {preflight?.error || 'Preflight failed'}</p>
                 <p className="text-muted-foreground text-xs">Fix the underlying issue (missing secret, wrong key, network) before switching.</p>
               </div>
             )}
