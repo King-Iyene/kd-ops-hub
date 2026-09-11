@@ -1409,8 +1409,24 @@ const BatchDetail = () => {
 
   if (loading)
     return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <div className="max-w-5xl mx-auto space-y-6 py-10 px-4">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
+          <div className="h-6 w-64 rounded bg-muted animate-pulse" />
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="rounded-xl border bg-card p-5 space-y-3">
+              <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+              <div className="h-7 w-28 rounded bg-muted animate-pulse" />
+            </div>
+          ))}
+        </div>
+        <div className="rounded-xl border bg-card p-4 space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-10 w-full rounded bg-muted animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   if (!batch) return (
@@ -2010,7 +2026,7 @@ const BatchDetail = () => {
                 <Input
                   value={itemSearch}
                   onChange={(e) => setItemSearch(e.target.value)}
-                  placeholder="Search…"
+                  placeholder="Search line items…"
                   className="pl-7 h-7 text-xs w-36"
                 />
               </div>

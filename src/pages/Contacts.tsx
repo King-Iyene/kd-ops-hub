@@ -451,7 +451,7 @@ const Contacts = () => {
                 </TableHeader>
                 <TableBody>
                   {pagination.slice.map((c) => (
-                    <TableRow key={c.id} className="kd-transition cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)} onAuxClick={(e) => { if (e.button === 1) { window.open(`/contacts/${c.id}`, '_blank'); e.preventDefault(); } }}>
+                    <TableRow key={c.id} className="kd-transition cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate(`/contacts/${c.id}`)} onAuxClick={(e) => { if (e.button === 1) { window.open(`/contacts/${c.id}`, '_blank'); e.preventDefault(); } }}>
                       <TableCell className="font-medium">
                         <Link to={`/contacts/${c.id}`} className="hover:underline" onClick={(e) => e.preventDefault()}>{displayName(c.first_name, c.last_name, c.full_name)}</Link>
                       </TableCell>

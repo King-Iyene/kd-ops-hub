@@ -1389,7 +1389,7 @@ const Subscriptions = () => {
                     type="number"
                     value={form.amount_usd}
                     onChange={(e) => setForm({ ...form, amount_usd: e.target.value })}
-                    placeholder="USD amount"
+                    placeholder="Amount in USD"
                   />
                 </div>
               ) : (

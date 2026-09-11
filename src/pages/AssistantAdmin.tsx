@@ -225,8 +225,16 @@ export default function AssistantAdmin() {
 
   if (loading || !config) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+      <div className="max-w-4xl mx-auto space-y-6 py-10 px-4">
+        <div className="h-7 w-56 rounded bg-muted animate-pulse" />
+        <div className="rounded-xl border bg-card p-6 space-y-5">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <div className="h-3.5 w-28 rounded bg-muted animate-pulse" />
+              <div className="h-9 w-full rounded-md bg-muted animate-pulse" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

@@ -1425,7 +1425,7 @@ const Expenses = () => {
             </CardHeader>
             <CardContent>
               {topCategories.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No approved expenses yet.</p>
+                <EmptyState icon={BarChart3} title="No approved expenses yet" description="Approved expenses will appear here grouped by category." compact />
               ) : (
                 <div className="space-y-3">
                   {topCategories.map(({ category, amount }) => {
@@ -1480,7 +1480,7 @@ const Expenses = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               className="pl-9 h-10 sm:h-9"
-              placeholder="Search description or category..."
+              placeholder="Search description or category…"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);

@@ -24,6 +24,7 @@ import {
   Plus,
   Banknote,
 } from 'lucide-react';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useCompanySettings } from '@/queries';
@@ -383,8 +384,24 @@ const ContractorProfile = () => {
 
   if (loading || !contractor) {
     return (
-      <div className="min-h-[50vh] flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <div className="min-h-[50vh] max-w-5xl mx-auto space-y-6 py-8 px-4">
+        <div className="flex items-center gap-4">
+          <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
+          <div className="space-y-2 flex-1">
+            <div className="h-5 w-48 rounded bg-muted animate-pulse" />
+            <div className="h-3 w-32 rounded bg-muted animate-pulse" />
+          </div>
+        </div>
+        <div className="rounded-xl border bg-card p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+                <div className="h-4 w-full rounded bg-muted animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -971,7 +988,7 @@ const ContractorProfile = () => {
             <CardHeader><CardTitle className="text-base">Payment history</CardTitle></CardHeader>
             <CardContent>
               {payments.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
+                <EmptyState icon={Banknote} title="No payments recorded yet" description="Payments to this contractor will appear here." compact />
               ) : (
                 <div className="space-y-2">
                   {payments.map((p: any) => {

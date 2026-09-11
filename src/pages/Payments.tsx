@@ -504,7 +504,7 @@ const Payments = () => {
           <div className="relative w-full sm:w-60">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search…"
+              placeholder="Search payments…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 h-8 text-xs rounded-md font-mono"

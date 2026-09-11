@@ -304,8 +304,24 @@ const ClientProfile = () => {
 
   if (loading || !client) {
     return (
-      <div className="min-h-[50vh] flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <div className="min-h-[50vh] max-w-5xl mx-auto space-y-6 py-8 px-4">
+        <div className="flex items-center gap-4">
+          <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
+          <div className="space-y-2 flex-1">
+            <div className="h-5 w-48 rounded bg-muted animate-pulse" />
+            <div className="h-3 w-32 rounded bg-muted animate-pulse" />
+          </div>
+        </div>
+        <div className="rounded-xl border bg-card p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+                <div className="h-4 w-full rounded bg-muted animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -491,7 +507,7 @@ const ClientProfile = () => {
                     </TableHeader>
                     <TableBody>
                       {placements.map((p) => (
-                        <TableRow key={p.id} className="kd-transition cursor-pointer" onClick={() => navigate(`/employees/${p.employee_id}`)} onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/employees/${p.employee_id}`, '_blank'); ev.preventDefault(); } }}>
+                        <TableRow key={p.id} className="kd-transition cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate(`/employees/${p.employee_id}`)} onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/employees/${p.employee_id}`, '_blank'); ev.preventDefault(); } }}>
                           <TableCell>
                             <div>
                               <p className="font-medium"><Link to={`/employees/${p.employee_id}`} className="hover:underline" onClick={(e) => e.preventDefault()}>{(p.profiles as any)?.full_name || 'Unknown'}</Link></p>

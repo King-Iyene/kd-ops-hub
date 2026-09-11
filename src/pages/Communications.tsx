@@ -54,6 +54,7 @@ import {
   RotateCcw,
   CalendarClock,
 } from 'lucide-react';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1009,7 +1010,7 @@ export default function Communications() {
           {historyLoading ? (
             <TableSkeleton rows={6} cols={7} />
           ) : history.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">No campaigns yet.</p>
+            <EmptyState icon={History} title="No campaigns yet" description="Your sent campaigns will appear here." compact />
           ) : (
             <div className="overflow-x-auto">
             <Table>

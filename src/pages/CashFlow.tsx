@@ -11,7 +11,8 @@ import {
   LineChart,
   Line,
 } from 'recharts';
-import { Activity, AlertTriangle, Banknote, RefreshCw, TrendingDown, Wallet } from 'lucide-react';
+import { Activity, AlertTriangle, Banknote, BarChart3, Camera, RefreshCw, TrendingDown, Wallet } from 'lucide-react';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
@@ -217,9 +218,12 @@ export default function CashFlow() {
         </CardHeader>
         <CardContent className="h-[280px]">
           {chartData.length === 0 && !loading ? (
-            <p className="text-sm text-muted-foreground text-center py-12">
-              No forecast data yet. Set cash on hand in Settings → Company and try again.
-            </p>
+            <EmptyState
+              icon={BarChart3}
+              title="No forecast data yet"
+              description="Set cash on hand in Settings → Company and try again."
+              compact
+            />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
@@ -257,9 +261,12 @@ export default function CashFlow() {
         </CardHeader>
         <CardContent className="h-[220px]">
           {trendData.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-12">
-              No snapshots yet. The first snapshot is taken automatically each morning at 07:15 Lagos time, or click "Take snapshot now".
-            </p>
+            <EmptyState
+              icon={Camera}
+              title="No snapshots yet"
+              description='The first snapshot is taken automatically each morning at 07:15 Lagos time, or click "Take snapshot now".'
+              compact
+            />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>

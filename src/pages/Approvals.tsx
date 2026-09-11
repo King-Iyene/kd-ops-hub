@@ -1070,7 +1070,7 @@ const Approvals = () => {
                           const Icon = KIND_ICONS[it.kind];
                           const busy = actioning === it.id;
                           return (
-                            <TableRow key={it.id} className="kd-transition">
+                            <TableRow key={it.id} className="kd-transition hover:bg-muted/50 transition-colors">
                               {canApprove && (
                                 <TableCell>
                                   <Checkbox

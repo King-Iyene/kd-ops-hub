@@ -432,7 +432,7 @@ const AuditLog = () => {
                     const mod = MODULE_OF[r.action_type] || '—';
                     const Icon = ICON_OF[r.action_type] || AlertTriangle;
                     return (
-                      <TableRow key={r.id} className="kd-transition">
+                      <TableRow key={r.id} className="kd-transition hover:bg-muted/50 transition-colors">
                         <TableCell className="text-muted-foreground text-xs">
                           {r.created_at ? formatDateTime(r.created_at) : '—'}
                         </TableCell>

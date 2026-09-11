@@ -297,7 +297,7 @@ function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnT
                 {historyLoading ? (
                   <TableSkeleton rows={6} cols={6} />
                 ) : history.length === 0 ? (
-                  <div className="py-6 text-center text-sm text-muted-foreground">No wallet activity yet.</div>
+                  <EmptyState icon={Wallet} title="No wallet activity yet" description="Top-ups and deductions will appear here." compact />
                 ) : (
                   history.map((h) => (
                     <div key={h.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">

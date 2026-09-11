@@ -615,7 +615,7 @@ const Budgets = () => {
                         ? 'bg-warning'
                         : 'bg-success';
                     return (
-                      <TableRow key={r.id} className="kd-transition">
+                      <TableRow key={r.id} className="kd-transition hover:bg-muted/50 transition-colors">
                         <TableCell>
                           <div className="flex items-center gap-2 flex-wrap">
                             <button
