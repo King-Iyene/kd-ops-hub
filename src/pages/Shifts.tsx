@@ -337,7 +337,7 @@ export default function Shifts() {
                   </thead>
                   <tbody>
                     {profiles.map(emp => (
-                      <tr key={emp.id} className="border-b last:border-b-0 hover:bg-muted/30">
+                      <tr key={emp.id} className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
                         <td className="p-3 font-medium sticky left-0 z-10 bg-card">{emp.full_name}</td>
                         {weekDays.map(day => {
                           const dateStr = format(day, 'yyyy-MM-dd');
@@ -406,7 +406,7 @@ export default function Shifts() {
                   </thead>
                   <tbody>
                     {shiftDefs.map(shift => (
-                      <tr key={shift.id} className="border-b last:border-b-0 hover:bg-muted/30">
+                      <tr key={shift.id} className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
                         <td className="p-3 font-medium">{shift.name}</td>
                         <td className="p-3">{shift.start_time.slice(0, 5)}</td>
                         <td className="p-3">{shift.end_time.slice(0, 5)}</td>

@@ -1047,7 +1047,7 @@ const Documents = () => {
                         {pagination.slice.map((r) => {
                           const canDelete = canManage || r.uploaded_by === profile?.id;
                           return (
-                            <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openDetail(r)}>
+                            <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => openDetail(r)}>
                               <TableCell>
                                 <div className="flex items-center gap-3">
                                   <DocThumbnail doc={r} />

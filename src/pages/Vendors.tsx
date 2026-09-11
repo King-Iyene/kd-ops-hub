@@ -302,7 +302,7 @@ export default function Vendors() {
             </thead>
             <tbody className="divide-y divide-border/40">
               {filtered.map(v => (
-                <tr key={v.id} className="hover:bg-muted/20">
+                <tr key={v.id} className="hover:bg-muted/20 transition-colors">
                   <td className="px-3 py-3">
                     <p className="font-medium">{v.name}</p>
                     {v.rc_number && <p className="text-2xs text-muted-foreground">RC: {v.rc_number}</p>}

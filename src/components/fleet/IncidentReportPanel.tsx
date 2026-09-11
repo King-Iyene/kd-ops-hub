@@ -189,7 +189,7 @@ function resolutionBadge(status: ResolutionStatus) {
     open: { className: 'bg-red-100 text-red-800 border-red-200', label: 'Open' },
     investigating: { className: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Investigating' },
     resolved: { className: 'bg-green-100 text-green-800 border-green-200', label: 'Resolved' },
-    closed: { className: 'bg-gray-100 text-gray-600 border-gray-200', label: 'Closed' },
+    closed: { className: 'bg-muted text-muted-foreground border-border', label: 'Closed' },
   };
   const c = config[status];
   return <Badge variant="outline" className={c.className}>{c.label}</Badge>;
@@ -197,7 +197,7 @@ function resolutionBadge(status: ResolutionStatus) {
 
 function insuranceBadge(status: InsuranceStatus) {
   const config: Record<InsuranceStatus, { className: string; label: string }> = {
-    not_filed: { className: 'bg-gray-100 text-gray-600', label: 'Not Filed' },
+    not_filed: { className: 'bg-muted text-muted-foreground', label: 'Not Filed' },
     filed: { className: 'bg-blue-100 text-blue-700', label: 'Filed' },
     processing: { className: 'bg-yellow-100 text-yellow-800', label: 'Processing' },
     approved: { className: 'bg-green-100 text-green-700', label: 'Approved' },

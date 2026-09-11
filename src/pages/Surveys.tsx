@@ -392,7 +392,7 @@ export default function Surveys() {
                 </thead>
                 <tbody>
                   {filtered.map(s => (
-                    <tr key={s.id} className="border-b last:border-0 hover:bg-muted/30">
+                    <tr key={s.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                       <td className="p-3 font-medium">{s.title}</td>
                       <td className="p-3">{typeBadge(s.survey_type)}</td>
                       <td className="p-3">{statusBadge(s.status)}</td>

@@ -658,7 +658,7 @@ export default function TaskTeamDashboard() {
             </thead>
             <tbody>
               {pageRows.map((r) => (
-                <tr key={r.id} className="border-b border-border/60 hover:bg-muted/30">
+                <tr key={r.id} className="border-b border-border/60 hover:bg-muted/30 transition-colors">
                   <td className="py-2 pr-3 max-w-[220px] truncate">{r.title}</td>
                   <td className="py-2 pr-3">{r.assigneeName}</td>
                   <td className="py-2 pr-3 capitalize">{r.status.replace('_', ' ')}</td>

@@ -398,7 +398,7 @@ export default function Anomalies() {
                   const expanded = expandedId === r.id;
                   return (
                     <Fragment key={r.id}>
-                      <TableRow className="cursor-pointer hover:bg-muted/40"
+                      <TableRow className="cursor-pointer hover:bg-muted/40 transition-colors"
                         onClick={() => setExpandedId(expanded ? null : r.id)}>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           {/* Only open rows can be bulk-actioned. Acked /
@@ -461,7 +461,7 @@ export default function Anomalies() {
                         </TableCell>
                       </TableRow>
                       {expanded && (
-                        <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
+                        <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60 transition-colors">
                           <TableCell colSpan={8} className="py-4">
                             <div className="space-y-2 px-2">
                               <p className="text-sm">{r.description}</p>

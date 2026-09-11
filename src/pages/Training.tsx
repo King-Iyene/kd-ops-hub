@@ -347,7 +347,7 @@ export default function Training() {
               {filtered.map(r => {
                 const eff = effectiveStatus(r);
                 return (
-                  <tr key={r.id} className="hover:bg-muted/20">
+                  <tr key={r.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-3 py-3 text-xs font-medium">{nameOf(r.employee_id)}</td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-1.5">

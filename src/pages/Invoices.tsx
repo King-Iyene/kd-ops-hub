@@ -517,7 +517,7 @@ const Invoices = () => {
               <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
+                  <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60 transition-colors">
                     <TableHead className="text-xs">Invoice #</TableHead>
                     <TableHead className="text-xs">Client</TableHead>
                     <TableHead className="text-xs">Issued</TableHead>
@@ -531,7 +531,7 @@ const Invoices = () => {
                   {pagination.slice.map((inv) => {
                     const eff = effectiveStatus(inv);
                     return (
-                      <TableRow key={inv.id} className="hover:bg-muted/30">
+                      <TableRow key={inv.id} className="hover:bg-muted/30 transition-colors">
                         <TableCell className="font-mono text-xs font-medium">{inv.invoice_number}</TableCell>
                         <TableCell className="text-sm">
                           <div>

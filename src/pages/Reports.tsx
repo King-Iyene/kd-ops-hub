@@ -1022,7 +1022,7 @@ function PnLReport({ range }: { range: DateRange }) {
                 </thead>
                 <tbody>
                   {(data.revenue as any[]).map((r) => (
-                    <tr key={r.id} className="border-b border-border/50 last:border-0 hover:bg-muted/40">
+                    <tr key={r.id} className="border-b border-border/50 last:border-0 hover:bg-muted/40 transition-colors">
                       <td className="py-3 px-3">{r.month}</td>
                       <td className="py-3 px-3 capitalize">{(r.category as string).replace(/_/g, ' ')}</td>
                       <td className="py-3 px-3 text-right currency">{formatNaira(r.amount_ngn)}</td>

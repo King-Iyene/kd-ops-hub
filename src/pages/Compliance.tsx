@@ -1498,7 +1498,7 @@ const Compliance = () => {
                       </TableCell>
                     </TableRow>
                     {isExpanded && expandable && (
-                      <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
+                      <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60 transition-colors">
                         <TableCell colSpan={6} className="py-3">
                           <div className="space-y-2">
                             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
