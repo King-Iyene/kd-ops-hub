@@ -51,9 +51,9 @@ const CATEGORY_LABEL: Record<string, string> = {
 
 const BAND_TONE: Record<string, { tone: string; label: string }> = {
   critical: { tone: 'bg-destructive/15 text-destructive border-destructive/30', label: 'Critical' },
-  warning:  { tone: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30',       label: 'Warning'  },
-  caution:  { tone: 'bg-amber-300/20 text-amber-700 dark:text-amber-400 border-amber-400/30',        label: 'Caution'  },
-  healthy:  { tone: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',  label: 'Healthy'  },
+  warning:  { tone: 'bg-warning/15 text-warning border-warning/30',       label: 'Warning'  },
+  caution:  { tone: 'bg-warning/20 text-warning border-warning/30',        label: 'Caution'  },
+  healthy:  { tone: 'bg-success/15 text-success border-success/30',  label: 'Healthy'  },
   unknown:  { tone: 'bg-muted text-muted-foreground border-border',              label: 'Unknown'  },
 };
 
@@ -166,7 +166,7 @@ export default function CashFlow() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-amber-600" /> Net monthly burn
+              <TrendingDown className="h-4 w-4 text-warning" /> Net monthly burn
             </CardTitle>
           </CardHeader>
           <CardContent>

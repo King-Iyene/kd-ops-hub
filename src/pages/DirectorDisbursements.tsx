@@ -2531,10 +2531,10 @@ function PersonalTransferBatchDialog({
             </Alert>
           )}
           {riskFlags.length > 0 && (
-            <Alert className="border-amber-500/40 bg-amber-500/5">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <Alert className="border-warning/40 bg-warning/5">
+              <AlertTriangle className="h-4 w-4 text-warning" />
               <AlertDescription className="text-sm space-y-1">
-                <p className="font-medium text-amber-700 dark:text-amber-400">
+                <p className="font-medium text-warning">
                   {riskFlags.length} thing{riskFlags.length !== 1 ? 's' : ''} worth a look — nothing here blocks sending
                 </p>
                 <ul className="space-y-0.5">

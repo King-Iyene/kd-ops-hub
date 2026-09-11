@@ -494,16 +494,16 @@ const Dashboard = () => {
     const quickLinks = isOperations
       ? [
           { label: 'Payments', icon: Layers, onClick: () => navigate('/payments'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
-          { label: 'Expenses', icon: Receipt, onClick: () => navigate('/expenses'), iconBg: 'bg-rose-100 dark:bg-rose-900/25', iconColor: 'text-rose-600 dark:text-rose-400' },
-          { label: 'Timesheets', icon: CalendarClock, onClick: () => navigate('/timesheets'), iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-success' },
-          { label: 'Leave', icon: CalendarDays, onClick: () => navigate('/leave'), iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-warning' },
+          { label: 'Expenses', icon: Receipt, onClick: () => navigate('/expenses'), iconBg: 'bg-destructive/10', iconColor: 'text-destructive' },
+          { label: 'Timesheets', icon: CalendarClock, onClick: () => navigate('/timesheets'), iconBg: 'bg-success/10', iconColor: 'text-success' },
+          { label: 'Leave', icon: CalendarDays, onClick: () => navigate('/leave'), iconBg: 'bg-warning/10', iconColor: 'text-warning' },
           { label: 'Handbook', icon: FileText, onClick: () => navigate('/handbook'), iconBg: 'bg-violet-100 dark:bg-violet-900/25', iconColor: 'text-violet-600 dark:text-violet-400' },
         ]
       : [
           { label: 'Expenses', icon: Receipt, onClick: () => navigate('/expenses'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
-          { label: 'Leave', icon: CalendarDays, onClick: () => navigate('/leave'), iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-warning' },
-          { label: 'Tasks', icon: CheckCircle, onClick: () => navigate('/tasks'), iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-success' },
-          { label: 'Handbook', icon: FileText, onClick: () => navigate('/handbook'), iconBg: 'bg-rose-100 dark:bg-rose-900/25', iconColor: 'text-rose-600 dark:text-rose-400' },
+          { label: 'Leave', icon: CalendarDays, onClick: () => navigate('/leave'), iconBg: 'bg-warning/10', iconColor: 'text-warning' },
+          { label: 'Tasks', icon: CheckCircle, onClick: () => navigate('/tasks'), iconBg: 'bg-success/10', iconColor: 'text-success' },
+          { label: 'Handbook', icon: FileText, onClick: () => navigate('/handbook'), iconBg: 'bg-destructive/10', iconColor: 'text-destructive' },
           { label: 'Knowledge', icon: BookOpen, onClick: () => navigate('/knowledge'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' },
         ];
 
@@ -807,12 +807,12 @@ const Dashboard = () => {
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { label: 'New Payment', icon: Plus, onClick: () => navigate('/payments/new'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
-                  { label: 'Approvals', icon: CheckCircle, onClick: () => navigate('/approvals'), badge: approvalCounts.total, iconBg: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-warning' },
+                  { label: 'Approvals', icon: CheckCircle, onClick: () => navigate('/approvals'), badge: approvalCounts.total, iconBg: 'bg-warning/10', iconColor: 'text-warning' },
                   // Clients is a CRM module page, restricted to admin/super_admin only.
                   ...(isAdminRole ? [{ label: 'Clients', icon: Building2, onClick: () => navigate('/clients'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' }] : []),
                   { label: 'Subscriptions', icon: CalendarClock, onClick: () => navigate('/subscriptions'), iconBg: 'bg-sky-100 dark:bg-sky-900/30', iconColor: 'text-sky-600 dark:text-sky-400' },
-                  { label: 'Reports', icon: FileText, onClick: () => navigate('/reports'), iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-success' },
-                  { label: 'Payroll', icon: DollarSign, onClick: () => navigate('/payroll'), iconBg: 'bg-rose-100 dark:bg-rose-900/25', iconColor: 'text-rose-600 dark:text-rose-400' },
+                  { label: 'Reports', icon: FileText, onClick: () => navigate('/reports'), iconBg: 'bg-success/10', iconColor: 'text-success' },
+                  { label: 'Payroll', icon: DollarSign, onClick: () => navigate('/payroll'), iconBg: 'bg-destructive/10', iconColor: 'text-destructive' },
                 ].map(({ label, icon: Icon, onClick, badge, iconBg, iconColor }) => (
                   <button
                     key={label}

@@ -335,7 +335,7 @@ export default function Attendance() {
 
       {/* Attendance rate */}
       <div className="rounded-xl border border-border/60 bg-card px-4 py-3 flex items-center gap-3">
-        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+        <CheckCircle2 className="h-5 w-5 text-success" />
         <p className="text-sm text-muted-foreground">
           Overall attendance rate:{' '}
           <strong className="text-foreground text-base">{analytics.attendanceRate.toFixed(1)}%</strong>

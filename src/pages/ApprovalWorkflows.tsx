@@ -322,7 +322,7 @@ export default function ApprovalWorkflows() {
       <PageHeader title="Approval Workflows" description="Configure approval chains for HR processes" icon={GitBranch} />
 
       {!dbAvailable && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+        <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
           Database unavailable — changes are saved in this session only.
         </div>
       )}

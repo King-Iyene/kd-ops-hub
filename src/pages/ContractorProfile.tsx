@@ -1008,7 +1008,7 @@ const ContractorProfile = () => {
                     const tone =
                       s === 'succeeded' ? 'bg-success/10 text-success dark:text-success' :
                       s === 'failed' || s === 'reversed' ? 'bg-destructive/10 text-destructive' :
-                      'bg-amber-500/10 text-amber-700 dark:text-amber-400';
+                      'bg-warning/10 text-warning';
                     return (
                       <button
                         key={p.id}
@@ -1157,7 +1157,7 @@ const ContractorProfile = () => {
                             {d.total_deductible_amount ? ` / ${formatNaira(d.total_deductible_amount)}` : ''}
                           </p>
                         </div>
-                        <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full shrink-0 ${d.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : d.status === 'completed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400' : 'bg-muted text-muted-foreground'}`}>
+                        <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full shrink-0 ${d.status === 'active' ? 'bg-success/10 text-success' : d.status === 'completed' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                           {d.status}
                         </span>
                         {d.status === 'active' && (

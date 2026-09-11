@@ -535,7 +535,7 @@ const Contacts = () => {
                     key={c.id}
                     onClick={() => navigate(`/contacts/${c.id}`)}
                     onAuxClick={(e: React.MouseEvent) => { if (e.button === 1) { window.open(`/contacts/${c.id}`, '_blank'); e.preventDefault(); } }}
-                    accentClassName={c.status === 'converted' ? 'bg-emerald-500' : c.contact_type === 'lead' ? 'bg-amber-500' : 'bg-blue-500'}
+                    accentClassName={c.status === 'converted' ? 'bg-success' : c.contact_type === 'lead' ? 'bg-warning' : 'bg-primary'}
                   >
                     <MobileCardHeader>
                       <div className="min-w-0 flex-1">

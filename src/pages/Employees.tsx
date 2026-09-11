@@ -124,9 +124,9 @@ const FALLBACK_DEPARTMENTS = [
 ];
 
 const STATUS_BADGE: Record<string, string> = {
-  active: 'bg-emerald-500/8 text-emerald-600/80 dark:text-emerald-400/80',
+  active: 'bg-success/8 text-success/80',
   inactive: 'bg-muted/60 text-muted-foreground/60',
-  invited: 'bg-amber-500/8 text-amber-600/80 dark:text-amber-400/80',
+  invited: 'bg-warning/8 text-warning/80',
 };
 
 const Employees = () => {
@@ -561,12 +561,12 @@ const Employees = () => {
             </div>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span className="h-1.5 w-1.5 rounded-full bg-success" />
                 {employees.filter(e => e.status === 'active').length} active
               </span>
               {inviteCount > 0 && (
                 <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-warning" />
                   {inviteCount} invited
                 </span>
               )}

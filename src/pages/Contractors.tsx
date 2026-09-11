@@ -1340,7 +1340,7 @@ const Contractors = () => {
         {([
           { key: 'all',          label: 'All',          dot: 'bg-muted-foreground/40' },
           { key: 'active',       label: 'Active',       dot: 'bg-success' },
-          { key: 'disconnected', label: 'Disconnected', dot: 'bg-amber-500' },
+          { key: 'disconnected', label: 'Disconnected', dot: 'bg-warning' },
           { key: 'pending',      label: 'Pending',      dot: 'bg-sky-500' },
           { key: 'inactive',     label: 'Inactive',     dot: 'bg-muted-foreground' },
         ] as const).map((f) => (
@@ -1956,7 +1956,7 @@ const Contractors = () => {
               <span className="inline-flex items-center gap-1.5 text-success">
                 <CheckCircle2 className="h-4 w-4" /> <b>{importSummary.created}</b> created
               </span>
-              <span className="inline-flex items-center gap-1.5 text-blue-600">
+              <span className="inline-flex items-center gap-1.5 text-primary">
                 <RefreshCw className="h-4 w-4" /> <b>{importSummary.updated}</b> updated (already existed)
               </span>
               {importSummary.failed > 0 && (
@@ -1965,7 +1965,7 @@ const Contractors = () => {
                 </span>
               )}
               {importSummary.updateFailures > 0 && (
-                <span className="inline-flex items-center gap-1.5 text-amber-600">
+                <span className="inline-flex items-center gap-1.5 text-warning">
                   <AlertTriangle className="h-4 w-4" /> <b>{importSummary.updateFailures}</b> update(s) failed
                 </span>
               )}
@@ -1984,7 +1984,7 @@ const Contractors = () => {
                   <CheckCircle2 className="h-4 w-4" /> {newCount} new
                 </span>
                 {updateCount > 0 && (
-                  <span className="inline-flex items-center gap-1 text-blue-600">
+                  <span className="inline-flex items-center gap-1 text-primary">
                     <RefreshCw className="h-4 w-4" /> {updateCount} update
                   </span>
                 )}
@@ -2038,15 +2038,15 @@ const Contractors = () => {
                           key={r.rowNumber}
                           className={cn(
                             (hasError || unverified) && 'bg-destructive/5',
-                            isDuplicate && 'bg-blue-500/5',
-                            !hasError && !unverified && !isDuplicate && nameDiffers && 'bg-amber-500/5',
+                            isDuplicate && 'bg-primary/5',
+                            !hasError && !unverified && !isDuplicate && nameDiffers && 'bg-warning/5',
                           )}
                         >
                           <TableCell className="text-muted-foreground">{r.rowNumber}</TableCell>
                           <TableCell className="font-medium">
                             {r.full_name || '—'}
                             {nameDiffers && (
-                              <div className="text-2xs text-amber-700 dark:text-amber-400 mt-0.5">
+                              <div className="text-2xs text-warning mt-0.5">
                                 Paystack: <span className="font-mono">{r.paystack_name}</span>
                               </div>
                             )}
@@ -2062,7 +2062,7 @@ const Contractors = () => {
                           <TableCell>
                             {isDuplicate ? (
                               <div className="space-y-0.5">
-                                <Badge variant="outline" className="border-blue-500/40 text-blue-700 bg-blue-50">
+                                <Badge variant="outline" className="border-primary/40 text-primary bg-primary/10">
                                   <RefreshCw className="h-3 w-3 mr-1" /> Will update
                                 </Badge>
                                 <div className="text-3xs text-muted-foreground">
@@ -2074,13 +2074,13 @@ const Contractors = () => {
                                 {r.errors.join(', ')}
                               </span>
                             ) : nameMatches ? (
-                              <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700">
+                              <Badge variant="secondary" className="bg-success/10 text-success">
                                 <CheckCircle2 className="h-3 w-3 mr-1" /> Verified
                               </Badge>
                             ) : nameDiffers ? (
                               // Account EXISTS, registered name differs.
                               // Imports automatically — just flagged.
-                              <Badge variant="outline" className="border-amber-500/40 text-amber-700 bg-amber-50">
+                              <Badge variant="outline" className="border-warning/40 text-warning bg-warning/10">
                                 <AlertCircle className="h-3 w-3 mr-1" /> Name differs (will import)
                               </Badge>
                             ) : unverified ? (

@@ -45,10 +45,10 @@ const EMPLOYMENT_LABEL: Record<Opening['employment_type'], string> = {
 };
 
 const EMPLOYMENT_TONE: Record<Opening['employment_type'], string> = {
-  full_time: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+  full_time: 'bg-success/10 text-success',
   part_time: 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300',
   contract: 'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300',
-  intern: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+  intern: 'bg-warning/10 text-warning',
 };
 
 const Careers = () => {

@@ -1327,7 +1327,7 @@ const EmployeeProfile = () => {
               <Badge
                 className={
                   employee.status === 'active'
-                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                    ? 'bg-success/10 text-success hover:bg-success/10'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-100'
                 }
               >
@@ -2374,9 +2374,9 @@ const EmployeeProfile = () => {
               {bankHistory.map((entry) => {
                 const meta = entry.metadata || {};
                 const kind = meta.kind || (entry.action_type.replace('profile_bank_account_', ''));
-                const kindColor = kind === 'cleared' ? 'bg-amber-50 text-amber-700 border-amber-200'
-                  : kind === 'set' ? 'bg-success/5 text-emerald-700 border-success/20'
-                  : 'bg-blue-50 text-blue-700 border-blue-200';
+                const kindColor = kind === 'cleared' ? 'bg-warning/10 text-warning border-warning/40'
+                  : kind === 'set' ? 'bg-success/5 text-success border-success/20'
+                  : 'bg-primary/10 text-primary border-primary/40';
                 return (
                   <div key={entry.id} className="rounded-md border p-3 text-sm">
                     <div className="flex items-center justify-between mb-1.5">

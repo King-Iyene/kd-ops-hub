@@ -1673,7 +1673,7 @@ const BatchDetail = () => {
       {(batch.status === 'approved' || batch.status === 'funded'
         || batch.status === 'processing' || batch.status === 'partially_processed'
         || batch.status === 'processed') && (firstApproverName || secondApproverName) && (
-        <Card className="border-emerald-500/30 bg-emerald-500/5">
+        <Card className="border-success/30 bg-success/5">
           <CardContent className="pt-3 pb-3 text-sm space-y-1">
             {firstApproverName && (
               <p>
@@ -1715,8 +1715,8 @@ const BatchDetail = () => {
         <div className="flex gap-2 flex-wrap items-center">
           {/* Submitter pre-flight: tell them if this will need dual approval. */}
           {coThreshold !== null && Number(batch.total_amount) > coThreshold && (
-            <Alert className="border-amber-500/50 bg-amber-500/5 w-full">
-              <ShieldAlert className="h-4 w-4 text-amber-600" />
+            <Alert className="border-warning/50 bg-warning/5 w-full">
+              <ShieldAlert className="h-4 w-4 text-warning" />
               <AlertDescription className="text-sm">
                 <span className="font-semibold">Heads up — dual approval will be required.</span>{' '}
                 Total {formatNaira(batch.total_amount)} exceeds the co-approval threshold of {formatNaira(coThreshold)}.
@@ -1742,8 +1742,8 @@ const BatchDetail = () => {
             && (batch.created_by !== profile?.id
                 || ['admin', 'super_admin'].includes(profile?.role ?? ''))
             && capPreview && !capPreview.allowed && (
-            <Alert className="border-rose-500/50 bg-rose-500/5 w-full">
-              <ShieldAlert className="h-4 w-4 text-rose-600" />
+            <Alert className="border-destructive/50 bg-destructive/5 w-full">
+              <ShieldAlert className="h-4 w-4 text-destructive" />
               <AlertDescription className="text-sm">
                 <span className="font-semibold">Cannot approve — cap exceeded.</span>{' '}
                 {capPreview.reason || 'Your transfer cap blocks this amount.'}{' '}
@@ -1762,8 +1762,8 @@ const BatchDetail = () => {
                 || ['admin', 'super_admin'].includes(profile?.role ?? ''))
             && capPreview?.allowed
             && isCoApprovalRequired(coThreshold, Number(batch.total_amount) || 0) && (
-            <Alert className="border-amber-500/50 bg-amber-500/5 w-full">
-              <ShieldAlert className="h-4 w-4 text-amber-600" />
+            <Alert className="border-warning/50 bg-warning/5 w-full">
+              <ShieldAlert className="h-4 w-4 text-warning" />
               <AlertDescription className="text-sm">
                 <span className="font-semibold">Two approvals needed.</span>{' '}
                 Total {formatNaira(batch.total_amount)} exceeds your co-approval threshold of {formatNaira(coThreshold ?? 0)}.
@@ -1796,8 +1796,8 @@ const BatchDetail = () => {
           {batch.status === 'pending_approval' && canApprove
             && batch.created_by === profile?.id
             && !['admin', 'super_admin'].includes(profile?.role ?? '') && (
-            <Alert className="border-amber-500/40 bg-amber-500/5 w-full">
-              <ShieldAlert className="h-4 w-4 text-amber-600" />
+            <Alert className="border-warning/40 bg-warning/5 w-full">
+              <ShieldAlert className="h-4 w-4 text-warning" />
               <AlertDescription className="text-sm">
                 You submitted this batch — another approver must review it.
               </AlertDescription>
@@ -2009,7 +2009,7 @@ const BatchDetail = () => {
                         'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-2xs font-medium transition-colors',
                         itemFilter === key
                           ? key === 'failed' ? 'bg-destructive text-destructive-foreground'
-                            : key === 'succeeded' ? 'bg-emerald-600 text-white'
+                            : key === 'succeeded' ? 'bg-success text-white'
                             : 'bg-primary text-primary-foreground'
                           : 'bg-muted text-muted-foreground hover:bg-muted/80',
                       )}
@@ -2069,7 +2069,7 @@ const BatchDetail = () => {
                     className={cn(
                       'kd-transition border-b-0',
                       item.status === 'failed' && !item.is_manually_resolved && 'bg-destructive/[0.04] border-l-2 border-l-destructive',
-                      item.is_manually_resolved && !wasCancelled && 'bg-emerald-500/[0.04] border-l-2 border-l-emerald-500/60',
+                      item.is_manually_resolved && !wasCancelled && 'bg-success/[0.04] border-l-2 border-l-success/60',
                       wasCancelled && 'bg-muted/20 border-l-2 border-l-muted-foreground/30',
                     )}
                   >
@@ -2089,13 +2089,13 @@ const BatchDetail = () => {
                                     <button
                                       type="button"
                                       aria-label="View failure reason"
-                                      className={`shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full ${isOtp ? 'text-amber-700 hover:bg-amber-50 dark:text-amber-400' : 'text-destructive hover:bg-destructive/10'}`}
+                                      className={`shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full ${isOtp ? 'text-warning hover:bg-warning/10' : 'text-destructive hover:bg-destructive/10'}`}
                                     >
                                       <Info className="h-3 w-3" />
                                     </button>
                                   </PopoverTrigger>
                                   <PopoverContent side="right" className="w-72 text-xs">
-                                    <p className={`font-semibold mb-1 ${isOtp ? 'text-amber-700 dark:text-amber-400' : 'text-destructive'}`}>{f.title}</p>
+                                    <p className={`font-semibold mb-1 ${isOtp ? 'text-warning' : 'text-destructive'}`}>{f.title}</p>
                                     <p className="text-muted-foreground mb-2">{f.hint}</p>
                                     {f.hint !== item.failure_reason && (
                                       <p className="font-mono text-3xs text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">

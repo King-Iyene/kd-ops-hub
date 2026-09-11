@@ -720,7 +720,7 @@ const Documents = () => {
     const d = daysUntil(r.expires_at);
     if (d === null) return <span className="text-muted-foreground text-xs">—</span>;
     if (d < 0) return <Badge className="bg-destructive/10 text-destructive text-3xs">Expired</Badge>;
-    if (d <= 30) return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-3xs">{d}d left</Badge>;
+    if (d <= 30) return <Badge className="bg-warning/10 text-warning text-3xs">{d}d left</Badge>;
     return <span className="text-muted-foreground text-xs">{formatDate(r.expires_at)}</span>;
   };
 
@@ -821,10 +821,10 @@ const Documents = () => {
         <Card>
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <Clock className="h-3.5 w-3.5 text-amber-500" />
+              <Clock className="h-3.5 w-3.5 text-warning" />
               <span className="text-xs text-muted-foreground">Expiring Soon</span>
             </div>
-            <p className="text-xl font-bold text-amber-600">{stats.expiringSoon}</p>
+            <p className="text-xl font-bold text-warning">{stats.expiringSoon}</p>
             <p className="text-3xs text-muted-foreground">within 30 days</p>
           </CardContent>
         </Card>
@@ -841,10 +841,10 @@ const Documents = () => {
         <Card>
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <Link2 className="h-3.5 w-3.5 text-blue-500" />
+              <Link2 className="h-3.5 w-3.5 text-primary" />
               <span className="text-xs text-muted-foreground">Linked</span>
             </div>
-            <p className="text-xl font-bold text-blue-600">{stats.linked}</p>
+            <p className="text-xl font-bold text-primary">{stats.linked}</p>
             <p className="text-3xs text-muted-foreground">to entities</p>
           </CardContent>
         </Card>

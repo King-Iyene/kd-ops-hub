@@ -805,7 +805,7 @@ export default function Communications() {
                   <Label className="kd-label mb-0">Message</Label>
                   <span className={cn(
                     'text-3xs tabular-nums',
-                    channel === 'sms' && smsSegments > 1 ? 'text-amber-500' : 'text-muted-foreground',
+                    channel === 'sms' && smsSegments > 1 ? 'text-warning' : 'text-muted-foreground',
                   )}>
                     {textMessage.length} chars
                     {channel === 'sms' && ` · ${smsSegments} segment${smsSegments === 1 ? '' : 's'}`}
@@ -818,7 +818,7 @@ export default function Communications() {
                   placeholder="Write your message…"
                 />
                 {channel === 'sms' && smsSegments > 1 && (
-                  <p className="kd-field-hint text-amber-500">
+                  <p className="kd-field-hint text-warning">
                     Messages over {SMS_SEGMENT_LEN} characters are billed as multiple SMS segments per recipient.
                   </p>
                 )}
@@ -948,7 +948,7 @@ export default function Communications() {
                           </div>
                           <button
                             onClick={() => setPickedRecipients((cur) => cur.filter((x) => recipientKey(x, channel) !== key))}
-                            className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-rose-500 transition-opacity"
+                            className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
                             aria-label="Remove"
                           ><Trash2 className="h-3 w-3" /></button>
                         </div>
@@ -976,8 +976,8 @@ export default function Communications() {
             <CardTitle className="text-sm flex items-center gap-2">
               {isProgressTerminal
                 ? activeProgress.status === 'sent'
-                  ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                  : <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  ? <CheckCircle2 className="h-4 w-4 text-success" />
+                  : <AlertTriangle className="h-4 w-4 text-warning" />
                 : <Loader2 className="h-4 w-4 animate-spin text-primary" />}
               {CHANNEL_META[activeProgress.channel].label} campaign {activeProgress.status}
             </CardTitle>
@@ -1042,11 +1042,11 @@ export default function Communications() {
                     <TableCell className="text-xs max-w-[360px] truncate" title={h.subject}>{h.subject}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={
-                        h.status === 'sent' ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400' :
+                        h.status === 'sent' ? 'border-success/40 text-success' :
                         h.status === 'sending' ? 'border-sky-500/40 text-sky-700 dark:text-sky-400' :
                         h.status === 'scheduled' ? 'border-violet-500/40 text-violet-700 dark:text-violet-400' :
-                        h.status === 'partially_sent' ? 'border-amber-500/40 text-amber-700 dark:text-amber-400' :
-                        h.status === 'failed' ? 'border-rose-500/40 text-rose-700 dark:text-rose-400' :
+                        h.status === 'partially_sent' ? 'border-warning/40 text-warning' :
+                        h.status === 'failed' ? 'border-destructive/40 text-destructive' :
                         'border-slate-500/40 text-slate-700 dark:text-slate-400'
                       }>
                         {h.status === 'sending' && <Loader2 className="h-3 w-3 mr-1 animate-spin inline" />}
@@ -1056,7 +1056,7 @@ export default function Communications() {
                     </TableCell>
                     <TableCell className="text-right text-xs">{h.total_sent}</TableCell>
                     <TableCell className="text-right text-xs">
-                      {h.total_failed > 0 ? <span className="text-rose-500"><XCircle className="h-3 w-3 inline mr-0.5" />{h.total_failed}</span> : 0}
+                      {h.total_failed > 0 ? <span className="text-destructive"><XCircle className="h-3 w-3 inline mr-0.5" />{h.total_failed}</span> : 0}
                     </TableCell>
                     <TableCell className="text-right text-xs">{h.total_recipients}</TableCell>
                   </TableRow>

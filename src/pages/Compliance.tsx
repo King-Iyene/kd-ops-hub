@@ -1284,10 +1284,10 @@ const Compliance = () => {
                     const status = remittanceStatus(r);
                     const d = r.due_date ? daysUntil(r.due_date) : null;
                     const accent =
-                      status === 'confirmed' ? 'bg-emerald-500'
-                      : status === 'remitted' ? 'bg-blue-500'
-                      : status === 'late' ? 'bg-red-500'
-                      : 'bg-amber-500';
+                      status === 'confirmed' ? 'bg-success'
+                      : status === 'remitted' ? 'bg-primary'
+                      : status === 'late' ? 'bg-destructive'
+                      : 'bg-warning';
                     return (
                       <MobileCard key={r.id} accentClassName={accent}>
                         <MobileCardHeader>
@@ -1546,10 +1546,10 @@ const Compliance = () => {
                 const overdue = d !== null && d < 0 && r.status !== 'filed';
                 const dueSoon = d !== null && d >= 0 && d <= 3 && r.status !== 'filed';
                 const accent =
-                  r.status === 'filed' ? 'bg-emerald-500'
-                  : overdue ? 'bg-red-500'
-                  : dueSoon ? 'bg-amber-500'
-                  : 'bg-blue-500';
+                  r.status === 'filed' ? 'bg-success'
+                  : overdue ? 'bg-destructive'
+                  : dueSoon ? 'bg-warning'
+                  : 'bg-primary';
                 return (
                   <MobileCard key={r.id} accentClassName={accent}>
                     <MobileCardHeader>

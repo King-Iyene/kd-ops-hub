@@ -86,7 +86,7 @@ const STATUS_TONE: Record<EwaStatus, string> = {
   pending: 'bg-warning/10 text-warning',
   approved: 'bg-primary/10 text-primary',
   rejected: 'bg-destructive/10 text-destructive',
-  disbursed: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  disbursed: 'bg-primary/10 text-primary',
   settled: 'bg-success/10 text-success',
   cancelled: 'bg-muted text-muted-foreground',
 };

@@ -862,7 +862,7 @@ const Approvals = () => {
           {/* Live status pills */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-medium">
-              <span className={`h-1.5 w-1.5 rounded-full ${counts.total === 0 ? 'bg-emerald-400 kd-status-live-success' : 'bg-amber-300 kd-status-live-warning'}`} />
+              <span className={`h-1.5 w-1.5 rounded-full ${counts.total === 0 ? 'bg-success kd-status-live-success' : 'bg-warning kd-status-live-warning'}`} />
               {counts.total === 0 ? 'System idle' : 'Awaiting review'}
             </span>
             <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-medium">
@@ -890,8 +890,8 @@ const Approvals = () => {
               { k: 'leave', label: 'Leave', n: counts.leave, icon: Calendar },
             ].map(({ k, label, n, icon: Icon }) => (
               <div key={k} className="rounded-lg bg-muted/50 border border-border px-3 py-2.5 flex items-center gap-2.5">
-                <div className={`h-7 w-7 rounded-md flex items-center justify-center ${n > 0 ? 'bg-amber-100 dark:bg-amber-400/20' : 'bg-muted'}`}>
-                  <Icon className={`h-3.5 w-3.5 ${n > 0 ? 'text-amber-600 dark:text-amber-200' : 'text-muted-foreground'}`} />
+                <div className={`h-7 w-7 rounded-md flex items-center justify-center ${n > 0 ? 'bg-warning/10' : 'bg-muted'}`}>
+                  <Icon className={`h-3.5 w-3.5 ${n > 0 ? 'text-warning' : 'text-muted-foreground'}`} />
                 </div>
                 <div className="min-w-0">
                   <p className="text-3xs uppercase tracking-wider text-muted-foreground">{label}</p>
@@ -1089,7 +1089,7 @@ const Approvals = () => {
                                     {KIND_LABELS[it.kind].replace(' Batches', '')}
                                   </Badge>
                                   {(it.raw?.status as string) === 'pending_second_approval' && (
-                                    <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/5">
+                                    <Badge variant="outline" className="border-warning/40 text-warning bg-warning/5">
                                       Awaiting 2nd
                                     </Badge>
                                   )}
@@ -1162,10 +1162,10 @@ const Approvals = () => {
                         <MobileCard
                           key={it.id}
                           accentClassName={
-                            it.kind === 'batch' ? 'bg-blue-500'
-                            : it.kind === 'expense' ? 'bg-amber-500'
-                            : it.kind === 'fuel' ? 'bg-orange-500'
-                            : it.kind === 'budget' ? 'bg-emerald-500'
+                            it.kind === 'batch' ? 'bg-primary'
+                            : it.kind === 'expense' ? 'bg-warning'
+                            : it.kind === 'fuel' ? 'bg-warning'
+                            : it.kind === 'budget' ? 'bg-success'
                             : 'bg-violet-500'
                           }
                           className={isSelected ? 'ring-2 ring-primary/40' : ''}
@@ -1193,7 +1193,7 @@ const Approvals = () => {
                                     <span className="text-3xs">{KIND_LABELS[it.kind].replace(' Batches', '')}</span>
                                   </Badge>
                                   {(it.raw?.status as string) === 'pending_second_approval' && (
-                                    <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/5">
+                                    <Badge variant="outline" className="border-warning/40 text-warning bg-warning/5">
                                       <span className="text-3xs">Awaiting 2nd</span>
                                     </Badge>
                                   )}
