@@ -27,7 +27,7 @@ export function ActivityTab({ activityLogs }: ActivityTabProps) {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
                   <TableHead>Action</TableHead>
                   <TableHead>Details</TableHead>
@@ -44,7 +44,7 @@ export function ActivityTab({ activityLogs }: ActivityTabProps) {
                   </TableRow>
                 )}
                 {activityLogs.map((log: any) => (
-                  <TableRow key={log.id}>
+                  <TableRow key={log.id} className="hover:bg-muted/40 kd-transition">
                     <TableCell className="font-medium capitalize">
                       {(log.action_type || '').replace(/_/g, ' ')}
                     </TableCell>

@@ -220,7 +220,7 @@ export function MyRequestsTab({
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
                   <TableHead>Station</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
@@ -240,7 +240,7 @@ export function MyRequestsTab({
                   </TableRow>
                 )}
                 {myFuelRequests.map((r) => (
-                  <TableRow key={r.id}>
+                  <TableRow key={r.id} className="hover:bg-muted/40 kd-transition">
                     <TableCell className="font-medium">{r.station_name}</TableCell>
                     <TableCell className="text-right currency">{formatNaira(r.amount_ngn || 0)}</TableCell>
                     <TableCell className="text-right">{r.litres_est ?? '—'}</TableCell>

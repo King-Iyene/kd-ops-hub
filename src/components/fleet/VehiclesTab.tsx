@@ -434,7 +434,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                   </TableRow>
                 )}
                 {vehicles.map((v) => (
-                  <TableRow key={v.id} className={`kd-transition${isOutOfService(v) ? ' bg-red-50/40 dark:bg-red-950/10' : ''}`}>
+                  <TableRow key={v.id} className={`hover:bg-muted/40 kd-transition${isOutOfService(v) ? ' bg-red-50/40 dark:bg-red-950/10' : ''}`}>
                     <TableCell>
                       <div className="font-medium flex items-center gap-2">
                         {v.name}
@@ -1007,7 +1007,7 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
                   <CardContent className="p-0">
                     <div className="overflow-x-auto">
                     <Table>
-                      <TableHeader>
+                      <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                         <TableRow>
                           <TableHead>Service Type</TableHead>
                           <TableHead>Due Date</TableHead>
@@ -1022,7 +1022,7 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
                         {pending.map((item) => {
                           const st = effectiveMaintStatus(item, vehicle.total_mileage_km);
                           return (
-                            <TableRow key={item.id}>
+                            <TableRow key={item.id} className="hover:bg-muted/40 kd-transition">
                               <TableCell className="font-medium text-sm">{item.service_type}</TableCell>
                               <TableCell className="text-sm">{item.due_date ? formatDate(item.due_date) : '—'}</TableCell>
                               <TableCell className="text-sm">{item.due_mileage_km != null ? item.due_mileage_km.toLocaleString() : '—'}</TableCell>
@@ -1063,7 +1063,7 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
                       <Table>
-                        <TableHeader>
+                        <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                           <TableRow>
                             <TableHead>Service Type</TableHead>
                             <TableHead>Last Done Date</TableHead>
@@ -1074,7 +1074,7 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
                         </TableHeader>
                         <TableBody>
                           {done.map((item) => (
-                            <TableRow key={item.id} className="opacity-60">
+                            <TableRow key={item.id} className="opacity-60 hover:bg-muted/40 kd-transition">
                               <TableCell className="text-sm">{item.service_type}</TableCell>
                               <TableCell className="text-sm">{item.last_done_date ? formatDate(item.last_done_date) : '—'}</TableCell>
                               <TableCell className="text-sm">{item.last_done_mileage_km != null ? item.last_done_mileage_km.toLocaleString() + ' km' : '—'}</TableCell>

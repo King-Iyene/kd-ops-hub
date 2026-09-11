@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer } from 'recharts';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme, fmtNairaTick } from '@/components/ChartKit';
-import { formatNaira } from '@/lib/format';
+import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { Fuel, TrendingUp, Gauge, Zap, AlertTriangle, BarChart2 } from 'lucide-react';
 import type { VehicleSummary, FieldStaff } from '@/lib/fleet-utils';
 
@@ -207,12 +207,12 @@ function FleetAnalyticsDashboard({
         <KpiCard
           label="Fuel spend — this month"
           icon={<Fuel className="h-3.5 w-3.5" />}
-          value={analyticsLoading ? null : formatNaira(monthSpend)}
+          value={analyticsLoading ? null : formatNairaCompact(monthSpend)}
         />
         <KpiCard
           label="Fuel spend — this week"
           icon={<TrendingUp className="h-3.5 w-3.5" />}
-          value={analyticsLoading ? null : formatNaira(weekSpend)}
+          value={analyticsLoading ? null : formatNairaCompact(weekSpend)}
         />
         <KpiCard
           label="Avg cost / km (month)"
@@ -226,7 +226,7 @@ function FleetAnalyticsDashboard({
           value={analyticsLoading ? null : fleetUtilPct != null ? `${fleetUtilPct}%` : '—'}
           subtext={
             fleetUtilPct != null
-              ? `${formatNaira(weekSpend)} of ${formatNaira(totalWeeklyBudget)}`
+              ? `${formatNairaCompact(weekSpend)} of ${formatNairaCompact(totalWeeklyBudget)}`
               : undefined
           }
           warn={fleetUtilPct != null && fleetUtilPct > 90}
@@ -294,7 +294,7 @@ function FleetAnalyticsDashboard({
           ) : (
             <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
                   <TableHead>Vehicle</TableHead>
                   <TableHead>Assigned Employee</TableHead>
@@ -317,7 +317,7 @@ function FleetAnalyticsDashboard({
                   return (
                     <TableRow
                       key={s.vehicle_id}
-                      className={`cursor-pointer kd-transition ${highCost ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/20 dark:hover:bg-amber-950/40' : ''}`}
+                      className={`cursor-pointer kd-transition hover:bg-muted/40 ${highCost ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/20 dark:hover:bg-amber-950/40' : ''}`}
                       onClick={onNavigateToVehicles}
                     >
                       <TableCell>

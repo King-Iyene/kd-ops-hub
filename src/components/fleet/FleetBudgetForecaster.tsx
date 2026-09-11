@@ -8,7 +8,7 @@ import {
   ResponsiveContainer, ReferenceLine, Cell,
 } from 'recharts';
 import { Calculator, TrendingUp, TrendingDown, AlertTriangle, Info } from 'lucide-react';
-import { formatNaira } from '@/lib/format';
+import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { ChartGradients, GlassTooltip, axisTick, chartTheme, fmtNairaTick } from '@/components/ChartKit';
 
 interface MonthData {
@@ -176,13 +176,13 @@ export function FleetBudgetForecaster() {
         <div className="grid grid-cols-3 gap-3 mb-4">
           <div className="rounded-lg bg-muted/50 px-3 py-2">
             <div className="text-3xs text-muted-foreground uppercase tracking-wider">Avg Monthly</div>
-            <div className="text-sm font-semibold tabular-nums">{formatNaira(avgMonthly)}</div>
+            <div className="text-sm font-semibold tabular-nums">{formatNairaCompact(avgMonthly)}</div>
           </div>
           {nextMonth && (
             <div className="rounded-lg bg-muted/50 px-3 py-2">
               <div className="text-3xs text-muted-foreground uppercase tracking-wider">Next Month</div>
               <div className="text-sm font-semibold tabular-nums flex items-center gap-1">
-                {formatNaira(nextMonth.total)}
+                {formatNairaCompact(nextMonth.total)}
                 {changeFromLast !== 0 && (
                   <span className={`text-3xs ${changeFromLast > 0 ? 'text-red-500' : 'text-green-500'}`}>
                     {changeFromLast > 0 ? '+' : ''}{changeFromLast}%
@@ -195,9 +195,9 @@ export function FleetBudgetForecaster() {
             <div className="rounded-lg bg-muted/50 px-3 py-2">
               <div className="text-3xs text-muted-foreground uppercase tracking-wider">Fuel / Maint</div>
               <div className="text-xs tabular-nums mt-0.5">
-                <span className="font-medium">{formatNaira(nextMonth.fuel)}</span>
+                <span className="font-medium">{formatNairaCompact(nextMonth.fuel)}</span>
                 <span className="text-muted-foreground"> / </span>
-                <span className="font-medium">{formatNaira(nextMonth.maintenance)}</span>
+                <span className="font-medium">{formatNairaCompact(nextMonth.maintenance)}</span>
               </div>
             </div>
           )}
@@ -234,7 +234,7 @@ export function FleetBudgetForecaster() {
                     stroke={chartTheme.warning}
                     strokeDasharray="6 4"
                     label={{
-                      value: `Avg ${formatNaira(avgMonthly)}`,
+                      value: `Avg ${formatNairaCompact(avgMonthly)}`,
                       position: 'insideTopRight',
                       fill: chartTheme.warning,
                       fontSize: 10,

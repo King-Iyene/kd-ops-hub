@@ -445,7 +445,7 @@ const Transactions = () => {
                     {count.toLocaleString()}
                   </span>
                   <span className="mt-1 text-2xs font-mono tabular-nums text-muted-foreground/70 block">
-                    {formatNaira(total)}
+                    {formatNairaCompact(total)}
                   </span>
                 </div>
               </button>

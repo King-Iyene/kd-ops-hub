@@ -205,7 +205,7 @@ export function FuelStationComparison() {
           ) : (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <TableRow>
                     <TableHead>Station Name</TableHead>
                     <TableHead className="text-right">Avg ₦/L</TableHead>
@@ -222,7 +222,7 @@ export function FuelStationComparison() {
                     if (isCheapest) rowClass = 'bg-success/10/30';
                     if (isMostExpensive) rowClass = 'bg-destructive/10/30';
                     return (
-                      <TableRow key={s.name} className={rowClass}>
+                      <TableRow key={s.name} className={`${rowClass} hover:bg-muted/40 kd-transition`}>
                         <TableCell className="font-medium">
                           <span className="flex items-center gap-2">
                             {s.name}

@@ -135,7 +135,7 @@ export function AnomaliesTab({
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                     <TableRow>
                       <TableHead>Employee</TableHead>
                       <TableHead>Date</TableHead>
@@ -148,7 +148,7 @@ export function AnomaliesTab({
                   </TableHeader>
                   <TableBody>
                     {anomalousTrips.map((t) => (
-                      <TableRow key={t.id} className="bg-red-50/40 dark:bg-red-950/10">
+                      <TableRow key={t.id} className="bg-red-50/40 dark:bg-red-950/10 hover:bg-muted/40 kd-transition">
                         <TableCell className="font-medium text-sm">{t.employee_name}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{formatDate(t.date)}</TableCell>
                         <TableCell className="text-xs max-w-[200px]">
@@ -224,7 +224,7 @@ export function AnomaliesTab({
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                     <TableRow>
                       <TableHead>Employee</TableHead>
                       <TableHead>Date</TableHead>
@@ -238,7 +238,7 @@ export function AnomaliesTab({
                   </TableHeader>
                   <TableBody>
                     {anomalousFuelReqs.map((r) => (
-                      <TableRow key={r.id} className="bg-red-50/40 dark:bg-red-950/10">
+                      <TableRow key={r.id} className="bg-red-50/40 dark:bg-red-950/10 hover:bg-muted/40 kd-transition">
                         <TableCell className="font-medium text-sm">{r.employee_name}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{formatDate(r.created_at.slice(0, 10))}</TableCell>
                         <TableCell className="text-sm">{r.station_name || '—'}</TableCell>

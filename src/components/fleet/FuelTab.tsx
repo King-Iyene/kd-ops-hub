@@ -150,7 +150,7 @@ function WeeklyBudgetBar({
       <div className="flex items-center justify-between">
         <span className="font-medium text-muted-foreground">Weekly Budget</span>
         <span className={`font-semibold currency ${remainColour}`}>
-          {formatNaira(remaining)} remaining
+          {formatNairaCompact(remaining)} remaining
         </span>
       </div>
       <Progress
@@ -160,15 +160,15 @@ function WeeklyBudgetBar({
       <div className="grid grid-cols-3 text-muted-foreground gap-1">
         <div>
           <p>Used</p>
-          <p className="font-semibold text-foreground tabular-nums">{formatNaira(spent)}</p>
+          <p className="font-semibold text-foreground tabular-nums">{formatNairaCompact(spent)}</p>
         </div>
         <div className="text-center">
           <p>Remaining</p>
-          <p className={`font-semibold tabular-nums ${remainColour}`}>{formatNaira(remaining)}</p>
+          <p className={`font-semibold tabular-nums ${remainColour}`}>{formatNairaCompact(remaining)}</p>
         </div>
         <div className="text-right">
           <p>Total</p>
-          <p className="font-semibold text-foreground tabular-nums">{formatNaira(total)}</p>
+          <p className="font-semibold text-foreground tabular-nums">{formatNairaCompact(total)}</p>
         </div>
       </div>
       {carryForward > 0 && (
@@ -1976,7 +1976,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
         <CardContent className="p-0">
           <div className="hidden md:block overflow-x-auto">
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
               <TableRow>
                 <TableHead>Employee</TableHead>
                 <TableHead>Station</TableHead>
@@ -2002,7 +2002,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
                 </TableRow>
               )}
               {visibleFuel.map((r) => (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} className="hover:bg-muted/40 kd-transition">
                   <TableCell className="font-medium">{r.employee_name}</TableCell>
                   <TableCell>
                     {r.fuel_station_name || r.station_name}

@@ -54,7 +54,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { formatNaira, formatDate } from '@/lib/format';
+import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 
@@ -516,7 +516,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
               <DollarSign className="h-3.5 w-3.5" />
               Cost (MTD)
             </div>
-            <p className="text-xl font-bold currency">{loading ? '...' : formatNaira(stats.mtdCost)}</p>
+            <p className="text-xl font-bold currency">{loading ? '...' : formatNairaCompact(stats.mtdCost)}</p>
           </CardContent>
         </Card>
       </div>
@@ -651,7 +651,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
             ) : (
               <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <TableRow>
                     <TableHead>Vehicle</TableHead>
                     <TableHead>Service Type</TableHead>
@@ -668,7 +668,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
                   {filteredItems.map((item) => {
                     const cfg = STATUS_CONFIG[item.effectiveStatus];
                     return (
-                      <TableRow key={item.id}>
+                      <TableRow key={item.id} className="hover:bg-muted/40 kd-transition">
                         <TableCell>
                           <div>
                             <p className="font-medium text-sm">

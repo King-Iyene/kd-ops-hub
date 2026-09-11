@@ -194,7 +194,7 @@ function GeofencesTab() {
           <CardContent className="p-0">
             <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
                   <TableHead>Zone</TableHead>
                   <TableHead>Center</TableHead>
@@ -205,7 +205,7 @@ function GeofencesTab() {
               </TableHeader>
               <TableBody>
                 {geofences.map((g) => (
-                  <TableRow key={g.id}>
+                  <TableRow key={g.id} className="hover:bg-muted/40 kd-transition">
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span className="inline-block w-3 h-3 rounded-full shrink-0" style={{ background: g.color }} />

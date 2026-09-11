@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { formatNaira } from '@/lib/format';
+import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   AlertTriangle,
@@ -237,7 +237,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
           type: 'warning',
           title: `${overBudgetVehicles.length} vehicle${overBudgetVehicles.length > 1 ? 's' : ''} over budget this week`,
           description: `Excess spend: ${formatNaira(excess)}. Review fuel consumption patterns.`,
-          impact: formatNaira(excess),
+          impact: formatNairaCompact(excess),
           navigateTo: 'fuel',
           navigateLabel: 'View Fuel Requests',
         });
@@ -255,7 +255,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
             type: 'warning',
             title: `${rate}% anomaly rate in fuel requests`,
             description: `${recentAnomalies.length} of ${recentFuels.length} requests flagged. Potential savings: ${formatNaira(anomalySpend)}.`,
-            impact: formatNaira(anomalySpend),
+            impact: formatNairaCompact(anomalySpend),
             navigateTo: 'anomalies',
             navigateLabel: 'Review Anomalies',
           });
@@ -283,7 +283,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
           type: 'opportunity',
           title: `Fuel spend up ${wow}% week-over-week`,
           description: `This week: ${formatNaira(thisWeekSpend)} vs last week: ${formatNaira(lastWeekSpend)}. Check for route inefficiencies or unauthorized fueling.`,
-          impact: formatNaira(thisWeekSpend - lastWeekSpend),
+          impact: formatNairaCompact(thisWeekSpend - lastWeekSpend),
           navigateTo: 'fuel',
           navigateLabel: 'View Fuel Requests',
         });

@@ -56,7 +56,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { formatNaira, formatDate } from '@/lib/format';
+import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
 
 const INCIDENT_TYPES = [
   { value: 'accident', label: 'Road Accident' },
@@ -570,7 +570,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold currency">{formatNaira(totalRepairCost)}</div>
+            <div className="text-2xl font-bold currency">{formatNairaCompact(totalRepairCost)}</div>
           </CardContent>
         </Card>
       </div>

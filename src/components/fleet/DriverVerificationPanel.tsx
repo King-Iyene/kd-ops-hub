@@ -308,7 +308,7 @@ export function DriverVerificationPanel() {
         {!isSelfService && (
           <div className="overflow-x-auto rounded-md border">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
                   <TableHead>Driver Name</TableHead>
                   <TableHead>Assigned Vehicle</TableHead>
@@ -337,7 +337,7 @@ export function DriverVerificationPanel() {
                     const expiryDays = driver.driver_license_expiry ? daysUntil(driver.driver_license_expiry) : null;
 
                     return (
-                      <TableRow key={driver.id}>
+                      <TableRow key={driver.id} className="hover:bg-muted/40 kd-transition">
                         <TableCell className="font-medium">{driver.full_name}</TableCell>
                         <TableCell>
                           {driver.assigned_vehicle ? (

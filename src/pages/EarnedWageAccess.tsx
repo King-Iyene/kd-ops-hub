@@ -27,7 +27,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { errorMessage } from '@/lib/db-errors';
-import { formatNaira, formatDate } from '@/lib/format';
+import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { confirm } from '@/hooks/use-confirm';
@@ -358,10 +358,10 @@ export default function EarnedWageAccess() {
       {/* Stats */}
       {eligibility && (
         <div className="kd-stat-grid">
-          <StatCard title="Monthly salary"   value={formatNaira(eligibility.monthly_salary_ngn)}  icon={Wallet}     tone="primary" />
-          <StatCard title="Accrued so far"   value={formatNaira(eligibility.accrued_to_date_ngn)} icon={TrendingUp} tone="success" />
-          <StatCard title="Already drawn"    value={formatNaira(eligibility.already_drawn_ngn)}   icon={Clock}      tone="warning" />
-          <StatCard title="Available now"    value={formatNaira(eligibility.available_now_ngn)}   icon={Sparkles}   tone="primary" />
+          <StatCard title="Monthly salary"   value={formatNairaCompact(eligibility.monthly_salary_ngn)}  icon={Wallet}     tone="primary" />
+          <StatCard title="Accrued so far"   value={formatNairaCompact(eligibility.accrued_to_date_ngn)} icon={TrendingUp} tone="success" />
+          <StatCard title="Already drawn"    value={formatNairaCompact(eligibility.already_drawn_ngn)}   icon={Clock}      tone="warning" />
+          <StatCard title="Available now"    value={formatNairaCompact(eligibility.available_now_ngn)}   icon={Sparkles}   tone="primary" />
         </div>
       )}
 
@@ -389,7 +389,7 @@ export default function EarnedWageAccess() {
               <>
               <div className="hidden md:block overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <TableRow>
                     <TableHead>Employee</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
@@ -400,7 +400,7 @@ export default function EarnedWageAccess() {
                 </TableHeader>
                 <TableBody>
                   {pending.map((r) => (
-                    <TableRow key={r.id}>
+                    <TableRow key={r.id} className="hover:bg-muted/40 kd-transition">
                       <TableCell className="font-medium">{r.full_name || r.employee_id.slice(0, 8)}</TableCell>
                       <TableCell className="text-right currency">{formatNaira(r.amount_ngn)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-xs truncate" title={r.reason || '—'}>{r.reason || '—'}</TableCell>
@@ -498,7 +498,7 @@ export default function EarnedWageAccess() {
             <>
             <div className="hidden md:block overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
@@ -509,7 +509,7 @@ export default function EarnedWageAccess() {
               </TableHeader>
               <TableBody>
                 {history.map((r) => (
-                  <TableRow key={r.id}>
+                  <TableRow key={r.id} className="hover:bg-muted/40 kd-transition">
                     <TableCell className="text-sm">{formatDate(r.created_at)}</TableCell>
                     <TableCell className="text-right currency">{formatNaira(r.amount_ngn)}</TableCell>
                     <TableCell>

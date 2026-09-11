@@ -256,7 +256,7 @@ export function DriverTrainingPanel({ staff }: Props) {
       ) : (
         <div className="overflow-x-auto rounded-md border">
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
               <TableRow>
                 <TableHead>Driver</TableHead>
                 <TableHead>Training</TableHead>
@@ -268,7 +268,7 @@ export function DriverTrainingPanel({ staff }: Props) {
             </TableHeader>
             <TableBody>
               {filtered.map((r) => (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} className="hover:bg-muted/40 kd-transition">
                   <TableCell className="font-medium text-sm">
                     {(r.driver as any)?.full_name || staff.find((s) => s.id === r.driver_id)?.full_name || 'Unknown'}
                   </TableCell>

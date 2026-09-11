@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { formatNaira } from '@/lib/format';
+import { formatNaira, formatNairaCompact } from '@/lib/format';
 import {
   TrendingDown,
   TrendingUp,
@@ -165,7 +165,7 @@ export function FuelCostOptimizer({ vehicles }: Props) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Fleet avg cost/km</p>
-                <p className="text-lg font-bold currency">{formatNaira(avgCostPerKm)}/km</p>
+                <p className="text-lg font-bold currency">{formatNairaCompact(avgCostPerKm)}/km</p>
               </div>
             </CardContent>
           </Card>
@@ -178,7 +178,7 @@ export function FuelCostOptimizer({ vehicles }: Props) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Monthly savings opportunity</p>
-                <p className="text-lg font-bold text-success currency">{formatNaira(potentialSavings)}</p>
+                <p className="text-lg font-bold text-success currency">{formatNairaCompact(potentialSavings)}</p>
                 <p className="text-3xs text-muted-foreground">By optimizing worst performers</p>
               </div>
             </CardContent>
@@ -212,7 +212,7 @@ export function FuelCostOptimizer({ vehicles }: Props) {
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                   <tr className="border-b text-xs text-muted-foreground">
                     <th className="text-left py-2 pr-2">#</th>
                     <th className="text-left py-2">Vehicle</th>
@@ -226,7 +226,7 @@ export function FuelCostOptimizer({ vehicles }: Props) {
                   {vehicleCosts.slice(0, 8).map((vc) => {
                     const isGood = vc.cost_per_km != null && avgCostPerKm != null && vc.cost_per_km <= avgCostPerKm;
                     return (
-                      <tr key={vc.vehicle_id} className="border-b last:border-0">
+                      <tr key={vc.vehicle_id} className="border-b last:border-0 hover:bg-muted/40 kd-transition">
                         <td className="py-2 pr-2 text-muted-foreground">{vc.rank}</td>
                         <td className="py-2">
                           <div className="font-medium">{vc.name}</div>

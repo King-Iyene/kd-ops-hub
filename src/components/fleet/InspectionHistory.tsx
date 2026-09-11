@@ -712,7 +712,7 @@ function HistoryTab({
         ) : (
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Vehicle</TableHead>
@@ -730,7 +730,7 @@ function HistoryTab({
                   return (
                     <TableRow
                       key={i.id}
-                      className="cursor-pointer hover:bg-muted/50"
+                      className="cursor-pointer hover:bg-muted/40 kd-transition"
                       onClick={() => onOpenDetail(i)}
                     >
                       <TableCell className="text-sm whitespace-nowrap">
@@ -929,7 +929,7 @@ function VehicleSummaryTab({
       <CardContent>
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
               <TableRow>
                 <TableHead>Vehicle</TableHead>
                 <TableHead>Plate</TableHead>
@@ -941,7 +941,7 @@ function VehicleSummaryTab({
               {vehicles.map((v) => {
                 const last = lastInspectionByVehicle.get(v.id);
                 return (
-                  <TableRow key={v.id}>
+                  <TableRow key={v.id} className="hover:bg-muted/40 kd-transition">
                     <TableCell className="text-sm font-medium">{v.name}</TableCell>
                     <TableCell className="text-sm">{v.plate_number}</TableCell>
                     <TableCell className="text-sm">

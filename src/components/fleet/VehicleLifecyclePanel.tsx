@@ -17,7 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { formatNaira } from '@/lib/format';
+import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { Loader2, Pencil, TrendingDown, Car, DollarSign, Calendar } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 
@@ -216,7 +216,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold currency">{totalFleetValue > 0 ? formatNaira(totalFleetValue) : '—'}</div>
+            <div className="text-2xl font-bold currency">{totalFleetValue > 0 ? formatNairaCompact(totalFleetValue) : '—'}</div>
             <p className="text-xs text-muted-foreground">{vehiclesWithCost.length} of {vehicles.length} vehicles valued</p>
           </CardContent>
         </Card>
@@ -227,7 +227,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
             <TrendingDown className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive currency">{totalDepreciation > 0 ? formatNaira(totalDepreciation) : '—'}</div>
+            <div className="text-2xl font-bold text-destructive currency">{totalDepreciation > 0 ? formatNairaCompact(totalDepreciation) : '—'}</div>
             <p className="text-xs text-muted-foreground">Per year across fleet</p>
           </CardContent>
         </Card>
@@ -238,7 +238,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
             <Calendar className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600 currency">{totalInsurancePremium > 0 ? formatNaira(totalInsurancePremium) : '—'}</div>
+            <div className="text-2xl font-bold text-blue-600 currency">{totalInsurancePremium > 0 ? formatNairaCompact(totalInsurancePremium) : '—'}</div>
             <p className="text-xs text-muted-foreground">Total annual premiums</p>
           </CardContent>
         </Card>
