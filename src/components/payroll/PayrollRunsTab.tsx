@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-import { openBlankPayslipWindow, writePayslipIntoWindow } from '@/lib/payslip';
+import { PayslipPreviewDialog, type PayslipPreviewState } from '@/components/PayslipPreviewDialog';
 import {
   BarChart,
   Bar,
@@ -600,6 +600,7 @@ function RunPayslipsSection({ runId }: { runId: string }) {
   const { toast } = useToast();
   const [payslips, setPayslips] = useState<any[] | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<PayslipPreviewState | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -625,26 +626,23 @@ function RunPayslipsSection({ runId }: { runId: string }) {
       toast({ title: 'No payslip document on file', description: `${slip.employee_name} has no generated payslip to view.`, variant: 'destructive' });
       return;
     }
-    // Open the tab RIGHT NOW, before the storage download — some browsers
-    // only honor window.open() inside the original click's user-gesture
-    // window, and that gesture can silently expire once an await resolves,
-    // making the popup blocker swallow it with no error and no visible sign
-    // anything went wrong. This is the actual defect a user reported here.
-    const win = openBlankPayslipWindow();
-    if (!win) {
-      toast({ title: 'Pop-up blocked', description: 'Allow pop-ups for this site, then try again.', variant: 'destructive' });
-      return;
-    }
     setOpeningId(slip.id);
     try {
       const { data, error } = await supabase.storage.from('payslips').download(slip.storage_path);
       if (error) {
-        win.close();
         toast({ title: 'Could not open payslip', description: error.message, variant: 'destructive' });
         return;
       }
       const html = await data.text();
-      writePayslipIntoWindow(win, html);
+      // Renders in-page rather than window.open()'ing a new tab — a real
+      // user hit exactly this: some browsers only honor window.open() while
+      // the click's user-gesture window is still active, which can expire
+      // during the storage download, and even with the popup opened
+      // synchronously first, a browser/site permission set to block pop-ups
+      // still kills it, leaving the viewer stuck needing to change a browser
+      // setting just to see a payslip. An in-page dialog has no such
+      // dependency at all.
+      setPreview({ title: `${slip.employee_name} — payslip`, html, filename: `payslip-${slip.employee_name}` });
     } finally {
       setOpeningId(null);
     }
@@ -684,6 +682,7 @@ function RunPayslipsSection({ runId }: { runId: string }) {
           </button>
         ))}
       </div>
+      <PayslipPreviewDialog slip={preview} onClose={() => setPreview(null)} />
     </div>
   );
 }

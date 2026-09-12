@@ -29,7 +29,8 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { logAudit } from '@/lib/audit';
 import { roleLabel } from '@/lib/roles';
 import { formatDateTime, formatNaira } from '@/lib/format';
-import { openPayslipPrintWindow, openBlankPayslipWindow, writePayslipIntoWindow, downloadStoredPayslipHtml } from '@/lib/payslip';
+import { openPayslipPrintWindow, downloadStoredPayslipHtml } from '@/lib/payslip';
+import { PayslipPreviewDialog, type PayslipPreviewState } from '@/components/PayslipPreviewDialog';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { displayName, initialsOf } from '@/lib/name';
@@ -288,6 +289,8 @@ const EmployeeProfile = () => {
     setEditingSection(null);
   };
 
+  const [payslipPreview, setPayslipPreview] = useState<PayslipPreviewState | null>(null);
+
   // Shared fallback data for payslips with no stored HTML (e.g. legacy
   // batch-item payslips) — rendered fresh client-side from the raw figures.
   const fallbackPayslipData = (slip: any) => ({
@@ -314,27 +317,20 @@ const EmployeeProfile = () => {
       openPayslipPrintWindow(fallbackPayslipData(slip), { autoPrint: false });
       return;
     }
-    // Open the tab synchronously, before the storage download — some
-    // browsers only honor window.open() within the original click's
-    // user-gesture window, which can silently expire once an await
-    // resolves. That made this preview a no-op with zero visible error.
-    const win = openBlankPayslipWindow();
-    if (!win) {
-      toast({ title: 'Pop-up blocked', description: 'Allow pop-ups for this site, then try again.', variant: 'destructive' });
-      return;
-    }
     // Real payroll-module payslips are stored as fully-rendered HTML —
     // open that exact document rather than re-rendering it from scratch,
     // so what you preview always matches what was actually generated.
+    // Rendered in-page (not window.open()'d) — a real user hit a case
+    // where the browser's pop-up permission for this site blocked it
+    // outright, which no amount of gesture-timing fixes can get around.
     const path = slip.storage_path || slip.file_url;
     const { data, error } = await supabase.storage.from('payslips').download(path);
     if (error) {
-      win.close();
       toast({ title: 'Could not open payslip', description: error.message, variant: 'destructive' });
       return;
     }
     const html = await data.text();
-    writePayslipIntoWindow(win, html);
+    setPayslipPreview({ title: `${slip.employee_name || employee?.full_name || 'Payslip'} — ${slip.period || ''}`, html, filename: `payslip-${slip.period || ''}` });
   };
 
   const downloadPayslip = async (slip: any) => {
@@ -2450,6 +2446,8 @@ const EmployeeProfile = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PayslipPreviewDialog slip={payslipPreview} onClose={() => setPayslipPreview(null)} />
     </div>
   );
 };
