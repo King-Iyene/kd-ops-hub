@@ -1128,7 +1128,7 @@ const Payroll = () => {
       payroll_run_id: adjustRun.id,
       employee_id: adjustForm.employee_id,
       kind: adjustForm.kind,
-      description: isExclude ? (adjustForm.description.trim() || 'Excluded from this run') : adjustForm.description.trim(),
+      description: adjustForm.description.trim(),
       amount_ngn: amt,
       taxable: (isExclude || adjustForm.kind === 'deduction') ? false : adjustForm.taxable,
       created_by: profile?.id || null,
