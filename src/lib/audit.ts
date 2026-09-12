@@ -197,7 +197,13 @@ export type AuditActionType =
   | 'remittance_csv_exported'
   | 'attendance_recorded'
   | 'attendance_updated'
-  | 'attendance_deleted';
+  | 'attendance_deleted'
+  // Scheduling a payroll run's automatic disbursement had no audit trail at
+  // all — investigating a 2026-09-12 incident (a scheduled disbursement
+  // that silently failed) turned up nothing in audit_logs for who scheduled
+  // it, when, or for what time, only the bare fact it had once existed.
+  | 'payroll_disbursement_scheduled'
+  | 'payroll_disbursement_schedule_cancelled';
 
 export interface AuditActor {
   id?: string | null;

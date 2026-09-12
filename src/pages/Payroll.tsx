@@ -1933,6 +1933,12 @@ const Payroll = () => {
         p_at: atIso,
       });
       if (error) throw error;
+      await logAudit(
+        'payroll_disbursement_scheduled',
+        `Payroll ${disburseTarget.run.period} disbursement scheduled for ${atIso}`,
+        profile,
+        { run_id: disburseTarget.run.id, scheduled_disburse_at: atIso },
+      );
       toast({
         title: 'Disbursement scheduled',
         description: `Payroll ${monthLabel(disburseTarget.run.period)} will disburse automatically at ${new Date(atIso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: getTimezone() })} (${getTimezone()}).`,
@@ -1952,6 +1958,12 @@ const Payroll = () => {
     try {
       const { error } = await supabase.rpc('cancel_scheduled_payroll_disbursement', { p_run_id: run.id });
       if (error) throw error;
+      await logAudit(
+        'payroll_disbursement_schedule_cancelled',
+        `Payroll ${run.period} scheduled disbursement cancelled`,
+        profile,
+        { run_id: run.id, previously_scheduled_for: run.scheduled_disburse_at },
+      );
       toast({ title: 'Scheduled disbursement cancelled' });
       load();
     } catch (err: unknown) {
@@ -1969,6 +1981,12 @@ const Payroll = () => {
         toast({ title: 'Could not cancel the existing schedule', description: error.message, variant: 'destructive' });
         return;
       }
+      await logAudit(
+        'payroll_disbursement_schedule_cancelled',
+        `Payroll ${run.period} scheduled disbursement cancelled (overridden by manual "Pay now")`,
+        profile,
+        { run_id: run.id, previously_scheduled_for: run.scheduled_disburse_at },
+      );
     }
     await openDisburse(run);
   };
