@@ -1109,21 +1109,28 @@ const Payroll = () => {
 
   const addAdjustment = async () => {
     if (!adjustRun) return;
-    const amt = Number(adjustForm.amount);
+    const isExclude = adjustForm.kind === 'exclude';
+    const amt = isExclude ? 0 : Number(adjustForm.amount);
     let hasValidationError = false;
     clearAdjustErrors();
     if (!adjustForm.employee_id) { setAdjustError('employee_id', 'Pick an employee'); hasValidationError = true; }
-    if (!adjustForm.description.trim()) { setAdjustError('description', 'Description is required'); hasValidationError = true; }
-    if (!(amt > 0)) { setAdjustError('amount', 'Enter an amount greater than ₦0'); hasValidationError = true; }
+    // Description is required context for a real bonus/deduction line, but
+    // optional for an exclusion — the reason is nice-to-have, not required.
+    if (!isExclude && !adjustForm.description.trim()) { setAdjustError('description', 'Description is required'); hasValidationError = true; }
+    if (!isExclude && !(amt > 0)) { setAdjustError('amount', 'Enter an amount greater than ₦0'); hasValidationError = true; }
+    if (isExclude && adjustList.some((a: any) => a.employee_id === adjustForm.employee_id && a.kind === 'exclude')) {
+      setAdjustError('employee_id', 'This employee is already excluded from this run');
+      hasValidationError = true;
+    }
     if (hasValidationError) return;
     setAdjustSaving(true);
     const { data, error } = await (supabase as any).from('payslip_adjustments').insert({
       payroll_run_id: adjustRun.id,
       employee_id: adjustForm.employee_id,
       kind: adjustForm.kind,
-      description: adjustForm.description.trim(),
+      description: isExclude ? (adjustForm.description.trim() || 'Excluded from this run') : adjustForm.description.trim(),
       amount_ngn: amt,
-      taxable: adjustForm.kind === 'deduction' ? false : adjustForm.taxable,
+      taxable: (isExclude || adjustForm.kind === 'deduction') ? false : adjustForm.taxable,
       created_by: profile?.id || null,
     }).select().single();
     setAdjustSaving(false);
@@ -1133,7 +1140,9 @@ const Payroll = () => {
     clearAdjustErrors();
     void logAudit(
       'payslip_adjustment_added' as never,
-      `Payslip adjustment (${data.kind} ${formatNaira(Number(data.amount_ngn))}) added for ${adjustEmployees.find((e) => e.id === data.employee_id)?.name || data.employee_id} · ${monthLabel(adjustRun.period)}`,
+      isExclude
+        ? `${adjustEmployees.find((e) => e.id === data.employee_id)?.name || data.employee_id} excluded from ${monthLabel(adjustRun.period)} payroll run`
+        : `Payslip adjustment (${data.kind} ${formatNaira(Number(data.amount_ngn))}) added for ${adjustEmployees.find((e) => e.id === data.employee_id)?.name || data.employee_id} · ${monthLabel(adjustRun.period)}`,
       profile,
     );
     toast({ title: 'Adjustment added', description: 'Re-generate payslips for this run to apply it.' });
@@ -1315,11 +1324,43 @@ const Payroll = () => {
       }
 
       // Group per-employee one-off adjustments (bonus / overtime / allowance /
-      // deduction) entered for THIS run.
+      // deduction / exclude) entered for THIS run.
       const adjustmentsByEmployee = new Map<string, any[]>();
       for (const adj of ((allAdjustments || []) as any[])) {
         if (!adjustmentsByEmployee.has(adj.employee_id)) adjustmentsByEmployee.set(adj.employee_id, []);
         adjustmentsByEmployee.get(adj.employee_id)!.push(adj);
+      }
+
+      // "exclude" adjustments pull someone out of THIS run only — pay group,
+      // salary, and every other run they're part of are untouched. Anyone
+      // excluded gets no payslip generated; if they had one from a previous
+      // generation (added a bonus, ran it, then decided to exclude them
+      // instead), that stale payslip is removed rather than left behind.
+      const excludedEmployeeIds = new Set(
+        ((allAdjustments || []) as any[]).filter((a) => a.kind === 'exclude').map((a) => a.employee_id),
+      );
+      const excludedNames = list
+        .filter((e: any) => excludedEmployeeIds.has(e.id))
+        .map((e: any) => displayName(e.first_name, e.last_name, e.full_name || e.email));
+      const payableList = list.filter((e: any) => !excludedEmployeeIds.has(e.id));
+
+      if (payableList.length === 0) {
+        toast({
+          title: 'Every matching employee is excluded from this run',
+          description: 'Remove an exclusion under Adjustments if that\'s not intended — there\'s no one left to pay.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (excludedEmployeeIds.size > 0) {
+        const { error: cleanupErr } = await supabase
+          .from('payslips')
+          .delete()
+          .eq('payroll_run_id', run.id)
+          .in('employee_id', Array.from(excludedEmployeeIds));
+        if (cleanupErr) {
+          logWarn('KDOps', 'Failed to remove stale payslip(s) for excluded employee(s): ' + cleanupErr.message);
+        }
       }
 
       // Group recurring earnings by employee id
@@ -1375,13 +1416,13 @@ const Payroll = () => {
       // so an under-collection is never silent.
       const cappedNames: string[] = [];
       const progressToastId = toast({
-        title: `Generating payslips (0 of ${list.length})…`,
+        title: `Generating payslips (0 of ${payableList.length})…`,
         duration: Infinity,
       });
-      for (const e of list) {
+      for (const e of payableList) {
         toast({
           id: progressToastId?.id,
-          title: `Generating payslip ${succeeded + failed + 1} of ${list.length}…`,
+          title: `Generating payslip ${succeeded + failed + 1} of ${payableList.length}…`,
           description: displayName(e.first_name, e.last_name, e.full_name || e.email),
           duration: Infinity,
         });
@@ -1798,7 +1839,7 @@ const Payroll = () => {
 
       if (failed > 0) {
         toast({
-          title: `${succeeded} of ${list.length} payslips generated`,
+          title: `${succeeded} of ${payableList.length} payslips generated`,
           description: `Failed: ${failedNames.slice(0, 5).join(', ')}${failedNames.length > 5 ? ` (+${failedNames.length - 5} more)` : ''} — check employee data and retry.`,
           variant: 'destructive',
         });
@@ -1815,6 +1856,12 @@ const Payroll = () => {
           title: `${cappedNames.length} employee${cappedNames.length === 1 ? '' : 's'} had deductions reduced this run`,
           description: `Gross pay wasn't enough to cover every scheduled deduction for: ${cappedNames.slice(0, 5).join(', ')}${cappedNames.length > 5 ? ` (+${cappedNames.length - 5} more)` : ''}. The shortfall stays outstanding and will be collected in a future run — nothing was written off.`,
           variant: 'destructive',
+        });
+      }
+      if (excludedNames.length > 0) {
+        toast({
+          title: `${excludedNames.length} employee${excludedNames.length === 1 ? '' : 's'} excluded from this run`,
+          description: `No payslip generated for: ${excludedNames.slice(0, 5).join(', ')}${excludedNames.length > 5 ? ` (+${excludedNames.length - 5} more)` : ''}. They stay in their pay group and are unaffected in every other run — remove the exclusion under Adjustments to include them again.`,
         });
       }
     } catch (err: unknown) {

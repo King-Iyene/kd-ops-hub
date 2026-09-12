@@ -831,8 +831,10 @@ export const PayrollDialogs = ({
       >
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Add a one-off bonus, overtime, allowance or deduction for a specific employee.
-              Earnings increase pay (taxable ones also raise PAYE); deductions reduce it.
+              Add a one-off bonus, overtime, allowance or deduction for a specific employee, or
+              exclude someone from this run only. Earnings increase pay (taxable ones also raise
+              PAYE); deductions reduce it; an exclusion removes them from this run's payslips
+              without touching their pay group, salary, or any other run.
               <span className="font-medium text-foreground"> Re-generate payslips for this run after editing</span> to apply changes.
             </p>
 
@@ -859,31 +861,40 @@ export const PayrollDialogs = ({
                     <SelectItem value="overtime">Overtime</SelectItem>
                     <SelectItem value="allowance">Allowance</SelectItem>
                     <SelectItem value="deduction">Deduction</SelectItem>
+                    <SelectItem value="exclude">Exclude from this run</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label>Amount (₦)</Label>
-                <Input
-                  type="number" min="0" inputMode="numeric"
-                  value={adjustForm.amount}
-                  onChange={(e) => { clearAdjustError('amount'); setAdjustForm((f) => ({ ...f, amount: e.target.value })); }}
-                  placeholder="0"
-                  aria-invalid={!!adjustErrors.amount}
-                />
-                <FieldError message={adjustErrors.amount} />
-              </div>
-              <div className="space-y-1 sm:col-span-2">
-                <Label>Description</Label>
+              {adjustForm.kind !== 'exclude' && (
+                <div className="space-y-1">
+                  <Label>Amount (₦)</Label>
+                  <Input
+                    type="number" min="0" inputMode="numeric"
+                    value={adjustForm.amount}
+                    onChange={(e) => { clearAdjustError('amount'); setAdjustForm((f) => ({ ...f, amount: e.target.value })); }}
+                    placeholder="0"
+                    aria-invalid={!!adjustErrors.amount}
+                  />
+                  <FieldError message={adjustErrors.amount} />
+                </div>
+              )}
+              <div className={cn('space-y-1', adjustForm.kind !== 'exclude' && 'sm:col-span-2')}>
+                <Label>{adjustForm.kind === 'exclude' ? 'Reason (optional)' : 'Description'}</Label>
                 <Input
                   value={adjustForm.description}
                   onChange={(e) => { clearAdjustError('description'); setAdjustForm((f) => ({ ...f, description: e.target.value })); }}
-                  placeholder="e.g. Performance bonus, Q2"
+                  placeholder={adjustForm.kind === 'exclude' ? 'e.g. On unpaid leave all month' : 'e.g. Performance bonus, Q2'}
                   aria-invalid={!!adjustErrors.description}
                 />
                 <FieldError message={adjustErrors.description} />
               </div>
-              {adjustForm.kind !== 'deduction' && (
+              {adjustForm.kind === 'exclude' && (
+                <p className="sm:col-span-2 text-xs text-muted-foreground">
+                  No payslip will be generated for this employee in this run only — their pay group,
+                  salary, and every other run are unaffected.
+                </p>
+              )}
+              {adjustForm.kind !== 'deduction' && adjustForm.kind !== 'exclude' && (
                 <label className="sm:col-span-2 flex items-center gap-2 text-sm text-muted-foreground">
                   <input
                     type="checkbox"
@@ -917,14 +928,24 @@ export const PayrollDialogs = ({
                         {adjustEmployees.find((e) => e.id === a.employee_id)?.name || a.employee_id}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        <span className="capitalize">{a.kind}</span>
-                        {a.kind !== 'deduction' && !a.taxable ? ' · non-taxable' : ''} · {a.description}
+                        {a.kind === 'exclude' ? (
+                          <>Excluded from this run{a.description ? ` · ${a.description}` : ''}</>
+                        ) : (
+                          <>
+                            <span className="capitalize">{a.kind}</span>
+                            {a.kind !== 'deduction' && !a.taxable ? ' · non-taxable' : ''} · {a.description}
+                          </>
+                        )}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={cn('tabular-nums font-semibold', a.kind === 'deduction' ? 'text-destructive' : 'text-success')}>
-                        {a.kind === 'deduction' ? '−' : '+'}{formatNaira(Number(a.amount_ngn))}
-                      </span>
+                      {a.kind === 'exclude' ? (
+                        <span className="text-xs font-semibold text-destructive uppercase tracking-wide">Excluded</span>
+                      ) : (
+                        <span className={cn('tabular-nums font-semibold', a.kind === 'deduction' ? 'text-destructive' : 'text-success')}>
+                          {a.kind === 'deduction' ? '−' : '+'}{formatNaira(Number(a.amount_ngn))}
+                        </span>
+                      )}
                       <Button size="icon-sm" variant="ghost" onClick={() => removeAdjustment(a.id)} aria-label="Remove adjustment">
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
