@@ -8354,6 +8354,8 @@ export type Database = {
           employer_pension_ngn: number | null
           id: string
           is_auto_generated: boolean
+          last_disbursement_attempted_at: string | null
+          last_disbursement_error: string | null
           nhf_ngn: number
           notes: string | null
           pay_date: string | null
@@ -8386,6 +8388,8 @@ export type Database = {
           employer_pension_ngn?: number | null
           id?: string
           is_auto_generated?: boolean
+          last_disbursement_attempted_at?: string | null
+          last_disbursement_error?: string | null
           nhf_ngn?: number
           notes?: string | null
           pay_date?: string | null
@@ -8418,6 +8422,8 @@ export type Database = {
           employer_pension_ngn?: number | null
           id?: string
           is_auto_generated?: boolean
+          last_disbursement_attempted_at?: string | null
+          last_disbursement_error?: string | null
           nhf_ngn?: number
           notes?: string | null
           pay_date?: string | null
@@ -15983,6 +15989,8 @@ export type Database = {
           employer_pension_ngn: number | null
           id: string
           is_auto_generated: boolean
+          last_disbursement_attempted_at: string | null
+          last_disbursement_error: string | null
           nhf_ngn: number
           notes: string | null
           pay_date: string | null
@@ -16063,6 +16071,8 @@ export type Database = {
           employer_pension_ngn: number | null
           id: string
           is_auto_generated: boolean
+          last_disbursement_attempted_at: string | null
+          last_disbursement_error: string | null
           nhf_ngn: number
           notes: string | null
           pay_date: string | null
@@ -16514,6 +16524,8 @@ export type Database = {
           employer_pension_ngn: number | null
           id: string
           is_auto_generated: boolean
+          last_disbursement_attempted_at: string | null
+          last_disbursement_error: string | null
           nhf_ngn: number
           notes: string | null
           pay_date: string | null
@@ -16653,6 +16665,8 @@ export type Database = {
           employer_pension_ngn: number | null
           id: string
           is_auto_generated: boolean
+          last_disbursement_attempted_at: string | null
+          last_disbursement_error: string | null
           nhf_ngn: number
           notes: string | null
           pay_date: string | null
@@ -17314,6 +17328,8 @@ export type Database = {
           employer_pension_ngn: number | null
           id: string
           is_auto_generated: boolean
+          last_disbursement_attempted_at: string | null
+          last_disbursement_error: string | null
           nhf_ngn: number
           notes: string | null
           pay_date: string | null
