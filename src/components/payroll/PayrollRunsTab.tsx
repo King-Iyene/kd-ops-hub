@@ -596,7 +596,7 @@ export const PayrollRunsTab = ({
 // Per-employee payslip list for a run — lets Finance click into exactly what
 // each person was (or will be) paid, the same rendered document an employee
 // sees on their own Payroll tab, instead of only seeing run-level totals.
-function RunPayslipsSection({ runId }: { runId: string }) {
+function RunPayslipsSection({ runId, refreshKey }: { runId: string; refreshKey?: string | null }) {
   const { toast } = useToast();
   const [payslips, setPayslips] = useState<any[] | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
@@ -618,8 +618,12 @@ function RunPayslipsSection({ runId }: { runId: string }) {
         setPayslips((data as any[]) || []);
       });
     return () => { cancelled = true; };
+    // refreshKey (the run's updated_at) intentionally re-triggers this fetch
+    // any time the run changes for ANY reason (generated, re-generated,
+    // disbursed, etc.) — payslips used to only load once per drawer-open,
+    // so "Generate payslips" left this list stale until a full page reload.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId]);
+  }, [runId, refreshKey]);
 
   const viewPayslip = async (slip: any) => {
     if (!slip.storage_path) {
@@ -792,7 +796,7 @@ function RunDetailDrawer({
             <PayrollRosterPreview payrollSegmentId={r.payroll_segment_id} />
           </div>
 
-          <RunPayslipsSection runId={r.id} />
+          <RunPayslipsSection runId={r.id} refreshKey={r.updated_at} />
 
           <div>
             <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Bonuses &amp; adjustments</div>
