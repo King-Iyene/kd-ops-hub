@@ -9,6 +9,21 @@ export const getTimezone = (): string =>
 export const setTimezoneCache = (tz: string): void =>
   localStorage.setItem(TZ_KEY, tz || DEFAULT_TZ);
 
+/**
+ * The current period as 'YYYY-MM' in the given timezone (org timezone by
+ * default) — for any column meant to compare lexicographically against a
+ * payroll run's own 'YYYY-MM' period (e.g. employee_advances.start_period).
+ * Never derive that kind of value from a free-text/display-label period
+ * string (human formats like "Mar 2026" sort after any digit-led 'YYYY-MM'
+ * string, so a .lte('YYYY-MM') comparison against it is never true).
+ */
+export const currentYearMonth = (tz: string = getTimezone()): string => {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit' })
+    .formatToParts(new Date())
+    .reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {} as Record<string, string>);
+  return `${parts.year}-${parts.month}`;
+};
+
 export const formatNaira = (amount: number | null | undefined): string => {
   const n = amount ?? 0;
   return `₦${n.toLocaleString('en-NG', {

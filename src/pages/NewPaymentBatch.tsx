@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useFeatureAccess } from '@/hooks/usePermission';
 import { APPROVER_ROLES } from '@/lib/roles';
-import { formatNaira, formatDate, maskAccountNumber } from '@/lib/format';
+import { formatNaira, formatDate, maskAccountNumber, currentYearMonth } from '@/lib/format';
 import { logAudit } from '@/lib/audit';
 import { errorMessage } from '@/lib/db-errors';
 import { cn } from '@/lib/utils';
@@ -707,6 +707,19 @@ const NewPaymentBatch = () => {
 
         // Phase 3 — create employee_advances records for salary advance batches
         if (batchType === 'advance' && submit && insertedItems) {
+          // start_period must be 'YYYY-MM' — payroll's draftRun() compares it
+          // lexicographically against the run's own 'YYYY-MM' period via
+          // .lte('start_period', form.period). The `period` field above is
+          // free text for the batch's own label (its input is literally
+          // placeholder="e.g. March 2026", and its default auto-fill is the
+          // same human format) — writing THAT into start_period means any
+          // string starting with a letter sorts after any 'YYYY-MM' digit
+          // string, so .lte() is never true and the advance is silently
+          // never picked up by any payroll run, ever. mark_advance_request_
+          // paid() (20260920000000_advance_requests.sql) already gets this
+          // right by deriving 'YYYY-MM' from now() instead of reusing a
+          // display label — do the same here instead of reusing `period`.
+          const startPeriod = currentYearMonth();
           const advanceInserts = insertedItems
             .filter((bi: any) => bi.employee_id)
             .map((bi: any) => ({
@@ -716,7 +729,7 @@ const NewPaymentBatch = () => {
               amount_ngn: bi.amount_ngn,
               outstanding_ngn: bi.amount_ngn,
               repayment_months: repaymentMonths,
-              start_period: period || null,
+              start_period: startPeriod,
             }));
           if (advanceInserts.length > 0) {
             await supabase.from('employee_advances').insert(advanceInserts);
