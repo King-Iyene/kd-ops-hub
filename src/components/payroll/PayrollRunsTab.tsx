@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Check,
   Loader2,
@@ -23,6 +23,9 @@ import {
   History,
   AlertCircle,
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
+import { openStoredPayslipHtml } from '@/lib/payslip';
 import {
   BarChart,
   Bar,
@@ -590,6 +593,90 @@ export const PayrollRunsTab = ({
   );
 };
 
+// Per-employee payslip list for a run — lets Finance click into exactly what
+// each person was (or will be) paid, the same rendered document an employee
+// sees on their own Payroll tab, instead of only seeing run-level totals.
+function RunPayslipsSection({ runId }: { runId: string }) {
+  const { toast } = useToast();
+  const [payslips, setPayslips] = useState<any[] | null>(null);
+  const [openingId, setOpeningId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPayslips(null);
+    supabase
+      .from('payslips')
+      .select('id, employee_id, employee_name, net_ngn, gross_ngn, storage_path')
+      .eq('payroll_run_id', runId)
+      .order('employee_name', { ascending: true })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          toast({ title: 'Could not load payslips', description: error.message, variant: 'destructive' });
+        }
+        setPayslips((data as any[]) || []);
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId]);
+
+  const viewPayslip = async (slip: any) => {
+    if (!slip.storage_path) {
+      toast({ title: 'No payslip document on file', description: `${slip.employee_name} has no generated payslip to view.`, variant: 'destructive' });
+      return;
+    }
+    setOpeningId(slip.id);
+    try {
+      const { data, error } = await supabase.storage.from('payslips').download(slip.storage_path);
+      if (error) {
+        toast({ title: 'Could not open payslip', description: error.message, variant: 'destructive' });
+        return;
+      }
+      const html = await data.text();
+      openStoredPayslipHtml(html);
+    } finally {
+      setOpeningId(null);
+    }
+  };
+
+  if (payslips === null) {
+    return (
+      <div>
+        <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
+          <FileText className="h-3 w-3" /> Payslips
+        </div>
+        <div className="text-xs text-muted-foreground">Loading…</div>
+      </div>
+    );
+  }
+  if (payslips.length === 0) return null;
+
+  return (
+    <div>
+      <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
+        <FileText className="h-3 w-3" /> Payslips ({payslips.length})
+      </div>
+      <div className="rounded-md border border-border/60 divide-y divide-border/50">
+        {payslips.map((slip) => (
+          <button
+            key={slip.id}
+            type="button"
+            onClick={() => viewPayslip(slip)}
+            disabled={openingId === slip.id}
+            className="w-full flex items-center justify-between gap-2 px-2.5 py-2 text-sm text-left hover:bg-muted/40 transition-colors disabled:opacity-60"
+          >
+            <span className="font-medium truncate">{slip.employee_name}</span>
+            <span className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+              <span className="tabular-nums text-foreground">{formatNaira(slip.net_ngn)}</span>
+              {openingId === slip.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronRight className="h-3 w-3" />}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RunDetailDrawer({
   run,
   onClose,
@@ -694,6 +781,8 @@ function RunDetailDrawer({
             <div className="text-xs text-muted-foreground mt-0.5 mb-1.5">{r.employee_count ?? 0} employees in this run</div>
             <PayrollRosterPreview payrollSegmentId={r.payroll_segment_id} />
           </div>
+
+          <RunPayslipsSection runId={r.id} />
 
           <div>
             <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Bonuses &amp; adjustments</div>
