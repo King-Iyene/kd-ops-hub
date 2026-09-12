@@ -681,10 +681,35 @@ const Payroll = () => {
       // being folded into the payroll total — mixing them here previously
       // inflated "Total burn" by the full company's contractor/expense spend
       // for the month regardless of how many people this run actually pays.
+      // totalDeductions/totalAdvanceRepayments are simple aggregate sums with
+      // no per-employee capping — generatePayslips() applies real per-
+      // employee proportional capping (computeDiscretionaryCapFactor) so no
+      // one's net pay ever goes negative, but that requires each employee's
+      // own gross-vs-requested figures and can't be replicated exactly at
+      // this aggregate, pre-generation estimate stage. Confirmed live: an
+      // employee whose scheduled recurring deductions/advances exceed their
+      // own gross pay (e.g. a small salary against a large loan) made this
+      // aggregate subtraction go negative — "Total burn this run: -₦4,930"
+      // for a run that, once payslips are actually generated, never has a
+      // negative burn (per-employee net pay floors at ₦0). Floor the
+      // discretionary total at what's actually available in aggregate so
+      // this estimate can't show an impossible negative burn, even though
+      // it may still differ slightly from the exact post-generation figure.
+      const discretionaryRequested = totalDeductions + totalAdvanceRepayments;
+      const discretionaryAvailable = Math.max(0, totalEmployee + bonusTotal + totalAllowances);
+      const discretionaryApplied = Math.min(discretionaryRequested, discretionaryAvailable);
       const burn =
         totalEmployee +
         employerPension + nsitfCharge + nhisEmployer +
-        bonusTotal + totalAllowances - totalDeductions - totalAdvanceRepayments;
+        bonusTotal + totalAllowances - discretionaryApplied;
+      // Scale the two individual line items down by the same factor so the
+      // review screen's breakdown rows actually sum to "Total burn" above —
+      // showing the raw, uncapped requested amounts here (₦-7,050 while
+      // Total burn correctly floors at a sane number) would look internally
+      // inconsistent even after the negative-burn fix.
+      const discretionaryScale = discretionaryRequested > 0 ? discretionaryApplied / discretionaryRequested : 1;
+      const totalDeductionsApplied = totalDeductions * discretionaryScale;
+      const totalAdvanceRepaymentsApplied = totalAdvanceRepayments * discretionaryScale;
 
       // Find-or-create, NOT .upsert() — the real unique constraints here are
       // partial indexes:
@@ -765,7 +790,8 @@ const Payroll = () => {
         empCount, totalEmployee, bonusTotal, totalAllowances,
         paye, pension, employerPension, nhf, nsitfCharge,
         nhisEmployee, nhisEmployer,
-        totalDeductions, totalAdvanceRepayments, totalContractor, totalExpenses, burn,
+        totalDeductions: totalDeductionsApplied, totalAdvanceRepayments: totalAdvanceRepaymentsApplied,
+        totalContractor, totalExpenses, burn,
       });
       setEditingDraftId((savedRow as PayrollRun)?.id || null);
       setDraftStep(2);
