@@ -421,7 +421,12 @@ const Payments = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => undefined}>
+                {/* preventDefault stops Radix's default close-and-refocus-
+                    trigger behavior on select — without it, the dropdown
+                    closing fights the nested Dialog opening and the Quick
+                    Pay dialog flashes open then immediately closes before
+                    a user can interact with it. Confirmed live. */}
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                   <QuickPayDialog />
                 </DropdownMenuItem>
                 <DropdownMenuItem
