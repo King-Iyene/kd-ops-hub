@@ -13,6 +13,7 @@ import { logAudit } from '@/lib/audit';
 import { notifyChannels } from '@/lib/notify';
 import { notifyPayslipReady } from '@/lib/notify-events';
 import { scanPayrollRunAnomaliesSafe } from '@/lib/anomalies';
+import { computeDiscretionaryCapFactor, capDiscretionaryAmount } from '@/lib/payroll-deductions';
 import {
   fetchPayrollSegments,
   fetchSegmentRules,
@@ -655,8 +656,21 @@ const Payroll = () => {
       // Employee statutory deductions (PAYE, pension employee, NHF, NHIS employee)
       // are already included in totalEmployee (gross). Only employer-borne costs
       // (employer pension, NSITF, NHIS employer) add to total cash outflow.
+      //
+      // "Total burn this run" is this payroll run's own cost — gross pay plus
+      // employer-side statutory contributions, bonuses, and allowances for the
+      // employees in THIS run's pay group/segment. It deliberately excludes
+      // totalContractor and totalExpenses: those are separate, company-wide
+      // disbursement categories (contractor payment batches, approved
+      // expenses) that are unrelated to which employees this run pays and
+      // aren't scoped to this run's segment at all. They're surfaced
+      // separately (total_contractor_ngn / total_expenses_ngn, shown as
+      // their own line items in the draft review and run drawer) instead of
+      // being folded into the payroll total — mixing them here previously
+      // inflated "Total burn" by the full company's contractor/expense spend
+      // for the month regardless of how many people this run actually pays.
       const burn =
-        totalContractor + totalEmployee + totalExpenses +
+        totalEmployee +
         employerPension + nsitfCharge + nhisEmployer +
         bonusTotal + totalAllowances - totalDeductions - totalAdvanceRepayments;
 
@@ -902,7 +916,24 @@ const Payroll = () => {
       const missingPensionPin = list.filter((e: any) => e.pension_enabled !== false && !e.pension_pin).map((e: any) => e.full_name);
       const noPayGroup = list.filter((e: any) => !e.pay_group_id).map((e: any) => e.full_name);
 
+      // Drift check — this run's stored total_employee_ngn/employee_count
+      // were frozen at draft time; if the live segment-matched roster or
+      // gross pay has since changed (raise, new hire, departure), flag it
+      // here too so it's caught at submit time, not just at approval.
+      const liveGrossNow = list.reduce((s: number, e: any) => s + Number(e.salary_ngn || 0), 0);
+      const GROSS_EPSILON_NGN = 0.5;
+      const isStale =
+        list.length !== (run.employee_count ?? list.length) ||
+        Math.abs(liveGrossNow - Number(run.total_employee_ngn || 0)) >= GROSS_EPSILON_NGN;
+
       const issues: { kind: string; message: string; names: string[] }[] = [];
+      if (isStale) {
+        issues.push({
+          kind: 'stale_totals',
+          message: `This draft's saved totals (${run.employee_count ?? 0} employees, ${formatNaira(run.total_employee_ngn)} gross) no longer match live data (${list.length} employees, ${formatNaira(liveGrossNow)} gross). Recall to Draft and re-save before submitting so the approver reviews real figures.`,
+          names: [],
+        });
+      }
       if (noPayGroup.length > 0) {
         issues.push({ kind: 'no_pay_group', message: `${noPayGroup.length} employee${noPayGroup.length === 1 ? '' : 's'} not assigned to any Pay Group — they may be included unintentionally. Assign them in Employee Profile → Job & Pay`, names: noPayGroup });
       }
@@ -961,8 +992,48 @@ const Payroll = () => {
   const isSelfApprovalBlocked = (run: PayrollRun) =>
     run.created_by === profile?.id && !['admin', 'super_admin'].includes(profile?.role || '');
 
+  // A run's total_employee_ngn / employee_count are frozen the moment it's
+  // drafted (upsert_payroll_draft just stores whatever the client computed
+  // then). If the underlying pay-group roster or a salary changes afterward
+  // — someone hired into the segment, a raise, a departure — those stored
+  // figures silently go stale, but generatePayslips() always re-queries
+  // live employee data, so the actual payslips generated at approval can
+  // differ from what the approver is looking at. This re-runs the same
+  // segment filter against CURRENT data and compares against what's stored,
+  // so approval can refuse to sign off on numbers that no longer match
+  // reality instead of trusting them blindly.
+  const checkRunIsFresh = async (
+    run: PayrollRun,
+  ): Promise<{ fresh: boolean; liveCount: number; liveGross: number }> => {
+    const { data: employees } = await supabase
+      .from('profiles')
+      .select('id, salary_ngn, status, role, department_id, employee_category, employment_type, pay_group_id')
+      .eq('status', 'active')
+      .neq('role', 'driver')
+      .limit(2000);
+    const rules = await fetchSegmentRules(run.payroll_segment_id);
+    const list = filterEmployeesForSegment((employees || []) as any[], rules);
+    const liveGross = list.reduce((s: number, e: any) => s + Number(e.salary_ngn || 0), 0);
+    const liveCount = list.length;
+    const GROSS_EPSILON_NGN = 0.5; // sub-naira rounding noise only, not a real drift
+    const fresh =
+      liveCount === (run.employee_count ?? liveCount) &&
+      Math.abs(liveGross - Number(run.total_employee_ngn || 0)) < GROSS_EPSILON_NGN;
+    return { fresh, liveCount, liveGross };
+  };
+
   const approve = async (run: PayrollRun) => {
     setWorking(true);
+    const { fresh, liveCount, liveGross } = await checkRunIsFresh(run);
+    if (!fresh) {
+      setWorking(false);
+      toast({
+        title: 'This run is out of date — recalculate before approving',
+        description: `Drafted: ${run.employee_count ?? 0} employees, ${formatNaira(run.total_employee_ngn)} gross. Right now: ${liveCount} employees, ${formatNaira(liveGross)} gross. Employee data changed since this draft was saved — recall this run to Draft and re-save it so the approved figures match what will actually be paid.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     // Routed through the approve_payroll_run RPC (not a raw .update()) so the
     // self-approval block is enforced server-side and can't be bypassed —
     // the person who drafted this run cannot also approve it unless they're
@@ -1298,6 +1369,11 @@ const Payroll = () => {
       let succeeded = 0;
       let failed = 0;
       const failedNames: string[] = [];
+      // Names of employees whose discretionary deductions (loan/advance/EWA/
+      // one-off) had to be capped this run because they exceeded what was
+      // left after mandatory statutory reductions — surfaced to the operator
+      // so an under-collection is never silent.
+      const cappedNames: string[] = [];
       const progressToastId = toast({
         title: `Generating payslips (0 of ${list.length})…`,
         duration: Infinity,
@@ -1405,18 +1481,55 @@ const Payroll = () => {
           const empDevLevy         = runIncDevLevy && companySettings?.development_levy_enabled
             ? Math.round(Number(companySettings.development_levy_annual_ngn || 0) / 12)
             : 0;
-          const empDeductions = runIncDeductions ? (deductionsByEmployee.get(e.id) || []) : [];
-          const empDeductionsTotal = empDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn), 0);
-          const empAdvances = runIncAdvances ? (advancesByEmployee.get(e.id) || []) : [];
-          const empAdvancesTotal = empAdvances.reduce(
+          const empGrossTotal = empGross + earningsAddTotal;
+
+          // Discretionary deductions — recurring deductions/loans, salary-advance
+          // repayments, EWA settlements, and one-off "deduction" adjustments —
+          // are debts against pay, not statutory taxes. When their combined
+          // request would exceed what's actually left after mandatory
+          // statutory/tax reductions, prorate every line down so:
+          //   1. net pay never goes negative (previously just floored to ₦0
+          //      while the full scheduled amount was still recorded as
+          //      "collected" against loan/advance balances — the shortfall
+          //      silently vanished from every ledger), and
+          //   2. deductions_json (what settle_payroll_run_deductions() later
+          //      applies to employee_deductions.amount_deducted_to_date and
+          //      staff_loans/employee_advances.outstanding_ngn) only ever
+          //      reflects what was actually withheld — the unpaid remainder
+          //      stays on the underlying record's balance and is picked up
+          //      automatically by a future run's recurring-deduction query.
+          const empDeductionsRaw = runIncDeductions ? (deductionsByEmployee.get(e.id) || []) : [];
+          const empDeductionsTotalRaw = empDeductionsRaw.reduce((s: number, d: any) => s + Number(d.amount_ngn), 0);
+          const empAdvancesRaw = runIncAdvances ? (advancesByEmployee.get(e.id) || []) : [];
+          const empAdvancesTotalRaw = empAdvancesRaw.reduce(
             (s: number, a: any) => s + advanceDeductionFor(a.deduction_per_month, a.outstanding_ngn),
             0,
           );
-          const empEwa = runIncEwa ? (ewaByEmployee.get(e.id) || []) : [];
+          const empEwaRaw = runIncEwa ? (ewaByEmployee.get(e.id) || []) : [];
+          const empEwaTotalRaw = empEwaRaw.reduce((s: number, w: any) => s + Number(w.amount_ngn || 0), 0);
+          const adjDeductTotalRaw = adjDeductTotal;
+
+          const mandatoryReductions = empUnpaidLeaveDeduction + empPaye + empPension + empAvc + empNhf + empNhis + empDevLevy;
+          const discretionaryRequestedTotal = empDeductionsTotalRaw + empAdvancesTotalRaw + empEwaTotalRaw + adjDeductTotalRaw;
+          const { availableNgn: availableForDiscretionary, factor: discretionaryFactor, wasCapped } =
+            computeDiscretionaryCapFactor(empGrossTotal, mandatoryReductions, discretionaryRequestedTotal);
+          const capAmt = (n: number) => capDiscretionaryAmount(n, discretionaryFactor);
+
+          const empDeductions = empDeductionsRaw.map((d: any) => ({ ...d, amount_ngn: capAmt(Number(d.amount_ngn)) }));
+          const empDeductionsTotal = empDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn), 0);
+          const empAdvances = empAdvancesRaw.map((a: any) => ({
+            ...a,
+            amount_ngn: capAmt(advanceDeductionFor(a.deduction_per_month, a.outstanding_ngn)),
+          }));
+          const empAdvancesTotal = empAdvances.reduce((s: number, a: any) => s + Number(a.amount_ngn), 0);
+          const empEwa = empEwaRaw.map((w: any) => ({ ...w, amount_ngn: capAmt(Number(w.amount_ngn || 0)) }));
           const empEwaTotal = empEwa.reduce((s: number, w: any) => s + Number(w.amount_ngn || 0), 0);
-          const empGrossTotal = empGross + earningsAddTotal;
-          const empNet = Math.max(0, empGrossTotal - empUnpaidLeaveDeduction - empPaye - empPension - empAvc - empNhf - empNhis - empDevLevy - empDeductionsTotal - empAdvancesTotal - empEwaTotal - adjDeductTotal);
+          const adjDeductionsCapped = adjDeductions.map((a: any) => ({ ...a, amount_ngn: capAmt(Number(a.amount_ngn || 0)) }));
+          const adjDeductTotalCapped = adjDeductionsCapped.reduce((s: number, a: any) => s + Number(a.amount_ngn || 0), 0);
+
+          const empNet = Math.max(0, empGrossTotal - empUnpaidLeaveDeduction - empPaye - empPension - empAvc - empNhf - empNhis - empDevLevy - empDeductionsTotal - empAdvancesTotal - empEwaTotal - adjDeductTotalCapped);
           const empName = displayName(e.first_name, e.last_name, e.full_name || e.email);
+          if (wasCapped) cappedNames.push(empName);
 
           // Build combined extra_deductions list for payslip (deductions + advance repayments + EWA settlements + one-off deductions)
           const allEmpDeductionLines = [
@@ -1424,13 +1537,13 @@ const Payroll = () => {
             ...empDeductions.map((d: any) => ({ description: d.description, amount_ngn: Number(d.amount_ngn) })),
             ...empAdvances.map((a: any) => ({
               description: 'Salary Advance Repayment',
-              amount_ngn: advanceDeductionFor(a.deduction_per_month, a.outstanding_ngn),
+              amount_ngn: Number(a.amount_ngn),
             })),
             ...empEwa.map((w: any) => ({
               description: 'Earned Wage Access (mid-month draw)',
               amount_ngn: Number(w.amount_ngn || 0),
             })),
-            ...adjDeductions.map((a: any) => ({
+            ...adjDeductionsCapped.map((a: any) => ({
               description: a.description,
               amount_ngn: Number(a.amount_ngn || 0),
             })),
@@ -1567,7 +1680,12 @@ const Payroll = () => {
               rent_relief_ngn: empRentRelief,
               life_assurance_relief_ngn: empLifeAssurance,
               net_ngn: empNet,
-              deductions_ngn: empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal + empUnpaidLeaveDeduction + empDevLevy,
+              deductions_ngn: empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotalCapped + empUnpaidLeaveDeduction + empDevLevy,
+              // Every discretionary line below is already capped (see
+              // discretionaryFactor/capAmt above) — settle_payroll_run_deductions()
+              // reads these exact amounts to reduce loan/advance balances and
+              // amount_deducted_to_date, so they must never exceed what this
+              // payslip's net pay actually had room to withhold.
               deductions_json: (() => {
                 const lines = [
                   ...(empUnpaidLeaveDeduction > 0 ? [{
@@ -1579,14 +1697,14 @@ const Payroll = () => {
                   ...empAdvances.map((a: any) => ({
                     advance_id: a.id,
                     description: 'Salary Advance Repayment',
-                    amount_ngn: advanceDeductionFor(a.deduction_per_month, a.outstanding_ngn),
+                    amount_ngn: Number(a.amount_ngn),
                   })),
                   ...empEwa.map((w: any) => ({
                     ewa_request_id: w.id,
                     description: 'Earned Wage Access (mid-month draw)',
                     amount_ngn: Number(w.amount_ngn || 0),
                   })),
-                  ...adjDeductions.map((a: any) => ({
+                  ...adjDeductionsCapped.map((a: any) => ({
                     adjustment_id: a.id,
                     description: a.description,
                     amount_ngn: Number(a.amount_ngn || 0),
@@ -1643,7 +1761,7 @@ const Payroll = () => {
               deductionsFormatted: formatNaira(
                 empPaye + empPension + empAvc + empNhf + empNhis + empDevLevy +
                 empUnpaidLeaveDeduction +
-                empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal,
+                empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotalCapped,
               ),
               netFormatted: formatNaira(empNet),
               payslipUrl: payslipViewUrl,
@@ -1689,6 +1807,14 @@ const Payroll = () => {
         toast({
           title: `${succeeded} payslip${succeeded === 1 ? '' : 's'} generated`,
           description: `All payslips for ${monthLabel(run.period)} saved successfully.`,
+        });
+      }
+
+      if (cappedNames.length > 0) {
+        toast({
+          title: `${cappedNames.length} employee${cappedNames.length === 1 ? '' : 's'} had deductions reduced this run`,
+          description: `Gross pay wasn't enough to cover every scheduled deduction for: ${cappedNames.slice(0, 5).join(', ')}${cappedNames.length > 5 ? ` (+${cappedNames.length - 5} more)` : ''}. The shortfall stays outstanding and will be collected in a future run — nothing was written off.`,
+          variant: 'destructive',
         });
       }
     } catch (err: unknown) {

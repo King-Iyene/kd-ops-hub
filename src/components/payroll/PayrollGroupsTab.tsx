@@ -155,6 +155,13 @@ export function PayrollGroupsTab() {
 
   return (
     <>
+    <div className="flex items-center justify-between gap-2 -mt-1 mb-1">
+      <p className="text-2xs text-muted-foreground">
+        Need a new pay group (e.g. a different cadence or category)? That's created from{' '}
+        <span className="font-medium text-foreground">Setup → Pay Groups → New group</span> — this
+        view is for browsing and editing membership of groups that already exist.
+      </p>
+    </div>
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {groups.map((g) => (
         <Card key={g.id} className="overflow-hidden">

@@ -639,8 +639,6 @@ export const PayrollDialogs = ({
                       { label: 'Gross salaries', value: computedPreview.totalEmployee },
                       ...(computedPreview.bonusTotal > 0 ? [{ label: 'Bonuses', value: computedPreview.bonusTotal }] : []),
                       ...(computedPreview.totalAllowances > 0 ? [{ label: 'Allowances', value: computedPreview.totalAllowances }] : []),
-                      ...(computedPreview.totalContractor > 0 ? [{ label: 'Contractor payouts', value: computedPreview.totalContractor }] : []),
-                      ...(computedPreview.totalExpenses > 0 ? [{ label: 'Approved expenses', value: computedPreview.totalExpenses }] : []),
                       { label: 'PAYE tax', value: computedPreview.paye, muted: true },
                       { label: 'Pension — employee', value: computedPreview.pension, muted: true },
                       { label: 'Pension — employer', value: computedPreview.employerPension, muted: true },
@@ -662,6 +660,26 @@ export const PayrollDialogs = ({
                     <span className="text-base font-bold currency tabular-nums text-primary">{formatNaira(computedPreview.burn)}</span>
                   </div>
                 </div>
+
+                {(computedPreview.totalContractor > 0 || computedPreview.totalExpenses > 0) && (
+                  <div className="rounded-lg border border-border/60 bg-muted/10 overflow-hidden">
+                    <div className="px-4 py-2 text-2xs text-muted-foreground border-b border-border/60">
+                      Other company disbursements this calendar month — for context only, not part of this
+                      payroll run and not included in "Total burn" above.
+                    </div>
+                    <div className="divide-y divide-border/40">
+                      {[
+                        ...(computedPreview.totalContractor > 0 ? [{ label: 'Contractor payouts', value: computedPreview.totalContractor }] : []),
+                        ...(computedPreview.totalExpenses > 0 ? [{ label: 'Approved expenses', value: computedPreview.totalExpenses }] : []),
+                      ].map((line) => (
+                        <div key={line.label} className="flex items-center justify-between px-4 py-2">
+                          <span className="text-xs text-muted-foreground">{line.label}</span>
+                          <span className="text-xs font-medium currency tabular-nums text-muted-foreground">{formatNaira(line.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Statutory remittance deadlines — approving a run creates
                     real compliance obligations; naming the dates here means
