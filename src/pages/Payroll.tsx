@@ -25,6 +25,9 @@ import {
   formatDate,
   formatDateTime,
   formatNaira,
+  getTimezone,
+  orgWallClockToUtcIso,
+  utcIsoToOrgWallClock,
 } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { buildPaymentInstructions, instructionsToCsv } from '@/lib/bank-payment';
@@ -1918,7 +1921,13 @@ const Payroll = () => {
     if (!disburseTarget || !scheduleAt) return;
     setScheduling(true);
     try {
-      const atIso = new Date(scheduleAt).toISOString();
+      // scheduleAt is a wall-clock "YYYY-MM-DDTHH:mm" the operator picked
+      // meaning the ORG's timezone (shown on the input, Settings -> Company
+      // -> Platform timezone) — NOT the browser's own system timezone.
+      // Plain new Date(scheduleAt) would silently assume the latter, and
+      // schedule the wrong absolute instant for anyone whose device isn't
+      // also set to the org's timezone.
+      const atIso = orgWallClockToUtcIso(scheduleAt);
       const { error } = await supabase.rpc('schedule_payroll_disbursement', {
         p_run_id: disburseTarget.run.id,
         p_at: atIso,
@@ -1926,7 +1935,7 @@ const Payroll = () => {
       if (error) throw error;
       toast({
         title: 'Disbursement scheduled',
-        description: `Payroll ${monthLabel(disburseTarget.run.period)} will disburse automatically at ${new Date(atIso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}.`,
+        description: `Payroll ${monthLabel(disburseTarget.run.period)} will disburse automatically at ${new Date(atIso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: getTimezone() })} (${getTimezone()}).`,
       });
       setDisburseTarget(null);
       setScheduleMode(false);
@@ -1971,11 +1980,11 @@ const Payroll = () => {
     await openDisburse(run);
     setScheduleMode(true);
     if (run.scheduled_disburse_at) {
-      // datetime-local inputs want "YYYY-MM-DDTHH:mm" in LOCAL time, not the
-      // UTC-suffixed ISO string the column stores.
-      const d = new Date(run.scheduled_disburse_at);
-      const pad = (n: number) => String(n).padStart(2, '0');
-      setScheduleAt(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+      // datetime-local inputs want "YYYY-MM-DDTHH:mm" — in the ORG's
+      // timezone (matching what doSchedule() writes), not the browser's own
+      // system timezone, which d.getHours()/getMinutes() etc. would have
+      // silently used instead.
+      setScheduleAt(utcIsoToOrgWallClock(run.scheduled_disburse_at));
     }
   };
 

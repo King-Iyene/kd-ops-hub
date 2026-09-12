@@ -35,7 +35,7 @@ import {
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
 import { PayrollLifecycleRail, realStepIndex } from '@/components/payroll/PayrollLifecycleRail';
 import { PayrollRosterPreview } from '@/components/payroll/PayrollRosterPreview';
-import { formatNaira, formatNairaCompact } from '@/lib/format';
+import { formatNaira, formatNairaCompact, getTimezone } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -506,7 +506,7 @@ export const PayrollRunsTab = ({
                         {r.status === 'approved' && r.scheduled_disburse_at && (
                           <Badge variant="outline" className="gap-1 text-3xs border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-700">
                             <Clock className="h-3 w-3" />
-                            {new Date(r.scheduled_disburse_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                            {new Date(r.scheduled_disburse_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: getTimezone() })}
                           </Badge>
                         )}
                       </div>

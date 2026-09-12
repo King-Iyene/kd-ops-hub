@@ -239,13 +239,20 @@ async function notifyOutcome(
     ? `${outcome.dispatched} transfer${outcome.dispatched === 1 ? "" : "s"} initiated for ${period}.${skippedCount ? ` ${skippedCount} employee${skippedCount === 1 ? "" : "s"} skipped (missing bank details).` : ""}${outcome.failed ? ` ${outcome.failed} failed and need review.` : ""}`
     : `Scheduled disbursement for ${period} did not complete: ${outcome.error ?? "unknown error"}.${skippedCount ? ` ${skippedCount} employee${skippedCount === 1 ? "" : "s"} skipped (missing bank details).` : ""} The run is back in "Approved" — review and disburse manually.`;
 
+  // notifications' real columns are (user_id, type, title, body, read,
+  // module, priority) — no is_read, no link. Both existed nowhere in the
+  // schema, so every insert here has always failed (silently — the error
+  // was only ever console.warn'd, never surfaced), which is exactly why the
+  // "notifies Finance/Admin instead" safety net promised in this file's own
+  // header comment never actually fired for a failed scheduled
+  // disbursement. Confirmed live 2026-09-12: a real failed attempt left
+  // zero notification rows.
   const notifications = recipients.map((r: any) => ({
     user_id: r.id,
     title,
     body,
     type: "payroll",
-    link: `/payroll?run=${runId}`,
-    is_read: false,
+    read: false,
   }));
   const { error } = await supabase.from("notifications").insert(notifications);
   if (error) console.warn("[payroll-disburse] notification insert error:", error.message);

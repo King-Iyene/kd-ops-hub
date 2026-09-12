@@ -121,6 +121,60 @@ export const formatTime = (
   }
 };
 
+/**
+ * Converts a "YYYY-MM-DDTHH:mm" wall-clock string — meant as a moment in the
+ * org's configured timezone (getTimezone()) — to a UTC ISO instant.
+ *
+ * Needed anywhere a <input type="datetime-local"> captures a moment that
+ * must be interpreted in the ORG's timezone, not the browser's own: plain
+ * `new Date(wallClockString).toISOString()` silently assumes the browser's
+ * system timezone, which schedules the wrong absolute instant whenever the
+ * operator's device isn't also set to the org's timezone — confirmed live,
+ * a browser set to America/New_York turned a payroll disbursement meant for
+ * "a minute from now" (Africa/Lagos time) into a schedule hours off from
+ * what was intended, with no indication anything had gone wrong.
+ */
+export function orgWallClockToUtcIso(wallClock: string): string {
+  const tz = getTimezone();
+  // Read the wall-clock string as a literal UTC instant first (a "guess"),
+  // then ask what `tz`'s own wall clock reads at that same instant — the
+  // gap between the two is exactly `tz`'s UTC offset at that moment
+  // (correct even for DST-observing zones, not just fixed-offset ones).
+  // Offsets are extracted via formatToParts + Date.UTC — never by handing a
+  // locale-formatted string back to `new Date(string)`, which silently
+  // re-parses using the BROWSER's own local timezone and reintroduces
+  // exactly the bug this function exists to avoid.
+  const guess = new Date(`${wallClock}:00Z`);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(guess);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  const guessReadAsTz = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+  const offsetMs = guessReadAsTz - guess.getTime();
+  return new Date(guess.getTime() - offsetMs).toISOString();
+}
+
+/**
+ * Inverse of orgWallClockToUtcIso(): a UTC ISO instant -> "YYYY-MM-DDTHH:mm"
+ * wall-clock string in the org's timezone, ready to pre-fill a
+ * datetime-local input without silently converting to the browser's own
+ * timezone first.
+ */
+export function utcIsoToOrgWallClock(iso: string): string {
+  const tz = getTimezone();
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  }).formatToParts(new Date(iso));
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '00';
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
+}
+
 /** USD amount from whole dollars: "$18,500.00". */
 export const formatUsd = (amount: number | null | undefined): string => {
   if (amount == null) return '—';

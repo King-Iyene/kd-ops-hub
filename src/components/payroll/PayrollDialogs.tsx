@@ -3,7 +3,7 @@ import { Loader2, Plus, Send, AlertCircle, Trash2, X, Clock, Check, ArrowLeft, U
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import type { PayrollSegment } from '@/lib/payroll-segments';
 import type { PayrollSegmentFilterRules } from '@/lib/payroll-segments';
-import { formatNaira } from '@/lib/format';
+import { formatNaira, getTimezone, utcIsoToOrgWallClock } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1040,15 +1040,17 @@ export const PayrollDialogs = ({
 
               {scheduleMode ? (
                 <div className="space-y-2">
-                  <Label htmlFor="payroll-schedule-at">Disburse at</Label>
+                  <Label htmlFor="payroll-schedule-at">Disburse at ({getTimezone()} time)</Label>
                   <Input
                     id="payroll-schedule-at"
                     type="datetime-local"
                     value={scheduleAt}
-                    min={new Date(Date.now() + 5 * 60 * 1000).toISOString().slice(0, 16)}
+                    min={utcIsoToOrgWallClock(new Date(Date.now() + 5 * 60 * 1000).toISOString())}
                     onChange={(e) => setScheduleAt(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
+                    Times here are in your company's configured timezone ({getTimezone()}), not
+                    necessarily this device's own — set in Settings → Company → Platform timezone.
                     KDOps will automatically dispatch transfers for every employee's net salary
                     at this time — no one needs to be online. Approvers can cancel the schedule
                     any time before it fires, from this run's row on the Runs tab.
