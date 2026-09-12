@@ -509,10 +509,23 @@ export const PayrollRunsTab = ({
                             {new Date(r.scheduled_disburse_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: getTimezone() })}
                           </Badge>
                         )}
+                        {r.last_disbursement_error && (
+                          <Badge variant="outline" className="gap-1 text-3xs border-destructive/50 text-destructive bg-destructive/10">
+                            <AlertCircle className="h-3 w-3" /> Last disbursement attempt failed
+                          </Badge>
+                        )}
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground truncate">
                         {nextActionCopy(r, canApprovePerm, canDisburse, isSelfApprovalBlocked(r))}
                       </p>
+                      {r.last_disbursement_error && (
+                        <p className="mt-1 text-xs text-destructive">
+                          {r.last_disbursement_attempted_at && (
+                            <>Attempted {new Date(r.last_disbursement_attempted_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: getTimezone() })} — </>
+                          )}
+                          {r.last_disbursement_error}. Nothing will retry automatically — verify the batch before disbursing again.
+                        </p>
+                      )}
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-semibold currency tabular-nums">{formatNaira(r.total_burn_ngn)}</p>
@@ -654,6 +667,25 @@ function RunDetailDrawer({
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          {r.last_disbursement_error && (
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3.5 py-3">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-destructive" />
+              <div className="text-xs text-destructive">
+                <p className="font-semibold">Last disbursement attempt needs attention</p>
+                <p className="mt-0.5">
+                  {r.last_disbursement_attempted_at && (
+                    <>Attempted {new Date(r.last_disbursement_attempted_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: getTimezone() })}: </>
+                  )}
+                  {r.last_disbursement_error}
+                </p>
+                <p className="mt-0.5 text-2xs text-destructive/80">
+                  This does not retry automatically. If a transfer count is mentioned above, money may have
+                  already moved — check the payment batch before disbursing again. Otherwise, fix the issue
+                  then disburse or reschedule manually.
+                </p>
+              </div>
+            </div>
+          )}
           <div>
             <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
               <Users2 className="h-3 w-3" /> Who gets paid

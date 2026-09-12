@@ -127,6 +127,28 @@ Deno.serve(async (req: Request) => {
   }
 });
 
+// Writes (or clears) a persistent, impossible-to-miss failure record
+// directly on the run row — the banner in PayrollRunsTab reads these two
+// columns. Unlike the notifications table, this can't silently no-op on a
+// schema mismatch (it's the same table/columns the rest of the run's state
+// already lives in) and doesn't depend on any recipient list existing.
+async function recordAttemptOutcome(
+  supabase: ReturnType<typeof createClient>,
+  runId: string,
+  error: string | null,
+) {
+  const { error: updateErr } = await supabase
+    .from("payroll_runs")
+    .update({
+      last_disbursement_attempted_at: new Date().toISOString(),
+      last_disbursement_error: error,
+    })
+    .eq("id", runId);
+  if (updateErr) {
+    console.error("[payroll-disburse] failed to record attempt outcome:", updateErr.message);
+  }
+}
+
 async function disburseOne(
   supabase: ReturnType<typeof createClient>,
   runId: string,
@@ -149,6 +171,7 @@ async function disburseOne(
   if (batchErr) {
     // Could not even claim the run (already processing/paid, or a real
     // error) — nothing was created, nothing to release.
+    await recordAttemptOutcome(supabase, runId, batchErr.message);
     await notifyOutcome(supabase, runId, { ok: false, error: batchErr.message });
     return { run_id: runId, ok: false, error: batchErr.message };
   }
@@ -162,6 +185,7 @@ async function disburseOne(
     // payslips at all — release the lock back to 'approved' so it isn't
     // stuck in 'processing', and make sure someone knows why nothing went out.
     await supabase.rpc("finalize_payroll_run_disbursement", { p_run_id: runId, p_new_status: "approved" });
+    await recordAttemptOutcome(supabase, runId, "No employees had usable bank details");
     await notifyOutcome(supabase, runId, { ok: false, error: "No employees had usable bank details", skipped });
     return { run_id: runId, ok: false, error: "No employees had usable bank details", skipped };
   }
@@ -195,19 +219,34 @@ async function disburseOne(
   // dispatched (batch-worker's own finalize_batch RPC keeps refining the
   // batch's own status as items settle) — 'approved' so a total failure
   // can be retried by a human via the normal "Disburse Now" button.
-  await supabase.rpc("finalize_payroll_run_disbursement", {
+  const targetStatus = dispatched > 0 ? "paid" : "approved";
+  const { error: finalizeErr } = await supabase.rpc("finalize_payroll_run_disbursement", {
     p_run_id: runId,
-    p_new_status: dispatched > 0 ? "paid" : "approved",
+    p_new_status: targetStatus,
   });
+  if (finalizeErr) {
+    // Money may already have moved (dispatched > 0) even though this call
+    // failed — that combination must never be silent. Confirmed live
+    // 2026-09-12: a missing GRANT on this exact RPC let a real transfer
+    // succeed while the run stayed "Approved" with zero trace, because
+    // this specific error return was never even checked before.
+    console.error("[payroll-disburse] finalize_payroll_run_disbursement failed:", finalizeErr.message);
+  }
 
   const outcome = {
-    ok: dispatched > 0,
+    ok: dispatched > 0 && !finalizeErr,
     batch_id: batchId,
     dispatched,
     failed,
     skipped,
-    error: dispatched === 0 ? (workerError ?? "No transfers dispatched") : undefined,
+    error: finalizeErr
+      ? `${dispatched} transfer(s) dispatched but the run could not be marked "${targetStatus}": ${finalizeErr.message}. Money may have already moved — check payment_batches/batch_items before disbursing again.`
+      : (dispatched === 0 ? (workerError ?? "No transfers dispatched") : undefined),
   };
+  // Clears the failure banner on success; sets it (with the real reason)
+  // when nothing dispatched, or when transfers went out but the run
+  // couldn't be finalized.
+  await recordAttemptOutcome(supabase, runId, outcome.ok ? null : (outcome.error ?? "No transfers dispatched"));
   await notifyOutcome(supabase, runId, outcome);
   return { run_id: runId, ...outcome };
 }
