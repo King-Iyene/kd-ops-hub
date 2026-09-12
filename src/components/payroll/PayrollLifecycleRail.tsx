@@ -21,12 +21,19 @@ type RailPosition =
 
 /**
  * Full target-state lifecycle: Draft → Calculated → Review → Approve →
- * Paid → Locked. Only 4 of these 6 positions exist in the database today
- * (Draft/Review/Approve/Paid) — Calculated and Locked are shown as
- * permanently dashed, non-interactive "planned" markers so the rail is
- * honest about what a run can actually be "at" right now, while still
- * showing where this is headed. Never render Calculated/Locked as done
- * or current — they cannot be true for any real run.
+ * Paid → Locked. "Calculated" has no backend state behind it yet and is
+ * shown as a permanently dashed, non-interactive "planned" marker so the
+ * rail is honest about what a run can actually be "at" right now, while
+ * still showing where this is headed.
+ *
+ * "Locked" is different: a paid run is ALREADY immutable the instant it
+ * hits 'paid' (trg_fn_lock_paid_payroll_run enforces this at the database
+ * level — no separate "locked" status exists because none is needed). So
+ * once a run is paid, this step reflects that reality instead of dangling
+ * as a permanently-unfinished dashed step next to a run with nothing left
+ * to do — which read as broken/incomplete to a real user watching for it.
+ * For any run that isn't paid yet, it still shows as the planned, not-yet-
+ * true marker.
  */
 function buildPositions(status: string): RailPosition[] {
   const current = realStepIndex(status);
@@ -41,7 +48,9 @@ function buildPositions(status: string): RailPosition[] {
     real(REAL_STEPS[1], 1),
     real(REAL_STEPS[2], 2),
     real(REAL_STEPS[3], 3),
-    { kind: 'planned', label: 'Locked' },
+    status === 'paid'
+      ? { kind: 'real', label: 'Locked', state: 'done' }
+      : { kind: 'planned', label: 'Locked' },
   ];
 }
 
@@ -98,7 +107,7 @@ export function PayrollLifecycleRail({
                     : dark ? 'bg-white/10 text-white/40' : 'bg-muted text-muted-foreground',
                 )}
               >
-                {p.state === 'done' ? <Check className="h-3 w-3" /> : null}
+                {p.state === 'done' ? (p.label === 'Locked' ? <Lock className="h-3 w-3" /> : <Check className="h-3 w-3" />) : null}
               </span>
             )}
             <span
