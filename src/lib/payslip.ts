@@ -745,6 +745,33 @@ export const openStoredPayslipHtml = (html: string): void => {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };
 
+/**
+ * Open a blank tab RIGHT NOW, synchronously, inside the click handler —
+ * before any `await` (a storage download, a signed-url fetch, etc). Some
+ * browsers only honor window.open() as long as it runs within the original
+ * user gesture; once an async call has resolved, that gesture may no longer
+ * count, and the popup blocker silently swallows it with zero error and zero
+ * visible feedback. Pairing this with writePayslipIntoWindow() below avoids
+ * that failure mode entirely, instead of hoping the async gap stays short
+ * enough for the browser's gesture window not to matter.
+ *
+ * Returns null if the browser blocked even this synchronous open (some
+ * browsers/extensions block ALL window.open regardless of timing) — callers
+ * must handle that by telling the user to allow pop-ups, since there is no
+ * other way to show the document in that case.
+ */
+export const openBlankPayslipWindow = (): Window | null => {
+  return window.open('', '_blank', 'noopener');
+};
+
+/** Write an already-rendered payslip document into a window opened via
+ * openBlankPayslipWindow(). */
+export const writePayslipIntoWindow = (win: Window, html: string): void => {
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+};
+
 /** Download an already-rendered payslip HTML document as a file. */
 export const downloadStoredPayslipHtml = (html: string, filename: string): void => {
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });

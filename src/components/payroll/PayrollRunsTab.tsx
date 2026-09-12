@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-import { openStoredPayslipHtml } from '@/lib/payslip';
+import { openBlankPayslipWindow, writePayslipIntoWindow } from '@/lib/payslip';
 import {
   BarChart,
   Bar,
@@ -625,15 +625,26 @@ function RunPayslipsSection({ runId }: { runId: string }) {
       toast({ title: 'No payslip document on file', description: `${slip.employee_name} has no generated payslip to view.`, variant: 'destructive' });
       return;
     }
+    // Open the tab RIGHT NOW, before the storage download — some browsers
+    // only honor window.open() inside the original click's user-gesture
+    // window, and that gesture can silently expire once an await resolves,
+    // making the popup blocker swallow it with no error and no visible sign
+    // anything went wrong. This is the actual defect a user reported here.
+    const win = openBlankPayslipWindow();
+    if (!win) {
+      toast({ title: 'Pop-up blocked', description: 'Allow pop-ups for this site, then try again.', variant: 'destructive' });
+      return;
+    }
     setOpeningId(slip.id);
     try {
       const { data, error } = await supabase.storage.from('payslips').download(slip.storage_path);
       if (error) {
+        win.close();
         toast({ title: 'Could not open payslip', description: error.message, variant: 'destructive' });
         return;
       }
       const html = await data.text();
-      openStoredPayslipHtml(html);
+      writePayslipIntoWindow(win, html);
     } finally {
       setOpeningId(null);
     }

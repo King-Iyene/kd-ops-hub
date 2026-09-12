@@ -28,7 +28,7 @@ import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatNaira, formatDateTime, toIsoDate } from '@/lib/format';
 import { computePayslip } from '@/lib/tax';
 import { compressImage } from '@/lib/image-compression';
-import { openPayslipPrintWindow, downloadPayslipPdfFromHtml, openStoredPayslipHtml, downloadStoredPayslipHtml } from '@/lib/payslip';
+import { openPayslipPrintWindow, downloadPayslipPdfFromHtml, openBlankPayslipWindow, writePayslipIntoWindow, downloadStoredPayslipHtml } from '@/lib/payslip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -780,22 +780,32 @@ const ProfilePage = () => {
 
   const previewPayslip = async (p: Payslip) => {
     setPreviewingSlip(p.id);
+    // Open the tab synchronously, before any await — some browsers only
+    // honor window.open() within the original click's user-gesture window,
+    // which can silently expire once a fetch resolves, making this a no-op
+    // with no visible error.
+    const win = p.storage_path ? openBlankPayslipWindow() : null;
     try {
       // Preferred: open the exact stored HTML document, not a re-render.
-      if (p.storage_path) {
+      if (p.storage_path && win) {
         const { data } = await supabase.storage.from('payslips').createSignedUrl(p.storage_path, 60);
         if (data?.signedUrl) {
           const res = await fetch(data.signedUrl);
           if (res.ok) {
             const html = await res.text();
-            openStoredPayslipHtml(html);
+            writePayslipIntoWindow(win, html);
             return;
           }
         }
+        win.close();
+      } else if (p.storage_path && !win) {
+        toast({ title: 'Pop-up blocked', description: 'Allow pop-ups for this site, then try again.', variant: 'destructive' });
+        return;
       }
       // Fallback: rebuild from stored figures and open the printable version.
       openPayslipPrintWindow(fallbackPayslipData(p), { autoPrint: false });
     } catch {
+      win?.close();
       toast({ title: 'Could not open payslip', description: 'Showing the printable version instead.', variant: 'destructive' });
       openPayslipPrintWindow(fallbackPayslipData(p), { autoPrint: false });
     } finally {
