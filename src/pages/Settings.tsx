@@ -360,33 +360,48 @@ const SettingsPage = () => {
 
       <Tabs defaultValue="company" orientation="vertical" className="grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)] gap-6">
         <TabsList className="flex md:flex-col h-auto items-stretch md:items-start gap-1 bg-card md:bg-transparent border md:border-0 rounded-lg md:rounded-none p-2 md:p-0 md:sticky md:top-20 md:self-start overflow-x-auto md:overflow-visible">
-          <p className="hidden md:block text-2xs font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2">Configuration</p>
+          {/* Grouped into sections (was one flat list of 12 items with a
+              single "Configuration" label — impossible to scan at a glance).
+              Grouping is presentation-only: every TabsTrigger keeps its same
+              value/permission gating, just clustered with related settings
+              and given its own section label instead of one generic header. */}
+          <p className="hidden md:block text-2xs font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2">Company</p>
           <TabsTrigger value="company" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Building2 className="mr-2 h-4 w-4" /> Company</TabsTrigger>
           {profile?.role === 'super_admin' && (
             <TabsTrigger value="integrations" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><LinkIcon className="mr-2 h-4 w-4" /> Integrations</TabsTrigger>
           )}
-          <TabsTrigger value="policy" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><CreditCard className="mr-2 h-4 w-4" /> Expense policy</TabsTrigger>
-          <TabsTrigger value="leave" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><CalendarDays className="mr-2 h-4 w-4" /> Leave</TabsTrigger>
+
+          <p className="hidden md:block text-2xs font-semibold uppercase tracking-widest text-muted-foreground px-3 pt-3 pb-2">Payroll</p>
           {['super_admin', 'admin', 'finance'].includes(profile?.role ?? '') && (
             <TabsTrigger value="statutory" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Activity className="mr-2 h-4 w-4" /> Statutory</TabsTrigger>
           )}
+          <TabsTrigger value="leave" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><CalendarDays className="mr-2 h-4 w-4" /> Leave</TabsTrigger>
           <TabsTrigger value="exchange_rate" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><ArrowRightLeft className="mr-2 h-4 w-4" /> Exchange rate</TabsTrigger>
-          <TabsTrigger value="notifications" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Bell className="mr-2 h-4 w-4" /> Notifications</TabsTrigger>
-          {profile?.role === 'super_admin' && (
-            <TabsTrigger value="security" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><ShieldCheck className="mr-2 h-4 w-4" /> Security</TabsTrigger>
-          )}
+
+          <p className="hidden md:block text-2xs font-semibold uppercase tracking-widest text-muted-foreground px-3 pt-3 pb-2">Finance</p>
+          <TabsTrigger value="policy" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><CreditCard className="mr-2 h-4 w-4" /> Expense policy</TabsTrigger>
           {profile?.role === 'super_admin' && (
             <TabsTrigger value="transfer_auth" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Wallet className="mr-2 h-4 w-4" /> Transfer Authorization</TabsTrigger>
           )}
+
+          <p className="hidden md:block text-2xs font-semibold uppercase tracking-widest text-muted-foreground px-3 pt-3 pb-2">Communication</p>
+          <TabsTrigger value="notifications" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Bell className="mr-2 h-4 w-4" /> Notifications</TabsTrigger>
           {profile?.role === 'super_admin' && (
             <TabsTrigger value="email_templates" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Bell className="mr-2 h-4 w-4" /> Email Templates</TabsTrigger>
           )}
+
+          <p className="hidden md:block text-2xs font-semibold uppercase tracking-widest text-muted-foreground px-3 pt-3 pb-2">Organization</p>
           {(profile?.role === 'super_admin' || profile?.role === 'admin') && (
             <TabsTrigger value="departments" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Network className="mr-2 h-4 w-4" /> Departments</TabsTrigger>
           )}
           <TabsTrigger value="tags" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Tags className="mr-2 h-4 w-4" /> Tags</TabsTrigger>
+
           {profile?.role === 'super_admin' && (
-            <TabsTrigger value="retention" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Database className="mr-2 h-4 w-4" /> Data Retention</TabsTrigger>
+            <>
+              <p className="hidden md:block text-2xs font-semibold uppercase tracking-widest text-muted-foreground px-3 pt-3 pb-2">Security &amp; data</p>
+              <TabsTrigger value="security" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><ShieldCheck className="mr-2 h-4 w-4" /> Security</TabsTrigger>
+              <TabsTrigger value="retention" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Database className="mr-2 h-4 w-4" /> Data Retention</TabsTrigger>
+            </>
           )}
         </TabsList>
         <div className="md:min-w-0">

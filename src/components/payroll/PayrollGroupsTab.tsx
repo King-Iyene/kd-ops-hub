@@ -35,6 +35,8 @@ interface GroupCard {
   frequency: string | null;
   anchorDay: number | null;
   members: Member[];
+  /** Members with a salary/component amount > 0 — i.e. who a payroll run would actually pay. */
+  payableCount: number;
   monthlyCost: number;
   housing: number;
   transport: number;
@@ -96,6 +98,15 @@ export function PayrollGroupsTab() {
 
       const cards: GroupCard[] = ((groupsRes.data || []) as any[]).map((g) => {
         const members = membersByGroup.get(g.id) || [];
+        // A pay-group "member" and someone payroll will actually pay are not
+        // the same thing — a member with no salary configured (or ₦0 basic
+        // pay under salary components) is real membership but contributes
+        // nothing to a run and won't show up as "included". Surfacing this
+        // gap here is what was missing when someone sees "3 members" on this
+        // card but only 2 get paid, with no visible reason why.
+        const payableCount = members.filter((m) => (m.use_salary_components
+          ? m.basic_ngn + m.housing_ngn + m.transport_ngn + m.other_allowances_ngn
+          : m.salary_ngn) > 0).length;
         const monthlyCost = members.reduce((s, m) => s + (m.use_salary_components
           ? m.basic_ngn + m.housing_ngn + m.transport_ngn + m.other_allowances_ngn
           : m.salary_ngn), 0);
@@ -114,6 +125,7 @@ export function PayrollGroupsTab() {
           frequency: g.pay_schedule?.frequency ?? null,
           anchorDay: g.pay_schedule?.anchor_day ?? null,
           members,
+          payableCount,
           monthlyCost,
           housing,
           transport,
@@ -185,6 +197,12 @@ export function PayrollGroupsTab() {
                 {g.anchorDay != null && g.anchorDay !== 99 && ` · pays on the ${ordinal(g.anchorDay)}`}
                 {g.anchorDay === 99 && ' · pays last working day'}
               </p>
+              {g.payableCount < g.members.length && (
+                <p className="text-2xs text-warning mt-0.5">
+                  {g.members.length - g.payableCount} of {g.members.length} {g.members.length - g.payableCount === 1 ? 'has' : 'have'} no salary
+                  configured — only {g.payableCount} will actually be paid on a run
+                </p>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-1.5">

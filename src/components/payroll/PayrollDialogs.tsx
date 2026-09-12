@@ -151,7 +151,7 @@ export interface PayrollDialogsProps {
   setSegmentForm: React.Dispatch<React.SetStateAction<SegmentFormState>>;
   segmentSaving: boolean;
   segmentDepartments: { id: string; name: string }[];
-  segmentPayGroups: { id: string; name: string; frequency: string | null; memberCount: number }[];
+  segmentPayGroups: { id: string; name: string; frequency: string | null; memberCount: number; payableCount: number }[];
   segmentLiveRules: PayrollSegmentFilterRules;
   saveSegment: () => void;
   deleteSegment: (segmentId: string, name: string) => void;
@@ -422,6 +422,11 @@ export const PayrollDialogs = ({
                             <span className="block text-2xs text-muted-foreground -mt-1.5">
                               {[freq, `${g.memberCount} ${g.memberCount === 1 ? 'person' : 'people'}`].filter(Boolean).join(' · ')}
                             </span>
+                            {g.payableCount < g.memberCount && (
+                              <span className="block text-3xs text-warning -mt-1">
+                                only {g.payableCount} of {g.memberCount} have a salary set
+                              </span>
+                            )}
                           </button>
                         );
                       })}

@@ -142,7 +142,7 @@ export default function StatutoryTab({
             {
               key: 'paye' as const,
               label: 'PAYE Tax',
-              rate: 'FIRS progressive bands (7–24%)',
+              rate: 'NTA 2025 progressive bands (0–25%)',
               numberField: 'tax_id',
               flagField: 'paye_enabled',
               defaultFlag: true,

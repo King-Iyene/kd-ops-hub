@@ -180,7 +180,7 @@ const Payroll = () => {
   const { data: segmentDepartments = [] } = useDepartments();
   const { data: companySettings } = useCompanySettings();
   const [segmentSaving, setSegmentSaving] = useState(false);
-  const [segmentPayGroups, setSegmentPayGroups] = useState<{ id: string; name: string; frequency: string | null; memberCount: number }[]>([]);
+  const [segmentPayGroups, setSegmentPayGroups] = useState<{ id: string; name: string; frequency: string | null; memberCount: number; payableCount: number }[]>([]);
   const [segmentForm, setSegmentForm] = useState<{
     name: string;
     description: string;
@@ -202,17 +202,26 @@ const Payroll = () => {
     // card looking identical, so picking one was a guess.
     Promise.all([
       supabase.from('pay_groups').select('id, name, pay_schedule:pay_schedules(frequency)').order('name'),
-      supabase.from('profiles').select('pay_group_id').eq('status', 'active').not('pay_group_id', 'is', null),
+      supabase.from('profiles')
+        .select('pay_group_id, salary_ngn, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn')
+        .eq('status', 'active')
+        .not('pay_group_id', 'is', null),
     ]).then(([groupsRes, membersRes]) => {
       const counts: Record<string, number> = {};
+      const payableCounts: Record<string, number> = {};
       (membersRes.data ?? []).forEach((r: any) => {
         counts[r.pay_group_id] = (counts[r.pay_group_id] ?? 0) + 1;
+        const gross = r.use_salary_components
+          ? Number(r.basic_ngn || 0) + Number(r.housing_ngn || 0) + Number(r.transport_ngn || 0) + Number(r.other_allowances_ngn || 0)
+          : Number(r.salary_ngn || 0);
+        if (gross > 0) payableCounts[r.pay_group_id] = (payableCounts[r.pay_group_id] ?? 0) + 1;
       });
       setSegmentPayGroups(((groupsRes.data ?? []) as any[]).map((g) => ({
         id: g.id,
         name: g.name,
         frequency: g.pay_schedule?.frequency ?? null,
         memberCount: counts[g.id] ?? 0,
+        payableCount: payableCounts[g.id] ?? 0,
       })));
     }).catch(() => { /* pay groups are optional for the segment builder */ });
   }, [loadSegments]);
