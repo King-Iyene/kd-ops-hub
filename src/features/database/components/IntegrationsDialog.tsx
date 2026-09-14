@@ -1,6 +1,8 @@
 import { useState, useCallback, lazy, Suspense } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Cable, Key, Webhook, Zap, Copy, Check, ChevronRight, ArrowRight, BookOpen, Code2, Plug, Globe, FileJson, Send, Trash2, Pencil, List, Sparkles, ArrowLeft, Shield } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { supabase } from '@/lib/supabase';
 
 const ApiTokensDialog = lazy(() => import('./ApiTokensDialog').then(m => ({ default: m.ApiTokensDialog })));
 const WebhooksDialog = lazy(() => import('./WebhooksDialog').then(m => ({ default: m.WebhooksDialog })));
@@ -18,6 +20,86 @@ interface IntegrationsDialogProps {
   onOpenChange: (open: boolean) => void;
   tableId: string | null;
   baseId: string | null;
+}
+
+interface DocField {
+  name: string;
+  ui_type: string;
+}
+
+/** Real, non-system fields for the table the dialog was opened from, used to
+ * build API examples that match the user's actual schema instead of generic
+ * Airtable-style sample data — so what they see is what they can paste. */
+function useDocFields(tableId: string | null) {
+  return useQuery({
+    queryKey: ['nc', 'doc-fields', tableId],
+    enabled: !!tableId,
+    staleTime: 30_000,
+    queryFn: async (): Promise<DocField[]> => {
+      const { data, error } = await supabase
+        .schema('nc_meta')
+        .from('fields')
+        .select('name, ui_type, is_system, is_hidden, position')
+        .eq('table_id', tableId!)
+        .order('position');
+      if (error) throw error;
+      return (data ?? []).filter((f: any) => !f.is_system && !f.is_hidden) as DocField[];
+    },
+  });
+}
+
+/** A realistic sample value for a field, keyed off its UI type — used both
+ * for JSON body examples and for the response echoed back below them. */
+function sampleValueForField(field: DocField): unknown {
+  switch (field.ui_type) {
+    case 'Number': return 42;
+    case 'Decimal': return 15000.5;
+    case 'Currency': return 2500.0;
+    case 'Percent': return 0.25;
+    case 'Duration': return 60;
+    case 'Rating': return 4;
+    case 'Checkbox': return true;
+    case 'Date': return '2025-09-04';
+    case 'DateTime': return '2025-09-04T14:30:00Z';
+    case 'Year': return 2025;
+    case 'Time': return '14:30:00';
+    case 'Email': return 'jane@example.com';
+    case 'PhoneNumber': return '+1 555 0100';
+    case 'URL': return 'https://example.com';
+    case 'MultiSelect': return ['Option A', 'Option B'];
+    case 'JSON': return { key: 'value' };
+    default: return `Sample ${field.name}`;
+  }
+}
+
+/** Builds a `records` array body from real fields, or falls back to the
+ * generic Airtable-style example when no table is in context yet. */
+function buildSampleFields(fields: DocField[] | undefined): Record<string, unknown> {
+  if (!fields || fields.length === 0) {
+    return {
+      Name: 'Alice Johnson',
+      Email: 'alice@company.com',
+      Website: 'https://alice.dev',
+      Revenue: 15000.5,
+      Joined: '2025-08-15',
+      Active: true,
+      Notes: 'Key enterprise client',
+    };
+  }
+  const out: Record<string, unknown> = {};
+  for (const f of fields) out[f.name] = sampleValueForField(f);
+  return out;
+}
+
+/** Template-expression form of a field's sample value, per automation tool's
+ * mapping syntax — used in the n8n/Zapier/Make body templates. */
+function templateExprFor(field: DocField, style: 'n8n' | 'zapier' | 'make'): string {
+  const key = field.name.replace(/\s+/g, '_').toLowerCase();
+  switch (style) {
+    case 'n8n': return `{{ $json.${key} }}`;
+    case 'zapier': return `{{${key}}}`;
+    case 'make': return `{{1.${key}}}`;
+  }
 }
 
 /* ─── Shared Components ─── */
@@ -199,6 +281,13 @@ function ApiReferenceTab({ baseId, tableId }: { baseId: string | null; tableId: 
   const table = tableId || '{tableId}';
   const endpoint = `${API_BASE}/bases/${base}/tables/${table}/records`;
 
+  const { data: docFields } = useDocFields(tableId);
+  const usingRealFields = !!docFields && docFields.length > 0;
+  const sample = buildSampleFields(docFields);
+  const sampleJson = JSON.stringify(sample, null, 8).replace(/\n/g, '\n      ');
+  const firstFieldName = docFields?.[0]?.name ?? 'Status';
+  const secondFieldValue = docFields?.[1] ? JSON.stringify(sampleValueForField(docFields[1])) : '"Upgraded"';
+
   const examples: Record<HttpMethod, { title: string; desc: string; icon: React.ElementType; request: string; response: string; notes?: string }> = {
     GET: {
       title: 'List Records',
@@ -214,30 +303,16 @@ Headers:
   "records": [
     {
       "id": "rec_abc123",
-      "fields": {
-        "Name": "John Doe",
-        "Email": "john@example.com",
-        "Amount": 2500,
-        "Status": "Active",
-        "Created": "2025-09-01"
-      }
-    },
-    {
-      "id": "rec_def456",
-      "fields": {
-        "Name": "Jane Smith",
-        "Email": "jane@example.com",
-        "Amount": 4800,
-        "Status": "Pending",
-        "Created": "2025-09-03"
-      }
+      "fields": ${sampleJson}
     }
   ],
   "total": 127,
   "offset": 0,
   "limit": 50
 }`,
-      notes: 'Use limit & offset for pagination. Default limit is 100, max is 1000.',
+      notes: usingRealFields
+        ? `Showing your actual "${table}" fields. Use limit & offset for pagination. Default limit is 100, max is 1000.`
+        : 'Open this from a specific table to see your real field names here. Use limit & offset for pagination. Default limit is 100, max is 1000.',
     },
     POST: {
       title: 'Create Records',
@@ -253,15 +328,7 @@ Body:
 {
   "records": [
     {
-      "fields": {
-        "Name": "Alice Johnson",
-        "Email": "alice@company.com",
-        "Website": "https://alice.dev",
-        "Revenue": 15000.50,
-        "Joined": "2025-08-15",
-        "Active": true,
-        "Notes": "Key enterprise client"
-      }
+      "fields": ${sampleJson}
     }
   ]
 }`,
@@ -269,19 +336,13 @@ Body:
   "records": [
     {
       "id": "rec_xyz789",
-      "fields": {
-        "Name": "Alice Johnson",
-        "Email": "alice@company.com",
-        "Website": "https://alice.dev",
-        "Revenue": 15000.50,
-        "Joined": "2025-08-15",
-        "Active": true,
-        "Notes": "Key enterprise client"
-      }
+      "fields": ${sampleJson}
     }
   ]
 }`,
-      notes: 'Auto-detected types: Email → Email field, Website → URL, Revenue → Decimal, Joined → Date, Active → Checkbox. Send multiple objects in the records array for bulk create.',
+      notes: usingRealFields
+        ? `Field names and value types match your actual "${table}" schema. Any new field name you send that doesn't exist yet is auto-created. Send multiple objects in the records array for bulk create.`
+        : 'Auto-detected types: Email → Email field, Website → URL, Revenue → Decimal, Joined → Date, Active → Checkbox. Send multiple objects in the records array for bulk create.',
     },
     PATCH: {
       title: 'Update Records',
@@ -299,9 +360,7 @@ Body:
     {
       "id": "rec_xyz789",
       "fields": {
-        "Revenue": 22000,
-        "Status": "Upgraded",
-        "LastContact": "2025-09-04T14:30:00Z"
+        "${firstFieldName}": ${secondFieldValue}
       }
     }
   ]
@@ -310,17 +369,11 @@ Body:
   "records": [
     {
       "id": "rec_xyz789",
-      "fields": {
-        "Name": "Alice Johnson",
-        "Email": "alice@company.com",
-        "Revenue": 22000,
-        "Status": "Upgraded",
-        "LastContact": "2025-09-04T14:30:00Z"
-      }
+      "fields": ${sampleJson}
     }
   ]
 }`,
-      notes: 'New fields (like "Status", "LastContact") are auto-created. Only fields you include are updated — others stay unchanged.',
+      notes: 'New fields are auto-created if the name doesn\'t exist yet. Only fields you include are updated — others stay unchanged.',
     },
     DELETE: {
       title: 'Delete Records',
@@ -450,11 +503,35 @@ Headers:
 
 /* ─── Tab: Connect Tools ─── */
 
+const FALLBACK_DOC_FIELDS: DocField[] = [
+  { name: 'Name', ui_type: 'SingleLineText' },
+  { name: 'Email', ui_type: 'Email' },
+  { name: 'Company', ui_type: 'SingleLineText' },
+  { name: 'Amount', ui_type: 'Number' },
+];
+
+const NUMERIC_UI_TYPES = new Set(['Number', 'Decimal', 'Currency', 'Percent', 'Duration', 'Rating', 'Year']);
+
+function buildToolFieldsBlock(fields: DocField[] | undefined, style: 'n8n' | 'zapier' | 'make'): string {
+  const list = fields && fields.length ? fields : FALLBACK_DOC_FIELDS;
+  const lines = list.map((f) => {
+    const expr = templateExprFor(f, style);
+    const value = NUMERIC_UI_TYPES.has(f.ui_type) ? expr : `"${expr}"`;
+    return `        "${f.name}": ${value}`;
+  });
+  const sourceLabel = { n8n: 'n8n', zapier: 'Zapier', make: 'Make' }[style];
+  lines.push(`        "Source": "${sourceLabel}"`);
+  return lines.join(',\n');
+}
+
 function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: string | null }) {
   const [activeTool, setActiveTool] = useState<'n8n' | 'zapier' | 'make' | 'curl'>('n8n');
   const base = baseId || '{baseId}';
   const table = tableId || '{tableId}';
   const endpoint = `${API_BASE}/bases/${base}/tables/${table}/records`;
+
+  const { data: docFields } = useDocFields(tableId);
+  const usingRealFields = !!docFields && docFields.length > 0;
 
   const tools: Record<string, { label: string; color: string; steps: { title: string; detail: string | React.ReactNode }[]; code: string; codeLabel: string }> = {
     n8n: {
@@ -464,7 +541,9 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
         { title: 'Add an HTTP Request node', detail: 'Drag "HTTP Request" from the node palette into your workflow.' },
         { title: 'Set Method & URL', detail: <>Method: <strong>POST</strong> | URL: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">{endpoint}</code></> },
         { title: 'Configure Authentication', detail: <>Go to Authentication → <strong>Header Auth</strong>. Name: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Authorization</code> Value: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Bearer kdops_[YOUR_API_KEY]</code></> },
-        { title: 'Set Body', detail: <>Send as <strong>JSON</strong>. Set body to the records format below. Map your trigger data into the fields object.</> },
+        { title: 'Set Body', detail: usingRealFields
+            ? <>Send as <strong>JSON</strong>. The template below already uses your real field names — just map each one to the right node in your workflow.</>
+            : <>Send as <strong>JSON</strong>. Set body to the records format below. Map your trigger data into the fields object.</> },
         { title: 'Test & Activate', detail: 'Click "Test step" to verify. New fields will auto-create in KDOps. Activate your workflow.' },
       ],
       code: `// n8n HTTP Request Node — Body (JSON)
@@ -472,11 +551,7 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
   "records": [
     {
       "fields": {
-        "Name": "{{ $json.name }}",
-        "Email": "{{ $json.email }}",
-        "Company": "{{ $json.company }}",
-        "Amount": {{ $json.amount }},
-        "Source": "n8n"
+${buildToolFieldsBlock(docFields, 'n8n')}
       }
     }
   ]
@@ -490,7 +565,9 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
         { title: 'Add "Webhooks by Zapier" action', detail: 'In your Zap, add a new action step and choose "Webhooks by Zapier" → "Custom Request".' },
         { title: 'Set Method & URL', detail: <>Method: <strong>POST</strong> | URL: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">{endpoint}</code></> },
         { title: 'Add Headers', detail: <>Add two headers:<br /><code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Authorization: Bearer kdops_[YOUR_API_KEY]</code><br /><code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Content-Type: application/json</code></> },
-        { title: 'Map Data', detail: 'In the Data section, build the JSON body using Zapier field mappings from your trigger step.' },
+        { title: 'Map Data', detail: usingRealFields
+            ? 'In the Data section, build the JSON body below using Zapier field mappings — the field names already match your table.'
+            : 'In the Data section, build the JSON body using Zapier field mappings from your trigger step.' },
         { title: 'Test & Turn On', detail: 'Test the action — check KDOps to see the new record and any auto-created fields.' },
       ],
       code: `// Zapier Custom Request — Data (JSON)
@@ -498,11 +575,7 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
   "records": [
     {
       "fields": {
-        "Name": "{{name}}",
-        "Email": "{{email}}",
-        "Phone": "{{phone}}",
-        "Deal Value": {{deal_value}},
-        "Source": "Zapier"
+${buildToolFieldsBlock(docFields, 'zapier')}
       }
     }
   ]
@@ -516,7 +589,9 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
         { title: 'Add an HTTP module', detail: 'In your scenario, add "HTTP" → "Make a request" module.' },
         { title: 'Configure the request', detail: <>URL: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">{endpoint}</code><br />Method: <strong>POST</strong> | Body type: <strong>Raw</strong> | Content type: <strong>JSON</strong></> },
         { title: 'Add Authorization header', detail: <>In Headers, add: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Authorization: Bearer kdops_[YOUR_API_KEY]</code></> },
-        { title: 'Set Request content', detail: 'Paste the JSON template below and map fields from your trigger module.' },
+        { title: 'Set Request content', detail: usingRealFields
+            ? 'Paste the JSON template below — it already uses your real field names — and map values from your trigger module.'
+            : 'Paste the JSON template below and map fields from your trigger module.' },
         { title: 'Run once & schedule', detail: 'Use "Run once" to test, then set your schedule (instant, interval, or on-demand).' },
       ],
       code: `// Make (Integromat) — Request Content (JSON)
@@ -524,11 +599,7 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
   "records": [
     {
       "fields": {
-        "Name": "{{1.name}}",
-        "Email": "{{1.email}}",
-        "Website": "{{1.website}}",
-        "Revenue": {{1.revenue}},
-        "Source": "Make"
+${buildToolFieldsBlock(docFields, 'make')}
       }
     }
   ]
@@ -549,14 +620,7 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
   -d '{
     "records": [
       {
-        "fields": {
-          "Name": "John Doe",
-          "Email": "john@example.com",
-          "Website": "https://johndoe.com",
-          "Amount": 2500.00,
-          "Joined": "2025-09-04",
-          "Active": true
-        }
+        "fields": ${JSON.stringify(buildSampleFields(docFields), null, 8).replace(/\n/g, '\n    ')}
       }
     ]
   }'`,
@@ -599,6 +663,12 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
           </div>
         ))}
       </div>
+
+      {!usingRealFields && (
+        <p className="text-3xs text-zinc-400 dark:text-zinc-500 italic px-0.5">
+          Showing generic sample fields — open this from a specific table to see your real field names here instead.
+        </p>
+      )}
 
       {/* Code template */}
       <CodeBlock label={active.codeLabel} code={active.code} language={activeTool === 'curl' ? 'bash' : 'JSON'} />

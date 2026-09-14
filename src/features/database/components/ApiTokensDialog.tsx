@@ -203,6 +203,13 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                     </label>
                   ))}
                 </div>
+                {!scopes.has('write') && (
+                  <p className="text-3xs text-amber-600 dark:text-amber-400 mt-1.5 leading-relaxed">
+                    Tip: automations that create or update records (n8n, Zapier, Make sending data <em>into</em> KDOps)
+                    need <strong>write</strong> checked, or every request will fail with "Scope records:write required".
+                    Scopes can't be changed after the key is created — revoke and make a new one if you need to add one.
+                  </p>
+                )}
               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="ghost" size="sm" className="h-8 px-3 text-xs" onClick={() => setShowCreate(false)}>
