@@ -24,7 +24,7 @@ async function runWithConcurrency<T>(
   await Promise.all(runners);
 }
 
-function fireAutomations(event: string, baseId: string, tableId: string, record?: any, oldRecord?: any) {
+export function fireAutomations(event: string, baseId: string, tableId: string, record?: any, oldRecord?: any) {
   supabase.functions.invoke('automation-runner', {
     body: { event, baseId, tableId, record, oldRecord },
   }).catch((err) => {
@@ -32,7 +32,7 @@ function fireAutomations(event: string, baseId: string, tableId: string, record?
   });
 }
 
-function fireWebhooks(event: string, baseId: string, tableId: string, record?: any, oldRecord?: any) {
+export function fireWebhooks(event: string, baseId: string, tableId: string, record?: any, oldRecord?: any) {
   supabase.functions.invoke('webhook-dispatcher', {
     body: { event, baseId, tableId, record, oldRecord },
   }).catch((err) => {

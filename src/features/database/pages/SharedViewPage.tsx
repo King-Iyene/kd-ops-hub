@@ -4,6 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import GridView from '../components/grid/GridView';
 import FormView from '../components/views/FormView';
+import { fireAutomations } from '../hooks/useRecords';
 import type { FieldMeta, RecordRow, ViewMeta } from '../types';
 
 export default function SharedViewPage() {
@@ -97,11 +98,23 @@ export default function SharedViewPage() {
   const addRowMutation = useMutation({
     mutationFn: async (record: Record<string, any>) => {
       if (!base?.schema_name || !table?.pg_table_name) throw new Error('Missing table info');
-      const { error } = await supabase
+      const { data, error } = await supabase
         .schema(base.schema_name)
         .from(table.pg_table_name)
-        .insert(record);
+        .insert(record)
+        .select()
+        .single();
       if (error) throw error;
+      return data as RecordRow;
+    },
+    onSuccess: (data) => {
+      if (!base?.id || !table?.id) return;
+      fireAutomations('record.created', base.id, table.id, data);
+      supabase.functions.invoke('webhook-dispatcher', {
+        body: { event: 'record.created', baseId: base.id, tableId: table.id, record: data, shareToken: token },
+      }).catch((err) => {
+        console.warn('[KDOps] Webhook dispatch failed:', err?.message ?? err);
+      });
     },
   });
 

@@ -208,7 +208,7 @@ function ApiReferenceTab({ baseId, tableId }: { baseId: string | null; tableId: 
   ?limit=50&offset=0
 
 Headers:
-  Authorization: Bearer kdops_YOUR_API_KEY
+  Authorization: Bearer kdops_[YOUR_API_KEY]
   Content-Type: application/json`,
       response: `{
   "records": [
@@ -246,7 +246,7 @@ Headers:
       request: `POST ${endpoint}
 
 Headers:
-  Authorization: Bearer kdops_YOUR_API_KEY
+  Authorization: Bearer kdops_[YOUR_API_KEY]
   Content-Type: application/json
 
 Body:
@@ -290,7 +290,7 @@ Body:
       request: `PATCH ${endpoint}
 
 Headers:
-  Authorization: Bearer kdops_YOUR_API_KEY
+  Authorization: Bearer kdops_[YOUR_API_KEY]
   Content-Type: application/json
 
 Body:
@@ -330,7 +330,7 @@ Body:
   ?records=rec_xyz789,rec_abc123
 
 Headers:
-  Authorization: Bearer kdops_YOUR_API_KEY`,
+  Authorization: Bearer kdops_[YOUR_API_KEY]`,
       response: `{
   "deleted": [
     { "id": "rec_xyz789", "deleted": true },
@@ -364,7 +364,7 @@ Headers:
         </div>
         <p className="text-2xs text-warning/80 leading-relaxed">
           All requests require a <code className="px-1 py-0.5 bg-warning/10 dark:bg-warning/10 rounded text-3xs">Bearer</code> token.
-          Pass your API key in the Authorization header: <code className="px-1 py-0.5 bg-warning/10 dark:bg-warning/10 rounded text-3xs">Authorization: Bearer kdops_YOUR_KEY</code>
+          Pass your API key in the Authorization header: <code className="px-1 py-0.5 bg-warning/10 dark:bg-warning/10 rounded text-3xs">Authorization: Bearer kdops_[YOUR_API_KEY]</code>
         </p>
       </div>
 
@@ -463,7 +463,7 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
       steps: [
         { title: 'Add an HTTP Request node', detail: 'Drag "HTTP Request" from the node palette into your workflow.' },
         { title: 'Set Method & URL', detail: <>Method: <strong>POST</strong> | URL: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">{endpoint}</code></> },
-        { title: 'Configure Authentication', detail: <>Go to Authentication → <strong>Header Auth</strong>. Name: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Authorization</code> Value: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Bearer kdops_YOUR_KEY</code></> },
+        { title: 'Configure Authentication', detail: <>Go to Authentication → <strong>Header Auth</strong>. Name: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Authorization</code> Value: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Bearer kdops_[YOUR_API_KEY]</code></> },
         { title: 'Set Body', detail: <>Send as <strong>JSON</strong>. Set body to the records format below. Map your trigger data into the fields object.</> },
         { title: 'Test & Activate', detail: 'Click "Test step" to verify. New fields will auto-create in KDOps. Activate your workflow.' },
       ],
@@ -489,7 +489,7 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
       steps: [
         { title: 'Add "Webhooks by Zapier" action', detail: 'In your Zap, add a new action step and choose "Webhooks by Zapier" → "Custom Request".' },
         { title: 'Set Method & URL', detail: <>Method: <strong>POST</strong> | URL: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">{endpoint}</code></> },
-        { title: 'Add Headers', detail: <>Add two headers:<br /><code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Authorization: Bearer kdops_YOUR_KEY</code><br /><code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Content-Type: application/json</code></> },
+        { title: 'Add Headers', detail: <>Add two headers:<br /><code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Authorization: Bearer kdops_[YOUR_API_KEY]</code><br /><code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Content-Type: application/json</code></> },
         { title: 'Map Data', detail: 'In the Data section, build the JSON body using Zapier field mappings from your trigger step.' },
         { title: 'Test & Turn On', detail: 'Test the action — check KDOps to see the new record and any auto-created fields.' },
       ],
@@ -515,7 +515,7 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
       steps: [
         { title: 'Add an HTTP module', detail: 'In your scenario, add "HTTP" → "Make a request" module.' },
         { title: 'Configure the request', detail: <>URL: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">{endpoint}</code><br />Method: <strong>POST</strong> | Body type: <strong>Raw</strong> | Content type: <strong>JSON</strong></> },
-        { title: 'Add Authorization header', detail: <>In Headers, add: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Authorization: Bearer kdops_YOUR_KEY</code></> },
+        { title: 'Add Authorization header', detail: <>In Headers, add: <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">Authorization: Bearer kdops_[YOUR_API_KEY]</code></> },
         { title: 'Set Request content', detail: 'Paste the JSON template below and map fields from your trigger module.' },
         { title: 'Run once & schedule', detail: 'Use "Run once" to test, then set your schedule (instant, interval, or on-demand).' },
       ],
@@ -540,11 +540,11 @@ function ConnectToolsTab({ baseId, tableId }: { baseId: string | null; tableId: 
       color: '#374151',
       steps: [
         { title: 'Copy the command', detail: 'Use the cURL command below or adapt it to any HTTP client (Postman, Insomnia, Python requests, fetch, etc).' },
-        { title: 'Replace placeholders', detail: <>Replace <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">kdops_YOUR_KEY</code> with your actual API key.</> },
+        { title: 'Replace placeholders', detail: <>Replace <code className="text-3xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">kdops_[YOUR_API_KEY]</code> with your actual API key.</> },
         { title: 'Run it', detail: 'Execute from terminal, Postman, or your code. New fields auto-create on first use.' },
       ],
       code: `curl -X POST "${endpoint}" \\
-  -H "Authorization: Bearer kdops_YOUR_KEY" \\
+  -H "Authorization: Bearer kdops_[YOUR_API_KEY]" \\
   -H "Content-Type: application/json" \\
   -d '{
     "records": [

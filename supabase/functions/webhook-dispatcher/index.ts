@@ -39,14 +39,14 @@ Deno.serve(async (req) => {
   }
   const bearer = authHeader.slice(7);
 
-  let body: { event: string; baseId: string; tableId: string; record?: unknown; oldRecord?: unknown };
+  let body: { event: string; baseId: string; tableId: string; record?: unknown; oldRecord?: unknown; shareToken?: string };
   try {
     body = await req.json();
   } catch {
     return json({ error: 'Invalid JSON body' }, 400, req);
   }
 
-  const { event, baseId, tableId, record, oldRecord } = body;
+  const { event, baseId, tableId, record, oldRecord, shareToken } = body;
   if (!event || !baseId || !tableId) {
     return json({ error: 'Missing required fields: event, baseId, tableId' }, 400, req);
   }
@@ -57,36 +57,55 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  // Validate the caller's JWT and, using a client scoped to that user's
-  // identity (so RLS applies), confirm they actually have access to the
-  // base being reported on. This prevents any authenticated caller from
-  // triggering webhook dispatch for a base they don't have access to.
-  const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: `Bearer ${bearer}` } },
-  });
-
-  const { data: userData, error: authError } = await userClient.auth.getUser(bearer);
-  if (authError || !userData?.user) {
-    return json({ error: 'Invalid or expired session' }, 401, req);
-  }
-
-  // Platform-wide webhooks use the nil-UUID sentinel — skip per-base access check
-  const PLATFORM_BASE_ID = '00000000-0000-0000-0000-000000000000';
-  if (baseId !== PLATFORM_BASE_ID) {
-    const { data: baseRow, error: baseError } = await userClient
+  if (shareToken) {
+    // Public form submission — the visitor has no user session, so authorize
+    // via the enabled shared-view token instead of a user JWT. This is the
+    // same token that gates read access to the public form/grid itself, and
+    // it's scoped server-side to exactly the table it was issued for.
+    const { data: sharedView, error: shareError } = await supabase
       .schema('nc_meta')
-      .from('bases')
-      .select('id')
-      .eq('id', baseId)
+      .from('shared_views')
+      .select('table_id, is_enabled')
+      .eq('share_token', shareToken)
+      .eq('is_enabled', true)
+      .eq('table_id', tableId)
       .maybeSingle();
 
-    if (baseError || !baseRow) {
-      return json({ error: 'Base not found or access denied' }, 403, req);
+    if (shareError || !sharedView) {
+      return json({ error: 'Invalid or disabled share token' }, 403, req);
+    }
+  } else {
+    // Authenticated app path — validate the caller's JWT and, using a client
+    // scoped to that user's identity (so RLS applies), confirm they actually
+    // have access to the base being reported on. This prevents any
+    // authenticated caller from triggering webhook dispatch for a base they
+    // don't have access to.
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: `Bearer ${bearer}` } },
+    });
+
+    const { data: userData, error: authError } = await userClient.auth.getUser(bearer);
+    if (authError || !userData?.user) {
+      return json({ error: 'Invalid or expired session' }, 401, req);
+    }
+
+    // Platform-wide webhooks use the nil-UUID sentinel — skip per-base access check
+    const PLATFORM_BASE_ID = '00000000-0000-0000-0000-000000000000';
+    if (baseId !== PLATFORM_BASE_ID) {
+      const { data: baseRow, error: baseError } = await userClient
+        .schema('nc_meta')
+        .from('bases')
+        .select('id')
+        .eq('id', baseId)
+        .maybeSingle();
+
+      if (baseError || !baseRow) {
+        return json({ error: 'Base not found or access denied' }, 403, req);
+      }
     }
   }
-
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   // Fetch active webhooks matching this event, either base-wide
   // (table_id IS NULL) or scoped to this specific table.
