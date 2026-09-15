@@ -143,6 +143,25 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
   return <HighlightedText text={text} className="truncate" style={{ fontSize: 13 }} />;
 });
 
+const LIST_BULLET_RE = /^[•\-*]\s/;
+const LIST_NUM_RE = /^\d+\.\s/;
+const LIST_ALPHA_RE = /^[a-z]\.\s/;
+
+function renderLongTextLine(line: string, idx: number) {
+  if (LIST_BULLET_RE.test(line)) {
+    return <div key={idx} style={{ paddingLeft: 12, textIndent: -10 }}>{'• '}{line.replace(LIST_BULLET_RE, '')}</div>;
+  }
+  if (LIST_NUM_RE.test(line)) {
+    const match = line.match(/^(\d+\.)\s/);
+    return <div key={idx} style={{ paddingLeft: 16, textIndent: -14 }}><span style={{ fontWeight: 500 }}>{match?.[1]}</span>{' '}{line.replace(LIST_NUM_RE, '')}</div>;
+  }
+  if (LIST_ALPHA_RE.test(line)) {
+    const match = line.match(/^([a-z]\.)\s/);
+    return <div key={idx} style={{ paddingLeft: 16, textIndent: -14 }}><span style={{ fontWeight: 500 }}>{match?.[1]}</span>{' '}{line.replace(LIST_ALPHA_RE, '')}</div>;
+  }
+  return <div key={idx}>{line || ' '}</div>;
+}
+
 export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
   value,
   rowHeight,
@@ -153,6 +172,24 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
     return <span className="truncate" style={{ fontSize: 13, lineHeight: '18px' }}>{text}</span>;
   }
   const maxLines = rowHeight === 'tall' ? 3 : rowHeight === 'extra-tall' ? 5 : 2;
+  const lines = text.split('\n');
+  const hasLists = lines.some((l) => LIST_BULLET_RE.test(l) || LIST_NUM_RE.test(l) || LIST_ALPHA_RE.test(l));
+  if (hasLists) {
+    return (
+      <div
+        style={{
+          fontSize: 13,
+          lineHeight: '18px',
+          display: '-webkit-box',
+          WebkitLineClamp: maxLines,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+        }}
+      >
+        {lines.map((line, i) => renderLongTextLine(line, i))}
+      </div>
+    );
+  }
   return (
     <span
       className="whitespace-pre-line"

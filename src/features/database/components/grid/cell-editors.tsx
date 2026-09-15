@@ -938,47 +938,112 @@ function wrapSelection(textarea: HTMLTextAreaElement, before: string, after: str
   });
 }
 
+function insertLinePrefix(textarea: HTMLTextAreaElement, prefix: string, setText: (t: string) => void) {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const val = textarea.value;
+  const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+  const lineEnd = val.indexOf('\n', end);
+  const blockEnd = lineEnd === -1 ? val.length : lineEnd;
+  const block = val.slice(lineStart, blockEnd);
+  const lines = block.split('\n');
+  const prefixed = lines.map((line, i) => {
+    if (prefix === '1. ') return `${i + 1}. ${line}`;
+    if (prefix === 'a. ') return `${String.fromCharCode(97 + (i % 26))}. ${line}`;
+    return `${prefix}${line}`;
+  }).join('\n');
+  const newVal = val.slice(0, lineStart) + prefixed + val.slice(blockEnd);
+  setText(newVal);
+  requestAnimationFrame(() => {
+    textarea.focus();
+    textarea.selectionStart = lineStart;
+    textarea.selectionEnd = lineStart + prefixed.length;
+  });
+}
+
 export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const ref = useRef<HTMLTextAreaElement>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const committedRef = useRef(false);
+
+  useLayoutEffect(() => {
+    const el = anchorRef.current;
+    if (!el) return;
+    const cell = el.closest('[data-cell-id]') as HTMLElement | null;
+    const rect = cell?.getBoundingClientRect() ?? el.getBoundingClientRect();
+    const editorWidth = Math.max(360, rect.width);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow > 260 ? rect.bottom : rect.top - 260;
+    setPos({ top: Math.max(4, top), left: Math.max(4, Math.min(rect.left, window.innerWidth - editorWidth - 8)), width: editorWidth });
+  }, []);
 
   useEffect(() => {
+    if (!pos) return;
     ref.current?.focus();
     const el = ref.current;
     if (el) {
       el.selectionStart = el.value.length;
       el.selectionEnd = el.value.length;
     }
-  }, []);
+  }, [pos]);
 
-  return (
-    <div className="absolute left-0 top-0 z-50 shadow-lg bg-white dark:bg-[hsl(200,30%,10%)]" style={{ minHeight: 80, minWidth: 300, border: '2px solid #2D7FF9', borderRadius: 1 }}>
+  const doCommit = useCallback((val: string) => {
+    if (committedRef.current) return;
+    committedRef.current = true;
+    onCommit(val);
+  }, [onCommit]);
+
+  const btnClass = "px-1.5 py-0.5 text-2xs text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded";
+
+  const editor = pos ? createPortal(
+    <div
+      className="fixed z-[9999] shadow-xl rounded-md bg-white dark:bg-[hsl(200,30%,10%)]"
+      style={{ top: pos.top, left: pos.left, width: pos.width, border: '2px solid #2D7FF9' }}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       <div className="flex items-center gap-0.5 px-1.5 py-1 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
-        <button type="button" className="px-1.5 py-0.5 text-2xs font-bold text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '**', '**', setText); }} title="Bold">B</button>
-        <button type="button" className="px-1.5 py-0.5 text-2xs italic text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '*', '*', setText); }} title="Italic">I</button>
-        <button type="button" className="px-1.5 py-0.5 text-2xs line-through text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '~~', '~~', setText); }} title="Strikethrough">S</button>
+        <button type="button" className={`${btnClass} font-bold`} onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '**', '**', setText); }} title="Bold (⌘B)">B</button>
+        <button type="button" className={`${btnClass} italic`} onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '*', '*', setText); }} title="Italic (⌘I)">I</button>
+        <button type="button" className={`${btnClass} line-through`} onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '~~', '~~', setText); }} title="Strikethrough">S</button>
         <div className="w-px h-3 bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] mx-0.5" />
-        <button type="button" className="px-1.5 py-0.5 text-2xs text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '`', '`', setText); }} title="Code">&lt;/&gt;</button>
-        <button type="button" className="px-1.5 py-0.5 text-2xs text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded" onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '- ', '', setText); }} title="List">•</button>
+        <button type="button" className={btnClass} onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '`', '`', setText); }} title="Code">&lt;/&gt;</button>
+        <div className="w-px h-3 bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] mx-0.5" />
+        <button type="button" className={btnClass} onMouseDown={(e) => { e.preventDefault(); if (ref.current) insertLinePrefix(ref.current, '• ', setText); }} title="Bullet list">•</button>
+        <button type="button" className={btnClass} onMouseDown={(e) => { e.preventDefault(); if (ref.current) insertLinePrefix(ref.current, '1. ', setText); }} title="Numbered list">1.</button>
+        <button type="button" className={btnClass} onMouseDown={(e) => { e.preventDefault(); if (ref.current) insertLinePrefix(ref.current, 'a. ', setText); }} title="Lettered list">a.</button>
       </div>
       <textarea
         ref={ref}
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') onCancel();
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) onCommit(text);
-          if (e.key === 'Tab') { e.preventDefault(); onCommit(text); }
+          e.stopPropagation();
+          if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); doCommit(text); }
+          if (e.key === 'Tab') { e.preventDefault(); doCommit(text); }
           if (e.key === 'b' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); wrapSelection(e.currentTarget, '**', '**', setText); }
           if (e.key === 'i' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); wrapSelection(e.currentTarget, '*', '*', setText); }
         }}
-        onBlur={() => onCommit(text)}
-        rows={5}
-        className="w-full p-2 outline-none resize-y border-none bg-transparent"
-        style={{ fontSize: 13, color: 'inherit', borderRadius: 0 }}
+        onBlur={(e) => {
+          if (e.relatedTarget?.closest?.('[data-longtext-toolbar]')) return;
+          doCommit(text);
+        }}
+        rows={8}
+        className="w-full p-2.5 outline-none resize-y border-none bg-transparent"
+        style={{ fontSize: 13, lineHeight: '20px', color: 'inherit', minHeight: 160 }}
       />
-      <div className="px-2 pb-1 text-3xs text-[#9AA2AF]">⌘+Enter to save · Esc to cancel</div>
-    </div>
+      <div className="px-2.5 pb-1.5 text-3xs text-[#9AA2AF]">⌘+Enter to save · Esc to cancel</div>
+    </div>,
+    document.body,
+  ) : null;
+
+  return (
+    <>
+      <div ref={anchorRef} className="w-full h-full" />
+      {editor}
+    </>
   );
 }
 
