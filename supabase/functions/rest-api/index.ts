@@ -32,10 +32,14 @@ function json(body: unknown, status = 200, extraHeaders?: Record<string, string>
 }
 
 function err(message: string, status: number) {
-  const type = status === 422 ? 'INVALID_REQUEST_UNKNOWN'
+  const type = status === 400 ? 'BAD_REQUEST'
+    : status === 401 ? 'AUTHENTICATION_REQUIRED'
     : status === 403 ? 'FORBIDDEN'
     : status === 404 ? 'NOT_FOUND'
-    : 'AUTHENTICATION_REQUIRED';
+    : status === 405 ? 'METHOD_NOT_ALLOWED'
+    : status === 422 ? 'INVALID_REQUEST'
+    : status === 429 ? 'RATE_LIMIT_EXCEEDED'
+    : 'INTERNAL_ERROR';
   return json({ error: { type, message } }, status);
 }
 
@@ -126,7 +130,7 @@ function hasScope(scopes: string[], needed: string): boolean {
   if (needed === 'records:read' || needed === 'schema:read') {
     return hasAnyRead || scopes.includes('read');
   }
-  if (needed === 'records:write') {
+  if (needed === 'records:write' || needed === 'schema:write') {
     return hasAnyWrite || scopes.includes('write') || scopes.includes('delete');
   }
   return false;
@@ -220,6 +224,7 @@ interface FieldMeta {
   pg_column_name: string;
   ui_type: string;
   pg_type: string;
+  position: number;
   is_system: boolean;
   is_hidden: boolean;
 }
@@ -264,7 +269,7 @@ async function getFields(pool: Pool, tableId: string): Promise<FieldMeta[]> {
   const conn = await pool.connect();
   try {
     const { rows } = await conn.queryObject<FieldMeta>(
-      `SELECT name, pg_column_name, ui_type, pg_type, is_system, is_hidden
+      `SELECT name, pg_column_name, ui_type, pg_type, position, is_system, is_hidden
        FROM nc_meta.fields WHERE table_id = $1 ORDER BY position`,
       [tableId],
     );
@@ -277,7 +282,7 @@ async function getFields(pool: Pool, tableId: string): Promise<FieldMeta[]> {
 function pgRowToFields(row: Record<string, unknown>, fields: FieldMeta[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const f of fields) {
-    if (f.is_system || f.is_hidden) continue;
+    if (f.is_system || f.is_hidden || VIRTUAL_TYPES.has(f.ui_type)) continue;
     const val = row[f.pg_column_name];
     if (val !== null && val !== undefined) {
       out[f.name] = val;
@@ -349,6 +354,7 @@ async function autoCreateFields(
   allRecords: Record<string, unknown>[], existingFields: FieldMeta[],
 ): Promise<FieldMeta[]> {
   const known = new Set(existingFields.filter(f => !f.is_system).map(f => f.name));
+  const knownCols = new Set(existingFields.map(f => f.pg_column_name));
   const toCreate = new Map<string, { pgType: string; uiType: string }>();
 
   for (const rec of allRecords) {
@@ -361,12 +367,14 @@ async function autoCreateFields(
 
   if (toCreate.size === 0) return existingFields;
 
-  const maxPos = existingFields.reduce((m, f) => Math.max(m, (f as any).position ?? 0), 0);
+  const maxPos = existingFields.reduce((m, f) => Math.max(m, f.position ?? 0), 0);
   const conn = await pool.connect();
   try {
     let pos = maxPos + 1;
     for (const [name, { pgType, uiType }] of toCreate) {
-      const pgCol = toSnakeCase(name);
+      let pgCol = toSnakeCase(name);
+      if (knownCols.has(pgCol)) pgCol = `${pgCol}_${pos}`;
+      knownCols.add(pgCol);
       const rawPgType = pgType.split(/\s+DEFAULT\s+/i)[0].trim();
       await conn.queryObject(
         `ALTER TABLE ${safeId(schemaName)}.${safeId(pgTableName)} ADD COLUMN IF NOT EXISTS ${safeId(pgCol)} ${pgType}`,
@@ -640,7 +648,7 @@ async function handleUpdateRecords(
     await conn.queryObject('BEGIN');
     const updated: any[] = [];
     for (const rec of inputRecords) {
-      if (!rec.id) continue;
+      if (!rec.id) return err('Each record must include an "id" field for updates', 422);
       const row = fieldsToRow(rec.fields || {}, fields);
       const keys = Object.keys(row);
       if (!keys.length) continue;
@@ -866,7 +874,7 @@ async function handleDeleteField(
     }
 
     await conn.queryObject(`DELETE FROM nc_meta.fields WHERE id = $1`, [fieldId]);
-    return json({ id: fieldId, deleted: true });
+    return json({ field: { id: fieldId, deleted: true } });
   } finally {
     conn.release();
   }
@@ -1006,6 +1014,7 @@ Deno.serve(async (req) => {
     switch (route.resource) {
       case 'bases':
         if (req.method !== 'GET') return err('Method not allowed', 405);
+        if (!hasScope(auth.scopes, 'schema:read')) return err('Scope schema:read required', 403);
         return handleListBases(pool, auth);
 
       case 'tables':
@@ -1024,7 +1033,7 @@ Deno.serve(async (req) => {
             if (!hasScope(auth.scopes, 'schema:read')) return err('Scope schema:read required', 403);
             return handleListFields(pool, auth, route.baseId!, route.tableId!);
           case 'POST':
-            if (!hasScope(auth.scopes, 'records:write')) return err('Scope records:write required', 403);
+            if (!hasScope(auth.scopes, 'schema:write')) return err('Scope schema:write required', 403);
             return handleCreateField(pool, auth, route.baseId!, route.tableId!, body);
           default:
             return err('Method not allowed', 405);
@@ -1035,10 +1044,10 @@ Deno.serve(async (req) => {
         const body = (req.method === 'PATCH') ? await req.json().catch(() => ({})) : {};
         switch (req.method) {
           case 'PATCH':
-            if (!hasScope(auth.scopes, 'records:write')) return err('Scope records:write required', 403);
+            if (!hasScope(auth.scopes, 'schema:write')) return err('Scope schema:write required', 403);
             return handleUpdateField(pool, auth, route.baseId!, route.tableId!, route.fieldId!, body);
           case 'DELETE':
-            if (!hasScope(auth.scopes, 'records:write')) return err('Scope records:write required', 403);
+            if (!hasScope(auth.scopes, 'schema:write')) return err('Scope schema:write required', 403);
             return handleDeleteField(pool, auth, route.baseId!, route.tableId!, route.fieldId!);
           default:
             return err('Method not allowed', 405);
@@ -1064,9 +1073,14 @@ Deno.serve(async (req) => {
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Internal error';
     if (msg.includes('API key') || msg.includes('Missing')) return err(msg, 401);
-    if (msg.includes('column') || msg.includes('relation') || msg.includes('violates')) {
-      return err(`Database error: ${msg}`, 422);
-    }
-    return err(msg, 500);
+    if (msg.includes('violates not-null')) return err('A required field is missing', 422);
+    if (msg.includes('violates unique')) return err('A unique constraint was violated — duplicate value', 422);
+    if (msg.includes('violates check')) return err('A value failed validation', 422);
+    if (msg.includes('violates foreign key')) return err('Referenced record not found', 422);
+    if (msg.includes('column') && msg.includes('does not exist')) return err('Unknown column in request', 422);
+    if (msg.includes('relation') && msg.includes('does not exist')) return err('Table not found', 404);
+    if (msg.includes('invalid input syntax')) return err('Invalid value for field type', 422);
+    console.error('[rest-api]', msg);
+    return err('Internal server error', 500);
   }
 });

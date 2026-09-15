@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
     await supabase
       .schema('nc_meta')
       .from('webhooks')
-      .update({ last_triggered_at: new Date().toISOString() })
+      .update({ last_triggered_at: new Date().toISOString(), failure_count: 0 })
       .in('id', successIds)
       .then(({ error }) => {
         if (error) console.warn('[webhook-dispatcher] Failed to update last_triggered_at:', error.message);
