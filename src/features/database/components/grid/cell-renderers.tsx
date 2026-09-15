@@ -840,15 +840,21 @@ export const RollupCellRenderer = React.memo(function RollupCellRenderer({
 
 export const LinksCellRenderer = React.memo(function LinksCellRenderer({
   value,
+  record,
 }: CellRendererProps) {
   const colors = useGridColors();
   if (!Array.isArray(value) || value.length === 0) return null;
+  const lookup = (record as any)?.__linkLookup as Record<string, string> | undefined;
   return (
     <div className="flex items-center gap-1 overflow-hidden">
       {value.slice(0, 3).map((item: any, i: number) => {
-        const label = typeof item === 'object' && item !== null
-          ? item.title || item.name || item.primary || item.id
-          : String(item);
+        let label: string;
+        if (typeof item === 'object' && item !== null) {
+          label = item.title || item.name || item.primary || item.id;
+        } else {
+          const id = String(item);
+          label = (lookup && lookup[id]) || id;
+        }
         return (
           <span
             key={i}

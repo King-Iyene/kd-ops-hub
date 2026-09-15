@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { isUuid, shortToUuid } from '../lib/shortId';
+import { isUuid, shortToUuid, isPrefixedShortId } from '../lib/shortId';
 
 interface ResolvedIds {
   baseId: string | undefined;
@@ -10,6 +10,7 @@ interface ResolvedIds {
 
 function tryDecodeShortId(param: string): string | null {
   if (isUuid(param)) return null;
+  if (!isPrefixedShortId(param) && param.length > 25) return null;
   const decoded = shortToUuid(param);
   return decoded !== param && isUuid(decoded) ? decoded : null;
 }

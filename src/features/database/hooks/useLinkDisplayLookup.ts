@@ -57,7 +57,7 @@ export function useLinkDisplayLookup(
           const { data: rows, error } = await supabase
             .schema(baseMeta.schema_name)
             .from(tableMeta.pg_table_name)
-            .select(`id, airtable_id, ${primaryField.pg_column_name}`)
+            .select(`id, ${primaryField.pg_column_name}`)
             .limit(5000);
 
           if (error || !rows) continue;
@@ -67,10 +67,27 @@ export function useLinkDisplayLookup(
             if (displayVal == null) continue;
             const label = String(displayVal);
             if (row.id) map[row.id] = label;
-            if (row.airtable_id) map[row.airtable_id] = label;
+          }
+
+          try {
+            const { data: atRows } = await supabase
+              .schema(baseMeta.schema_name)
+              .from(tableMeta.pg_table_name)
+              .select('id, airtable_id')
+              .not('airtable_id', 'is', null)
+              .limit(5000);
+            if (atRows) {
+              for (const row of atRows) {
+                if (row.airtable_id && map[row.id]) {
+                  map[row.airtable_id] = map[row.id];
+                }
+              }
+            }
+          } catch {
+            // table may lack airtable_id column — id mapping is enough
           }
         } catch {
-          // table may lack airtable_id column
+          // table may not exist or primary column may be missing
         }
       }
 

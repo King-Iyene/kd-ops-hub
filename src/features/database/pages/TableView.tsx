@@ -222,10 +222,15 @@ export function TableView() {
     const raw = infiniteRecords;
     if (!patchedFields || patchedFields.length === 0) return raw;
 
+    const hasLookup = linkLookup && Object.keys(linkLookup).length > 0;
+
     const formulaFields = patchedFields.filter(
       (f) => f.ui_type === 'Formula' && (f.options?.expression || f.options?.formula),
     );
-    if (formulaFields.length === 0) return raw;
+    if (formulaFields.length === 0) {
+      if (!hasLookup) return raw;
+      return raw.map((r) => ({ ...r, __linkLookup: linkLookup }) as RecordRow);
+    }
 
     const fieldMap: Record<string, string> = {};
     for (const f of patchedFields) {
@@ -253,7 +258,6 @@ export function TableView() {
           patched[col] = '#ERROR';
         }
       }
-      delete patched.__linkLookup;
       return patched as RecordRow;
     });
   }, [infiniteRecords, patchedFields, linkLookup]);
