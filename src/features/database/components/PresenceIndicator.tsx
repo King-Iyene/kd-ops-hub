@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
 
 interface PresenceUser {
@@ -16,23 +17,60 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
-const PRESENCE_COLORS = ['#2D7FF9', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6'];
+const PRESENCE_COLORS = ['#2D7FF9', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
+
+function userFromPresence(entry: any, idx: number, currentUserId: string | undefined): PresenceUser | null {
+  const userId = entry.user_id ?? entry.id;
+  if (!userId || userId === currentUserId) return null;
+  const email = entry.email ?? '';
+  const name = email.split('@')[0] || `User ${idx + 1}`;
+  return {
+    id: userId,
+    name,
+    color: PRESENCE_COLORS[idx % PRESENCE_COLORS.length],
+    initials: getInitials(name),
+  };
+}
 
 export function PresenceIndicator() {
   const profile = useAuthStore((s) => s.profile);
+  const [remoteUsers, setRemoteUsers] = useState<PresenceUser[]>([]);
 
-  const users: PresenceUser[] = [];
-  if (profile) {
-    users.push({
-      id: profile.id ?? 'me',
-      name: profile.full_name ?? 'You',
-      color: PRESENCE_COLORS[0],
-      initials: getInitials(profile.full_name ?? 'You'),
-    });
-  }
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const state = (e as CustomEvent).detail;
+      if (!state || typeof state !== 'object') return;
+      const users: PresenceUser[] = [];
+      let idx = 0;
+      for (const key of Object.keys(state)) {
+        const entries = state[key];
+        if (!Array.isArray(entries)) continue;
+        for (const entry of entries) {
+          const user = userFromPresence(entry, idx, profile?.id);
+          if (user && !users.some((u) => u.id === user.id)) {
+            users.push(user);
+            idx++;
+          }
+        }
+      }
+      setRemoteUsers(users);
+    };
+    window.addEventListener('db-presence-sync', handler);
+    return () => window.removeEventListener('db-presence-sync', handler);
+  }, [profile?.id]);
 
-  const visible = users.slice(0, 3);
-  const overflow = Math.max(0, users.length - 3);
+  const currentUser: PresenceUser | null = profile
+    ? {
+        id: profile.id ?? 'me',
+        name: profile.full_name ?? 'You',
+        color: PRESENCE_COLORS[0],
+        initials: getInitials(profile.full_name ?? 'You'),
+      }
+    : null;
+
+  const allUsers = currentUser ? [currentUser, ...remoteUsers] : remoteUsers;
+  const visible = allUsers.slice(0, 5);
+  const overflow = Math.max(0, allUsers.length - 5);
 
   if (visible.length === 0) return null;
 
@@ -46,12 +84,10 @@ export function PresenceIndicator() {
           >
             {u.initials}
           </div>
-          {/* Online dot */}
           <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#22C55E] border-2 border-white dark:border-[hsl(200,30%,8%)]" />
-          {/* Tooltip */}
           <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2 py-1 rounded bg-[#1F2937] text-white text-2xs whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
             <span className="font-medium">{u.name}</span>
-            <span className="text-[#9CA3AF] ml-1">Online now</span>
+            <span className="text-[#9CA3AF] ml-1">{u.id === (profile?.id ?? 'me') ? '(you)' : 'Online now'}</span>
           </div>
         </div>
       ))}

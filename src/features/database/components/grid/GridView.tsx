@@ -1171,6 +1171,73 @@ export default function GridView({
     return () => window.removeEventListener('grid:fill-start', onFillStart);
   }, [fields, records, onCellUpdate, flashCellIds, showToast]);
 
+  // Mouse-drag cell range selection
+  const isDraggingRef = useRef(false);
+  const dragAnchorRef = useRef<{ row: number; col: number } | null>(null);
+
+  const resolveCellCoords = useCallback((target: HTMLElement): { row: number; col: number } | null => {
+    const cellEl = target.closest('[data-cell-id]') as HTMLElement | null;
+    if (!cellEl) return null;
+    const cellId = cellEl.getAttribute('data-cell-id');
+    if (!cellId) return null;
+    const [rowId, fieldId] = cellId.split(':');
+    const rowIdx = records.findIndex((r) => r.id === rowId);
+    const colIdx = fieldsWithWidths.findIndex((f) => f.id === fieldId);
+    if (rowIdx === -1 || colIdx === -1) return null;
+    return { row: rowIdx, col: colIdx };
+  }, [records, fieldsWithWidths]);
+
+  useEffect(() => {
+    const gridEl = parentRef.current;
+    if (!gridEl) return;
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('.cursor-crosshair') || target.closest('.cursor-grab') || target.closest('input[type="checkbox"]') || target.closest('button')) return;
+      const coords = resolveCellCoords(target);
+      if (!coords) return;
+      isDraggingRef.current = true;
+      dragAnchorRef.current = coords;
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current || !dragAnchorRef.current) return;
+      const target = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+      if (!target) return;
+      const coords = resolveCellCoords(target);
+      if (!coords) return;
+      const anchor = dragAnchorRef.current;
+      if (anchor.row === coords.row && anchor.col === coords.col) {
+        setSelectionRange(null);
+        setSelectionAnchor(null);
+        return;
+      }
+      e.preventDefault();
+      setSelectionAnchor(anchor);
+      setSelectionRange({
+        startRow: anchor.row,
+        startCol: anchor.col,
+        endRow: coords.row,
+        endCol: coords.col,
+      });
+    };
+
+    const onMouseUp = () => {
+      isDraggingRef.current = false;
+      dragAnchorRef.current = null;
+    };
+
+    gridEl.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    return () => {
+      gridEl.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [resolveCellCoords, setSelectionRange, setSelectionAnchor]);
+
   // Dismiss cell editors when a modal dialog opens (but not cell-editor popovers)
   useEffect(() => {
     const observer = new MutationObserver(() => {
