@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 import type { TableMeta, FieldMeta, ViewMeta } from '../types';
@@ -17,6 +17,7 @@ export function useTables(baseId: string | null | undefined) {
     enabled: !!baseId,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const { data, error } = await supabase
         .schema('nc_meta')

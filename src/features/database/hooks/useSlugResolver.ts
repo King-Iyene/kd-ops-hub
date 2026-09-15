@@ -54,8 +54,21 @@ export function useSlugResolver(
   return useQuery<ResolvedIds>({
     queryKey: ['slug-resolve', rawBase, rawTable, rawView],
     enabled: !!rawBase,
-    staleTime: 60_000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<ResolvedIds> => {
+      // Fast path: when all segments are UUIDs, skip all network calls
+      const allUuids = (!rawBase || isUuid(rawBase)) &&
+                       (!rawTable || isUuid(rawTable)) &&
+                       (!rawView || isUuid(rawView));
+      if (allUuids) {
+        return {
+          baseId: rawBase,
+          tableId: rawTable,
+          viewId: rawView,
+        };
+      }
+
       const baseId = rawBase ? await resolveBaseSlug(rawBase) : undefined;
       if (!baseId) return { baseId: undefined, tableId: undefined, viewId: undefined };
 

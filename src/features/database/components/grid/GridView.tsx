@@ -354,6 +354,7 @@ export default function GridView({
   const setFrozenColumns = useDatabaseUI((s) => s.setFrozenColumns);
 
   const parentRef = useRef<HTMLDivElement>(null);
+  const mobileParentRef = useRef<HTMLDivElement>(null);
   const [summaryDropdown, setSummaryDropdown] = useState<string | null>(null);
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; record: RecordRow; fieldId?: string } | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
@@ -758,6 +759,14 @@ export default function GridView({
       return rowHeightPx;
     },
     overscan: 10,
+  });
+
+  const mobileCardHeight = Math.min(fieldsWithWidths.length, 6) * 24 + 24;
+  const mobileVirtualizer = useVirtualizer({
+    count: records.length,
+    getScrollElement: () => mobileParentRef.current,
+    estimateSize: () => mobileCardHeight,
+    overscan: 8,
   });
 
   // Infinite scroll: load more when scrolled within 5 rows of the bottom
@@ -1209,26 +1218,36 @@ export default function GridView({
     <div className="flex flex-col flex-1 min-h-0">
       {/* Mobile card layout: below 640px, show a simple stacked list instead of the
           horizontally-scrolling grid, which is unusable on narrow touch screens. */}
-      <div className="sm:hidden flex-1 overflow-auto divide-y" style={{ borderColor: GRID_COLORS.border }}>
-        {records.map((record, i) => (
-          <div
-            key={record.id}
-            className="p-3 space-y-1.5 active:opacity-70"
-            style={{ borderBottom: `1px solid ${GRID_COLORS.border}` }}
-            onClick={() => onExpandRow?.(record)}
-          >
-            {fieldsWithWidths.map((field) => (
-              <div key={field.id} className="flex justify-between gap-3 text-sm">
-                <span className="shrink-0 font-medium" style={{ color: GRID_COLORS.muted, fontSize: 11 }}>
-                  {field.name}
-                </span>
-                <span className="text-right truncate" style={{ color: GRID_COLORS.text }}>
-                  {formatCellAriaValue(record, field)}
-                </span>
+      <div ref={mobileParentRef} className="sm:hidden flex-1 overflow-auto" style={{ borderColor: GRID_COLORS.border }}>
+        <div style={{ height: mobileVirtualizer.getTotalSize(), position: 'relative' }}>
+          {mobileVirtualizer.getVirtualItems().map((virtualItem) => {
+            const record = records[virtualItem.index];
+            if (!record) return null;
+            return (
+              <div
+                key={record.id}
+                className="absolute left-0 right-0 p-3 space-y-1.5 active:opacity-70"
+                style={{
+                  top: virtualItem.start,
+                  height: virtualItem.size,
+                  borderBottom: `1px solid ${GRID_COLORS.border}`,
+                }}
+                onClick={() => onExpandRow?.(record)}
+              >
+                {fieldsWithWidths.slice(0, 6).map((field) => (
+                  <div key={field.id} className="flex justify-between gap-3 text-sm">
+                    <span className="shrink-0 font-medium" style={{ color: GRID_COLORS.muted, fontSize: 11 }}>
+                      {field.name}
+                    </span>
+                    <span className="text-right truncate" style={{ color: GRID_COLORS.text }}>
+                      {formatCellAriaValue(record, field)}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ))}
+            );
+          })}
+        </div>
       </div>
       <div ref={parentRef} className="hidden sm:block flex-1 overflow-auto">
         <div style={{ minWidth: totalWidth }} role="grid" aria-colcount={fieldsWithWidths.length} aria-rowcount={records.length}>

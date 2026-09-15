@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from '../components/Toast';
+import { resolveTableContextShared as resolveTableContext } from './useRecords';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -15,31 +16,6 @@ export interface TrashEntry {
   deleted_at: string;
   record_data: Record<string, any>;
   expires_at: string;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-const contextCache = new Map<string, { schemaName: string; tableName: string; ts: number }>();
-
-async function resolveTableContext(baseId: string, tableId: string) {
-  const key = `${baseId}:${tableId}`;
-  const cached = contextCache.get(key);
-  if (cached && Date.now() - cached.ts < 60_000) {
-    return { schemaName: cached.schemaName, tableName: cached.tableName };
-  }
-
-  const [baseRes, tableRes] = await Promise.all([
-    supabase.schema('nc_meta').from('bases').select('schema_name').eq('id', baseId).single(),
-    supabase.schema('nc_meta').from('tables').select('pg_table_name').eq('id', tableId).single(),
-  ]);
-  if (baseRes.error) throw baseRes.error;
-  if (tableRes.error) throw tableRes.error;
-
-  const result = { schemaName: baseRes.data.schema_name, tableName: tableRes.data.pg_table_name };
-  contextCache.set(key, { ...result, ts: Date.now() });
-  return result;
 }
 
 /* ------------------------------------------------------------------ */

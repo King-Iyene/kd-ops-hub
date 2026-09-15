@@ -120,10 +120,16 @@ export function TableView() {
 
   const updateView = useUpdateView();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const initializedRef = useRef(false);
   const groupByLevels = useDatabaseUI((s) => s.groupByLevels);
 
   useEffect(() => {
     if (!activeViewId || !activeTableId) return;
+    // Skip the first render (view just loaded its config from server)
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      return;
+    }
     clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       const fieldVisibility: Record<string, boolean> = {};
@@ -140,9 +146,14 @@ export function TableView() {
           field_order: fieldOrder,
         },
       });
-    }, 1000);
+    }, 2000);
     return () => clearTimeout(saveTimerRef.current);
   }, [filters, sorts, groupByLevels, hiddenFieldIds, fieldWidths, fieldOrder, activeViewId, activeTableId]);
+
+  // Reset initialized flag when view changes
+  useEffect(() => {
+    initializedRef.current = false;
+  }, [activeViewId]);
 
   const {
     records: infiniteRecords,

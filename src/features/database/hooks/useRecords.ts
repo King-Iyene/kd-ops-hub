@@ -76,10 +76,14 @@ interface RecordsResult {
 
 const contextCache = new Map<string, { schemaName: string; tableName: string; ts: number }>();
 
+export async function resolveTableContextShared(baseId: string, tableId: string) {
+  return resolveTableContext(baseId, tableId);
+}
+
 async function resolveTableContext(baseId: string, tableId: string) {
   const key = `${baseId}:${tableId}`;
   const cached = contextCache.get(key);
-  if (cached && Date.now() - cached.ts < 60_000) {
+  if (cached && Date.now() - cached.ts < 300_000) {
     return { schemaName: cached.schemaName, tableName: cached.tableName };
   }
 
@@ -93,6 +97,26 @@ async function resolveTableContext(baseId: string, tableId: string) {
   const result = { schemaName: baseRes.data.schema_name, tableName: tableRes.data.pg_table_name };
   contextCache.set(key, { ...result, ts: Date.now() });
   return result;
+}
+
+const fieldsMetaCache = new Map<string, { fields: any[]; fieldMap: Map<string, any>; ts: number }>();
+
+async function resolveFieldsMeta(tableId: string) {
+  const cached = fieldsMetaCache.get(tableId);
+  if (cached && Date.now() - cached.ts < 30_000) {
+    return { fieldsMeta: cached.fields, fieldMap: cached.fieldMap };
+  }
+
+  const { data: fieldsMeta } = await supabase
+    .schema('nc_meta')
+    .from('fields')
+    .select('id, pg_column_name, pg_type, ui_type')
+    .eq('table_id', tableId);
+
+  const fields = fieldsMeta ?? [];
+  const fieldMap = new Map(fields.map((f: any) => [f.id, f]));
+  fieldsMetaCache.set(tableId, { fields, fieldMap, ts: Date.now() });
+  return { fieldsMeta: fields, fieldMap };
 }
 
 function daysAgo(n: number): string {
@@ -419,17 +443,10 @@ export function useRecords(params: UseRecordsParams) {
     staleTime: 30_000,
     refetchOnWindowFocus: false,
     queryFn: async (): Promise<RecordsResult> => {
-      const ctx = await resolveTableContext(baseId, tableId);
-
-      const { data: fieldsMeta } = await supabase
-        .schema('nc_meta')
-        .from('fields')
-        .select('id, pg_column_name, pg_type, ui_type')
-        .eq('table_id', tableId);
-
-      const fieldMap = new Map(
-        (fieldsMeta ?? []).map((f: any) => [f.id, f]),
-      );
+      const [ctx, { fieldsMeta, fieldMap }] = await Promise.all([
+        resolveTableContext(baseId, tableId),
+        resolveFieldsMeta(tableId),
+      ]);
 
       // Pre-resolve linked record filters (linkContains/linkDoesNotContain)
       let linkFilterIncludeIds: string[] | null = null;
@@ -596,17 +613,10 @@ export function useInfiniteRecords(params: UseInfiniteRecordsParams) {
     initialPageParam: 0,
     queryFn: async ({ pageParam }): Promise<InfiniteRecordsPage> => {
       const currentPage = pageParam as number;
-      const ctx = await resolveTableContext(baseId, tableId);
-
-      const { data: fieldsMeta } = await supabase
-        .schema('nc_meta')
-        .from('fields')
-        .select('id, pg_column_name, pg_type, ui_type')
-        .eq('table_id', tableId);
-
-      const fieldMap = new Map(
-        (fieldsMeta ?? []).map((f: any) => [f.id, f]),
-      );
+      const [ctx, { fieldsMeta, fieldMap }] = await Promise.all([
+        resolveTableContext(baseId, tableId),
+        resolveFieldsMeta(tableId),
+      ]);
 
       // Pre-resolve linked record filters
       let infLinkIncludeIds: string[] | null = null;
