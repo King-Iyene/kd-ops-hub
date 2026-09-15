@@ -32,7 +32,11 @@ function json(body: unknown, status = 200, extraHeaders?: Record<string, string>
 }
 
 function err(message: string, status: number) {
-  return json({ error: { type: status === 422 ? 'INVALID_REQUEST_UNKNOWN' : 'AUTHENTICATION_REQUIRED', message } }, status);
+  const type = status === 422 ? 'INVALID_REQUEST_UNKNOWN'
+    : status === 403 ? 'FORBIDDEN'
+    : status === 404 ? 'NOT_FOUND'
+    : 'AUTHENTICATION_REQUIRED';
+  return json({ error: { type, message } }, status);
 }
 
 const ID_RE = /^[a-z][a-z0-9_]*$/;
@@ -112,18 +116,18 @@ function checkRateLimit(keyHash: string): number | null {
 
 function hasScope(scopes: string[], needed: string): boolean {
   if (scopes.includes(needed)) return true;
-  // Wildcard scopes from the UI: *:read, *:write, *:delete
   const neededAction = needed.split(':')[1]; // 'read' | 'write'
+  // Wildcard scopes: *:read, *:write, *:delete
   if (neededAction && scopes.includes(`*:${neededAction}`)) return true;
   if (neededAction === 'read' && scopes.includes('*:write')) return true;
-  // Map simplified legacy scopes (read/write/delete)
+  // Any module-level :read scope grants records:read / schema:read
+  const hasAnyRead = scopes.some(s => s.endsWith(':read'));
+  const hasAnyWrite = scopes.some(s => s.endsWith(':write') || s.endsWith(':delete'));
   if (needed === 'records:read' || needed === 'schema:read') {
-    return scopes.includes('read') || scopes.includes('data:read') || scopes.includes('*:read');
+    return hasAnyRead || scopes.includes('read');
   }
   if (needed === 'records:write') {
-    return scopes.includes('write') || scopes.includes('delete')
-      || scopes.includes('data:write') || scopes.includes('data:delete')
-      || scopes.includes('*:write') || scopes.includes('*:delete');
+    return hasAnyWrite || scopes.includes('write') || scopes.includes('delete');
   }
   return false;
 }
@@ -142,7 +146,7 @@ async function hashKey(raw: string): Promise<string> {
 
 async function authenticateApiKey(pool: Pool, authHeader: string | null): Promise<ApiKeyInfo> {
   if (!authHeader?.startsWith('Bearer ')) throw new Error('Missing API key');
-  const raw = authHeader.slice(7);
+  const raw = authHeader.slice(7).trim();
   if (!raw.startsWith('kdops_')) throw new Error('Invalid API key format');
 
   const hash = await hashKey(raw);
@@ -879,10 +883,12 @@ async function dispatchWebhooks(
   try {
     const conn = await pool.connect();
     try {
+      // Match webhooks for this specific base OR platform-wide (nil UUID) webhooks
       const { rows } = await conn.queryObject<{ url: string; secret: string | null; headers: Record<string, string> }>(
         `SELECT url, secret, headers FROM nc_meta.webhooks
-         WHERE base_id = $1 AND is_active = true
-           AND (table_id IS NULL OR table_id = $2)
+         WHERE (base_id = $1 OR base_id = '00000000-0000-0000-0000-000000000000')
+           AND is_active = true
+           AND (table_id IS NULL OR table_id = $2 OR table_id = '00000000-0000-0000-0000-000000000000')
            AND $3 = ANY(events)`,
         [baseId, tableId, event],
       );
@@ -918,8 +924,9 @@ async function dispatchWebhooks(
 
       conn.queryObject(
         `UPDATE nc_meta.webhooks SET last_triggered_at = now()
-         WHERE base_id = $1 AND is_active = true
-           AND (table_id IS NULL OR table_id = $2)
+         WHERE (base_id = $1 OR base_id = '00000000-0000-0000-0000-000000000000')
+           AND is_active = true
+           AND (table_id IS NULL OR table_id = $2 OR table_id = '00000000-0000-0000-0000-000000000000')
            AND $3 = ANY(events)`,
         [baseId, tableId, event],
       ).catch(() => {});

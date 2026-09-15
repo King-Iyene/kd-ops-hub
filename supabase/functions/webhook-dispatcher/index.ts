@@ -107,15 +107,16 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Fetch active webhooks matching this event, either base-wide
-  // (table_id IS NULL) or scoped to this specific table.
+  // Fetch active webhooks matching this event: base-specific, platform-wide
+  // (nil UUID), base-wide (table_id IS NULL), or scoped to this table.
+  const PLATFORM_SENTINEL = '00000000-0000-0000-0000-000000000000';
   const { data: webhooks, error: fetchError } = await supabase
     .schema('nc_meta')
     .from('webhooks')
     .select('id, url, secret, headers, events')
-    .eq('base_id', baseId)
+    .or(`base_id.eq.${baseId},base_id.eq.${PLATFORM_SENTINEL}`)
     .eq('is_active', true)
-    .or(`table_id.is.null,table_id.eq.${tableId}`)
+    .or(`table_id.is.null,table_id.eq.${tableId},table_id.eq.${PLATFORM_SENTINEL}`)
     .contains('events', [event]);
 
   if (fetchError) {
