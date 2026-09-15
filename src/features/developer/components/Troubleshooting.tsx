@@ -140,14 +140,15 @@ const SECTIONS: TroubleshootingSection[] = [
         question: '"403 Forbidden" — wrong scopes',
         answer: (
           <div className="space-y-3">
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">Each module requires specific scopes:</p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">Each API key needs specific scopes. Here are the five available scopes:</p>
             <ul className="space-y-1.5 text-sm text-zinc-600 dark:text-zinc-400">
-              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Reading employees &rarr; <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">employees:read</code> or <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">*:read</code></li>
-              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Creating tasks &rarr; <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">tasks:write</code> or <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">*:write</code></li>
-              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Deleting database records &rarr; <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">data:delete</code> or <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">*:delete</code></li>
+              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Reading records (GET) &rarr; <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">records:read</code></li>
+              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Creating or updating records (POST/PATCH) &rarr; <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">records:write</code></li>
+              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Deleting records (DELETE) &rarr; <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">data:delete</code></li>
+              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Reading table/field structure &rarr; <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">schema:read</code></li>
+              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Creating/updating fields &rarr; <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">schema:write</code></li>
             </ul>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">You can't add scopes to an existing key &mdash; create a new key with the right scopes.</p>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">Wildcard scopes (<code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">*:read</code>, <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">*:write</code>) give access to ALL modules.</p>
           </div>
         ),
       },
@@ -584,8 +585,8 @@ def verify_signature(body: bytes, secret: str, signature: str) -> bool:
 
 const CHECKLIST_ITEMS = [
   { label: 'Is your API key valid? (not revoked, not expired)' },
-  { label: <>Does the key have the right scopes? (e.g., <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">employees:read</code> for GET /employees)</> },
-  { label: <>Is the URL correct? Base: <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono text-3xs">https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/platform-api/v1</code></> },
+  { label: <>Does the key have the right scopes? (e.g., <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">records:read</code> for GET requests)</> },
+  { label: <>Is the URL correct? Base: <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono text-3xs">https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/rest-api/v1</code></> },
   { label: <>Are you sending the Authorization header? (<code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">Bearer kdops_xxxxx</code>)</> },
   { label: <>Is Content-Type set to <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">application/json</code> for POST/PATCH?</> },
   { label: 'Are you within the rate limit? (100 requests/minute per key)' },

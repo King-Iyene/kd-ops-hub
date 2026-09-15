@@ -1195,7 +1195,7 @@ export default function IntegrationGuides() {
 
           <Callout type="warning">
             Replace <code className="text-3xs font-mono px-1 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50">kdops_YOUR_KEY</code> with your actual API key from the <strong>API Keys</strong> tab in this Developer Hub.
-            {module === 'expenses' || module === 'invoices' ? ' All monetary amounts are in the smallest currency unit (kobo for NGN, e.g., 500000 = 5,000 NGN).' : ''}
+            {module === 'expenses' || module === 'invoices' ? ' All monetary amounts are in Naira (NGN). For example, 5000 means ₦5,000.' : ''}
             {module === 'fleet' ? ' The employee MUST have bank details on file for fuel disbursement to work.' : ''}
           </Callout>
 
@@ -1214,7 +1214,7 @@ export default function IntegrationGuides() {
           {/* Pagination tip */}
           <div className="mt-3">
             <Callout type="info">
-              <strong>Pagination:</strong> All list endpoints support <code className="text-3xs font-mono">?page=1&amp;per_page=50</code> query parameters. The response includes <code className="text-3xs font-mono">total</code>, <code className="text-3xs font-mono">page</code>, and <code className="text-3xs font-mono">per_page</code> metadata for iterating through results.
+              <strong>Pagination:</strong> All list endpoints support <code className="text-3xs font-mono">?pageSize=50</code> (max 1000, default 100). If there are more results, the response includes an <code className="text-3xs font-mono">offset</code> string &mdash; pass it as <code className="text-3xs font-mono">?offset=VALUE</code> to get the next page.
             </Callout>
           </div>
         </CardContent>
