@@ -287,7 +287,9 @@ function pgRowToFields(row: Record<string, unknown>, fields: FieldMeta[]): Recor
 }
 
 function fieldsToRow(input: Record<string, unknown>, fields: FieldMeta[]): Record<string, unknown> {
-  const nameToCol = new Map(fields.filter(f => !f.is_system).map(f => [f.name, f.pg_column_name]));
+  const nameToCol = new Map(
+    fields.filter(f => !f.is_system && !VIRTUAL_TYPES.has(f.ui_type)).map(f => [f.name, f.pg_column_name]),
+  );
   const row: Record<string, unknown> = {};
   for (const [name, value] of Object.entries(input)) {
     const col = nameToCol.get(name);
@@ -1062,6 +1064,9 @@ Deno.serve(async (req) => {
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Internal error';
     if (msg.includes('API key') || msg.includes('Missing')) return err(msg, 401);
+    if (msg.includes('column') || msg.includes('relation') || msg.includes('violates')) {
+      return err(`Database error: ${msg}`, 422);
+    }
     return err(msg, 500);
   }
 });
