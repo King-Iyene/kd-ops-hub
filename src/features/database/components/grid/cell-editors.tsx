@@ -1021,7 +1021,7 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
         onKeyDown={(e) => {
           e.stopPropagation();
           if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); doCommit(text); }
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doCommit(text); }
           if (e.key === 'Tab') { e.preventDefault(); doCommit(text); }
           if (e.key === 'b' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); wrapSelection(e.currentTarget, '**', '**', setText); }
           if (e.key === 'i' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); wrapSelection(e.currentTarget, '*', '*', setText); }
@@ -1034,7 +1034,7 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
         className="w-full p-2.5 outline-none resize-y border-none bg-transparent"
         style={{ fontSize: 13, lineHeight: '20px', color: 'inherit', minHeight: 160 }}
       />
-      <div className="px-2.5 pb-1.5 text-3xs text-[#9AA2AF]">⌘+Enter to save · Esc to cancel</div>
+      <div className="px-2.5 pb-1.5 text-3xs text-[#9AA2AF]">Enter to save · Shift+Enter for new line · Esc to cancel</div>
     </div>,
     document.body,
   ) : null;
