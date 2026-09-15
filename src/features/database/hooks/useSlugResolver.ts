@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { isUuid } from '../lib/shortId';
+import { isUuid, shortToUuid } from '../lib/shortId';
 
 interface ResolvedIds {
   baseId: string | undefined;
@@ -8,39 +8,51 @@ interface ResolvedIds {
   viewId: string | undefined;
 }
 
-async function resolveBaseSlug(slug: string): Promise<string | undefined> {
-  if (isUuid(slug)) return slug;
+function tryDecodeShortId(param: string): string | null {
+  if (isUuid(param)) return null;
+  const decoded = shortToUuid(param);
+  return decoded !== param && isUuid(decoded) ? decoded : null;
+}
+
+async function resolveBaseParam(param: string): Promise<string | undefined> {
+  if (isUuid(param)) return param;
+  const decoded = tryDecodeShortId(param);
+  if (decoded) return decoded;
   const { data } = await supabase
     .schema('nc_meta')
     .from('bases')
     .select('id')
-    .eq('slug', slug)
+    .eq('slug', param)
     .limit(1)
     .single();
   return data?.id;
 }
 
-async function resolveTableSlug(baseId: string, slug: string): Promise<string | undefined> {
-  if (isUuid(slug)) return slug;
+async function resolveTableParam(baseId: string, param: string): Promise<string | undefined> {
+  if (isUuid(param)) return param;
+  const decoded = tryDecodeShortId(param);
+  if (decoded) return decoded;
   const { data } = await supabase
     .schema('nc_meta')
     .from('tables')
     .select('id')
     .eq('base_id', baseId)
-    .eq('slug', slug)
+    .eq('slug', param)
     .limit(1)
     .single();
   return data?.id;
 }
 
-async function resolveViewSlug(tableId: string, slug: string): Promise<string | undefined> {
-  if (isUuid(slug)) return slug;
+async function resolveViewParam(tableId: string, param: string): Promise<string | undefined> {
+  if (isUuid(param)) return param;
+  const decoded = tryDecodeShortId(param);
+  if (decoded) return decoded;
   const { data } = await supabase
     .schema('nc_meta')
     .from('views')
     .select('id')
     .eq('table_id', tableId)
-    .eq('slug', slug)
+    .eq('slug', param)
     .limit(1)
     .single();
   return data?.id;
@@ -69,11 +81,11 @@ export function useSlugResolver(
         };
       }
 
-      const baseId = rawBase ? await resolveBaseSlug(rawBase) : undefined;
+      const baseId = rawBase ? await resolveBaseParam(rawBase) : undefined;
       if (!baseId) return { baseId: undefined, tableId: undefined, viewId: undefined };
 
-      const tableId = rawTable ? await resolveTableSlug(baseId, rawTable) : undefined;
-      const viewId = rawView && tableId ? await resolveViewSlug(tableId, rawView) : undefined;
+      const tableId = rawTable ? await resolveTableParam(baseId, rawTable) : undefined;
+      const viewId = rawView && tableId ? await resolveViewParam(tableId, rawView) : undefined;
 
       return { baseId, tableId, viewId };
     },
