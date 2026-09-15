@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 
 /* ─── Constants ─── */
 
-const API_BASE = 'https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/platform-api/v1';
+const API_BASE = 'https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/rest-api/v1';
 
 /* ─── Types ─── */
 
@@ -1406,65 +1406,65 @@ const modules: ModuleDef[] = [
     ],
   },
 
-  // ────────── DATA (DATABASE) ──────────
+  // ────────── DATABASE ──────────
   {
     id: 'data',
     name: 'Database',
     icon: Database,
-    basePath: '/data',
+    basePath: '/bases',
     overview: 'Custom database tables (Airtable-compatible). Create bases, tables, and records programmatically. Features smart type detection and auto-column creation for unknown fields.',
-    access: 'All authenticated roles',
+    access: 'All authenticated roles (scopes: records:read, records:write, data:delete, schema:read, schema:write)',
     endpoints: [
       {
         method: 'GET',
-        path: '/data/bases',
+        path: '/bases',
         description: 'List all bases in the workspace.',
         curlExample: `curl -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${API_BASE}/data/bases"`,
+  "${API_BASE}/bases"`,
         responseExample: JSON.stringify({
-          data: [
-            { id: "base-001", name: "CRM", slug: "crm", table_count: 4, created_at: "2026-03-01T08:00:00Z" },
-            { id: "base-002", name: "Inventory", slug: "inventory", table_count: 2, created_at: "2026-05-10T10:00:00Z" }
+          bases: [
+            { id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890", name: "CRM", table_count: 4, created_at: "2026-03-01T08:00:00Z" },
+            { id: "b2c3d4e5-f6a7-8901-bcde-f23456789012", name: "Inventory", table_count: 2, created_at: "2026-05-10T10:00:00Z" }
           ]
         }, null, 2),
       },
       {
         method: 'GET',
-        path: '/data/bases/:baseId/tables',
-        description: 'List tables in a base. baseId can be UUID or slug.',
+        path: '/bases/:baseId/tables',
+        description: 'List tables in a base.',
         curlExample: `curl -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${API_BASE}/data/bases/crm/tables"`,
+  "${API_BASE}/bases/a1b2c3d4-e5f6-7890-abcd-ef1234567890/tables"`,
         responseExample: JSON.stringify({
-          data: [
-            { id: "tbl-001", name: "Companies", slug: "companies", field_count: 8, record_count: 156 },
-            { id: "tbl-002", name: "Contacts", slug: "contacts", field_count: 6, record_count: 342 }
+          tables: [
+            { id: "c3d4e5f6-a7b8-9012-cdef-345678901234", name: "Companies", field_count: 8, record_count: 156 },
+            { id: "d4e5f6a7-b8c9-0123-defa-456789012345", name: "Contacts", field_count: 6, record_count: 342 }
           ]
         }, null, 2),
       },
       {
         method: 'GET',
-        path: '/data/bases/:baseId/tables/:tableId/records',
-        description: 'List records in a table. Supports pagination, sorting, and filtering.',
+        path: '/bases/:baseId/tables/:tableId/records',
+        description: 'List records in a table. Supports pagination (pageSize, offset), sorting, and filtering.',
         curlExample: `curl -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${API_BASE}/data/bases/crm/tables/companies/records?page=1&per_page=20&sort=Revenue:desc"`,
+  "${API_BASE}/bases/a1b2c3d4-e5f6-7890-abcd-ef1234567890/tables/c3d4e5f6-a7b8-9012-cdef-345678901234/records?pageSize=20&sort=Revenue:desc"`,
         responseExample: JSON.stringify({
-          data: [{
-            id: "rec-001",
+          records: [{
+            id: "e5f6a7b8-c9d0-1234-efab-567890123456",
+            createdTime: "2026-06-15T09:00:00Z",
             fields: {
               Company: "Dangote Industries",
               Revenue: 5000000000,
               Industry: "Manufacturing",
               Website: "https://dangote.com",
-              Contact_Email: "info@dangote.com"
-            },
-            created_at: "2026-06-15T09:00:00Z"
+              "Contact Email": "info@dangote.com"
+            }
           }],
-          meta: { page: 1, per_page: 20, total: 156 }
+          offset: "eyJsYXN0X2lkIjoiZTVmNmE3YjgtYzlkMC0xMjM0In0="
         }, null, 2),
       },
       {
         method: 'POST',
-        path: '/data/bases/:baseId/tables/:tableId/records',
+        path: '/bases/:baseId/tables/:tableId/records',
         description: 'Create records (max 10 per request). Unknown field names auto-create new columns.',
         curlExample: `curl -X POST \\
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
@@ -1475,68 +1475,90 @@ const modules: ModuleDef[] = [
       { "fields": { "Company": "MTN Nigeria", "Revenue": 2000000000, "Industry": "Telecom" } }
     ]
   }' \\
-  "${API_BASE}/data/bases/crm/tables/companies/records"`,
+  "${API_BASE}/bases/a1b2c3d4-e5f6-7890-abcd-ef1234567890/tables/c3d4e5f6-a7b8-9012-cdef-345678901234/records"`,
         responseExample: JSON.stringify({
-          data: [
-            { id: "rec-157", fields: { Company: "Dangote Industries", Revenue: 5000000000, Industry: "Manufacturing" } },
-            { id: "rec-158", fields: { Company: "MTN Nigeria", Revenue: 2000000000, Industry: "Telecom" } }
+          records: [
+            { id: "f6a7b8c9-d0e1-2345-fabc-678901234567", createdTime: "2026-09-09T10:00:00Z", fields: { Company: "Dangote Industries", Revenue: 5000000000, Industry: "Manufacturing" } },
+            { id: "a7b8c9d0-e1f2-3456-abcd-789012345678", createdTime: "2026-09-09T10:00:00Z", fields: { Company: "MTN Nigeria", Revenue: 2000000000, Industry: "Telecom" } }
           ]
         }, null, 2),
       },
       {
         method: 'PATCH',
-        path: '/data/bases/:baseId/tables/:tableId/records',
+        path: '/bases/:baseId/tables/:tableId/records',
         description: 'Update existing records. Each record needs its id.',
         curlExample: `curl -X PATCH \\
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "records": [
-      { "id": "rec-157", "fields": { "Revenue": 5500000000, "Industry": "Conglomerate" } }
+      { "id": "f6a7b8c9-d0e1-2345-fabc-678901234567", "fields": { "Revenue": 5500000000, "Industry": "Conglomerate" } }
     ]
   }' \\
-  "${API_BASE}/data/bases/crm/tables/companies/records"`,
+  "${API_BASE}/bases/a1b2c3d4-e5f6-7890-abcd-ef1234567890/tables/c3d4e5f6-a7b8-9012-cdef-345678901234/records"`,
         responseExample: JSON.stringify({
-          data: [
-            { id: "rec-157", fields: { Company: "Dangote Industries", Revenue: 5500000000, Industry: "Conglomerate" } }
+          records: [
+            { id: "f6a7b8c9-d0e1-2345-fabc-678901234567", createdTime: "2026-06-15T09:00:00Z", fields: { Company: "Dangote Industries", Revenue: 5500000000, Industry: "Conglomerate" } }
           ]
         }, null, 2),
       },
       {
         method: 'DELETE',
-        path: '/data/bases/:baseId/tables/:tableId/records',
+        path: '/bases/:baseId/tables/:tableId/records',
         description: 'Delete records by ID.',
         curlExample: `curl -X DELETE \\
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"records": ["rec-157", "rec-158"]}' \\
-  "${API_BASE}/data/bases/crm/tables/companies/records"`,
+  -d '{"records": ["f6a7b8c9-d0e1-2345-fabc-678901234567", "a7b8c9d0-e1f2-3456-abcd-789012345678"]}' \\
+  "${API_BASE}/bases/a1b2c3d4-e5f6-7890-abcd-ef1234567890/tables/c3d4e5f6-a7b8-9012-cdef-345678901234/records"`,
         responseExample: JSON.stringify({
-          deleted: ["rec-157", "rec-158"]
+          records: [
+            { id: "f6a7b8c9-d0e1-2345-fabc-678901234567", deleted: true },
+            { id: "a7b8c9d0-e1f2-3456-abcd-789012345678", deleted: true }
+          ]
+        }, null, 2),
+      },
+      {
+        method: 'GET',
+        path: '/bases/:baseId/tables/:tableId/fields',
+        description: 'List all fields (columns) in a table.',
+        curlExample: `curl -H "Authorization: Bearer kdops_YOUR_KEY" \\
+  "${API_BASE}/bases/a1b2c3d4-e5f6-7890-abcd-ef1234567890/tables/c3d4e5f6-a7b8-9012-cdef-345678901234/fields"`,
+        responseExample: JSON.stringify({
+          fields: [
+            { id: "b8c9d0e1-f2a3-4567-bcda-890123456789", name: "Company", type: "text" },
+            { id: "c9d0e1f2-a3b4-5678-cdab-901234567890", name: "Revenue", type: "number" },
+            { id: "d0e1f2a3-b4c5-6789-dabc-012345678901", name: "Industry", type: "text" },
+            { id: "e1f2a3b4-c5d6-7890-abcd-123456789012", name: "Contact Email", type: "email" }
+          ]
         }, null, 2),
       },
     ],
     fields: [
       { name: 'records', type: 'array', required: true, description: 'Array of record objects. Each has a "fields" object with column names as keys.' },
-      { name: 'fields', type: 'object', required: true, description: 'Key-value pairs where key = column name, value = cell value' },
-      { name: 'id', type: 'string', required: false, description: 'Record ID (required for PATCH/DELETE, auto-generated on POST)' },
-      { name: 'page', type: 'number', required: false, description: 'Page number for pagination (query param)' },
-      { name: 'per_page', type: 'number', required: false, description: 'Records per page (query param, max 100)' },
-      { name: 'sort', type: 'string', required: false, description: 'Sort by field: "FieldName:asc" or "FieldName:desc" (query param)' },
+      { name: 'fields', type: 'object', required: true, description: 'Key-value pairs where key = column name (display name), value = cell value' },
+      { name: 'id', type: 'string (UUID)', required: false, description: 'Record UUID (required for PATCH/DELETE, auto-generated on POST)' },
+      { name: 'pageSize', type: 'number', required: false, description: 'Records per page (query param, default 100, max 1000)' },
+      { name: 'offset', type: 'string', required: false, description: 'Cursor-based pagination token returned in previous response' },
+      { name: 'sort', type: 'string', required: false, description: 'Sort by field: "FieldName:asc" or "FieldName:desc" (query param, repeatable)' },
+      { name: 'filter', type: 'string', required: false, description: 'Filter records: "fieldName op value" — ops: eq, neq, gt, gte, lt, lte, contains' },
     ],
     tips: [
-      { text: 'Base and table can be referenced by UUID or slug — slugs are easier to read in URLs.' },
       { text: 'Unknown field names in POST/PATCH auto-create new columns with smart type detection.' },
       { text: 'Smart type detection: emails become email fields, URLs become URL fields, dates and numbers are auto-typed.' },
       { text: 'Records use a "fields" wrapper: { "records": [{ "fields": { "Name": "value" } }] }' },
-      { text: 'Maximum 10 records per POST request. Batch larger inserts into multiple requests.' },
-      { text: 'Sort with query params: ?sort=Revenue:desc' },
+      { text: 'Maximum 10 records per POST/PATCH/DELETE request. Batch larger operations into multiple requests.' },
+      { text: 'Sort with query params: ?sort=Revenue:desc — repeatable for multi-field sorting.' },
+      { text: 'Filter with query params: ?filter=Industry eq Manufacturing' },
+      { text: 'Pagination is cursor-based: pass the "offset" from the response to get the next page.' },
+      { text: 'Use pageSize to control batch size (default 100, max 1000).' },
     ],
     mistakes: [
       { text: 'Forgetting the "fields" wrapper → { "Company": "X" } won\'t work. Use { "fields": { "Company": "X" } }.' },
-      { text: 'Sending more than 10 records in one POST → returns 400. Batch into groups of 10.' },
-      { text: 'Using field IDs instead of names → use human-readable column names.' },
+      { text: 'Sending more than 10 records in one request → returns 400. Batch into groups of 10.' },
+      { text: 'Using field IDs instead of display names → use human-readable column names like "Company", not UUIDs.' },
       { text: 'Forgetting record ID in PATCH → each record object needs its "id" for updates.' },
+      { text: 'Using page/per_page instead of pageSize/offset → pagination is cursor-based, not page-number-based.' },
     ],
   },
 
