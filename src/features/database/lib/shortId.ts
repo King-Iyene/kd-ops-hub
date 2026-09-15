@@ -1,9 +1,6 @@
 const CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 
-const PREFIXES = { base: 'bse', table: 'tbl', view: 'vw', record: 'rec' } as const;
-export type IdKind = keyof typeof PREFIXES;
-
-function rawToShort(uuid: string): string {
+export function uuidToShort(uuid: string): string {
   const hex = uuid.replace(/-/g, '');
   let num = BigInt('0x' + hex);
   let result = '';
@@ -14,7 +11,7 @@ function rawToShort(uuid: string): string {
   return result || '0';
 }
 
-function rawFromShort(short: string): string {
+export function shortToUuid(short: string): string {
   let num = 0n;
   for (const ch of short) {
     const idx = CHARS.indexOf(ch);
@@ -31,30 +28,8 @@ function rawFromShort(short: string): string {
   ].join('-');
 }
 
-export function uuidToShort(uuid: string, kind?: IdKind): string {
-  const short = rawToShort(uuid);
-  if (kind) return `${PREFIXES[kind]}_${short}`;
-  return short;
-}
-
-export function shortToUuid(short: string): string {
-  const stripped = stripPrefix(short);
-  return rawFromShort(stripped);
-}
-
-function stripPrefix(s: string): string {
-  for (const p of Object.values(PREFIXES)) {
-    if (s.startsWith(p + '_')) return s.slice(p.length + 1);
-  }
-  return s;
-}
-
 export function isUuid(s: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
-}
-
-export function isPrefixedShortId(s: string): boolean {
-  return Object.values(PREFIXES).some((p) => s.startsWith(p + '_'));
 }
 
 export function resolveId(param: string): string {
