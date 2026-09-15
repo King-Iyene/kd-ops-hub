@@ -268,7 +268,7 @@ const SECTIONS: TroubleshootingSection[] = [
         question: 'Valid task status values',
         answer: (
           <div className="flex flex-wrap gap-2">
-            {['pending', 'in_progress', 'completed', 'cancelled'].map(s => (
+            {['open', 'in_progress', 'blocked', 'complete'].map(s => (
               <code key={s} className="px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono text-zinc-700 dark:text-zinc-300">{s}</code>
             ))}
           </div>
@@ -316,7 +316,16 @@ const SECTIONS: TroubleshootingSection[] = [
         question: 'Valid expense categories',
         answer: (
           <div className="flex flex-wrap gap-2">
-            {['transport', 'meals', 'supplies', 'accommodation', 'training', 'other'].map(c => (
+            {[
+              'fuel', 'transport', 'mileage', 'parking_tolls',
+              'accommodation', 'flight', 'meals', 'client_entertainment', 'per_diem',
+              'office_supplies', 'printing', 'equipment', 'software',
+              'utilities', 'diesel_generator', 'internet_data', 'airtime', 'rent',
+              'repair', 'maintenance', 'insurance',
+              'legal_professional', 'accounting_audit', 'training',
+              'marketing', 'courier', 'bank_charges',
+              'other',
+            ].map(c => (
               <code key={c} className="px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono text-zinc-700 dark:text-zinc-300">{c}</code>
             ))}
           </div>

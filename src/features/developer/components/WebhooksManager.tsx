@@ -37,8 +37,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Nil UUID used as sentinel for platform-wide webhooks (base_id column is UUID type)
-const PLATFORM_BASE_ID = '00000000-0000-0000-0000-000000000000';
+// Nil UUID sentinel for platform-wide webhooks (same for base_id and table_id)
+const PLATFORM_SENTINEL = '00000000-0000-0000-0000-000000000000';
 
 // ---------------------------------------------------------------------------
 // Event catalog grouped by module
@@ -149,7 +149,7 @@ export default function WebhooksManager() {
         .schema('nc_meta')
         .from('webhooks')
         .select('*')
-        .eq('base_id', PLATFORM_BASE_ID)
+        .eq('base_id', PLATFORM_SENTINEL)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as WebhookRow[];
@@ -165,8 +165,8 @@ export default function WebhooksManager() {
       const headersObj: Record<string, string> = {};
       input.headers.forEach((h) => { if (h.key.trim()) headersObj[h.key.trim()] = h.value; });
       const payload: any = {
-        base_id: PLATFORM_BASE_ID,
-        table_id: PLATFORM_BASE_ID,
+        base_id: PLATFORM_SENTINEL,
+        table_id: PLATFORM_SENTINEL,
         name: input.name,
         url: input.url,
         events: input.events,
