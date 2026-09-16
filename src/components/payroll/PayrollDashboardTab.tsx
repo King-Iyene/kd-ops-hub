@@ -261,12 +261,13 @@ export function PayrollDashboardTab({
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm font-semibold">Who gets paid</p>
-              <button
-                className="text-2xs text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5 kd-transition font-medium"
-                onClick={() => navigate('/employees')}
+              <a
+                className="text-2xs text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5 kd-transition font-medium no-underline"
+                href="/employees"
+                onClick={(e) => { e.preventDefault(); navigate('/employees'); }}
               >
                 View all <ArrowRight className="h-3 w-3" />
-              </button>
+              </a>
             </div>
             <div className="space-y-2.5">
               {whoGetsPaid.length === 0 && (

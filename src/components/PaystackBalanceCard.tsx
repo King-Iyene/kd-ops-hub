@@ -290,13 +290,14 @@ export function PaystackBalanceCard({
               Fund this account
             </p>
             {hasFunding && (
-              <button
-                onClick={() => navigate('/settings#paystack')}
-                className="text-3xs text-muted-foreground/60 hover:text-foreground kd-transition"
+              <a
+                href="/settings#paystack"
+                onClick={(e) => { e.preventDefault(); navigate('/settings#paystack'); }}
+                className="text-3xs text-muted-foreground/60 hover:text-foreground kd-transition no-underline"
                 title="Edit funding details"
               >
                 Edit
-              </button>
+              </a>
             )}
           </div>
 
@@ -315,10 +316,11 @@ export function PaystackBalanceCard({
           ) : (
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
-                  onClick={() => navigate('/settings#paystack')}
+                <a
+                  href="/settings#paystack"
+                  onClick={(e) => { e.preventDefault(); navigate('/settings#paystack'); }}
                   className={cn(
-                    'group flex w-full items-center justify-between gap-2 rounded-lg',
+                    'group flex w-full items-center justify-between gap-2 rounded-lg no-underline',
                     'border border-dashed border-border/80 hover:border-primary/40',
                     'bg-muted/30 hover:bg-primary/5',
                     'px-2.5 py-2 kd-transition',
@@ -329,7 +331,7 @@ export function PaystackBalanceCard({
                     Add funding account
                   </span>
                   <ArrowUpRight className="h-3 w-3 text-muted-foreground/60 group-hover:text-primary" />
-                </button>
+                </a>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[260px] text-xs">
                 Paystack doesn't expose your PT funding account via API. Copy

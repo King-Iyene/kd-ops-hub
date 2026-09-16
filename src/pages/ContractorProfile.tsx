@@ -1010,13 +1010,11 @@ const ContractorProfile = () => {
                       s === 'failed' || s === 'reversed' ? 'bg-destructive/10 text-destructive' :
                       'bg-warning/10 text-warning';
                     return (
-                      <button
+                      <a
                         key={p.id}
-                        type="button"
-                        onClick={() => p.batch_id && navigate(`/payments/${p.batch_id}`)}
-                        onAuxClick={(ev) => { if (ev.button === 1 && p.batch_id) { window.open(`/payments/${p.batch_id}`, '_blank'); ev.preventDefault(); } }}
-                        disabled={!p.batch_id}
-                        className="w-full text-left flex items-center justify-between border rounded-lg p-3 transition-colors hover:bg-muted/40 hover:border-border focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-default disabled:hover:bg-transparent"
+                        href={p.batch_id ? `/payments/${p.batch_id}` : undefined}
+                        onClick={(e) => { e.preventDefault(); if (p.batch_id) navigate(`/payments/${p.batch_id}`); }}
+                        className={cn('w-full text-left flex items-center justify-between border rounded-lg p-3 transition-colors hover:bg-muted/40 hover:border-border focus:outline-none focus:ring-2 focus:ring-primary/40 no-underline block', !p.batch_id && 'cursor-default hover:bg-transparent')}
                         aria-label={`Open batch — ${p.payment_batches?.name || 'Batch payment'} on ${formatDate(p.created_at)}`}
                       >
                         <div>
@@ -1029,7 +1027,7 @@ const ContractorProfile = () => {
                           <p className="font-medium currency">{formatNaira(p.amount_ngn)}</p>
                           <Badge variant="secondary" className={tone}>{label}</Badge>
                         </div>
-                      </button>
+                      </a>
                     );
                   })}
                 </div>

@@ -353,14 +353,16 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
                 const statusConf = STATUS_CONFIG[txn.status] || STATUS_CONFIG.pending;
                 const StatusIcon = statusConf.icon;
                 const TypeIcon = BATCH_TYPE_ICON[txn.batchType] || FileText;
+                const Wrapper = txn.batchId ? 'a' : 'div';
+                const wrapperProps: any = txn.batchId
+                  ? { href: `/payments/batches/${txn.batchId}`, onClick: (e: React.MouseEvent) => { e.preventDefault(); navigate(`/payments/batches/${txn.batchId}`); } }
+                  : {};
                 return (
-                  <div
+                  <Wrapper
                     key={txn.id}
-                    role={txn.batchId ? 'button' : undefined}
-                    tabIndex={txn.batchId ? 0 : undefined}
-                    onClick={() => txn.batchId && navigate(`/payments/batches/${txn.batchId}`)}
-                    onKeyDown={(e) => { if (txn.batchId && (e.key === 'Enter' || e.key === ' ')) navigate(`/payments/batches/${txn.batchId}`); }}
-                    className={cn('flex items-center gap-3 px-4 py-3 transition-colors', txn.batchId ? 'hover:bg-muted/50 cursor-pointer' : 'hover:bg-muted/30')}>
+                    className={cn('flex items-center gap-3 px-4 py-3 transition-colors no-underline block', txn.batchId ? 'hover:bg-muted/50 cursor-pointer' : 'hover:bg-muted/30')}
+                    {...wrapperProps}
+                  >
                     <div className={cn(
                       'h-9 w-9 rounded-lg flex items-center justify-center shrink-0 border',
                       BATCH_TYPE_STYLE[txn.batchType] || 'bg-muted text-muted-foreground border-border',
@@ -396,7 +398,7 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
                         <span>{statusConf.label}</span>
                       </div>
                     </div>
-                  </div>
+                  </Wrapper>
                 );
               })}
             </div>

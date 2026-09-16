@@ -242,12 +242,13 @@ export function PayrollGroupsTab() {
                 >
                   <Pencil className="h-3 w-3" /> Edit members
                 </Button>
-                <button
-                  className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-0.5"
-                  onClick={() => navigate(`/employees?pay_group_id=${g.id}`)}
+                <a
+                  className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-0.5 no-underline"
+                  href={`/employees?pay_group_id=${g.id}`}
+                  onClick={(e) => { e.preventDefault(); navigate(`/employees?pay_group_id=${g.id}`); }}
                 >
                   Manage members <ArrowRight className="h-3 w-3" />
-                </button>
+                </a>
               </div>
             </div>
           </CardContent>

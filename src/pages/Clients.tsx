@@ -506,6 +506,7 @@ const Clients = () => {
                       key={c.id}
                       chevron
                       accentClassName={accent[c.status]}
+                      href={`/clients/${c.id}`}
                       onClick={() => navigate(`/clients/${c.id}`)}
                     >
                       <MobileCardHeader>

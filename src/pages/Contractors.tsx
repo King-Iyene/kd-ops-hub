@@ -1864,8 +1864,8 @@ const Contractors = () => {
               return (
                 <MobileCard
                   key={c.id}
+                  href={`/contractors/${c.id}`}
                   onClick={() => navigate(`/contractors/${c.id}`)}
-                  onAuxClick={(ev: React.MouseEvent) => { if (ev.button === 1) { window.open(`/contractors/${c.id}`, '_blank'); ev.preventDefault(); } }}
                   chevron
                   className="rounded-none border-0 shadow-none bg-transparent backdrop-blur-none"
                 >

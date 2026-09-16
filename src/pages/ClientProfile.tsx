@@ -550,7 +550,7 @@ const ClientProfile = () => {
                 {/* Mobile cards */}
                 <div className="md:hidden space-y-2 p-3">
                   {placements.map((p) => (
-                    <MobileCard key={p.id} onClick={() => navigate(`/employees/${p.employee_id}`)}>
+                    <MobileCard key={p.id} href={`/employees/${p.employee_id}`} onClick={() => navigate(`/employees/${p.employee_id}`)}>
                       <MobileCardHeader>
                         <MobileCardTitle className="flex items-center justify-between">
                           <span>{(p.profiles as any)?.full_name || 'Unknown'}</span>

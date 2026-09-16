@@ -493,18 +493,18 @@ const Dashboard = () => {
     // admin/super_admin only — left off every non-admin role's quick links.
     const quickLinks = isOperations
       ? [
-          { label: 'Payments', icon: Layers, onClick: () => navigate('/payments'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
-          { label: 'Expenses', icon: Receipt, onClick: () => navigate('/expenses'), iconBg: 'bg-destructive/10', iconColor: 'text-destructive' },
-          { label: 'Timesheets', icon: CalendarClock, onClick: () => navigate('/timesheets'), iconBg: 'bg-success/10', iconColor: 'text-success' },
-          { label: 'Leave', icon: CalendarDays, onClick: () => navigate('/leave'), iconBg: 'bg-warning/10', iconColor: 'text-warning' },
-          { label: 'Handbook', icon: FileText, onClick: () => navigate('/handbook'), iconBg: 'bg-violet-100 dark:bg-violet-900/25', iconColor: 'text-violet-600 dark:text-violet-400' },
+          { label: 'Payments', icon: Layers, href: '/payments', onClick: () => navigate('/payments'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
+          { label: 'Expenses', icon: Receipt, href: '/expenses', onClick: () => navigate('/expenses'), iconBg: 'bg-destructive/10', iconColor: 'text-destructive' },
+          { label: 'Timesheets', icon: CalendarClock, href: '/timesheets', onClick: () => navigate('/timesheets'), iconBg: 'bg-success/10', iconColor: 'text-success' },
+          { label: 'Leave', icon: CalendarDays, href: '/leave', onClick: () => navigate('/leave'), iconBg: 'bg-warning/10', iconColor: 'text-warning' },
+          { label: 'Handbook', icon: FileText, href: '/handbook', onClick: () => navigate('/handbook'), iconBg: 'bg-violet-100 dark:bg-violet-900/25', iconColor: 'text-violet-600 dark:text-violet-400' },
         ]
       : [
-          { label: 'Expenses', icon: Receipt, onClick: () => navigate('/expenses'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
-          { label: 'Leave', icon: CalendarDays, onClick: () => navigate('/leave'), iconBg: 'bg-warning/10', iconColor: 'text-warning' },
-          { label: 'Tasks', icon: CheckCircle, onClick: () => navigate('/tasks'), iconBg: 'bg-success/10', iconColor: 'text-success' },
-          { label: 'Handbook', icon: FileText, onClick: () => navigate('/handbook'), iconBg: 'bg-destructive/10', iconColor: 'text-destructive' },
-          { label: 'Knowledge', icon: BookOpen, onClick: () => navigate('/knowledge'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' },
+          { label: 'Expenses', icon: Receipt, href: '/expenses', onClick: () => navigate('/expenses'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
+          { label: 'Leave', icon: CalendarDays, href: '/leave', onClick: () => navigate('/leave'), iconBg: 'bg-warning/10', iconColor: 'text-warning' },
+          { label: 'Tasks', icon: CheckCircle, href: '/tasks', onClick: () => navigate('/tasks'), iconBg: 'bg-success/10', iconColor: 'text-success' },
+          { label: 'Handbook', icon: FileText, href: '/handbook', onClick: () => navigate('/handbook'), iconBg: 'bg-destructive/10', iconColor: 'text-destructive' },
+          { label: 'Knowledge', icon: BookOpen, href: '/knowledge', onClick: () => navigate('/knowledge'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' },
         ];
 
     return (
@@ -523,9 +523,9 @@ const Dashboard = () => {
         <AnnouncementsBanner />
 
         <div className="kd-stat-grid kd-stagger-in">
-          <StatCard title="Pending Expenses" value={personalLoading ? '—' : personalKPIs.pendingExpenses} icon={Receipt} subtitle="Awaiting approval" tone="warning" onClick={() => navigate('/expenses')} />
-          <StatCard title="Leave Days Left" value={personalLoading ? '—' : personalKPIs.leaveDaysRemaining} icon={CalendarDays} subtitle="Annual leave balance" tone="primary" onClick={() => navigate('/leave')} />
-          <StatCard title="Assigned Tasks" value={personalLoading ? '—' : personalKPIs.assignedTasks} icon={CheckCircle} subtitle="Open tasks" tone="primary" onClick={() => navigate('/tasks')} />
+          <StatCard title="Pending Expenses" value={personalLoading ? '—' : personalKPIs.pendingExpenses} icon={Receipt} subtitle="Awaiting approval" tone="warning" href="/expenses" onClick={() => navigate('/expenses')} />
+          <StatCard title="Leave Days Left" value={personalLoading ? '—' : personalKPIs.leaveDaysRemaining} icon={CalendarDays} subtitle="Annual leave balance" tone="primary" href="/leave" onClick={() => navigate('/leave')} />
+          <StatCard title="Assigned Tasks" value={personalLoading ? '—' : personalKPIs.assignedTasks} icon={CheckCircle} subtitle="Open tasks" tone="primary" href="/tasks" onClick={() => navigate('/tasks')} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -542,17 +542,18 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent className="p-3">
                 <div className="grid grid-cols-3 gap-2">
-                  {quickLinks.map(({ label, icon: Icon, onClick, iconBg, iconColor }) => (
-                    <button
+                  {quickLinks.map(({ label, icon: Icon, href, onClick, iconBg, iconColor }) => (
+                    <a
                       key={label}
-                      onClick={onClick}
-                      className="kd-card-interactive group relative flex flex-col items-center gap-1.5 rounded-xl p-3 hover:bg-muted/60 kd-transition text-center"
+                      href={href}
+                      onClick={(e) => { e.preventDefault(); onClick(); }}
+                      className="kd-card-interactive group relative flex flex-col items-center gap-1.5 rounded-xl p-3 hover:bg-muted/60 kd-transition text-center no-underline"
                     >
                       <span className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 kd-transition', iconBg)}>
                         <Icon className={cn('h-4.5 w-4.5', iconColor)} strokeWidth={2} />
                       </span>
                       <span className="text-2xs font-medium text-muted-foreground group-hover:text-foreground kd-transition leading-tight">{label}</span>
-                    </button>
+                    </a>
                   ))}
                 </div>
               </CardContent>
@@ -599,14 +600,15 @@ const Dashboard = () => {
                   Documents Expiring ({expiringDocs.length})
                 </p>
                 {expiringDocs.map((d) => (
-                  <button
+                  <a
                     key={d.id}
-                    onClick={() => navigate('/documents')}
-                    className="flex items-center justify-between w-full text-left rounded-lg px-3 py-2 bg-background/60 hover:bg-background text-xs kd-transition border border-border/50"
+                    href="/documents"
+                    onClick={(e) => { e.preventDefault(); navigate('/documents'); }}
+                    className="flex items-center justify-between w-full text-left rounded-lg px-3 py-2 bg-background/60 hover:bg-background text-xs kd-transition border border-border/50 no-underline"
                   >
                     <span className="font-medium truncate max-w-[160px]" title={d.title}>{d.title}</span>
                     <span className="text-warning ml-2 shrink-0">{formatDate(d.expires_at)}</span>
-                  </button>
+                  </a>
                 ))}
               </div>
             )}
@@ -681,6 +683,7 @@ const Dashboard = () => {
           icon={Users}
           subtitle="Active on payroll"
           tone="primary"
+          href="/employees"
           onClick={() => navigate('/employees')}
         />
         <StatCard
@@ -696,6 +699,7 @@ const Dashboard = () => {
           icon={Clock}
           subtitle="Across all modules"
           tone="warning"
+          href="/approvals"
           onClick={() => navigate('/approvals')}
         />
         <StatCard
@@ -715,8 +719,8 @@ const Dashboard = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
               <CardTitle className="kd-section-title">Budget Utilisation</CardTitle>
-              <Button variant="ghost" size="xs" onClick={() => navigate('/budgets')}>
-                View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              <Button variant="ghost" size="xs" asChild>
+                <Link to="/budgets">View all <ArrowRight className="ml-1 h-3.5 w-3.5" /></Link>
               </Button>
             </CardHeader>
             <CardContent className="pt-4">
@@ -806,18 +810,18 @@ const Dashboard = () => {
             <CardContent className="p-3">
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { label: 'New Payment', icon: Plus, onClick: () => navigate('/payments/new'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
-                  { label: 'Approvals', icon: CheckCircle, onClick: () => navigate('/approvals'), badge: approvalCounts.total, iconBg: 'bg-warning/10', iconColor: 'text-warning' },
-                  // Clients is a CRM module page, restricted to admin/super_admin only.
-                  ...(isAdminRole ? [{ label: 'Clients', icon: Building2, onClick: () => navigate('/clients'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' }] : []),
-                  { label: 'Subscriptions', icon: CalendarClock, onClick: () => navigate('/subscriptions'), iconBg: 'bg-sky-100 dark:bg-sky-900/30', iconColor: 'text-sky-600 dark:text-sky-400' },
-                  { label: 'Reports', icon: FileText, onClick: () => navigate('/reports'), iconBg: 'bg-success/10', iconColor: 'text-success' },
-                  { label: 'Payroll', icon: DollarSign, onClick: () => navigate('/payroll'), iconBg: 'bg-destructive/10', iconColor: 'text-destructive' },
-                ].map(({ label, icon: Icon, onClick, badge, iconBg, iconColor }) => (
-                  <button
+                  { label: 'New Payment', icon: Plus, href: '/payments/new', onClick: () => navigate('/payments/new'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
+                  { label: 'Approvals', icon: CheckCircle, href: '/approvals', onClick: () => navigate('/approvals'), badge: approvalCounts.total, iconBg: 'bg-warning/10', iconColor: 'text-warning' },
+                  ...(isAdminRole ? [{ label: 'Clients', icon: Building2, href: '/clients', onClick: () => navigate('/clients'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' }] : []),
+                  { label: 'Subscriptions', icon: CalendarClock, href: '/subscriptions', onClick: () => navigate('/subscriptions'), iconBg: 'bg-sky-100 dark:bg-sky-900/30', iconColor: 'text-sky-600 dark:text-sky-400' },
+                  { label: 'Reports', icon: FileText, href: '/reports', onClick: () => navigate('/reports'), iconBg: 'bg-success/10', iconColor: 'text-success' },
+                  { label: 'Payroll', icon: DollarSign, href: '/payroll', onClick: () => navigate('/payroll'), iconBg: 'bg-destructive/10', iconColor: 'text-destructive' },
+                ].map(({ label, icon: Icon, href, onClick, badge, iconBg, iconColor }) => (
+                  <a
                     key={label}
-                    onClick={onClick}
-                    className="kd-card-interactive group relative flex flex-col items-center gap-1.5 rounded-xl p-3 hover:bg-muted/60 kd-transition text-center"
+                    href={href}
+                    onClick={(e) => { e.preventDefault(); onClick(); }}
+                    className="kd-card-interactive group relative flex flex-col items-center gap-1.5 rounded-xl p-3 hover:bg-muted/60 kd-transition text-center no-underline"
                   >
                     <span className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 kd-transition', iconBg)}>
                       <Icon className={cn('h-4.5 w-4.5', iconColor)} strokeWidth={2} />
@@ -828,7 +832,7 @@ const Dashboard = () => {
                         {badge}
                       </span>
                     )}
-                  </button>
+                  </a>
                 ))}
               </div>
             </CardContent>
@@ -838,8 +842,8 @@ const Dashboard = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
               <CardTitle className="kd-section-title">Upcoming Renewals</CardTitle>
-              <Button variant="ghost" size="xs" onClick={() => navigate('/subscriptions')}>
-                View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              <Button variant="ghost" size="xs" asChild>
+                <Link to="/subscriptions">View all <ArrowRight className="ml-1 h-3.5 w-3.5" /></Link>
               </Button>
             </CardHeader>
             <CardContent className="p-0">
@@ -882,8 +886,8 @@ const Dashboard = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
                 <CardTitle className="kd-section-title">Payments This Week</CardTitle>
-                <Button variant="ghost" size="xs" onClick={() => navigate('/payments/schedule')}>
-                  Schedule <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                <Button variant="ghost" size="xs" asChild>
+                  <Link to="/payments/schedule">Schedule <ArrowRight className="ml-1 h-3.5 w-3.5" /></Link>
                 </Button>
               </CardHeader>
               <CardContent className="p-0">
@@ -923,8 +927,8 @@ const Dashboard = () => {
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
           <CardTitle className="kd-section-title">Recent Activity</CardTitle>
-          <Button variant="ghost" size="xs" onClick={() => navigate('/audit')}>
-            Full audit log <ArrowRight className="ml-1 h-3.5 w-3.5" />
+          <Button variant="ghost" size="xs" asChild>
+            <Link to="/audit">Full audit log <ArrowRight className="ml-1 h-3.5 w-3.5" /></Link>
           </Button>
         </CardHeader>
         <CardContent className="p-0">

@@ -1724,8 +1724,8 @@ const BatchDetail = () => {
               </AlertDescription>
             </Alert>
           )}
-          <Button variant="outline" onClick={() => navigate(`/payments/${id}/edit`)} disabled={actionLoading}>
-            Edit Batch
+          <Button variant="outline" asChild disabled={actionLoading}>
+            <a href={`/payments/${id}/edit`} onClick={(e) => { e.preventDefault(); navigate(`/payments/${id}/edit`); }}>Edit Batch</a>
           </Button>
           <Button onClick={submitForApproval} disabled={actionLoading}>
             Submit for Approval

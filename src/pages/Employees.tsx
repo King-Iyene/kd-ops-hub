@@ -834,10 +834,11 @@ const Employees = () => {
               {/* Apple-style clean list — hairline dividers, frosted glass */}
               <div className="md:hidden divide-y divide-white/[0.04] dark:divide-white/[0.03]">
                 {employees.map((e) => (
-                  <div
+                  <a
                     key={e.id}
-                    className="flex items-center gap-3 px-4 py-3.5 active:bg-white/[0.04] hover:bg-white/[0.02] kd-transition cursor-pointer"
-                    onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)}
+                    href={e.status !== 'invited' ? `/employees/${e.id}` : undefined}
+                    className="flex items-center gap-3 px-4 py-3.5 active:bg-white/[0.04] hover:bg-white/[0.02] kd-transition cursor-pointer no-underline block"
+                    onClick={(ev) => { ev.preventDefault(); if (e.status !== 'invited') navigate(`/employees/${e.id}`); }}
                   >
                     <EmployeeAvatar
                       photoUrl={e.photo_url ?? null}
@@ -861,7 +862,7 @@ const Employees = () => {
                     ) : (
                       <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0" />
                     )}
-                  </div>
+                  </a>
                 ))}
               </div>
 
