@@ -1,57 +1,46 @@
 import { useCallback } from 'react';
 import { useNavigate as useRouterNavigate } from 'react-router-dom';
 import { useDatabaseUI } from '../lib/store';
-import { useBases } from './useBases';
-import { useTables } from './useTables';
-import { useViews } from './useViews';
+import { uuidToShort, isUuid } from '../lib/shortId';
 
-function findSlug(items: Array<{ id: string; slug?: string | null }> | undefined, id: string): string {
-  const item = items?.find((i) => i.id === id);
-  return item?.slug ?? id;
+export function toShort(id: string): string {
+  return isUuid(id) ? uuidToShort(id) : id;
 }
 
 export function useDatabaseNavigate() {
   const navigate = useRouterNavigate();
   const activeBaseId = useDatabaseUI((s) => s.activeBaseId);
   const activeTableId = useDatabaseUI((s) => s.activeTableId);
-  const { data: bases } = useBases();
-  const { data: tables } = useTables(activeBaseId);
-  const { data: views } = useViews(activeTableId);
 
   const navigateToBase = useCallback(
     (baseId: string | null) => {
       if (baseId) {
-        navigate(`/data/${findSlug(bases, baseId)}`);
+        navigate(`/data/${toShort(baseId)}`);
       } else {
         navigate('/data');
       }
     },
-    [navigate, bases],
+    [navigate],
   );
 
   const navigateToTable = useCallback(
     (tableId: string | null) => {
       if (tableId && activeBaseId) {
-        const baseSlug = findSlug(bases, activeBaseId);
-        const tableSlug = findSlug(tables, tableId);
-        navigate(`/data/${baseSlug}/${tableSlug}`, { replace: true });
+        navigate(`/data/${toShort(activeBaseId)}/${toShort(tableId)}`, { replace: true });
       } else if (activeBaseId) {
-        navigate(`/data/${findSlug(bases, activeBaseId)}`, { replace: true });
+        navigate(`/data/${toShort(activeBaseId)}`, { replace: true });
       }
     },
-    [navigate, activeBaseId, bases, tables],
+    [navigate, activeBaseId],
   );
 
   const navigateToView = useCallback(
     (viewId: string | null) => {
       if (viewId && activeTableId && activeBaseId) {
-        const baseSlug = findSlug(bases, activeBaseId);
-        const tableSlug = findSlug(tables, activeTableId);
-        const viewSlug = findSlug(views, viewId);
-        navigate(`/data/${baseSlug}/${tableSlug}/${viewSlug}`);
+        navigate(`/data/${toShort(activeBaseId)}/${toShort(activeTableId)}/${toShort(viewId)}`);
       }
     },
-    [navigate, activeBaseId, activeTableId, bases, tables, views],
+    [navigate, activeBaseId, activeTableId],
   );
 
   return { navigateToBase, navigateToTable, navigateToView };

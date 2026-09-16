@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 
 const API_BASE =
-  'https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/platform-api/v1';
+  'https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/rest-api/v1';
 
 type Difficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 
@@ -179,7 +179,7 @@ return [{
         content: `{
   "event": "client.created",
   "data": {
-    "id": "cl_abc123",
+    "id": "4v7SY1Hl7YZtWCGClC5boe",
     "name": "Dangote Industries",
     "contact_email": "procurement@dangote.com",
     "industry": "Manufacturing",
@@ -288,7 +288,7 @@ return tasks.map(task => ({
 {
   "event": "invoice.created",
   "data": {
-    "id": "inv_001",
+    "id": "5RK81pyPjBY4UNGoLLsvuU",
     "client_name": "GTBank Plc",
     "amount": 2500000,
     "currency": "NGN",

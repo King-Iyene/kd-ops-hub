@@ -6,18 +6,14 @@
  * when a record event occurs (create, update, delete).
  */
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Authorization, Content-Type, apikey, x-client-info',
-};
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
-function json(body: Record<string, unknown>, status = 200): Response {
+function json(body: Record<string, unknown>, status = 200, req?: Request): Response {
+  const cors = req ? getCorsHeaders(req) : { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    headers: { ...cors, 'Content-Type': 'application/json' },
   });
 }
 
@@ -66,6 +62,7 @@ async function executeAction(
             old_record: context.oldRecord,
             timestamp: new Date().toISOString(),
           }),
+          signal: AbortSignal.timeout(10_000),
         });
 
         return { success: response.ok, error: response.ok ? undefined : `HTTP ${response.status}` };
@@ -117,16 +114,33 @@ async function executeAction(
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
+  const cors = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: CORS_HEADERS });
+    return new Response(null, { status: 204, headers: cors });
   }
 
   if (req.method !== 'POST') {
-    return json({ success: false, error: 'Method not allowed' }, 405);
+    return json({ success: false, error: 'Method not allowed' }, 405, req);
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return json({ success: false, error: 'Missing authorization' }, 401, req);
+  }
+  const bearer = authHeader.slice(7);
+
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${bearer}` } },
+  });
+  const { data: userData, error: authError } = await userClient.auth.getUser(bearer);
+  if (authError || !userData?.user) {
+    return json({ success: false, error: 'Invalid or expired session' }, 401, req);
+  }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
     global: { headers: { Authorization: `Bearer ${serviceRoleKey}` } },

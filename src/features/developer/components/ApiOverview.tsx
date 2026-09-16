@@ -105,7 +105,7 @@ const modules = [
     name: 'Database (Custom)',
     icon: Database,
     description: 'Query your custom tables and records via the data API.',
-    endpoints: ['GET /data/bases/:id/tables/:id/records'],
+    endpoints: ['GET /bases', 'GET .../tables', 'GET .../records'],
     color: 'from-purple-500 to-purple-600',
   },
   {
@@ -133,7 +133,7 @@ const quickStartSteps = [
     title: 'Make Your First Request',
     description: 'Use your key in the Authorization header to call any endpoint.',
     code: `curl -H "Authorization: Bearer kdops_xxx" \\
-  https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/platform-api/v1/employees`,
+  https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/rest-api/v1/bases`,
   },
   {
     step: 3,
@@ -156,8 +156,8 @@ const integrations = [
 ];
 
 const stats = [
-  { label: '100+ endpoints', icon: Layers },
-  { label: '12 modules', icon: Database },
+  { label: 'REST API v1', icon: Layers },
+  { label: 'Database CRUD', icon: Database },
   { label: 'Webhook events', icon: Radio },
   { label: 'Rate limit: 100 req/min', icon: Clock },
 ];

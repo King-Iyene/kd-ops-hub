@@ -713,6 +713,7 @@ const Leave = () => {
       if (error) throw error;
       if (wasApproved) await restoreBalanceFor(req);
       await logAudit('leave_cancelled', `Leave request cancelled (${req.days_requested} days)`, profile);
+      dispatchPlatformWebhook('leave.cancelled', { id: req.id, employee_id: req.employee_id, leave_type: req.leave_type, days_requested: req.days_requested, status: 'cancelled' });
       toast({ title: 'Request cancelled' });
       fetchAll();
       refreshApprovals();

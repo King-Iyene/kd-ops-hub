@@ -39,14 +39,14 @@ Deno.serve(async (req) => {
   }
   const bearer = authHeader.slice(7);
 
-  let body: { event: string; baseId: string; tableId: string; record?: unknown; oldRecord?: unknown; shareToken?: string };
+  let body: { event: string; baseId: string; tableId: string; record?: unknown; oldRecord?: unknown; shareToken?: string; formToken?: string };
   try {
     body = await req.json();
   } catch {
     return json({ error: 'Invalid JSON body' }, 400, req);
   }
 
-  const { event, baseId, tableId, record, oldRecord, shareToken } = body;
+  const { event, baseId, tableId, record, oldRecord, shareToken, formToken } = body;
   if (!event || !baseId || !tableId) {
     return json({ error: 'Missing required fields: event, baseId, tableId' }, 400, req);
   }
@@ -60,10 +60,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   if (shareToken) {
-    // Public form submission — the visitor has no user session, so authorize
-    // via the enabled shared-view token instead of a user JWT. This is the
-    // same token that gates read access to the public form/grid itself, and
-    // it's scoped server-side to exactly the table it was issued for.
+    // Database shared-view submission — authorize via the nc_meta share token.
     const { data: sharedView, error: shareError } = await supabase
       .schema('nc_meta')
       .from('shared_views')
@@ -75,6 +72,36 @@ Deno.serve(async (req) => {
 
     if (shareError || !sharedView) {
       return json({ error: 'Invalid or disabled share token' }, 403, req);
+    }
+  } else if (formToken) {
+    // Public form submission (flex table form or task form) — the visitor has
+    // no user session, so authorize via the form's own token/id.
+    let valid = false;
+
+    // Try flex_forms (share_token is a text string)
+    const { data: flexForm } = await supabase
+      .from('flex_forms')
+      .select('id')
+      .eq('share_token', formToken)
+      .eq('is_enabled', true)
+      .maybeSingle();
+
+    if (flexForm) {
+      valid = true;
+    } else if (UUID_RE.test(formToken)) {
+      // Try task_forms (id is a UUID)
+      const { data: taskForm } = await supabase
+        .from('task_forms')
+        .select('id')
+        .eq('id', formToken)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (taskForm) valid = true;
+    }
+
+    if (!valid) {
+      return json({ error: 'Invalid or disabled form token' }, 403, req);
     }
   } else {
     // Authenticated app path — validate the caller's JWT and, using a client
@@ -107,15 +134,16 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Fetch active webhooks matching this event, either base-wide
-  // (table_id IS NULL) or scoped to this specific table.
+  // Fetch active webhooks matching this event: base-specific, platform-wide
+  // (nil UUID), base-wide (table_id IS NULL), or scoped to this table.
+  const PLATFORM_SENTINEL = '00000000-0000-0000-0000-000000000000';
   const { data: webhooks, error: fetchError } = await supabase
     .schema('nc_meta')
     .from('webhooks')
     .select('id, url, secret, headers, events')
-    .eq('base_id', baseId)
+    .or(`base_id.eq.${baseId},base_id.eq.${PLATFORM_SENTINEL}`)
     .eq('is_active', true)
-    .or(`table_id.is.null,table_id.eq.${tableId}`)
+    .or(`table_id.is.null,table_id.eq.${tableId},table_id.eq.${PLATFORM_SENTINEL}`)
     .contains('events', [event]);
 
   if (fetchError) {
@@ -183,7 +211,7 @@ Deno.serve(async (req) => {
     await supabase
       .schema('nc_meta')
       .from('webhooks')
-      .update({ last_triggered_at: new Date().toISOString() })
+      .update({ last_triggered_at: new Date().toISOString(), failure_count: 0 })
       .in('id', successIds)
       .then(({ error }) => {
         if (error) console.warn('[webhook-dispatcher] Failed to update last_triggered_at:', error.message);

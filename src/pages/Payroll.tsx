@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
 import { burst } from '@/components/Burst';
 import { logAudit } from '@/lib/audit';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { notifyChannels } from '@/lib/notify';
 import { notifyPayslipReady } from '@/lib/notify-events';
 import { scanPayrollRunAnomaliesSafe } from '@/lib/anomalies';
@@ -1858,6 +1859,7 @@ const Payroll = () => {
         `Generated ${succeeded} payslip(s) for ${monthLabel(run.period)}${failed ? ` (${failed} failed)` : ''}`,
         profile,
       );
+      dispatchPlatformWebhook('payroll.slip_generated', { run_id: run.id, period: run.period, succeeded, failed });
 
       // Settle every approved/disbursed EWA request that was deducted above —
       // flips status to 'settled' so it doesn't get double-deducted next month.
@@ -2069,6 +2071,7 @@ const Payroll = () => {
         });
         setDisburseErrors(skippedNames);
         if (skippedNames.length === 0) setDisburseTarget(null);
+        dispatchPlatformWebhook('payroll.run_started', { run_id: run.id, period: run.period, dispatched: result.dispatched, skipped: skippedNames.length });
         load();
       } else {
         setDisburseErrors([result.error || 'Disbursement failed', ...skippedNames]);
@@ -2140,6 +2143,7 @@ const Payroll = () => {
       `Payroll ${monthLabel(run.period)} marked paid`,
       profile,
     );
+    dispatchPlatformWebhook('payroll.run_completed', { run_id: run.id, period: run.period, status: 'paid' });
     toast({ title: 'Payroll marked as paid' });
     load();
   };

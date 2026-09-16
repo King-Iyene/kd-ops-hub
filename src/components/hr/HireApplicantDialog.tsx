@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { formatNairaCompact } from '@/lib/format';
 import { roleLabel } from '@/lib/roles';
 import { Button } from '@/components/ui/button';
@@ -272,6 +273,7 @@ export const HireApplicantDialog = ({
         `Hired ${fullName} (${email}) for ${jobTitle || 'role'} — start ${startDate}`,
         profile,
       );
+      dispatchPlatformWebhook('applicant.hired', { id: applicant.id, full_name: fullName, email, job_title: jobTitle, start_date: startDate });
 
       toast({
         title: 'Hired',

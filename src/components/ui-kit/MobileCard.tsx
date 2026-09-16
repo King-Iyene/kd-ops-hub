@@ -29,21 +29,27 @@ export interface MobileCardProps extends React.HTMLAttributes<HTMLDivElement> {
   chevron?: boolean;
   /** Subtle accent bar on the left edge (e.g., status colour). Pass a Tailwind bg class. */
   accentClassName?: string;
+  /** When set, renders as <a> for right-click "Open in New Tab" support. */
+  href?: string;
 }
 
 export const MobileCard = React.forwardRef<HTMLDivElement, MobileCardProps>(
-  ({ className, chevron, accentClassName, children, onClick, ...props }, ref) => {
-    const interactive = !!onClick || props.role === 'button' || props.tabIndex === 0;
+  ({ className, chevron, accentClassName, children, onClick, href, ...props }, ref) => {
+    const interactive = !!onClick || !!href || props.role === 'button' || props.tabIndex === 0;
+    const Wrapper = href ? 'a' : 'div';
+    const linkProps: any = href
+      ? { href, onClick: onClick ? (e: any) => { e.preventDefault(); onClick(e); } : undefined }
+      : { onClick };
     return (
-      <div
-        ref={ref}
-        onClick={onClick}
+      <Wrapper
+        ref={ref as any}
         className={cn(
-          'relative rounded-xl border border-border/60 bg-card/80 backdrop-blur-sm overflow-hidden',
+          'relative rounded-xl border border-border/60 bg-card/80 backdrop-blur-sm overflow-hidden no-underline block',
           'kd-transition shadow-[0_1px_2px_hsl(var(--border)/0.4)]',
           interactive && 'cursor-pointer active:scale-[0.985] active:bg-muted/40 hover:border-border',
           className,
         )}
+        {...linkProps}
         {...props}
       >
         {accentClassName && (
@@ -55,7 +61,7 @@ export const MobileCard = React.forwardRef<HTMLDivElement, MobileCardProps>(
             <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0 self-center" />
           )}
         </div>
-      </div>
+      </Wrapper>
     );
   },
 );

@@ -94,7 +94,7 @@ export function OnboardingChecklist() {
         .eq('id', profile.id);
     };
     check();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [profile?.id, dismissed]);
 
   const dismiss = async () => {
@@ -128,12 +128,12 @@ export function OnboardingChecklist() {
         {STEPS.map((step) => {
           const done = !!completed[step.key];
           return (
-            <button
+            <a
               key={step.key}
-              type="button"
-              onClick={() => navigate(step.path)}
+              href={step.path}
+              onClick={(e) => { e.preventDefault(); navigate(step.path); }}
               className={cn(
-                'w-full flex items-start gap-3 rounded-lg p-3 text-left kd-transition',
+                'w-full flex items-start gap-3 rounded-lg p-3 text-left kd-transition no-underline',
                 done
                   ? 'bg-success/10 cursor-default'
                   : 'hover:bg-primary/10 cursor-pointer',
@@ -155,7 +155,7 @@ export function OnboardingChecklist() {
                 </p>
                 <p className="text-xs text-muted-foreground">{step.description}</p>
               </div>
-            </button>
+            </a>
           );
         })}
       </CardContent>

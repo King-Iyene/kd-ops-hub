@@ -439,8 +439,8 @@ const Payments = () => {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <Button onClick={() => navigate('/payments/new')} className="h-9">
-            <Plus className="mr-2 h-4 w-4" /> New Batch
+          <Button asChild className="h-9">
+            <a href="/payments/new" onClick={(e) => { e.preventDefault(); navigate('/payments/new'); }}><Plus className="mr-2 h-4 w-4" /> New Batch</a>
           </Button>
         </div>
       </div>
@@ -530,8 +530,8 @@ const Payments = () => {
                 title={statusFilter === 'all' ? 'No payment batches yet' : `No ${statusLabel(statusFilter)?.toLowerCase() || statusFilter} batches`}
                 description="Create a batch to pay contractors in bulk or use Quick Pay for one-off transfers."
                 action={
-                  <Button onClick={() => navigate('/payments/new')}>
-                    <Plus className="mr-2 h-4 w-4" /> Create Batch
+                  <Button asChild>
+                    <a href="/payments/new" onClick={(e) => { e.preventDefault(); navigate('/payments/new'); }}><Plus className="mr-2 h-4 w-4" /> Create Batch</a>
                   </Button>
                 }
               />

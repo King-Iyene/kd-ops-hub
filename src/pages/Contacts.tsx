@@ -533,8 +533,8 @@ const Contacts = () => {
                 {pagination.slice.map((c) => (
                   <MobileCard
                     key={c.id}
+                    href={`/contacts/${c.id}`}
                     onClick={() => navigate(`/contacts/${c.id}`)}
-                    onAuxClick={(e: React.MouseEvent) => { if (e.button === 1) { window.open(`/contacts/${c.id}`, '_blank'); e.preventDefault(); } }}
                     accentClassName={c.status === 'converted' ? 'bg-success' : c.contact_type === 'lead' ? 'bg-warning' : 'bg-primary'}
                   >
                     <MobileCardHeader>

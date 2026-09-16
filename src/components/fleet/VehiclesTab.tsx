@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira, formatDate } from '@/lib/format';
 import { notifyUser } from '@/lib/notify';
@@ -321,6 +322,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
         const { error } = await supabase.from('vehicles').insert({ ...payload, status: 'active' });
         if (error) throw error;
         await logAudit('fleet_vehicle_added', `Vehicle "${payload.name}" (${payload.plate_number}) added`, profile);
+        dispatchPlatformWebhook('vehicle.added', { name: payload.name, plate_number: payload.plate_number, status: 'active' });
         toast({ title: 'Vehicle added' });
       }
       setShowForm(false);

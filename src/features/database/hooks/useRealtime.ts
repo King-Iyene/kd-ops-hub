@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useDatabaseUI } from '../lib/store';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { resolveTableContextShared } from './useRecords';
 
 export function useRealtimeRecords(baseId: string | undefined, tableId: string | undefined) {
   const qc = useQueryClient();
@@ -13,13 +14,11 @@ export function useRealtimeRecords(baseId: string | undefined, tableId: string |
     if (!baseId || !tableId) { setResolved(null); return; }
     let cancelled = false;
 
-    (async () => {
-      const { data: base } = await supabase.schema('nc_meta').from('bases').select('schema_name').eq('id', baseId).single();
-      const { data: table } = await supabase.schema('nc_meta').from('tables').select('pg_table_name').eq('id', tableId).single();
-      if (!cancelled && base && table) {
-        setResolved({ schema: base.schema_name, table: table.pg_table_name });
+    resolveTableContextShared(baseId, tableId).then((ctx) => {
+      if (!cancelled) {
+        setResolved({ schema: ctx.schemaName, table: ctx.tableName });
       }
-    })();
+    }).catch(() => {});
 
     return () => { cancelled = true; };
   }, [baseId, tableId]);

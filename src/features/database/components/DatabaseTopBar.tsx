@@ -9,6 +9,7 @@ import { useDatabaseUI } from '../lib/store';
 import { useBases } from '../hooks';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { AvatarBubble } from '@/components/AvatarBubble';
+import { PresenceIndicator } from './PresenceIndicator';
 
 function darkenColor(hex: string, amount: number): string {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -100,6 +101,7 @@ export function DatabaseTopBar() {
               <Share2 size={13} /> Share
             </Button>
           )}
+          <PresenceIndicator />
           <ThemeToggle />
           <Button
             variant="ghost"
@@ -192,6 +194,8 @@ export function DatabaseTopBar() {
               ['Ctrl+Shift+Z', 'Redo last change'],
               ['Ctrl+C', 'Copy cell value'],
               ['Ctrl+V', 'Paste into cell'],
+              ['Click + drag', 'Select cell range'],
+              ['Shift+Arrow', 'Extend cell selection'],
               ['Right-click row', 'Row context menu'],
               ['Right-click column', 'Column context menu'],
               ['Drag column header', 'Reorder columns'],

@@ -13,6 +13,7 @@ interface Props {
   compact?: boolean;
   className?: string;
   onClick?: () => void;
+  href?: string;
 }
 
 // Icon + accent color per tone — consistent across all dashboard surfaces
@@ -100,10 +101,12 @@ export function StatCard({
   compact,
   className,
   onClick,
+  href,
 }: Props) {
   const cfg = toneConfig[tone];
   const isPositiveTrend = (trend?.value ?? 0) >= 0;
   const cardRef = useRef<HTMLDivElement>(null);
+  const interactive = !!onClick || !!href;
 
   const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
     const el = cardRef.current;
@@ -113,22 +116,33 @@ export function StatCard({
     el.style.setProperty('--my', `${e.clientY - rect.top}px`);
   };
 
+  const Wrapper = href ? 'a' : 'div';
+  const wrapperProps: any = href
+    ? {
+        href,
+        onClick: onClick ? (e: any) => { e.preventDefault(); onClick(); } : undefined,
+        'aria-label': `${title}: ${value}`,
+      }
+    : {
+        role: onClick ? 'button' : undefined,
+        tabIndex: onClick ? 0 : undefined,
+        onKeyDown: onClick ? (e: any) => e.key === 'Enter' && onClick() : undefined,
+        onClick,
+        'aria-label': onClick ? `${title}: ${value}` : undefined,
+      };
+
   return (
-    <div
+    <Wrapper
       ref={cardRef}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
       onMouseMove={handleMouseMove}
       className={cn(
-        'kd-holographic relative rounded-xl border bg-card kd-transition kd-card-lift overflow-hidden',
+        'kd-holographic relative rounded-xl border bg-card kd-transition kd-card-lift overflow-hidden no-underline block',
         cfg.bg,
         cfg.border,
-        onClick && 'cursor-pointer',
+        interactive && 'cursor-pointer',
         className,
       )}
-      onClick={onClick}
-      aria-label={onClick ? `${title}: ${value}` : undefined}
+      {...wrapperProps}
     >
       {/* Hover lift */}
       {onClick && (
@@ -190,6 +204,6 @@ export function StatCard({
           </div>
         )}
       </div>
-    </div>
+    </Wrapper>
   );
 }

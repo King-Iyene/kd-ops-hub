@@ -546,6 +546,7 @@ const Tasks = () => {
           );
         }
         await logAudit('task_updated', `Task "${payload.title}" updated`, profile);
+        dispatchPlatformWebhook('task.updated', { id: editing.id, title: payload.title, status: form.status, assignee_id: payload.assignee_id });
         toast({ title: 'Task updated' });
       } else {
         const maxSort = tasks.filter((t) => t.status === form.status).length;
@@ -627,6 +628,8 @@ const Tasks = () => {
       await logAudit('task_updated', `Task "${task.title}" moved to ${newStatus}`, profile);
       if (newStatus === 'complete') {
         dispatchPlatformWebhook('task.completed', { id: taskId, title: task.title, status: 'complete' });
+      } else {
+        dispatchPlatformWebhook('task.updated', { id: taskId, title: task.title, status: newStatus });
       }
     }
   };
@@ -641,6 +644,7 @@ const Tasks = () => {
     const task = tasks.find((t) => t.id === taskId);
     if (task) {
       await logAudit('task_updated', `Task "${task.title}" ${field} changed`, profile);
+      dispatchPlatformWebhook(field === 'assignee_id' ? 'task.assigned' : 'task.updated', { id: taskId, title: task.title, field, value });
       if (field === 'assignee_id' && value && value !== profile?.id) {
         void notifyUser({
           userId: value,
@@ -656,12 +660,14 @@ const Tasks = () => {
 
   const confirmDeleteTask = async () => {
     if (!pendingDelete) return;
+    const deletedTask = pendingDelete;
     const { error } = await supabase.from('tasks').delete().eq('id', pendingDelete.id);
     setPendingDelete(null);
     if (error) {
       toast({ title: 'Could not delete', description: error.message, variant: 'destructive' });
       return;
     }
+    dispatchPlatformWebhook('task.deleted', { id: deletedTask.id, title: deletedTask.title });
     toast({ title: 'Task deleted' });
     if (detailTask?.id === pendingDelete.id) setDetailTask(null);
     load();

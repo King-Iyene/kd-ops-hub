@@ -27,6 +27,11 @@ interface DocField {
   ui_type: string;
 }
 
+const VIRTUAL_TYPES = new Set([
+  'Links', 'Lookup', 'Rollup', 'Count', 'Formula',
+  'CreatedTime', 'LastModifiedTime', 'CreatedBy', 'LastModifiedBy', 'ID', 'Button',
+]);
+
 /** Real, non-system fields for the table the dialog was opened from, used to
  * build API examples that match the user's actual schema instead of generic
  * Airtable-style sample data — so what they see is what they can paste. */
@@ -43,7 +48,7 @@ function useDocFields(tableId: string | null) {
         .eq('table_id', tableId!)
         .order('position');
       if (error) throw error;
-      return (data ?? []).filter((f: any) => !f.is_system && !f.is_hidden) as DocField[];
+      return (data ?? []).filter((f: any) => !f.is_system && !f.is_hidden && !VIRTUAL_TYPES.has(f.ui_type)) as DocField[];
     },
   });
 }

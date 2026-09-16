@@ -162,8 +162,8 @@ export default function PayHub() {
             <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
               Payroll doesn't read Staff Loans when it calculates a run, so "Payroll Deduction" as a repayment type only works if someone remembers to record it by hand on the Staff Loans page every period.
             </div>
-            <Button size="sm" variant="outline" className="mt-2.5 border-destructive/40 text-destructive hover:bg-destructive/10" onClick={() => navigate('/staff-loans')}>
-              Review staff loans
+            <Button size="sm" variant="outline" className="mt-2.5 border-destructive/40 text-destructive hover:bg-destructive/10" asChild>
+              <a href="/staff-loans" onClick={(e) => { e.preventDefault(); navigate('/staff-loans'); }}>Review staff loans</a>
             </Button>
           </div>
         </div>
@@ -183,6 +183,7 @@ export default function PayHub() {
                 : 'No runs yet'
           }
           detailTone={stats.latestRun?.scheduled_disburse_at ? 'warning' : 'muted'}
+          href="/payroll"
           onClick={() => navigate('/payroll')}
         />
         <HubCard
@@ -192,6 +193,7 @@ export default function PayHub() {
           value={`${stats.ewaPendingCount} pending`}
           detail={stats.ewaPendingCount > 0 ? `${formatNaira(stats.ewaPendingNgn)} requested` : 'Nothing waiting'}
           detailTone="muted"
+          href="/ewa"
           onClick={() => navigate('/ewa')}
         />
         <HubCard
@@ -201,6 +203,7 @@ export default function PayHub() {
           value={`${stats.staffLoanActiveCount} active`}
           detail={stats.staffLoanPendingCount > 0 ? `${stats.staffLoanPendingCount} pending approval` : 'None pending'}
           detailTone={stats.staffLoanPendingCount > 0 ? 'warning' : 'muted'}
+          href="/staff-loans"
           onClick={() => navigate('/staff-loans')}
         />
         <HubCard
@@ -210,6 +213,7 @@ export default function PayHub() {
           value={stats.complianceTotalCount > 0 ? `${stats.complianceFiledCount} of ${stats.complianceTotalCount} filed` : 'No filings yet'}
           detail={stats.complianceOutstanding.length > 0 ? `${stats.complianceOutstanding.join(', ')} outstanding` : 'All filed'}
           detailTone={stats.complianceOutstanding.length > 0 ? 'warning' : 'muted'}
+          href="/compliance"
           onClick={() => navigate('/compliance')}
         />
       </div>
@@ -228,6 +232,7 @@ function HubCard({
   value,
   detail,
   detailTone,
+  href,
   onClick,
 }: {
   icon: React.ComponentType<{ className?: string }>;
@@ -236,12 +241,14 @@ function HubCard({
   value: string;
   detail: string;
   detailTone: 'warning' | 'muted';
+  href: string;
   onClick: () => void;
 }) {
   return (
-    <button
-      onClick={onClick}
-      className="text-left rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-primary/30 kd-transition flex flex-col gap-2.5"
+    <a
+      href={href}
+      onClick={(e) => { e.preventDefault(); onClick(); }}
+      className="text-left rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-primary/30 kd-transition flex flex-col gap-2.5 no-underline"
     >
       <div className="flex items-center gap-2.5">
         <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center shrink-0', iconClass)}>
@@ -254,6 +261,6 @@ function HubCard({
       <div className="text-xs font-bold text-primary mt-auto flex items-center gap-1">
         Open <ArrowRight className="h-3 w-3" />
       </div>
-    </button>
+    </a>
   );
 }

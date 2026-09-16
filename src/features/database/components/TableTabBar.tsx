@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useDatabaseUI } from '../lib/store';
-import { useDatabaseNavigate } from '../hooks/useNavigate';
+import { useDatabaseNavigate, toShort } from '../hooks/useNavigate';
 import {
   useTables,
   useBases,
@@ -276,21 +276,16 @@ export function TableTabBar() {
         <SortableTableTabWrapper key={table.id} id={table.id}>
           {({ setNodeRef, style: dndStyle, attributes, listeners }) => (
         <div ref={setNodeRef} style={dndStyle} {...attributes} {...listeners} className="group/tab flex items-center h-full">
-          <div
+          <a
+            href={activeBaseId ? `/data/${toShort(activeBaseId)}/${toShort(table.id)}` : '#'}
             className={cn(
-              'relative flex items-center gap-1.5 h-full px-3 text-xs-plus cursor-pointer transition-colors',
+              'relative flex items-center gap-1.5 h-full px-3 text-xs-plus cursor-pointer transition-colors no-underline',
               table.id === activeTableId
                 ? 'bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium rounded-t-md -mb-px'
                 : 'text-white/70 hover:text-white',
             )}
-            onClick={() => navigateToTable(table.id)}
+            onClick={(e) => { e.preventDefault(); navigateToTable(table.id); }}
             onDoubleClick={() => setRenamingId(table.id)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              navigateToTable(table.id);
-              const trigger = e.currentTarget.querySelector<HTMLButtonElement>('[data-tab-menu-trigger]');
-              if (trigger) trigger.click();
-            }}
           >
             {table.icon ? (
               <span className="text-xs-plus shrink-0">{table.icon}</span>
@@ -375,7 +370,7 @@ export function TableTabBar() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
+          </a>
         </div>
           )}
         </SortableTableTabWrapper>

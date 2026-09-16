@@ -120,10 +120,16 @@ export function TableView() {
 
   const updateView = useUpdateView();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const initializedRef = useRef(false);
   const groupByLevels = useDatabaseUI((s) => s.groupByLevels);
 
   useEffect(() => {
     if (!activeViewId || !activeTableId) return;
+    // Skip the first render (view just loaded its config from server)
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      return;
+    }
     clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       const fieldVisibility: Record<string, boolean> = {};
@@ -140,9 +146,14 @@ export function TableView() {
           field_order: fieldOrder,
         },
       });
-    }, 1000);
+    }, 2000);
     return () => clearTimeout(saveTimerRef.current);
   }, [filters, sorts, groupByLevels, hiddenFieldIds, fieldWidths, fieldOrder, activeViewId, activeTableId]);
+
+  // Reset initialized flag when view changes
+  useEffect(() => {
+    initializedRef.current = false;
+  }, [activeViewId]);
 
   const {
     records: infiniteRecords,
@@ -211,10 +222,15 @@ export function TableView() {
     const raw = infiniteRecords;
     if (!patchedFields || patchedFields.length === 0) return raw;
 
+    const hasLookup = linkLookup && Object.keys(linkLookup).length > 0;
+
     const formulaFields = patchedFields.filter(
       (f) => f.ui_type === 'Formula' && (f.options?.expression || f.options?.formula),
     );
-    if (formulaFields.length === 0) return raw;
+    if (formulaFields.length === 0) {
+      if (!hasLookup) return raw;
+      return raw.map((r) => ({ ...r, __linkLookup: linkLookup }) as RecordRow);
+    }
 
     const fieldMap: Record<string, string> = {};
     for (const f of patchedFields) {
@@ -242,7 +258,6 @@ export function TableView() {
           patched[col] = '#ERROR';
         }
       }
-      delete patched.__linkLookup;
       return patched as RecordRow;
     });
   }, [infiniteRecords, patchedFields, linkLookup]);

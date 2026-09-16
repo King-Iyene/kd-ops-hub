@@ -13,6 +13,7 @@ import {
   X,
   FileText,
 } from 'lucide-react';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -368,6 +369,7 @@ const Invoices = () => {
       } else {
         toast({ title: `Invoice ${invoice_number} created` });
         await logAudit('invoice_created', `Created invoice ${invoice_number} for ${clientName}`, profile);
+        dispatchPlatformWebhook('invoice.created', { invoice_number, client_name: clientName, ...payload });
         setDialogOpen(false);
         load();
       }
@@ -384,6 +386,7 @@ const Invoices = () => {
     else {
       toast({ title: `${inv.invoice_number} marked as sent` });
       await logAudit('invoice_updated', `Marked invoice ${inv.invoice_number} as sent`, profile);
+      dispatchPlatformWebhook('invoice.sent', { id: inv.id, invoice_number: inv.invoice_number, status: 'sent' });
       load();
     }
   };
@@ -397,6 +400,7 @@ const Invoices = () => {
     else {
       toast({ title: `${inv.invoice_number} marked as paid` });
       await logAudit('invoice_updated', `Marked invoice ${inv.invoice_number} as paid`, profile);
+      dispatchPlatformWebhook('invoice.paid', { id: inv.id, invoice_number: inv.invoice_number, status: 'paid' });
       load();
     }
   };

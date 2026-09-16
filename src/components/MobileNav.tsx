@@ -244,17 +244,18 @@ export function MobileNav() {
               {mobileSearchResults.length > 0 ? mobileSearchResults.map((item) => {
                 const active = location.pathname === item.url || (item.url !== '/' && location.pathname.startsWith(item.url));
                 return (
-                  <button
+                  <a
                     key={item.title}
-                    onClick={() => { setMoreOpen(false); setMobileSearch(''); navigate(item.url); }}
+                    href={item.url}
+                    onClick={(e) => { e.preventDefault(); setMoreOpen(false); setMobileSearch(''); navigate(item.url); }}
                     className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm kd-transition active:scale-[0.99]',
+                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm kd-transition active:scale-[0.99] no-underline',
                       active ? 'bg-primary/10 text-primary font-medium' : 'text-foreground hover:bg-muted/60',
                     )}
                   >
                     <item.icon className={cn('h-5 w-5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
                     <span className="flex-1 text-left truncate">{item.title}</span>
-                  </button>
+                  </a>
                 );
               }) : (
                 <p className="px-3 py-4 text-sm text-muted-foreground text-center">No modules match "{mobileSearch}"</p>
@@ -270,11 +271,12 @@ export function MobileNav() {
                   location.pathname === item.url ||
                   (item.url !== '/' && location.pathname.startsWith(item.url));
                 return (
-                  <button
+                  <a
                     key={item.title}
-                    onClick={() => { setMoreOpen(false); navigate(item.url); }}
+                    href={item.url}
+                    onClick={(e) => { e.preventDefault(); setMoreOpen(false); navigate(item.url); }}
                     className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm kd-transition active:scale-[0.99]',
+                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm kd-transition active:scale-[0.99] no-underline',
                       active
                         ? 'bg-primary/10 text-primary font-medium'
                         : 'text-foreground hover:bg-muted/60',
@@ -288,7 +290,7 @@ export function MobileNav() {
                       </span>
                     )}
                     <ChevronRight className={cn('h-4 w-4 shrink-0', active ? 'text-primary/50' : 'text-muted-foreground/40')} />
-                  </button>
+                  </a>
                 );
               })}
             </div>
@@ -337,11 +339,12 @@ export function MobileNav() {
                       {hub.items.map((item) => {
                         const active = location.pathname === item.url || (item.url !== '/' && location.pathname.startsWith(item.url));
                         return (
-                          <button
+                          <a
                             key={item.title}
-                            onClick={() => { setMoreOpen(false); setExpandedHub(null); navigate(item.url); }}
+                            href={item.url}
+                            onClick={(e) => { e.preventDefault(); setMoreOpen(false); setExpandedHub(null); navigate(item.url); }}
                             className={cn(
-                              'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm kd-transition active:scale-[0.99]',
+                              'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm kd-transition active:scale-[0.99] no-underline',
                               active ? 'bg-primary/10 text-primary font-medium' : 'text-foreground hover:bg-muted/60',
                             )}
                           >
@@ -352,7 +355,7 @@ export function MobileNav() {
                                 {approvalTotal > 9 ? '9+' : approvalTotal}
                               </span>
                             )}
-                          </button>
+                          </a>
                         );
                       })}
                     </div>
@@ -366,13 +369,14 @@ export function MobileNav() {
 
           {/* Profile + Sign out */}
           <div className="mt-6 pt-4 border-t border-border/50 flex items-center gap-3">
-            <button
-              onClick={() => { setMoreOpen(false); navigate('/profile'); }}
-              className="flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-muted/40 hover:bg-muted/70 text-sm kd-transition active:scale-[0.98]"
+            <a
+              href="/profile"
+              onClick={(e) => { e.preventDefault(); setMoreOpen(false); navigate('/profile'); }}
+              className="flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-muted/40 hover:bg-muted/70 text-sm kd-transition active:scale-[0.98] no-underline"
             >
               <User className="h-4 w-4 text-muted-foreground" />
               <span className="truncate">{(profile as any)?.full_name || 'Profile'}</span>
-            </button>
+            </a>
             <button
               onClick={handleSignOut}
               className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-destructive hover:bg-destructive/10 kd-transition active:scale-[0.98]"

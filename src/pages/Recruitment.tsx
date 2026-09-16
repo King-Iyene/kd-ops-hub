@@ -9,6 +9,7 @@ import HireApplicantDialog from '@/components/hr/HireApplicantDialog';
 import OfferLetterDialog from '@/components/hr/OfferLetterDialog';
 import { FileSignature } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
 import { toCsv, downloadCsv } from '@/lib/csv';
@@ -250,6 +251,11 @@ export default function Recruitment() {
       : await supabase.from('job_openings').insert(payload);
     setSavingOpening(false);
     if (error) { toast({ title: 'Save failed', description: error.message, variant: 'destructive' }); return; }
+    if (!editingOpening) {
+      dispatchPlatformWebhook('opening.created', { title: payload.title, department_id: payload.department_id, status: payload.status });
+    } else if (editingOpening.status !== openingForm.status && (openingForm.status === 'closed' || openingForm.status === 'filled')) {
+      dispatchPlatformWebhook('opening.closed', { id: editingOpening.id, title: payload.title, status: openingForm.status });
+    }
     toast({ title: editingOpening ? 'Opening updated' : 'Job opening created' });
     setOpeningDialog(false);
     load();
@@ -331,6 +337,16 @@ export default function Recruitment() {
       : await supabase.from('job_applicants').insert(payload);
     setSavingApplicant(false);
     if (error) { toast({ title: 'Save failed', description: error.message, variant: 'destructive' }); return; }
+    if (!editingApplicant) {
+      dispatchPlatformWebhook('applicant.created', { full_name: payload.full_name, email: payload.email, opening_id: payload.opening_id, stage: payload.stage });
+    } else {
+      if (applicantForm.stage !== editingApplicant.stage) {
+        dispatchPlatformWebhook('applicant.stage_changed', { id: editingApplicant.id, full_name: payload.full_name, old_stage: editingApplicant.stage, new_stage: applicantForm.stage });
+      }
+      if (applicantForm.stage === 'rejected' && editingApplicant.stage !== 'rejected') {
+        dispatchPlatformWebhook('applicant.rejected', { id: editingApplicant.id, full_name: payload.full_name, rejection_reason: payload.rejection_reason });
+      }
+    }
     toast({ title: editingApplicant ? 'Applicant updated' : 'Applicant added' });
     setApplicantDialog(false);
     load();

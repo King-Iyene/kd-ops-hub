@@ -148,3 +148,16 @@ jobs:
 
       - name: Deploy data-api
         run: supabase functions deploy data-api --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      # ── Developer module: public REST API + webhooks ──
+      - name: Deploy rest-api
+        run: supabase functions deploy rest-api --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy webhook-dispatcher
+        run: supabase functions deploy webhook-dispatcher --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy webhook-proxy
+        run: supabase functions deploy webhook-proxy --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy automation-runner
+        run: supabase functions deploy automation-runner --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt

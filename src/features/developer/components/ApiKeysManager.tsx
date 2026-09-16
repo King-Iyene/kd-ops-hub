@@ -156,13 +156,22 @@ const SCOPE_GROUPS: ScopeGroup[] = [
     ],
   },
   {
-    label: 'Database',
+    label: 'Database Records',
     color: 'text-zinc-600 dark:text-zinc-400',
     badgeClass: 'bg-zinc-200 dark:bg-zinc-700/50 text-zinc-700 dark:text-zinc-300',
     scopes: [
-      { value: 'data:read', label: 'Read' },
-      { value: 'data:write', label: 'Write' },
-      { value: 'data:delete', label: 'Delete' },
+      { value: 'records:read', label: 'Read records' },
+      { value: 'records:write', label: 'Write records' },
+      { value: 'data:delete', label: 'Delete records' },
+    ],
+  },
+  {
+    label: 'Database Schema',
+    color: 'text-zinc-500 dark:text-zinc-400',
+    badgeClass: 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300',
+    scopes: [
+      { value: 'schema:read', label: 'Read schema' },
+      { value: 'schema:write', label: 'Write schema' },
     ],
   },
 ];

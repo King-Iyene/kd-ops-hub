@@ -56,13 +56,14 @@ export default function TasksTab({ tasks }: Props) {
                         </Badge>
                       </TableCell>
                       <TableCell className="pr-4">
-                        <button
-                          onClick={() => navigate('/tasks')}
+                        <a
+                          href="/tasks"
+                          onClick={(e) => { e.preventDefault(); navigate('/tasks'); }}
                           className="text-muted-foreground hover:text-foreground"
                           aria-label="Go to tasks"
                         >
                           <ExternalLink className="h-4 w-4" />
-                        </button>
+                        </a>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -71,7 +72,7 @@ export default function TasksTab({ tasks }: Props) {
             </div>
             <div className="md:hidden space-y-2 p-3">
               {tasks.map((task: any) => (
-                <MobileCard key={task.id} onClick={() => navigate('/tasks')}>
+                <MobileCard key={task.id} href="/tasks" onClick={() => navigate('/tasks')}>
                   <MobileCardHeader>
                     <MobileCardTitle>{task.title}</MobileCardTitle>
                     <MobileCardMeta className="flex items-center gap-1.5">

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
@@ -11,6 +11,7 @@ export function useViews(tableId: string | null | undefined) {
     enabled: !!tableId,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const { data, error } = await supabase
         .schema('nc_meta')

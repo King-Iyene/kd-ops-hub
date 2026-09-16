@@ -57,19 +57,37 @@ export function useLinkDisplayLookup(
           const { data: rows, error } = await supabase
             .schema(baseMeta.schema_name)
             .from(tableMeta.pg_table_name)
-            .select(`airtable_id, ${primaryField.pg_column_name}`)
-            .not('airtable_id', 'is', null)
+            .select(`id, ${primaryField.pg_column_name}`)
             .limit(5000);
 
           if (error || !rows) continue;
 
           for (const row of rows) {
-            if (row.airtable_id && row[primaryField.pg_column_name] != null) {
-              map[row.airtable_id] = String(row[primaryField.pg_column_name]);
+            const displayVal = row[primaryField.pg_column_name];
+            if (displayVal == null) continue;
+            const label = String(displayVal);
+            if (row.id) map[row.id] = label;
+          }
+
+          try {
+            const { data: atRows } = await supabase
+              .schema(baseMeta.schema_name)
+              .from(tableMeta.pg_table_name)
+              .select('id, airtable_id')
+              .not('airtable_id', 'is', null)
+              .limit(5000);
+            if (atRows) {
+              for (const row of atRows) {
+                if (row.airtable_id && map[row.id]) {
+                  map[row.airtable_id] = map[row.id];
+                }
+              }
             }
+          } catch {
+            // table may lack airtable_id column — id mapping is enough
           }
         } catch {
-          // table may lack airtable_id column
+          // table may not exist or primary column may be missing
         }
       }
 

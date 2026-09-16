@@ -27,7 +27,7 @@ import { useDatabaseUI } from '../lib/store';
 import { EmojiPicker } from './EmojiPicker';
 import { useBases, useCreateBase, useDeleteBase, useUpdateBase, useDuplicateBase } from '../hooks';
 import { useWorkspaces } from '../hooks';
-import { useDatabaseNavigate } from '../hooks/useNavigate';
+import { useDatabaseNavigate, toShort } from '../hooks/useNavigate';
 import { CreateBaseDialog } from './CreateBaseDialog';
 import type { Base } from '../types';
 
@@ -189,14 +189,15 @@ export function DatabaseSidebar() {
       {/* Header */}
       <div className="h-11 flex items-center justify-between px-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
         {!sidebarCollapsed && (
-          <button
+          <a
+            href="/data"
             className="flex items-center gap-1.5 text-xs-plus font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] hover:text-[#2D7FF9] transition-colors"
-            onClick={() => navigateToBase(null)}
+            onClick={(e) => { e.preventDefault(); navigateToBase(null); }}
             title="Go to home"
           >
             <Home size={13} className="text-[#9AA2AF]" />
             Bases
-          </button>
+          </a>
         )}
         <div className={cn('flex items-center gap-0.5', sidebarCollapsed && 'mx-auto')}>
           {!sidebarCollapsed && (
@@ -229,16 +230,17 @@ export function DatabaseSidebar() {
           const bStarred = starredIds.has(b.id) ? 0 : 1;
           return aStarred - bStarred || (a.position ?? 0) - (b.position ?? 0);
         }).map((base: any) => (
-          <div
+          <a
             key={base.id}
+            href={`/data/${toShort(base.id)}`}
             className={cn(
-              'group flex items-center gap-2 mx-1.5 px-2 py-[7px] rounded-md cursor-pointer transition-colors',
+              'group flex items-center gap-2 mx-1.5 px-2 py-[7px] rounded-md cursor-pointer transition-colors no-underline',
               sidebarCollapsed && 'justify-center mx-0.5 px-0',
               base.id === activeBaseId
                 ? 'bg-[#2D7FF9]/10 dark:bg-[hsl(220,50%,14%)]'
                 : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,12%)]',
             )}
-            onClick={() => navigateToBase(base.id)}
+            onClick={(e) => { e.preventDefault(); navigateToBase(base.id); }}
             title={sidebarCollapsed ? base.name : undefined}
           >
             <span
@@ -380,7 +382,7 @@ export function DatabaseSidebar() {
                 </DropdownMenu>
               </>
             )}
-          </div>
+          </a>
         ))}
 
         {(!bases || bases.length === 0) && !sidebarCollapsed && (

@@ -354,6 +354,7 @@ export default function GridView({
   const setFrozenColumns = useDatabaseUI((s) => s.setFrozenColumns);
 
   const parentRef = useRef<HTMLDivElement>(null);
+  const mobileParentRef = useRef<HTMLDivElement>(null);
   const [summaryDropdown, setSummaryDropdown] = useState<string | null>(null);
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; record: RecordRow; fieldId?: string } | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
@@ -760,6 +761,14 @@ export default function GridView({
     overscan: 10,
   });
 
+  const mobileCardHeight = Math.min(fieldsWithWidths.length, 6) * 24 + 24;
+  const mobileVirtualizer = useVirtualizer({
+    count: records.length,
+    getScrollElement: () => mobileParentRef.current,
+    estimateSize: () => mobileCardHeight,
+    overscan: 8,
+  });
+
   // Infinite scroll: load more when scrolled within 5 rows of the bottom
   useEffect(() => {
     const scrollEl = parentRef.current;
@@ -1162,6 +1171,73 @@ export default function GridView({
     return () => window.removeEventListener('grid:fill-start', onFillStart);
   }, [fields, records, onCellUpdate, flashCellIds, showToast]);
 
+  // Mouse-drag cell range selection
+  const isDraggingRef = useRef(false);
+  const dragAnchorRef = useRef<{ row: number; col: number } | null>(null);
+
+  const resolveCellCoords = useCallback((target: HTMLElement): { row: number; col: number } | null => {
+    const cellEl = target.closest('[data-cell-id]') as HTMLElement | null;
+    if (!cellEl) return null;
+    const cellId = cellEl.getAttribute('data-cell-id');
+    if (!cellId) return null;
+    const [rowId, fieldId] = cellId.split(':');
+    const rowIdx = records.findIndex((r) => r.id === rowId);
+    const colIdx = fieldsWithWidths.findIndex((f) => f.id === fieldId);
+    if (rowIdx === -1 || colIdx === -1) return null;
+    return { row: rowIdx, col: colIdx };
+  }, [records, fieldsWithWidths]);
+
+  useEffect(() => {
+    const gridEl = parentRef.current;
+    if (!gridEl) return;
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('.cursor-crosshair') || target.closest('.cursor-grab') || target.closest('input[type="checkbox"]') || target.closest('button')) return;
+      const coords = resolveCellCoords(target);
+      if (!coords) return;
+      isDraggingRef.current = true;
+      dragAnchorRef.current = coords;
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current || !dragAnchorRef.current) return;
+      const target = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+      if (!target) return;
+      const coords = resolveCellCoords(target);
+      if (!coords) return;
+      const anchor = dragAnchorRef.current;
+      if (anchor.row === coords.row && anchor.col === coords.col) {
+        setSelectionRange(null);
+        setSelectionAnchor(null);
+        return;
+      }
+      e.preventDefault();
+      setSelectionAnchor(anchor);
+      setSelectionRange({
+        startRow: anchor.row,
+        startCol: anchor.col,
+        endRow: coords.row,
+        endCol: coords.col,
+      });
+    };
+
+    const onMouseUp = () => {
+      isDraggingRef.current = false;
+      dragAnchorRef.current = null;
+    };
+
+    gridEl.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    return () => {
+      gridEl.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [resolveCellCoords, setSelectionRange, setSelectionAnchor]);
+
   // Dismiss cell editors when a modal dialog opens (but not cell-editor popovers)
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -1209,26 +1285,36 @@ export default function GridView({
     <div className="flex flex-col flex-1 min-h-0">
       {/* Mobile card layout: below 640px, show a simple stacked list instead of the
           horizontally-scrolling grid, which is unusable on narrow touch screens. */}
-      <div className="sm:hidden flex-1 overflow-auto divide-y" style={{ borderColor: GRID_COLORS.border }}>
-        {records.map((record, i) => (
-          <div
-            key={record.id}
-            className="p-3 space-y-1.5 active:opacity-70"
-            style={{ borderBottom: `1px solid ${GRID_COLORS.border}` }}
-            onClick={() => onExpandRow?.(record)}
-          >
-            {fieldsWithWidths.map((field) => (
-              <div key={field.id} className="flex justify-between gap-3 text-sm">
-                <span className="shrink-0 font-medium" style={{ color: GRID_COLORS.muted, fontSize: 11 }}>
-                  {field.name}
-                </span>
-                <span className="text-right truncate" style={{ color: GRID_COLORS.text }}>
-                  {formatCellAriaValue(record, field)}
-                </span>
+      <div ref={mobileParentRef} className="sm:hidden flex-1 overflow-auto" style={{ borderColor: GRID_COLORS.border }}>
+        <div style={{ height: mobileVirtualizer.getTotalSize(), position: 'relative' }}>
+          {mobileVirtualizer.getVirtualItems().map((virtualItem) => {
+            const record = records[virtualItem.index];
+            if (!record) return null;
+            return (
+              <div
+                key={record.id}
+                className="absolute left-0 right-0 p-3 space-y-1.5 active:opacity-70"
+                style={{
+                  top: virtualItem.start,
+                  height: virtualItem.size,
+                  borderBottom: `1px solid ${GRID_COLORS.border}`,
+                }}
+                onClick={() => onExpandRow?.(record)}
+              >
+                {fieldsWithWidths.slice(0, 6).map((field) => (
+                  <div key={field.id} className="flex justify-between gap-3 text-sm">
+                    <span className="shrink-0 font-medium" style={{ color: GRID_COLORS.muted, fontSize: 11 }}>
+                      {field.name}
+                    </span>
+                    <span className="text-right truncate" style={{ color: GRID_COLORS.text }}>
+                      {formatCellAriaValue(record, field)}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ))}
+            );
+          })}
+        </div>
       </div>
       <div ref={parentRef} className="hidden sm:block flex-1 overflow-auto">
         <div style={{ minWidth: totalWidth }} role="grid" aria-colcount={fieldsWithWidths.length} aria-rowcount={records.length}>

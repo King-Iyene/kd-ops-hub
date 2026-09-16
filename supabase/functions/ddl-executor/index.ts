@@ -177,7 +177,7 @@ class ForbiddenError extends Error {
 }
 
 function json(body: Record<string, unknown>, status = 200): Response {
-  return new Response(JSON.stringify(body), {
+  return new Response(JSON.stringify(body, (_k, v) => typeof v === 'bigint' ? Number(v) : v), {
     status,
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
   });

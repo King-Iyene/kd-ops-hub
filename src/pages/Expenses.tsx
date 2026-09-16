@@ -441,6 +441,7 @@ const Expenses = () => {
         `Expense payment dispatched (status: ${postApproveStatus}) — ${expense.account_name} — ${formatNaira(Number(expense.amount_ngn))}`,
         profile,
       );
+      dispatchPlatformWebhook('expense.reimbursed', { id: expense.id, account_name: expense.account_name, amount_ngn: expense.amount_ngn, batch_id: batchId, status: postApproveStatus });
 
       // Navigate immediately to the batch page so the operator can fund and
       // process in one flow. The batch is fully created + auto-approved here.

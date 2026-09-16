@@ -325,13 +325,14 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
               Fund this account
             </p>
             {hasFunding && (
-              <button
-                onClick={() => navigate('/settings#payment-rails')}
-                className="text-3xs text-muted-foreground/60 hover:text-foreground kd-transition"
+              <a
+                href="/settings#payment-rails"
+                onClick={(e) => { e.preventDefault(); navigate('/settings#payment-rails'); }}
+                className="text-3xs text-muted-foreground/60 hover:text-foreground kd-transition no-underline"
                 title="Edit funding details in Settings"
               >
                 Edit
-              </button>
+              </a>
             )}
           </div>
 
@@ -342,10 +343,11 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
               {funding.accountNumber && <FundingRow label="Account" value={funding.accountNumber} mono />}
             </div>
           ) : (
-            <button
-              onClick={() => navigate('/settings#payment-rails')}
+            <a
+              href="/settings#payment-rails"
+              onClick={(e) => { e.preventDefault(); navigate('/settings#payment-rails'); }}
               className={cn(
-                'group flex w-full items-center justify-between gap-2 rounded-lg',
+                'group flex w-full items-center justify-between gap-2 rounded-lg no-underline',
                 'border border-dashed border-border/80 hover:border-primary/40',
                 'bg-muted/30 hover:bg-primary/5',
                 'px-2.5 py-2 kd-transition',
@@ -357,7 +359,7 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
                 Add funding account
               </span>
               <ArrowUpRight className="h-3 w-3 text-muted-foreground/60 group-hover:text-primary" />
-            </button>
+            </a>
           )}
         </div>
 

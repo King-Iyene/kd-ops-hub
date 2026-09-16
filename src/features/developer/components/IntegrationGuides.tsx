@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 
 /* ─── Constants ─── */
 
-const BASE_URL = 'https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/platform-api/v1';
+const BASE_URL = 'https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/rest-api/v1';
 
 /* ─── Types ─── */
 
@@ -152,17 +152,75 @@ const PLATFORMS: Platform[] = [
 ];
 
 const MODULES: ModuleDef[] = [
-  { id: 'employees', name: 'Employees', icon: Users, endpoint: '/employees', description: 'Create, list, update, and remove employee records' },
-  { id: 'tasks', name: 'Tasks', icon: ListTodo, endpoint: '/tasks', description: 'Manage tasks, assign them, and track completion' },
-  { id: 'leave', name: 'Leave', icon: Calendar, endpoint: '/leave', description: 'Submit leave requests and check balances' },
-  { id: 'expenses', name: 'Expenses', icon: Receipt, endpoint: '/expenses', description: 'Submit and approve expense claims' },
-  { id: 'fleet', name: 'Fleet / Fuel', icon: Car, endpoint: '/fleet/fuel-requests', description: 'Request fuel disbursements for fleet vehicles' },
-  { id: 'invoices', name: 'Invoices', icon: FileText, endpoint: '/invoices', description: 'Generate, send, and track invoices' },
-  { id: 'clients', name: 'Clients', icon: Building2, endpoint: '/clients', description: 'Manage your client directory' },
-  { id: 'database', name: 'Database', icon: Database, endpoint: '/database', description: 'Direct table queries for advanced use' },
+  { id: 'employees', name: 'Employees', icon: Users, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Create, list, update, and remove employee records' },
+  { id: 'tasks', name: 'Tasks', icon: ListTodo, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Manage tasks, assign them, and track completion' },
+  { id: 'leave', name: 'Leave', icon: Calendar, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Submit leave requests and check balances' },
+  { id: 'expenses', name: 'Expenses', icon: Receipt, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Submit and approve expense claims' },
+  { id: 'fleet', name: 'Fleet / Fuel', icon: Car, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Request fuel disbursements for fleet vehicles' },
+  { id: 'invoices', name: 'Invoices', icon: FileText, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Generate, send, and track invoices' },
+  { id: 'clients', name: 'Clients', icon: Building2, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Manage your client directory' },
+  { id: 'database', name: 'Database', icon: Database, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Query any table via the generic records API' },
 ];
 
 /* ─── Module body templates ─── */
+
+function getModuleFields(mod: ModuleId, wrap: (field: string) => string): Record<string, unknown> {
+  switch (mod) {
+    case 'employees':
+      return {
+        'First Name': wrap('firstName'),
+        'Last Name': wrap('lastName'),
+        Email: wrap('email'),
+        Department: wrap('department'),
+        Phone: wrap('phone'),
+      };
+    case 'tasks':
+      return {
+        Title: wrap('title'),
+        Description: wrap('description'),
+        Priority: wrap('priority'),
+        'Due Date': wrap('dueDate'),
+      };
+    case 'leave':
+      return {
+        'Leave Type': 'annual',
+        'Start Date': wrap('startDate'),
+        'End Date': wrap('endDate'),
+        Reason: wrap('reason'),
+      };
+    case 'expenses':
+      return {
+        Amount: wrap('amount'),
+        Category: wrap('category'),
+        Description: wrap('description'),
+      };
+    case 'fleet':
+      return {
+        Amount: wrap('amount'),
+        Litres: wrap('litres'),
+        Station: wrap('station'),
+      };
+    case 'invoices':
+      return {
+        'Client Name': wrap('clientName'),
+        Amount: wrap('amount'),
+        'Due Date': wrap('dueDate'),
+        Currency: 'NGN',
+      };
+    case 'clients':
+      return {
+        Name: wrap('companyName'),
+        'Contact Name': wrap('contactName'),
+        Email: wrap('email'),
+        Phone: wrap('phone'),
+      };
+    case 'database':
+      return {
+        Name: wrap('name'),
+        Value: wrap('value'),
+      };
+  }
+}
 
 function getCreateBody(mod: ModuleId, syntax: 'json' | 'n8n' | 'zapier' | 'make'): string {
   const wrap = (field: string) => {
@@ -172,78 +230,9 @@ function getCreateBody(mod: ModuleId, syntax: 'json' | 'n8n' | 'zapier' | 'make'
     return `<${field}>`;
   };
 
-  switch (mod) {
-    case 'employees':
-      return JSON.stringify({
-        first_name: wrap('firstName'),
-        last_name: wrap('lastName'),
-        email: wrap('email'),
-        department: wrap('department'),
-        role: 'field_staff',
-        phone: wrap('phone'),
-      }, null, 2);
-    case 'tasks':
-      return JSON.stringify({
-        title: wrap('title'),
-        description: wrap('description'),
-        priority: wrap('priority'),
-        due_date: wrap('dueDate'),
-        assignee_id: wrap('assigneeId'),
-      }, null, 2);
-    case 'leave':
-      return JSON.stringify({
-        employee_id: wrap('employeeId'),
-        leave_type: 'annual',
-        start_date: wrap('startDate'),
-        end_date: wrap('endDate'),
-        reason: wrap('reason'),
-      }, null, 2);
-    case 'expenses':
-      return JSON.stringify({
-        employee_id: wrap('employeeId'),
-        amount: wrap('amount'),
-        currency: 'NGN',
-        category: wrap('category'),
-        description: wrap('description'),
-        receipt_url: wrap('receiptUrl'),
-      }, null, 2);
-    case 'fleet':
-      return JSON.stringify({
-        vehicle_id: wrap('vehicleId'),
-        driver_id: wrap('driverId'),
-        amount: wrap('amount'),
-        litres: wrap('litres'),
-        station: wrap('station'),
-      }, null, 2);
-    case 'invoices':
-      return JSON.stringify({
-        client_id: wrap('clientId'),
-        items: [
-          {
-            description: wrap('itemDescription'),
-            quantity: wrap('quantity'),
-            unit_price: wrap('unitPrice'),
-          },
-        ],
-        due_date: wrap('dueDate'),
-        currency: 'NGN',
-      }, null, 2);
-    case 'clients':
-      return JSON.stringify({
-        name: wrap('companyName'),
-        contact_name: wrap('contactName'),
-        email: wrap('email'),
-        phone: wrap('phone'),
-        address: wrap('address'),
-      }, null, 2);
-    case 'database':
-      return JSON.stringify({
-        table: wrap('tableName'),
-        select: '*',
-        filters: { column: wrap('column'), operator: 'eq', value: wrap('value') },
-        limit: 50,
-      }, null, 2);
-  }
+  return JSON.stringify({
+    records: [{ fields: getModuleFields(mod, wrap) }],
+  }, null, 2);
 }
 
 function getPythonExample(mod: ModuleDef): string {
@@ -254,31 +243,34 @@ function getPythonExample(mod: ModuleDef): string {
 API_KEY = "kdops_YOUR_KEY"
 BASE_URL = "${BASE_URL}"
 
+# Replace with your actual base and table IDs (find them via GET /bases)
+BASE_ID = "YOUR_BASE_ID"
+TABLE_ID = "YOUR_TABLE_ID"
+ENDPOINT = f"{BASE_URL}/bases/{BASE_ID}/tables/{TABLE_ID}/records"
+
 headers = {
     "Authorization": f"Bearer {API_KEY}",
     "Content-Type": "application/json"
 }
 
 # ─── List ${mod.name} ───
-response = requests.get(f"{BASE_URL}${mod.endpoint}", headers=headers)
+response = requests.get(ENDPOINT, headers=headers)
 if response.status_code == 200:
     data = response.json()
-    print(f"Found {len(data.get('data', []))} records")
+    print(f"Found {len(data.get('records', []))} records")
+    if "offset" in data:
+        print(f"More results available at offset={data['offset']}")
 else:
     print(f"Error {response.status_code}: {response.text}")
 
 # ─── Create ${mod.name.replace(/s$/, '')} ───
 payload = ${body.replace(/"example_(\w+)"/g, '"example_$1"')}
 
-response = requests.post(
-    f"{BASE_URL}${mod.endpoint}",
-    headers=headers,
-    json=payload
-)
+response = requests.post(ENDPOINT, headers=headers, json=payload)
 
 if response.status_code in (200, 201):
-    record = response.json()
-    print("Created:", record)
+    result = response.json()
+    print("Created:", result["records"])
 elif response.status_code == 401:
     print("Error: Invalid or expired API key")
 elif response.status_code == 403:
@@ -292,25 +284,21 @@ else:
 
 # ─── Update ${mod.name.replace(/s$/, '')} ───
 record_id = "RECORD_ID"
-updates = {"status": "active"}  # fields to update
-response = requests.patch(
-    f"{BASE_URL}${mod.endpoint}/{record_id}",
-    headers=headers,
-    json=updates
-)
+update_payload = {
+    "records": [{"id": record_id, "fields": {"Status": "active"}}]
+}
+response = requests.patch(ENDPOINT, headers=headers, json=update_payload)
 print("Updated:" if response.ok else f"Error: {response.text}")
 
 # ─── Delete ${mod.name.replace(/s$/, '')} ───
-response = requests.delete(
-    f"{BASE_URL}${mod.endpoint}/{record_id}",
-    headers=headers
-)
+delete_payload = {"records": [record_id]}
+response = requests.delete(ENDPOINT, headers=headers, json=delete_payload)
 print("Deleted" if response.ok else f"Error: {response.text}")
 
 # ─── Pagination ───
-# Use ?page=1&per_page=50 query params
+# Use ?pageSize=50&offset=<cursor> query params
 response = requests.get(
-    f"{BASE_URL}${mod.endpoint}?page=1&per_page=50",
+    f"{ENDPOINT}?pageSize=50",
     headers=headers
 )`;
 }
@@ -321,21 +309,26 @@ function getNodeExample(mod: ModuleDef): string {
   return `const API_KEY = "kdops_YOUR_KEY";
 const BASE_URL = "${BASE_URL}";
 
+// Replace with your actual base and table IDs (find them via GET /bases)
+const BASE_ID = "YOUR_BASE_ID";
+const TABLE_ID = "YOUR_TABLE_ID";
+const ENDPOINT = \`\${BASE_URL}/bases/\${BASE_ID}/tables/\${TABLE_ID}/records\`;
+
 const headers = {
   "Authorization": \`Bearer \${API_KEY}\`,
   "Content-Type": "application/json",
 };
 
 // ─── List ${mod.name} ───
-const listRes = await fetch(\`\${BASE_URL}${mod.endpoint}\`, { headers });
+const listRes = await fetch(ENDPOINT, { headers });
 if (!listRes.ok) throw new Error(\`\${listRes.status}: \${await listRes.text()}\`);
-const { data: records } = await listRes.json();
+const { records } = await listRes.json();
 console.log(\`Found \${records.length} records\`);
 
 // ─── Create ${mod.name.replace(/s$/, '')} ───
 const payload = ${body.replace(/"example_(\w+)"/g, '"example_$1"')};
 
-const createRes = await fetch(\`\${BASE_URL}${mod.endpoint}\`, {
+const createRes = await fetch(ENDPOINT, {
   method: "POST",
   headers,
   body: JSON.stringify(payload),
@@ -350,69 +343,77 @@ if (!createRes.ok) {
   else console.error(\`Error \${createRes.status}:\`, err);
 } else {
   const created = await createRes.json();
-  console.log("Created:", created);
+  console.log("Created:", created.records);
 }
 
 // ─── Update ${mod.name.replace(/s$/, '')} ───
 const recordId = "RECORD_ID";
-const updateRes = await fetch(\`\${BASE_URL}${mod.endpoint}/\${recordId}\`, {
+const updateRes = await fetch(ENDPOINT, {
   method: "PATCH",
   headers,
-  body: JSON.stringify({ status: "active" }),
+  body: JSON.stringify({ records: [{ id: recordId, fields: { Status: "active" } }] }),
 });
 console.log(updateRes.ok ? "Updated" : \`Error: \${await updateRes.text()}\`);
 
 // ─── Delete ${mod.name.replace(/s$/, '')} ───
-const deleteRes = await fetch(\`\${BASE_URL}${mod.endpoint}/\${recordId}\`, {
+const deleteRes = await fetch(ENDPOINT, {
   method: "DELETE",
   headers,
+  body: JSON.stringify({ records: [recordId] }),
 });
 console.log(deleteRes.ok ? "Deleted" : \`Error: \${await deleteRes.text()}\`);
 
 // ─── Pagination ───
-const page2 = await fetch(\`\${BASE_URL}${mod.endpoint}?page=2&per_page=50\`, { headers })
+const page2 = await fetch(\`\${ENDPOINT}?pageSize=50\`, { headers })
   .then(r => r.json());`;
 }
 
 function getCurlExample(mod: ModuleDef): string {
-  const body = getCreateBody(mod.id, 'json')
-    .replace(/<(\w+)>/g, 'example_$1')
-    .replace(/\n/g, ' \\\n  ');
-  return `# ─── List ${mod.name} ───
+  return `# Replace YOUR_BASE_ID and YOUR_TABLE_ID with real IDs
+# Find them via: curl -H "Authorization: Bearer kdops_YOUR_KEY" "${BASE_URL}/bases"
+BASE="${BASE_URL}/bases/YOUR_BASE_ID/tables/YOUR_TABLE_ID/records"
+
+# ─── List ${mod.name} ───
 curl -X GET \\
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${BASE_URL}${mod.endpoint}"
+  "$BASE"
 
 # ─── Create ${mod.name.replace(/s$/, '')} ───
 curl -X POST \\
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '${getCreateBody(mod.id, 'json').replace(/<(\w+)>/g, 'example_$1').replace(/'/g, "\\'")}' \\
-  "${BASE_URL}${mod.endpoint}"
+  "$BASE"
 
 # ─── Update ${mod.name.replace(/s$/, '')} ───
 curl -X PATCH \\
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"status":"active"}' \\
-  "${BASE_URL}${mod.endpoint}/RECORD_ID"
+  -d '{"records":[{"id":"RECORD_ID","fields":{"Status":"active"}}]}' \\
+  "$BASE"
 
 # ─── Delete ${mod.name.replace(/s$/, '')} ───
 curl -X DELETE \\
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${BASE_URL}${mod.endpoint}/RECORD_ID"
+  -H "Content-Type: application/json" \\
+  -d '{"records":["RECORD_ID"]}' \\
+  "$BASE"
 
 # ─── Pagination ───
 curl -X GET \\
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${BASE_URL}${mod.endpoint}?page=1&per_page=50"`;
+  "$BASE?pageSize=50"`;
 }
 
 function getPhpExample(mod: ModuleDef): string {
-  const indent = (s: string, n: number) => s.split('\n').map((l, i) => i === 0 ? l : ' '.repeat(n) + l).join('\n');
   return `<?php
 $apiKey  = "kdops_YOUR_KEY";
 $baseUrl = "${BASE_URL}";
+
+// Replace with your actual base and table IDs (find them via GET /bases)
+$baseId  = "YOUR_BASE_ID";
+$tableId = "YOUR_TABLE_ID";
+$endpoint = "$baseUrl/bases/$baseId/tables/$tableId/records";
 
 /**
  * Helper: make an API request to KDOps
@@ -441,19 +442,23 @@ function kdopsRequest(string $method, string $url, ?array $body = null): array {
 }
 
 // ─── List ${mod.name} ───
-$result = kdopsRequest("GET", "$baseUrl${mod.endpoint}");
+$result = kdopsRequest("GET", $endpoint);
 if ($result["status"] === 200) {
-    echo "Found " . count($result["data"]["data"]) . " records\\n";
+    echo "Found " . count($result["data"]["records"]) . " records\\n";
 } else {
     echo "Error {$result['status']}: " . json_encode($result["data"]) . "\\n";
 }
 
 // ─── Create ${mod.name.replace(/s$/, '')} ───
-$payload = ${indent(getCreateBody(mod.id, 'json').replace(/<(\w+)>/g, '"example_$1"').replace(/\{/g, '[').replace(/\}/g, ']').replace(/:/g, ' =>'), 4)};
+$payload = [
+    "records" => [
+        ["fields" => ["Name" => "Example", "Status" => "active"]]
+    ]
+];
 
-$result = kdopsRequest("POST", "$baseUrl${mod.endpoint}", $payload);
+$result = kdopsRequest("POST", $endpoint, $payload);
 if (in_array($result["status"], [200, 201])) {
-    echo "Created: " . json_encode($result["data"]) . "\\n";
+    echo "Created: " . json_encode($result["data"]["records"]) . "\\n";
 } elseif ($result["status"] === 401) {
     echo "Error: Invalid or expired API key\\n";
 } elseif ($result["status"] === 429) {
@@ -464,11 +469,17 @@ if (in_array($result["status"], [200, 201])) {
 
 // ─── Update ${mod.name.replace(/s$/, '')} ───
 $recordId = "RECORD_ID";
-$result = kdopsRequest("PATCH", "$baseUrl${mod.endpoint}/$recordId", ["status" => "active"]);
+$updatePayload = [
+    "records" => [
+        ["id" => $recordId, "fields" => ["Status" => "active"]]
+    ]
+];
+$result = kdopsRequest("PATCH", $endpoint, $updatePayload);
 echo $result["status"] === 200 ? "Updated\\n" : "Error: " . json_encode($result["data"]) . "\\n";
 
 // ─── Delete ${mod.name.replace(/s$/, '')} ───
-$result = kdopsRequest("DELETE", "$baseUrl${mod.endpoint}/$recordId");
+$deletePayload = ["records" => [$recordId]];
+$result = kdopsRequest("DELETE", $endpoint, $deletePayload);
 echo $result["status"] === 200 ? "Deleted\\n" : "Error: " . json_encode($result["data"]) . "\\n";
 ?>`;
 }
@@ -482,7 +493,7 @@ function N8nGuide({ mod, color }: { mod: ModuleDef; color: string }) {
       <SectionTitle>Prerequisites</SectionTitle>
       <ul className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400 ml-4">
         <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> An n8n instance running (self-hosted or n8n Cloud)</li>
-        <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A KDOps API key with the <code className="text-2xs px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{mod.id}:read</code> and <code className="text-2xs px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">{mod.id}:write</code> scopes</li>
+        <li className="flex items-start gap-2"><Check size={12} className="text-emerald-500 mt-0.5 shrink-0" /> A KDOps API key with the <code className="text-2xs px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">records:read</code> and <code className="text-2xs px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">records:write</code> scopes</li>
       </ul>
       <Callout type="info">
         Don't have an API key yet? Go to the <strong>API Keys</strong> tab in this Developer Hub and click "Create Key." Select the scopes you need for {mod.name.toLowerCase()}.
@@ -1184,7 +1195,7 @@ export default function IntegrationGuides() {
 
           <Callout type="warning">
             Replace <code className="text-3xs font-mono px-1 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50">kdops_YOUR_KEY</code> with your actual API key from the <strong>API Keys</strong> tab in this Developer Hub.
-            {module === 'expenses' || module === 'invoices' ? ' All monetary amounts are in the smallest currency unit (kobo for NGN, e.g., 500000 = 5,000 NGN).' : ''}
+            {module === 'expenses' || module === 'invoices' ? ' All monetary amounts are in Naira (NGN). For example, 5000 means ₦5,000.' : ''}
             {module === 'fleet' ? ' The employee MUST have bank details on file for fuel disbursement to work.' : ''}
           </Callout>
 
@@ -1203,7 +1214,7 @@ export default function IntegrationGuides() {
           {/* Pagination tip */}
           <div className="mt-3">
             <Callout type="info">
-              <strong>Pagination:</strong> All list endpoints support <code className="text-3xs font-mono">?page=1&amp;per_page=50</code> query parameters. The response includes <code className="text-3xs font-mono">total</code>, <code className="text-3xs font-mono">page</code>, and <code className="text-3xs font-mono">per_page</code> metadata for iterating through results.
+              <strong>Pagination:</strong> All list endpoints support <code className="text-3xs font-mono">?pageSize=50</code> (max 1000, default 100). If there are more results, the response includes an <code className="text-3xs font-mono">offset</code> string &mdash; pass it as <code className="text-3xs font-mono">?offset=VALUE</code> to get the next page.
             </Callout>
           </div>
         </CardContent>

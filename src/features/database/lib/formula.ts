@@ -525,12 +525,15 @@ function evaluate(node: ASTNode, record: Record<string, any>, fieldMap: FieldMap
       const col = fieldMap[node.name];
       if (col == null) return null;
       const val = record[col] ?? null;
+      const lookup = (record as any).__linkLookup as Record<string, string> | undefined;
       if (Array.isArray(val)) {
-        const lookup = (record as any).__linkLookup as Record<string, string> | undefined;
         if (lookup) {
           return val.map((id: string) => lookup[id] ?? id).join(', ');
         }
         return val.join(', ');
+      }
+      if (lookup && typeof val === 'string' && val in lookup) {
+        return lookup[val];
       }
       return val;
     }

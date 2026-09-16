@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { notifyUser } from '@/lib/notify';
 import { formatDate, formatDateTime, daysUntil } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -299,6 +300,7 @@ export function TaskDetailPanel({
       });
       if (error) throw error;
       await logAudit('task_commented', `Commented on "${task.title}"`, profile);
+      dispatchPlatformWebhook('task.comment_added', { task_id: task.id, task_title: task.title, author_id: profile.id, body: newComment.trim() });
       // Notify task assignee and creator about the comment
       const notifyIds = new Set<string>();
       if (task.assignee_id && task.assignee_id !== profile?.id) notifyIds.add(task.assignee_id);

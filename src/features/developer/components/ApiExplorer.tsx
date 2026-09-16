@@ -1,15 +1,5 @@
 import { useState, useCallback } from "react";
 import {
-  Users,
-  UserCheck,
-  CheckSquare,
-  CalendarDays,
-  Receipt,
-  Banknote,
-  Truck,
-  FileText,
-  Building2,
-  UserPlus,
   Database,
   Send,
   Eye,
@@ -71,177 +61,92 @@ interface ApiResponse {
 // ---------------------------------------------------------------------------
 
 const BASE_URL =
-  "https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/platform-api/v1";
+  "https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/rest-api/v1";
 
 const API_MODULES: ApiModule[] = [
   {
-    id: "employees",
-    name: "Employees",
-    icon: Users,
-    operations: [
-      { id: "list", name: "List Employees", method: "GET", path: "/employees", body: null },
-      { id: "get", name: "Get Employee", method: "GET", path: "/employees/:id", body: null },
-      {
-        id: "create",
-        name: "Create Employee",
-        method: "POST",
-        path: "/employees",
-        body: '{\n  "first_name": "John",\n  "last_name": "Doe",\n  "email": "john@example.com",\n  "department": "Engineering",\n  "role": "field_staff",\n  "employment_type": "full_time"\n}',
-      },
-      {
-        id: "update",
-        name: "Update Employee",
-        method: "PATCH",
-        path: "/employees/:id",
-        body: '{\n  "department": "Operations"\n}',
-      },
-    ],
-  },
-  {
-    id: "contractors",
-    name: "Contractors",
-    icon: UserCheck,
-    operations: [
-      { id: "list", name: "List Contractors", method: "GET", path: "/contractors", body: null },
-      {
-        id: "create",
-        name: "Create Contractor",
-        method: "POST",
-        path: "/contractors",
-        body: '{\n  "first_name": "Jane",\n  "last_name": "Smith",\n  "email": "jane@contractor.com",\n  "company": "Smith Consulting"\n}',
-      },
-    ],
-  },
-  {
-    id: "tasks",
-    name: "Tasks",
-    icon: CheckSquare,
-    operations: [
-      { id: "list", name: "List Tasks", method: "GET", path: "/tasks", body: null },
-      {
-        id: "create",
-        name: "Create Task",
-        method: "POST",
-        path: "/tasks",
-        body: '{\n  "title": "Review Q3 reports",\n  "description": "Review and approve quarterly reports",\n  "priority": "high",\n  "due_date": "2026-10-01"\n}',
-      },
-      {
-        id: "update",
-        name: "Update Task",
-        method: "PATCH",
-        path: "/tasks/:id",
-        body: '{\n  "status": "completed"\n}',
-      },
-    ],
-  },
-  {
-    id: "leaves",
-    name: "Leave Requests",
-    icon: CalendarDays,
-    operations: [
-      { id: "list", name: "List Leave Requests", method: "GET", path: "/leaves", body: null },
-      {
-        id: "create",
-        name: "Create Leave Request",
-        method: "POST",
-        path: "/leaves",
-        body: '{\n  "employee_id": "uuid",\n  "leave_type": "annual",\n  "start_date": "2026-10-15",\n  "end_date": "2026-10-20",\n  "reason": "Family vacation"\n}',
-      },
-    ],
-  },
-  {
-    id: "expenses",
-    name: "Expenses",
-    icon: Receipt,
-    operations: [
-      { id: "list", name: "List Expenses", method: "GET", path: "/expenses", body: null },
-      {
-        id: "create",
-        name: "Submit Expense",
-        method: "POST",
-        path: "/expenses",
-        body: '{\n  "title": "Office supplies",\n  "amount": 15000,\n  "currency": "NGN",\n  "category": "supplies"\n}',
-      },
-    ],
-  },
-  {
-    id: "payroll",
-    name: "Payroll",
-    icon: Banknote,
-    operations: [
-      { id: "runs", name: "List Payroll Runs", method: "GET", path: "/payroll/runs", body: null },
-      { id: "slips", name: "Get Payslips", method: "GET", path: "/payroll/runs/:id/slips", body: null },
-    ],
-  },
-  {
-    id: "fleet",
-    name: "Fleet & Fuel",
-    icon: Truck,
-    operations: [
-      { id: "vehicles", name: "List Vehicles", method: "GET", path: "/fleet/vehicles", body: null },
-      { id: "fuel", name: "List Fuel Requests", method: "GET", path: "/fleet/fuel-requests", body: null },
-      { id: "trips", name: "List Trips", method: "GET", path: "/fleet/trips", body: null },
-    ],
-  },
-  {
-    id: "invoices",
-    name: "Invoices",
-    icon: FileText,
-    operations: [
-      { id: "list", name: "List Invoices", method: "GET", path: "/invoices", body: null },
-      {
-        id: "create",
-        name: "Create Invoice",
-        method: "POST",
-        path: "/invoices",
-        body: '{\n  "client_id": "uuid",\n  "items": [{"description": "Consulting", "amount": 500000}],\n  "due_date": "2026-11-01"\n}',
-      },
-    ],
-  },
-  {
-    id: "clients",
-    name: "Clients",
-    icon: Building2,
-    operations: [
-      { id: "list", name: "List Clients", method: "GET", path: "/clients", body: null },
-      {
-        id: "create",
-        name: "Create Client",
-        method: "POST",
-        path: "/clients",
-        body: '{\n  "name": "Acme Corp",\n  "industry": "Technology",\n  "contact_email": "billing@acme.com"\n}',
-      },
-    ],
-  },
-  {
-    id: "recruitment",
-    name: "Recruitment",
-    icon: UserPlus,
-    operations: [
-      { id: "openings", name: "List Openings", method: "GET", path: "/recruitment/openings", body: null },
-      { id: "applicants", name: "List Applicants", method: "GET", path: "/recruitment/applicants", body: null },
-    ],
-  },
-  {
-    id: "database",
-    name: "Database",
+    id: "bases",
+    name: "Bases",
     icon: Database,
     operations: [
-      { id: "bases", name: "List Bases", method: "GET", path: "/data/bases", body: null },
-      { id: "tables", name: "List Tables", method: "GET", path: "/data/bases/:baseId/tables", body: null },
+      { id: "list", name: "List Bases", method: "GET", path: "/bases", body: null },
+    ],
+  },
+  {
+    id: "tables",
+    name: "Tables",
+    icon: Database,
+    operations: [
+      { id: "list", name: "List Tables", method: "GET", path: "/bases/:baseId/tables", body: null },
+    ],
+  },
+  {
+    id: "records",
+    name: "Records",
+    icon: Database,
+    operations: [
       {
-        id: "records",
+        id: "list",
         name: "List Records",
         method: "GET",
-        path: "/data/bases/:baseId/tables/:tableId/records",
+        path: "/bases/:baseId/tables/:tableId/records",
         body: null,
       },
       {
-        id: "create-record",
+        id: "create",
         name: "Create Records",
         method: "POST",
-        path: "/data/bases/:baseId/tables/:tableId/records",
+        path: "/bases/:baseId/tables/:tableId/records",
         body: '{\n  "records": [\n    { "fields": { "Name": "Example", "Status": "Active" } }\n  ]\n}',
+      },
+      {
+        id: "update",
+        name: "Update Records",
+        method: "PATCH",
+        path: "/bases/:baseId/tables/:tableId/records",
+        body: '{\n  "records": [\n    { "id": "nNYfaOIk6bgZpDNFCSXcf", "fields": { "Status": "Done" } }\n  ]\n}',
+      },
+      {
+        id: "delete",
+        name: "Delete Records",
+        method: "DELETE",
+        path: "/bases/:baseId/tables/:tableId/records",
+        body: '{\n  "records": ["nNYfaOIk6bgZpDNFCSXcf", "1JaE9P559EezTF876atkBN"]\n}',
+      },
+    ],
+  },
+  {
+    id: "fields",
+    name: "Fields",
+    icon: Database,
+    operations: [
+      {
+        id: "list",
+        name: "List Fields",
+        method: "GET",
+        path: "/bases/:baseId/tables/:tableId/fields",
+        body: null,
+      },
+      {
+        id: "create",
+        name: "Create Field",
+        method: "POST",
+        path: "/bases/:baseId/tables/:tableId/fields",
+        body: '{\n  "name": "Email",\n  "type": "email"\n}',
+      },
+      {
+        id: "update",
+        name: "Update Field",
+        method: "PATCH",
+        path: "/bases/:baseId/tables/:tableId/fields/:fieldId",
+        body: '{\n  "name": "Work Email"\n}',
+      },
+      {
+        id: "delete",
+        name: "Delete Field",
+        method: "DELETE",
+        path: "/bases/:baseId/tables/:tableId/fields/:fieldId",
+        body: null,
       },
     ],
   },
@@ -629,7 +534,7 @@ export default function ApiExplorer() {
                         e.target.value,
                       )
                     }
-                    placeholder="Key (e.g. page)"
+                    placeholder="Key (e.g. pageSize)"
                     className="flex-1 border-slate-700 bg-slate-800 text-xs text-slate-200"
                   />
                   <Input
