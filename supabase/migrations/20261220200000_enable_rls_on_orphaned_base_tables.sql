@@ -33,31 +33,40 @@ BEGIN
     WHERE schemaname LIKE 'nc\_%' ESCAPE '\'
       AND schemaname <> 'nc_meta'
   LOOP
-    -- Enable RLS if it isn't already (covers both "disabled" and the
-    -- pathological "enabled with zero policies" case the same way).
-    EXECUTE format('ALTER TABLE %I.%I ENABLE ROW LEVEL SECURITY', rec.schemaname, rec.tablename);
+    -- Each table is handled in its own exception block so one problem table
+    -- (e.g. briefly lock-contended by a live user's edit — this runs against
+    -- a production database with real traffic, unlike a normal migration
+    -- target) can never abort the run and leave every table after it in the
+    -- list still unprotected. Failures are logged as warnings, not silence.
+    BEGIN
+      -- Enable RLS if it isn't already (covers both "disabled" and the
+      -- pathological "enabled with zero policies" case the same way).
+      EXECUTE format('ALTER TABLE %I.%I ENABLE ROW LEVEL SECURITY', rec.schemaname, rec.tablename);
 
-    SELECT count(*) INTO policy_count
-    FROM pg_policies
-    WHERE schemaname = rec.schemaname AND tablename = rec.tablename;
+      SELECT count(*) INTO policy_count
+      FROM pg_policies
+      WHERE schemaname = rec.schemaname AND tablename = rec.tablename;
 
-    IF policy_count = 0 THEN
-      EXECUTE format(
-        'CREATE POLICY "Authenticated users can select" ON %I.%I FOR SELECT TO authenticated USING (true)',
-        rec.schemaname, rec.tablename
-      );
-      EXECUTE format(
-        'CREATE POLICY "Authenticated users can insert" ON %I.%I FOR INSERT TO authenticated WITH CHECK (true)',
-        rec.schemaname, rec.tablename
-      );
-      EXECUTE format(
-        'CREATE POLICY "Authenticated users can update" ON %I.%I FOR UPDATE TO authenticated USING (true)',
-        rec.schemaname, rec.tablename
-      );
-      EXECUTE format(
-        'CREATE POLICY "Authenticated users can delete" ON %I.%I FOR DELETE TO authenticated USING (true)',
-        rec.schemaname, rec.tablename
-      );
-    END IF;
+      IF policy_count = 0 THEN
+        EXECUTE format(
+          'CREATE POLICY "Authenticated users can select" ON %I.%I FOR SELECT TO authenticated USING (true)',
+          rec.schemaname, rec.tablename
+        );
+        EXECUTE format(
+          'CREATE POLICY "Authenticated users can insert" ON %I.%I FOR INSERT TO authenticated WITH CHECK (true)',
+          rec.schemaname, rec.tablename
+        );
+        EXECUTE format(
+          'CREATE POLICY "Authenticated users can update" ON %I.%I FOR UPDATE TO authenticated USING (true)',
+          rec.schemaname, rec.tablename
+        );
+        EXECUTE format(
+          'CREATE POLICY "Authenticated users can delete" ON %I.%I FOR DELETE TO authenticated USING (true)',
+          rec.schemaname, rec.tablename
+        );
+      END IF;
+    EXCEPTION WHEN OTHERS THEN
+      RAISE WARNING 'Could not secure %.%: %', rec.schemaname, rec.tablename, SQLERRM;
+    END;
   END LOOP;
 END $$;
