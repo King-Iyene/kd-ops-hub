@@ -3,6 +3,7 @@ import { Loader2, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { logAudit } from '@/lib/audit';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { cn } from '@/lib/utils';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
@@ -140,11 +141,13 @@ export function ContractorFormDialog({
         const { error } = await supabase.from('contractors').update(payload).eq('id', editing.id);
         if (error) throw error;
         await logAudit('contractor_edited', `Contractor "${payload.full_name}" updated`, profile);
+        dispatchPlatformWebhook('contractor.updated', { id: editing.id, full_name: payload.full_name, email: payload.email, role: payload.role });
         toast({ title: 'Contractor updated' });
       } else {
         const { error } = await supabase.from('contractors').insert(payload);
         if (error) throw error;
         await logAudit('contractor_added', `Contractor "${payload.full_name}" added`, profile);
+        dispatchPlatformWebhook('contractor.created', { full_name: payload.full_name, email: payload.email, role: payload.role });
         toast({ title: 'Contractor added' });
       }
       onOpenChange(false);

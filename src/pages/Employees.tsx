@@ -491,6 +491,7 @@ const Employees = () => {
           profile,
         );
       }
+      dispatchPlatformWebhook('employee.updated', { id: editing.id, full_name: editFullName, role: form.role, department_id: form.department_id || null });
       toast({ title: roleChanged ? `Role changed to ${roleLabel(form.role)}` : 'Employee updated' });
       clearFieldErrors();
       setShowForm(false);
@@ -520,6 +521,7 @@ const Employees = () => {
       `Employee "${e.full_name}" ${next === 'inactive' ? 'deactivated' : 'reactivated'}`,
       profile,
     );
+    dispatchPlatformWebhook(next === 'inactive' ? 'employee.suspended' : 'employee.reactivated', { id: e.id, full_name: e.full_name, status: next });
     toast({ title: `Employee ${next}` });
     fetchEmployees();
   };
@@ -531,6 +533,7 @@ const Employees = () => {
       return;
     }
     await logAudit('employee_edited', `Employee "${e.full_name}" reactivated`, profile);
+    dispatchPlatformWebhook('employee.reactivated', { id: e.id, full_name: e.full_name, status: 'active' });
     toast({ title: 'Employee reactivated' });
     setConfirmReactivate(null);
     fetchEmployees();

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { MANAGER_ROLES, hasRole } from '@/lib/roles';
 import { formatDate, formatNaira, formatNairaCompact, toIsoDate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
@@ -274,6 +275,7 @@ const Clients = () => {
           .eq('id', editing.id);
         if (err) throw err;
         await logAudit('client_updated', `Client "${payload.name}" updated`, profile);
+        dispatchPlatformWebhook('client.updated', { id: editing.id, name: payload.name, industry: payload.industry, status: payload.status });
         toast({ title: 'Client updated' });
       } else {
         const { error: err } = await supabase
@@ -281,6 +283,7 @@ const Clients = () => {
           .insert({ ...payload, created_by: profile?.id });
         if (err) throw err;
         await logAudit('client_created', `Client "${payload.name}" added`, profile);
+        dispatchPlatformWebhook('client.created', { name: payload.name, industry: payload.industry, status: payload.status, contract_value_ngn: payload.contract_value_ngn });
         toast({ title: 'Client added' });
       }
       setDialog(false);
@@ -303,6 +306,7 @@ const Clients = () => {
       return;
     }
     await logAudit('client_deleted', `Client "${c.name}" deleted`, profile);
+    dispatchPlatformWebhook('client.deleted', { id: c.id, name: c.name });
     toast({ title: 'Client removed' });
     load();
   };

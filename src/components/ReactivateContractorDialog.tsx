@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { logAudit } from '@/lib/audit';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -29,6 +30,7 @@ export function ReactivateContractorDialog({ contractor, profile, onClose, onRea
       return;
     }
     await logAudit('contractor_edited', `Contractor "${contractor.full_name}" reactivated`, profile);
+    dispatchPlatformWebhook('contractor.updated', { id: contractor.id, full_name: contractor.full_name, status: 'active' });
     toast({ title: 'Contractor reactivated' });
     onClose();
     onReactivated();

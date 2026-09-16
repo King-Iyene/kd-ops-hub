@@ -4,6 +4,7 @@ import { friendlyDbError } from '@/lib/db-errors';
 import { logAudit } from '@/lib/audit';
 import { notifyRoles } from '@/lib/notify';
 import { notifyAnomalyToAdmins } from '@/lib/notify-events';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { formatNaira, formatDate, formatTime } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -512,6 +513,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
     setActiveTrip({ ...data, employee_id: data.driver_id, employee_name: profile?.full_name || '' } as unknown as TripLog);
     setShowStartTrip(false);
     await logAudit('trip_started', `Trip started at ${locationStr || 'unknown location'} (odometer: ${odoStart.toLocaleString()} km)`, profile);
+    dispatchPlatformWebhook('trip.logged', { id: data.id, driver_id: data.driver_id, vehicle_id: data.vehicle_id, start_location: locationStr, odometer_start: odoStart, status: 'in_progress' });
     const startVeh = vehicles.find((v) => v.id === startTripForm.vehicle_id);
     await notifyRoles({
       roles: ['super_admin', 'admin', 'operations'],
@@ -652,6 +654,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
         ].filter(Boolean).join(' · '),
       });
     }
+    dispatchPlatformWebhook('trip.completed', { id: activeTrip.id, driver_id: activeTrip.driver_id || activeTrip.employee_id, vehicle_id: activeTrip.vehicle_id, end_location: endLocationStr, distance_km: distanceKm, duration_min: durationMin, status: 'completed' });
 
     // Update vehicle fuel balance — CHANGE 1
     if (activeTrip.vehicle_id) {
@@ -845,6 +848,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
         `Trip log ${tripForm.start_location} → ${tripForm.end_location} (${km ?? '—'} km)`,
         profile,
       );
+      dispatchPlatformWebhook('trip.logged', { driver_id: tripForm.employee_id, vehicle_id: tripForm.vehicle_id, start_location: tripForm.start_location, end_location: tripForm.end_location, km_driven: km, date: tripForm.date });
       toast({ title: 'Trip log submitted' });
       setShowTripForm(false);
       setTripForm({

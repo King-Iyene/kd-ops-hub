@@ -592,6 +592,7 @@ const BatchDetail = () => {
         logError("BatchDetail",` failed to record 'failed' status for ${it.full_name}: ${markErr.message}`);
       }
       await logAudit('paystack_transfer_failed', `Transfer failed for ${it.full_name}: ${reason}`, profile);
+      dispatchPlatformWebhook('payment.failed', { id: it.id, full_name: it.full_name, amount_ngn: it.amount_ngn, reason, provider: 'paystack' });
       return { ok: false, reason };
     };
     try {
@@ -706,6 +707,9 @@ const BatchDetail = () => {
           `Recovered duplicate-ref for ${it.full_name}: Paystack says "${v}" (ref ${transfer.reference})`,
           profile,
         );
+        if (mappedStatus === 'succeeded') dispatchPlatformWebhook('payment.completed', { id: it.id, full_name: it.full_name, amount_ngn: it.amount_ngn, provider: 'paystack', reference: transfer.reference });
+        else if (mappedStatus === 'failed') dispatchPlatformWebhook('payment.failed', { id: it.id, full_name: it.full_name, amount_ngn: it.amount_ngn, provider: 'paystack', reference: transfer.reference });
+        else dispatchPlatformWebhook('payment.pending', { id: it.id, full_name: it.full_name, amount_ngn: it.amount_ngn, provider: 'paystack', reference: transfer.reference });
         return { ok: mappedStatus !== 'failed' };
       }
 
@@ -746,6 +750,7 @@ const BatchDetail = () => {
         `Transfer initiated for ${it.full_name} (${formatNaira(Number(it.amount_ngn || 0))}) ref ${transfer.reference}`,
         profile,
       );
+      dispatchPlatformWebhook('payment.pending', { id: it.id, full_name: it.full_name, amount_ngn: it.amount_ngn, provider: 'paystack', reference: transfer.reference });
       return { ok: true };
     } catch (err: unknown) {
       return markFailed(errorMessage(err) || 'Transfer failed');
@@ -775,6 +780,7 @@ const BatchDetail = () => {
         .eq('id', it.id);
       if (markErr) logError("BatchDetail",` failed to record 'failed' status for ${it.full_name}: ${markErr.message}`);
       await logAudit('flutterwave_transfer_failed', `Transfer failed for ${it.full_name}: ${reason}`, profile);
+      dispatchPlatformWebhook('payment.failed', { id: it.id, full_name: it.full_name, amount_ngn: it.amount_ngn, reason, provider: 'flutterwave' });
       return { ok: false, reason };
     };
     try {
@@ -842,6 +848,9 @@ const BatchDetail = () => {
         `Transfer ${fwData.recovered ? 'recovered' : 'initiated'} for ${it.full_name} (${formatNaira(amount)}) ref ${ref}${fwUpdateErr ? ' — WARNING: recording the result failed: ' + fwUpdateErr.message : ''}`,
         profile,
       );
+      if (mappedStatus === 'succeeded') dispatchPlatformWebhook('payment.completed', { id: it.id, full_name: it.full_name, amount_ngn: it.amount_ngn, provider: 'flutterwave', reference: ref });
+      else if (mappedStatus === 'failed') dispatchPlatformWebhook('payment.failed', { id: it.id, full_name: it.full_name, amount_ngn: it.amount_ngn, provider: 'flutterwave', reference: ref });
+      else dispatchPlatformWebhook('payment.pending', { id: it.id, full_name: it.full_name, amount_ngn: it.amount_ngn, provider: 'flutterwave', reference: ref });
       return { ok: mappedStatus !== 'failed' };
     } catch (err: unknown) {
       return markFailed(errorMessage(err) || 'Transfer failed');
@@ -1077,6 +1086,7 @@ const BatchDetail = () => {
         `Batch "${batch?.name}" dispatched via worker — ${batchStatus.replace('_', ' ')} (${workerDispatched} dispatched, ${failedCount} failed${workerRemaining > 0 ? `, ${workerRemaining} remaining — cron will resume` : ''})`,
         profile,
       );
+      dispatchPlatformWebhook('batch.processed', { id, name: batch?.name, status: batchStatus, dispatched: workerDispatched, failed: failedCount });
       toast({
         title: workerRemaining > 0
           ? `Dispatched ${workerDispatched} — ${workerRemaining} remaining`

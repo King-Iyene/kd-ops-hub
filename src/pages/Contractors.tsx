@@ -20,6 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { displayName } from '@/lib/name';
 import { formatDate, formatNaira, formatNairaCompact } from '@/lib/format';
 import { logAudit } from '@/lib/audit';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -629,6 +630,7 @@ const Contractors = () => {
       return;
     }
     await logAudit('contractor_deactivated', `Contractor "${c.full_name}" deactivated`, profile);
+    dispatchPlatformWebhook('contractor.deleted', { id: c.id, full_name: c.full_name, status: 'inactive' });
     toast({ title: 'Contractor deactivated' });
     reloadAll();
   };
@@ -2190,6 +2192,7 @@ const Contractors = () => {
             return;
           }
           await logAudit('contractor_deleted', `Bulk-deleted ${ids.length} contractors`, profile);
+          dispatchPlatformWebhook('contractor.deleted', { ids, count: ids.length });
           setSelectedIds(new Set());
           toast({ title: `${ids.length} contractor${ids.length === 1 ? '' : 's'} deleted` });
           reloadAll();
