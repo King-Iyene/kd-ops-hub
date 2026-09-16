@@ -13,7 +13,7 @@ import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from '@/components/ui/card';
 import type { FormField, TaskForm } from '@/components/tasks/TaskFormBuilder';
-import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
+import { dispatchFormWebhook } from '@/lib/platform-webhooks';
 
 /* ------------------------------------------------------------------ */
 /*  Props                                                              */
@@ -162,7 +162,7 @@ export function TaskFormPublic({ formId }: TaskFormPublicProps) {
       return;
     }
 
-    dispatchPlatformWebhook('task.form_submitted', {
+    dispatchFormWebhook('task.form_submitted', formId, {
       form_id: form.id,
       form_name: form.name,
       list_id: form.list_id,

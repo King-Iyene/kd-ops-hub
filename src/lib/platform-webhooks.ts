@@ -24,3 +24,27 @@ export function dispatchPlatformWebhook(
       console.warn('[KDOps] Platform webhook dispatch failed:', err?.message ?? err);
     });
 }
+
+/**
+ * Fire webhooks from public form submissions (no authenticated user).
+ * Uses the form's own token for authorization instead of a user JWT.
+ */
+export function dispatchFormWebhook(
+  event: string,
+  formToken: string,
+  payload: Record<string, unknown>,
+) {
+  supabase.functions
+    .invoke('webhook-dispatcher', {
+      body: {
+        event,
+        baseId: PLATFORM_BASE_ID,
+        tableId: PLATFORM_TABLE_ID,
+        formToken,
+        record: payload,
+      },
+    })
+    .catch((err) => {
+      console.warn('[KDOps] Form webhook dispatch failed:', err?.message ?? err);
+    });
+}
