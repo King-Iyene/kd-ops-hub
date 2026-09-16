@@ -48,6 +48,7 @@ const EVENT_GROUPS: { module: string; color: string; events: string[] }[] = [
   { module: 'Employees', color: 'bg-blue-500/15 text-blue-400 border-blue-500/30', events: ['employee.created', 'employee.updated', 'employee.deleted', 'employee.suspended', 'employee.reactivated'] },
   { module: 'Contractors', color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30', events: ['contractor.created', 'contractor.updated', 'contractor.deleted', 'contractor.contract_expired'] },
   { module: 'Tasks', color: 'bg-violet-500/15 text-violet-400 border-violet-500/30', events: ['task.created', 'task.updated', 'task.completed', 'task.deleted', 'task.assigned', 'task.overdue', 'task.form_submitted', 'task.comment_added'] },
+  { module: 'Tables', color: 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30', events: ['table.form_submitted'] },
   { module: 'Leave', color: 'bg-amber-500/15 text-amber-400 border-amber-500/30', events: ['leave.requested', 'leave.approved', 'leave.rejected', 'leave.cancelled'] },
   { module: 'Expenses', color: 'bg-orange-500/15 text-orange-400 border-orange-500/30', events: ['expense.submitted', 'expense.approved', 'expense.rejected', 'expense.reimbursed'] },
   { module: 'Payroll', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', events: ['payroll.run_completed', 'payroll.slip_generated', 'payroll.run_started', 'payroll.payment_sent'] },

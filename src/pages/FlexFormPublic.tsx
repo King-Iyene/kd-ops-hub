@@ -96,7 +96,7 @@ export default function FlexFormPublic() {
       setError('Could not submit the form. Please try again.');
       return;
     }
-    dispatchPlatformWebhook('task.form_submitted', {
+    dispatchPlatformWebhook('table.form_submitted', {
       form_id: payload.form.id,
       form_name: payload.form.name,
       table_id: payload.table.id,
