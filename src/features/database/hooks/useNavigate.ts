@@ -3,7 +3,7 @@ import { useNavigate as useRouterNavigate } from 'react-router-dom';
 import { useDatabaseUI } from '../lib/store';
 import { uuidToShort, isUuid } from '../lib/shortId';
 
-function toShort(id: string): string {
+export function toShort(id: string): string {
   return isUuid(id) ? uuidToShort(id) : id;
 }
 

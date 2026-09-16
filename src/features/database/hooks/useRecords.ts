@@ -826,7 +826,7 @@ export function useCreateRecord() {
       const previous = qc.getQueriesData<RecordsResult>({ queryKey });
       const optimisticRow = { id: `temp-${Date.now()}`, ...variables.record } as RecordRow;
       qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
-        if (!old) return old;
+        if (!old || !Array.isArray(old.records)) return old;
         return { records: [...old.records, optimisticRow], totalCount: old.totalCount + 1 };
       });
       return { previous };
@@ -927,7 +927,7 @@ export function useUpdateRecord() {
       }
 
       qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
-        if (!old) return old;
+        if (!old || !Array.isArray(old.records)) return old;
         return {
           ...old,
           records: old.records.map((r) =>
@@ -1048,7 +1048,7 @@ export function useDeleteRecord() {
       }
 
       qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
-        if (!old) return old;
+        if (!old || !Array.isArray(old.records)) return old;
         return {
           ...old,
           records: old.records.filter((r) => r.id !== variables.recordId),
@@ -1116,7 +1116,7 @@ export function useBulkCreateRecords() {
         ...rec,
       })) as RecordRow[];
       qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
-        if (!old) return old;
+        if (!old || !Array.isArray(old.records)) return old;
         return {
           ...old,
           records: [...old.records, ...optimisticRows],
@@ -1181,7 +1181,7 @@ export function useBulkUpdateRecords() {
       const previous = qc.getQueriesData<RecordsResult>({ queryKey });
       const updatesById = new Map(variables.updates.map((u) => [u.id, u.fields]));
       qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
-        if (!old) return old;
+        if (!old || !Array.isArray(old.records)) return old;
         return {
           ...old,
           records: old.records.map((r) =>
@@ -1245,7 +1245,7 @@ export function useBulkDeleteRecords() {
       const idsSet = new Set(variables.recordIds);
       const previous = qc.getQueriesData<RecordsResult>({ queryKey });
       qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
-        if (!old) return old;
+        if (!old || !Array.isArray(old.records)) return old;
         return {
           ...old,
           records: old.records.filter((r) => !idsSet.has(r.id)),
