@@ -9,6 +9,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { flexApi, conditionMatches, type FlexFieldType, type FlexFormField, type FlexChoice } from '@/lib/flexTables';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 
 interface PublicField {
   id: string;
@@ -95,6 +96,13 @@ export default function FlexFormPublic() {
       setError('Could not submit the form. Please try again.');
       return;
     }
+    dispatchPlatformWebhook('task.form_submitted', {
+      form_id: payload.form.id,
+      form_name: payload.form.name,
+      table_id: payload.table.id,
+      table_name: payload.table.name,
+      fields: data,
+    });
     setSubmitted(true);
   };
 

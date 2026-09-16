@@ -13,6 +13,7 @@ import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from '@/components/ui/card';
 import type { FormField, TaskForm } from '@/components/tasks/TaskFormBuilder';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 
 /* ------------------------------------------------------------------ */
 /*  Props                                                              */
@@ -160,6 +161,14 @@ export function TaskFormPublic({ formId }: TaskFormPublicProps) {
       setSubmitting(false);
       return;
     }
+
+    dispatchPlatformWebhook('task.form_submitted', {
+      form_id: form.id,
+      form_name: form.name,
+      list_id: form.list_id,
+      task: taskPayload,
+      submitted_values: values,
+    });
 
     // Increment submission count
     await supabase.rpc('increment_counter', {
