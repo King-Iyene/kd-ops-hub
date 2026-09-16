@@ -270,6 +270,14 @@ async function handleCreateTable(
 
   const conn = await pool.connect();
   try {
+    // Wrapped in a transaction so a dropped connection or transient failure
+    // partway through can never again leave the table created but without
+    // RLS/policies — either the whole thing lands, or none of it does. (A
+    // prior non-transactional version of this sequence is how ~250 tables
+    // across several bases ended up with RLS disabled and no policies at
+    // all, silently readable via the schema's anon SELECT grant.)
+    await conn.queryObject('BEGIN');
+
     await conn.queryObject(`
       CREATE TABLE ${qualified} (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -319,6 +327,11 @@ async function handleCreateTable(
         TO authenticated
         USING (true)
     `);
+
+    await conn.queryObject('COMMIT');
+  } catch (e) {
+    await conn.queryObject('ROLLBACK').catch(() => {});
+    throw e;
   } finally {
     conn.release();
   }
