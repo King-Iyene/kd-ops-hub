@@ -16,7 +16,6 @@ function tryDecodeShortId(param: string): string | null {
 }
 
 async function resolveBaseParam(param: string): Promise<string | undefined> {
-  if (isUuid(param)) return param;
   const decoded = tryDecodeShortId(param);
   if (decoded) return decoded;
   const { data } = await supabase
@@ -30,7 +29,6 @@ async function resolveBaseParam(param: string): Promise<string | undefined> {
 }
 
 async function resolveTableParam(baseId: string, param: string): Promise<string | undefined> {
-  if (isUuid(param)) return param;
   const decoded = tryDecodeShortId(param);
   if (decoded) return decoded;
   const { data } = await supabase
@@ -45,7 +43,6 @@ async function resolveTableParam(baseId: string, param: string): Promise<string 
 }
 
 async function resolveViewParam(tableId: string, param: string): Promise<string | undefined> {
-  if (isUuid(param)) return param;
   const decoded = tryDecodeShortId(param);
   if (decoded) return decoded;
   const { data } = await supabase
@@ -70,18 +67,6 @@ export function useSlugResolver(
     staleTime: 300_000,
     refetchOnWindowFocus: false,
     queryFn: async (): Promise<ResolvedIds> => {
-      // Fast path: when all segments are UUIDs, skip all network calls
-      const allUuids = (!rawBase || isUuid(rawBase)) &&
-                       (!rawTable || isUuid(rawTable)) &&
-                       (!rawView || isUuid(rawView));
-      if (allUuids) {
-        return {
-          baseId: rawBase,
-          tableId: rawTable,
-          viewId: rawView,
-        };
-      }
-
       const baseId = rawBase ? await resolveBaseParam(rawBase) : undefined;
       if (!baseId) return { baseId: undefined, tableId: undefined, viewId: undefined };
 

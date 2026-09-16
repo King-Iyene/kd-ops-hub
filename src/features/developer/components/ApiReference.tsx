@@ -108,10 +108,10 @@ function MethodBadge({ method }: { method: HttpMethod }) {
 
 const BASE = 'https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/rest-api/v1';
 
-const EX_BASE_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
-const EX_TABLE_ID = 'f9e8d7c6-b5a4-3210-fedc-ba9876543210';
-const EX_RECORD_ID = '1a2b3c4d-5e6f-7890-abcd-ef0987654321';
-const EX_FIELD_ID = 'c3d4e5f6-a7b8-9012-cdef-345678901234';
+const EX_BASE_ID = '4v7SY1Hl7YZtWCGClC5boe';
+const EX_TABLE_ID = '7bZUvoXYXFO0EBZu43kFKy';
+const EX_RECORD_ID = 'nNYfaOIk6bgZpDNFCSXcf';
+const EX_FIELD_ID = '5xWnVe2a1BULyA7Ojyf47Q';
 
 const MODULES: Module[] = [
   {
@@ -168,7 +168,7 @@ const MODULES: Module[] = [
               table_count: 5,
             },
             {
-              id: '22334455-6677-8899-aabb-ccddeeff0011',
+              id: '12XAQRQD5A9NNawLJTERl3',
               name: 'CRM',
               slug: 'crm',
               icon: 'users',
@@ -185,13 +185,13 @@ const MODULES: Module[] = [
     name: 'Tables',
     icon: Table2,
     basePath: '/v1/bases/:baseId/tables',
-    description: 'Tables belong to a base and define the schema for your records. You can reference tables by UUID or slug.',
+    description: 'Tables belong to a base and define the schema for your records. You can reference tables by ID or slug.',
     endpoints: [
       {
         method: 'GET',
         path: '/v1/bases/:baseId/tables',
         description: 'List all tables in a base, including their fields.',
-        notes: 'Requires the schema:read scope. You can use the base UUID or slug.',
+        notes: 'Requires the schema:read scope. You can use the base ID or slug.',
         exampleRequest: `curl ${BASE}/bases/${EX_BASE_ID}/tables \\
   -H "Authorization: Bearer kdops_live_abc123..."`,
         exampleResponse: JSON.stringify({
@@ -203,9 +203,9 @@ const MODULES: Module[] = [
               pg_table_name: 'employees',
               fields: [
                 { id: EX_FIELD_ID, name: 'Name', type: 'SingleLineText', pg_column_name: 'name', pg_type: 'TEXT', is_system: false, is_hidden: false },
-                { id: '11223344-5566-7788-99aa-bbccddeeff00', name: 'Email', type: 'Email', pg_column_name: 'email', pg_type: 'TEXT', is_system: false, is_hidden: false },
-                { id: '22334455-6677-8899-aabb-ccddeeff0011', name: 'Department', type: 'SingleSelect', pg_column_name: 'department', pg_type: 'TEXT', is_system: false, is_hidden: false },
-                { id: '33445566-7788-99aa-bbcc-ddeeff001122', name: 'Salary', type: 'Currency', pg_column_name: 'salary', pg_type: 'NUMERIC', is_system: false, is_hidden: false },
+                { id: 'YDhJ7NLa5kGR9m2Cw8xf1', name: 'Email', type: 'Email', pg_column_name: 'email', pg_type: 'TEXT', is_system: false, is_hidden: false },
+                { id: '12XAQRQD5A9NNawLJTERl3', name: 'Department', type: 'SingleSelect', pg_column_name: 'department', pg_type: 'TEXT', is_system: false, is_hidden: false },
+                { id: '1MvhB5TXIZ8eMwk4aGN9Yn', name: 'Salary', type: 'Currency', pg_column_name: 'salary', pg_type: 'NUMERIC', is_system: false, is_hidden: false },
               ],
             },
           ],
@@ -218,7 +218,7 @@ const MODULES: Module[] = [
     name: 'Records',
     icon: Rows3,
     basePath: '/v1/bases/:baseId/tables/:tableId/records',
-    description: 'CRUD operations on table records. Each record has an auto-generated UUID and a fields object containing the data. Max 10 records per create/update/delete request.',
+    description: 'CRUD operations on table records. Each record has an auto-generated short ID and a fields object containing the data. Max 10 records per create/update/delete request.',
     endpoints: [
       {
         method: 'GET',
@@ -245,7 +245,7 @@ const MODULES: Module[] = [
               },
             },
             {
-              id: '2b3c4d5e-6f70-8901-bcde-f12345678901',
+              id: '1JaE9P559EezTF876atkBN',
               createdTime: '2024-07-15T10:30:00Z',
               fields: {
                 Name: 'Emeka Nwosu',
@@ -262,7 +262,7 @@ const MODULES: Module[] = [
       {
         method: 'GET',
         path: '/v1/bases/:baseId/tables/:tableId/records/:recordId',
-        description: 'Retrieve a single record by its UUID.',
+        description: 'Retrieve a single record by its ID.',
         exampleRequest: `curl ${BASE}/bases/${EX_BASE_ID}/tables/${EX_TABLE_ID}/records/${EX_RECORD_ID} \\
   -H "Authorization: Bearer kdops_live_abc123..."`,
         exampleResponse: JSON.stringify({
@@ -301,7 +301,7 @@ const MODULES: Module[] = [
         exampleResponse: JSON.stringify({
           records: [
             {
-              id: '3c4d5e6f-7a8b-9012-cdef-234567890123',
+              id: '1pmtdDjUM3YT5CG5567Krr',
               createdTime: '2026-09-15T15:00:00Z',
               fields: {
                 Name: 'Tunde Bakare',
@@ -354,9 +354,9 @@ const MODULES: Module[] = [
       {
         method: 'DELETE',
         path: '/v1/bases/:baseId/tables/:tableId/records',
-        description: 'Delete one or more records by their UUIDs.',
+        description: 'Delete one or more records by their IDs.',
         bodyFields: [
-          { name: 'records', type: 'array', required: true, description: 'Array of record UUID strings (max 10)' },
+          { name: 'records', type: 'array', required: true, description: 'Array of record ID strings (max 10)' },
         ],
         exampleRequest: `curl -X DELETE ${BASE}/bases/${EX_BASE_ID}/tables/${EX_TABLE_ID}/records \\
   -H "Authorization: Bearer kdops_live_abc123..." \\
@@ -369,7 +369,7 @@ const MODULES: Module[] = [
             { id: EX_RECORD_ID, deleted: true },
           ],
         }, null, 2),
-        notes: 'Requires the records:write scope. You can also pass record IDs as query params: ?records[]=uuid1&records[]=uuid2',
+        notes: 'Requires the records:write scope. You can also pass record IDs as query params: ?records[]=id1&records[]=id2',
       },
     ],
   },
@@ -406,7 +406,7 @@ const MODULES: Module[] = [
               description: null,
             },
             {
-              id: '11223344-5566-7788-99aa-bbccddeeff00',
+              id: 'YDhJ7NLa5kGR9m2Cw8xf1',
               name: 'Email',
               pg_column_name: 'email',
               ui_type: 'Email',
@@ -444,7 +444,7 @@ const MODULES: Module[] = [
   }'`,
         exampleResponse: JSON.stringify({
           field: {
-            id: '44556677-8899-aabb-ccdd-eeff00112233',
+            id: '1xIEBnWJdMbiLuF6HcQ7Nz',
             name: 'Start Date',
             pg_column_name: 'start_date',
             ui_type: 'Date',
@@ -607,10 +607,10 @@ record.bulk_created`,
         exampleResponse: JSON.stringify({
           event: 'payroll.run_completed',
           timestamp: '2026-08-28T09:00:00.000Z',
-          base_id: '00000000-0000-0000-0000-000000000000',
-          table_id: '00000000-0000-0000-0000-000000000000',
+          base_id: '0',
+          table_id: '0',
           payload: {
-            run_id: 'aabbccdd-1122-3344-5566-778899001122',
+            run_id: '5CAWGxVM8rtY7rPMGg0dSU',
             month: 8,
             year: 2026,
             employee_count: 48,
@@ -835,7 +835,7 @@ Content-Type: application/json`}
             <div className="flex flex-wrap gap-4 text-2xs text-zinc-500 dark:text-zinc-400 pt-1">
               <span><strong className="text-zinc-700 dark:text-zinc-300">Rate Limit:</strong> 100 req/min per key (429 when exceeded)</span>
               <span><strong className="text-zinc-700 dark:text-zinc-300">Pagination:</strong> ?pageSize=100&offset=cursor (default 100, max 1000)</span>
-              <span><strong className="text-zinc-700 dark:text-zinc-300">IDs:</strong> All entity IDs are UUIDs</span>
+              <span><strong className="text-zinc-700 dark:text-zinc-300">IDs:</strong> All entity IDs are short IDs (base-62 encoded)</span>
             </div>
             <div className="text-2xs text-zinc-500 dark:text-zinc-400">
               <strong className="text-zinc-700 dark:text-zinc-300">Base URL:</strong>{' '}

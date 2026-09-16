@@ -136,7 +136,7 @@ const modules: ModuleDef[] = [
   "${API_BASE}/employees?page=1&per_page=10&department=Engineering"`,
         responseExample: JSON.stringify({
           data: [{
-            id: "550e8400-e29b-41d4-a716-446655440001",
+            id: "2aUyqjCzEIiEcYMKj7TZtx",
             first_name: "Chioma",
             last_name: "Okafor",
             email: "chioma@kdsquares.com",
@@ -153,12 +153,12 @@ const modules: ModuleDef[] = [
       {
         method: 'GET',
         path: '/employees/:id',
-        description: 'Get a single employee by UUID. Returns all fields including bank details.',
+        description: 'Get a single employee by ID. Returns all fields including bank details.',
         curlExample: `curl -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${API_BASE}/employees/550e8400-e29b-41d4-a716-446655440001"`,
+  "${API_BASE}/employees/2aUyqjCzEIiEcYMKj7TZtx"`,
         responseExample: JSON.stringify({
           data: {
-            id: "550e8400-e29b-41d4-a716-446655440001",
+            id: "2aUyqjCzEIiEcYMKj7TZtx",
             first_name: "Chioma",
             last_name: "Okafor",
             email: "chioma@kdsquares.com",
@@ -200,7 +200,7 @@ const modules: ModuleDef[] = [
   "${API_BASE}/employees"`,
         responseExample: JSON.stringify({
           data: {
-            id: "660e8400-e29b-41d4-a716-446655440099",
+            id: "2wYNcnZ5sAbNMhfPXAnnQb",
             first_name: "Emeka",
             last_name: "Nwosu",
             email: "emeka@kdsquares.com",
@@ -226,10 +226,10 @@ const modules: ModuleDef[] = [
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"salary": 500000, "department": "Engineering"}' \\
-  "${API_BASE}/employees/550e8400-e29b-41d4-a716-446655440001"`,
+  "${API_BASE}/employees/2aUyqjCzEIiEcYMKj7TZtx"`,
         responseExample: JSON.stringify({
           data: {
-            id: "550e8400-e29b-41d4-a716-446655440001",
+            id: "2aUyqjCzEIiEcYMKj7TZtx",
             first_name: "Chioma",
             last_name: "Okafor",
             salary: 500000,
@@ -244,10 +244,10 @@ const modules: ModuleDef[] = [
         description: 'Soft-delete an employee. Sets status to "inactive". Employee data is preserved for audit trail.',
         curlExample: `curl -X DELETE \\
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${API_BASE}/employees/550e8400-e29b-41d4-a716-446655440001"`,
+  "${API_BASE}/employees/2aUyqjCzEIiEcYMKj7TZtx"`,
         responseExample: JSON.stringify({
           message: "Employee soft-deleted successfully",
-          data: { id: "550e8400-e29b-41d4-a716-446655440001", status: "inactive" }
+          data: { id: "2aUyqjCzEIiEcYMKj7TZtx", status: "inactive" }
         }, null, 2),
       },
     ],
@@ -298,7 +298,7 @@ const modules: ModuleDef[] = [
   "${API_BASE}/contractors?page=1&per_page=10&status=active"`,
         responseExample: JSON.stringify({
           data: [{
-            id: "770e8400-e29b-41d4-a716-446655440010",
+            id: "3ceiftcCYE5WrPs140Clzk",
             first_name: "Tunde",
             last_name: "Adeyemi",
             email: "tunde@freelance.ng",
@@ -315,12 +315,12 @@ const modules: ModuleDef[] = [
       {
         method: 'GET',
         path: '/contractors/:id',
-        description: 'Get a single contractor by UUID.',
+        description: 'Get a single contractor by ID.',
         curlExample: `curl -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${API_BASE}/contractors/770e8400-e29b-41d4-a716-446655440010"`,
+  "${API_BASE}/contractors/3ceiftcCYE5WrPs140Clzk"`,
         responseExample: JSON.stringify({
           data: {
-            id: "770e8400-e29b-41d4-a716-446655440010",
+            id: "3ceiftcCYE5WrPs140Clzk",
             first_name: "Tunde",
             last_name: "Adeyemi",
             email: "tunde@freelance.ng",
@@ -358,7 +358,7 @@ const modules: ModuleDef[] = [
   "${API_BASE}/contractors"`,
         responseExample: JSON.stringify({
           data: {
-            id: "880e8400-e29b-41d4-a716-446655440020",
+            id: "3qQJ9XPGN0OQdUAdgQbXz0",
             first_name: "Aisha",
             last_name: "Ibrahim",
             email: "aisha@designstudio.ng",
@@ -378,10 +378,10 @@ const modules: ModuleDef[] = [
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"rate": 30000, "rate_type": "daily"}' \\
-  "${API_BASE}/contractors/770e8400-e29b-41d4-a716-446655440010"`,
+  "${API_BASE}/contractors/3ceiftcCYE5WrPs140Clzk"`,
         responseExample: JSON.stringify({
           data: {
-            id: "770e8400-e29b-41d4-a716-446655440010",
+            id: "3ceiftcCYE5WrPs140Clzk",
             rate: 30000,
             rate_type: "daily",
             updated_at: "2026-09-09T11:00:00Z"
@@ -394,10 +394,10 @@ const modules: ModuleDef[] = [
         description: 'Soft-delete a contractor.',
         curlExample: `curl -X DELETE \\
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${API_BASE}/contractors/770e8400-e29b-41d4-a716-446655440010"`,
+  "${API_BASE}/contractors/3ceiftcCYE5WrPs140Clzk"`,
         responseExample: JSON.stringify({
           message: "Contractor soft-deleted successfully",
-          data: { id: "770e8400-e29b-41d4-a716-446655440010", status: "inactive" }
+          data: { id: "3ceiftcCYE5WrPs140Clzk", status: "inactive" }
         }, null, 2),
       },
     ],
@@ -441,17 +441,17 @@ const modules: ModuleDef[] = [
         path: '/tasks',
         description: 'List tasks (paginated). Filter by status, assignee_id, folder_id, priority.',
         curlExample: `curl -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${API_BASE}/tasks?status=pending&folder_id=FOLDER_UUID&page=1&per_page=20"`,
+  "${API_BASE}/tasks?status=pending&folder_id=FOLDER_ID&page=1&per_page=20"`,
         responseExample: JSON.stringify({
           data: [{
-            id: "aa0e8400-e29b-41d4-a716-446655440050",
+            id: "5AtKPeE1X79TDi8XZKIZ96",
             title: "Review Q3 budget proposal",
             description: "Check line items and approve or flag concerns",
             priority: "high",
             status: "pending",
             due_date: "2026-09-15",
-            assignee_id: "550e8400-e29b-41d4-a716-446655440001",
-            folder_id: "ff0e8400-e29b-41d4-a716-446655440005",
+            assignee_id: "2aUyqjCzEIiEcYMKj7TZtx",
+            folder_id: "7EX6teFKGEvCvUdqLqiVHt",
             created_at: "2026-09-01T08:00:00Z"
           }],
           meta: { page: 1, per_page: 20, total: 38 }
@@ -460,19 +460,19 @@ const modules: ModuleDef[] = [
       {
         method: 'GET',
         path: '/tasks/:id',
-        description: 'Get a single task by UUID.',
+        description: 'Get a single task by ID.',
         curlExample: `curl -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${API_BASE}/tasks/aa0e8400-e29b-41d4-a716-446655440050"`,
+  "${API_BASE}/tasks/5AtKPeE1X79TDi8XZKIZ96"`,
         responseExample: JSON.stringify({
           data: {
-            id: "aa0e8400-e29b-41d4-a716-446655440050",
+            id: "5AtKPeE1X79TDi8XZKIZ96",
             title: "Review Q3 budget proposal",
             description: "Check line items and approve or flag concerns",
             priority: "high",
             status: "pending",
             due_date: "2026-09-15",
-            assignee_id: "550e8400-e29b-41d4-a716-446655440001",
-            folder_id: "ff0e8400-e29b-41d4-a716-446655440005",
+            assignee_id: "2aUyqjCzEIiEcYMKj7TZtx",
+            folder_id: "7EX6teFKGEvCvUdqLqiVHt",
             created_at: "2026-09-01T08:00:00Z",
             updated_at: "2026-09-05T14:30:00Z"
           }
@@ -491,19 +491,19 @@ const modules: ModuleDef[] = [
     "priority": "medium",
     "status": "pending",
     "due_date": "2026-09-20",
-    "assignee_id": "550e8400-e29b-41d4-a716-446655440001",
-    "folder_id": "ff0e8400-e29b-41d4-a716-446655440005"
+    "assignee_id": "2aUyqjCzEIiEcYMKj7TZtx",
+    "folder_id": "7EX6teFKGEvCvUdqLqiVHt"
   }' \\
   "${API_BASE}/tasks"`,
         responseExample: JSON.stringify({
           data: {
-            id: "bb0e8400-e29b-41d4-a716-446655440060",
+            id: "5olbEoSEr2XfSaxssU2kH6",
             title: "Onboard new fleet driver",
             priority: "medium",
             status: "pending",
             due_date: "2026-09-20",
-            assignee_id: "550e8400-e29b-41d4-a716-446655440001",
-            folder_id: "ff0e8400-e29b-41d4-a716-446655440005",
+            assignee_id: "2aUyqjCzEIiEcYMKj7TZtx",
+            folder_id: "7EX6teFKGEvCvUdqLqiVHt",
             created_at: "2026-09-09T10:00:00Z"
           }
         }, null, 2),
@@ -516,10 +516,10 @@ const modules: ModuleDef[] = [
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"status": "completed"}' \\
-  "${API_BASE}/tasks/aa0e8400-e29b-41d4-a716-446655440050"`,
+  "${API_BASE}/tasks/5AtKPeE1X79TDi8XZKIZ96"`,
         responseExample: JSON.stringify({
           data: {
-            id: "aa0e8400-e29b-41d4-a716-446655440050",
+            id: "5AtKPeE1X79TDi8XZKIZ96",
             status: "completed",
             updated_at: "2026-09-09T15:00:00Z"
           }
@@ -531,7 +531,7 @@ const modules: ModuleDef[] = [
         description: 'Delete a task.',
         curlExample: `curl -X DELETE \\
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${API_BASE}/tasks/aa0e8400-e29b-41d4-a716-446655440050"`,
+  "${API_BASE}/tasks/5AtKPeE1X79TDi8XZKIZ96"`,
         responseExample: JSON.stringify({
           message: "Task deleted successfully"
         }, null, 2),
@@ -543,15 +543,15 @@ const modules: ModuleDef[] = [
       { name: 'priority', type: 'string', required: false, description: '"low", "medium", "high", "urgent"' },
       { name: 'status', type: 'string', required: false, description: '"pending", "in_progress", "completed", "cancelled"' },
       { name: 'due_date', type: 'string', required: false, description: 'YYYY-MM-DD format' },
-      { name: 'assignee_id', type: 'string (UUID)', required: false, description: 'Employee UUID to assign the task to' },
-      { name: 'folder_id', type: 'string (UUID)', required: false, description: 'Folder UUID — required for task board display' },
+      { name: 'assignee_id', type: 'string', required: false, description: 'Employee ID to assign the task to' },
+      { name: 'folder_id', type: 'string', required: false, description: 'Folder ID — required for task board display' },
     ],
     tips: [
       { text: 'Tasks need a folder_id to appear on the task board. Without one, the task exists but won\'t show in any folder view.' },
-      { text: 'Use assignee_id to assign to a specific employee — must be a valid employee UUID.' },
+      { text: 'Use assignee_id to assign to a specific employee — must be a valid employee ID.' },
       { text: 'Filter by status: GET /tasks?status=pending returns only pending tasks.' },
-      { text: 'Filter by assignee: GET /tasks?assignee_id=UUID returns tasks for a specific person.' },
-      { text: 'Combine filters: ?status=in_progress&assignee_id=UUID&priority=high' },
+      { text: 'Filter by assignee: GET /tasks?assignee_id=ID returns tasks for a specific person.' },
+      { text: 'Combine filters: ?status=in_progress&assignee_id=ID&priority=high' },
     ],
     mistakes: [
       { text: 'Creating tasks without a folder_id → task won\'t appear on any task board.' },
@@ -578,8 +578,8 @@ const modules: ModuleDef[] = [
   "${API_BASE}/leaves?status=pending&page=1&per_page=10"`,
         responseExample: JSON.stringify({
           data: [{
-            id: "cc0e8400-e29b-41d4-a716-446655440070",
-            employee_id: "550e8400-e29b-41d4-a716-446655440001",
+            id: "6D34EodEr2WlSZeDuD1lFA",
+            employee_id: "2aUyqjCzEIiEcYMKj7TZtx",
             leave_type: "annual",
             start_date: "2026-09-20",
             end_date: "2026-09-25",
@@ -595,10 +595,10 @@ const modules: ModuleDef[] = [
         path: '/leaves/balance/:employee_id',
         description: 'Check leave balance for an employee. Returns remaining days by leave type.',
         curlExample: `curl -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${API_BASE}/leaves/balance/550e8400-e29b-41d4-a716-446655440001"`,
+  "${API_BASE}/leaves/balance/2aUyqjCzEIiEcYMKj7TZtx"`,
         responseExample: JSON.stringify({
           data: {
-            employee_id: "550e8400-e29b-41d4-a716-446655440001",
+            employee_id: "2aUyqjCzEIiEcYMKj7TZtx",
             balances: {
               annual: { total: 20, used: 5, remaining: 15 },
               sick: { total: 10, used: 2, remaining: 8 },
@@ -619,7 +619,7 @@ const modules: ModuleDef[] = [
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "employee_id": "550e8400-e29b-41d4-a716-446655440001",
+    "employee_id": "2aUyqjCzEIiEcYMKj7TZtx",
     "leave_type": "annual",
     "start_date": "2026-10-01",
     "end_date": "2026-10-05",
@@ -628,8 +628,8 @@ const modules: ModuleDef[] = [
   "${API_BASE}/leaves"`,
         responseExample: JSON.stringify({
           data: {
-            id: "dd0e8400-e29b-41d4-a716-446655440080",
-            employee_id: "550e8400-e29b-41d4-a716-446655440001",
+            id: "6qePDyhIB2xz7uf44Vjxe0",
+            employee_id: "2aUyqjCzEIiEcYMKj7TZtx",
             leave_type: "annual",
             start_date: "2026-10-01",
             end_date: "2026-10-05",
@@ -647,10 +647,10 @@ const modules: ModuleDef[] = [
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"status": "approved"}' \\
-  "${API_BASE}/leaves/cc0e8400-e29b-41d4-a716-446655440070"`,
+  "${API_BASE}/leaves/6D34EodEr2WlSZeDuD1lFA"`,
         responseExample: JSON.stringify({
           data: {
-            id: "cc0e8400-e29b-41d4-a716-446655440070",
+            id: "6D34EodEr2WlSZeDuD1lFA",
             status: "approved",
             updated_at: "2026-09-09T14:00:00Z"
           }
@@ -658,7 +658,7 @@ const modules: ModuleDef[] = [
       },
     ],
     fields: [
-      { name: 'employee_id', type: 'string (UUID)', required: true, description: 'UUID of the employee requesting leave' },
+      { name: 'employee_id', type: 'string', required: true, description: 'ID of the employee requesting leave' },
       { name: 'leave_type', type: 'string', required: true, description: '"annual", "sick", "casual", "maternity", "paternity", "compassionate", "unpaid"' },
       { name: 'start_date', type: 'string', required: true, description: 'Leave start date in YYYY-MM-DD format' },
       { name: 'end_date', type: 'string', required: true, description: 'Leave end date in YYYY-MM-DD format' },
@@ -698,7 +698,7 @@ const modules: ModuleDef[] = [
   "${API_BASE}/expenses?status=pending&page=1&per_page=10"`,
         responseExample: JSON.stringify({
           data: [{
-            id: "ee0e8400-e29b-41d4-a716-446655440090",
+            id: "7FCo3z2SAxu3hR9uF5kxLE",
             title: "Uber to client meeting",
             amount: 15000,
             currency: "NGN",
@@ -706,7 +706,7 @@ const modules: ModuleDef[] = [
             description: "Round trip to Dangote HQ, Victoria Island",
             receipt_url: "https://storage.example.com/receipts/uber-sept.pdf",
             status: "pending",
-            employee_id: "550e8400-e29b-41d4-a716-446655440001",
+            employee_id: "2aUyqjCzEIiEcYMKj7TZtx",
             created_at: "2026-09-08T16:00:00Z"
           }],
           meta: { page: 1, per_page: 10, total: 23 }
@@ -729,7 +729,7 @@ const modules: ModuleDef[] = [
   "${API_BASE}/expenses"`,
         responseExample: JSON.stringify({
           data: {
-            id: "ff0e8400-e29b-41d4-a716-446655440100",
+            id: "7EX6teFKGEvCvUdqLqj7h8",
             title: "Office supplies from Jumia",
             amount: 45000,
             currency: "NGN",
@@ -747,10 +747,10 @@ const modules: ModuleDef[] = [
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"status": "approved"}' \\
-  "${API_BASE}/expenses/ee0e8400-e29b-41d4-a716-446655440090"`,
+  "${API_BASE}/expenses/7FCo3z2SAxu3hR9uF5kxLE"`,
         responseExample: JSON.stringify({
           data: {
-            id: "ee0e8400-e29b-41d4-a716-446655440090",
+            id: "7FCo3z2SAxu3hR9uF5kxLE",
             status: "approved",
             updated_at: "2026-09-09T12:00:00Z"
           }
@@ -837,7 +837,7 @@ const modules: ModuleDef[] = [
         responseExample: JSON.stringify({
           data: [{
             id: "slip-001",
-            employee_id: "550e8400-e29b-41d4-a716-446655440001",
+            employee_id: "2aUyqjCzEIiEcYMKj7TZtx",
             employee_name: "Chioma Okafor",
             gross_pay: 450000,
             deductions: { tax: 45000, pension: 36000, nhf: 11250 },
@@ -945,7 +945,7 @@ const modules: ModuleDef[] = [
             station: "Total Energies, Lekki",
             notes: "Weekly refuel for site visits",
             status: "pending",
-            requested_by: "550e8400-e29b-41d4-a716-446655440001",
+            requested_by: "2aUyqjCzEIiEcYMKj7TZtx",
             created_at: "2026-09-08T07:00:00Z"
           }],
           meta: { page: 1, per_page: 10, total: 15 }
@@ -988,7 +988,7 @@ const modules: ModuleDef[] = [
           data: [{
             id: "trip-001",
             vehicle_id: "v-001",
-            driver_id: "550e8400-e29b-41d4-a716-446655440001",
+            driver_id: "2aUyqjCzEIiEcYMKj7TZtx",
             start_location: "KD Squares HQ, Lekki",
             end_location: "Dangote Refinery, Ibeju-Lekki",
             distance_km: 45,
@@ -1007,7 +1007,7 @@ const modules: ModuleDef[] = [
   -H "Content-Type: application/json" \\
   -d '{
     "vehicle_id": "v-001",
-    "driver_id": "550e8400-e29b-41d4-a716-446655440001",
+    "driver_id": "2aUyqjCzEIiEcYMKj7TZtx",
     "start_location": "KD Squares HQ, Lekki",
     "end_location": "Tin Can Island Port",
     "distance_km": 38,
@@ -1018,7 +1018,7 @@ const modules: ModuleDef[] = [
           data: {
             id: "trip-033",
             vehicle_id: "v-001",
-            driver_id: "550e8400-e29b-41d4-a716-446655440001",
+            driver_id: "2aUyqjCzEIiEcYMKj7TZtx",
             start_location: "KD Squares HQ, Lekki",
             end_location: "Tin Can Island Port",
             distance_km: 38,
@@ -1033,11 +1033,11 @@ const modules: ModuleDef[] = [
       { name: 'make', type: 'string', required: false, description: 'Vehicle manufacturer (e.g., "Toyota")' },
       { name: 'model', type: 'string', required: false, description: 'Vehicle model (e.g., "Hilux")' },
       { name: 'year', type: 'number', required: false, description: 'Year of manufacture' },
-      { name: 'vehicle_id', type: 'string', required: true, description: '(Fuel/Trips) Vehicle UUID' },
+      { name: 'vehicle_id', type: 'string', required: true, description: '(Fuel/Trips) Vehicle ID' },
       { name: 'amount', type: 'number', required: true, description: '(Fuel) Amount in NGN' },
       { name: 'litres', type: 'number', required: false, description: '(Fuel) Litres of fuel' },
       { name: 'station', type: 'string', required: false, description: '(Fuel) Fuel station name and location' },
-      { name: 'driver_id', type: 'string (UUID)', required: true, description: '(Trips) Employee UUID of the driver' },
+      { name: 'driver_id', type: 'string', required: true, description: '(Trips) Employee ID of the driver' },
       { name: 'start_location', type: 'string', required: true, description: '(Trips) Trip origin' },
       { name: 'end_location', type: 'string', required: true, description: '(Trips) Trip destination' },
       { name: 'distance_km', type: 'number', required: false, description: '(Trips) Distance in kilometers' },
@@ -1045,7 +1045,7 @@ const modules: ModuleDef[] = [
     ],
     tips: [
       { text: 'Always check that a vehicle exists before creating a fuel request or trip for it.' },
-      { text: 'driver_id must be a valid employee UUID.' },
+      { text: 'driver_id must be a valid employee ID.' },
       { text: 'Trip distance_km helps with fuel efficiency reporting and cost analysis.' },
       { text: 'Fuel request amounts are in NGN — same as all monetary values in KDOps.' },
     ],
@@ -1149,7 +1149,7 @@ const modules: ModuleDef[] = [
       },
     ],
     fields: [
-      { name: 'client_id', type: 'string', required: true, description: 'Client UUID (must exist in /clients)' },
+      { name: 'client_id', type: 'string', required: true, description: 'Client ID (must exist in /clients)' },
       { name: 'items', type: 'array', required: true, description: 'Array of { description: string, amount: number } line items' },
       { name: 'due_date', type: 'string', required: false, description: 'Payment due date in YYYY-MM-DD' },
       { name: 'vat_rate', type: 'number', required: false, description: 'VAT percentage (e.g., 7.5 means 7.5%)' },
@@ -1423,8 +1423,8 @@ const modules: ModuleDef[] = [
   "${API_BASE}/bases"`,
         responseExample: JSON.stringify({
           bases: [
-            { id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890", name: "CRM", table_count: 4, created_at: "2026-03-01T08:00:00Z" },
-            { id: "b2c3d4e5-f6a7-8901-bcde-f23456789012", name: "Inventory", table_count: 2, created_at: "2026-05-10T10:00:00Z" }
+            { id: "4v7SY1Hl7YZtWCGClC5boe", name: "CRM", table_count: 4, created_at: "2026-03-01T08:00:00Z" },
+            { id: "5RK81pyPjBY4UNGoLLsvuU", name: "Inventory", table_count: 2, created_at: "2026-05-10T10:00:00Z" }
           ]
         }, null, 2),
       },
@@ -1433,11 +1433,11 @@ const modules: ModuleDef[] = [
         path: '/bases/:baseId/tables',
         description: 'List tables in a base.',
         curlExample: `curl -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${API_BASE}/bases/a1b2c3d4-e5f6-7890-abcd-ef1234567890/tables"`,
+  "${API_BASE}/bases/4v7SY1Hl7YZtWCGClC5boe/tables"`,
         responseExample: JSON.stringify({
           tables: [
-            { id: "c3d4e5f6-a7b8-9012-cdef-345678901234", name: "Companies", field_count: 8, record_count: 156 },
-            { id: "d4e5f6a7-b8c9-0123-defa-456789012345", name: "Contacts", field_count: 6, record_count: 342 }
+            { id: "5xWnVe2a1BULyA7Ojyf47Q", name: "Companies", field_count: 8, record_count: 156 },
+            { id: "6PFJkRJdN3skJ0b8b0R2Zt", name: "Contacts", field_count: 6, record_count: 342 }
           ]
         }, null, 2),
       },
@@ -1446,10 +1446,10 @@ const modules: ModuleDef[] = [
         path: '/bases/:baseId/tables/:tableId/records',
         description: 'List records in a table. Supports pagination (pageSize, offset), sorting, and filtering.',
         curlExample: `curl -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${API_BASE}/bases/a1b2c3d4-e5f6-7890-abcd-ef1234567890/tables/c3d4e5f6-a7b8-9012-cdef-345678901234/records?pageSize=20&sort=Revenue:desc"`,
+  "${API_BASE}/bases/4v7SY1Hl7YZtWCGClC5boe/tables/5xWnVe2a1BULyA7Ojyf47Q/records?pageSize=20&sort=Revenue:desc"`,
         responseExample: JSON.stringify({
           records: [{
-            id: "e5f6a7b8-c9d0-1234-efab-567890123456",
+            id: "6vwIYHf2g0uYfEeDFRIaL6",
             createdTime: "2026-06-15T09:00:00Z",
             fields: {
               Company: "Dangote Industries",
@@ -1475,11 +1475,11 @@ const modules: ModuleDef[] = [
       { "fields": { "Company": "MTN Nigeria", "Revenue": 2000000000, "Industry": "Telecom" } }
     ]
   }' \\
-  "${API_BASE}/bases/a1b2c3d4-e5f6-7890-abcd-ef1234567890/tables/c3d4e5f6-a7b8-9012-cdef-345678901234/records"`,
+  "${API_BASE}/bases/4v7SY1Hl7YZtWCGClC5boe/tables/5xWnVe2a1BULyA7Ojyf47Q/records"`,
         responseExample: JSON.stringify({
           records: [
-            { id: "f6a7b8c9-d0e1-2345-fabc-678901234567", createdTime: "2026-09-09T10:00:00Z", fields: { Company: "Dangote Industries", Revenue: 5000000000, Industry: "Manufacturing" } },
-            { id: "a7b8c9d0-e1f2-3456-abcd-789012345678", createdTime: "2026-09-09T10:00:00Z", fields: { Company: "MTN Nigeria", Revenue: 2000000000, Industry: "Telecom" } }
+            { id: "7SdILXzL92vybiIDkJBiuG", createdTime: "2026-09-09T10:00:00Z", fields: { Company: "Dangote Industries", Revenue: 5000000000, Industry: "Manufacturing" } },
+            { id: "4yKFAr3oW6z5YVmJx7xwrI", createdTime: "2026-09-09T10:00:00Z", fields: { Company: "MTN Nigeria", Revenue: 2000000000, Industry: "Telecom" } }
           ]
         }, null, 2),
       },
@@ -1492,13 +1492,13 @@ const modules: ModuleDef[] = [
   -H "Content-Type: application/json" \\
   -d '{
     "records": [
-      { "id": "f6a7b8c9-d0e1-2345-fabc-678901234567", "fields": { "Revenue": 5500000000, "Industry": "Conglomerate" } }
+      { "id": "7SdILXzL92vybiIDkJBiuG", "fields": { "Revenue": 5500000000, "Industry": "Conglomerate" } }
     ]
   }' \\
-  "${API_BASE}/bases/a1b2c3d4-e5f6-7890-abcd-ef1234567890/tables/c3d4e5f6-a7b8-9012-cdef-345678901234/records"`,
+  "${API_BASE}/bases/4v7SY1Hl7YZtWCGClC5boe/tables/5xWnVe2a1BULyA7Ojyf47Q/records"`,
         responseExample: JSON.stringify({
           records: [
-            { id: "f6a7b8c9-d0e1-2345-fabc-678901234567", createdTime: "2026-06-15T09:00:00Z", fields: { Company: "Dangote Industries", Revenue: 5500000000, Industry: "Conglomerate" } }
+            { id: "7SdILXzL92vybiIDkJBiuG", createdTime: "2026-06-15T09:00:00Z", fields: { Company: "Dangote Industries", Revenue: 5500000000, Industry: "Conglomerate" } }
           ]
         }, null, 2),
       },
@@ -1509,12 +1509,12 @@ const modules: ModuleDef[] = [
         curlExample: `curl -X DELETE \\
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"records": ["f6a7b8c9-d0e1-2345-fabc-678901234567", "a7b8c9d0-e1f2-3456-abcd-789012345678"]}' \\
-  "${API_BASE}/bases/a1b2c3d4-e5f6-7890-abcd-ef1234567890/tables/c3d4e5f6-a7b8-9012-cdef-345678901234/records"`,
+  -d '{"records": ["7SdILXzL92vybiIDkJBiuG", "4yKFAr3oW6z5YVmJx7xwrI"]}' \\
+  "${API_BASE}/bases/4v7SY1Hl7YZtWCGClC5boe/tables/5xWnVe2a1BULyA7Ojyf47Q/records"`,
         responseExample: JSON.stringify({
           records: [
-            { id: "f6a7b8c9-d0e1-2345-fabc-678901234567", deleted: true },
-            { id: "a7b8c9d0-e1f2-3456-abcd-789012345678", deleted: true }
+            { id: "7SdILXzL92vybiIDkJBiuG", deleted: true },
+            { id: "4yKFAr3oW6z5YVmJx7xwrI", deleted: true }
           ]
         }, null, 2),
       },
@@ -1523,13 +1523,13 @@ const modules: ModuleDef[] = [
         path: '/bases/:baseId/tables/:tableId/fields',
         description: 'List all fields (columns) in a table.',
         curlExample: `curl -H "Authorization: Bearer kdops_YOUR_KEY" \\
-  "${API_BASE}/bases/a1b2c3d4-e5f6-7890-abcd-ef1234567890/tables/c3d4e5f6-a7b8-9012-cdef-345678901234/fields"`,
+  "${API_BASE}/bases/4v7SY1Hl7YZtWCGClC5boe/tables/5xWnVe2a1BULyA7Ojyf47Q/fields"`,
         responseExample: JSON.stringify({
           fields: [
-            { id: "b8c9d0e1-f2a3-4567-bcda-890123456789", name: "Company", type: "text" },
-            { id: "c9d0e1f2-a3b4-5678-cdab-901234567890", name: "Revenue", type: "number" },
-            { id: "d0e1f2a3-b4c5-6789-dabc-012345678901", name: "Industry", type: "text" },
-            { id: "e1f2a3b4-c5d6-7890-abcd-123456789012", name: "Contact Email", type: "email" }
+            { id: "5UzKVmJnqCxinPpbNYH7ys", name: "Company", type: "text" },
+            { id: "61gKJ2fC9ExXjJt3rQ9PVS", name: "Revenue", type: "number" },
+            { id: "6XNJx8zVWHxlfa4aMIT7Mc", name: "Industry", type: "text" },
+            { id: "6z4MXcX3pP28bUYyFALOZM", name: "Contact Email", type: "email" }
           ]
         }, null, 2),
       },
@@ -1537,7 +1537,7 @@ const modules: ModuleDef[] = [
     fields: [
       { name: 'records', type: 'array', required: true, description: 'Array of record objects. Each has a "fields" object with column names as keys.' },
       { name: 'fields', type: 'object', required: true, description: 'Key-value pairs where key = column name (display name), value = cell value' },
-      { name: 'id', type: 'string (UUID)', required: false, description: 'Record UUID (required for PATCH/DELETE, auto-generated on POST)' },
+      { name: 'id', type: 'string', required: false, description: 'Record ID (required for PATCH/DELETE, auto-generated on POST)' },
       { name: 'pageSize', type: 'number', required: false, description: 'Records per page (query param, default 100, max 1000)' },
       { name: 'offset', type: 'string', required: false, description: 'Cursor-based pagination token returned in previous response' },
       { name: 'sort', type: 'string', required: false, description: 'Sort by field: "FieldName:asc" or "FieldName:desc" (query param, repeatable)' },
@@ -1556,7 +1556,7 @@ const modules: ModuleDef[] = [
     mistakes: [
       { text: 'Forgetting the "fields" wrapper → { "Company": "X" } won\'t work. Use { "fields": { "Company": "X" } }.' },
       { text: 'Sending more than 10 records in one request → returns 400. Batch into groups of 10.' },
-      { text: 'Using field IDs instead of display names → use human-readable column names like "Company", not UUIDs.' },
+      { text: 'Using field IDs instead of display names → use human-readable column names like "Company", not IDs.' },
       { text: 'Forgetting record ID in PATCH → each record object needs its "id" for updates.' },
       { text: 'Using page/per_page instead of pageSize/offset → pagination is cursor-based, not page-number-based.' },
     ],
@@ -1605,9 +1605,9 @@ const modules: ModuleDef[] = [
   -d '{
     "description": "October contractor payments",
     "payments": [
-      { "recipient_id": "770e8400-e29b-41d4-a716-446655440010", "amount": 500000, "narration": "Oct consulting fee" },
-      { "recipient_id": "880e8400-e29b-41d4-a716-446655440020", "amount": 150000, "narration": "Oct design retainer" },
-      { "recipient_id": "550e8400-e29b-41d4-a716-446655440001", "amount": 100000, "narration": "Oct bonus" }
+      { "recipient_id": "3ceiftcCYE5WrPs140Clzk", "amount": 500000, "narration": "Oct consulting fee" },
+      { "recipient_id": "3qQJ9XPGN0OQdUAdgQbXz0", "amount": 150000, "narration": "Oct design retainer" },
+      { "recipient_id": "2aUyqjCzEIiEcYMKj7TZtx", "amount": 100000, "narration": "Oct bonus" }
     ]
   }' \\
   "${API_BASE}/payment-batches"`,
@@ -1619,9 +1619,9 @@ const modules: ModuleDef[] = [
             recipient_count: 3,
             status: "pending",
             payments: [
-              { recipient_id: "770e8400-e29b-41d4-a716-446655440010", amount: 500000, status: "pending" },
-              { recipient_id: "880e8400-e29b-41d4-a716-446655440020", amount: 150000, status: "pending" },
-              { recipient_id: "550e8400-e29b-41d4-a716-446655440001", amount: 100000, status: "pending" }
+              { recipient_id: "3ceiftcCYE5WrPs140Clzk", amount: 500000, status: "pending" },
+              { recipient_id: "3qQJ9XPGN0OQdUAdgQbXz0", amount: 150000, status: "pending" },
+              { recipient_id: "2aUyqjCzEIiEcYMKj7TZtx", amount: 100000, status: "pending" }
             ],
             created_at: "2026-09-09T10:00:00Z"
           }
@@ -1640,8 +1640,8 @@ const modules: ModuleDef[] = [
             total_amount: 2500000,
             status: "completed",
             payments: [
-              { recipient_id: "770e8400-e29b-41d4-a716-446655440010", recipient_name: "Tunde Adeyemi", amount: 500000, status: "paid", bank_name: "Zenith Bank" },
-              { recipient_id: "990e8400-e29b-41d4-a716-446655440030", recipient_name: "No Bank Details", amount: 200000, status: "skipped", reason: "Missing bank details" }
+              { recipient_id: "3ceiftcCYE5WrPs140Clzk", recipient_name: "Tunde Adeyemi", amount: 500000, status: "paid", bank_name: "Zenith Bank" },
+              { recipient_id: "44E9sKBMh4mh8ySKdNsm1G", recipient_name: "No Bank Details", amount: 200000, status: "skipped", reason: "Missing bank details" }
             ],
             processed_at: "2026-09-05T10:15:00Z"
           }
@@ -1651,7 +1651,7 @@ const modules: ModuleDef[] = [
     fields: [
       { name: 'description', type: 'string', required: false, description: 'Description of the payment batch' },
       { name: 'payments', type: 'array', required: true, description: 'Array of { recipient_id, amount, narration }' },
-      { name: 'recipient_id', type: 'string (UUID)', required: true, description: 'Employee or contractor UUID' },
+      { name: 'recipient_id', type: 'string', required: true, description: 'Employee or contractor ID' },
       { name: 'amount', type: 'number', required: true, description: 'Payment amount in NGN' },
       { name: 'narration', type: 'string', required: false, description: 'Payment description/narration shown to recipient' },
     ],

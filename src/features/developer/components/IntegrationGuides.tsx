@@ -243,9 +243,9 @@ function getPythonExample(mod: ModuleDef): string {
 API_KEY = "kdops_YOUR_KEY"
 BASE_URL = "${BASE_URL}"
 
-# Replace with your actual base and table UUIDs (find them via GET /bases)
-BASE_ID = "YOUR_BASE_UUID"
-TABLE_ID = "YOUR_TABLE_UUID"
+# Replace with your actual base and table IDs (find them via GET /bases)
+BASE_ID = "YOUR_BASE_ID"
+TABLE_ID = "YOUR_TABLE_ID"
 ENDPOINT = f"{BASE_URL}/bases/{BASE_ID}/tables/{TABLE_ID}/records"
 
 headers = {
@@ -283,7 +283,7 @@ else:
     print(f"Error {response.status_code}: {response.text}")
 
 # ─── Update ${mod.name.replace(/s$/, '')} ───
-record_id = "RECORD_UUID"
+record_id = "RECORD_ID"
 update_payload = {
     "records": [{"id": record_id, "fields": {"Status": "active"}}]
 }
@@ -309,9 +309,9 @@ function getNodeExample(mod: ModuleDef): string {
   return `const API_KEY = "kdops_YOUR_KEY";
 const BASE_URL = "${BASE_URL}";
 
-// Replace with your actual base and table UUIDs (find them via GET /bases)
-const BASE_ID = "YOUR_BASE_UUID";
-const TABLE_ID = "YOUR_TABLE_UUID";
+// Replace with your actual base and table IDs (find them via GET /bases)
+const BASE_ID = "YOUR_BASE_ID";
+const TABLE_ID = "YOUR_TABLE_ID";
 const ENDPOINT = \`\${BASE_URL}/bases/\${BASE_ID}/tables/\${TABLE_ID}/records\`;
 
 const headers = {
@@ -347,7 +347,7 @@ if (!createRes.ok) {
 }
 
 // ─── Update ${mod.name.replace(/s$/, '')} ───
-const recordId = "RECORD_UUID";
+const recordId = "RECORD_ID";
 const updateRes = await fetch(ENDPOINT, {
   method: "PATCH",
   headers,
@@ -369,9 +369,9 @@ const page2 = await fetch(\`\${ENDPOINT}?pageSize=50\`, { headers })
 }
 
 function getCurlExample(mod: ModuleDef): string {
-  return `# Replace YOUR_BASE_UUID and YOUR_TABLE_UUID with real UUIDs
+  return `# Replace YOUR_BASE_ID and YOUR_TABLE_ID with real IDs
 # Find them via: curl -H "Authorization: Bearer kdops_YOUR_KEY" "${BASE_URL}/bases"
-BASE="${BASE_URL}/bases/YOUR_BASE_UUID/tables/YOUR_TABLE_UUID/records"
+BASE="${BASE_URL}/bases/YOUR_BASE_ID/tables/YOUR_TABLE_ID/records"
 
 # ─── List ${mod.name} ───
 curl -X GET \\
@@ -389,14 +389,14 @@ curl -X POST \\
 curl -X PATCH \\
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"records":[{"id":"RECORD_UUID","fields":{"Status":"active"}}]}' \\
+  -d '{"records":[{"id":"RECORD_ID","fields":{"Status":"active"}}]}' \\
   "$BASE"
 
 # ─── Delete ${mod.name.replace(/s$/, '')} ───
 curl -X DELETE \\
   -H "Authorization: Bearer kdops_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"records":["RECORD_UUID"]}' \\
+  -d '{"records":["RECORD_ID"]}' \\
   "$BASE"
 
 # ─── Pagination ───
@@ -410,9 +410,9 @@ function getPhpExample(mod: ModuleDef): string {
 $apiKey  = "kdops_YOUR_KEY";
 $baseUrl = "${BASE_URL}";
 
-// Replace with your actual base and table UUIDs (find them via GET /bases)
-$baseId  = "YOUR_BASE_UUID";
-$tableId = "YOUR_TABLE_UUID";
+// Replace with your actual base and table IDs (find them via GET /bases)
+$baseId  = "YOUR_BASE_ID";
+$tableId = "YOUR_TABLE_ID";
 $endpoint = "$baseUrl/bases/$baseId/tables/$tableId/records";
 
 /**
@@ -468,7 +468,7 @@ if (in_array($result["status"], [200, 201])) {
 }
 
 // ─── Update ${mod.name.replace(/s$/, '')} ───
-$recordId = "RECORD_UUID";
+$recordId = "RECORD_ID";
 $updatePayload = [
     "records" => [
         ["id" => $recordId, "fields" => ["Status" => "active"]]

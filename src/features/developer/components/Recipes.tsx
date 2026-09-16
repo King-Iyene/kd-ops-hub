@@ -179,7 +179,7 @@ return [{
         content: `{
   "event": "client.created",
   "data": {
-    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "id": "4v7SY1Hl7YZtWCGClC5boe",
     "name": "Dangote Industries",
     "contact_email": "procurement@dangote.com",
     "industry": "Manufacturing",
@@ -288,7 +288,7 @@ return tasks.map(task => ({
 {
   "event": "invoice.created",
   "data": {
-    "id": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
+    "id": "5RK81pyPjBY4UNGoLLsvuU",
     "client_name": "GTBank Plc",
     "amount": 2500000,
     "currency": "NGN",

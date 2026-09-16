@@ -66,7 +66,7 @@ const STATUS_CODES: StatusCodeEntry[] = [
   { code: 400, meaning: 'Bad Request', action: 'Check your request body — a required field is missing or has the wrong type. The error message tells you which field.', color: 'red' },
   { code: 401, meaning: 'Unauthorized', action: "Your API key is missing, invalid, revoked, or expired. Go to API Keys → create a new one.", color: 'red' },
   { code: 403, meaning: 'Forbidden', action: "Your key doesn't have the required scope. E.g., you need employees:write to create employees. Create a new key with the right scopes.", color: 'red' },
-  { code: 404, meaning: 'Not Found', action: "The resource doesn't exist. Check the ID in your URL. For employees, use the UUID, not the name.", color: 'amber' },
+  { code: 404, meaning: 'Not Found', action: "The resource doesn't exist. Check the ID in your URL. For employees, use the short ID, not the name.", color: 'amber' },
   { code: 409, meaning: 'Conflict', action: 'A resource with that unique field already exists (e.g., duplicate email).', color: 'amber' },
   { code: 422, meaning: 'Unprocessable', action: 'Validation failed. The error message lists what\'s wrong — e.g., "email must be a valid email address".', color: 'amber' },
   { code: 429, meaning: 'Too Many Requests', action: 'Rate limited. Wait 60 seconds and retry. Consider adding delays between batch requests.', color: 'red' },
@@ -263,7 +263,7 @@ const SECTIONS: TroubleshootingSection[] = [
       },
       {
         question: "Can't assign a task",
-        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">The <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">assignee_id</code> must be a valid employee UUID.</p>,
+        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">The <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">assignee_id</code> must be a valid employee ID.</p>,
       },
       {
         question: 'Valid task status values',
@@ -408,7 +408,7 @@ const SECTIONS: TroubleshootingSection[] = [
     items: [
       {
         question: 'Referencing bases and tables',
-        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">Base and table can be referenced by UUID or slug.</p>,
+        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">Base and table can be referenced by ID or slug.</p>,
       },
       {
         question: 'Record format',
@@ -464,9 +464,9 @@ const SECTIONS: TroubleshootingSection[] = [
         question: '"Invalid input syntax for type uuid" when creating webhooks or API keys',
         answer: (
           <div className="space-y-2">
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">This error occurs when the system tries to store a string value (like <code className="px-1 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">'platform'</code>) in a UUID-type column.</p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">This error occurs when the system tries to store a string value (like <code className="px-1 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">'platform'</code>) in an ID column.</p>
             <ul className="space-y-1.5 text-sm text-zinc-600 dark:text-zinc-400">
-              <li className="flex gap-2"><span className="text-emerald-500 mt-0.5"><CheckCircle2 size={14} /></span><strong>Fix:</strong> Use a valid UUID value — the platform sentinel UUID is <code className="px-1 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">00000000-0000-0000-0000-000000000000</code></li>
+              <li className="flex gap-2"><span className="text-emerald-500 mt-0.5"><CheckCircle2 size={14} /></span><strong>Fix:</strong> Use a valid ID value — the platform sentinel is <code className="px-1 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">0</code> (the short ID encoding of the nil UUID)</li>
               <li className="flex gap-2"><span className="text-emerald-500 mt-0.5"><CheckCircle2 size={14} /></span>This applies to <code className="px-1 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">base_id</code> in webhooks and <code className="px-1 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">workspace_id</code> in API keys</li>
               <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>If you see 400 errors on Supabase realtime channels, this is likely the same root cause</li>
             </ul>
@@ -503,7 +503,7 @@ def verify_signature(body: bytes, secret: str, signature: str) -> bool:
   "event": "employee.created",
   "timestamp": "2026-09-15T10:30:00Z",
   "data": {
-    "id": "uuid-here",
+    "id": "4v7SY1Hl7YZtWCGClC5boe",
     "first_name": "Chioma",
     "last_name": "Okafor",
     "email": "chioma@company.com",

@@ -57,6 +57,47 @@ function escapeLike(str: string): string {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// ---------- Short ID (base-62) conversion ----------
+const SHORT_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+
+function uuidToShort(uuid: string): string {
+  const hex = uuid.replace(/-/g, '');
+  let num = BigInt('0x' + hex);
+  let result = '';
+  while (num > 0n) {
+    result = SHORT_CHARS[Number(num % 62n)] + result;
+    num = num / 62n;
+  }
+  return result || '0';
+}
+
+function shortToUuid(short: string): string {
+  let num = 0n;
+  for (const ch of short) {
+    const idx = SHORT_CHARS.indexOf(ch);
+    if (idx < 0) return short;
+    num = num * 62n + BigInt(idx);
+  }
+  const hex = num.toString(16).padStart(32, '0');
+  return [
+    hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16),
+    hex.slice(16, 20), hex.slice(20, 32),
+  ].join('-');
+}
+
+function decodeShortId(param: string): string | null {
+  if (UUID_RE.test(param)) return null;
+  if (param.length > 25) return null;
+  const decoded = shortToUuid(param);
+  return (decoded !== param && UUID_RE.test(decoded)) ? decoded : null;
+}
+
+function convertRowIds(row: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...row };
+  if (typeof out.id === 'string' && UUID_RE.test(out.id)) out.id = uuidToShort(out.id);
+  return out;
+}
+
 // ---------- Pool ----------
 // Module-level singleton so the pool is reused across invocations within the
 // same Deno isolate instead of being recreated (and never fully torn down)
@@ -231,17 +272,21 @@ interface FieldMeta {
 
 const PLATFORM_WORKSPACE_ID = '00000000-0000-0000-0000-000000000000';
 
-async function resolveBase(pool: Pool, workspaceId: string, baseIdOrSlug: string) {
+async function resolveBase(pool: Pool, workspaceId: string, param: string) {
+  // Reject raw UUIDs — only short IDs and slugs accepted
+  if (UUID_RE.test(param)) return null;
+  const decodedUuid = decodeShortId(param);
+  const lookupField = decodedUuid ? 'id' : 'slug';
+  const lookupValue = decodedUuid ?? param;
+
   const conn = await pool.connect();
   try {
-    const isUuid = UUID_RE.test(baseIdOrSlug);
-    // Platform-wide API keys (nil-UUID workspace) can access any base
     const wsClause = workspaceId === PLATFORM_WORKSPACE_ID ? '' : 'workspace_id = $1 AND ';
-    const params = workspaceId === PLATFORM_WORKSPACE_ID ? [baseIdOrSlug] : [workspaceId, baseIdOrSlug];
+    const params = workspaceId === PLATFORM_WORKSPACE_ID ? [lookupValue] : [workspaceId, lookupValue];
     const paramIdx = workspaceId === PLATFORM_WORKSPACE_ID ? '$1' : '$2';
     const { rows } = await conn.queryObject<{ id: string; name: string; schema_name: string; slug: string }>(
       `SELECT id, name, schema_name, slug FROM nc_meta.bases
-       WHERE ${wsClause}${isUuid ? 'id' : 'slug'} = ${paramIdx}`,
+       WHERE ${wsClause}${lookupField} = ${paramIdx}`,
       params,
     );
     return rows[0] ?? null;
@@ -250,14 +295,18 @@ async function resolveBase(pool: Pool, workspaceId: string, baseIdOrSlug: string
   }
 }
 
-async function resolveTable(pool: Pool, baseId: string, tableIdOrSlug: string) {
+async function resolveTable(pool: Pool, baseId: string, param: string) {
+  if (UUID_RE.test(param)) return null;
+  const decodedUuid = decodeShortId(param);
+  const lookupField = decodedUuid ? 'id' : 'slug';
+  const lookupValue = decodedUuid ?? param;
+
   const conn = await pool.connect();
   try {
-    const isUuid = UUID_RE.test(tableIdOrSlug);
     const { rows } = await conn.queryObject<{ id: string; name: string; pg_table_name: string; slug: string }>(
       `SELECT id, name, pg_table_name, slug FROM nc_meta.tables
-       WHERE base_id = $1 AND ${isUuid ? 'id' : 'slug'} = $2`,
-      [baseId, tableIdOrSlug],
+       WHERE base_id = $1 AND ${lookupField} = $2`,
+      [baseId, lookupValue],
     );
     return rows[0] ?? null;
   } finally {
@@ -407,7 +456,8 @@ async function handleListBases(pool: Pool, auth: ApiKeyInfo) {
                 (SELECT count(*) FROM nc_meta.tables t WHERE t.base_id = b.id)::int AS table_count
          FROM nc_meta.bases b WHERE b.workspace_id = $1 ORDER BY b.position`;
     const { rows } = await conn.queryObject(query, [auth.workspace_id]);
-    return json({ bases: rows });
+    const bases = (rows as any[]).map(b => ({ ...b, id: uuidToShort(b.id) }));
+    return json({ bases });
   } finally {
     conn.release();
   }
@@ -432,7 +482,12 @@ async function handleListTables(pool: Pool, auth: ApiKeyInfo, baseIdOrSlug: stri
        GROUP BY t.id ORDER BY t.position`,
       [base.id],
     );
-    return json({ tables });
+    const converted = (tables as any[]).map(t => ({
+      ...t,
+      id: uuidToShort(t.id),
+      fields: (t.fields ?? []).map((f: any) => f?.id ? { ...f, id: uuidToShort(f.id) } : f),
+    }));
+    return json({ tables: converted });
   } finally {
     conn.release();
   }
@@ -512,7 +567,7 @@ async function handleListRecords(
     const returnRows = hasMore ? rows.slice(0, pageSize) : rows;
 
     const records = returnRows.map((row: any) => ({
-      id: row.id,
+      id: uuidToShort(row.id),
       createdTime: row.created_at,
       fields: pgRowToFields(row, fields),
     }));
@@ -533,6 +588,9 @@ async function handleGetRecord(
 ) {
   if (!hasScope(auth.scopes,'records:read')) return err('Scope records:read required', 403);
 
+  const decodedRecordId = decodeShortId(recordId);
+  if (!decodedRecordId) return err('Invalid record ID format — use short IDs, not UUIDs', 400);
+
   const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
   const table = await resolveTable(pool, base.id, tableIdOrSlug);
@@ -542,11 +600,11 @@ async function handleGetRecord(
   const fqn = `${safeId(base.schema_name)}.${safeId(table.pg_table_name)}`;
   const conn = await pool.connect();
   try {
-    const { rows } = await conn.queryObject(`SELECT * FROM ${fqn} WHERE "id" = $1`, [recordId]);
+    const { rows } = await conn.queryObject(`SELECT * FROM ${fqn} WHERE "id" = $1`, [decodedRecordId]);
     if (!rows.length) return err('Record not found', 404);
     const row: any = rows[0];
     return json({
-      id: row.id,
+      id: uuidToShort(row.id),
       createdTime: row.created_at,
       fields: pgRowToFields(row, fields),
     });
@@ -603,7 +661,7 @@ async function handleCreateRecords(
     await conn.queryObject('COMMIT');
 
     const result = created.map((row: any) => ({
-      id: row.id,
+      id: uuidToShort(row.id),
       createdTime: row.created_at,
       fields: pgRowToFields(row, fields),
     }));
@@ -649,12 +707,14 @@ async function handleUpdateRecords(
     const updated: any[] = [];
     for (const rec of inputRecords) {
       if (!rec.id) return err('Each record must include an "id" field for updates', 422);
+      const decodedId = decodeShortId(rec.id);
+      if (!decodedId) return err(`Invalid record ID format: ${rec.id} — use short IDs, not UUIDs`, 422);
       const row = fieldsToRow(rec.fields || {}, fields);
       const keys = Object.keys(row);
       if (!keys.length) continue;
       const setClauses = keys.map((k, i) => `${safeId(k)} = $${i + 1}`).join(', ');
       const vals = keys.map(k => row[k]);
-      vals.push(rec.id);
+      vals.push(decodedId);
       const r = await conn.queryObject(
         `UPDATE ${fqn} SET ${setClauses} WHERE "id" = $${vals.length} RETURNING *`, vals,
       );
@@ -663,7 +723,7 @@ async function handleUpdateRecords(
     await conn.queryObject('COMMIT');
 
     const result = updated.map((row: any) => ({
-      id: row.id,
+      id: uuidToShort(row.id),
       createdTime: row.created_at,
       fields: pgRowToFields(row, fields),
     }));
@@ -699,14 +759,21 @@ async function handleDeleteRecords(
   }
   if (recordIds.length > 10) return err('Max 10 records per request', 422);
 
+  const decodedIds: string[] = [];
+  for (const rid of recordIds) {
+    const decoded = decodeShortId(rid);
+    if (!decoded) return err(`Invalid record ID format: ${rid} — use short IDs, not UUIDs`, 422);
+    decodedIds.push(decoded);
+  }
+
   const fqn = `${safeId(base.schema_name)}.${safeId(table.pg_table_name)}`;
   const conn = await pool.connect();
   try {
-    const placeholders = recordIds.map((_, i) => `$${i + 1}`).join(', ');
+    const placeholders = decodedIds.map((_, i) => `$${i + 1}`).join(', ');
     const { rows } = await conn.queryObject<{ id: string }>(
-      `DELETE FROM ${fqn} WHERE "id" IN (${placeholders}) RETURNING "id"`, recordIds,
+      `DELETE FROM ${fqn} WHERE "id" IN (${placeholders}) RETURNING "id"`, decodedIds,
     );
-    const result = rows.map(r => ({ id: r.id, deleted: true }));
+    const result = rows.map(r => ({ id: uuidToShort(r.id), deleted: true }));
 
     dispatchWebhooks(pool, base.id, table.id, table.name, 'record.deleted', { records: result });
     logAudit(pool, base.id, table.id, 'DELETE', result);
@@ -733,7 +800,8 @@ async function handleListFields(pool: Pool, _auth: ApiKeyInfo, baseIdOrSlug: str
        FROM nc_meta.fields WHERE table_id = $1 ORDER BY position`,
       [table.id],
     );
-    return json({ fields: rows });
+    const fields = (rows as any[]).map(f => ({ ...f, id: uuidToShort(f.id) }));
+    return json({ fields });
   } finally {
     conn.release();
   }
@@ -785,7 +853,8 @@ async function handleCreateField(
       );
     }
 
-    return json({ field: rows[0] }, 201);
+    const field = rows[0] as any;
+    return json({ field: { ...field, id: uuidToShort(field.id) } }, 201);
   } finally {
     conn.release();
   }
@@ -795,6 +864,9 @@ async function handleUpdateField(
   pool: Pool, auth: ApiKeyInfo,
   baseIdOrSlug: string, tableIdOrSlug: string, fieldId: string, body: any,
 ) {
+  const decodedFieldId = decodeShortId(fieldId);
+  if (!decodedFieldId) return err('Invalid field ID format — use short IDs, not UUIDs', 400);
+
   const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
   const table = await resolveTable(pool, base.id, tableIdOrSlug);
@@ -802,10 +874,9 @@ async function handleUpdateField(
 
   const conn = await pool.connect();
   try {
-    // Verify field exists and belongs to this table
     const { rows: existing } = await conn.queryObject<{ id: string }>(
       `SELECT id FROM nc_meta.fields WHERE id = $1 AND table_id = $2`,
-      [fieldId, table.id],
+      [decodedFieldId, table.id],
     );
     if (!existing.length) return err('Field not found', 404);
 
@@ -830,12 +901,13 @@ async function handleUpdateField(
 
     if (!setClauses.length) return err('No valid fields to update', 422);
 
-    vals.push(fieldId);
+    vals.push(decodedFieldId);
     const { rows } = await conn.queryObject(
       `UPDATE nc_meta.fields SET ${setClauses.join(', ')} WHERE id = $${idx} RETURNING *`,
       vals,
     );
-    return json({ field: rows[0] });
+    const field = rows[0] as any;
+    return json({ field: { ...field, id: uuidToShort(field.id) } });
   } finally {
     conn.release();
   }
@@ -845,6 +917,9 @@ async function handleDeleteField(
   pool: Pool, auth: ApiKeyInfo,
   baseIdOrSlug: string, tableIdOrSlug: string, fieldId: string,
 ) {
+  const decodedFieldId = decodeShortId(fieldId);
+  if (!decodedFieldId) return err('Invalid field ID format — use short IDs, not UUIDs', 400);
+
   const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
   const table = await resolveTable(pool, base.id, tableIdOrSlug);
@@ -857,7 +932,7 @@ async function handleDeleteField(
     }>(
       `SELECT id, pg_column_name, is_system, is_primary FROM nc_meta.fields
        WHERE id = $1 AND table_id = $2`,
-      [fieldId, table.id],
+      [decodedFieldId, table.id],
     );
     if (!existing.length) return err('Field not found', 404);
 
@@ -873,7 +948,7 @@ async function handleDeleteField(
       );
     }
 
-    await conn.queryObject(`DELETE FROM nc_meta.fields WHERE id = $1`, [fieldId]);
+    await conn.queryObject(`DELETE FROM nc_meta.fields WHERE id = $1`, [decodedFieldId]);
     return json({ field: { id: fieldId, deleted: true } });
   } finally {
     conn.release();
@@ -907,8 +982,8 @@ async function dispatchWebhooks(
       const body = JSON.stringify({
         event,
         timestamp: new Date().toISOString(),
-        base_id: baseId,
-        table_id: tableId,
+        base_id: uuidToShort(baseId),
+        table_id: uuidToShort(tableId),
         table_name: tableName,
         payload,
       });
