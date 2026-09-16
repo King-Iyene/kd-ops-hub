@@ -92,8 +92,16 @@ function decodeShortId(param: string): string | null {
   return (decoded !== param && UUID_RE.test(decoded)) ? decoded : null;
 }
 
+function sanitizeRow(row: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(row)) {
+    out[k] = typeof v === 'bigint' ? Number(v) : v;
+  }
+  return out;
+}
+
 function convertRowIds(row: Record<string, unknown>): Record<string, unknown> {
-  const out = { ...row };
+  const out = sanitizeRow(row);
   if (typeof out.id === 'string' && UUID_RE.test(out.id)) out.id = uuidToShort(out.id);
   return out;
 }
@@ -332,8 +340,9 @@ function pgRowToFields(row: Record<string, unknown>, fields: FieldMeta[]): Recor
   const out: Record<string, unknown> = {};
   for (const f of fields) {
     if (f.is_system || f.is_hidden || VIRTUAL_TYPES.has(f.ui_type)) continue;
-    const val = row[f.pg_column_name];
+    let val = row[f.pg_column_name];
     if (val !== null && val !== undefined) {
+      if (typeof val === 'bigint') val = Number(val);
       out[f.name] = val;
     }
   }
@@ -382,7 +391,7 @@ function validateFieldName(name: string): string | null {
 
 function inferPgType(value: unknown): { pgType: string; uiType: string } {
   if (typeof value === 'number') {
-    return Number.isInteger(value) ? { pgType: 'BIGINT', uiType: 'Number' } : { pgType: 'DOUBLE PRECISION', uiType: 'Decimal' };
+    return Number.isInteger(value) ? { pgType: 'INTEGER', uiType: 'Number' } : { pgType: 'DOUBLE PRECISION', uiType: 'Decimal' };
   }
   if (typeof value === 'boolean') return { pgType: 'BOOLEAN DEFAULT false', uiType: 'Checkbox' };
   if (typeof value === 'string') {
@@ -800,7 +809,7 @@ async function handleListFields(pool: Pool, _auth: ApiKeyInfo, baseIdOrSlug: str
        FROM nc_meta.fields WHERE table_id = $1 ORDER BY position`,
       [table.id],
     );
-    const fields = (rows as any[]).map(f => ({ ...f, id: uuidToShort(f.id) }));
+    const fields = (rows as any[]).map(f => ({ ...sanitizeRow(f as Record<string, unknown>), id: uuidToShort(f.id) }));
     return json({ fields });
   } finally {
     conn.release();
@@ -854,7 +863,7 @@ async function handleCreateField(
     }
 
     const field = rows[0] as any;
-    return json({ field: { ...field, id: uuidToShort(field.id) } }, 201);
+    return json({ field: { ...sanitizeRow(field), id: uuidToShort(field.id) } }, 201);
   } finally {
     conn.release();
   }
@@ -907,7 +916,7 @@ async function handleUpdateField(
       vals,
     );
     const field = rows[0] as any;
-    return json({ field: { ...field, id: uuidToShort(field.id) } });
+    return json({ field: { ...sanitizeRow(field), id: uuidToShort(field.id) } });
   } finally {
     conn.release();
   }

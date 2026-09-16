@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
+  return new Response(JSON.stringify(body, (_k, v) => typeof v === 'bigint' ? Number(v) : v), {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
