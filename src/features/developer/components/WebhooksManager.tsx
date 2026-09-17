@@ -443,13 +443,13 @@ export default function WebhooksManager() {
             <Card
               key={wh.id}
               className={cn(
-                'border-border/50 bg-card/50 transition-colors',
+                'min-w-0 border-border/50 bg-card/50 transition-colors',
                 !wh.is_active && 'opacity-60'
               )}
             >
               <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1 space-y-3">
+                <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                  <div className="min-w-0 w-full sm:flex-1 space-y-3">
                     {/* Title row */}
                     <div className="flex items-center gap-3">
                       <h3 className="font-semibold text-base truncate" title={wh.name}>{wh.name}</h3>
@@ -475,16 +475,16 @@ export default function WebhooksManager() {
                     </div>
 
                     {/* URL */}
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground font-mono">
+                    <div className="flex items-center gap-2 min-w-0 text-sm text-muted-foreground font-mono">
                       <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate" title={wh.url}>{wh.url}</span>
+                      <span className="flex-1 min-w-0 truncate" title={wh.url}>{wh.url}</span>
                     </div>
 
                     {/* Events */}
                     <EventBadges events={wh.events || []} />
 
                     {/* Meta */}
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                       {wh.secret && (
                         <span className="flex items-center gap-1">
                           <Shield className="h-3 w-3" /> HMAC signed
@@ -500,7 +500,7 @@ export default function WebhooksManager() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap w-full sm:w-auto justify-end">
                     <Switch
                       checked={wh.is_active}
                       onCheckedChange={(checked) =>
@@ -794,8 +794,8 @@ export default function WebhooksManager() {
           </DialogHeader>
 
           <div className="space-y-3 py-2">
-            <p className="text-sm text-muted-foreground truncate" title={historyWebhook?.url}>
-              Last {deliveries?.length ?? 0} deliveries to <span className="font-mono">{historyWebhook?.url}</span>
+            <p className="text-sm text-muted-foreground" title={historyWebhook?.url}>
+              Last {deliveries?.length ?? 0} deliveries to <span className="font-mono break-all">{historyWebhook?.url}</span>
             </p>
 
             {deliveriesLoading ? (
@@ -824,14 +824,14 @@ export default function WebhooksManager() {
                       d.success ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5'
                     )}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
                         {d.success ? (
                           <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                         ) : (
                           <XCircle className="h-4 w-4 text-destructive shrink-0" />
                         )}
-                        <code className="text-xs font-mono truncate">{d.event}</code>
+                        <code className="text-xs font-mono truncate min-w-0 max-w-[10rem] sm:max-w-none">{d.event}</code>
                         {d.response_status != null && (
                           <Badge variant="outline" className="text-2xs shrink-0">{d.response_status}</Badge>
                         )}
@@ -842,7 +842,7 @@ export default function WebhooksManager() {
                         ) : null}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
                           {new Date(d.created_at).toLocaleString()}
                           {d.duration_ms != null && ` · ${d.duration_ms}ms`}
                         </span>

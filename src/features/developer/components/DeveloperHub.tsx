@@ -48,9 +48,9 @@ export function DeveloperHub() {
       </div>
 
       {/* Tabs */}
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-          <TabsList className="bg-transparent border-b border-zinc-200 dark:border-zinc-800 rounded-none w-full justify-start gap-1 h-auto p-0">
+          <TabsList className="bg-transparent border-b border-zinc-200 dark:border-zinc-800 rounded-none w-full justify-start gap-1 h-auto p-0 flex-nowrap overflow-x-auto overflow-y-hidden">
             {[
               { value: 'overview', label: 'Overview', icon: Telescope },
               { value: 'explorer', label: 'API Explorer', icon: Zap },
@@ -66,7 +66,7 @@ export function DeveloperHub() {
                 key={tab.value}
                 value={tab.value}
                 className={cn(
-                  'rounded-none border-b-2 border-transparent px-4 py-2.5 text-sm font-medium transition-all',
+                  'shrink-0 rounded-none border-b-2 border-transparent px-4 py-2.5 text-sm font-medium transition-all',
                   'data-[state=active]:border-primary data-[state=active]:text-primary dark:data-[state=active]:text-primary dark:data-[state=active]:border-primary',
                   'data-[state=inactive]:text-zinc-500 dark:data-[state=inactive]:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300',
                   'data-[state=active]:bg-transparent data-[state=active]:shadow-none',
