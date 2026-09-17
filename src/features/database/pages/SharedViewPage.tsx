@@ -109,9 +109,18 @@ export default function SharedViewPage() {
     },
     onSuccess: (data) => {
       if (!base?.id || !table?.id) return;
-      fireAutomations('record.created', base.id, table.id, data);
+      // This mutation is only ever reached via FormView (SharedViewPage
+      // renders the plain GridView with a no-op onAddRow for every other
+      // shared-view type), so every call here is a public form submission,
+      // never a plain grid insert. Fires under the Developer Hub's
+      // "Tables" module event (table.form_submitted) rather than the
+      // "Database" module's record.created, matching how the catalog in
+      // WebhooksManager.tsx actually categorizes the two — a webhook
+      // subscribed to table.form_submitted was otherwise never notified
+      // by this, the most common way records get created in a Base.
+      fireAutomations('table.form_submitted', base.id, table.id, data);
       supabase.functions.invoke('webhook-dispatcher', {
-        body: { event: 'record.created', baseId: base.id, tableId: table.id, record: data, shareToken: token },
+        body: { event: 'table.form_submitted', baseId: base.id, tableId: table.id, record: data, shareToken: token },
       }).catch((err) => {
         console.warn('[KDOps] Webhook dispatch failed:', err?.message ?? err);
       });
