@@ -1194,7 +1194,7 @@ export default function GridView({
     const onMouseDown = (e: MouseEvent) => {
       if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey) return;
       const target = e.target as HTMLElement;
-      if (target.closest('.cursor-crosshair') || target.closest('.cursor-grab') || target.closest('input[type="checkbox"]') || target.closest('button')) return;
+      if (target.closest('.cursor-cell') || target.closest('.cursor-grab') || target.closest('input[type="checkbox"]') || target.closest('button')) return;
       const coords = resolveCellCoords(target);
       if (!coords) return;
       isDraggingRef.current = true;

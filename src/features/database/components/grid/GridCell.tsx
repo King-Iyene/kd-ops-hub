@@ -242,7 +242,7 @@ export const GridCell = React.memo(function GridCell({
       )}
       {isSelected && !isEditing && !isSystemField && (
         <div
-          className="absolute bottom-0 right-0 w-[7px] h-[7px] cursor-crosshair z-20"
+          className="absolute bottom-0 right-0 w-[7px] h-[7px] cursor-cell z-20"
           style={{ backgroundColor: GRID_COLORS.primary, transform: 'translate(50%, 50%)' }}
           onMouseDown={(e) => {
             e.stopPropagation();
