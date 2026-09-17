@@ -132,52 +132,41 @@ export function RefreshAttachmentsDialog({ open, onOpenChange, baseId }: Props) 
       const schemaName = (table as any).schema_name?.schema_name || (table as any).schema_name;
       if (!schemaName) continue;
 
-      // Count records with airtableusercontent.com URLs
-      const { count } = await supabase.rpc('exec_sql_count', {
-        q: `SELECT count(*) FROM "${schemaName}"."${table.pg_table_name}" WHERE "${field.pg_column_name}"::text LIKE '%airtableusercontent.com%'`,
-      });
+      // Check a small sample first — cheap, and avoids pulling every row in
+      // the common case where the field holds no stale Airtable URLs at all.
+      //
+      // A prior version of this tried an `exec_sql_count` RPC first and
+      // treated any failure as a signal to fall back to a "direct" query —
+      // but that RPC was never actually created by any migration (always a
+      // PGRST202 "function not found"), so every single call took the
+      // fallback path. And the fallback itself opened with an unscoped
+      // `.from(table.pg_table_name)` (no `.schema(schemaName)`), which
+      // PostgREST resolves against the default `public` schema — a 404 for
+      // every dynamic-base table, every time, on every field. Its result was
+      // never even used; the sample/full-count queries below (which were
+      // always correctly schema-scoped) are the only part of this that ever
+      // did anything.
+      const { data: sample } = await supabase
+        .schema(schemaName)
+        .from(table.pg_table_name)
+        .select(`id, ${field.pg_column_name}`)
+        .not(field.pg_column_name, 'is', null)
+        .limit(1);
 
-      // Fallback: query directly
-      if (count === null || count === undefined) {
-        const { data: rows } = await supabase
-          .from(`${table.pg_table_name}`)
-          .select('id', { count: 'exact', head: true });
-        // Just check a sample
-        const { data: sample } = await supabase
+      if (sample?.length && JSON.stringify(sample[0][field.pg_column_name]).includes('airtableusercontent.com')) {
+        const { data: allRows } = await supabase
           .schema(schemaName)
           .from(table.pg_table_name)
-          .select(`id, ${field.pg_column_name}`)
-          .not(field.pg_column_name, 'is', null)
-          .limit(1);
+          .select('id')
+          .not(field.pg_column_name, 'is', null);
 
-        if (sample?.length && JSON.stringify(sample[0][field.pg_column_name]).includes('airtableusercontent.com')) {
-          // Get full count
-          const { data: allRows } = await supabase
-            .schema(schemaName)
-            .from(table.pg_table_name)
-            .select(`id`)
-            .not(field.pg_column_name, 'is', null);
-
-          stale.push({
-            schemaName,
-            tableName: table.name,
-            pgTableName: table.pg_table_name,
-            fieldName: field.name,
-            pgCol: field.pg_column_name,
-            staleCount: allRows?.length || 0,
-          });
-        }
-        continue;
-      }
-
-      if (count > 0) {
         stale.push({
           schemaName,
           tableName: table.name,
           pgTableName: table.pg_table_name,
           fieldName: field.name,
           pgCol: field.pg_column_name,
-          staleCount: count,
+          staleCount: allRows?.length || 0,
         });
       }
     }
