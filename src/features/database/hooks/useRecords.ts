@@ -80,6 +80,59 @@ export async function resolveTableContextShared(baseId: string, tableId: string)
   return resolveTableContext(baseId, tableId);
 }
 
+// A base's schema_name is the same for every one of its tables, but this
+// function used to be called once per (baseId, tableId) pair with no way
+// for those calls to share work. Opening a large base (TableTabBar renders
+// one useRecordCount per tab) fired N nearly-simultaneous requests all
+// asking nc_meta.bases the exact same question — a 53-table base meant 53
+// redundant "what's this base's schema_name" round trips alongside the 53
+// legitimately-distinct per-table lookups. Coalesced here: concurrent
+// callers for the same baseId now share one in-flight request instead of
+// each starting their own.
+const baseSchemaCache = new Map<string, { schemaName: string; ts: number }>();
+const baseSchemaInFlight = new Map<string, Promise<string>>();
+
+async function resolveBaseSchema(baseId: string): Promise<string> {
+  const cached = baseSchemaCache.get(baseId);
+  if (cached && Date.now() - cached.ts < 300_000) {
+    return cached.schemaName;
+  }
+
+  const inFlight = baseSchemaInFlight.get(baseId);
+  if (inFlight) return inFlight;
+
+  const promise = (async () => {
+    const { data, error } = await supabase
+      .schema('nc_meta')
+      .from('bases')
+      .select('schema_name')
+      .eq('id', baseId)
+      .single();
+    if (error) throw error;
+    const schemaName = data.schema_name as string;
+    baseSchemaCache.set(baseId, { schemaName, ts: Date.now() });
+    return schemaName;
+  })();
+  baseSchemaInFlight.set(baseId, promise);
+  try {
+    return await promise;
+  } finally {
+    baseSchemaInFlight.delete(baseId);
+  }
+}
+
+// Separately-keyed (by tableId only) so whatever already fetched a table's
+// full metadata — most commonly useTables(baseId), which pulls every
+// table's pg_table_name for a base in one query to render the tab bar —
+// can hand that name over directly via primeTableName(). That turns what
+// would otherwise be one more per-table nc_meta.tables round trip (on top
+// of the coalesced base-schema lookup above) into a synchronous cache hit.
+const tableNameCache = new Map<string, { tableName: string; ts: number }>();
+
+export function primeTableName(tableId: string, pgTableName: string) {
+  tableNameCache.set(tableId, { tableName: pgTableName, ts: Date.now() });
+}
+
 async function resolveTableContext(baseId: string, tableId: string) {
   const key = `${baseId}:${tableId}`;
   const cached = contextCache.get(key);
@@ -87,14 +140,21 @@ async function resolveTableContext(baseId: string, tableId: string) {
     return { schemaName: cached.schemaName, tableName: cached.tableName };
   }
 
-  const [baseRes, tableRes] = await Promise.all([
-    supabase.schema('nc_meta').from('bases').select('schema_name').eq('id', baseId).single(),
-    supabase.schema('nc_meta').from('tables').select('pg_table_name').eq('id', tableId).single(),
-  ]);
-  if (baseRes.error) throw baseRes.error;
-  if (tableRes.error) throw tableRes.error;
+  const primedTableName = tableNameCache.get(tableId);
+  const usePrimed = primedTableName && Date.now() - primedTableName.ts < 300_000;
 
-  const result = { schemaName: baseRes.data.schema_name, tableName: tableRes.data.pg_table_name };
+  const [schemaName, tableName] = await Promise.all([
+    resolveBaseSchema(baseId),
+    usePrimed
+      ? Promise.resolve(primedTableName.tableName)
+      : supabase.schema('nc_meta').from('tables').select('pg_table_name').eq('id', tableId).single()
+          .then(({ data, error }) => {
+            if (error) throw error;
+            return data.pg_table_name as string;
+          }),
+  ]);
+
+  const result = { schemaName, tableName };
   contextCache.set(key, { ...result, ts: Date.now() });
   return result;
 }

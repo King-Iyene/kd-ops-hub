@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 import type { TableMeta, FieldMeta, ViewMeta } from '../types';
+import { primeTableName } from './useRecords';
 
 function toSnakeCase(name: string): string {
   return name
@@ -26,7 +27,13 @@ export function useTables(baseId: string | null | undefined) {
         .eq('base_id', baseId)
         .order('position');
       if (error) throw error;
-      return (data as TableMeta[]).filter(t => !t.pg_table_name.startsWith('jn_'));
+      const tables = (data as TableMeta[]).filter(t => !t.pg_table_name.startsWith('jn_'));
+      // Every table's name is already sitting right here — hand it to
+      // resolveTableContext's cache so the tab bar's per-table record-count
+      // queries (and everything else that needs schema+table name) don't
+      // each fire their own redundant nc_meta.tables lookup right after.
+      for (const t of tables) primeTableName(t.id, t.pg_table_name);
+      return tables;
     },
   });
 }
