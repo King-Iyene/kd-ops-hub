@@ -37,7 +37,7 @@ jobs:
 
       - name: Install Supabase CLI
         run: |
-          VERSION=$(curl -fsSL "https://api.github.com/repos/supabase/cli/releases/latest" \
+          VERSION=$(curl -fsSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/supabase/cli/releases/latest" \
             | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].lstrip('v'))")
           curl -fsSLo supabase.deb \
             "https://github.com/supabase/cli/releases/download/v${VERSION}/supabase_${VERSION}_linux_amd64.deb"

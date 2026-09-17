@@ -53,8 +53,15 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Supabase CLI
+        # Auth header on the version-lookup call: it hits api.github.com,
+        # which rate-limits unauthenticated requests at 60/hr PER RUNNER IP —
+        # shared across every GitHub-hosted runner on the planet, so this call
+        # can and does get randomly rate-limited with no relation to this repo
+        # at all (observed 2026-09-17, run #251: CLI install failed here with
+        # a bare "exit code 1", before anything touched an actual migration).
+        # GITHUB_TOKEN bumps that to 1000/hr and is free — every job gets one.
         run: |
-          VERSION=$(curl -fsSL "https://api.github.com/repos/supabase/cli/releases/latest" \
+          VERSION=$(curl -fsSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/supabase/cli/releases/latest" \
             | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].lstrip('v'))")
           echo "Installing Supabase CLI v${VERSION}"
           curl -fsSLo supabase.deb \
