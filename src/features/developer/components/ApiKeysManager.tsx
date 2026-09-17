@@ -69,93 +69,6 @@ const SCOPE_GROUPS: ScopeGroup[] = [
     ],
   },
   {
-    label: 'Employees',
-    color: 'text-blue-600 dark:text-blue-400',
-    badgeClass: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
-    scopes: [
-      { value: 'employees:read', label: 'Read' },
-      { value: 'employees:write', label: 'Write' },
-    ],
-  },
-  {
-    label: 'Contractors',
-    color: 'text-sky-600 dark:text-sky-400',
-    badgeClass: 'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300',
-    scopes: [
-      { value: 'contractors:read', label: 'Read' },
-      { value: 'contractors:write', label: 'Write' },
-    ],
-  },
-  {
-    label: 'Tasks',
-    color: 'text-indigo-600 dark:text-indigo-400',
-    badgeClass: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300',
-    scopes: [
-      { value: 'tasks:read', label: 'Read' },
-      { value: 'tasks:write', label: 'Write' },
-    ],
-  },
-  {
-    label: 'Leave',
-    color: 'text-teal-600 dark:text-teal-400',
-    badgeClass: 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300',
-    scopes: [
-      { value: 'leave:read', label: 'Read' },
-      { value: 'leave:write', label: 'Write' },
-    ],
-  },
-  {
-    label: 'Expenses',
-    color: 'text-success',
-    badgeClass: 'bg-emerald-100 dark:bg-emerald-900/30 text-success',
-    scopes: [
-      { value: 'expenses:read', label: 'Read' },
-      { value: 'expenses:write', label: 'Write' },
-    ],
-  },
-  {
-    label: 'Payroll',
-    color: 'text-success',
-    badgeClass: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
-    scopes: [{ value: 'payroll:read', label: 'Read only' }],
-  },
-  {
-    label: 'Fleet',
-    color: 'text-orange-600 dark:text-orange-400',
-    badgeClass: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
-    scopes: [
-      { value: 'fleet:read', label: 'Read' },
-      { value: 'fleet:write', label: 'Write' },
-    ],
-  },
-  {
-    label: 'Invoices',
-    color: 'text-warning',
-    badgeClass: 'bg-amber-100 dark:bg-amber-900/30 text-warning',
-    scopes: [
-      { value: 'invoices:read', label: 'Read' },
-      { value: 'invoices:write', label: 'Write' },
-    ],
-  },
-  {
-    label: 'Clients',
-    color: 'text-rose-600 dark:text-rose-400',
-    badgeClass: 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300',
-    scopes: [
-      { value: 'clients:read', label: 'Read' },
-      { value: 'clients:write', label: 'Write' },
-    ],
-  },
-  {
-    label: 'Recruitment',
-    color: 'text-pink-600 dark:text-pink-400',
-    badgeClass: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300',
-    scopes: [
-      { value: 'recruitment:read', label: 'Read' },
-      { value: 'recruitment:write', label: 'Write' },
-    ],
-  },
-  {
     label: 'Database Records',
     color: 'text-zinc-600 dark:text-zinc-400',
     badgeClass: 'bg-zinc-200 dark:bg-zinc-700/50 text-zinc-700 dark:text-zinc-300',
@@ -490,7 +403,7 @@ export default function ApiKeysManager() {
               Create API Key
             </DialogTitle>
             <DialogDescription>
-              Generate a new API key with specific module-level permissions.
+              Generate a new API key scoped to the Data API's records/schema permissions.
             </DialogDescription>
           </DialogHeader>
 

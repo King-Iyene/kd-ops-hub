@@ -167,21 +167,22 @@ function checkRateLimit(keyHash: string): number | null {
 
 // ---------- Auth ----------
 
+// SECURITY: needed must be an EXACT scope this API actually enforces
+// (records:read/write, schema:read/write) or a matching *:read/*:write
+// wildcard. Never fall back to "any scope ending in :read/:write" — that
+// used to let a key scoped to e.g. "Payroll: Read only" (payroll:read, a
+// module-level scope for a per-module REST API that was never built)
+// satisfy records:read/schema:read and get full read access to every base
+// and table in the platform, and a "*:write"-shaped module scope satisfy
+// schema:write (full DDL) the same way. ApiKeysManager's module-scoped
+// checkboxes (Employees, Payroll, Fleet, ...) are inert against this API by
+// design — they gate a documented-but-unbuilt per-module REST API, and must
+// never be treated as equivalent to this generic Data API's own scopes.
 function hasScope(scopes: string[], needed: string): boolean {
   if (scopes.includes(needed)) return true;
   const neededAction = needed.split(':')[1]; // 'read' | 'write'
-  // Wildcard scopes: *:read, *:write, *:delete
   if (neededAction && scopes.includes(`*:${neededAction}`)) return true;
   if (neededAction === 'read' && scopes.includes('*:write')) return true;
-  // Any module-level :read scope grants records:read / schema:read
-  const hasAnyRead = scopes.some(s => s.endsWith(':read'));
-  const hasAnyWrite = scopes.some(s => s.endsWith(':write') || s.endsWith(':delete'));
-  if (needed === 'records:read' || needed === 'schema:read') {
-    return hasAnyRead || scopes.includes('read');
-  }
-  if (needed === 'records:write' || needed === 'schema:write') {
-    return hasAnyWrite || scopes.includes('write') || scopes.includes('delete');
-  }
   return false;
 }
 
@@ -753,7 +754,13 @@ async function handleDeleteRecords(
   pool: Pool, auth: ApiKeyInfo,
   baseIdOrSlug: string, tableIdOrSlug: string, url: URL, body: any,
 ) {
-  if (!hasScope(auth.scopes,'records:write')) return err('Scope records:write required', 403);
+  // records:write implies delete (an existing write-scoped key isn't newly
+  // restricted here), but data:delete / *:delete alone must ALSO work on
+  // their own — otherwise picking only "Delete records" in ApiKeysManager
+  // grants nothing at all, since no other handler in this file checks them.
+  if (!hasScope(auth.scopes,'records:write') && !auth.scopes.includes('data:delete') && !auth.scopes.includes('*:delete')) {
+    return err('Scope records:write or data:delete required', 403);
+  }
 
   const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
