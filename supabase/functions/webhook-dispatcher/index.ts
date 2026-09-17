@@ -168,8 +168,10 @@ Deno.serve(async (req) => {
 
   let dispatched = 0;
   const failedIds: string[] = [];
+  const deliveryRows: Record<string, unknown>[] = [];
 
   for (const wh of uniqueWebhooks) {
+    const startedAt = Date.now();
     try {
       const hdrs: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -194,15 +196,45 @@ Deno.serve(async (req) => {
         body: payload,
         signal: AbortSignal.timeout(10_000),
       });
+      const responseText = await resp.text().catch(() => '');
 
       if (resp.ok) {
         dispatched++;
       } else {
         failedIds.push(wh.id);
       }
-    } catch {
+
+      deliveryRows.push({
+        webhook_id: wh.id,
+        event,
+        base_id: baseId,
+        table_id: tableId,
+        request_url: wh.url,
+        success: resp.ok,
+        response_status: resp.status,
+        response_body: responseText.slice(0, 2000),
+        duration_ms: Date.now() - startedAt,
+      });
+    } catch (err) {
       failedIds.push(wh.id);
+      deliveryRows.push({
+        webhook_id: wh.id,
+        event,
+        base_id: baseId,
+        table_id: tableId,
+        request_url: wh.url,
+        success: false,
+        error_message: String((err as Error)?.message ?? err).slice(0, 2000),
+        duration_ms: Date.now() - startedAt,
+      });
     }
+  }
+
+  // Best-effort: a logging failure should never take down the actual dispatch.
+  if (deliveryRows.length > 0) {
+    await supabase.schema('nc_meta').from('webhook_deliveries').insert(deliveryRows).then(({ error }) => {
+      if (error) console.warn('[webhook-dispatcher] Failed to log deliveries:', error.message);
+    });
   }
 
   // Update last_triggered_at for successful webhooks

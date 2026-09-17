@@ -34,6 +34,9 @@ import {
   Zap,
   ChevronDown,
   ExternalLink,
+  History,
+  XCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EVENT_GROUPS, ALL_EVENTS, eventColor, eventModule } from '../webhookEvents';
@@ -65,6 +68,17 @@ interface WebhookRow {
   last_triggered_at?: string | null;
   created_at: string;
   created_by: string | null;
+}
+
+interface DeliveryRow {
+  id: string;
+  event: string;
+  success: boolean;
+  response_status: number | null;
+  response_body: string | null;
+  error_message: string | null;
+  duration_ms: number | null;
+  created_at: string;
 }
 
 interface FormState {
@@ -105,6 +119,7 @@ export default function WebhooksManager() {
   const [testing, setTesting] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [historyWebhook, setHistoryWebhook] = useState<WebhookRow | null>(null);
 
   // --- Queries ---------------------------------------------------------------
 
@@ -119,6 +134,22 @@ export default function WebhooksManager() {
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as WebhookRow[];
+    },
+  });
+
+  const { data: deliveries, isLoading: deliveriesLoading } = useQuery({
+    queryKey: ['webhook-deliveries', historyWebhook?.id],
+    enabled: !!historyWebhook,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .schema('nc_meta')
+        .from('webhook_deliveries')
+        .select('id, event, success, response_status, response_body, error_message, duration_ms, created_at')
+        .eq('webhook_id', historyWebhook!.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data as DeliveryRow[];
     },
   });
 
@@ -390,14 +421,24 @@ export default function WebhooksManager() {
                     <div className="flex items-center gap-3">
                       <h3 className="font-semibold text-base truncate" title={wh.name}>{wh.name}</h3>
                       <Badge variant={wh.is_active ? 'default' : 'secondary'} className="text-2xs">
-                        {wh.is_active ? 'Active' : 'Inactive'}
+                        {wh.is_active ? 'Active' : !wh.is_active && (wh.failure_count ?? 0) >= 10 ? 'Auto-disabled' : 'Inactive'}
                       </Badge>
-                      {(wh.failure_count ?? 0) > 0 && (
+                      {!wh.is_active && (wh.failure_count ?? 0) >= 10 ? (
+                        <Badge variant="destructive" className="text-2xs gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          Disabled after 10 failed deliveries
+                        </Badge>
+                      ) : (wh.failure_count ?? 0) >= 7 ? (
+                        <Badge variant="destructive" className="text-2xs gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          {wh.failure_count}/10 failures — will auto-disable soon
+                        </Badge>
+                      ) : (wh.failure_count ?? 0) > 0 ? (
                         <Badge variant="destructive" className="text-2xs gap-1">
                           <AlertTriangle className="h-3 w-3" />
                           {wh.failure_count} failures
                         </Badge>
-                      )}
+                      ) : null}
                     </div>
 
                     {/* URL */}
@@ -433,6 +474,9 @@ export default function WebhooksManager() {
                         toggleMutation.mutate({ id: wh.id, active: checked })
                       }
                     />
+                    <Button variant="ghost" size="icon" onClick={() => setHistoryWebhook(wh)} title="Delivery history">
+                      <History className="h-4 w-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => openTest(wh)} title="Test">
                       <Play className="h-4 w-4" />
                     </Button>
@@ -702,6 +746,82 @@ export default function WebhooksManager() {
             <Button onClick={runTest} disabled={testing} className="gap-2">
               {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
               {testing ? 'Sending...' : 'Send Test'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ---------- Delivery History Dialog ---------- */}
+      <Dialog open={!!historyWebhook} onOpenChange={(open) => { if (!open) setHistoryWebhook(null); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" /> Delivery History
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground truncate" title={historyWebhook?.url}>
+              Last {deliveries?.length ?? 0} deliveries to <span className="font-mono">{historyWebhook?.url}</span>
+            </p>
+
+            {deliveriesLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : !deliveries?.length ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="rounded-full bg-muted/50 p-3 mb-3">
+                  <Clock className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium">No deliveries yet</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Attempts will show up here as soon as a subscribed event fires.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {deliveries.map((d) => (
+                  <div
+                    key={d.id}
+                    className={cn(
+                      'rounded-lg border p-3 text-sm',
+                      d.success ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5'
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {d.success ? (
+                          <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive shrink-0" />
+                        )}
+                        <code className="text-xs font-mono truncate">{d.event}</code>
+                        {d.response_status != null && (
+                          <Badge variant="outline" className="text-2xs shrink-0">{d.response_status}</Badge>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {new Date(d.created_at).toLocaleString()}
+                        {d.duration_ms != null && ` · ${d.duration_ms}ms`}
+                      </span>
+                    </div>
+                    {(d.error_message || d.response_body) && (
+                      <p className="mt-2 text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all line-clamp-3">
+                        {d.error_message || d.response_body}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHistoryWebhook(null)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
