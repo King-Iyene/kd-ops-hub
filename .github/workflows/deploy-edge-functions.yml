@@ -156,6 +156,11 @@ jobs:
       - name: Deploy webhook-dispatcher
         run: supabase functions deploy webhook-dispatcher --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
 
+      # Cron-only (X-Cron-Secret) — ticked once a minute by pg_cron via
+      # tick_webhook_retry_worker(), see 20261220500000_webhook_retry.sql.
+      - name: Deploy webhook-retry-worker
+        run: supabase functions deploy webhook-retry-worker --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
       - name: Deploy webhook-proxy
         run: supabase functions deploy webhook-proxy --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
 

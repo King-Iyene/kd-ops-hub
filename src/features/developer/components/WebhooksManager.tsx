@@ -78,6 +78,9 @@ interface DeliveryRow {
   response_body: string | null;
   error_message: string | null;
   duration_ms: number | null;
+  attempt_number: number;
+  given_up: boolean;
+  next_retry_at: string | null;
   created_at: string;
 }
 
@@ -144,7 +147,7 @@ export default function WebhooksManager() {
       const { data, error } = await supabase
         .schema('nc_meta')
         .from('webhook_deliveries')
-        .select('id, event, success, response_status, response_body, error_message, duration_ms, created_at')
+        .select('id, event, success, response_status, response_body, error_message, duration_ms, attempt_number, given_up, next_retry_at, created_at')
         .eq('webhook_id', historyWebhook!.id)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -802,6 +805,9 @@ export default function WebhooksManager() {
                         {d.response_status != null && (
                           <Badge variant="outline" className="text-2xs shrink-0">{d.response_status}</Badge>
                         )}
+                        {d.attempt_number > 1 && (
+                          <Badge variant="outline" className="text-2xs shrink-0">attempt {d.attempt_number}</Badge>
+                        )}
                       </div>
                       <span className="text-xs text-muted-foreground shrink-0">
                         {new Date(d.created_at).toLocaleString()}
@@ -811,6 +817,16 @@ export default function WebhooksManager() {
                     {(d.error_message || d.response_body) && (
                       <p className="mt-2 text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all line-clamp-3">
                         {d.error_message || d.response_body}
+                      </p>
+                    )}
+                    {!d.success && d.next_retry_at && (
+                      <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                        <RefreshCw className="h-3 w-3" /> Retrying at {new Date(d.next_retry_at).toLocaleTimeString()}
+                      </p>
+                    )}
+                    {!d.success && d.given_up && (
+                      <p className="mt-2 text-xs text-destructive flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" /> Gave up after {d.attempt_number} attempts
                       </p>
                     )}
                   </div>

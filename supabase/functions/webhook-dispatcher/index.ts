@@ -7,6 +7,8 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { signWebhookPayload } from '../_shared/webhook-signing.ts';
+import { nextRetryDelayMinutes } from '../_shared/webhook-retry.ts';
 
 function json(body: Record<string, unknown>, status = 200, req?: Request): Response {
   const cors = req ? getCorsHeaders(req) : { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
@@ -14,10 +16,6 @@ function json(body: Record<string, unknown>, status = 200, req?: Request): Respo
     status,
     headers: { ...cors, 'Content-Type': 'application/json' },
   });
-}
-
-function encodeHex(bytes: Uint8Array): string {
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -180,14 +178,7 @@ Deno.serve(async (req) => {
       };
 
       if (wh.secret) {
-        const key = await crypto.subtle.importKey(
-          'raw', new TextEncoder().encode(wh.secret),
-          { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
-        );
-        const sig = encodeHex(new Uint8Array(
-          await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload)),
-        ));
-        hdrs['X-KDOps-Signature'] = `sha256=${sig}`;
+        hdrs['X-KDOps-Signature'] = await signWebhookPayload(wh.secret, payload);
       }
 
       const resp = await fetch(wh.url, {
@@ -210,10 +201,16 @@ Deno.serve(async (req) => {
         base_id: baseId,
         table_id: tableId,
         request_url: wh.url,
+        payload_json: payload,
+        attempt_number: 1,
         success: resp.ok,
         response_status: resp.status,
         response_body: responseText.slice(0, 2000),
         duration_ms: Date.now() - startedAt,
+        // A failed first attempt always gets a retry scheduled (attempt 1
+        // of MAX_DELIVERY_ATTEMPTS never exhausts retries by itself) — the
+        // retry worker owns failure_count/auto-disable bookkeeping from here.
+        next_retry_at: resp.ok ? null : new Date(Date.now() + nextRetryDelayMinutes(1)! * 60_000).toISOString(),
       });
     } catch (err) {
       failedIds.push(wh.id);
@@ -223,9 +220,12 @@ Deno.serve(async (req) => {
         base_id: baseId,
         table_id: tableId,
         request_url: wh.url,
+        payload_json: payload,
+        attempt_number: 1,
         success: false,
         error_message: String((err as Error)?.message ?? err).slice(0, 2000),
         duration_ms: Date.now() - startedAt,
+        next_retry_at: new Date(Date.now() + nextRetryDelayMinutes(1)! * 60_000).toISOString(),
       });
     }
   }
@@ -237,7 +237,11 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Update last_triggered_at for successful webhooks
+  // Update last_triggered_at for successful webhooks. Failed ones are NOT
+  // touched here — webhook-retry-worker only increments failure_count (and
+  // therefore only risks the 10-failure auto-disable) once a delivery has
+  // exhausted every retry, so a receiver's brief blip that succeeds on retry
+  // never counts against it.
   const successIds = uniqueWebhooks.map((w) => w.id).filter((id: string) => !failedIds.includes(id));
   if (successIds.length > 0) {
     await supabase
@@ -248,16 +252,6 @@ Deno.serve(async (req) => {
       .then(({ error }) => {
         if (error) console.warn('[webhook-dispatcher] Failed to update last_triggered_at:', error.message);
       });
-  }
-
-  // Increment failure_count for failed webhooks
-  if (failedIds.length > 0) {
-    for (const id of failedIds) {
-      await supabase.rpc('increment_webhook_failure', { webhook_id: id }).catch(() => {
-        // Fallback: just log
-        console.warn(`[webhook-dispatcher] Failed to increment failure_count for ${id}`);
-      });
-    }
   }
 
   return json({ dispatched, failed: failedIds.length }, 200, req);
