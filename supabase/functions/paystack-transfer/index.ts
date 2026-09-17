@@ -139,14 +139,38 @@ async function getPaystackSecret(serviceClient?: any): Promise<string> {
     secret = Deno.env.get("PAYSTACK_SECRET_KEY");
   }
 
+  // A copy-pasted key with a trailing newline/space still passes the
+  // sk_live_/sk_test_ prefix check below (it only looks at the start of the
+  // string), but Paystack will reject it outright since it no longer matches
+  // character-for-character — surfacing as a generic "Invalid key" with no
+  // hint that whitespace, not the key content, is the actual problem.
+  secret = secret?.trim();
+
+  // Masked diagnostic — visible only in Supabase's own function logs
+  // (Dashboard → Edge Functions → paystack-transfer → Logs), never returned
+  // to the browser. Confirms which env var was actually used and gives just
+  // enough of the value (first 11 chars incl. prefix, last 4) to tell "wrong
+  // key" apart from "right key, still rejected" without ever logging the
+  // full secret.
+  if (secret) {
+    const masked = secret.length > 15
+      ? `${secret.slice(0, 11)}...${secret.slice(-4)} (len ${secret.length})`
+      : '(too short to be a real key)';
+    console.log(`[paystack] mode=${mode} using ${Deno.env.get(envName) ? envName : 'PAYSTACK_SECRET_KEY (legacy fallback)'}: ${masked}`);
+  }
+
   // The DB-stored key fallback (company_settings.paystack_secret_key_enc)
   // was removed — the column shipped the live secret to every finance/admin
   // browser via Settings.tsx on every page load. Confirmed unused in
   // production (the column was empty) before removal.
   if (!secret) {
-    throw new Error(
+    const err: any = new Error(
       `No Paystack secret key found. Set ${envName} via 'supabase secrets set ${envName}=sk_...' and redeploy.`,
     );
+    // Marked as a rejection (not a 500) so this config error is visible to
+    // the browser directly instead of the generic "contact support" message.
+    err.isPaystackRejection = true;
+    throw err;
   }
 
   // Sanity: test-mode key must start with sk_test_; live must start with
@@ -155,14 +179,25 @@ async function getPaystackSecret(serviceClient?: any): Promise<string> {
   const looksTest = secret.startsWith("sk_test_");
   const looksLive = secret.startsWith("sk_live_");
   if (mode === "test" && !looksTest && looksLive) {
-    throw new Error(
+    const err: any = new Error(
       `Mode is TEST but the key starts with sk_live_. Refusing to make an accidental live call.`,
     );
+    err.isPaystackRejection = true;
+    throw err;
   }
   if (mode === "live" && !looksLive && looksTest) {
-    throw new Error(
+    const err: any = new Error(
       `Mode is LIVE but the key starts with sk_test_. Refusing to fire with a test key.`,
     );
+    err.isPaystackRejection = true;
+    throw err;
+  }
+  if (!looksTest && !looksLive) {
+    const err: any = new Error(
+      `${envName} does not look like a Paystack key (must start with sk_live_ or sk_test_) — check for a copy-paste error.`,
+    );
+    err.isPaystackRejection = true;
+    throw err;
   }
 
   _cachedPaystackSecret = secret;
