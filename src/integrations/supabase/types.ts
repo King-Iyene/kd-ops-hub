@@ -17626,6 +17626,7 @@ export type Database = {
       tick_payment_reconciliation: { Args: never; Returns: undefined }
       tick_payroll_disburse: { Args: never; Returns: undefined }
       tick_payroll_scheduler: { Args: never; Returns: undefined }
+      tick_webhook_retry_worker: { Args: never; Returns: undefined }
       unresolve_batch_item: { Args: { p_item_id: string }; Returns: undefined }
       upsert_payroll_draft: {
         Args: {
