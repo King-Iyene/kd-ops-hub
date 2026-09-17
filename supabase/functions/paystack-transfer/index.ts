@@ -5,7 +5,16 @@
 // The browser NEVER sees the Paystack secret key.
 //
 // Deploy: supabase functions deploy paystack-transfer --no-verify-jwt
-// Set secret: supabase secrets set PAYSTACK_SECRET_KEY=sk_live_...
+//
+// Secret keys — mode-aware (see getPaystackSecret() below). The active mode
+// comes from company_settings.paystack_mode ('live' by default), and the
+// LIVE-mode env var takes priority over the legacy single-key fallback even
+// if both are set — so rotating the key you actually use in production means
+// setting the one matching your current mode, not the legacy name:
+//   supabase secrets set PAYSTACK_SECRET_KEY_LIVE=sk_live_...   (live mode)
+//   supabase secrets set PAYSTACK_SECRET_KEY_TEST=sk_test_...  (test mode)
+// PAYSTACK_SECRET_KEY (no suffix) only takes effect when neither of the
+// above is set at all — it will NOT override an existing _LIVE/_TEST value.
 //
 // Auth:
 //   resolve_account is open to unauthenticated callers (used by the public
