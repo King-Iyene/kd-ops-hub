@@ -187,7 +187,11 @@ input[type=number] {
     --destructive-foreground: 0 0% 100%;
 
     --border: 200 22% 20%;
-    --input: 200 22% 18%;
+    /* Was 18% — nearly indistinguishable from --card's 13%, so form fields
+       inside cards/dialogs read as borderless flat boxes. Bumped for a
+       clearly visible resting-state border without going as bright as
+       --border (used for stronger dividers). */
+    --input: 200 20% 26%;
     --ring: 186 100% 55%;
 
     /* Sidebar in dark mode keeps the dark-on-dark aesthetic with a touch

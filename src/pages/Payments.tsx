@@ -22,15 +22,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Plus, Search, RefreshCw, ArrowRight, Users, ChevronDown, Trash2, Loader2,
+  Plus, Search, RefreshCw, ArrowRight, Users, Trash2, Loader2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from '@/components/ui/dropdown-menu';
 import { QuickPayDialog } from '@/components/QuickPay';
 import { PaystackBalanceCard } from '@/components/PaystackBalanceCard';
 import { FlutterwaveBalanceCard } from '@/components/FlutterwaveBalanceCard';
@@ -415,33 +409,31 @@ const Payments = () => {
           </p>
         </div>
 
-        {/* Action buttons — primary New Batch + secondary dropdown */}
+        {/* Action buttons — primary New Batch + secondary standalone actions.
+            Previously Quick Pay and Reconcile were merged into one "Actions"
+            dropdown, with Quick Pay's own Dialog nested inside a
+            DropdownMenuItem. That forced a preventDefault() hack to stop the
+            dropdown's close from racing the Dialog's mount (Radix closing
+            the menu and the Dialog opening in the same tick made the Dialog
+            flash open then immediately close), which in turn left the menu
+            stuck open indefinitely, fighting the bank-picker popover for
+            outside-click handling. Two plain, separate buttons have no
+            dropdown to race against and no reason to be grouped — Quick Pay
+            and Reconcile aren't variations of one action, they're two
+            unrelated ones. */}
         <div className="flex gap-2 items-center">
+          {canQuickPay && <QuickPayDialog />}
           {canQuickPay && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9">
-                  Actions <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {/* preventDefault stops Radix's default close-and-refocus-
-                    trigger behavior on select — without it, the dropdown
-                    closing fights the nested Dialog opening and the Quick
-                    Pay dialog flashes open then immediately closes before
-                    a user can interact with it. Confirmed live. */}
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                  <QuickPayDialog />
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => setConfirmReconcile(true)}
-                  disabled={reconciling}
-                >
-                  <RefreshCw className={cn('mr-2 h-4 w-4', reconciling && 'animate-spin')} />
-                  Reconcile
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9"
+              onClick={() => setConfirmReconcile(true)}
+              disabled={reconciling}
+            >
+              <RefreshCw className={cn('mr-1.5 h-3.5 w-3.5', reconciling && 'animate-spin')} />
+              Reconcile
+            </Button>
           )}
           <Button asChild className="h-9">
             <a href="/payments/new" onClick={(e) => { e.preventDefault(); navigate('/payments/new'); }}><Plus className="mr-2 h-4 w-4" /> New Batch</a>

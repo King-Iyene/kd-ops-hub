@@ -516,8 +516,8 @@ export function QuickPayDialog() {
     <>
       {/* Trigger lives outside the dialog so the parent's flex/grid layout
           controls placement. */}
-      <Button variant="outline" onClick={() => setOpen(true)}>
-        <Zap className="mr-2 h-4 w-4" /> Quick Pay
+      <Button variant="outline" size="sm" className="h-9" onClick={() => setOpen(true)}>
+        <Zap className="mr-1.5 h-3.5 w-3.5" /> Quick Pay
       </Button>
 
       <ResponsiveDialog
