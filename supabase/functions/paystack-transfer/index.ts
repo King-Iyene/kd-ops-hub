@@ -862,12 +862,22 @@ Deno.serve(async (req) => {
         });
       }
     } catch { /* swallow */ }
-    // 422 = Paystack rejected (bad account, unresolved NUBAN, etc.) — a
-    // business-logic failure, not an infrastructure problem. 500 = our
-    // edge function actually crashed. Differentiating these stops the
-    // browser from logging legitimate Paystack rejections as red 500s.
+    // 422 = Paystack rejected (bad account, unresolved NUBAN, invalid/expired
+    // secret key, etc.) — a business-logic failure, not an infrastructure
+    // problem. 500 = our edge function actually crashed. Differentiating
+    // these stops the browser from logging legitimate Paystack rejections
+    // as red 500s. For 422s specifically, `message` is Paystack's own
+    // response text (e.g. "Invalid key") — safe to surface as-is, and it's
+    // the only way to tell "bad secret key" apart from "bad account number"
+    // without digging into function logs. 500s keep the generic message
+    // since those can carry internal exception detail that isn't meant for
+    // the browser.
     return new Response(
-      JSON.stringify({ ok: false, error: "Transfer operation failed. Please try again or contact support.", paystack_rejection: isPaystackRejection }),
+      JSON.stringify({
+        ok: false,
+        error: isPaystackRejection ? message : "Transfer operation failed. Please try again or contact support.",
+        paystack_rejection: isPaystackRejection,
+      }),
       {
         status: isPaystackRejection ? 422 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
