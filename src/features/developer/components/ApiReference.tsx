@@ -17,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { formatEventCatalogAsText } from '../webhookEvents';
 
 /* ─── Types ─── */
 
@@ -555,55 +556,7 @@ app.post('/webhooks/kdops', (req, res) => {
         path: 'Platform events',
         description: 'Available webhook event types across all modules.',
         notes: 'Configure these events when creating a webhook in the Developer Hub.',
-        exampleRequest: `# Available event types by module:
-
-# Employees
-employee.created, employee.updated, employee.deleted,
-employee.suspended, employee.reactivated
-
-# Contractors
-contractor.created, contractor.updated, contractor.deleted,
-contractor.contract_expired
-
-# Tasks
-task.created, task.updated, task.completed, task.deleted,
-task.assigned, task.overdue, task.form_submitted, task.comment_added
-
-# Leave
-leave.requested, leave.approved, leave.rejected, leave.cancelled
-
-# Expenses
-expense.submitted, expense.approved, expense.rejected,
-expense.reimbursed
-
-# Payroll
-payroll.run_started, payroll.run_completed,
-payroll.slip_generated, payroll.payment_sent
-
-# Fleet
-fuel_request.created, fuel_request.approved, fuel_request.rejected,
-trip.logged, trip.completed, vehicle.added, vehicle.maintenance_due
-
-# Invoices
-invoice.created, invoice.sent, invoice.paid,
-invoice.overdue, invoice.cancelled
-
-# Clients
-client.created, client.updated, client.deleted,
-client.contract_renewed
-
-# Recruitment
-applicant.created, applicant.stage_changed,
-applicant.hired, applicant.rejected,
-opening.created, opening.closed
-
-# Payments
-payment.completed, payment.failed, payment.pending,
-batch.created, batch.approved, batch.processed
-
-# Database (Custom Tables)
-record.created, record.updated, record.deleted,
-record.bulk_created`,
+        exampleRequest: `# Available event types by module:\n\n${formatEventCatalogAsText()}`,
         exampleResponse: JSON.stringify({
           event: 'payroll.run_completed',
           timestamp: '2026-08-28T09:00:00.000Z',
