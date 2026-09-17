@@ -55,15 +55,16 @@ const recipes: Recipe[] = [
     id: 'auto-create-employee',
     icon: Users,
     emoji: '👤',
-    title: 'Auto-Create Employee from Google Sheet',
+    title: 'Stage New Hires from a Google Sheet into KDOps',
     difficulty: 'Beginner',
     platforms: ['n8n', 'Zapier'],
     description:
-      'When a new row is added to a Google Sheet (e.g., HR onboarding spreadsheet), automatically create the employee in KDOps.',
+      'There\'s no REST endpoint to create an employee directly. Instead, stage new-hire rows from a Google Sheet into a KDOps Database (Bases) table that HR reviews — then HR creates the real employee record in KDOps, which fires employee.created for the rest of your automation.',
     steps: [
       'Trigger: Google Sheets → New Row Added',
-      `Action: HTTP Request to POST ${API_BASE}/employees`,
-      'Map columns: Name → first_name, Email → email, Department → department, etc.',
+      'One-time setup: create a "New Hires" base and table in the KDOps Database module with fields like Name, Email, Department, Start Date',
+      `Action: HTTP Request to POST ${API_BASE}/bases/YOUR_BASE_ID/tables/YOUR_TABLE_ID/records`,
+      'HR reviews the "New Hires" table and creates the real employee in KDOps — this fires employee.created, which you can chain further automation off',
     ],
     code: [
       {
@@ -71,58 +72,66 @@ const recipes: Recipe[] = [
         label: 'n8n HTTP Request Node',
         content: `{
   "method": "POST",
-  "url": "${API_BASE}/employees",
+  "url": "${API_BASE}/bases/YOUR_BASE_ID/tables/YOUR_TABLE_ID/records",
   "headers": {
     "Authorization": "Bearer kdops_YOUR_KEY",
     "Content-Type": "application/json"
   },
   "body": {
-    "first_name": "{{ $json.Name.split(' ')[0] }}",
-    "last_name": "{{ $json.Name.split(' ')[1] }}",
-    "email": "{{ $json.Email }}",
-    "department": "{{ $json.Department }}",
-    "role": "{{ $json.Role }}"
+    "records": [
+      {
+        "fields": {
+          "Name": "{{ $json.Name }}",
+          "Email": "{{ $json.Email }}",
+          "Department": "{{ $json.Department }}",
+          "Start Date": "{{ $json.StartDate }}"
+        }
+      }
+    ]
   }
 }`,
       },
     ],
+    important:
+      'This does not create an employee — there is currently no REST endpoint for that. It stages the data in a custom table for a human to action.',
     proTip:
-      'Add a second step to create a task for IT to set up their laptop.',
+      'Subscribe to employee.created (Webhooks tab) to trigger the "set up laptop" task and welcome email automatically once HR actually creates the employee.',
   },
   {
     id: 'daily-expense-report',
     icon: Receipt,
     emoji: '💰',
-    title: 'Daily Expense Report to Slack',
+    title: 'Real-Time Expense Alerts to Slack (via Webhook)',
     difficulty: 'Beginner',
     platforms: ['n8n', 'Make'],
     description:
-      "Every morning at 9 AM, fetch yesterday's expenses and post a summary to a Slack channel.",
+      "There's no REST endpoint to fetch expenses, so a scheduled \"yesterday's expenses\" digest isn't possible today. Instead, post to Slack the instant an expense is submitted, using the real expense.submitted webhook.",
     steps: [
-      'Trigger: Schedule (daily at 9 AM WAT)',
-      `HTTP Request: GET ${API_BASE}/expenses?status=pending&date_from=yesterday`,
-      'Format the response into a Slack message with totals',
+      'Set up a webhook in KDOps for the expense.submitted event',
+      'n8n/Make Webhook trigger receives the payload the moment someone submits an expense',
+      'Format the payload into a Slack message',
       'Post to #finance Slack channel via Slack API',
     ],
     code: [
       {
         language: 'javascript',
         label: 'n8n Function Node — Format Message',
-        content: `const expenses = $input.all().map(i => i.json);
-const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+        content: `const body = $input.first().json; // full webhook envelope: { event, timestamp, payload, ... }
+const expense = body.payload;
 
 return [{
   json: {
-    text: \`*Daily Expense Report* — \${new Date().toLocaleDateString('en-NG')}\\n\\n\` +
-      \`Pending expenses: *\${expenses.length}*\\n\` +
-      \`Total amount: *₦\${total.toLocaleString()}*\\n\\n\` +
-      expenses.map(e =>
-        \`• \${e.employee_name}: ₦\${e.amount.toLocaleString()} — \${e.description}\`
-      ).join('\\n')
+    text: \`*New Expense Submitted*\\n\` +
+      \`Amount: *₦\${(expense.amount_ngn ?? 0).toLocaleString()}*\\n\` +
+      \`Category: \${expense.category ?? 'n/a'}\\n\` +
+      \`Description: \${expense.description ?? ''}\\n\` +
+      \`Status: \${expense.status}\`
   }
 }];`,
       },
     ],
+    important:
+      'The exact fields on expense.submitted vary depending on where the expense originates in KDOps — send a test delivery and inspect the payload before finalizing your Slack message.',
   },
   {
     id: 'fuel-request-approval',
@@ -135,19 +144,36 @@ return [{
       'When a fuel request is approved in KDOps, send an SMS to the driver via Termii and update a Google Sheet tracker.',
     steps: [
       'Set up webhook in KDOps for fuel_request.approved event',
-      'n8n Webhook trigger receives the payload',
-      'Extract driver name, amount, vehicle from payload',
+      'n8n Webhook trigger receives the payload — real fields are id, employee_name, amount_ngn, and status; it does not include a phone number or vehicle plate',
+      'Add a lookup step (e.g., against a Database/Bases table you maintain) to resolve employee_name → phone number',
       'Send SMS via Termii HTTP API to the driver',
       'Append row to Google Sheet fleet tracker',
     ],
     code: [
       {
         language: 'json',
+        label: 'Real fuel_request.approved Payload',
+        content: `{
+  "event": "fuel_request.approved",
+  "timestamp": "2026-09-15T10:30:00Z",
+  "base_id": "00000000-0000-0000-0000-000000000000",
+  "table_id": "00000000-0000-0000-0000-000000000000",
+  "payload": {
+    "id": "fr-001",
+    "employee_name": "Chioma Okafor",
+    "amount_ngn": 30000,
+    "status": "approved"
+  },
+  "old_payload": null
+}`,
+      },
+      {
+        language: 'json',
         label: 'Termii SMS Request',
         content: `{
   "to": "{{ $json.driver_phone }}",
   "from": "KDOps",
-  "sms": "Hi {{ $json.driver_name }}, your fuel request for {{ $json.vehicle_plate }} (₦{{ $json.amount }}) has been approved. Please proceed to the designated fuel station.",
+  "sms": "Hi {{ $json.payload.employee_name }}, your fuel request (₦{{ $json.payload.amount_ngn }}) has been approved. Please proceed to your usual fuel station.",
   "type": "plain",
   "channel": "generic",
   "api_key": "YOUR_TERMII_KEY"
@@ -155,7 +181,7 @@ return [{
       },
     ],
     important:
-      'The employee must have valid bank details on file for the fuel disbursement to process.',
+      'The employee must have valid bank details on file for the fuel disbursement to process. Also note: driver_phone above comes from your own lookup step, not from the KDOps payload.',
   },
   {
     id: 'sync-clients-crm',
@@ -168,23 +194,26 @@ return [{
       'When a client is created in KDOps, automatically create a company in your CRM.',
     steps: [
       'KDOps webhook: client.created',
-      'Map fields: name → company name, contact_email → email, industry → industry',
+      'Map fields: name → company name, industry → industry (the payload does not include contact email or phone — add those in your CRM separately)',
       'Create company in CRM (HubSpot or Pipedrive)',
       'Optionally create a deal/contact linked to the company',
     ],
     code: [
       {
         language: 'json',
-        label: 'Webhook Payload Example',
+        label: 'Real client.created Payload',
         content: `{
   "event": "client.created",
-  "data": {
-    "id": "4v7SY1Hl7YZtWCGClC5boe",
-    "name": "Dangote Industries",
-    "contact_email": "procurement@dangote.com",
-    "industry": "Manufacturing",
-    "phone": "+234 802 345 6789"
-  }
+  "timestamp": "2026-09-15T10:30:00Z",
+  "base_id": "00000000-0000-0000-0000-000000000000",
+  "table_id": "00000000-0000-0000-0000-000000000000",
+  "payload": {
+    "name": "MTN Nigeria",
+    "industry": "Telecommunications",
+    "status": "active",
+    "contract_value_ngn": 15000000
+  },
+  "old_payload": null
 }`,
       },
     ],
@@ -193,77 +222,83 @@ return [{
     id: 'payroll-report',
     icon: Banknote,
     emoji: '📊',
-    title: 'Automated Payroll Report Generator',
-    difficulty: 'Advanced',
-    platforms: ['Python'],
+    title: 'Payroll Completion Notification (via Webhook)',
+    difficulty: 'Intermediate',
+    platforms: ['Python', 'Webhook'],
     description:
-      'Python script that runs monthly, fetches payroll data, generates a PDF report, and emails it to finance.',
+      "There's no REST read access to payroll runs or payslips, so pulling this data on a schedule isn't possible today. Instead, run a small webhook receiver that reacts the instant a payroll run completes and emails finance a notification.",
     steps: [
-      'Run script on the 1st of each month (cron job)',
-      'Fetch payroll runs for the current month from KDOps API',
-      'Retrieve pay slips for each run',
-      'Generate PDF summary with totals and breakdown',
-      'Email the report to the finance team via SMTP',
+      'Set up a webhook in KDOps for payroll.run_started, payroll.run_completed, and payroll.slip_generated',
+      'Run a lightweight webhook receiver (e.g., Flask) that KDOps can POST to',
+      'On payroll.run_completed, email finance a notification with the period — link back into KDOps to review the actual figures',
     ],
     code: [
       {
         language: 'python',
-        label: 'payroll_report.py',
-        content: `import requests
-from datetime import date
+        label: 'payroll_webhook_receiver.py',
+        content: `from flask import Flask, request
+import smtplib
+from email.mime.text import MIMEText
 
-API_KEY = "kdops_YOUR_KEY"
-BASE = "${API_BASE}"
-headers = {"Authorization": f"Bearer {API_KEY}"}
+app = Flask(__name__)
 
-# Get current month's payroll
-month = date.today().strftime("%Y-%m")
-runs = requests.get(f"{BASE}/payroll/runs?month={month}", headers=headers).json()
+@app.route("/kdops-webhook", methods=["POST"])
+def kdops_webhook():
+    body = request.get_json()
+    if body.get("event") == "payroll.run_completed":
+        period = body["payload"]["period"]
+        msg = MIMEText(
+            f"Payroll for {period} has been completed and paid. "
+            f"There is no API to pull payslip data directly, so the "
+            f"full breakdown still needs to be viewed in KDOps."
+        )
+        msg["Subject"] = f"Payroll completed — {period}"
+        msg["From"] = "bot@kdsquares.com"
+        msg["To"] = "finance@kdsquares.com"
+        with smtplib.SMTP("smtp.yourprovider.com") as server:
+            server.login("bot@kdsquares.com", "YOUR_SMTP_PASSWORD")
+            server.send_message(msg)
+    return "", 200
 
-for run in runs["data"]:
-    slips = requests.get(
-        f"{BASE}/payroll/runs/{run['id']}/slips", headers=headers
-    ).json()
-    total = sum(s["net_pay"] for s in slips["data"])
-    print(f"Run {run['id']}: {len(slips['data'])} employees, Total: ₦{total:,.2f}")
-
-# To generate PDF, use reportlab or weasyprint
-# To send email, use smtplib with your SMTP credentials`,
+# Register this endpoint's public URL as a webhook in KDOps
+# (Developer Hub → Webhooks → Add Webhook) for the payroll.* events.`,
       },
     ],
+    important:
+      'This only tells you that a run finished — not the underlying numbers. Payroll figures still have to be viewed or exported from the KDOps UI; there is no REST endpoint for them.',
   },
   {
     id: 'task-deadline-reminder',
     icon: CheckSquare,
     emoji: '⏰',
-    title: 'Task Deadline Reminder Bot',
+    title: 'Task Deadline Reminder Bot — Not Currently Possible',
     difficulty: 'Beginner',
     platforms: ['n8n'],
     description:
-      'Every day, check for tasks due tomorrow and send reminder emails to assignees.',
+      "Proactively reminding people about tasks due tomorrow requires querying tasks by due date. There's no REST endpoint for tasks today — and no scheduled/polling access to KDOps data outside of webhooks — so this isn't possible yet.",
     steps: [
-      'Schedule trigger: daily at 8 AM WAT',
-      `GET ${API_BASE}/tasks?due_date=tomorrow&status=pending`,
-      'For each task, send email to assignee with task details',
-      'Optionally send a Slack DM as well',
+      'Not currently possible: there is no REST endpoint to list or filter tasks (e.g. by due date)',
+      'The closest real alternative is event-driven, not scheduled: subscribe to task.assigned and notify the assignee the moment a task is assigned, rather than the day before it\'s due',
     ],
     code: [
       {
         language: 'javascript',
-        label: 'n8n Function Node',
-        content: `const tasks = $input.all().map(i => i.json);
+        label: 'Alternative: notify on task.assigned (real webhook)',
+        content: `// This reacts the instant a task is ASSIGNED — not "due tomorrow",
+// since there's no way to query tasks by due date via the API today.
+const body = $input.first().json;
+const task = body.payload;
 
-return tasks.map(task => ({
+return [{
   json: {
-    to: task.assignee_email,
-    subject: \`Reminder: "\${task.title}" is due tomorrow\`,
-    body: \`Hi \${task.assignee_name},\\n\\nYour task "\${task.title}" is due tomorrow (\${task.due_date}).\\n\\nPlease update the status in KDOps.\\n\\nBest,\\nKDOps Bot\`
+    subject: \`New task assigned: "\${task.title}"\`,
+    body: \`Hi,\\n\\nYou've been assigned a task: "\${task.title}".\\n\\nCheck KDOps for the due date and details.\\n\\nBest,\\nKDOps Bot\`
   }
-}));`,
+}];`,
       },
     ],
-    proTip:
-      'Add a filter to skip tasks already marked as "in progress" so you only nag about forgotten ones.',
+    important:
+      'This is not the same recipe as a deadline reminder — it fires on assignment, not the day before something is due. There is currently no way to build a true due-date reminder via the API.',
   },
   {
     id: 'invoice-payment-tracker',
@@ -273,28 +308,38 @@ return tasks.map(task => ({
     difficulty: 'Intermediate',
     platforms: ['Make', 'Zapier'],
     description:
-      'Keep a Google Sheet automatically updated with all invoice statuses.',
+      'Keep a Google Sheet automatically updated with invoice statuses using the real invoice webhooks.',
     steps: [
-      'Set up webhooks: invoice.created, invoice.paid, invoice.overdue',
-      'On create: add new row to Google Sheet with invoice details',
-      'On paid: find the row by invoice ID and update status to "Paid"',
-      'On overdue: find the row and update status to "Overdue", highlight red',
+      'Set up webhooks: invoice.created, invoice.sent, invoice.paid (there is no invoice.overdue event — compute "overdue" yourself in the sheet by comparing due_date to today)',
+      'On invoice.created: add a new row to Google Sheet with invoice details',
+      'On invoice.sent: find the row by invoice_number and update status to "Sent"',
+      'On invoice.paid: find the row and update status to "Paid"',
     ],
     code: [
       {
         language: 'json',
-        label: 'Webhook Events',
-        content: `// invoice.created payload
-{
+        label: 'Real invoice.created Payload',
+        content: `{
   "event": "invoice.created",
-  "data": {
-    "id": "5RK81pyPjBY4UNGoLLsvuU",
-    "client_name": "GTBank Plc",
-    "amount": 2500000,
-    "currency": "NGN",
-    "due_date": "2026-10-01",
-    "status": "pending"
-  }
+  "timestamp": "2026-09-15T10:30:00Z",
+  "base_id": "00000000-0000-0000-0000-000000000000",
+  "table_id": "00000000-0000-0000-0000-000000000000",
+  "payload": {
+    "invoice_number": "INV-2026-019",
+    "client_name": "Dangote Industries",
+    "client_id": "cl-001",
+    "client_email": "procurement@dangote.com",
+    "issue_date": "2026-09-09",
+    "due_date": "2026-10-30",
+    "payment_terms": "net_30",
+    "line_items": [{ "description": "Software Development — Phase 1", "amount_ngn": 3000000 }],
+    "subtotal_ngn": 3000000,
+    "vat_rate": 7.5,
+    "vat_amount_ngn": 225000,
+    "total_ngn": 3225000,
+    "notes": "Payment due within 30 days."
+  },
+  "old_payload": null
 }`,
       },
     ],
@@ -303,124 +348,126 @@ return tasks.map(task => ({
     id: 'employee-onboarding',
     icon: Zap,
     emoji: '🚀',
-    title: 'Employee Onboarding Automation Pipeline',
+    title: 'Employee Onboarding Checklist Pipeline',
     difficulty: 'Advanced',
     platforms: ['n8n'],
     description:
-      'When a new employee is created, automatically: create their onboarding checklist, assign IT tasks, send welcome email, add to Slack channels.',
+      "When a new employee is created, log an onboarding checklist into a KDOps Database table and notify IT/Admin/Finance. There's no REST endpoint to create a task directly, so this logs a trackable checklist instead of creating real KDOps tasks.",
     steps: [
       'Webhook: employee.created',
-      'POST /tasks — create "Set up laptop" task assigned to IT',
-      'POST /tasks — create "Create email account" task assigned to IT',
-      'POST /tasks — create "Office access card" task assigned to Admin',
-      'Send welcome email via SMTP with onboarding guide',
-      'Add to Slack #general and department channel via Slack API',
+      `POST ${API_BASE}/bases/YOUR_BASE_ID/tables/YOUR_TABLE_ID/records — create one row per onboarding checklist item ("Set up laptop", "Create email account", "Office access card", "Add to payroll")`,
+      'Send a Slack message or email to IT/Admin/Finance listing the checklist, since there\'s no REST endpoint to create an actual KDOps task for them to work from',
+      'Add the new hire to Slack #general and their department channel via the Slack API',
     ],
     code: [
       {
         language: 'javascript',
-        label: 'n8n Function — Create Tasks',
-        content: `const employee = $input.first().json;
-const tasks = [
-  { title: "Set up laptop", assignee_dept: "IT" },
-  { title: "Create email account", assignee_dept: "IT" },
-  { title: "Office access card", assignee_dept: "Admin" },
-  { title: "Add to payroll", assignee_dept: "Finance" },
+        label: 'n8n Function — Log Checklist to Database API',
+        content: `const employee = $input.first().json.payload; // employee.created payload: { email, full_name, role }
+
+const checklist = [
+  { item: "Set up laptop", owner_dept: "IT" },
+  { item: "Create email account", owner_dept: "IT" },
+  { item: "Office access card", owner_dept: "Admin" },
+  { item: "Add to payroll", owner_dept: "Finance" },
 ];
 
-return tasks.map(t => ({
+return [{
   json: {
     method: "POST",
-    url: "${API_BASE}/tasks",
+    url: "${API_BASE}/bases/YOUR_BASE_ID/tables/YOUR_TABLE_ID/records",
     body: {
-      title: \`\${t.title} for \${employee.first_name} \${employee.last_name}\`,
-      description: \`New hire onboarding task for \${employee.first_name}\`,
-      department: t.assignee_dept,
-      priority: "high",
-      due_date: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0]
+      records: checklist.map(c => ({
+        fields: {
+          "Item": c.item,
+          "Owner Dept": c.owner_dept,
+          "New Hire": employee.full_name,
+          "New Hire Email": employee.email,
+          "Status": "Pending"
+        }
+      }))
     }
   }
-}));`,
+}];`,
       },
     ],
     important:
-      "Make sure the new employee's bank details are entered during creation — they'll need them for payroll.",
+      "There's no REST endpoint to create a KDOps task directly — this logs the checklist into a Database (Bases) table instead, and a person still needs to do the work and check it off. Make sure the new employee's bank details are entered — they'll need them for payroll.",
   },
   {
     id: 'fleet-trip-report',
     icon: Truck,
     emoji: '🚚',
-    title: 'Fleet Trip Report Aggregator',
+    title: 'Fleet Trip Log to Google Sheets (via Webhook)',
     difficulty: 'Intermediate',
-    platforms: ['Python', 'Node.js'],
+    platforms: ['n8n', 'Webhook'],
     description:
-      'Weekly script that aggregates trip data per vehicle and calculates fuel efficiency.',
+      "There's no REST endpoint to query trips, so pulling a week of data on a schedule isn't possible today. Instead, log every trip to a Google Sheet the instant it's completed, using the real trip.completed webhook, then aggregate weekly totals in the sheet itself.",
     steps: [
-      'Run weekly via cron or task scheduler',
-      `GET ${API_BASE}/fleet/trips?date_from=last_week`,
-      'Group trips by vehicle_id',
-      'Calculate total distance, fuel consumed, and cost per vehicle',
-      'Generate summary report and save to Google Drive or email',
+      'Set up a webhook in KDOps for the trip.completed event',
+      'n8n Webhook trigger receives the payload each time a trip finishes',
+      'Append a row to a Google Sheet with vehicle, driver, distance, and duration',
+      'Use a Sheets pivot table (or scheduled Apps Script) to aggregate weekly totals per vehicle — the aggregation happens in the sheet, not by querying KDOps again',
     ],
     code: [
       {
-        language: 'python',
-        label: 'fleet_report.py',
-        content: `import requests
-from collections import defaultdict
+        language: 'javascript',
+        label: 'n8n Function — Format Row',
+        content: `const body = $input.first().json;
+const trip = body.payload;
 
-API_KEY = "kdops_YOUR_KEY"
-BASE = "${API_BASE}"
-headers = {"Authorization": f"Bearer {API_KEY}"}
-
-trips = requests.get(f"{BASE}/fleet/trips?date_from=last_week", headers=headers).json()
-
-by_vehicle = defaultdict(list)
-for trip in trips["data"]:
-    by_vehicle[trip["vehicle_plate"]].append(trip)
-
-for plate, vehicle_trips in by_vehicle.items():
-    total_km = sum(t["distance_km"] for t in vehicle_trips)
-    total_fuel = sum(t.get("fuel_litres", 0) for t in vehicle_trips)
-    efficiency = total_km / total_fuel if total_fuel else 0
-    print(f"{plate}: {len(vehicle_trips)} trips, {total_km:.0f} km, {efficiency:.1f} km/L")`,
+return [{
+  json: {
+    logged_at: body.timestamp,
+    vehicle_id: trip.vehicle_id,
+    driver_id: trip.driver_id,
+    end_location: trip.end_location,
+    distance_km: trip.distance_km,
+    duration_min: trip.duration_min,
+  }
+}];`,
       },
     ],
+    proTip:
+      'The payload only gives you vehicle_id and driver_id, not human-readable names — join against a Database/Bases table you maintain if you want plate numbers or driver names in the sheet.',
   },
   {
     id: 'leave-balance-alert',
     icon: CalendarDays,
     emoji: '🏖️',
-    title: 'Leave Balance Alert System',
+    title: 'Leave Request Activity Log (via Webhook)',
     difficulty: 'Beginner',
     platforms: ['n8n'],
     description:
-      'Monthly check of leave balances — alert employees who have more than 15 days unused annual leave.',
+      "There's no REST endpoint to read leave balances, so a proactive \"you have 15 unused days\" alert isn't possible today. Instead, log every leave.requested/approved/rejected/cancelled event to a Google Sheet in real time, which HR can scan for patterns.",
     steps: [
-      'Schedule trigger: 1st of each month at 9 AM WAT',
-      `GET ${API_BASE}/leaves/balances`,
-      'Filter employees with annual_leave_balance > 15',
-      'Send email reminder to each employee to plan their time off',
-      'Optionally notify HR manager with a summary',
+      'Set up webhooks for leave.requested, leave.approved, leave.rejected, and leave.cancelled',
+      'n8n receives each event the moment it happens',
+      'Append a row to a Google Sheet with employee, leave type, dates, and status',
+      'HR reviews the sheet periodically, or builds a pivot table to spot employees taking little or no leave',
     ],
     code: [
       {
         language: 'javascript',
-        label: 'n8n Function — Filter & Format',
-        content: `const balances = $input.all().map(i => i.json);
-const high = balances.filter(b => b.annual_leave_balance > 15);
+        label: 'n8n Function — Format Row',
+        content: `const body = $input.first().json;
+const leave = body.payload;
 
-return high.map(emp => ({
+return [{
   json: {
-    to: emp.email,
-    subject: "Reminder: You have unused annual leave",
-    body: \`Hi \${emp.name},\\n\\nYou currently have \${emp.annual_leave_balance} days of unused annual leave. Please plan some time off before year-end.\\n\\nBest,\\nHR Team\`
+    logged_at: body.timestamp,
+    event: body.event,
+    employee_id: leave.employee_id,
+    leave_type: leave.leave_type,
+    start_date: leave.start_date,
+    end_date: leave.end_date,
+    days_requested: leave.days_requested,
   }
-}));`,
+}];`,
       },
     ],
-    proTip:
-      "Send a second alert at 20+ days and CC the employee's line manager.",
+    important:
+      "There's no REST endpoint to read leave balances directly. This log approximates usage patterns over time from webhook activity — it isn't the same as querying real-time balances.",
   },
   {
     id: 'form-submission-to-google-sheets',
@@ -430,10 +477,10 @@ return high.map(emp => ({
     difficulty: 'Beginner',
     platforms: ['n8n', 'Zapier', 'Make'],
     description:
-      'When someone submits a form/report in the task module, automatically log the submission data to a Google Sheet for tracking and analysis.',
+      'When someone submits a task form, automatically log the submission data to a Google Sheet for tracking and analysis.',
     steps: [
       'Create a webhook in KDOps listening for task.form_submitted',
-      'n8n/Zapier receives the POST payload with form fields, submitter, and task details',
+      'n8n/Zapier receives the full webhook envelope — the actual form data is nested under payload.submitted_values, with the created task under payload.task',
       'Map the form fields to Google Sheets columns',
       'Append a new row to the tracking spreadsheet',
       'Optionally send a Slack notification to the team channel',
@@ -442,18 +489,17 @@ return high.map(emp => ({
       {
         language: 'javascript',
         label: 'n8n Function — Transform Form Data',
-        content: `const payload = $input.first().json;
+        content: `const envelope = $input.first().json;
+const { form_name, task, submitted_values } = envelope.payload;
 
 return [{
   json: {
-    submitted_by: payload.employee_name,
-    submitted_at: payload.created_at,
-    task_title: payload.task_title,
-    form_name: payload.form_name,
+    submitted_at: envelope.timestamp,
+    form_name,
+    task_title: task?.title ?? '',
+    task_priority: task?.priority ?? '',
     // Spread all form field values into columns
-    ...payload.form_data,
-    // Add a link back to the task in KDOps
-    kdops_link: \`https://ops.kdsquares.com/tasks/\${payload.task_id}\`
+    ...submitted_values,
   }
 }];`,
       },

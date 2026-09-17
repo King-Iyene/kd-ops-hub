@@ -35,70 +35,80 @@ const modules = [
     name: 'Employees',
     icon: Users,
     description: 'Manage employee records, profiles, departments and org charts.',
-    endpoints: ['GET /employees', 'POST /employees'],
+    endpoints: ['No REST endpoint', 'Webhooks: employee.*'],
+    restAvailable: false,
     color: 'from-blue-500 to-blue-600',
   },
   {
     name: 'Contractors',
     icon: UserCheck,
     description: 'Track contractors, contracts, and engagement history.',
-    endpoints: ['GET /contractors', 'POST /contractors'],
+    endpoints: ['No REST endpoint', 'Webhooks: contractor.*'],
+    restAvailable: false,
     color: 'from-cyan-500 to-cyan-600',
   },
   {
     name: 'Tasks',
     icon: CheckSquare,
     description: 'Create, assign, and track tasks across projects.',
-    endpoints: ['GET /tasks', 'POST /tasks', 'PATCH /tasks/:id'],
+    endpoints: ['No REST endpoint', 'Webhooks: task.*'],
+    restAvailable: false,
     color: 'from-emerald-500 to-emerald-600',
   },
   {
     name: 'Leave',
     icon: CalendarDays,
     description: 'Leave requests, balances, approvals and calendars.',
-    endpoints: ['GET /leaves', 'POST /leaves'],
+    endpoints: ['No REST endpoint', 'Webhooks: leave.*'],
+    restAvailable: false,
     color: 'from-violet-500 to-violet-600',
   },
   {
     name: 'Expenses',
     icon: Receipt,
     description: 'Submit and approve expense claims with receipt uploads.',
-    endpoints: ['GET /expenses', 'POST /expenses'],
+    endpoints: ['No REST endpoint', 'Webhooks: expense.*'],
+    restAvailable: false,
     color: 'from-orange-500 to-orange-600',
   },
   {
     name: 'Payroll',
     icon: Banknote,
     description: 'Payroll runs, salary slips, and compensation data.',
-    endpoints: ['GET /payroll/runs', 'GET /payroll/slips'],
+    endpoints: ['No REST endpoint', 'Webhooks: payroll.*'],
+    restAvailable: false,
     color: 'from-green-500 to-green-600',
   },
   {
     name: 'Fleet & Fuel',
     icon: Truck,
     description: 'Vehicle tracking, fuel requests, and maintenance logs.',
-    endpoints: ['GET /vehicles', 'GET /fuel-requests'],
+    endpoints: ['No REST endpoint', 'Webhooks: fuel_request.*, trip.*'],
+    restAvailable: false,
     color: 'from-amber-500 to-amber-600',
   },
   {
     name: 'Invoices',
     icon: FileText,
     description: 'Generate, send, and track invoices and line items.',
-    endpoints: ['GET /invoices', 'POST /invoices'],
+    endpoints: ['No REST endpoint', 'Webhooks: invoice.*'],
+    restAvailable: false,
     color: 'from-rose-500 to-rose-600',
   },
   {
     name: 'Clients',
     icon: Building2,
     description: 'Client profiles, contacts, and relationship management.',
-    endpoints: ['GET /clients', 'POST /clients'],
+    endpoints: ['No REST endpoint', 'Webhooks: client.*'],
+    restAvailable: false,
     color: 'from-indigo-500 to-indigo-600',
   },
   {
     name: 'Recruitment',
     icon: UserPlus,
     description: 'Job openings, applicant tracking, and hiring pipelines.',
-    endpoints: ['GET /openings', 'GET /applicants'],
+    endpoints: ['No REST endpoint', 'Webhooks: applicant.*, opening.*'],
+    restAvailable: false,
     color: 'from-pink-500 to-pink-600',
   },
   {
@@ -106,13 +116,15 @@ const modules = [
     icon: Database,
     description: 'Query your custom tables and records via the data API.',
     endpoints: ['GET /bases', 'GET .../tables', 'GET .../records'],
+    restAvailable: true,
     color: 'from-purple-500 to-purple-600',
   },
   {
     name: 'Payments',
     icon: CreditCard,
     description: 'Payment batches, transaction history, and disbursements.',
-    endpoints: ['GET /payment-batches', 'GET /transactions'],
+    endpoints: ['No REST endpoint', 'Webhooks: payment.*, batch.*'],
+    restAvailable: false,
     color: 'from-teal-500 to-teal-600',
   },
 ];
@@ -184,10 +196,11 @@ export default function ApiOverview({
             KDOps Platform API
           </h1>
           <p className="text-base md:text-lg text-blue-100/90 leading-relaxed mb-8">
-            One unified REST API to access every module &mdash; employees, tasks,
-            finance, fleet, HR, clients, and your custom databases. Authenticate
-            with API keys, subscribe to webhooks, and build integrations with n8n,
-            Zapier, Make, or any HTTP client.
+            A REST API for your custom database tables, plus real-time webhooks
+            for activity across every module &mdash; employees, tasks, finance,
+            fleet, HR, and clients. Authenticate with API keys, subscribe to
+            webhooks, and build integrations with n8n, Zapier, Make, or any HTTP
+            client.
           </p>
           <div className="flex flex-wrap gap-3">
             <Button
@@ -272,9 +285,9 @@ export default function ApiOverview({
         <div>
           <h3 className="text-sm font-semibold text-warning dark:text-warning mb-1">Bank Details Required for Disbursements</h3>
           <p className="text-sm text-warning dark:text-warning/80 leading-relaxed">
-            Any API operation involving payments — payroll, fuel requests, payment batches, expense reimbursements — requires the recipient to have valid bank details on file
+            Any payment disbursement — payroll, fuel requests, payment batches, expense reimbursements — requires the recipient to have valid bank details on file
             (<strong>bank_name</strong>, <strong>account_number</strong>, <strong>account_name</strong>). Without these, the payment will be created but <strong>cannot be processed</strong>.
-            Always ensure employees and contractors have their bank details set before triggering disbursements via the API.
+            This applies regardless of whether the disbursement is created in the KDOps UI or triggered downstream of a webhook — always ensure employees and contractors have their bank details set first.
           </p>
         </div>
       </div>
@@ -290,7 +303,7 @@ export default function ApiOverview({
               Available Modules
             </h2>
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Every module accessible through the API
+              REST access where it exists today, webhooks everywhere else
             </p>
           </div>
         </div>
@@ -325,7 +338,12 @@ export default function ApiOverview({
                     <Badge
                       key={ep}
                       variant="secondary"
-                      className="font-mono text-3xs px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+                      className={cn(
+                        'font-mono text-3xs px-1.5 py-0.5',
+                        m.restAvailable
+                          ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                          : 'bg-warning/10 dark:bg-warning/10 text-warning dark:text-warning',
+                      )}
                     >
                       {ep}
                     </Badge>

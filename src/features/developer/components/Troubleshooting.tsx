@@ -66,9 +66,9 @@ const STATUS_CODES: StatusCodeEntry[] = [
   { code: 400, meaning: 'Bad Request', action: 'Check your request body — a required field is missing or has the wrong type. The error message tells you which field.', color: 'red' },
   { code: 401, meaning: 'Unauthorized', action: "Your API key is missing, invalid, revoked, or expired. Go to API Keys → create a new one.", color: 'red' },
   { code: 403, meaning: 'Forbidden', action: "Your key doesn't have the required scope. E.g., you need employees:write to create employees. Create a new key with the right scopes.", color: 'red' },
-  { code: 404, meaning: 'Not Found', action: "The resource doesn't exist. Check the ID in your URL. For employees, use the short ID, not the name.", color: 'amber' },
-  { code: 409, meaning: 'Conflict', action: 'A resource with that unique field already exists (e.g., duplicate email).', color: 'amber' },
-  { code: 422, meaning: 'Unprocessable', action: 'Validation failed. The error message lists what\'s wrong — e.g., "email must be a valid email address".', color: 'amber' },
+  { code: 404, meaning: 'Not Found', action: "The base, table, record, or field doesn't exist. Check the ID or slug in your URL — use the short ID, not the raw UUID.", color: 'amber' },
+  { code: 405, meaning: 'Method Not Allowed', action: "That HTTP method isn't supported on this route (e.g. DELETE on /bases). Check the method against the endpoint's documented verbs.", color: 'amber' },
+  { code: 422, meaning: 'Unprocessable', action: 'Validation failed — including a duplicate value on a unique column. The error message lists what\'s wrong, e.g. "A unique constraint was violated — duplicate value".', color: 'amber' },
   { code: 429, meaning: 'Too Many Requests', action: 'Rate limited. Wait 60 seconds and retry. Consider adding delays between batch requests.', color: 'red' },
   { code: 500, meaning: 'Server Error', action: 'Something went wrong on our end. Retry after a few seconds. If persistent, check the KDOps status.', color: 'red' },
 ];
@@ -176,12 +176,12 @@ const SECTIONS: TroubleshootingSection[] = [
         question: '"422 Unprocessable" — validation errors',
         answer: (
           <div className="space-y-3">
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">Read the error message carefully &mdash; it tells you exactly what's wrong. Common issues:</p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">Read the error message carefully &mdash; it tells you exactly what's wrong. This is the status the Database (records/fields) API returns for every validation failure, including:</p>
             <ul className="space-y-1.5 text-sm text-zinc-600 dark:text-zinc-400">
-              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Missing required fields (<code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">first_name</code>, <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">last_name</code>, <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">email</code> for employees)</li>
-              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Invalid email format</li>
-              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Date not in <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">YYYY-MM-DD</code> format</li>
-              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Role must be one of: <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">super_admin</code>, <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">admin</code>, <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">finance</code>, <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">operations</code>, <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">field_staff</code></li>
+              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Missing the <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">records</code> array, or a required column left empty &rarr; "A required field is missing"</li>
+              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Sending more than 10 records in one POST/PATCH/DELETE request</li>
+              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>A duplicate value in a column with a unique constraint &rarr; "A unique constraint was violated — duplicate value"</li>
+              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>A value that doesn't match the column's type &rarr; "Invalid value for field type"</li>
             </ul>
           </div>
         ),
@@ -229,8 +229,12 @@ const SECTIONS: TroubleshootingSection[] = [
     severity: 'common',
     items: [
       {
-        question: '"Employee already exists"',
-        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">Email must be unique across all employees. Check if an employee with the same email already exists (including soft-deleted records).</p>,
+        question: 'Is there a REST endpoint for Employees?',
+        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">No. There's no <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">/employees</code> route — create and manage employees in the KDOps UI, and subscribe to employee.* webhooks to react to changes.</p>,
+      },
+      {
+        question: 'Duplicate employee email',
+        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">Email must be unique across all employees. There's no REST endpoint to create employees — the KDOps UI blocks creating one with an email that already exists (including soft-deleted records).</p>,
       },
       {
         question: "Can't delete an employee",
@@ -238,7 +242,7 @@ const SECTIONS: TroubleshootingSection[] = [
       },
       {
         question: 'Missing salary field',
-        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">Salary is optional on creation and can be added later via PATCH.</p>,
+        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">Salary is optional on creation and can be added later by editing the employee.</p>,
       },
       {
         question: 'Bank details for payroll',
@@ -257,6 +261,10 @@ const SECTIONS: TroubleshootingSection[] = [
     icon: Bug,
     severity: 'common',
     items: [
+      {
+        question: 'Is there a REST endpoint for Tasks?',
+        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">No. There's no <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">/tasks</code> route — create and update tasks in the KDOps UI, and subscribe to task.* webhooks to react to changes.</p>,
+      },
       {
         question: 'Task not showing in KDOps',
         answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">Check the <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">folder_id</code> &mdash; tasks need to belong to a folder to appear in the UI.</p>,
@@ -284,7 +292,11 @@ const SECTIONS: TroubleshootingSection[] = [
     severity: 'common',
     items: [
       {
-        question: '"Insufficient balance"',
+        question: 'Is there a REST endpoint for Leave?',
+        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">No. There's no <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">/leaves</code> route or a way to read balances via REST — use the KDOps UI, and subscribe to leave.* webhooks to react to requests, approvals, and rejections.</p>,
+      },
+      {
+        question: 'Insufficient leave balance',
         answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">The employee doesn't have enough leave days of that type remaining.</p>,
       },
       {
@@ -309,6 +321,10 @@ const SECTIONS: TroubleshootingSection[] = [
     icon: Bug,
     severity: 'common',
     items: [
+      {
+        question: 'Is there a REST endpoint for Expenses?',
+        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">No. There's no <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">/expenses</code> route — submit and approve expenses in the KDOps UI, and subscribe to expense.* webhooks to react to status changes.</p>,
+      },
       {
         question: 'Amount format',
         answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">Amount is in <strong>Naira (NGN), not kobo</strong>. For example, &#x20A6;15,000 is <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">15000</code>, not <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">1500000</code>.</p>,
@@ -345,6 +361,10 @@ const SECTIONS: TroubleshootingSection[] = [
     severity: 'critical',
     items: [
       {
+        question: 'Is there a REST endpoint for Fleet & Fuel?',
+        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">No. There are no <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">/fleet/*</code> routes — manage vehicles, fuel requests, and trips in the KDOps UI, and subscribe to fuel_request.*, trip.*, and vehicle.added webhooks to react to changes.</p>,
+      },
+      {
         question: 'Fuel request payment not processing',
         answer: (
           <div className="space-y-2">
@@ -377,8 +397,12 @@ const SECTIONS: TroubleshootingSection[] = [
     severity: 'common',
     items: [
       {
+        question: 'Is there a REST endpoint for Invoices?',
+        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">No. There's no <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">/invoices</code> route — create and manage invoices in the KDOps UI, and subscribe to invoice.created, invoice.sent, and invoice.paid webhooks to track status changes.</p>,
+      },
+      {
         question: 'Client must exist first',
-        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">Create the client first via <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">/clients</code> before creating an invoice.</p>,
+        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">Create the client first in the Clients page before creating an invoice.</p>,
       },
       {
         question: 'Items array format',
@@ -430,7 +454,7 @@ const SECTIONS: TroubleshootingSection[] = [
       },
       {
         question: 'Max records per request',
-        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">Maximum <strong>10 records</strong> per POST request.</p>,
+        answer: <p className="text-sm text-zinc-600 dark:text-zinc-400">Maximum <strong>10 records</strong> per POST/PATCH/DELETE request — sending more returns <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">422</code>.</p>,
       },
       {
         question: 'Unknown field names',
@@ -496,21 +520,41 @@ def verify_signature(body: bytes, secret: str, signature: str) -> bool:
       {
         question: 'Webhook payload format',
         answer: (
-          <CodeBlock
-            label="Payload Example"
-            language="JSON"
-            code={`{
+          <div className="space-y-3">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Module events (employee.created, task.completed, invoice.paid, etc.) are delivered by the platform-wide
+              dispatcher. The record data — whatever fields that module happened to pass — is under <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">payload</code>,
+              not <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">data</code>. These
+              events always carry the nil-UUID platform sentinel for <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">base_id</code>/<code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">table_id</code>,
+              and <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">old_payload</code> is always <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">null</code>. Every
+              delivery (and every retry or manual replay of it) carries the <strong>same</strong> <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">id</code> —
+              use it to dedupe on your end, since a delivery can legitimately arrive more than once.
+            </p>
+            <CodeBlock
+              label="Payload Example — employee.created"
+              language="JSON"
+              code={`{
+  "id": "b3f1e9d2-6a4c-4e7f-9c1a-2d8e5f6a7b3c",
   "event": "employee.created",
   "timestamp": "2026-09-15T10:30:00Z",
-  "data": {
-    "id": "4v7SY1Hl7YZtWCGClC5boe",
-    "first_name": "Chioma",
-    "last_name": "Okafor",
+  "base_id": "00000000-0000-0000-0000-000000000000",
+  "table_id": "00000000-0000-0000-0000-000000000000",
+  "payload": {
     "email": "chioma@company.com",
-    "department": "Engineering"
-  }
+    "full_name": "Chioma Okafor",
+    "role": "operations"
+  },
+  "old_payload": null
 }`}
-          />
+            />
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              The Database module's record.* events use a different shape from the same generic envelope — they include
+              a <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">table_name</code>, their <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">base_id</code>/<code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">table_id</code> are
+              the real short IDs of the base/table that changed rather than the platform sentinel, and they currently have
+              <strong> no</strong> <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">id</code> field,
+              retries, or delivery history — record.* fires through a separate, simpler dispatch path than every other event in this table.
+            </p>
+          </div>
         ),
       },
     ],
