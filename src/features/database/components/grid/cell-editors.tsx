@@ -60,9 +60,19 @@ export function TextCellEditor({ value, field, onCommit, onCancel }: CellEditorP
       maxLength={100000}
       onChange={(e) => setText(e.target.value)}
       onKeyDown={(e) => {
+        // Stop native text-editing keys (Home/End/Ctrl+A/arrows, etc.) from
+        // bubbling to the grid's window-level keyboard handler while this
+        // input is focused — that handler already checks e.target.tagName
+        // and bails out for real INPUT elements, but a synthesized keydown
+        // (browser automation, some virtual keyboards) can arrive with a
+        // target that doesn't match, letting the grid's own shortcuts (row
+        // navigation, select-all-rows, etc.) fire mid-edit instead of the
+        // native text-cursor behavior. Stopping propagation here means this
+        // editor's behavior never depends on that check succeeding.
         if (e.key === 'Enter') onCommit(text);
         if (e.key === 'Escape') onCancel();
-        if (e.key === 'Tab') { e.preventDefault(); onCommit(text); }
+        if (e.key === 'Tab') { e.preventDefault(); onCommit(text); return; }
+        e.stopPropagation();
       }}
       onBlur={() => onCommit(text)}
       className="w-full h-full px-2 outline-none border-none bg-transparent"
