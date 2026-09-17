@@ -67,13 +67,16 @@
          fallback for legacy browsers. -->
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" sizes="any" href="/favicon.ico" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Inter Variable — the whole app's typeface (UI text, headings, chart
-         labels). Same category as Stripe/Ramp/Mercury's custom neo-grotesque
-         faces and the exact choice Linear made — legible at small sizes,
-         real tabular figures for financial tables, no licensing cost. -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" />
+    <!-- No custom webfont: the app renders in the OS's own native UI font
+         (San Francisco on Mac, Segoe UI on Windows, Roboto on Android/
+         ChromeOS) via the font-family stack in tailwind.config.ts and
+         index.css — the same approach Airtable itself uses. That's a
+         deliberate choice, not an oversight: it's one less network fetch
+         before first paint, it's the font every user's OS already renders
+         everything ELSE in (so the app never looks visually "foreign"
+         against their desktop), and it sidesteps FOUT/FOIT font-swap
+         flicker entirely. Re-introducing a webfont here should be a
+         conscious call, not a default. -->
   </head>
 
   <body>

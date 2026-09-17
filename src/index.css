@@ -241,24 +241,24 @@ input[type=number] {
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
 
   /* One typeface (Inter) end to end — hierarchy comes from weight and
      letter-spacing, not switching families, so the reading rhythm never
      shifts between a page heading and a card title. */
   h1 {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     letter-spacing: -0.03em;
     font-weight: 700;
   }
   h2 {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     letter-spacing: -0.025em;
     font-weight: 600;
   }
   h3, h4, h5, h6 {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     letter-spacing: -0.015em;
     font-weight: 600;
   }
@@ -720,7 +720,7 @@ input[type=number] {
 
   /* Display font for hero / headline moments */
   .kd-display {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     letter-spacing: -0.025em;
     font-feature-settings: "ss01", "ss02";
   }
@@ -1092,7 +1092,7 @@ input[type=number] {
   }
   .kd-trip-map .leaflet-popup-content {
     margin: 10px 12px;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-size: 12px;
     line-height: 1.4;
   }
@@ -1251,7 +1251,7 @@ input[type=number] {
 
   /* Number display — tabular figures, tight tracking for that fintech feel */
   .kd-stat-number {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.025em;
     font-feature-settings: "tnum", "ss01";
