@@ -19,7 +19,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { signWebhookPayload } from '../_shared/webhook-signing.ts';
+import { sendWebhookAttempt } from '../_shared/webhook-delivery.ts';
 import { nextRetryDelayMinutes } from '../_shared/webhook-retry.ts';
 import { constantTimeEquals } from '../_shared/timing.ts';
 
@@ -27,6 +27,7 @@ const TICK_BATCH_SIZE = 50;
 
 interface ClaimedDelivery {
   id: string;
+  root_delivery_id: string;
   webhook_id: string;
   event: string;
   base_id: string | null;
@@ -115,43 +116,15 @@ Deno.serve(async (req) => {
     }
 
     retried++;
-    const startedAt = Date.now();
     const nextAttempt = d.attempt_number + 1;
 
-    let success = false;
-    let responseStatus: number | null = null;
-    let responseBody = '';
-    let errorMessage: string | null = null;
-
-    try {
-      const hdrs: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'User-Agent': 'KDOps-Webhook/1.0',
-        ...(wh.headers ?? {}),
-      };
-      if (wh.secret) {
-        hdrs['X-KDOps-Signature'] = await signWebhookPayload(wh.secret, d.payload_json);
-      }
-
-      const resp = await fetch(wh.url, {
-        method: 'POST',
-        headers: hdrs,
-        body: d.payload_json,
-        signal: AbortSignal.timeout(10_000),
-      });
-      responseStatus = resp.status;
-      responseBody = (await resp.text().catch(() => '')).slice(0, 2000);
-      success = resp.ok;
-    } catch (err) {
-      errorMessage = String((err as Error)?.message ?? err).slice(0, 2000);
-    }
-
-    const durationMs = Date.now() - startedAt;
-    const delayMinutes = success ? null : nextRetryDelayMinutes(nextAttempt);
-    const exhausted = !success && delayMinutes === null;
+    const result = await sendWebhookAttempt(wh, d.payload_json);
+    const delayMinutes = result.success ? null : nextRetryDelayMinutes(nextAttempt);
+    const exhausted = !result.success && delayMinutes === null;
 
     await supabase.schema('nc_meta').from('webhook_deliveries').insert({
       webhook_id: d.webhook_id,
+      root_delivery_id: d.root_delivery_id,
       event: d.event,
       base_id: d.base_id,
       table_id: d.table_id,
@@ -159,16 +132,16 @@ Deno.serve(async (req) => {
       payload_json: d.payload_json,
       attempt_number: nextAttempt,
       parent_delivery_id: d.id,
-      success,
-      response_status: responseStatus,
-      response_body: responseBody || null,
-      error_message: errorMessage,
-      duration_ms: durationMs,
+      success: result.success,
+      response_status: result.responseStatus,
+      response_body: result.responseBody,
+      error_message: result.errorMessage,
+      duration_ms: result.durationMs,
       given_up: exhausted,
-      next_retry_at: success || exhausted ? null : new Date(Date.now() + delayMinutes! * 60_000).toISOString(),
+      next_retry_at: result.success || exhausted ? null : new Date(Date.now() + delayMinutes! * 60_000).toISOString(),
     });
 
-    if (success) {
+    if (result.success) {
       succeeded++;
       await supabase.schema('nc_meta').from('webhooks')
         .update({ last_triggered_at: new Date().toISOString(), failure_count: 0 })

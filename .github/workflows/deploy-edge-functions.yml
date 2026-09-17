@@ -161,6 +161,9 @@ jobs:
       - name: Deploy webhook-retry-worker
         run: supabase functions deploy webhook-retry-worker --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
 
+      - name: Deploy webhook-replay
+        run: supabase functions deploy webhook-replay --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
       - name: Deploy webhook-proxy
         run: supabase functions deploy webhook-proxy --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
 

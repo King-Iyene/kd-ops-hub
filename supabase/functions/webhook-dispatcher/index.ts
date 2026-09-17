@@ -155,21 +155,29 @@ Deno.serve(async (req) => {
     return json({ dispatched: 0 }, 200, req);
   }
 
-  const payload = JSON.stringify({
-    event,
-    timestamp: new Date().toISOString(),
-    base_id: baseId,
-    table_id: tableId,
-    payload: record ?? null,
-    old_payload: oldRecord ?? null,
-  });
-
   let dispatched = 0;
   const failedIds: string[] = [];
   const deliveryRows: Record<string, unknown>[] = [];
 
   for (const wh of uniqueWebhooks) {
     const startedAt = Date.now();
+    // A stable per-delivery id, embedded in the payload itself and reused
+    // verbatim on every retry (the whole payload string is resent unchanged)
+    // and on every manual replay — the receiver's dedupe key. Without this,
+    // a receiver has no way to tell "attempt 2 of a delivery it already
+    // processed" apart from a genuinely new event once retries or replay can
+    // resend the same delivery more than once.
+    const deliveryId = crypto.randomUUID();
+    const payload = JSON.stringify({
+      id: deliveryId,
+      event,
+      timestamp: new Date().toISOString(),
+      base_id: baseId,
+      table_id: tableId,
+      payload: record ?? null,
+      old_payload: oldRecord ?? null,
+    });
+
     try {
       const hdrs: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -196,6 +204,8 @@ Deno.serve(async (req) => {
       }
 
       deliveryRows.push({
+        id: deliveryId,
+        root_delivery_id: deliveryId,
         webhook_id: wh.id,
         event,
         base_id: baseId,
@@ -215,6 +225,8 @@ Deno.serve(async (req) => {
     } catch (err) {
       failedIds.push(wh.id);
       deliveryRows.push({
+        id: deliveryId,
+        root_delivery_id: deliveryId,
         webhook_id: wh.id,
         event,
         base_id: baseId,

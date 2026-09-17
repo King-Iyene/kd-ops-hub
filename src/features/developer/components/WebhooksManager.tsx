@@ -37,6 +37,7 @@ import {
   History,
   XCircle,
   CheckCircle2,
+  Send,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EVENT_GROUPS, ALL_EVENTS, eventColor, eventModule } from '../webhookEvents';
@@ -81,6 +82,7 @@ interface DeliveryRow {
   attempt_number: number;
   given_up: boolean;
   next_retry_at: string | null;
+  is_replay: boolean;
   created_at: string;
 }
 
@@ -147,7 +149,7 @@ export default function WebhooksManager() {
       const { data, error } = await supabase
         .schema('nc_meta')
         .from('webhook_deliveries')
-        .select('id, event, success, response_status, response_body, error_message, duration_ms, attempt_number, given_up, next_retry_at, created_at')
+        .select('id, event, success, response_status, response_body, error_message, duration_ms, attempt_number, given_up, next_retry_at, is_replay, created_at')
         .eq('webhook_id', historyWebhook!.id)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -157,6 +159,34 @@ export default function WebhooksManager() {
   });
 
   // --- Mutations --------------------------------------------------------------
+
+  const [replayingId, setReplayingId] = useState<string | null>(null);
+
+  const replayMutation = useMutation({
+    mutationFn: async (deliveryId: string) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke('webhook-replay', {
+        body: { delivery_id: deliveryId },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error) throw error;
+      return data as { success: boolean; response_status: number | null; error_message: string | null };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['webhook-deliveries', historyWebhook?.id] });
+      toast({
+        title: data.success ? 'Replay delivered' : 'Replay failed',
+        description: data.success
+          ? `Receiver responded ${data.response_status}`
+          : (data.error_message ?? `Receiver responded ${data.response_status}`),
+        variant: data.success ? 'default' : 'destructive',
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Replay failed', description: err.message, variant: 'destructive' });
+    },
+    onSettled: () => setReplayingId(null),
+  });
 
   const createMutation = useMutation({
     mutationFn: async (input: FormState) => {
@@ -805,14 +835,31 @@ export default function WebhooksManager() {
                         {d.response_status != null && (
                           <Badge variant="outline" className="text-2xs shrink-0">{d.response_status}</Badge>
                         )}
-                        {d.attempt_number > 1 && (
+                        {d.is_replay ? (
+                          <Badge variant="outline" className="text-2xs shrink-0 gap-1"><Send className="h-2.5 w-2.5" /> replay</Badge>
+                        ) : d.attempt_number > 1 ? (
                           <Badge variant="outline" className="text-2xs shrink-0">attempt {d.attempt_number}</Badge>
-                        )}
+                        ) : null}
                       </div>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {new Date(d.created_at).toLocaleString()}
-                        {d.duration_ms != null && ` · ${d.duration_ms}ms`}
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(d.created_at).toLocaleString()}
+                          {d.duration_ms != null && ` · ${d.duration_ms}ms`}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          title="Replay this delivery"
+                          disabled={replayingId === d.id}
+                          onClick={() => { setReplayingId(d.id); replayMutation.mutate(d.id); }}
+                        >
+                          {replayingId === d.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Send className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                     {(d.error_message || d.response_body) && (
                       <p className="mt-2 text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all line-clamp-3">
