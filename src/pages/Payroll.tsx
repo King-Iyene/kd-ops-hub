@@ -1687,7 +1687,7 @@ const Payroll = () => {
           // can turn off a deduction for this specific run even when the
           // company and employee both have it enabled.
           const effPensionOn = runIncPension && companySettings?.pension_enabled !== false && e.pension_enabled !== false;
-          const effPayeOn    = runIncPaye && companySettings?.paye_enabled !== false;
+          const effPayeOn    = runIncPaye && companySettings?.paye_enabled !== false && e.paye_enabled !== false;
           const effNhfOn     = runIncNhf && companySettings?.nhf_enabled === true && e.nhf_enabled === true;
           const effNhisOn    = runIncNhis && companySettings?.nhis_enabled === true && e.nhis_enabled === true;
 
