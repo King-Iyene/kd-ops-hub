@@ -14,7 +14,7 @@ import fs from 'fs';
  * Run only via .github/workflows/guide-screenshots.yml (workflow_dispatch).
  */
 
-const PAGES: { path: string; name: string; width: number; height: number }[] = [
+const PAGES: { path: string; name: string; width: number; height: number; quality?: number }[] = [
   { path: '/login', name: 'login-desktop', width: 1440, height: 900 },
   { path: '/dashboard', name: 'dashboard-desktop', width: 1440, height: 900 },
   { path: '/guide', name: 'guide-desktop', width: 1440, height: 900 },
@@ -27,6 +27,14 @@ const PAGES: { path: string; name: string; width: number; height: number }[] = [
   // new entries above these two rather than after them.
   { path: '/payroll', name: 'payroll-desktop', width: 1440, height: 900 },
   { path: '/payroll', name: 'payroll-mobile', width: 390, height: 844 },
+  // Same two screens again, small and heavily compressed. The full-size
+  // shots above are the ones worth looking at, but their base64 is a single
+  // line far too large to copy back out of the log by hand. These are sized
+  // so that line is small enough to move around in one piece — enough to
+  // check layout, spacing and whether anything is obviously broken, not
+  // enough to judge fine detail.
+  { path: '/payroll', name: 'payroll-desktop-small', width: 1024, height: 640, quality: 30 },
+  { path: '/payroll', name: 'payroll-mobile-small', width: 390, height: 780, quality: 30 },
 ];
 
 test('print curated screenshots as base64 to the job log', async ({ page }) => {
@@ -34,14 +42,15 @@ test('print curated screenshots as base64 to the job log', async ({ page }) => {
   const outDir = 'guide-screenshots-inline';
   fs.mkdirSync(outDir, { recursive: true });
 
-  for (const { path, name, width, height } of PAGES) {
+  for (const { path, name, width, height, quality } of PAGES) {
     try {
       await page.setViewportSize({ width, height });
       await page.goto(path, { waitUntil: 'networkidle', timeout: 20_000 });
       await page.waitForTimeout(800);
       const filePath = `${outDir}/${name}.jpg`;
-      await page.screenshot({ path: filePath, type: 'jpeg', quality: 65 });
+      await page.screenshot({ path: filePath, type: 'jpeg', quality: quality ?? 65 });
       const b64 = fs.readFileSync(filePath).toString('base64');
+      console.log(`===SCREENSHOT:${name}.jpg:BYTES:${b64.length}===`);
       console.log(`===SCREENSHOT:${name}.jpg:START===`);
       console.log(b64);
       console.log(`===SCREENSHOT:${name}.jpg:END===`);
