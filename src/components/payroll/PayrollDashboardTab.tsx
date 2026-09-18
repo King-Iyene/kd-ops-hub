@@ -206,7 +206,7 @@ export function PayrollDashboardTab({
   );
 
   return (
-    <div className="space-y-3 sm:space-y-6">
+    <div className="space-y-5 sm:space-y-7">
       {/* ── Greeting + quick status ─────────────────────────────── */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -229,7 +229,7 @@ export function PayrollDashboardTab({
       {/* ── Hero + KPIs ───────────────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-12">
         {/* Hero run summary — takes 8 of 12 cols */}
-        <Card className="lg:col-span-8 overflow-hidden border-0 bg-gradient-to-br from-[hsl(200,90%,14%)] via-[hsl(200,95%,10%)] to-[hsl(205,90%,7%)] text-white">
+        <Card className="lg:col-span-8 overflow-hidden border-0 bg-gradient-to-br from-[hsl(200,90%,14%)] via-[hsl(200,95%,10%)] to-[hsl(205,90%,7%)] text-white shadow-xl shadow-black/25 ring-1 ring-white/[0.06]">
           <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-5">
             {heroRun ? (
               <>
@@ -418,7 +418,7 @@ export function PayrollDashboardTab({
                 <p className="text-xs text-muted-foreground py-4 text-center">No salaried employees found.</p>
               )}
               {whoGetsPaid.map((p) => (
-                <div key={p.id} className="flex items-center gap-2.5 py-1 -mx-1.5 px-1.5 rounded-lg hover:bg-muted/50 kd-transition">
+                <div key={p.id} className="flex items-center gap-2.5 py-1.5 -mx-1.5 px-1.5 rounded-lg hover:bg-muted/50 transition-all duration-150">
                   <Avatar className="h-7 w-7 shrink-0">
                     {p.photo_url && <AvatarImage src={p.photo_url} alt={p.name} />}
                     <AvatarFallback className="text-3xs font-semibold bg-primary/10 text-primary">
@@ -455,7 +455,7 @@ function initials(name: string): string {
 const TILE_TONE: Record<string, { iconBg: string; iconColor: string }> = {
   default:  { iconBg: 'bg-muted',        iconColor: 'text-muted-foreground' },
   primary:  { iconBg: 'bg-primary/10',    iconColor: 'text-primary' },
-  success:  { iconBg: 'bg-success/10/25', iconColor: 'text-success' },
+  success:  { iconBg: 'bg-success/10',    iconColor: 'text-success' },
   info:     { iconBg: 'bg-sky-50 dark:bg-sky-900/25', iconColor: 'text-sky-600 dark:text-sky-400' },
 };
 
@@ -464,7 +464,7 @@ function StatTile({
 }: { icon: React.ReactNode; label: string; value: string; hint?: string; tone?: keyof typeof TILE_TONE }) {
   const t = TILE_TONE[tone] || TILE_TONE.default;
   return (
-    <Card className="h-full">
+    <Card className="h-full hover:shadow-md transition-shadow duration-200">
       <CardContent className="p-4 flex items-start gap-3">
         <span className={cn('flex h-8 w-8 items-center justify-center rounded-xl shrink-0', t.iconBg, t.iconColor)}>
           {icon}

@@ -2599,48 +2599,45 @@ const Payroll = () => {
         <TabsList className="h-9 bg-transparent border-b border-border/50 rounded-none w-full justify-start gap-0 p-0 overflow-x-auto scrollbar-none">
           <TabsTrigger
             value="dashboard"
-            className="text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            className="text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none transition-colors"
           >
             <LayoutGrid className="mr-1.5 h-3.5 w-3.5" />
             Dashboard
           </TabsTrigger>
           <TabsTrigger
             value="runs"
-            className="text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            className="text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none transition-colors"
           >
             Runs
           </TabsTrigger>
           <TabsTrigger
             value="calendar"
-            className="text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            className="text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none transition-colors"
           >
             <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
             Calendar
           </TabsTrigger>
           <TabsTrigger
             value="groups"
-            className="text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            className="text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none transition-colors"
           >
             <Layers className="mr-1.5 h-3.5 w-3.5" />
             Pay groups
           </TabsTrigger>
           <TabsTrigger
             value="setup"
-            className="text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            className="text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none transition-colors"
           >
             <CalendarClock className="mr-1.5 h-3.5 w-3.5" />
             Setup
           </TabsTrigger>
           <TabsTrigger
             value="reports"
-            className="text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            className="text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none transition-colors"
           >
             <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
             Reports
           </TabsTrigger>
-          <span className="ml-auto self-center text-2xs text-muted-foreground hidden sm:inline pr-1">
-            Setup merges Pay Groups, Schedules &amp; Holidays into one place
-          </span>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-6 mt-6">

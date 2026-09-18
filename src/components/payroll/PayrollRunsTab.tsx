@@ -514,7 +514,7 @@ export const PayrollRunsTab = ({
                     type="button"
                     onClick={() => setOpenId(r.id)}
                     className={cn(
-                      'relative flex w-full items-center gap-3 px-4 py-3.5 text-left kd-transition hover:bg-muted/30',
+                      'relative flex w-full items-center gap-3 px-4 py-4 text-left transition-colors duration-150 hover:bg-muted/40',
                       isHighlighted && 'bg-primary/10 ring-2 ring-primary/40 ring-inset',
                     )}
                   >
@@ -556,7 +556,7 @@ export const PayrollRunsTab = ({
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-semibold currency tabular-nums">{formatNaira(r.total_burn_ngn)}</p>
+                      <p className="text-sm font-bold currency tabular-nums tracking-tight">{formatNaira(r.total_burn_ngn)}</p>
                       <p className="text-2xs text-muted-foreground tabular-nums">
                         {r.employee_count ?? '—'} employee{r.employee_count === 1 ? '' : 's'}
                         {momPct !== null && (
@@ -574,7 +574,7 @@ export const PayrollRunsTab = ({
                       {Array.from({ length: 4 }, (_, i) => (
                         <span
                           key={i}
-                          className={cn('h-1 w-4 rounded-full', i <= realStepIndex(r.status) ? 'bg-primary' : 'bg-border')}
+                          className={cn('h-1.5 w-4 rounded-full transition-colors', i <= realStepIndex(r.status) ? 'bg-primary' : 'bg-border/60')}
                         />
                       ))}
                     </div>
@@ -950,7 +950,7 @@ function RunDetailDrawer({
           <div className="flex items-start justify-between gap-2">
             <div>
               <SheetTitle>{monthLabel(r.period, r.period_type)}</SheetTitle>
-              <p className="text-lg font-extrabold tabular-nums tracking-tight mt-1">{formatNaira(r.total_burn_ngn)}</p>
+              <p className="text-xl font-extrabold tabular-nums tracking-tight mt-1.5">{formatNaira(r.total_burn_ngn)}</p>
             </div>
             <StatusBadge status={r.status} />
           </div>
