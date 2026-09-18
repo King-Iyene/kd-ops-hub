@@ -285,7 +285,7 @@ export const PayrollRunsTab = ({
             iconBg: 'bg-[#fdeaea]', iconFg: 'text-[#c23a3a]',
           },
         ].map(({ label, value, sub, icon: Icon, iconBg, iconFg }) => (
-          <div key={label} className="rounded-xl border border-border/70 bg-card px-4 py-4 kd-transition">
+          <div key={label} className="rounded-xl border border-border/70 bg-card px-4 py-4 transition-shadow duration-200 hover:shadow-md">
             <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${iconBg} ${iconFg} mb-2.5`}>
               <Icon className="h-3.5 w-3.5" />
             </span>
@@ -306,7 +306,7 @@ export const PayrollRunsTab = ({
           previous flat-card convention. */}
       {latest && (
         <div
-          className="relative overflow-hidden rounded-xl px-5 py-5 sm:px-6 sm:py-5.5 text-white"
+          className="relative overflow-hidden rounded-xl px-5 py-5 sm:px-6 sm:py-5.5 text-white shadow-xl shadow-black/25 ring-1 ring-white/[0.06]"
           style={{ background: 'linear-gradient(155deg, #00283d, #00405e 60%, #005579)' }}
         >
           <div
