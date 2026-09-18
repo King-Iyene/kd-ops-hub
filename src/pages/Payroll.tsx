@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, BarChart3, CalendarClock } from 'lucide-react';
+import { Plus, BarChart3, CalendarClock, CalendarDays } from 'lucide-react';
 import { errorMessage } from '@/lib/db-errors';
 import { logWarn } from '@/lib/logger';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
@@ -59,6 +59,7 @@ import { PayrollDialogs } from '@/components/payroll/PayrollDialogs';
 import { useFieldErrors } from '@/components/ui-kit/FieldError';
 import { PayrollDashboardTab } from '@/components/payroll/PayrollDashboardTab';
 import { PayrollGroupsTab } from '@/components/payroll/PayrollGroupsTab';
+import { PayrollCalendar } from '@/components/payroll/PayrollCalendar';
 import { LayoutGrid, Layers } from 'lucide-react';
 import type { PayrollRun, BonusLine } from '@/lib/payroll-run';
 
@@ -2531,6 +2532,13 @@ const Payroll = () => {
             Runs
           </TabsTrigger>
           <TabsTrigger
+            value="calendar"
+            className="text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+          >
+            <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
+            Calendar
+          </TabsTrigger>
+          <TabsTrigger
             value="groups"
             className="text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
@@ -2573,6 +2581,10 @@ const Payroll = () => {
               // tab (with disburse/schedule controls) is the place for that.
             }}
           />
+        </TabsContent>
+
+        <TabsContent value="calendar" className="mt-6">
+          <PayrollCalendar companyId={isAllCompanies ? null : selectedCompanyId} />
         </TabsContent>
 
         <TabsContent value="groups" className="mt-6">

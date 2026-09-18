@@ -142,7 +142,15 @@ const KIND_META: Record<CalendarEvent['kind'], {
   },
 };
 
-export function PayrollCalendar() {
+interface PayrollCalendarProps {
+  /**
+   * Company whose pay days to show. `null` means every company, matching
+   * the "All companies" option in the page's CompanySwitcher.
+   */
+  companyId?: string | null;
+}
+
+export function PayrollCalendar({ companyId = null }: PayrollCalendarProps) {
   const [month, setMonth] = useState(() => new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,11 +187,20 @@ export function PayrollCalendar() {
           .eq('country_code', 'NG')
           .gte('holiday_date', isoOf(start))
           .lte('holiday_date', isoOf(end)),
-        supabase.from('payroll_runs')
-          .select('id, period, status, pay_date, cutoff_date')
-          .gte('period', start.toISOString().slice(0, 7))
-          .lte('period', end.toISOString().slice(0, 7))
-          .order('period', { ascending: true }),
+        (() => {
+          // Scoped to the selected company. Without this the calendar
+          // would show one company's pay days while the rest of the page
+          // is filtered to another — the same class of bug as 0136bd2.
+          // pay_schedules carries no company column (schedule definitions
+          // are shared between companies), so the schedule-derived
+          // "upcoming" dates below stay company-agnostic by design.
+          let q = supabase.from('payroll_runs')
+            .select('id, period, status, pay_date, cutoff_date')
+            .gte('period', start.toISOString().slice(0, 7))
+            .lte('period', end.toISOString().slice(0, 7));
+          if (companyId) q = q.eq('company_id', companyId);
+          return q.order('period', { ascending: true });
+        })(),
         supabase.from('pay_schedules')
           .select('id, name')
           .eq('is_active', true),
@@ -333,7 +350,7 @@ export function PayrollCalendar() {
       }
     })();
     return () => { cancelled = true; };
-  }, [month.getFullYear(), month.getMonth()]);
+  }, [month.getFullYear(), month.getMonth(), companyId]);
 
   const eventMap = useMemo(() => indexEvents(events), [events]);
 
