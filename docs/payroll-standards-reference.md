@@ -168,3 +168,69 @@ that finding.
 3. Confirm whether Rivers State PAYE remittance has a dedicated path, or falls through a generic one (B.6).
 4. Confirm whether `profiles`/`company_settings` carries a Tax ID field in the new NRS 13-digit format (B.6b).
 5. Direct-source verification of the three open items flagged in Part B research: NTAA 2025 remittance mechanics (B.1), PenCom's 15-employee threshold post-"Pension Revolution 2.0" (B.2), and Rivers State's specific NRS-era remittance channel (B.6).
+
+---
+
+## Part C — Direct verification against published sources, 18 September 2026
+
+Follow-up 1 above ("confirm `src/lib/tax.ts` reflects the NTA 2025 six-band
+structure") is now **closed: the implementation is correct.** Checked against
+published secondary sources rather than inferred from the code's own
+constants.
+
+### C.1 PAYE bands — verified correct, with a trap worth recording
+
+`TAX_BANDS_NTA_2025` in `src/lib/tax.ts` stores **band widths**, not
+cumulative ceilings. Read carelessly that looks wrong, and the temptation is
+to "fix" it. It is right:
+
+| Code (width) | Rate | Cumulative ceiling | Fourth Schedule wording |
+|---|---|---|---|
+| 800,000 | 0% | 800,000 | first ₦800,000 |
+| 2,200,000 | 15% | 3,000,000 | next ₦2,200,000 |
+| 9,000,000 | 18% | 12,000,000 | next ₦9,000,000 |
+| 13,000,000 | 21% | 25,000,000 | next ₦13,000,000 |
+| 25,000,000 | 23% | 50,000,000 | next ₦25,000,000 |
+| ∞ | 25% | — | above ₦50,000,000 |
+
+**The trap:** several secondary summaries state the 18% band as
+"₦3,000,001–₦10,000,000" and the 21% band as "₦10,000,001–₦25,000,000",
+which puts the 18%/21% boundary at ₦10m instead of ₦12m. Sources describing
+the schedule in the statute's own "next ₦N" terms give ₦9,000,000 and
+₦13,000,000, i.e. a boundary at ₦12m — matching the code. Both renderings
+land on ₦25m and ₦50m, so the discrepancy shows up **only** at that one
+boundary, and only for earners above ₦10m/year — which for a directors' pay
+group is not hypothetical.
+
+Anyone revisiting this should not move the boundary on the strength of a blog
+summary. It changes PAYE for exactly the highest-paid people on the payroll.
+
+Rent relief (20% of annual rent, capped ₦500,000/yr) and the abolition of the
+CRA are both implemented and match.
+
+### C.2 Other statutory rates — no change required
+
+| Item | Published position | Code |
+|---|---|---|
+| Pension | 8% employee / 10% employer minimum | Matches |
+| NHF | 2.5% of basic | Matches (basic only) |
+| NSITF | 1%, employer-only | Matches |
+| ITF | 1%, employer-only; applies at ≥5 staff or ≥₦50m turnover | Matches. The threshold is documented in `itf.ts` but not enforced in code — correct in practice for both KD Squares and NDI, which are well above it, and only a latent issue if this ever serves a company with fewer than 5 staff. |
+
+### C.3 Watch item — pension rates are under review
+
+PenCom has been reported (July 2026) as reviewing the statutory contribution
+rates as part of a Pension Reform Act review. Nothing is in force, so nothing
+changes today, but the 8/10 split is the number most likely to move next, and
+it lives in one place in `tax.ts`. Worth re-checking before any 2027 payroll
+year opens.
+
+### Sources
+
+- [Nigeria Tax Act 2025 goes into effect 1 Jan 2026 — Safeguard Global](https://www.safeguardglobal.com/resources/blog/nigeria-tax-act-2025/)
+- [Understanding Personal Income Tax Under the Nigerian Tax Act 2025 — Adeola Oyinlade & Co](https://www.adeolaoyinlade.com/en/understanding-personal-income-tax-under-the-nigerian-tax-act-2025/)
+- [Understanding Personal Income Tax Under The Nigerian Tax Act 2025 — Mondaq](https://www.mondaq.com/nigeria/capital-gains-tax/1726922/understanding-personal-income-tax-under-the-nigerian-tax-act-2025)
+- [How to compute PAYE in Nigeria under NTA 2025 — AnooreHR](https://anoorehr.com/blog/how-to-compute-paye-nigeria)
+- [Statutory Deductions in Nigerian Payroll: Pension, NHF, NHIS, EMTL — SmartSMSSolutions](https://smartsmssolutions.com/resources/blog/ng/statutory-deductions-payroll-pension-nhf-emtl-nigeria)
+- [Nigerian pension contributions in 2026: employer + employee rules — AnooreHR](https://anoorehr.com/blog/nigerian-pension-contribution-guide)
+- [PenCom to increase statutory pension contribution rates in Reform Act review — Nairametrics](https://nairametrics.com/2026/07/22/pencom-to-increase-statutory-pension-contribution-rates-in-reform-act-review/)
