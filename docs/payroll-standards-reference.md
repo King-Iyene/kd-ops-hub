@@ -234,3 +234,67 @@ year opens.
 - [Statutory Deductions in Nigerian Payroll: Pension, NHF, NHIS, EMTL — SmartSMSSolutions](https://smartsmssolutions.com/resources/blog/ng/statutory-deductions-payroll-pension-nhf-emtl-nigeria)
 - [Nigerian pension contributions in 2026: employer + employee rules — AnooreHR](https://anoorehr.com/blog/nigerian-pension-contribution-guide)
 - [PenCom to increase statutory pension contribution rates in Reform Act review — Nairametrics](https://nairametrics.com/2026/07/22/pencom-to-increase-statutory-pension-contribution-rates-in-reform-act-review/)
+
+---
+
+## Part D — Competitor payroll UX, 18 September 2026
+
+Closes Phase 2a of the redesign brief, which had not been done. **Source
+quality is weaker than Part C and should be read that way:** the egress proxy
+blocks every vendor documentation host, so this rests on search-result
+summaries of vendor support pages and comparison articles, not on the pages
+themselves. Nothing here was read end to end. Treat it as a direction-setting
+sketch, not a verified specification.
+
+### What the Nigerian products do
+
+**SeamlessHR** — the closest competitor by market and compliance scope.
+
+- Uses **pay groups *and* pay grades** as separate concepts. Worth noting,
+  because KDOps having two overlapping concepts (pay category and pay group)
+  is exactly what confused the HR person who triggered this redesign. The
+  competitor has the same shape; it is not self-evidently the better one.
+- **Multi-step approval workflows**: named approvers per step, added one step
+  at a time.
+- **External approvers approve from an email, without logging in.** Internal
+  approvers must log in; external ones do not. KDOps has no equivalent.
+- **An approval workflow cannot be edited or deleted once it is attached to a
+  run**, until that run completes. A genuinely good control: it stops the
+  approvers being swapped mid-run to route around whoever was meant to sign.
+- Applies PAYE, pension, NHF, ITF and NSITF per country, and publishes 2026
+  tax reform guidance — so they are on the same NTA 2025 regime KDOps now is.
+
+**Bento Africa** — leans on execution and the employee side.
+
+- Payslips are **sent to staff automatically after each cycle** rather than
+  waiting to be fetched. KDOps already notifies on payslip availability
+  (`notifyPayslipReady`), so this is covered.
+- Employees get payslips and benefits **in a mobile app**. KDOps is responsive
+  web, which covers the same need differently.
+
+**PaidHR** — Nigerian-focused, PAYE/pension/NHF/NSITF across multiple states,
+plus **earned wage access**. KDOps already has EWA, including in the
+discretionary-deduction capping path.
+
+### What this suggests for KDOps
+
+Two ideas worth stealing, neither built:
+
+1. **Approve from an email, without logging in.** The realistic blocker on a
+   KD Squares payroll run is a director who will not log into an ops tool to
+   click one button. A signed, single-use approval link would remove it. It
+   is also the riskiest thing in this list — it is an authentication bypass
+   by design — so it needs a real threat model, single use, short expiry, and
+   an audit entry naming the link rather than a session.
+2. **Freeze the approver set once a run is submitted.** KDOps already stamps
+   who approved and when, and already refuses to overwrite a non-draft run.
+   Pinning *who is allowed to approve* at submission time closes the matching
+   gap on the other side.
+
+### What could not be checked
+
+Click counts per payroll run, the actual wizard screens, payslip layouts, and
+how any of them handle multi-entity payroll. All of it needs the vendor pages
+themselves, which this environment cannot reach. Anyone with a browser could
+settle it in an hour, and it would be worth doing before copying any of the
+above.
