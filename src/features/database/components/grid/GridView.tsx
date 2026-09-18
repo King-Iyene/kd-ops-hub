@@ -53,18 +53,62 @@ const ROW_NUMBER_WIDTH = 48;
 const HEADER_HEIGHT = 36;
 
 /** Best-effort plain-text rendering of a cell's value for aria-label purposes. */
+function extractDisplayValue(val: any): string {
+  if (typeof val === 'object' && val !== null) {
+    return val.value ?? val.title ?? val.name ?? val.label ?? val.display_name ?? val.email ?? val.primary ?? '';
+  }
+  // Handle JSON strings stored as text (e.g. from Airtable migration)
+  if (typeof val === 'string' && val.startsWith('{') && val.includes('"')) {
+    try {
+      const parsed = JSON.parse(val);
+      if (typeof parsed === 'object' && parsed !== null) {
+        return parsed.value ?? parsed.title ?? parsed.name ?? parsed.label ?? parsed.display_name ?? parsed.email ?? parsed.primary ?? val;
+      }
+    } catch { /* not valid JSON, use as-is */ }
+  }
+  return String(val);
+}
+
 function formatCellAriaValue(record: RecordRow, field: FieldMeta): string {
   const val = record[field.pg_column_name];
-  if (val == null || val === '') return 'empty';
+  if (val == null || val === '') return '';
+  const lookup = (record as any)?.__linkLookup as Record<string, string> | undefined;
   if (Array.isArray(val)) {
     return val
-      .map((v) => (typeof v === 'object' && v !== null ? (v.title ?? v.name ?? v.email ?? JSON.stringify(v)) : String(v)))
+      .map((v) => {
+        if (typeof v === 'object' && v !== null) return extractDisplayValue(v);
+        const id = String(v);
+        return (lookup && lookup[id]) || id;
+      })
+      .filter(Boolean)
       .join(', ');
   }
   if (typeof val === 'object') {
-    return (val as any).title ?? (val as any).name ?? (val as any).email ?? JSON.stringify(val);
+    return extractDisplayValue(val);
   }
-  if (typeof val === 'boolean') return val ? 'checked' : 'unchecked';
+  if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+  // Try extracting display value from JSON strings
+  if (typeof val === 'string' && val.startsWith('{') && val.includes('"')) {
+    const extracted = extractDisplayValue(val);
+    if (extracted !== val) return extracted;
+  }
+  if (field.ui_type === 'Date' || field.ui_type === 'DateTime' || field.ui_type === 'CreatedTime' || field.ui_type === 'LastModifiedTime') {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      return field.ui_type === 'DateTime' || field.ui_type === 'LastModifiedTime'
+        ? d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+        : d.toLocaleString(undefined, { dateStyle: 'medium' });
+    }
+  }
+  if (field.ui_type === 'Currency') {
+    const n = Number(val);
+    if (!isNaN(n)) {
+      const sym = field.options?.currencySymbol || '₦';
+      const code = sym === '₦' ? 'NGN' : sym === '$' ? 'USD' : sym === '€' ? 'EUR' : sym === '£' ? 'GBP' : undefined;
+      try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: code || 'NGN' }).format(n); } catch { /* fall through */ }
+    }
+  }
+  if (field.ui_type === 'Checkbox') return val ? 'Yes' : 'No';
   return String(val);
 }
 
@@ -1301,16 +1345,25 @@ export default function GridView({
                 }}
                 onClick={() => onExpandRow?.(record)}
               >
-                {fieldsWithWidths.slice(0, 6).map((field) => (
-                  <div key={field.id} className="flex justify-between gap-3 text-sm">
-                    <span className="shrink-0 font-medium" style={{ color: GRID_COLORS.muted, fontSize: 11 }}>
-                      {field.name}
-                    </span>
-                    <span className="text-right truncate" style={{ color: GRID_COLORS.text }}>
-                      {formatCellAriaValue(record, field)}
-                    </span>
-                  </div>
-                ))}
+                {fieldsWithWidths.slice(0, 6).map((field) => {
+                  const cellVal = record[field.pg_column_name];
+                  const isEmpty = cellVal == null || cellVal === '';
+                  const formatted = isEmpty ? '' : formatCellAriaValue(record, field);
+                  return (
+                    <div key={field.id} className="flex justify-between gap-3 text-sm">
+                      <span className="shrink-0 font-medium" style={{ color: GRID_COLORS.muted, fontSize: 11 }}>
+                        {field.name}
+                      </span>
+                      {isEmpty ? (
+                        <span className="text-right truncate italic" style={{ color: `${GRID_COLORS.muted}80`, fontSize: 12 }}>—</span>
+                      ) : (
+                        <span className="text-right truncate" style={{ color: GRID_COLORS.text }}>
+                          {formatted}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}

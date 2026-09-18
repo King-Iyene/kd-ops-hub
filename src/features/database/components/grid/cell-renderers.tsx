@@ -55,7 +55,21 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
 }: CellRendererProps) {
   const colors = useGridColors();
   if (value == null || value === '') return null;
-  const text = String(value);
+  let text: string;
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    text = value.value ?? value.title ?? value.name ?? value.label ?? value.display_name ?? value.email ?? value.primary ?? JSON.stringify(value);
+  } else {
+    text = String(value);
+    // Handle JSON strings stored as text (e.g. Airtable migration)
+    if (text.startsWith('{') && text.includes('"')) {
+      try {
+        const parsed = JSON.parse(text);
+        if (typeof parsed === 'object' && parsed !== null) {
+          text = parsed.value ?? parsed.title ?? parsed.name ?? parsed.label ?? parsed.display_name ?? parsed.email ?? parsed.primary ?? text;
+        }
+      } catch { /* not valid JSON, use as-is */ }
+    }
+  }
 
   if (field.ui_type === 'Email') {
     const valid = EMAIL_VALID_RE.test(text);
@@ -167,7 +181,20 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
   rowHeight,
 }: CellRendererProps) {
   if (value == null || value === '') return null;
-  const text = String(value);
+  let text: string;
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    text = value.value ?? value.title ?? value.name ?? value.label ?? JSON.stringify(value);
+  } else {
+    text = String(value);
+    if (text.startsWith('{') && text.includes('"')) {
+      try {
+        const parsed = JSON.parse(text);
+        if (typeof parsed === 'object' && parsed !== null) {
+          text = parsed.value ?? parsed.title ?? parsed.name ?? parsed.label ?? text;
+        }
+      } catch { /* not valid JSON */ }
+    }
+  }
   if (rowHeight === 'short') {
     return <span className="truncate" style={{ fontSize: 13, lineHeight: '18px' }}>{text}</span>;
   }

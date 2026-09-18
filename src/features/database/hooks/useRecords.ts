@@ -40,14 +40,22 @@ export function fireWebhooks(event: string, baseId: string, tableId: string, rec
   });
 }
 
+let _cachedUser: { id: string; email: string } | null = null;
+async function getCachedUser() {
+  if (_cachedUser) return _cachedUser;
+  const { data } = await supabase.auth.getUser();
+  if (data.user) _cachedUser = { id: data.user.id, email: data.user.email ?? '' };
+  return _cachedUser;
+}
+
 function logRecordAudit(action: string, baseId: string, tableId: string, recordId?: string, newValue?: any, oldValue?: any) {
-  supabase.auth.getUser().then(({ data }) => {
+  getCachedUser().then((user) => {
     supabase.schema('nc_meta').from('audit_log').insert({
       base_id: baseId,
       table_id: tableId,
       record_id: recordId ?? null,
-      user_id: data.user?.id ?? null,
-      user_email: data.user?.email ?? null,
+      user_id: user?.id ?? null,
+      user_email: user?.email ?? null,
       action,
       old_value: oldValue ?? null,
       new_value: newValue ?? null,
@@ -927,9 +935,9 @@ export function useUpdateRecord() {
       const updates = input.fields ?? (input.field ? { [input.field]: input.value } : {});
 
       // Stamp the current user as the last modifier
-      const { data: authData } = await supabase.auth.getUser();
-      if (authData?.user?.id) {
-        (updates as Record<string, any>).updated_by = authData.user.id;
+      const cachedUser = await getCachedUser();
+      if (cachedUser?.id) {
+        (updates as Record<string, any>).updated_by = cachedUser.id;
       }
 
       const { data, error } = await supabase

@@ -36,60 +36,81 @@ export function useLinkDisplayLookup(
         .single();
       if (!baseMeta?.schema_name) return map;
 
-      for (const tableId of relatedTableIds) {
-        try {
-          const { data: tableMeta } = await supabase
-            .schema('nc_meta')
-            .from('tables')
-            .select('pg_table_name, primary_field_id')
-            .eq('id', tableId)
-            .single();
-          if (!tableMeta?.primary_field_id) continue;
-
-          const { data: primaryField } = await supabase
-            .schema('nc_meta')
-            .from('fields')
-            .select('pg_column_name')
-            .eq('id', tableMeta.primary_field_id)
-            .single();
-          if (!primaryField?.pg_column_name) continue;
-
-          const { data: rows, error } = await supabase
-            .schema(baseMeta.schema_name)
-            .from(tableMeta.pg_table_name)
-            .select(`id, ${primaryField.pg_column_name}`)
-            .limit(5000);
-
-          if (error || !rows) continue;
-
-          for (const row of rows) {
-            const displayVal = row[primaryField.pg_column_name];
-            if (displayVal == null) continue;
-            const label = String(displayVal);
-            if (row.id) map[row.id] = label;
-          }
-
+      // Batch-fetch all table metadata in parallel
+      const tableResults = await Promise.all(
+        relatedTableIds.map(async (tableId) => {
           try {
-            const { data: atRows } = await supabase
+            const { data: tableMeta } = await supabase
+              .schema('nc_meta')
+              .from('tables')
+              .select('pg_table_name, primary_field_id')
+              .eq('id', tableId)
+              .single();
+            if (!tableMeta?.primary_field_id) return null;
+
+            const { data: primaryField } = await supabase
+              .schema('nc_meta')
+              .from('fields')
+              .select('pg_column_name')
+              .eq('id', tableMeta.primary_field_id)
+              .single();
+            if (!primaryField?.pg_column_name) return null;
+
+            return { tableId, pgTable: tableMeta.pg_table_name, pgColumn: primaryField.pg_column_name };
+          } catch {
+            return null;
+          }
+        }),
+      );
+
+      const validTables = tableResults.filter(Boolean) as { tableId: string; pgTable: string; pgColumn: string }[];
+
+      // Fetch display values from all tables in parallel
+      await Promise.all(
+        validTables.map(async ({ pgTable, pgColumn }) => {
+          try {
+            const { data: rows } = await supabase
               .schema(baseMeta.schema_name)
-              .from(tableMeta.pg_table_name)
-              .select('id, airtable_id')
-              .not('airtable_id', 'is', null)
+              .from(pgTable)
+              .select(`id, ${pgColumn}`)
               .limit(5000);
-            if (atRows) {
-              for (const row of atRows) {
-                if (row.airtable_id && map[row.id]) {
-                  map[row.airtable_id] = map[row.id];
+
+            if (!rows) return;
+            for (const row of rows) {
+              const displayVal = row[pgColumn];
+              if (displayVal == null) continue;
+              let label: string;
+              if (typeof displayVal === 'object' && displayVal !== null) {
+                label = displayVal.value ?? displayVal.title ?? displayVal.name ?? displayVal.label ?? String(displayVal);
+              } else {
+                label = String(displayVal);
+              }
+              if (row.id) map[row.id] = label;
+            }
+
+            // Also resolve airtable_id mappings
+            try {
+              const { data: atRows } = await supabase
+                .schema(baseMeta.schema_name)
+                .from(pgTable)
+                .select('id, airtable_id')
+                .not('airtable_id', 'is', null)
+                .limit(5000);
+              if (atRows) {
+                for (const row of atRows) {
+                  if (row.airtable_id && map[row.id]) {
+                    map[row.airtable_id] = map[row.id];
+                  }
                 }
               }
+            } catch {
+              // table may lack airtable_id column
             }
           } catch {
-            // table may lack airtable_id column — id mapping is enough
+            // table may not exist
           }
-        } catch {
-          // table may not exist or primary column may be missing
-        }
-      }
+        }),
+      );
 
       return map;
     },
