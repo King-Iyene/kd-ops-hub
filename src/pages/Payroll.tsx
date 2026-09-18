@@ -566,6 +566,25 @@ const Payroll = () => {
     setWorking(true);
     try {
       const periodStart = start.toISOString().slice(0, 10);
+      // Exclusions ('exclude' adjustments) pull one person out of THIS run
+      // only. generatePayslips() has always honoured them; the draft
+      // computation below never did, so a run's stored totals counted people
+      // who would never be paid — an approver signing off a total larger than
+      // the money that actually goes out, with the run record left permanently
+      // overstating the cost. Only an existing draft can carry exclusions,
+      // since they are keyed to a payroll_run_id that does not exist yet for a
+      // brand-new run.
+      const excludedRes = editingDraftId
+        ? await (supabase as any)
+            .from('payslip_adjustments')
+            .select('employee_id')
+            .eq('payroll_run_id', editingDraftId)
+            .eq('kind', 'exclude')
+        : { data: [] as { employee_id: string }[] };
+      const excludedEmployeeIds = new Set(
+        ((excludedRes.data || []) as { employee_id: string }[]).map((r) => r.employee_id),
+      );
+
       const [contractorRes, expensesRes, employeeRes, deductionsRes, advancesRes] = await Promise.all([
         supabase
           .from('payment_batches')
@@ -624,7 +643,7 @@ const Payroll = () => {
       const filteredEmployees = filterEmployeesForSegment(
         companyEmployees,
         selectedSegment?.filter_rules,
-      );
+      ).filter((e: any) => !excludedEmployeeIds.has(e.id));
 
       // Compliance summary for the review step — computed from the same
       // filtered roster the figures above come from, so it can never
@@ -1009,6 +1028,22 @@ const Payroll = () => {
     load();
   };
 
+  /**
+   * The pay groups belonging to a run's company.
+   *
+   * An employee's company is derived from their pay group — profiles carry no
+   * company_id — so this is the company boundary every payroll path has to
+   * apply before a segment filter. Read from the database rather than from
+   * component state because the paths using it decide who gets paid, and a
+   * pay-group list that had not finished loading would silently widen or
+   * narrow that set.
+   */
+  const fetchCompanyPayGroupIds = async (companyId: string | null | undefined): Promise<Set<string>> => {
+    if (!companyId) return new Set<string>();
+    const { data } = await supabase.from('pay_groups').select('id').eq('company_id', companyId);
+    return new Set(((data || []) as { id: string }[]).map((r) => r.id));
+  };
+
   // Pre-flight check — runs the same segment filter used everywhere else in
   // the run's lifecycle, then flags data problems that would otherwise only
   // surface at disbursement: missing bank details, two employees sharing one
@@ -1026,7 +1061,27 @@ const Payroll = () => {
       if (error) throw error;
 
       const runSegmentRules = await fetchSegmentRules(run.payroll_segment_id);
-      const list = filterEmployeesForSegment((employees || []) as any[], runSegmentRules);
+
+      // Company boundary, then segment, then this run's exclusions — the same
+      // order generatePayslips() uses, so the pre-flight checks exactly the
+      // people the run will actually pay. Without the company filter a run
+      // with no segment ("all staff") pre-flighted against EVERY company's
+      // employees, reporting another company's missing bank details as this
+      // run's problem.
+      const pfCompanyPayGroupIds = await fetchCompanyPayGroupIds(run.company_id);
+      const pfCompanyScoped = ((employees || []) as any[]).filter(
+        (e) => e.pay_group_id && pfCompanyPayGroupIds.has(e.pay_group_id),
+      );
+      const { data: pfExcluded } = await (supabase as any)
+        .from('payslip_adjustments')
+        .select('employee_id')
+        .eq('payroll_run_id', run.id)
+        .eq('kind', 'exclude');
+      const pfExcludedIds = new Set(
+        ((pfExcluded || []) as { employee_id: string }[]).map((r) => r.employee_id),
+      );
+      const list = filterEmployeesForSegment(pfCompanyScoped, runSegmentRules)
+        .filter((e: any) => !pfExcludedIds.has(e.id));
 
       const missingBank = list.filter((e: any) => !e.bank_account_number || !e.bank_name).map((e: any) => e.full_name);
       const zeroSalary = list.filter((e: any) => !e.salary_ngn || Number(e.salary_ngn) <= 0).map((e: any) => e.full_name);
@@ -1318,13 +1373,23 @@ const Payroll = () => {
       // is unaffected: fetchSegmentRules(null) resolves to null, and
       // filterEmployeesForSegment treats null rules as "match everyone".
       const runSegmentRules = await fetchSegmentRules(run.payroll_segment_id);
-      const list = filterEmployeesForSegment((employees || []) as any[], runSegmentRules);
+
+      // Company boundary FIRST. This was missing: a run with no segment —
+      // which is what "All staff" produces, and what every auto-generated
+      // draft has — matched every active salaried employee in the instance,
+      // so a KD Squares run would generate payslips for NDI's staff on KD
+      // Squares letterhead and carry them into disbursement.
+      const gpCompanyPayGroupIds = await fetchCompanyPayGroupIds(run.company_id);
+      const gpCompanyScoped = ((employees || []) as any[]).filter(
+        (e) => e.pay_group_id && gpCompanyPayGroupIds.has(e.pay_group_id),
+      );
+      const list = filterEmployeesForSegment(gpCompanyScoped, runSegmentRules);
       if (list.length === 0) {
         toast({
           title: 'No active employees with salaries configured',
           description: run.payroll_segment_id
-            ? 'No employees match this run\'s pay group. Check the pay group filter or employee categories.'
-            : 'Add salary amounts in employee profiles first.',
+            ? 'No employees in this company match this run\'s pay group. Check the pay group filter, or that those employees are assigned to a pay group belonging to this company.'
+            : 'Nobody in this company is assigned to a pay group with a salary set. Assign employees to one of this company\'s pay groups, and add salary amounts in their profiles.',
           variant: 'destructive',
         });
         return;

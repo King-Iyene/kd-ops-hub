@@ -183,6 +183,7 @@ export function PayrollRosterPreview({
   const [savedRules, setSavedRules] = useState<PayrollSegmentFilterRules | null>(null);
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [query, setQuery] = useState('');
+  const [excludedOpen, setExcludedOpen] = useState(false);
 
   useEffect(() => {
     if (rulesOverride !== undefined) return; // override mode — no lookup needed
@@ -284,25 +285,51 @@ export function PayrollRosterPreview({
           <p className="text-muted-foreground">No one matching "{query}" will be paid.</p>
         )}
 
-        {(Object.keys(excludedByReason) as ExclusionReason[]).map((reason) => {
-          const list = excludedByReason[reason];
-          if (!list.length) return null;
-          // Inactive/driver exclusions are expected and not actionable during
-          // payroll review — naming all 16 former employees one by one is
-          // just noise. No-salary/segment exclusions might mean a real
-          // config problem, so those stay listed by name.
-          const listNames = reason === 'no_salary' || reason === 'segment' || reason === 'other_company';
-          return (
-            <div key={reason}>
-              <p className="font-medium text-muted-foreground mb-1">{REASON_LABEL[reason]} ({list.length})</p>
-              {listNames && (
-                <ul className="space-y-0.5 pl-1">
-                  {list.map((e) => <li key={e.id} className="text-muted-foreground">{empName(e)}</li>)}
-                </ul>
-              )}
-            </div>
-          );
-        })}
+        {/* Everyone NOT being paid, behind one disclosure at the very bottom.
+            These used to render as four always-open lists — Inactive (19),
+            No salary (2), Outside the segment (17), Not part of the company
+            (10) — which filled the whole dialog with ~48 people who are not
+            being paid and pushed the ones who ARE off the screen. It read as
+            "the filter isn't working" when the filter was in fact doing
+            exactly its job. Who is getting paid is the question this step
+            answers; who isn't is a footnote you open only if a number looks
+            wrong. */}
+        {totalExcluded > 0 && (
+          <Collapsible open={excludedOpen} onOpenChange={setExcludedOpen}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex min-h-[32px] w-full items-center gap-1.5 border-t border-border/60 pt-2.5 text-left text-2xs font-medium text-muted-foreground hover:text-foreground"
+                aria-expanded={excludedOpen}
+              >
+                <UserX className="h-3.5 w-3.5 shrink-0" />
+                View excluded ({totalExcluded})
+                <ChevronDown className={cn('ml-auto h-3.5 w-3.5 transition-transform', excludedOpen && 'rotate-180')} />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-2.5 pt-2">
+              {(Object.keys(excludedByReason) as ExclusionReason[]).map((reason) => {
+                const list = excludedByReason[reason];
+                if (!list.length) return null;
+                // Inactive/driver exclusions are expected and not actionable
+                // during payroll review — naming every former employee is
+                // noise. No-salary/segment/other-company exclusions might mean
+                // a real config problem, so those stay listed by name.
+                const listNames = reason === 'no_salary' || reason === 'segment' || reason === 'other_company';
+                return (
+                  <div key={reason}>
+                    <p className="mb-1 font-medium text-muted-foreground">{REASON_LABEL[reason]} ({list.length})</p>
+                    {listNames && (
+                      <ul className="space-y-0.5 pl-1">
+                        {list.map((e) => <li key={e.id} className="text-muted-foreground">{empName(e)}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </CollapsibleContent>
+          </Collapsible>
+        )}
         {included.length === 0 && totalExcluded === 0 && (
           <p className="text-muted-foreground">No employees found.</p>
         )}
