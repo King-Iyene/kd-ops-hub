@@ -1745,10 +1745,63 @@ export type Database = {
           },
         ]
       }
+      companies: {
+        Row: {
+          address: string | null
+          color: string
+          created_at: string
+          default_state: string | null
+          id: string
+          is_active: boolean
+          itf_employer_code: string | null
+          name: string
+          nhf_employer_code: string | null
+          nsitf_employer_code: string | null
+          pencom_employer_code: string | null
+          rc_number: string | null
+          short_code: string
+          tin: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          color?: string
+          created_at?: string
+          default_state?: string | null
+          id?: string
+          is_active?: boolean
+          itf_employer_code?: string | null
+          name: string
+          nhf_employer_code?: string | null
+          nsitf_employer_code?: string | null
+          pencom_employer_code?: string | null
+          rc_number?: string | null
+          short_code: string
+          tin?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          color?: string
+          created_at?: string
+          default_state?: string | null
+          id?: string
+          is_active?: boolean
+          itf_employer_code?: string | null
+          name?: string
+          nhf_employer_code?: string | null
+          nsitf_employer_code?: string | null
+          pencom_employer_code?: string | null
+          rc_number?: string | null
+          short_code?: string
+          tin?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       company_settings: {
         Row: {
           active_payment_provider: string
-          address: string | null
           affiliate_rate_tier2_usd_minor: number
           affiliate_rate_usd_minor: number
           affiliate_tier_mode: string
@@ -1771,8 +1824,6 @@ export type Database = {
           development_levy_annual_ngn: number
           development_levy_enabled: boolean
           dual_approval_threshold_ngn: number
-          employer_rc_number: string | null
-          employer_tin: string | null
           expense_limits: Json
           external_monthly_burn_ngn: number | null
           facebook_url: string | null
@@ -1788,7 +1839,6 @@ export type Database = {
           gratuity_months_per_year: number
           id: string
           instagram_url: string | null
-          itf_employer_code: string | null
           itf_enabled: boolean
           last_month_prorated: boolean
           late_threshold_time: string | null
@@ -1800,10 +1850,8 @@ export type Database = {
           max_single_transfer_ngn: number | null
           mfa_required_for_all_users: boolean
           monthly_revenue_estimate_ngn: number | null
-          nhf_employer_code: string | null
           nhf_enabled: boolean
           nhis_enabled: boolean
-          nsitf_employer_code: string | null
           nsitf_enabled: boolean
           partner_pay_usd_minor: number
           paternity_leave_days: number
@@ -1817,14 +1865,12 @@ export type Database = {
           paystack_public_key: string | null
           paystack_secret_configured: boolean
           paystack_webhook_url: string | null
-          pencom_employer_code: string | null
           pension_enabled: boolean
           probation_period_days: number
           probation_review_enabled: boolean
           provider_switched_at: string | null
           provider_switched_by: string | null
           quick_pay_enabled: boolean
-          rc_number: string | null
           referral_qualifying_days: number
           referral_rate_usd_minor: number
           resend_api_key_configured: boolean | null
@@ -1838,13 +1884,11 @@ export type Database = {
           smtp_password_enc: string | null
           smtp_port: number | null
           smtp_username: string | null
-          state_of_business: string | null
           tenant_id: string | null
           termii_api_key_configured: boolean | null
           termii_api_key_enc: string | null
           termii_sender_id: string | null
           timezone: string
-          tin: string | null
           twitter_url: string | null
           updated_at: string
           usd_rate: number | null
@@ -1857,7 +1901,6 @@ export type Database = {
         }
         Insert: {
           active_payment_provider?: string
-          address?: string | null
           affiliate_rate_tier2_usd_minor?: number
           affiliate_rate_usd_minor?: number
           affiliate_tier_mode?: string
@@ -1880,8 +1923,6 @@ export type Database = {
           development_levy_annual_ngn?: number
           development_levy_enabled?: boolean
           dual_approval_threshold_ngn?: number
-          employer_rc_number?: string | null
-          employer_tin?: string | null
           expense_limits?: Json
           external_monthly_burn_ngn?: number | null
           facebook_url?: string | null
@@ -1897,7 +1938,6 @@ export type Database = {
           gratuity_months_per_year?: number
           id?: string
           instagram_url?: string | null
-          itf_employer_code?: string | null
           itf_enabled?: boolean
           last_month_prorated?: boolean
           late_threshold_time?: string | null
@@ -1909,10 +1949,8 @@ export type Database = {
           max_single_transfer_ngn?: number | null
           mfa_required_for_all_users?: boolean
           monthly_revenue_estimate_ngn?: number | null
-          nhf_employer_code?: string | null
           nhf_enabled?: boolean
           nhis_enabled?: boolean
-          nsitf_employer_code?: string | null
           nsitf_enabled?: boolean
           partner_pay_usd_minor?: number
           paternity_leave_days?: number
@@ -1926,14 +1964,12 @@ export type Database = {
           paystack_public_key?: string | null
           paystack_secret_configured?: boolean
           paystack_webhook_url?: string | null
-          pencom_employer_code?: string | null
           pension_enabled?: boolean
           probation_period_days?: number
           probation_review_enabled?: boolean
           provider_switched_at?: string | null
           provider_switched_by?: string | null
           quick_pay_enabled?: boolean
-          rc_number?: string | null
           referral_qualifying_days?: number
           referral_rate_usd_minor?: number
           resend_api_key_configured?: boolean | null
@@ -1947,13 +1983,11 @@ export type Database = {
           smtp_password_enc?: string | null
           smtp_port?: number | null
           smtp_username?: string | null
-          state_of_business?: string | null
           tenant_id?: string | null
           termii_api_key_configured?: boolean | null
           termii_api_key_enc?: string | null
           termii_sender_id?: string | null
           timezone?: string
-          tin?: string | null
           twitter_url?: string | null
           updated_at?: string
           usd_rate?: number | null
@@ -1966,7 +2000,6 @@ export type Database = {
         }
         Update: {
           active_payment_provider?: string
-          address?: string | null
           affiliate_rate_tier2_usd_minor?: number
           affiliate_rate_usd_minor?: number
           affiliate_tier_mode?: string
@@ -1989,8 +2022,6 @@ export type Database = {
           development_levy_annual_ngn?: number
           development_levy_enabled?: boolean
           dual_approval_threshold_ngn?: number
-          employer_rc_number?: string | null
-          employer_tin?: string | null
           expense_limits?: Json
           external_monthly_burn_ngn?: number | null
           facebook_url?: string | null
@@ -2006,7 +2037,6 @@ export type Database = {
           gratuity_months_per_year?: number
           id?: string
           instagram_url?: string | null
-          itf_employer_code?: string | null
           itf_enabled?: boolean
           last_month_prorated?: boolean
           late_threshold_time?: string | null
@@ -2018,10 +2048,8 @@ export type Database = {
           max_single_transfer_ngn?: number | null
           mfa_required_for_all_users?: boolean
           monthly_revenue_estimate_ngn?: number | null
-          nhf_employer_code?: string | null
           nhf_enabled?: boolean
           nhis_enabled?: boolean
-          nsitf_employer_code?: string | null
           nsitf_enabled?: boolean
           partner_pay_usd_minor?: number
           paternity_leave_days?: number
@@ -2035,14 +2063,12 @@ export type Database = {
           paystack_public_key?: string | null
           paystack_secret_configured?: boolean
           paystack_webhook_url?: string | null
-          pencom_employer_code?: string | null
           pension_enabled?: boolean
           probation_period_days?: number
           probation_review_enabled?: boolean
           provider_switched_at?: string | null
           provider_switched_by?: string | null
           quick_pay_enabled?: boolean
-          rc_number?: string | null
           referral_qualifying_days?: number
           referral_rate_usd_minor?: number
           resend_api_key_configured?: boolean | null
@@ -2056,13 +2082,11 @@ export type Database = {
           smtp_password_enc?: string | null
           smtp_port?: number | null
           smtp_username?: string | null
-          state_of_business?: string | null
           tenant_id?: string | null
           termii_api_key_configured?: boolean | null
           termii_api_key_enc?: string | null
           termii_sender_id?: string | null
           timezone?: string
-          tin?: string | null
           twitter_url?: string | null
           updated_at?: string
           usd_rate?: number | null
@@ -2116,6 +2140,7 @@ export type Database = {
           amount_ngn: number | null
           auto_calculated_at: string | null
           breakdown_json: Json | null
+          company_id: string
           created_at: string
           due_date: string
           filed_at: string | null
@@ -2133,6 +2158,7 @@ export type Database = {
           amount_ngn?: number | null
           auto_calculated_at?: string | null
           breakdown_json?: Json | null
+          company_id: string
           created_at?: string
           due_date: string
           filed_at?: string | null
@@ -2150,6 +2176,7 @@ export type Database = {
           amount_ngn?: number | null
           auto_calculated_at?: string | null
           breakdown_json?: Json | null
+          company_id?: string
           created_at?: string
           due_date?: string
           filed_at?: string | null
@@ -2164,6 +2191,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "compliance_filings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "compliance_filings_filed_by_fkey"
             columns: ["filed_by"]
@@ -7543,6 +7577,7 @@ export type Database = {
       }
       pay_groups: {
         Row: {
+          company_id: string
           created_at: string
           created_by: string | null
           description: string | null
@@ -7554,6 +7589,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id: string
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -7565,6 +7601,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -7576,6 +7613,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "pay_groups_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pay_groups_created_by_fkey"
             columns: ["created_by"]
@@ -7941,6 +7985,7 @@ export type Database = {
           beneficiary_count: number
           bonus_type: string | null
           co_approval_required: boolean
+          company_id: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -7983,6 +8028,7 @@ export type Database = {
           beneficiary_count?: number
           bonus_type?: string | null
           co_approval_required?: boolean
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -8025,6 +8071,7 @@ export type Database = {
           beneficiary_count?: number
           bonus_type?: string | null
           co_approval_required?: boolean
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -8086,6 +8133,13 @@ export type Database = {
             columns: ["approved_by"]
             isOneToOne: false
             referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_batches_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
@@ -8346,6 +8400,7 @@ export type Database = {
           allowances_json: Json | null
           approved_by: string | null
           bonuses_json: Json | null
+          company_id: string
           created_at: string
           created_by: string | null
           cutoff_date: string | null
@@ -8380,6 +8435,7 @@ export type Database = {
           allowances_json?: Json | null
           approved_by?: string | null
           bonuses_json?: Json | null
+          company_id: string
           created_at?: string
           created_by?: string | null
           cutoff_date?: string | null
@@ -8414,6 +8470,7 @@ export type Database = {
           allowances_json?: Json | null
           approved_by?: string | null
           bonuses_json?: Json | null
+          company_id?: string
           created_at?: string
           created_by?: string | null
           cutoff_date?: string | null
@@ -8471,6 +8528,13 @@ export type Database = {
             columns: ["approved_by"]
             isOneToOne: false
             referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
@@ -10027,7 +10091,7 @@ export type Database = {
           driver_license_expiry: string | null
           driver_license_number: string | null
           email: string | null
-          employee_category: string | null
+          employee_category_deprecated_unused: string | null
           employee_number: string | null
           employee_role: string | null
           employment_type: string | null
@@ -10115,7 +10179,7 @@ export type Database = {
           driver_license_expiry?: string | null
           driver_license_number?: string | null
           email?: string | null
-          employee_category?: string | null
+          employee_category_deprecated_unused?: string | null
           employee_number?: string | null
           employee_role?: string | null
           employment_type?: string | null
@@ -10203,7 +10267,7 @@ export type Database = {
           driver_license_expiry?: string | null
           driver_license_number?: string | null
           email?: string | null
-          employee_category?: string | null
+          employee_category_deprecated_unused?: string | null
           employee_number?: string | null
           employee_role?: string | null
           employment_type?: string | null
@@ -13651,6 +13715,7 @@ export type Database = {
       tax_remittances: {
         Row: {
           amount_ngn: number
+          company_id: string
           confirmed_at: string | null
           confirmed_by: string | null
           created_at: string
@@ -13658,7 +13723,6 @@ export type Database = {
           due_date: string | null
           id: string
           notes: string | null
-          org_id: string | null
           payroll_run_id: string | null
           period_month: string
           provider_reference: string | null
@@ -13671,6 +13735,7 @@ export type Database = {
         }
         Insert: {
           amount_ngn?: number
+          company_id: string
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
@@ -13678,7 +13743,6 @@ export type Database = {
           due_date?: string | null
           id?: string
           notes?: string | null
-          org_id?: string | null
           payroll_run_id?: string | null
           period_month: string
           provider_reference?: string | null
@@ -13691,6 +13755,7 @@ export type Database = {
         }
         Update: {
           amount_ngn?: number
+          company_id?: string
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
@@ -13698,7 +13763,6 @@ export type Database = {
           due_date?: string | null
           id?: string
           notes?: string | null
-          org_id?: string | null
           payroll_run_id?: string | null
           period_month?: string
           provider_reference?: string | null
@@ -13710,6 +13774,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tax_remittances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tax_remittances_confirmed_by_fkey"
             columns: ["confirmed_by"]
@@ -15934,6 +16005,7 @@ export type Database = {
           beneficiary_count: number
           bonus_type: string | null
           co_approval_required: boolean
+          company_id: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -15981,6 +16053,7 @@ export type Database = {
           allowances_json: Json | null
           approved_by: string | null
           bonuses_json: Json | null
+          company_id: string
           created_at: string
           created_by: string | null
           cutoff_date: string | null
@@ -16063,6 +16136,7 @@ export type Database = {
           allowances_json: Json | null
           approved_by: string | null
           bonuses_json: Json | null
+          company_id: string
           created_at: string
           created_by: string | null
           cutoff_date: string | null
@@ -16210,6 +16284,7 @@ export type Database = {
           beneficiary_count: number
           bonus_type: string | null
           co_approval_required: boolean
+          company_id: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -16328,6 +16403,7 @@ export type Database = {
           beneficiary_count: number
           bonus_type: string | null
           co_approval_required: boolean
+          company_id: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -16469,6 +16545,7 @@ export type Database = {
           beneficiary_count: number
           bonus_type: string | null
           co_approval_required: boolean
+          company_id: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -16516,6 +16593,7 @@ export type Database = {
           allowances_json: Json | null
           approved_by: string | null
           bonuses_json: Json | null
+          company_id: string
           created_at: string
           created_by: string | null
           cutoff_date: string | null
@@ -16657,6 +16735,7 @@ export type Database = {
           allowances_json: Json | null
           approved_by: string | null
           bonuses_json: Json | null
+          company_id: string
           created_at: string
           created_by: string | null
           cutoff_date: string | null
@@ -16749,6 +16828,7 @@ export type Database = {
           beneficiary_count: number
           bonus_type: string | null
           co_approval_required: boolean
+          company_id: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -17105,6 +17185,7 @@ export type Database = {
           beneficiary_count: number
           bonus_type: string | null
           co_approval_required: boolean
+          company_id: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -17219,6 +17300,7 @@ export type Database = {
           beneficiary_count: number
           bonus_type: string | null
           co_approval_required: boolean
+          company_id: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -17320,6 +17402,7 @@ export type Database = {
           allowances_json: Json | null
           approved_by: string | null
           bonuses_json: Json | null
+          company_id: string
           created_at: string
           created_by: string | null
           cutoff_date: string | null
@@ -17466,6 +17549,7 @@ export type Database = {
           beneficiary_count: number
           bonus_type: string | null
           co_approval_required: boolean
+          company_id: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -17518,6 +17602,7 @@ export type Database = {
           beneficiary_count: number
           bonus_type: string | null
           co_approval_required: boolean
+          company_id: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -17574,6 +17659,7 @@ export type Database = {
           beneficiary_count: number
           bonus_type: string | null
           co_approval_required: boolean
+          company_id: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -17632,6 +17718,7 @@ export type Database = {
         Args: {
           p_allowances_json?: Json
           p_bonuses_json?: Json
+          p_company_id: string
           p_created_by: string
           p_employee_count?: number
           p_employer_pension_ngn: number
