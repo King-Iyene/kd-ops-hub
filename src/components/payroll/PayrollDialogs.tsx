@@ -3,7 +3,7 @@ import { Loader2, Plus, Send, AlertCircle, AlertTriangle, Trash2, X, Clock, Chec
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import type { PayrollSegment } from '@/lib/payroll-segments';
 import type { PayrollSegmentFilterRules } from '@/lib/payroll-segments';
-import { formatNaira, getTimezone, utcIsoToOrgWallClock } from '@/lib/format';
+import { formatNaira, formatNairaCompact, getTimezone, utcIsoToOrgWallClock } from '@/lib/format';
 import { CompliancePanel } from '@/components/payroll/CompliancePanel';
 import type { ComplianceCheck } from '@/lib/payroll-compliance';
 import { Button } from '@/components/ui/button';
@@ -164,7 +164,7 @@ export interface PayrollDialogsProps {
   setSegmentForm: React.Dispatch<React.SetStateAction<SegmentFormState>>;
   segmentSaving: boolean;
   segmentDepartments: { id: string; name: string }[];
-  segmentPayGroups: { id: string; name: string; company_id: string; frequency: string | null; memberCount: number; payableCount: number }[];
+  segmentPayGroups: { id: string; name: string; company_id: string; frequency: string | null; memberCount: number; payableCount: number; monthlyGrossNgn: number }[];
   selectedCompanyId?: string;
   selectedCompanyName?: string;
   selectedCompanyColor?: string;
@@ -468,6 +468,17 @@ export const PayrollDialogs = ({
                             <span className="block text-2xs text-muted-foreground -mt-1.5">
                               {[freq, `${g.memberCount} ${g.memberCount === 1 ? 'person' : 'people'}`].filter(Boolean).join(' · ')}
                             </span>
+                            {/* How big this run is, which is the other half of
+                                the decision and was previously only knowable by
+                                starting the run and looking at the total. Gross
+                                pay, so it is deliberately "about" — the figure
+                                the run lands on also depends on bonuses and
+                                deductions entered later. */}
+                            {g.monthlyGrossNgn > 0 && (
+                              <span className="block text-2xs font-semibold tabular-nums text-foreground/70 -mt-1">
+                                about {formatNairaCompact(g.monthlyGrossNgn)} gross a month
+                              </span>
+                            )}
                             {g.payableCount < g.memberCount && (
                               <span className="block text-3xs text-warning -mt-1">
                                 only {g.payableCount} of {g.memberCount} have a salary set

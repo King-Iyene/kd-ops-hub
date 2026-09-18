@@ -197,7 +197,7 @@ const Payroll = () => {
     if (!selectedCompanyId && companies.length > 0) setSelectedCompanyId(companies[0].id);
   }, [companies, selectedCompanyId]);
   const [segmentSaving, setSegmentSaving] = useState(false);
-  const [segmentPayGroups, setSegmentPayGroups] = useState<{ id: string; name: string; company_id: string; frequency: string | null; memberCount: number; payableCount: number }[]>([]);
+  const [segmentPayGroups, setSegmentPayGroups] = useState<{ id: string; name: string; company_id: string; frequency: string | null; memberCount: number; payableCount: number; monthlyGrossNgn: number }[]>([]);
   // Only the selected company's pay groups are offered as "who gets paid"
   // quick-pick cards — a KD Squares run should never accidentally show an
   // NDI pay group (or vice versa) as a selectable option.
@@ -239,12 +239,19 @@ const Payroll = () => {
     ]).then(([groupsRes, membersRes]) => {
       const counts: Record<string, number> = {};
       const payableCounts: Record<string, number> = {};
+      // The gross is already worked out per member just below to decide who is
+      // payable; totalling it here costs nothing and answers the question
+      // someone actually has when picking a group — how big is this run.
+      const grossTotals: Record<string, number> = {};
       (membersRes.data ?? []).forEach((r: any) => {
         counts[r.pay_group_id] = (counts[r.pay_group_id] ?? 0) + 1;
         const gross = r.use_salary_components
           ? Number(r.basic_ngn || 0) + Number(r.housing_ngn || 0) + Number(r.transport_ngn || 0) + Number(r.other_allowances_ngn || 0)
           : Number(r.salary_ngn || 0);
-        if (gross > 0) payableCounts[r.pay_group_id] = (payableCounts[r.pay_group_id] ?? 0) + 1;
+        if (gross > 0) {
+          payableCounts[r.pay_group_id] = (payableCounts[r.pay_group_id] ?? 0) + 1;
+          grossTotals[r.pay_group_id] = (grossTotals[r.pay_group_id] ?? 0) + gross;
+        }
       });
       setSegmentPayGroups(((groupsRes.data ?? []) as any[]).map((g) => ({
         id: g.id,
@@ -253,6 +260,7 @@ const Payroll = () => {
         frequency: g.pay_schedule?.frequency ?? null,
         memberCount: counts[g.id] ?? 0,
         payableCount: payableCounts[g.id] ?? 0,
+        monthlyGrossNgn: grossTotals[g.id] ?? 0,
       })));
     }).catch(() => { /* pay groups are optional for the segment builder */ });
   }, [loadSegments]);
