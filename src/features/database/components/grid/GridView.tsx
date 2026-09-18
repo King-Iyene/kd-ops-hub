@@ -7,7 +7,7 @@ import { useUndoStore } from '../../lib/undo';
 import { coerceValue } from '../../lib/csv';
 import { ColumnHeader } from './ColumnHeader';
 import { GridCell } from './GridCell';
-import { getCellRenderer } from './cell-renderers';
+import { getCellRenderer, LinksCellRenderer } from './cell-renderers';
 import { EditFieldDialog } from '../EditFieldDialog';
 import { BulkActionsBar } from './BulkActionsBar';
 import { GridSkeleton } from './GridSkeleton';
@@ -1351,7 +1351,7 @@ export default function GridView({
                   const cellVal = record[field.pg_column_name];
                   const isEmpty = cellVal == null || cellVal === '';
                   const useRenderer = !isEmpty && ['SingleSelect', 'MultiSelect', 'Checkbox', 'Rating', 'Percent', 'Links', 'Attachment', 'URL', 'Email'].includes(field.ui_type);
-                  const CellRenderer = useRenderer ? getCellRenderer(field.ui_type) : null;
+                  const CellRenderer = useRenderer ? (field.ui_type === 'Links' ? LinksCellRenderer : getCellRenderer(field.ui_type)) : null;
                   return (
                     <div key={field.id} className="flex justify-between items-center gap-3 text-sm min-h-[22px]">
                       <span className="shrink-0 font-medium" style={{ color: GRID_COLORS.muted, fontSize: 11 }}>

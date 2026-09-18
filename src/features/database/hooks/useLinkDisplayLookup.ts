@@ -67,7 +67,7 @@ export function useLinkDisplayLookup(
 
       // Fetch display values from all tables in parallel
       await Promise.all(
-        validTables.map(async ({ pgTable, pgColumn }) => {
+        validTables.map(async ({ tableId, pgTable, pgColumn }) => {
           try {
             const { data: rows } = await supabase
               .schema(baseMeta.schema_name)
@@ -88,23 +88,31 @@ export function useLinkDisplayLookup(
               if (row.id) map[row.id] = label;
             }
 
-            // Also resolve airtable_id mappings
-            try {
-              const { data: atRows } = await supabase
-                .schema(baseMeta.schema_name)
-                .from(pgTable)
-                .select('id, airtable_id')
-                .not('airtable_id', 'is', null)
-                .limit(5000);
-              if (atRows) {
-                for (const row of atRows) {
-                  if (row.airtable_id && map[row.id]) {
-                    map[row.airtable_id] = map[row.id];
+            // Also resolve airtable_id mappings (only if column exists)
+            const { count: atColCount } = await supabase
+              .schema('nc_meta')
+              .from('fields')
+              .select('id', { count: 'exact', head: true })
+              .eq('table_id', tableId)
+              .eq('pg_column_name', 'airtable_id');
+            if (atColCount && atColCount > 0) {
+              try {
+                const { data: atRows } = await supabase
+                  .schema(baseMeta.schema_name)
+                  .from(pgTable)
+                  .select('id, airtable_id')
+                  .not('airtable_id', 'is', null)
+                  .limit(5000);
+                if (atRows) {
+                  for (const row of atRows) {
+                    if (row.airtable_id && map[row.id]) {
+                      map[row.airtable_id] = map[row.id];
+                    }
                   }
                 }
+              } catch {
+                // table may lack airtable_id column
               }
-            } catch {
-              // table may lack airtable_id column
             }
           } catch {
             // table may not exist
