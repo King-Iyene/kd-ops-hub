@@ -16103,53 +16103,6 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      mark_payroll_run_paid: {
-        Args: { p_run_id: string }
-        Returns: {
-          allowances_json: Json | null
-          approved_at: string | null
-          approved_by: string | null
-          bonuses_json: Json | null
-          company_id: string
-          created_at: string
-          created_by: string | null
-          cutoff_date: string | null
-          deductions_settled_at: string | null
-          employee_count: number | null
-          employer_pension_ngn: number | null
-          id: string
-          is_auto_generated: boolean
-          last_disbursement_attempted_at: string | null
-          last_disbursement_error: string | null
-          nhf_ngn: number
-          notes: string | null
-          paid_at: string | null
-          pay_date: string | null
-          pay_group_id: string | null
-          pay_schedule_id: string | null
-          paye_ngn: number
-          payroll_segment_id: string | null
-          pension_ngn: number
-          period: string
-          period_type: string | null
-          run_options: Json | null
-          run_type: string
-          scheduled_disburse_at: string | null
-          status: string
-          submitted_at: string | null
-          total_burn_ngn: number
-          total_contractor_ngn: number
-          total_employee_ngn: number
-          total_expenses_ngn: number
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "payroll_runs"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
       approver_totp_enrollment_status: {
         Args: never
         Returns: {
