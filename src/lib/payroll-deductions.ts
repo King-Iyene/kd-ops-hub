@@ -68,3 +68,56 @@ export function computeDiscretionaryCapFactor(
 export function capDiscretionaryAmount(amountNgn: number, factor: number): number {
   return factor < 1 ? Math.round(amountNgn * factor) : amountNgn;
 }
+
+/**
+ * Hands out the capped amounts for one employee's discretionary lines while
+ * keeping a running budget, so the lines can never collectively exceed what
+ * was actually available to withhold.
+ *
+ * Why this is needed on top of capDiscretionaryAmount: that function rounds
+ * each line independently, and Math.round breaks ties upward. The rounded
+ * lines can therefore sum to more than `availableNgn` — by up to half a Naira
+ * per line. Two 1-Naira debts against 1 Naira of available pay is the
+ * smallest case: factor is 0.5, each line rounds to 1, and 2 Naira gets
+ * recorded as collected against balances when only 1 Naira existed.
+ *
+ * That breaks the guarantee this module is built to provide — that nothing is
+ * recorded as collected beyond what was withheld — and it fails in the
+ * direction that quietly forgives debt: the employee's advance or loan
+ * balance drops by more than came out of their pay, so the shortfall is never
+ * collected in a later period either.
+ *
+ * Net pay itself was never at risk; the caller clamps it at zero. The damage
+ * is confined to the balances the settlement step then writes down.
+ *
+ * Allocation is greedy in call order: each line gets its proportional rounded
+ * share, truncated to whatever budget is left. Whichever line happens to be
+ * last absorbs the rounding shortfall, which is correct in the only sense
+ * that matters here — the remainder stays on the underlying balance and is
+ * collected next period, exactly as the module documents.
+ */
+export interface DiscretionaryAllocator {
+  /** Capped amount for one line, never more than the remaining budget. */
+  take(amountNgn: number): number;
+  /** Budget not yet handed out — exposed for assertions and diagnostics. */
+  remainingNgn(): number;
+}
+
+export function createDiscretionaryAllocator(
+  availableNgn: number,
+  factor: number,
+): DiscretionaryAllocator {
+  // Floor, not round: a fraction of a Naira cannot be withheld, and rounding
+  // a fractional budget up would reintroduce the very overshoot this exists
+  // to prevent.
+  let remaining = Math.max(0, Math.floor(availableNgn));
+  return {
+    take(amountNgn: number): number {
+      const want = capDiscretionaryAmount(amountNgn, factor);
+      const give = Math.max(0, Math.min(want, remaining));
+      remaining -= give;
+      return give;
+    },
+    remainingNgn: () => remaining,
+  };
+}

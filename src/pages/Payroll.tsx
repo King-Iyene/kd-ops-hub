@@ -17,7 +17,7 @@ import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { notifyChannels } from '@/lib/notify';
 import { notifyPayslipReady } from '@/lib/notify-events';
 import { scanPayrollRunAnomaliesSafe } from '@/lib/anomalies';
-import { computeDiscretionaryCapFactor, capDiscretionaryAmount } from '@/lib/payroll-deductions';
+import { computeDiscretionaryCapFactor, createDiscretionaryAllocator } from '@/lib/payroll-deductions';
 import {
   fetchPayrollSegments,
   fetchSegmentRules,
@@ -1747,7 +1747,13 @@ const Payroll = () => {
           const discretionaryRequestedTotal = empDeductionsTotalRaw + empAdvancesTotalRaw + empEwaTotalRaw + adjDeductTotalRaw;
           const { availableNgn: availableForDiscretionary, factor: discretionaryFactor, wasCapped } =
             computeDiscretionaryCapFactor(empGrossTotal, mandatoryReductions, discretionaryRequestedTotal);
-          const capAmt = (n: number) => capDiscretionaryAmount(n, discretionaryFactor);
+          // One allocator per employee, shared by every discretionary line
+          // below. Capping each line independently rounds each one up on a
+          // tie, so the lines could sum past availableForDiscretionary and
+          // write down more debt than was actually withheld.
+          const discretionaryAllocator =
+            createDiscretionaryAllocator(availableForDiscretionary, discretionaryFactor);
+          const capAmt = (n: number) => discretionaryAllocator.take(n);
 
           const empDeductions = empDeductionsRaw.map((d: any) => ({ ...d, amount_ngn: capAmt(Number(d.amount_ngn)) }));
           const empDeductionsTotal = empDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn), 0);
