@@ -278,25 +278,19 @@ WHERE company_id IS NULL;
 
 ALTER TABLE public.tax_remittances ALTER COLUMN company_id SET NOT NULL;
 
--- ── 6. Wire up the two already-existing-but-dead company_id columns ────────
--- (added 20261031000000 "for future multi-tenant readiness", never used —
--- confirmed zero reads/writes anywhere in the app). Added NOT VALID: this
--- migration doesn't control what's already in these columns the way it does
--- for tables it backfills itself above, so it must never be able to fail on
--- an unexpected stray value in old data. New rows are still fully validated
--- going forward; VALIDATE CONSTRAINT can be run later once the data's been
--- audited if retroactive enforcement is ever wanted.
-ALTER TABLE public.employee_earnings
-  ADD CONSTRAINT employee_earnings_company_id_fkey
-    FOREIGN KEY (company_id) REFERENCES public.companies(id) NOT VALID;
-
-ALTER TABLE public.bank_payment_files
-  ADD CONSTRAINT bank_payment_files_company_id_fkey
-    FOREIGN KEY (company_id) REFERENCES public.companies(id) NOT VALID;
-
--- ── 7. payment_batches.company_id — Director Disbursements need this too ───
+-- ── 6. payment_batches.company_id — Director Disbursements need this too ───
 -- (a "director_salary"/"director_drawings" draw is meaningless without
 -- knowing which company it's drawn from)
+--
+-- A prior version of this migration also tried to add FK constraints onto
+-- employee_earnings.company_id and bank_payment_files.company_id, both
+-- believed to already exist per 20261031000000_earnings_company_id_and_
+-- variance_fix.sql. Deploy proved that belief wrong: bank_payment_files
+-- doesn't exist in production at all, and employee_earnings has no
+-- company_id column either — that migration's ADD COLUMN never actually
+-- landed live despite being in migration history, a pre-existing drift
+-- unrelated to this redesign. Neither column is read or written anywhere
+-- in the app, so there's nothing to wire up — removed rather than guessed at.
 ALTER TABLE public.payment_batches
   ADD COLUMN IF NOT EXISTS company_id uuid REFERENCES public.companies(id);
 
