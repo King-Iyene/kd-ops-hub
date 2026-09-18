@@ -579,7 +579,10 @@ export const PayrollRunsTab = ({
                       ))}
                     </div>
                     {needsAttention && (
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-label="Needs your attention" />
+                      <span className="relative h-2 w-2 shrink-0" aria-label="Needs your attention">
+                        <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-40" />
+                        <span className="absolute inset-0 rounded-full bg-primary" />
+                      </span>
                     )}
                     <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
                   </button>
@@ -943,9 +946,12 @@ function RunDetailDrawer({
   return (
     <Sheet open onOpenChange={(v) => { if (!v) onClose(); }}>
       <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
-        <SheetHeader className="px-5 pt-5 pb-3 space-y-3 text-left">
-          <div className="flex items-center gap-2">
-            <SheetTitle>{monthLabel(r.period, r.period_type)}</SheetTitle>
+        <SheetHeader className="px-5 pt-5 pb-4 space-y-3 text-left border-b border-border/40 bg-muted/30">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <SheetTitle>{monthLabel(r.period, r.period_type)}</SheetTitle>
+              <p className="text-lg font-extrabold tabular-nums tracking-tight mt-1">{formatNaira(r.total_burn_ngn)}</p>
+            </div>
             <StatusBadge status={r.status} />
           </div>
           <PayrollLifecycleRail status={r.status} size="lg" className="pt-1" />

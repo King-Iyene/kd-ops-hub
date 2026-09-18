@@ -99,6 +99,8 @@ export function PayrollLifecycleRail({
                   ) : (
                     <Check className={lg ? 'h-4 w-4' : 'h-3 w-3'} />
                   )
+                ) : state === 'current' ? (
+                  <span className={cn('rounded-full bg-current animate-pulse', lg ? 'h-2 w-2' : 'h-1.5 w-1.5')} />
                 ) : null}
               </span>
               <span
