@@ -116,6 +116,20 @@ const greeting = (hour: number) =>
 // Turn a number into a % width for the waterfall bars. Guards against 0.
 const pct = (n: number, of: number) => (of > 0 ? Math.max(1, Math.min(100, (n / of) * 100)) : 0);
 
+/**
+ * "RC 1234567" from whatever the company actually typed into the RC number
+ * field in Settings. That field is free text with no enforced format, and a
+ * CAC certificate prints the number as "RC 1234567" — so typing it off the
+ * certificate is the natural thing to do, and prefixing it again gave
+ * "RC RC 1234567" in the payslip header of every payslip handed to every
+ * employee.
+ *
+ * Normalising here rather than constraining the input keeps existing stored
+ * values working, whichever way they were entered.
+ */
+export const formatRcNumber = (rc: string): string =>
+  `RC ${rc.trim().replace(/^rc[\s.:-]*/i, '')}`.trim();
+
 export const renderPayslipHtml = (
   data: PayslipData,
   opts: { autoPrint?: boolean } = {},
@@ -166,7 +180,7 @@ export const renderPayslipHtml = (
   const logoHtml = `<img src="${esc(logoSrc)}" alt="${esc(data.company_name)} logo" class="logo-img" onerror="this.onerror=null;this.src='${FALLBACK_LOGO}'" />`;
 
   const companyIdLine = [
-    data.company_rc  ? `RC ${data.company_rc}`   : '',
+    data.company_rc  ? formatRcNumber(data.company_rc) : '',
     data.company_tin ? `TIN ${data.company_tin}` : '',
   ].filter(Boolean).join(' · ');
 

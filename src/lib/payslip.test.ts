@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderPayslipHtml, PayslipData } from './payslip';
+import { renderPayslipHtml, formatRcNumber, PayslipData } from './payslip';
 
 const BASE_DATA: PayslipData = {
   company_name: 'KD Squares',
@@ -287,5 +287,24 @@ describe('renderPayslipHtml', () => {
       period: 'Q1 2026',
     });
     expect(html).toContain('Q1 2026');
+  });
+});
+
+describe('formatRcNumber', () => {
+  it('prefixes a bare number', () => {
+    expect(formatRcNumber('1234567')).toBe('RC 1234567');
+  });
+
+  it('does not double the prefix when the stored value already carries it', () => {
+    // How it is printed on a CAC certificate, so how people type it.
+    expect(formatRcNumber('RC 1234567')).toBe('RC 1234567');
+    expect(formatRcNumber('rc 1234567')).toBe('RC 1234567');
+    expect(formatRcNumber('RC1234567')).toBe('RC 1234567');
+    expect(formatRcNumber('RC-1234567')).toBe('RC 1234567');
+    expect(formatRcNumber('RC. 1234567')).toBe('RC 1234567');
+  });
+
+  it('tolerates surrounding whitespace', () => {
+    expect(formatRcNumber('  RC 1234567  ')).toBe('RC 1234567');
   });
 });

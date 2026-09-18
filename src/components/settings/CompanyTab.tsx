@@ -288,9 +288,13 @@ export default function CompanyTab({
                   <Label htmlFor="rc_number">RC number</Label>
                   <Input
                     id="rc_number"
+                    placeholder="1234567"
                     value={companyProfile.rc_number || ''}
                     onChange={(e) => patchCompanyProfile({ rc_number: e.target.value })}
                   />
+                  <p className="text-2xs text-muted-foreground">
+                    Digits only — the &quot;RC&quot; is added automatically wherever it is shown.
+                  </p>
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="company_tin">TIN</Label>
