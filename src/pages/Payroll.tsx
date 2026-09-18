@@ -2596,7 +2596,7 @@ const Payroll = () => {
       <NextPayrollBanner onStartDraft={openNewDraft} companyId={isAllCompanies ? null : selectedCompanyId} />
 
       <Tabs defaultValue="dashboard">
-        <TabsList className="h-9 bg-transparent border-b border-border/50 rounded-none w-full justify-start gap-0 p-0">
+        <TabsList className="h-9 bg-transparent border-b border-border/50 rounded-none w-full justify-start gap-0 p-0 overflow-x-auto scrollbar-none">
           <TabsTrigger
             value="dashboard"
             className="text-xs-plus px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"

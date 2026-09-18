@@ -1996,8 +1996,18 @@ export function NextPayrollBanner({ onStartDraft, companyId }: { onStartDraft?: 
     setNextPeriodHasDraft(false);
     if (!companyId) return;
     (async () => {
+      // Only show schedules that have at least one pay group in the selected company
+      const { data: pgRows } = await supabase
+        .from('pay_groups')
+        .select('pay_schedule_id')
+        .eq('company_id', companyId)
+        .eq('is_active', true);
+      const companyScheduleIds = [...new Set((pgRows ?? []).map(r => r.pay_schedule_id).filter(Boolean))] as string[];
+      if (cancelled || !companyScheduleIds.length) return;
+
       const { data } = await supabase
         .from('pay_schedules').select('id, name').eq('is_active', true)
+        .in('id', companyScheduleIds)
         .order('created_at', { ascending: true });
       if (cancelled || !data?.length) return;
 
