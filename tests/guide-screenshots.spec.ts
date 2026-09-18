@@ -86,6 +86,12 @@ test('capture desktop screenshots for team guide', async ({ page }) => {
 });
 
 test('capture mobile screenshots for team guide', async ({ page }) => {
+  // Same reason the desktop tour raises its own timeout: each page is a
+  // networkidle navigation plus a settle delay plus a full-page screenshot,
+  // so even a handful of pages runs past the project's 30s default. The
+  // per-page try/catch below cannot save us from that — a test-level
+  // timeout kills the run outright and loses every screenshot still queued.
+  test.setTimeout(180_000);
   fs.mkdirSync(`${OUT_DIR}/mobile`, { recursive: true });
   await page.setViewportSize({ width: 390, height: 844 }); // iPhone 12/13 size
 
