@@ -178,6 +178,19 @@ export interface PayslipInput {
    *  base under PRA 2014. Passed separately so legacy (non-components)
    *  employees don't have pension/NHF over-deducted on bonus months. */
   additionalTaxableMonthlyNgn?: number;
+
+  // ─── Cumulative (year-to-date) PAYE ────────────────────────────────────
+  /** When true, PAYE is computed using the cumulative YTD method instead of
+   *  annualising this month in isolation. This eliminates over-withholding
+   *  caused by lumpy pay (bonuses, variable months). On flat salaries the
+   *  result is identical to the per-month method. */
+  useCumulativePaye?: boolean;
+  /** Chargeable income already taxed in earlier periods this tax year. */
+  cumulativeChargeableYtdNgn?: number;
+  /** PAYE already withheld in earlier periods this tax year. */
+  cumulativePayeWithheldYtdNgn?: number;
+  /** Which period of the tax year this is (1 = Jan … 12 = Dec). */
+  cumulativePeriodIndex?: number;
 }
 
 export interface PayslipBreakdown {
@@ -220,6 +233,16 @@ export interface PayslipBreakdown {
 
   // ─── NEW: employer-borne costs surfaced on payslip ─────────────────────
   nsitfMonthlyNgn: number;
+
+  // ─── Cumulative PAYE diagnostics (only set when useCumulativePaye) ────
+  /** Whether cumulative PAYE was used for this payslip. */
+  usedCumulativePaye: boolean;
+  /** Projected annual chargeable income used in the cumulative calc. */
+  cumulativeProjectedAnnualNgn?: number;
+  /** PAYE due to date under the cumulative method. */
+  cumulativePayeDueToDateNgn?: number;
+  /** Over-withholding credit carried forward (never negative on payslip). */
+  cumulativeCreditCarriedNgn?: number;
 }
 
 /**
@@ -350,8 +373,33 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
   const belowMinimumWage =
     grossMonthlyNgn > 0 && grossMonthlyNgn <= NATIONAL_MINIMUM_WAGE_MONTHLY_NGN;
 
-  const annualPaye = belowMinimumWage ? 0 : applyTaxBands(chargeableMonthlyNgn * 12);
-  const payeMonthlyNgn = input.payeEnabled !== false ? annualPaye / 12 : 0;
+  let payeMonthlyNgn: number;
+  let usedCumulativePaye = false;
+  let cumulativeProjectedAnnualNgn: number | undefined;
+  let cumulativePayeDueToDateNgn: number | undefined;
+  let cumulativeCreditCarriedNgn: number | undefined;
+
+  if (belowMinimumWage || input.payeEnabled === false) {
+    payeMonthlyNgn = 0;
+  } else if (input.useCumulativePaye && input.cumulativePeriodIndex && input.cumulativePeriodIndex >= 1) {
+    usedCumulativePaye = true;
+    const periodsPerYear = 12;
+    const periodIndex = Math.min(Math.max(1, Math.round(input.cumulativePeriodIndex)), periodsPerYear);
+    const priorChargeable = Math.max(0, input.cumulativeChargeableYtdNgn || 0);
+    const priorWithheld = Math.max(0, input.cumulativePayeWithheldYtdNgn || 0);
+    const chargeableYtd = priorChargeable + chargeableMonthlyNgn;
+    const projectedAnnual = chargeableYtd * (periodsPerYear / periodIndex);
+    const fullYearPaye = applyTaxBands(projectedAnnual);
+    const payeDueToDate = fullYearPaye * (periodIndex / periodsPerYear);
+    const exact = payeDueToDate - priorWithheld;
+    payeMonthlyNgn = Math.max(0, exact);
+    cumulativeProjectedAnnualNgn = Math.round(projectedAnnual);
+    cumulativePayeDueToDateNgn = Math.round(payeDueToDate);
+    cumulativeCreditCarriedNgn = Math.round(Math.max(0, -exact));
+  } else {
+    const annualPaye = applyTaxBands(chargeableMonthlyNgn * 12);
+    payeMonthlyNgn = annualPaye / 12;
+  }
 
   const rPension = round(pensionEmployeeMonthlyNgn);
   const rAvc = round(voluntaryPensionMonthlyNgn);
@@ -393,6 +441,10 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
     nhfBaseMonthlyNgn: round(nhfBaseMonthlyNgn),
     usedComponents,
     nsitfMonthlyNgn: round(nsitfMonthlyNgn),
+    usedCumulativePaye,
+    cumulativeProjectedAnnualNgn,
+    cumulativePayeDueToDateNgn,
+    cumulativeCreditCarriedNgn,
   };
 }
 

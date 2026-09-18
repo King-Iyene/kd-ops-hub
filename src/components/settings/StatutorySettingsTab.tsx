@@ -131,6 +131,31 @@ export default function StatutorySettingsTab({ settings, patch }: Props) {
             );
           })}
 
+          {settings.paye_enabled !== false && (
+            <div className="rounded-lg border p-3 ml-4 space-y-1">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-0.5 min-w-0">
+                  <Label htmlFor="paye_cumulative_enabled" className="text-sm font-medium leading-none cursor-pointer">
+                    Cumulative PAYE method
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Projects year-to-date income to an annual figure, computes full-year tax, then
+                    prorates to the current period minus prior withholding. Smooths tax liability
+                    when salaries change mid-year (bonuses, raises, etc.).
+                  </p>
+                  <p className="text-3xs text-muted-foreground/70">
+                    When OFF, each month is taxed independently at annualised rates (standard per-month method).
+                  </p>
+                </div>
+                <Switch
+                  id="paye_cumulative_enabled"
+                  checked={settings.paye_cumulative_enabled === true}
+                  onCheckedChange={(v) => patch({ paye_cumulative_enabled: v })}
+                />
+              </div>
+            </div>
+          )}
+
           {settings.development_levy_enabled && (
             <div className="rounded-lg border p-3 ml-4 space-y-1">
               <Label htmlFor="development_levy_annual_ngn" className="text-sm font-medium">

@@ -644,3 +644,63 @@ describe('computePayslip — rounding consistency', () => {
     expect(r.netMonthlyNgn).toBe(Math.max(0, recomputedNet));
   });
 });
+
+// ---------------------------------------------------------------------------
+// Cumulative PAYE integration in computePayslip
+// ---------------------------------------------------------------------------
+describe('computePayslip — cumulative PAYE', () => {
+  it('flags usedCumulativePaye: false when not enabled', () => {
+    const r = computePayslip({ grossMonthlyNgn: 400_000 });
+    expect(r.usedCumulativePaye).toBe(false);
+    expect(r.cumulativeProjectedAnnualNgn).toBeUndefined();
+  });
+
+  it('on flat salary, cumulative matches per-month exactly', () => {
+    const flat = computePayslip({ grossMonthlyNgn: 400_000 });
+    const cumul = computePayslip({
+      grossMonthlyNgn: 400_000,
+      useCumulativePaye: true,
+      cumulativePeriodIndex: 6,
+      cumulativeChargeableYtdNgn: flat.chargeableMonthlyNgn * 5,
+      cumulativePayeWithheldYtdNgn: flat.payeMonthlyNgn * 5,
+    });
+    expect(cumul.usedCumulativePaye).toBe(true);
+    expect(cumul.payeMonthlyNgn).toBe(flat.payeMonthlyNgn);
+  });
+
+  it('bonus month: cumulative withholds less than per-month', () => {
+    const base = computePayslip({ grossMonthlyNgn: 400_000 });
+    const bonusMonth = 400_000 + 2_000_000;
+    const perMonth = computePayslip({ grossMonthlyNgn: bonusMonth });
+    const cumul = computePayslip({
+      grossMonthlyNgn: bonusMonth,
+      useCumulativePaye: true,
+      cumulativePeriodIndex: 12,
+      cumulativeChargeableYtdNgn: base.chargeableMonthlyNgn * 11,
+      cumulativePayeWithheldYtdNgn: base.payeMonthlyNgn * 11,
+    });
+    expect(cumul.usedCumulativePaye).toBe(true);
+    expect(cumul.payeMonthlyNgn).toBeLessThan(perMonth.payeMonthlyNgn);
+  });
+
+  it('never returns negative PAYE (credit carried instead)', () => {
+    const base = computePayslip({ grossMonthlyNgn: 500_000 });
+    const lowMonth = computePayslip({
+      grossMonthlyNgn: 100_000,
+      useCumulativePaye: true,
+      cumulativePeriodIndex: 6,
+      cumulativeChargeableYtdNgn: base.chargeableMonthlyNgn * 5,
+      cumulativePayeWithheldYtdNgn: base.payeMonthlyNgn * 5,
+    });
+    expect(lowMonth.payeMonthlyNgn).toBeGreaterThanOrEqual(0);
+    expect(lowMonth.usedCumulativePaye).toBe(true);
+  });
+
+  it('falls back to per-month when periodIndex is missing', () => {
+    const r = computePayslip({
+      grossMonthlyNgn: 400_000,
+      useCumulativePaye: true,
+    });
+    expect(r.usedCumulativePaye).toBe(false);
+  });
+});

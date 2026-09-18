@@ -1691,6 +1691,8 @@ const Payroll = () => {
           const effNhfOn     = runIncNhf && companySettings?.nhf_enabled === true && e.nhf_enabled === true;
           const effNhisOn    = runIncNhis && companySettings?.nhis_enabled === true && e.nhis_enabled === true;
 
+          const cumulativeOn = (companySettings as any)?.paye_cumulative_enabled === true;
+          const empYtd = ytdByEmployee.get(e.id);
           const empBreak   = computePayslip({
             grossMonthlyNgn: empGross,
             additionalTaxableMonthlyNgn: taxableEarningsExtra,
@@ -1705,6 +1707,12 @@ const Payroll = () => {
             transportMonthlyNgn: compTransport,
             otherAllowancesMonthlyNgn: compOther,
             unpaidLeaveDays: empUnpaidLeaveDays,
+            useCumulativePaye: cumulativeOn,
+            cumulativePeriodIndex: cumulativeOn ? m2m : undefined,
+            cumulativeChargeableYtdNgn: cumulativeOn && empYtd
+              ? Math.max(0, empYtd.gross - empYtd.pension - empYtd.nhf - empYtd.nhis - empYtd.avc)
+              : undefined,
+            cumulativePayeWithheldYtdNgn: cumulativeOn && empYtd ? empYtd.paye : undefined,
           });
           const pensionBaseM  = empBreak.pensionBaseMonthlyNgn;
           const nhfBaseM      = empBreak.nhfBaseMonthlyNgn;

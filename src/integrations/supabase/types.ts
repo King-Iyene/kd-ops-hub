@@ -1855,6 +1855,7 @@ export type Database = {
           nsitf_enabled: boolean
           partner_pay_usd_minor: number
           paternity_leave_days: number
+          paye_cumulative_enabled: boolean
           paye_enabled: boolean
           payment_email_audience: string
           payroll_notifications_muted: boolean
@@ -1954,6 +1955,7 @@ export type Database = {
           nsitf_enabled?: boolean
           partner_pay_usd_minor?: number
           paternity_leave_days?: number
+          paye_cumulative_enabled?: boolean
           paye_enabled?: boolean
           payment_email_audience?: string
           payroll_notifications_muted?: boolean
@@ -2053,6 +2055,7 @@ export type Database = {
           nsitf_enabled?: boolean
           partner_pay_usd_minor?: number
           paternity_leave_days?: number
+          paye_cumulative_enabled?: boolean
           paye_enabled?: boolean
           payment_email_audience?: string
           payroll_notifications_muted?: boolean
