@@ -43,8 +43,36 @@ export function useTrashRecords(baseId: string | null) {
 /*  Mutations                                                          */
 /* ------------------------------------------------------------------ */
 
+async function restoreByRecordId(baseId: string, tableId: string, recordId: string) {
+  const { data: trashEntry } = await supabase
+    .schema('nc_meta')
+    .from('trash')
+    .select('*')
+    .eq('base_id', baseId)
+    .eq('record_id', recordId)
+    .order('deleted_at', { ascending: false })
+    .limit(1)
+    .single();
+  if (!trashEntry) return;
+  const ctx = await resolveTableContext(baseId, tableId);
+  await supabase.schema(ctx.schemaName).from(ctx.tableName).insert(trashEntry.record_data);
+  await supabase.schema('nc_meta').from('trash').delete().eq('id', trashEntry.id);
+}
+
 export function useSoftDeleteRecord() {
   const qc = useQueryClient();
+
+  const restoreFn = async (input: { baseId: string; tableId: string; recordId: string }) => {
+    try {
+      await restoreByRecordId(input.baseId, input.tableId, input.recordId);
+      toast.success('Record restored');
+      qc.invalidateQueries({ queryKey: ['nc', 'records', input.baseId, input.tableId] });
+      qc.invalidateQueries({ queryKey: ['nc', 'recordCount', input.baseId, input.tableId] });
+      qc.invalidateQueries({ queryKey: ['nc', 'trash', input.baseId] });
+    } catch {
+      toast.error('Failed to restore record');
+    }
+  };
 
   return useMutation({
     mutationFn: async (input: {
@@ -88,7 +116,15 @@ export function useSoftDeleteRecord() {
       if (delErr) throw delErr;
     },
     onSuccess: (_data, variables) => {
-      toast.success('Record moved to trash');
+      toast.success('Record moved to trash', {
+        duration: 6000,
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            restoreFn({ baseId: variables.baseId, tableId: variables.tableId, recordId: variables.recordId });
+          },
+        },
+      });
       qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       qc.invalidateQueries({ queryKey: ['nc', 'recordCount', variables.baseId, variables.tableId] });
       qc.invalidateQueries({ queryKey: ['nc', 'trash', variables.baseId] });
