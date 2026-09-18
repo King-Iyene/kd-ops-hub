@@ -420,3 +420,100 @@ Carried forward from the previous session, still true:
    It should only be built after self-service exists.
 3. **No HR-eyes walkthrough.** Automated tests say the screens load; they
    do not say the redesign is understandable. That still needs a person.
+
+---
+
+# Calculation audit — same session, later
+
+The brief's emphasis landed on "most especially calculations and maths", so
+this pass went at the arithmetic rather than the screens. Three findings,
+two fixes, and several things checked and deliberately left alone.
+
+## 1. PAYE over-withholds whenever pay is uneven
+
+`computePayslip()` prices PAYE by annualising the month in front of it:
+`applyTaxBands(chargeableThisMonth * 12) / 12`. On a flat salary that is
+exactly right, which is why it has never surfaced.
+
+It is wrong as soon as pay varies. The bands are progressive, so the tax
+function is convex, and the average of the tax on each month's annualised
+income is always at least the tax on the average. Measured against the real
+bands:
+
+| Pay pattern | Over-withheld across the year |
+|---|---|
+| Flat ₦400k/month | ₦0 |
+| + ₦2.0m December bonus | ₦48,333 (4.8%) |
+| + ₦6.0m December bonus | ₦293,000 (16.9%) |
+| ₦60k/month + ₦300k bonus | ₦14,300 (**43.3%**) |
+
+The lowest earner is hurt worst proportionally, because the bonus is what
+carries them across the ₦800k exemption: their bonus month is taxed as if
+every month looked like it. Nothing later gives it back — each month is
+computed from scratch — so they are out of pocket until they file a return.
+
+`src/lib/paye-cumulative.ts` implements the standard correction: project the
+year-to-date chargeable income to a full year, tax that, take the share owed
+by this period, withhold the difference against what has already been taken.
+A bonus then unwinds over the remaining months and period 12 trues the year
+up exactly; on a flat salary it collapses to the existing behaviour.
+
+**Deliberately not wired in.** Switching changes take-home on every payslip
+where pay is uneven. That is a payroll-policy decision for the business, not
+something to slip into a live system that pays real salaries while nobody is
+watching. The module is tested and ready; turning it on is a decision, not a
+merge.
+
+## 2. PAYE was charged to people earning the minimum wage — fixed
+
+NTA 2025 s.58 exempts anyone earning no more than the national minimum wage
+(₦70,000/month) from PAYE outright. The engine never implemented it, leaning
+on the ₦800k band to cover the same ground.
+
+It does not quite. At ₦70,000/month the band only reaches nil once pension is
+taken off (8% of ₦840,000 leaves ₦772,800). An employee whose employer runs
+no pension scheme, or who is out of NHF and NHIS, has ₦840,000 chargeable and
+is charged 15% on the ₦40,000 above the band — about ₦500 a month taken from
+the lowest-paid person on the payroll.
+
+Fixed, with one subtlety worth keeping: the test is against **contractual
+monthly gross**, not the figure after unpaid leave. The exemption is about
+what someone earns, not what a given month paid out. Prorating first would
+hand a full exemption to a ₦9.24m-a-year earner for any month short enough to
+drop them under ₦70,000 — pinned by a test at exactly that boundary.
+
+## 3. Payslips reconcile as printed — verified, no change
+
+Every figure is rounded to whole Naira independently, which is the usual way
+a printed sum ends up a Naira from the printed total. Swept 3,120 payslips
+from ₦71,000 to ₦2,000,000 across both component modes: gross minus every
+deduction shown equals the net shown, every time, zero drift. Pinned as a
+test so it stays true.
+
+## Checked against published sources, left alone
+
+Three separate times this session, verification stopped a "fix" to something
+already correct. Worth recording, because each looked wrong at a glance:
+
+| Checked | Verdict |
+|---|---|
+| PAYE band boundaries | Correct. Stored as band **widths**, not cumulative ceilings. Several secondary summaries put the 18%/21% boundary at ₦10m; the statute's "next ₦9,000,000" wording gives ₦12m, which is what the code has. Moving it would have changed PAYE for the highest earners only. |
+| Rent relief cap | Correct at ₦500,000 (s.30(2)(a)(vi)). One source said "₦200,000–500,000"; every other source and the section reference say ₦500,000. |
+| 1% minimum tax | Correctly absent — abolished by NTA 2025. |
+| Pension 8%/10%, NHF 2.5% of basic, NSITF 1%, ITF 1% | All match. PenCom's reported 2026 rate review is not in force; one report suggests any increase would fall on employers only. Re-check before the 2027 payroll year. |
+
+## A note on the research that did not happen
+
+A full fan-out research pass was run over Nigerian compliance detail,
+competitor payroll UX, disbursement rails and payroll controls. Its search
+phase found the right primary sources — the Nigeria Tax Act PDF, PenCom's
+remittance framework, Rivers IRS, NIBSS, Paystack's transfer docs, ACFE — and
+then fetched **none** of them: this environment's egress proxy blocks
+outbound HTTP to essentially every host, so all 22 sources came back empty
+and zero claims were extracted.
+
+WebSearch itself works, and is what the verifications above rest on. Anything
+needing a primary document read end to end (exact remittance deadlines,
+penalty schedules, Paystack's bulk-transfer semantics and idempotency
+behaviour) still needs either a network policy that allows those hosts, or a
+person with a browser.
