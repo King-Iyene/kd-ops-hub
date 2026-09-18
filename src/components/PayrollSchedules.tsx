@@ -1983,10 +1983,10 @@ export function PayrollSchedules() {
 }
 
 function humaniseVarianceReason(reason: string): string {
-  return reason.replace(/by ([\d,.]+)%/, (_, pctStr) => {
+  return reason.replace(/(prior period) by ([\d,.]+)%/, (_, prefix, pctStr) => {
     const pct = parseFloat(pctStr.replace(/,/g, ''));
-    if (pct > 1000) return 'significantly compared to prior period';
-    return `by ${pct.toFixed(1)}%`;
+    if (pct > 1000) return `${prefix} significantly`;
+    return `${prefix} by ${pct.toFixed(1)}%`;
   });
 }
 
