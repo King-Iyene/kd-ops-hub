@@ -318,12 +318,22 @@ export const renderPayslipHtml = (
     .body { padding: 28px 40px; }
 
     .section { margin-bottom: 28px; }
+    /* The title sat at #a3a3a3, which is 10px light grey on white — under
+       3:1 against the page and the weakest text on a document people are
+       meant to read carefully. Darkened to #525252, and the plain grey rule
+       under it replaced with a short brand-coloured accent so the eye can
+       find where each section starts without the text having to shout. */
     .section-title {
       font-size: 10px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.12em; color: #a3a3a3;
+      letter-spacing: 0.12em; color: #525252;
       margin-bottom: 10px;
       padding-bottom: 6px;
       border-bottom: 1px solid #e5e5e5;
+      position: relative;
+    }
+    .section-title::after {
+      content: ''; position: absolute; left: 0; bottom: -1px;
+      width: 28px; height: 2px; background: #006994;
     }
     .section-note {
       font-size: 11px; color: #a3a3a3; margin: -6px 0 10px;
@@ -383,11 +393,14 @@ export const renderPayslipHtml = (
     thead th {
       padding: 8px 0; text-align: left;
       font-size: 9px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.1em; color: #a3a3a3;
+      letter-spacing: 0.1em; color: #737373;
       border-bottom: 1px solid #e5e5e5;
     }
     thead th.right { text-align: right; }
-    thead th.ytd { color: #c4c4c4; }
+    /* Both were a step lighter (#a3a3a3, and #c4c4c4 for YTD), which at 9px
+       uppercase is below 3:1 on white — the labels telling you what each
+       column of money means were the hardest text on the page to read. */
+    thead th.ytd { color: #a3a3a3; }
     tbody td {
       padding: 9px 0;
       border-bottom: 1px solid #f5f5f4;
