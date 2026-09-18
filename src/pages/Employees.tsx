@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { displayName } from '@/lib/name';
@@ -70,7 +70,8 @@ import {
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { useDepartments } from '@/queries';
+import { useDepartments, useCompanies } from '@/queries';
+import { CompanyBadge } from '@/components/ui-kit/CompanySwitcher';
 import { cn } from '@/lib/utils';
 import { deptBadgeStyle, deptDotStyle } from '@/lib/dept-colors';
 
@@ -96,6 +97,7 @@ interface Employee {
   tags?: string[] | null;
   department_id?: string | null;
   department?: { id: string; name: string } | null;
+  pay_group_id?: string | null;
   photo_url?: string | null;
 }
 
@@ -147,6 +149,12 @@ const Employees = () => {
   // 'all' = every employee, 'none' = those with no department set,
   // otherwise the selected department id.
   const [deptFilter, setDeptFilter] = useState<'all' | 'none' | string>('all');
+  // 'all' = every employee, 'none' = no pay group assigned (so no company
+  // can be derived — an employee's company comes from their pay group,
+  // there is no separate company field on profiles), otherwise a company id.
+  const [companyFilter, setCompanyFilter] = useState<'all' | 'none' | string>('all');
+  const payGroupCompanyByIdRef = useRef<Record<string, string>>({});
+  const [payGroupsLoaded, setPayGroupsLoaded] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [showCsvImport, setShowCsvImport] = useState(false);
@@ -168,6 +176,7 @@ const Employees = () => {
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const { data: departments = [] } = useDepartments();
+  const { data: companies = [] } = useCompanies();
   const { errors: fieldErrors, setError: setFieldError, clearError: clearFieldError, clearAll: clearFieldErrors, hasErrors: hasFieldErrors } = useFieldErrors<'first_name' | 'email' | 'role'>();
 
   const isSuperAdmin = profile?.role === 'super_admin';
@@ -209,7 +218,7 @@ const Employees = () => {
     let query = supabase
       .from('profiles')
       .select(
-        'id, full_name, first_name, last_name, email, phone, role, status, created_at, tags, photo_url, department_id, department:departments!department_id(id, name)',
+        'id, full_name, first_name, last_name, email, phone, role, status, created_at, tags, photo_url, department_id, department:departments!department_id(id, name), pay_group_id',
         { count: 'exact' },
       )
       .neq('is_anonymised', true)
@@ -225,6 +234,17 @@ const Employees = () => {
       query = query.is('department_id', null);
     } else if (deptFilter !== 'all') {
       query = query.eq('department_id', deptFilter);
+    }
+    if (companyFilter === 'none') {
+      query = query.is('pay_group_id', null);
+    } else if (companyFilter !== 'all') {
+      // An employee's company is derived from their pay group (there's no
+      // separate company field on profiles), so filtering by company means
+      // filtering by every pay group that belongs to it.
+      const groupIds = Object.entries(payGroupCompanyByIdRef.current)
+        .filter(([, companyId]) => companyId === companyFilter)
+        .map(([groupId]) => groupId);
+      query = query.in('pay_group_id', groupIds.length > 0 ? groupIds : ['00000000-0000-0000-0000-000000000000']);
     }
     if (q) {
       const safeQ = q.replace(/[%_(),.\\]/g, '');
@@ -254,7 +274,21 @@ const Employees = () => {
     setTotalCount(employeesRes.count ?? 0);
     setAvailableTags((tagsRes.data as Tag[]) || []);
     setLoading(false);
-  }, [page, showInactive, roleFilter, deptFilter, debouncedSearch, toast]);
+  }, [page, showInactive, roleFilter, deptFilter, companyFilter, payGroupsLoaded, debouncedSearch, toast]);
+
+  // Pay group → company lookup, fetched once — an employee's company is
+  // derived from their pay group, there's no separate company column to join.
+  useEffect(() => {
+    supabase
+      .from('pay_groups')
+      .select('id, company_id')
+      .then(({ data }) => {
+        const map: Record<string, string> = {};
+        for (const g of (data || []) as { id: string; company_id: string }[]) map[g.id] = g.company_id;
+        payGroupCompanyByIdRef.current = map;
+        setPayGroupsLoaded(true);
+      });
+  }, []);
 
   useEffect(() => {
     fetchEmployees();
@@ -545,11 +579,18 @@ const Employees = () => {
     setSearch('');
     setRoleFilter('all');
     setDeptFilter('all');
+    setCompanyFilter('all');
     setShowInactive(false);
     setPage(0);
   };
   const activeEmployeeFilterCount =
-    [roleFilter !== 'all', deptFilter !== 'all', showInactive].filter(Boolean).length;
+    [roleFilter !== 'all', deptFilter !== 'all', companyFilter !== 'all', showInactive].filter(Boolean).length;
+
+  const companyForEmployee = (e: Employee) => {
+    if (!e.pay_group_id) return null;
+    const companyId = payGroupCompanyByIdRef.current[e.pay_group_id];
+    return companies.find((c) => c.id === companyId) ?? null;
+  };
 
   const inviteCount = employees.filter((e) => e.status === 'invited').length;
 
@@ -658,6 +699,25 @@ const Employees = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                {companies.length > 1 && (
+                  <Select value={companyFilter} onValueChange={(v) => { setCompanyFilter(v as any); setPage(0); }}>
+                    <SelectTrigger className="w-[160px] h-8 text-xs bg-transparent border-border/60" data-mobile-filter-row>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All companies</SelectItem>
+                      <SelectItem value="none">Not assigned</SelectItem>
+                      {companies.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                            {c.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-muted-foreground">
                   <Switch
                     checked={showInactive}
@@ -701,6 +761,7 @@ const Employees = () => {
                     <TableHead>Name</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Department</TableHead>
+                    {companies.length > 1 && <TableHead>Company</TableHead>}
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Joined</TableHead>
@@ -762,6 +823,11 @@ const Employees = () => {
                           );
                         })()}
                       </TableCell>
+                      {companies.length > 1 && (
+                        <TableCell>
+                          <CompanyBadge company={companyForEmployee(e)} />
+                        </TableCell>
+                      )}
                       <TableCell className="text-xs-plus text-muted-foreground/80">
                         {e.email}
                       </TableCell>
@@ -857,6 +923,10 @@ const Employees = () => {
                         {(() => {
                           const name = e.department?.name ?? departments.find((d) => d.id === e.department_id)?.name ?? null;
                           return name ? ` · ${name}` : '';
+                        })()}
+                        {companies.length > 1 && (() => {
+                          const company = companyForEmployee(e);
+                          return company ? ` · ${company.name}` : '';
                         })()}
                       </p>
                     </div>
