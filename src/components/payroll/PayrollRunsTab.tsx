@@ -520,11 +520,11 @@ export const PayrollRunsTab = ({
                     type="button"
                     onClick={() => setOpenId(r.id)}
                     className={cn(
-                      'relative flex w-full items-center gap-3 px-4 py-[18px] text-left transition-all duration-200 hover:bg-muted/40 group/run',
+                      'relative flex w-full items-center gap-3 px-4 py-2.5 text-left transition-all duration-200 hover:bg-muted/40 group/run',
                       isHighlighted && 'bg-primary/10 ring-2 ring-primary/40 ring-inset',
                     )}
                   >
-                    <span className={cn('absolute inset-y-2 left-0 w-[3px] rounded-r-full transition-all', STATUS_ACCENT[r.status] ?? 'bg-muted-foreground/40')} />
+                    <span className={cn('absolute inset-y-1.5 left-0 w-[3px] rounded-r-full transition-all', STATUS_ACCENT[r.status] ?? 'bg-muted-foreground/40')} />
                     <div className="min-w-0 flex-1 pl-1.5">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-bold text-sm tracking-tight">{monthLabel(r.period, r.period_type)}</span>
@@ -549,11 +549,11 @@ export const PayrollRunsTab = ({
                           </Badge>
                         )}
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground truncate">
+                      <p className="mt-0.5 text-2xs text-muted-foreground truncate">
                         {nextActionCopy(r, canApprovePerm, canDisburse, isSelfApprovalBlocked(r))}
                       </p>
                       {r.last_disbursement_error && (
-                        <p className="mt-1 text-xs text-destructive">
+                        <p className="mt-0.5 text-2xs text-destructive">
                           {r.last_disbursement_attempted_at && (
                             <>Attempted {new Date(r.last_disbursement_attempted_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: getTimezone() })} — </>
                           )}
