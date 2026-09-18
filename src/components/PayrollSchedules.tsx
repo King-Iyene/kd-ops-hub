@@ -1982,6 +1982,14 @@ export function PayrollSchedules() {
   );
 }
 
+function humaniseVarianceReason(reason: string): string {
+  return reason.replace(/by ([\d,.]+)%/, (_, pctStr) => {
+    const pct = parseFloat(pctStr.replace(/,/g, ''));
+    if (pct > 1000) return 'significantly compared to prior period';
+    return `by ${pct.toFixed(1)}%`;
+  });
+}
+
 // ─── NextPayrollBanner ────────────────────────────────────────────────────────
 
 export function NextPayrollBanner({ onStartDraft, companyId }: { onStartDraft?: () => void; companyId?: string | null }) {
@@ -2097,7 +2105,7 @@ export function NextPayrollBanner({ onStartDraft, companyId }: { onStartDraft?: 
             : <TrendingUp className="h-4 w-4 shrink-0" />}
           <div className="flex-1 min-w-0">
             <span className="font-semibold">Variance flag — </span>
-            {variance.reason}
+            {humaniseVarianceReason(variance.reason)}
             {' '}
             <a href={`/payroll?run=${variance.runId}`} className="underline">Review</a>
           </div>

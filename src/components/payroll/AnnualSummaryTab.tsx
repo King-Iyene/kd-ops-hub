@@ -73,6 +73,13 @@ interface AnnualSummaryTabProps {
   trendSeries: { label: string; burn: number }[];
 }
 
+function friendlyPeriod(iso: string): string {
+  const [y, m] = iso.split('-');
+  if (!m) return iso;
+  const d = new Date(Number(y), Number(m) - 1);
+  return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+}
+
 const GRANULARITY_LABELS: Record<AnnualSummaryTabProps['reportGranularity'], string> = {
   monthly: 'Month to month',
   quarterly: 'Quarter to quarter',
@@ -108,14 +115,14 @@ function BurnExplainerCard({ explainer }: { explainer: BurnExplainer }) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold">
-              {latest.period} is {Math.abs(deltaPct).toFixed(1)}% {up ? 'above' : 'below'} {prev.period}
+              {friendlyPeriod(latest.period)} is {Math.abs(deltaPct) > 999 ? 'significantly' : `${Math.abs(deltaPct).toFixed(1)}%`} {up ? 'above' : 'below'} {friendlyPeriod(prev.period)}
               {parts.length > 0 ? ' — here\'s why' : ''}
             </p>
             {parts.length > 0 && (
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                 {parts.join(' · ')}.
                 {Math.abs(bonusDeltaNgn) >= 1000 && (
-                  <> Without the bonus line, burn would be {withoutBonusPct >= 0 ? '+' : ''}{withoutBonusPct.toFixed(1)}% vs {prev.period}.</>
+                  <> Without the bonus line, burn would be {withoutBonusPct >= 0 ? '+' : ''}{withoutBonusPct.toFixed(1)}% vs {friendlyPeriod(prev.period)}.</>
                 )}
               </p>
             )}

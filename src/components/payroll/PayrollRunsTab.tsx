@@ -560,9 +560,12 @@ export const PayrollRunsTab = ({
                       <p className="text-2xs text-muted-foreground tabular-nums">
                         {r.employee_count ?? '—'} employee{r.employee_count === 1 ? '' : 's'}
                         {momPct !== null && (
-                          <span className={cn('ml-1.5 inline-flex items-center gap-0.5', momPct >= 0 ? 'text-success' : 'text-destructive')}>
+                          <span
+                            className={cn('ml-1.5 inline-flex items-center gap-0.5', momPct >= 0 ? 'text-success' : 'text-destructive')}
+                            title={`${momPct >= 0 ? '+' : ''}${momPct.toFixed(1)}% vs prior run`}
+                          >
                             {momPct >= 0 ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
-                            {Math.abs(momPct).toFixed(1)}%
+                            {Math.abs(momPct) > 999 ? '999+' : Math.abs(momPct).toFixed(1)}%
                           </span>
                         )}
                       </p>

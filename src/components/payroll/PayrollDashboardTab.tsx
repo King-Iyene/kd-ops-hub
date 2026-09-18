@@ -34,6 +34,7 @@ interface WhoGetsPaidRow {
   name: string;
   photo_url: string | null;
   role: string | null;
+  job_title: string | null;
   amount: number;
 }
 
@@ -92,6 +93,14 @@ export function PayrollDashboardTab({
     return active || runs[0] || null;
   }, [runs]);
 
+  const paidThisMonth = useMemo(() => {
+    const now = new Date();
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return runs
+      .filter((r) => r.status === 'paid' && r.period.startsWith(thisMonth))
+      .reduce((sum, r) => sum + (r.total_burn_ngn || 0), 0);
+  }, [runs]);
+
   useEffect(() => {
     let cancelled = false;
     setPayGroupCount(null);
@@ -125,7 +134,7 @@ export function PayrollDashboardTab({
         supabase.from('company_settings').select('id').limit(1),
         supabase
           .from('profiles')
-          .select('id, full_name, first_name, last_name, email, photo_url, role, salary_ngn, pay_group_id')
+          .select('id, full_name, first_name, last_name, email, photo_url, role, job_title, salary_ngn, pay_group_id')
           .eq('status', 'active')
           .neq('role', 'driver')
           .gt('salary_ngn', 0)
@@ -160,6 +169,7 @@ export function PayrollDashboardTab({
           name: displayName(r.first_name, r.last_name, r.full_name || r.email),
           photo_url: r.photo_url || null,
           role: r.role,
+          job_title: r.job_title || null,
           amount: Number(r.salary_ngn || 0),
         })),
       );
@@ -244,8 +254,8 @@ export function PayrollDashboardTab({
         <div className="lg:col-span-4 grid grid-cols-2 gap-3">
           <StatTile
             icon={<Wallet className="h-4 w-4" />}
-            label="This month"
-            value={inflow != null ? formatNairaCompact(inflow) : '—'}
+            label="Paid this month"
+            value={formatNairaCompact(paidThisMonth)}
             tone="primary"
           />
           <StatTile
@@ -361,7 +371,7 @@ export function PayrollDashboardTab({
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium truncate leading-tight">{p.name}</p>
-                    <p className="text-2xs text-muted-foreground truncate capitalize leading-tight">{p.role || '—'}</p>
+                    <p className="text-2xs text-muted-foreground truncate capitalize leading-tight">{p.job_title || p.role?.replace(/_/g, ' ') || '—'}</p>
                   </div>
                   <p className="text-xs font-semibold tabular-nums shrink-0 tracking-tight">{formatNairaCompact(p.amount)}</p>
                 </div>
