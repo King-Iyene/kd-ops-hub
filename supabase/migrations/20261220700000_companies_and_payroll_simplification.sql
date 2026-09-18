@@ -187,7 +187,10 @@ WHERE pr.company_id IS NULL AND pr.pay_group_id = pg.id;
 UPDATE public.payroll_runs pr
 SET company_id = inferred.company_id
 FROM (
-  SELECT ps.id AS segment_id, MIN(pg2.company_id) AS company_id
+  -- MIN(uuid) doesn't exist in Postgres (no built-in min/max aggregate for
+  -- uuid) — aggregate over the text cast instead. Safe to pick any value
+  -- here since HAVING already guarantees exactly one distinct company_id.
+  SELECT ps.id AS segment_id, MIN(pg2.company_id::text)::uuid AS company_id
   FROM public.payroll_segments ps
   CROSS JOIN LATERAL jsonb_array_elements_text(
     COALESCE(ps.filter_rules -> 'include_pay_group_ids', '[]'::jsonb)
