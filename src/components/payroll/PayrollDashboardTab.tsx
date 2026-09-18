@@ -18,6 +18,7 @@ import { formatNaira, formatNairaCompact, daysUntil } from '@/lib/format';
 import { displayName } from '@/lib/name';
 import { PayrollLifecycleRail, realStepIndex } from '@/components/payroll/PayrollLifecycleRail';
 import { ALL_COMPANIES } from '@/components/ui-kit/CompanySwitcher';
+import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { cn } from '@/lib/utils';
 
 interface PayrollRunLite {
@@ -68,7 +69,23 @@ export function PayrollDashboardTab({
   const [nextPayDate, setNextPayDate] = useState<Date | null>(null);
   const [inflow, setInflow] = useState<number | null>(null);
   const [whoGetsPaid, setWhoGetsPaid] = useState<WhoGetsPaidRow[]>([]);
+  // Everyone who would be paid in scope, not the hero run's count: the tile
+  // is labelled "On payroll" and a run's count is a different number the
+  // moment a group is excluded or a second run exists.
+  const [headcount, setHeadcount] = useState<number | null>(null);
   const [loadingExtras, setLoadingExtras] = useState(true);
+
+  // Total across whatever window `trend` covers, plus a label that names the
+  // window rather than asserting a period it might not be.
+  const trendTotal = useMemo(
+    () => trend.reduce((sum, t) => sum + (Number(t.burn) || 0), 0),
+    [trend],
+  );
+  const trendTotalLabel = useMemo(() => {
+    if (trend.length === 0) return 'Nothing paid out yet';
+    if (trend.length === 1) return `Total for ${trend[0].label}`;
+    return `Total, ${trend[0].label} to ${trend[trend.length - 1].label}`;
+  }, [trend]);
 
   const heroRun = useMemo(() => {
     const active = runs.find((r) => r.status !== 'paid');
@@ -80,6 +97,7 @@ export function PayrollDashboardTab({
     setPayGroupCount(null);
     setNextPayDate(null);
     setWhoGetsPaid([]);
+    setHeadcount(null);
     if (!selectedCompanyId) return;
     (async () => {
       setLoadingExtras(true);
@@ -91,7 +109,14 @@ export function PayrollDashboardTab({
         .from('pay_groups')
         .select('id', { count: 'exact', head: true })
         .eq('is_active', true);
-      const [groupsRes, schedulesRes, expectedRes, roster] = await Promise.all([
+      const headcountQuery = supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'active')
+        .neq('role', 'driver')
+        .gt('salary_ngn', 0)
+        .in('pay_group_id', safePayGroupIds);
+      const [groupsRes, schedulesRes, expectedRes, roster, headcountRes] = await Promise.all([
         isAllCompanies ? groupsQuery : groupsQuery.eq('company_id', selectedCompanyId),
         supabase.from('pay_schedules').select('id').eq('is_active', true).order('created_at', { ascending: true }),
         // "In" this period — approved & unbudgeted income the company expects,
@@ -107,9 +132,11 @@ export function PayrollDashboardTab({
           .in('pay_group_id', safePayGroupIds)
           .order('salary_ngn', { ascending: false })
           .limit(6),
+        headcountQuery,
       ]);
       if (cancelled) return;
       setPayGroupCount(groupsRes.count ?? 0);
+      setHeadcount(headcountRes.count ?? 0);
       void expectedRes;
 
       // Next pay date — earliest upcoming date across all active schedules,
@@ -239,7 +266,12 @@ export function PayrollDashboardTab({
           <StatTile
             icon={<Users2 className="h-4 w-4" />}
             label="On payroll"
-            value={String(whoGetsPaid.length > 0 ? (heroRun?.employee_count ?? '—') : '—')}
+            value={headcount != null ? String(headcount) : '—'}
+            hint={
+              headcount == null
+                ? (loadingExtras ? 'Loading…' : undefined)
+                : isAllCompanies ? 'Across every company' : 'In this company'
+            }
             tone="success"
           />
           <StatTile
@@ -255,9 +287,34 @@ export function PayrollDashboardTab({
         {/* Burn history — 8 cols */}
         <Card className="lg:col-span-8">
           <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold">Burn history</p>
-              <span className="text-2xs text-muted-foreground tabular-nums font-medium">{runsThisYear} run{runsThisYear !== 1 ? 's' : ''} this year</span>
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <p className="text-sm font-semibold flex items-center gap-1.5">
+                  Burn history
+                  <InfoHint>
+                    What payroll has actually cost, month by month. Each bar is
+                    the total that left the account for that month&rsquo;s runs
+                    &mdash; gross pay plus the employer&rsquo;s own
+                    contributions, not just what landed in people&rsquo;s
+                    accounts.
+                  </InfoHint>
+                </p>
+                <p className="text-2xs text-muted-foreground font-medium mt-0.5">
+                  {trendTotalLabel}
+                </p>
+              </div>
+              {/* The brief asks for the total to be stated outright rather than
+                  left to be read off the bars: "what has payroll cost us" is
+                  the question the chart is opened to answer, and a column of
+                  bars answers it only approximately. */}
+              <div className="text-right shrink-0">
+                <p className="text-xl font-extrabold tabular-nums tracking-tight leading-none">
+                  {trend.length > 0 ? formatNairaCompact(trendTotal) : '—'}
+                </p>
+                <p className="text-2xs text-muted-foreground font-medium mt-1 tabular-nums">
+                  {runsThisYear} run{runsThisYear !== 1 ? 's' : ''} this year
+                </p>
+              </div>
             </div>
             {trend.length >= 2 ? (
               <ResponsiveContainer width="100%" height={220}>
