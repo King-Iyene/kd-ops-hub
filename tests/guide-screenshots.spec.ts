@@ -58,6 +58,11 @@ const MOBILE_PAGES: { path: string; name: string }[] = [
   { path: '/leave', name: 'leave' },
   { path: '/documents', name: 'documents' },
   { path: '/profile', name: 'profile' },
+  // Payroll is the module under active redesign and the one an operator is
+  // most likely to check from a phone ("did payroll go out?"), so it needs
+  // mobile evidence, not just the 1440px desktop shot.
+  { path: '/payroll', name: 'payroll' },
+  { path: '/employees', name: 'employees' },
 ];
 
 test('capture desktop screenshots for team guide', async ({ page }) => {
