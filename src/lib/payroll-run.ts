@@ -31,6 +31,14 @@ export interface PayrollRun {
   created_at: string;
   created_by: string | null;
   approved_by: string | null;
+  /** Stage timestamps, stamped by trg_payroll_runs_stamp_stages (migration
+   * 20261221000000). NULL on any run that reached that stage before the
+   * migration landed — the run-detail timeline renders those as "time not
+   * recorded" rather than substituting updated_at, which measures something
+   * else entirely. */
+  submitted_at?: string | null;
+  approved_at?: string | null;
+  paid_at?: string | null;
   payroll_segment_id?: string | null;
   scheduled_disburse_at?: string | null;
   /** Set (with a reason) whenever the most recent disbursement attempt —

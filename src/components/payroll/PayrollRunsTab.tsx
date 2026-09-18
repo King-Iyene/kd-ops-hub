@@ -37,6 +37,8 @@ import {
 } from 'recharts';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
 import { PayrollLifecycleRail, realStepIndex } from '@/components/payroll/PayrollLifecycleRail';
+import { PayrollRunTimeline } from '@/components/payroll/PayrollRunTimeline';
+import { assignPayslipFilenames, payslipZipFilename } from '@/lib/payslip-zip';
 import { PayrollRosterPreview } from '@/components/payroll/PayrollRosterPreview';
 import { formatNaira, formatNairaCompact, getTimezone } from '@/lib/format';
 import { Button } from '@/components/ui/button';
@@ -596,11 +598,21 @@ export const PayrollRunsTab = ({
 // Per-employee payslip list for a run — lets Finance click into exactly what
 // each person was (or will be) paid, the same rendered document an employee
 // sees on their own Payroll tab, instead of only seeing run-level totals.
-function RunPayslipsSection({ runId, refreshKey }: { runId: string; refreshKey?: string | null }) {
+function RunPayslipsSection({
+  runId,
+  period,
+  refreshKey,
+}: {
+  runId: string;
+  /** Used to name the downloaded archive, e.g. payslips-2026-11.zip. */
+  period?: string | null;
+  refreshKey?: string | null;
+}) {
   const { toast } = useToast();
   const [payslips, setPayslips] = useState<any[] | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [preview, setPreview] = useState<PayslipPreviewState | null>(null);
+  const [zipProgress, setZipProgress] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -652,6 +664,96 @@ function RunPayslipsSection({ runId, refreshKey }: { runId: string; refreshKey?:
     }
   };
 
+  /**
+   * Bundle every stored payslip in this run into one ZIP.
+   *
+   * Downloads are sequential on purpose: a run can hold 30+ payslips, and
+   * firing that many simultaneous Storage requests is how you get throttled
+   * halfway through and hand someone a half-empty archive. Partial failures
+   * are reported rather than swallowed — an HR person needs to know that 2
+   * of 23 payslips are missing from the file they just downloaded, because
+   * the two employees involved will certainly notice.
+   */
+  const downloadAll = async () => {
+    if (!payslips?.length) return;
+
+    const withDocs = payslips.filter((s) => s.storage_path);
+    const missingDoc = payslips.length - withDocs.length;
+
+    if (withDocs.length === 0) {
+      toast({
+        title: 'Nothing to download yet',
+        description: 'No payslip documents have been generated for this run.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setZipProgress('Preparing…');
+    try {
+      const { default: JSZip } = await import('jszip');
+      const zip = new JSZip();
+      const named = assignPayslipFilenames(withDocs);
+      const failed: string[] = [];
+
+      for (let i = 0; i < named.length; i++) {
+        const { entry, filename } = named[i];
+        setZipProgress(`${i + 1} of ${named.length}…`);
+        const { data, error } = await supabase.storage
+          .from('payslips')
+          .download(entry.storage_path as string);
+        if (error || !data) {
+          failed.push((entry.employee_name as string) || 'Unnamed employee');
+          continue;
+        }
+        zip.file(filename, await data.text());
+      }
+
+      if (failed.length === named.length) {
+        toast({
+          title: 'Download failed',
+          description: 'None of the payslip documents could be retrieved. Check your connection and try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const blob = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 },
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = payslipZipFilename(period);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+
+      const included = named.length - failed.length;
+      const caveats = [
+        failed.length > 0 && `${failed.length} could not be retrieved (${failed.slice(0, 3).join(', ')}${failed.length > 3 ? '…' : ''})`,
+        missingDoc > 0 && `${missingDoc} ${missingDoc === 1 ? 'has' : 'have'} no payslip generated yet`,
+      ].filter(Boolean) as string[];
+
+      toast({
+        title: `Downloaded ${included} payslip${included === 1 ? '' : 's'}`,
+        description: caveats.length ? caveats.join(' · ') : undefined,
+        variant: caveats.length ? 'destructive' : undefined,
+      });
+    } catch (err) {
+      toast({
+        title: 'Could not build the ZIP file',
+        description: err instanceof Error ? err.message : 'Unexpected error while packaging payslips.',
+        variant: 'destructive',
+      });
+    } finally {
+      setZipProgress(null);
+    }
+  };
+
   if (payslips === null) {
     return (
       <div>
@@ -666,8 +768,19 @@ function RunPayslipsSection({ runId, refreshKey }: { runId: string; refreshKey?:
 
   return (
     <div>
-      <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
-        <FileText className="h-3 w-3" /> Payslips ({payslips.length})
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+          <FileText className="h-3 w-3" /> Payslips ({payslips.length})
+        </div>
+        <button
+          type="button"
+          onClick={downloadAll}
+          disabled={zipProgress !== null}
+          className="inline-flex min-h-[32px] items-center gap-1.5 rounded-md px-2 py-1 text-2xs font-semibold text-primary transition-colors hover:bg-primary/10 disabled:opacity-60"
+        >
+          {zipProgress ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+          {zipProgress ?? 'Download all'}
+        </button>
       </div>
       <div className="rounded-md border border-border/60 divide-y divide-border/50">
         {payslips.map((slip) => (
@@ -761,7 +874,7 @@ function RunDetailDrawer({
             <SheetTitle>{monthLabel(r.period, r.period_type)}</SheetTitle>
             <StatusBadge status={r.status} />
           </div>
-          <PayrollLifecycleRail status={r.status} />
+          <PayrollLifecycleRail status={r.status} size="lg" className="pt-1" />
           <p className="text-xs text-muted-foreground">
             {nextActionCopy(r, canApprovePerm, canDisburse, selfBlocked)}
           </p>
@@ -796,7 +909,7 @@ function RunDetailDrawer({
             <PayrollRosterPreview payrollSegmentId={r.payroll_segment_id} companyId={r.company_id} />
           </div>
 
-          <RunPayslipsSection runId={r.id} refreshKey={r.updated_at} />
+          <RunPayslipsSection runId={r.id} period={r.period} refreshKey={r.updated_at} />
 
           <div>
             <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Bonuses &amp; adjustments</div>
@@ -855,20 +968,14 @@ function RunDetailDrawer({
 
           <div>
             <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
-              <History className="h-3 w-3" /> Activity
+              <History className="h-3 w-3" /> History
             </div>
-            <div className="space-y-1.5 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Created</span>
-                <span className="tabular-nums">{new Date(r.created_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</span>
-              </div>
-              {(r.status === 'approved' || r.status === 'processing' || r.status === 'paid') && r.approved_by && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Approved</span>
-                  <span className="text-foreground">Yes</span>
-                </div>
-              )}
-            </div>
+            <PayrollRunTimeline run={r} />
+            {(r.status === 'approved' || r.status === 'processing' || r.status === 'paid') && !r.approved_by && (
+              <p className="mt-2 text-2xs text-muted-foreground">
+                Approver not recorded on this run.
+              </p>
+            )}
           </div>
         </div>
 

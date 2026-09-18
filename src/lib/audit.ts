@@ -203,7 +203,19 @@ export type AuditActionType =
   // that silently failed) turned up nothing in audit_logs for who scheduled
   // it, when, or for what time, only the bare fact it had once existed.
   | 'payroll_disbursement_scheduled'
-  | 'payroll_disbursement_schedule_cancelled';
+  | 'payroll_disbursement_schedule_cancelled'
+  // Written by trg_fn_audit_payroll_run_status (migration
+  // 20261221000000_payroll_run_stage_timestamps_and_audit.sql), not by
+  // logAudit() — payroll status changes come from the React client, the
+  // approval RPC and three edge functions, so the audit row is emitted by a
+  // database trigger that sees all of them. Listed here because this union
+  // is the vocabulary of audit_logs.action_type, whoever writes it.
+  | 'payroll_run_submitted'
+  | 'payroll_run_approved'
+  | 'payroll_run_processing'
+  | 'payroll_run_paid'
+  | 'payroll_run_disbursement_reverted'
+  | 'payroll_run_status_changed';
 
 export interface AuditActor {
   id?: string | null;

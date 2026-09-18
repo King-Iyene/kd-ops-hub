@@ -8417,6 +8417,7 @@ export type Database = {
           pay_group_id: string | null
           pay_schedule_id: string | null
           paye_ngn: number
+          paid_at: string | null
           payroll_segment_id: string | null
           pension_ngn: number
           period: string
@@ -8425,6 +8426,8 @@ export type Database = {
           run_type: string
           scheduled_disburse_at: string | null
           status: string
+          submitted_at: string | null
+          approved_at: string | null
           total_burn_ngn: number
           total_contractor_ngn: number
           total_employee_ngn: number
@@ -8452,6 +8455,7 @@ export type Database = {
           pay_group_id?: string | null
           pay_schedule_id?: string | null
           paye_ngn?: number
+          paid_at?: string | null
           payroll_segment_id?: string | null
           pension_ngn?: number
           period: string
@@ -8460,6 +8464,8 @@ export type Database = {
           run_type?: string
           scheduled_disburse_at?: string | null
           status?: string
+          submitted_at?: string | null
+          approved_at?: string | null
           total_burn_ngn?: number
           total_contractor_ngn?: number
           total_employee_ngn?: number
@@ -8487,6 +8493,7 @@ export type Database = {
           pay_group_id?: string | null
           pay_schedule_id?: string | null
           paye_ngn?: number
+          paid_at?: string | null
           payroll_segment_id?: string | null
           pension_ngn?: number
           period?: string
@@ -8495,6 +8502,8 @@ export type Database = {
           run_type?: string
           scheduled_disburse_at?: string | null
           status?: string
+          submitted_at?: string | null
+          approved_at?: string | null
           total_burn_ngn?: number
           total_contractor_ngn?: number
           total_employee_ngn?: number
