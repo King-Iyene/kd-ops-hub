@@ -22,6 +22,7 @@ import {
   Landmark,
   History,
   AlertCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -39,6 +40,7 @@ import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@
 import { PayrollLifecycleRail, realStepIndex } from '@/components/payroll/PayrollLifecycleRail';
 import { PayrollRunTimeline } from '@/components/payroll/PayrollRunTimeline';
 import { assignPayslipFilenames, payslipZipFilename } from '@/lib/payslip-zip';
+import { findPostApprovalAdjustments, type AdjustmentLike } from '@/lib/payroll-post-approval';
 import { PayrollRosterPreview } from '@/components/payroll/PayrollRosterPreview';
 import { formatNaira, formatNairaCompact, getTimezone } from '@/lib/format';
 import { Button } from '@/components/ui/button';
@@ -619,6 +621,54 @@ export const PayrollRunsTab = ({
 // Per-employee payslip list for a run — lets Finance click into exactly what
 // each person was (or will be) paid, the same rendered document an employee
 // sees on their own Payroll tab, instead of only seeing run-level totals.
+/**
+ * Warns when a run's figures were changed after it was approved.
+ *
+ * Per-employee adjustments feed payslip generation, and payslips are what
+ * disbursement pays — so an adjustment added after approval means the amount
+ * about to leave the account is not the amount that was signed off. Nothing
+ * prevents that (the adjustments table checks the caller's role and nothing
+ * else), so the least this screen can do is say it out loud, next to the
+ * button that sends the money.
+ */
+function PostApprovalChangesNotice({ run }: { run: PayrollRun }) {
+  const [adjustments, setAdjustments] = useState<AdjustmentLike[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setAdjustments(null);
+    if (!run.approved_at) return;   // nothing to compare against
+    (supabase as any)
+      .from('payslip_adjustments')
+      .select('id, created_at, amount_ngn, kind, description')
+      .eq('payroll_run_id', run.id)
+      .then(({ data }: { data: AdjustmentLike[] | null }) => {
+        if (!cancelled) setAdjustments(data ?? []);
+      });
+    return () => { cancelled = true; };
+  }, [run.id, run.approved_at]);
+
+  const changes = adjustments ? findPostApprovalAdjustments(adjustments, run.approved_at) : null;
+  if (!changes || changes.adjustments.length === 0) return null;
+
+  const n = changes.adjustments.length;
+  return (
+    <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3.5 py-3">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
+      <div className="text-xs">
+        <p className="font-semibold text-foreground">
+          {n} adjustment{n === 1 ? ' was' : 's were'} added after this run was approved
+        </p>
+        <p className="mt-0.5 text-muted-foreground">
+          Worth {formatNaira(changes.totalNgn)} in total. Adjustments change what payslips —
+          and therefore disbursement — pay out, so the amount leaving the account no longer
+          matches the total that was approved. Re-check before disbursing.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function RunPayslipsSection({
   runId,
   period,
@@ -921,6 +971,8 @@ function RunDetailDrawer({
               </div>
             </div>
           )}
+          <PostApprovalChangesNotice run={r} />
+
           <div>
             <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
               <Users2 className="h-3 w-3" /> Who gets paid
