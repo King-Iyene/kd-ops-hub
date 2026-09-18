@@ -46,6 +46,36 @@ settlement failure now rolls the status change back with it.
 confirming both the old failure mode and the fix
 (`supabase/tests/payroll_mark_paid_atomicity.sql`).
 
+### Starting a new payroll run could silently un-approve an existing one
+
+`upsert_payroll_draft()` is find-or-create on (company, period, pay group).
+When it found an existing run it rewrote every money column and forced status
+back to `draft` — without checking what that run's status was.
+
+Reproduced against PostgreSQL 16 with the real triggers, drafting ₦99 over an
+existing ₦4,477,000 run:
+
+| Existing run's state | What happened |
+|---|---|
+| `pending_approval` | reset to draft, figures overwritten |
+| `approved` | reset to draft, figures overwritten, `approved_by` **left set** |
+| `processing` | reset to draft, figures overwritten, mid-disbursement |
+| `paid` | correctly refused by the paid-run lock |
+
+No error or warning in the first three. This makes the maker-checker control
+meaningless — any later draft could un-approve a run and change its numbers —
+and the stale `approved_by` left the row naming an approver who never approved
+the figures it then held.
+
+Neither existing guard covered it: the approval-state lock deliberately exempts
+non-`authenticated` roles so SECURITY DEFINER RPCs can work (and this is one),
+and the paid-run lock only covers `paid`.
+
+Now refused unless the existing run is still a draft, with the wizard warning at
+the point the period is picked. `schedule_auto_draft()` (the cron auto-draft) was
+checked and is unaffected — it does its own INSERT with an existence guard and
+never calls this function.
+
 ### Payroll approvals recorded who, but never when
 
 `payroll_runs.approved_by` recorded the approver; nothing recorded the time.
@@ -192,9 +222,12 @@ the working shown.
 - **Production build** passes.
 - **Migrations executed against a real local PostgreSQL 16**, with the
   genuine surrounding triggers (paid-run lock, approval-state lock, audit
-  hash chain) copied in, rather than being eyeballed as SQL.
-- **All three migrations deployed successfully to the live database**
-  (Deploy Supabase Migrations runs #258, #259, #260), and the types
+  hash chain) copied in, rather than being eyeballed as SQL. This is how both
+  of the serious bugs above were found: each was confirmed by reproducing the
+  old behaviour first, then re-running the same script against the fix.
+- **All migrations deployed successfully to the live database**
+  (Deploy Supabase Migrations runs #258, #259, #260 and the draft-overwrite
+  guard that followed), and the types
   regenerated from the live schema confirm the new columns and function
   exist in production.
 
