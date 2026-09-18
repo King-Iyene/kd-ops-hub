@@ -20,7 +20,7 @@
 --      as an approval nobody performed.
 --   5. -> paid stamps paid_at and logs it.
 --   6. A paid run is still immutable (the pre-existing lock is intact).
---   7. Recall to draft clears downstream stamps and is not double-logged.
+--   7. Recall to draft clears downstream stamps and is logged exactly once.
 --   8. draft -> approved (the RPC allows it) stamps approved_at without
 --      inventing a submitted_at.
 --
@@ -154,8 +154,12 @@ BEGIN
   UPDATE public.payroll_runs SET status = 'draft' WHERE id = v_run2;
   SELECT count(*) INTO v_after  FROM public.audit_logs WHERE entity_id = v_run2;
 
-  ASSERT v_after = v_before,
-    '7: the trigger double-logged a recall the client already logs';
+  ASSERT v_after = v_before + 1,
+    format('7: recall must write exactly one audit row, wrote %s', v_after - v_before);
+
+  SELECT count(*) INTO v_n FROM public.audit_logs
+   WHERE entity_id = v_run2 AND action_type = 'payroll_run_recalled';
+  ASSERT v_n = 1, format('7: expected 1 recall audit row, got %s', v_n);
 
   SELECT submitted_at, approved_at INTO v_sub, v_app
     FROM public.payroll_runs WHERE id = v_run2;

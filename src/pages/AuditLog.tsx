@@ -130,9 +130,26 @@ const MODULE_OF: Record<string, string> = {
   compliance_filed: 'Compliance',
   compliance_marked_overdue: 'Compliance',
   payroll_created: 'Payroll',
+  // Legacy names, kept so rows written before the audit trigger landed
+  // still categorise correctly. New rows use the payroll_run_* names below.
   payroll_submitted: 'Payroll',
   payroll_approved: 'Payroll',
   payroll_paid: 'Payroll',
+  // Written by trg_fn_audit_payroll_run_status for every status change, by
+  // any writer. Without these the rows fall through to MODULE_OF's '—'
+  // default and vanish from the Payroll filter on this page.
+  payroll_run_submitted: 'Payroll',
+  payroll_run_approved: 'Payroll',
+  payroll_run_processing: 'Payroll',
+  payroll_run_paid: 'Payroll',
+  payroll_run_recalled: 'Payroll',
+  payroll_run_deleted: 'Payroll',
+  payroll_run_disbursement_reverted: 'Payroll',
+  payroll_run_status_changed: 'Payroll',
+  payroll_disbursement_scheduled: 'Payroll',
+  payroll_disbursement_schedule_cancelled: 'Payroll',
+  payslip_generated: 'Payroll',
+  salary_disbursed: 'Payroll',
   announcement_posted: 'Announcements',
   announcement_removed: 'Announcements',
   invite_sent: 'Employees',

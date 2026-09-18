@@ -921,7 +921,10 @@ const Payroll = () => {
       toast({ title: 'Recall failed', description: error.message, variant: 'destructive' });
       return;
     }
-    await logAudit('payroll_run_recalled', `Payroll run ${run.period} recalled to draft${isApproved ? ' (from approved)' : ''}`, profile);
+    // Not audited here: trg_fn_audit_payroll_run_status writes the
+    // audit_logs row for this transition inside the UPDATE, linked to the
+    // run via entity_id. Logging it again from the client would put two
+    // rows in a hash-chained audit log for one action.
     toast({ title: 'Run recalled to draft' });
     await load();
   };
@@ -966,11 +969,10 @@ const Payroll = () => {
       toast({ title: 'Submit failed', description: error.message, variant: 'destructive' });
       return;
     }
-    await logAudit(
-      'payroll_submitted',
-      `Payroll ${monthLabel(run.period)} submitted for approval`,
-      profile,
-    );
+    // Not audited here: trg_fn_audit_payroll_run_status writes the
+    // audit_logs row for this transition inside the UPDATE, linked to the
+    // run via entity_id. Logging it again from the client would put two
+    // rows in a hash-chained audit log for one action.
     toast({ title: 'Payroll submitted for approval' });
     load();
   };
@@ -1153,11 +1155,10 @@ const Payroll = () => {
       });
     }
 
-    await logAudit(
-      'payroll_approved',
-      `Payroll ${monthLabel(run.period)} approved (${formatNaira(run.total_burn_ngn)})`,
-      profile,
-    );
+    // Not audited here: trg_fn_audit_payroll_run_status writes the
+    // audit_logs row for this transition inside the UPDATE, linked to the
+    // run via entity_id. Logging it again from the client would put two
+    // rows in a hash-chained audit log for one action.
     burst({ palette: 'success', count: 70 });
 
     // Anomaly scan — runs the 7 payroll-level rules. Fire-and-forget; the
@@ -2193,11 +2194,10 @@ const Payroll = () => {
       return;
     }
 
-    await logAudit(
-      'payroll_paid',
-      `Payroll ${monthLabel(run.period)} marked paid`,
-      profile,
-    );
+    // Not audited here: trg_fn_audit_payroll_run_status writes the
+    // audit_logs row for this transition inside the UPDATE, linked to the
+    // run via entity_id. Logging it again from the client would put two
+    // rows in a hash-chained audit log for one action.
     dispatchPlatformWebhook('payroll.run_completed', { run_id: run.id, period: run.period, status: 'paid' });
     toast({ title: 'Payroll marked as paid' });
     load();
