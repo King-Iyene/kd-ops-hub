@@ -2337,6 +2337,28 @@ const Payroll = () => {
     return out;
   }, [companies, segmentPayGroups, runs]);
 
+  // Duplicate-run detection. upsert_payroll_draft() is find-or-create on
+  // (company, period, pay group), and the server now refuses to overwrite a
+  // run that has moved past draft. Surfacing the clash here means HR finds
+  // out while picking the period rather than after filling in the whole
+  // wizard — and it names the run's state, so "what do I do about it" is
+  // answerable without hunting for it in the Runs tab.
+  const existingRunConflict = useMemo(() => {
+    if (!form.period || !selectedCompanyId || selectedCompanyId === ALL_COMPANIES) return null;
+    const segId = form.payroll_segment_id || null;
+    const match = runs.find(
+      (r) =>
+        r.company_id === selectedCompanyId &&
+        r.period === form.period &&
+        (r.payroll_segment_id || null) === segId,
+    );
+    if (!match) return null;
+    // Editing that very draft is the normal path, not a clash. A draft by
+    // anyone is fine too — the server still allows overwriting those.
+    if (match.status === 'draft') return null;
+    return { period: match.period, status: match.status, id: match.id };
+  }, [runs, form.period, form.payroll_segment_id, selectedCompanyId]);
+
   const latest = visibleRuns[0];
   const trend = useMemo(
     () =>
@@ -2631,6 +2653,7 @@ const Payroll = () => {
         dialog={dialog}
         setDialog={setDialog}
         complianceChecks={complianceChecks}
+        existingRunConflict={existingRunConflict}
         working={working}
         draftRun={draftRun}
         editingDraftId={editingDraftId}

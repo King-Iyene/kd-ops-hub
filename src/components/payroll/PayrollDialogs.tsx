@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Loader2, Plus, Send, AlertCircle, Trash2, X, Clock, Check, ArrowLeft, Users2, LayoutGrid, ChevronDown } from 'lucide-react';
+import { Loader2, Plus, Send, AlertCircle, AlertTriangle, Trash2, X, Clock, Check, ArrowLeft, Users2, LayoutGrid, ChevronDown } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import type { PayrollSegment } from '@/lib/payroll-segments';
 import type { PayrollSegmentFilterRules } from '@/lib/payroll-segments';
@@ -36,6 +36,16 @@ const DRAFT_STEPS = [
   { title: 'Review & submit', desc: 'Confirm the real numbers — PAYE, pension and NHF are already computed' },
 ] as const;
 const LAST_STEP = DRAFT_STEPS.length - 1;
+
+// Mirrors the wording upsert_payroll_draft() uses when it refuses
+// (migration 20261221300000), so the warning shown before saving and the
+// error shown if someone saves anyway describe the run the same way.
+const CONFLICT_STATUS_COPY: Record<string, string> = {
+  pending_approval: 'awaiting approval',
+  approved: 'already approved',
+  processing: 'being disbursed right now',
+  paid: 'already paid',
+};
 
 const FREQ_SHORT_LABELS: Record<string, string> = {
   weekly: 'Weekly', biweekly: 'Bi-weekly', semimonthly: 'Semi-monthly', monthly: 'Monthly',
@@ -137,6 +147,9 @@ export interface PayrollDialogsProps {
   finishDraftReview: () => void;
   /** Statutory readiness for the roster this run actually covers. */
   complianceChecks?: ComplianceCheck[];
+  /** Set when a run already exists for this company + period + pay group and
+      has moved past draft, so drafting over it will be refused server-side. */
+  existingRunConflict?: { period: string; status: string; id: string } | null;
   submitDraftForApprovalNow: () => void;
 
   // Segment dialog
@@ -225,6 +238,7 @@ export const PayrollDialogs = ({
   computedPreview,
   finishDraftReview,
   complianceChecks,
+  existingRunConflict,
   submitDraftForApprovalNow,
   segmentDialog,
   setSegmentDialog,
@@ -388,6 +402,23 @@ export const PayrollDialogs = ({
                       <span className="text-muted-foreground text-xs ml-auto">Switch company from the Payroll page header</span>
                     </div>
                   )}
+                  {existingRunConflict && (
+                    <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
+                      <div className="text-xs">
+                        <p className="font-semibold text-foreground">
+                          A payroll run for this period and pay group already exists
+                        </p>
+                        <p className="mt-0.5 text-muted-foreground">
+                          It is {CONFLICT_STATUS_COPY[existingRunConflict.status] ?? existingRunConflict.status}.
+                          Open it from the Runs tab instead — or recall it to draft first if the
+                          figures need to change. Saving here will be refused rather than
+                          overwriting it.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <Label className="flex items-center gap-1.5">
                     Pay group
                     <InfoHint>Everyone in the picked Pay Group is included by default. Set up Pay Groups in Payroll → Setup → Pay Groups.</InfoHint>
