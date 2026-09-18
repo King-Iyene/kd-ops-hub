@@ -91,3 +91,72 @@ describe('payroll arithmetic, verified against the regulations', () => {
     expect(500_000 + r.pensionEmployerMonthlyNgn).toBe(545_000);
   });
 });
+
+/**
+ * NTA 2025 s.58 — no PAYE at or below the national minimum wage.
+ *
+ * Figures worked out by hand from the Act, not from the engine's constants,
+ * so a wrong threshold or a wrong base fails here instead of moving with it.
+ */
+describe('NTA 2025 s.58 — national minimum wage exemption', () => {
+  it('charges nothing at exactly the minimum wage when no statutory deductions apply', () => {
+    // NGN 70,000 x 12 = NGN 840,000 chargeable with pension/NHF/NHIS all off.
+    // The bands alone would take 15% of the NGN 40,000 above the NGN 800,000
+    // zero-rated band = NGN 6,000 a year, NGN 500 a month. s.58 says nil.
+    const r = computePayslip({
+      grossMonthlyNgn: 70_000,
+      pensionEnabled: false,
+      nhfEnabled: false,
+      nhisEnabled: false,
+    });
+    expect(r.payeMonthlyNgn).toBe(0);
+  });
+
+  it('charges nothing below the minimum wage', () => {
+    const r = computePayslip({
+      grossMonthlyNgn: 55_000,
+      pensionEnabled: false,
+      nhfEnabled: false,
+      nhisEnabled: false,
+    });
+    expect(r.payeMonthlyNgn).toBe(0);
+  });
+
+  it('still charges the person one Naira above the threshold', () => {
+    // The exemption is a cliff in the Act, not a taper: NGN 70,001 is taxed
+    // normally. Pinned so nobody "smooths" it into a taper later.
+    const r = computePayslip({
+      grossMonthlyNgn: 70_001,
+      pensionEnabled: false,
+      nhfEnabled: false,
+      nhisEnabled: false,
+    });
+    expect(r.payeMonthlyNgn).toBeGreaterThan(0);
+  });
+
+  it('does not exempt a high earner whose month was shortened by unpaid leave', () => {
+    // The trap, with figures chosen so only the trap can explain the result.
+    // NGN 770,000 a month, 20 of 22 days unpaid, leaves exactly NGN 70,000
+    // payable — right on the threshold. Had the exemption been tested against
+    // the payable figure instead of the wage, this NGN 9.24m-a-year earner
+    // would walk away untaxed for the month.
+    //
+    // Taxed properly: NGN 70,000 x 12 = NGN 840,000 chargeable, of which
+    // NGN 40,000 sits above the zero-rated band at 15% = NGN 6,000 a year,
+    // NGN 500 a month.
+    const r = computePayslip({
+      grossMonthlyNgn: 770_000,
+      unpaidLeaveDays: 20,
+      workingDaysPerMonth: 22,
+      pensionEnabled: false,
+      nhfEnabled: false,
+      nhisEnabled: false,
+    });
+    expect(r.payeMonthlyNgn).toBe(500);
+  });
+
+  it('leaves an ordinary salary untouched', () => {
+    const r = computePayslip({ grossMonthlyNgn: 450_000 });
+    expect(r.payeMonthlyNgn).toBeGreaterThan(0);
+  });
+});

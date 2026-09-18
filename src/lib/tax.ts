@@ -77,6 +77,17 @@ export const RENT_RELIEF_CAP_ANNUAL = 500_000;
 /** Assumed working days per calendar month, used to derive a daily rate for unpaid leave. */
 export const DEFAULT_WORKING_DAYS_PER_MONTH = 22;
 
+/**
+ * National minimum wage, monthly NGN. NGN 70,000 since the National Minimum
+ * Wage (Amendment) Act 2024.
+ *
+ * UPDATE THIS WHEN THE MINIMUM WAGE CHANGES. It is not a rate, it is a
+ * headline figure that moves with legislation, and leaving it stale
+ * over-taxes the lowest-paid people on the payroll — the exact group the
+ * exemption below exists to protect.
+ */
+export const NATIONAL_MINIMUM_WAGE_MONTHLY_NGN = 70_000;
+
 // ---------------------------------------------------------------------------
 // PAYE — bands-only path (the public, simple API)
 // ---------------------------------------------------------------------------
@@ -323,7 +334,23 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
       - lifeAssuranceMonthlyNgn,
   );
 
-  const annualPaye = applyTaxBands(chargeableMonthlyNgn * 12);
+  // NTA 2025 s.58 — someone earning no more than the national minimum wage is
+  // not liable to PAYE at all. This is a separate floor from the NGN 800k
+  // zero-rated band, and it is not redundant: at NGN 70,000/month the bands
+  // alone only reach nil once pension (8%) has been taken off. An employee
+  // whose employer is not enrolled in a pension scheme, or who is out of NHF
+  // and NHIS, has chargeable income of NGN 840,000 and would be charged 15%
+  // on the NGN 40,000 above the band — roughly NGN 500 a month taken from the
+  // lowest-paid person on the payroll, which the Act says they do not owe.
+  //
+  // Tested against contractual monthly gross, NOT the figure after unpaid
+  // leave. The exemption is about what someone earns, so prorating first
+  // would exempt a NGN 400k earner for any month short enough to drop them
+  // under the threshold.
+  const belowMinimumWage =
+    grossMonthlyNgn > 0 && grossMonthlyNgn <= NATIONAL_MINIMUM_WAGE_MONTHLY_NGN;
+
+  const annualPaye = belowMinimumWage ? 0 : applyTaxBands(chargeableMonthlyNgn * 12);
   const payeMonthlyNgn = input.payeEnabled !== false ? annualPaye / 12 : 0;
 
   const rPension = round(pensionEmployeeMonthlyNgn);
