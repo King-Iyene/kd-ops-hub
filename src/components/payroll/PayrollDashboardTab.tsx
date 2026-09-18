@@ -208,18 +208,18 @@ export function PayrollDashboardTab({
   return (
     <div className="space-y-5 sm:space-y-7">
       {/* ── Greeting + quick status ─────────────────────────────── */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3 kd-animate-fade-in">
         <div>
           <h2 className="text-xl font-bold tracking-tight">{greeting}, {firstName}</h2>
           <p className="text-sm text-muted-foreground mt-0.5">Here's where payroll stands right now.</p>
         </div>
         {attentionCount > 0 ? (
-          <div className="flex items-center gap-2 rounded-full border border-warning/30 bg-warning/10 px-3 py-1.5 text-xs font-semibold text-warning">
+          <div className="flex items-center gap-2 rounded-full border border-warning/30 bg-warning/10 px-3.5 py-1.5 text-xs font-semibold text-warning shadow-sm shadow-warning/10 kd-animate-scale-in">
             <AlertTriangle className="h-3.5 w-3.5" />
             {attentionCount} item{attentionCount !== 1 ? 's' : ''} need{attentionCount === 1 ? 's' : ''} attention
           </div>
         ) : runs.length > 0 ? (
-          <div className="flex items-center gap-2 rounded-full border border-success/30 bg-success/10 px-3 py-1.5 text-xs font-semibold text-success">
+          <div className="flex items-center gap-2 rounded-full border border-success/30 bg-success/10 px-3.5 py-1.5 text-xs font-semibold text-success shadow-sm shadow-success/10 kd-animate-scale-in">
             <CheckCircle2 className="h-3.5 w-3.5" />
             All clear
           </div>
@@ -227,26 +227,30 @@ export function PayrollDashboardTab({
       </div>
 
       {/* ── Hero + KPIs ───────────────────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-12">
+      <div className="grid gap-4 lg:grid-cols-12 kd-animate-slide-up">
         {/* Hero run summary — takes 8 of 12 cols */}
-        <Card className="lg:col-span-8 overflow-hidden border-0 bg-gradient-to-br from-[hsl(200,90%,14%)] via-[hsl(200,95%,10%)] to-[hsl(205,90%,7%)] text-white shadow-xl shadow-black/25 ring-1 ring-white/[0.06]">
-          <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-5">
+        <Card className="lg:col-span-8 overflow-hidden border-0 bg-gradient-to-br from-[hsl(200,90%,14%)] via-[hsl(200,95%,10%)] to-[hsl(205,90%,7%)] text-white shadow-2xl shadow-primary/20 ring-1 ring-white/[0.08] relative group">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_70%_-20%,hsl(186,100%,40%,0.12),transparent_70%)] pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,hsl(200,90%,30%,0.08),transparent_50%)] pointer-events-none" />
+          <CardContent className="p-5 sm:p-7 space-y-5 sm:space-y-6 relative">
             {heroRun ? (
               <>
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                   <div>
-                    <p className="text-2xs uppercase tracking-[0.1em] text-white/50 font-semibold">
+                    <p className="text-2xs uppercase tracking-[0.15em] text-white/40 font-bold">
                       {heroRun.status === 'draft' ? 'Draft run' : monthLabel(heroRun.period)}
                     </p>
-                    <p className="text-2xl sm:text-3xl md:text-4xl font-extrabold mt-1.5 tabular-nums tracking-tight">{formatNairaCompact(heroRun.total_burn_ngn)}</p>
-                    <p className="text-xs text-white/50 mt-1.5 font-medium">
+                    <p className="text-3xl sm:text-4xl md:text-5xl font-black mt-2 tabular-nums tracking-tighter bg-gradient-to-r from-white via-white to-cyan-200 bg-clip-text text-transparent drop-shadow-[0_0_24px_rgba(0,200,255,0.15)]">
+                      {formatNairaCompact(heroRun.total_burn_ngn)}
+                    </p>
+                    <p className="text-xs text-white/45 mt-2 font-medium tracking-wide">
                       {heroRun.employee_count ?? '—'} employee{heroRun.employee_count === 1 ? '' : 's'} · {monthLabel(heroRun.period)}
                     </p>
                   </div>
                   {heroRun.status !== 'paid' && (
                     <Button
                       size="sm"
-                      className="bg-white text-[#00283d] hover:bg-white/90 shadow-lg shadow-black/20"
+                      className="bg-white text-[#00283d] hover:bg-white/90 shadow-lg shadow-black/25 hover:shadow-xl hover:shadow-black/30 transition-all duration-200 hover:-translate-y-0.5 font-semibold"
                       onClick={() => onOpenRun(heroRun.id)}
                     >
                       Review &amp; approve <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -258,9 +262,9 @@ export function PayrollDashboardTab({
                 )}
               </>
             ) : (
-              <div className="flex flex-col items-start gap-3 py-4">
-                <p className="text-sm text-white/70">No payroll runs yet.</p>
-                <Button size="sm" className="bg-white text-[#00283d] hover:bg-white/90" onClick={onNewDraft}>
+              <div className="flex flex-col items-start gap-3 py-6">
+                <p className="text-sm text-white/60 font-medium">No payroll runs yet.</p>
+                <Button size="sm" className="bg-white text-[#00283d] hover:bg-white/90 shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-0.5" onClick={onNewDraft}>
                   Start a payroll run
                 </Button>
               </div>
@@ -275,6 +279,7 @@ export function PayrollDashboardTab({
             label="Paid this month"
             value={formatNairaCompact(paidThisMonth)}
             tone="primary"
+            stagger={1}
           />
           <StatTile
             icon={<CalendarClock className="h-4 w-4" />}
@@ -290,6 +295,7 @@ export function PayrollDashboardTab({
                 : loadingExtras ? 'Loading…' : 'No schedule'
             }
             tone="info"
+            stagger={2}
           />
           <StatTile
             icon={<Users2 className="h-4 w-4" />}
@@ -301,47 +307,52 @@ export function PayrollDashboardTab({
                 : isAllCompanies ? 'Across every company' : 'In this company'
             }
             tone="success"
+            stagger={3}
           />
           <StatTile
             icon={<Layers className="h-4 w-4" />}
             label="Pay groups"
             value={payGroupCount != null ? String(payGroupCount) : '—'}
+            stagger={4}
           />
         </div>
       </div>
 
       {/* ── Attention items (Deel-style pre-approval flags) ───── */}
       {attentionCount > 0 && (
-        <Card className="border-warning/20 bg-warning/5">
-          <CardContent className="p-4 space-y-2.5">
+        <Card className="border-warning/20 bg-warning/[0.03] shadow-sm shadow-warning/5 kd-animate-slide-up kd-stagger-2 overflow-hidden relative">
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-warning to-warning/20" />
+          <CardContent className="p-4 pl-5 space-y-2.5">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-warning" />
-              <p className="text-sm font-semibold">Needs your attention</p>
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-warning/10">
+                <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+              </span>
+              <p className="text-sm font-bold tracking-tight">Needs your attention</p>
             </div>
             {runs.filter((r) => r.status === 'draft').map((r) => (
-              <button key={r.id} type="button" onClick={() => onOpenRun(r.id)} className="flex w-full items-center gap-3 rounded-lg border border-border/40 bg-card px-3.5 py-2.5 text-left hover:bg-muted/40 transition-colors">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted-foreground/10">
-                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+              <button key={r.id} type="button" onClick={() => onOpenRun(r.id)} className="flex w-full items-center gap-3 rounded-xl border border-border/30 bg-card/80 px-4 py-3 text-left hover:bg-muted/50 hover:border-border/50 hover:shadow-sm transition-all duration-200 group/item">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-muted-foreground/10 group-hover/item:bg-muted-foreground/15 transition-colors">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold">{monthLabel(r.period)} draft</p>
+                  <p className="text-xs font-bold">{monthLabel(r.period)} draft</p>
                   <p className="text-2xs text-muted-foreground">Review the numbers and submit for approval</p>
                 </div>
-                <p className="text-xs font-semibold tabular-nums shrink-0">{formatNairaCompact(r.total_burn_ngn)}</p>
-                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+                <p className="text-sm font-extrabold tabular-nums shrink-0 tracking-tight">{formatNairaCompact(r.total_burn_ngn)}</p>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 group-hover/item:translate-x-0.5 transition-transform" />
               </button>
             ))}
             {runs.filter((r) => r.status === 'pending_approval').map((r) => (
-              <button key={r.id} type="button" onClick={() => onOpenRun(r.id)} className="flex w-full items-center gap-3 rounded-lg border border-border/40 bg-card px-3.5 py-2.5 text-left hover:bg-muted/40 transition-colors">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-warning/10">
-                  <Clock className="h-3.5 w-3.5 text-warning" />
+              <button key={r.id} type="button" onClick={() => onOpenRun(r.id)} className="flex w-full items-center gap-3 rounded-xl border border-border/30 bg-card/80 px-4 py-3 text-left hover:bg-muted/50 hover:border-border/50 hover:shadow-sm transition-all duration-200 group/item">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-warning/10 group-hover/item:bg-warning/15 transition-colors">
+                  <Clock className="h-4 w-4 text-warning" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold">{monthLabel(r.period)} awaiting approval</p>
+                  <p className="text-xs font-bold">{monthLabel(r.period)} awaiting approval</p>
                   <p className="text-2xs text-muted-foreground">Ready for review — approve to lock it in</p>
                 </div>
-                <p className="text-xs font-semibold tabular-nums shrink-0">{formatNairaCompact(r.total_burn_ngn)}</p>
-                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+                <p className="text-sm font-extrabold tabular-nums shrink-0 tracking-tight">{formatNairaCompact(r.total_burn_ngn)}</p>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 group-hover/item:translate-x-0.5 transition-transform" />
               </button>
             ))}
           </CardContent>
@@ -349,13 +360,13 @@ export function PayrollDashboardTab({
       )}
 
       {/* ── Trend + Roster ────────────────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-12">
+      <div className="grid gap-4 lg:grid-cols-12 kd-animate-slide-up kd-stagger-3">
         {/* Burn history — 8 cols */}
-        <Card className="lg:col-span-8">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between gap-3 mb-4">
+        <Card className="lg:col-span-8 overflow-hidden">
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-3 mb-5">
               <div>
-                <p className="text-sm font-semibold flex items-center gap-1.5">
+                <p className="text-sm font-bold tracking-tight flex items-center gap-1.5">
                   Burn history
                   <InfoHint>
                     What payroll has actually cost, month by month. Each bar is
@@ -369,12 +380,8 @@ export function PayrollDashboardTab({
                   {trendTotalLabel}
                 </p>
               </div>
-              {/* The brief asks for the total to be stated outright rather than
-                  left to be read off the bars: "what has payroll cost us" is
-                  the question the chart is opened to answer, and a column of
-                  bars answers it only approximately. */}
               <div className="text-right shrink-0">
-                <p className="text-xl font-extrabold tabular-nums tracking-tight leading-none">
+                <p className="text-2xl font-black tabular-nums tracking-tighter leading-none">
                   {trend.length > 0 ? formatNairaCompact(trendTotal) : '—'}
                 </p>
                 <p className="text-2xs text-muted-foreground font-medium mt-1 tabular-nums">
@@ -383,18 +390,21 @@ export function PayrollDashboardTab({
               </div>
             </div>
             {trend.length >= 2 ? (
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={trend} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
                   <ChartGradients />
                   <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
                   <Tooltip content={<GlassTooltip formatter={(v: number) => formatNaira(v)} />} />
-                  <Bar dataKey="burn" fill="url(#kd-grad-primary)" radius={[6, 6, 0, 0]} {...chartAnim} />
+                  <Bar dataKey="burn" fill="url(#kd-grad-primary)" radius={[8, 8, 0, 0]} {...chartAnim} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <BarChart3 className="h-8 w-8 text-muted-foreground/30 mb-2" />
-                <p className="text-xs text-muted-foreground">Run two or more payrolls to see a trend.</p>
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/50 mb-3">
+                  <BarChart3 className="h-7 w-7 text-muted-foreground/30" />
+                </div>
+                <p className="text-sm font-medium text-muted-foreground/70">No trend data yet</p>
+                <p className="text-2xs text-muted-foreground/50 mt-1">Run two or more payrolls to see a trend.</p>
               </div>
             )}
           </CardContent>
@@ -402,39 +412,48 @@ export function PayrollDashboardTab({
 
         {/* Who gets paid — 4 cols */}
         <Card className="lg:col-span-4">
-          <CardContent className="p-5">
+          <CardContent className="p-5 sm:p-6">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold">Who gets paid</p>
+              <p className="text-sm font-bold tracking-tight">Who gets paid</p>
               <a
-                className="text-2xs text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5 kd-transition font-medium no-underline"
+                className="text-2xs text-primary/70 hover:text-primary inline-flex items-center gap-0.5 transition-colors font-semibold no-underline"
                 href="/employees"
                 onClick={(e) => { e.preventDefault(); navigate('/employees'); }}
               >
                 View all <ArrowRight className="h-3 w-3" />
               </a>
             </div>
-            <div className="space-y-2.5">
+            <div className="space-y-1">
               {whoGetsPaid.length === 0 && (
-                <p className="text-xs text-muted-foreground py-4 text-center">No salaried employees found.</p>
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/50 mb-2">
+                    <Users2 className="h-6 w-6 text-muted-foreground/30" />
+                  </div>
+                  <p className="text-xs text-muted-foreground/60 font-medium">No salaried employees found.</p>
+                </div>
               )}
-              {whoGetsPaid.map((p) => (
-                <div key={p.id} className="flex items-center gap-2.5 py-1.5 -mx-1.5 px-1.5 rounded-lg hover:bg-muted/50 transition-all duration-150">
-                  <Avatar className="h-7 w-7 shrink-0">
+              {whoGetsPaid.map((p, i) => (
+                <div key={p.id} className={cn(
+                  'flex items-center gap-3 py-2.5 -mx-2 px-2 rounded-xl hover:bg-muted/50 transition-all duration-200 cursor-default group/row',
+                  'kd-animate-fade-in',
+                  i > 0 && `kd-stagger-${Math.min(i, 5)}`,
+                )}>
+                  <Avatar className="h-8 w-8 shrink-0 ring-2 ring-background shadow-sm">
                     {p.photo_url && <AvatarImage src={p.photo_url} alt={p.name} />}
-                    <AvatarFallback className="text-3xs font-semibold bg-primary/10 text-primary">
+                    <AvatarFallback className="text-3xs font-bold bg-primary/10 text-primary">
                       {initials(p.name)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium truncate leading-tight">{p.name}</p>
-                    <p className="text-2xs text-muted-foreground truncate capitalize leading-tight">{p.job_title || p.role?.replace(/_/g, ' ') || '—'}</p>
+                    <p className="text-xs font-semibold truncate leading-tight">{p.name}</p>
+                    <p className="text-2xs text-muted-foreground truncate capitalize leading-tight mt-0.5">{p.job_title || p.role?.replace(/_/g, ' ') || '—'}</p>
                   </div>
-                  <p className="text-xs font-semibold tabular-nums shrink-0 tracking-tight">{formatNairaCompact(p.amount)}</p>
+                  <p className="text-xs font-bold tabular-nums shrink-0 tracking-tight">{formatNairaCompact(p.amount)}</p>
                 </div>
               ))}
             </div>
             {whoGetsPaid.length > 0 && headcount != null && headcount > whoGetsPaid.length && (
-              <p className="text-2xs text-muted-foreground text-center pt-2 border-t border-border/40 mt-3">
+              <p className="text-2xs text-muted-foreground/60 text-center pt-3 border-t border-border/30 mt-3 font-medium">
                 + {headcount - whoGetsPaid.length} more employee{headcount - whoGetsPaid.length !== 1 ? 's' : ''}
               </p>
             )}
@@ -452,27 +471,37 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-const TILE_TONE: Record<string, { iconBg: string; iconColor: string }> = {
-  default:  { iconBg: 'bg-muted',        iconColor: 'text-muted-foreground' },
-  primary:  { iconBg: 'bg-primary/10',    iconColor: 'text-primary' },
-  success:  { iconBg: 'bg-success/10',    iconColor: 'text-success' },
-  info:     { iconBg: 'bg-sky-50 dark:bg-sky-900/25', iconColor: 'text-sky-600 dark:text-sky-400' },
+const TILE_TONE: Record<string, { iconBg: string; iconColor: string; accent: string }> = {
+  default:  { iconBg: 'bg-muted',        iconColor: 'text-muted-foreground', accent: 'from-border' },
+  primary:  { iconBg: 'bg-primary/10',    iconColor: 'text-primary', accent: 'from-primary' },
+  success:  { iconBg: 'bg-success/10',    iconColor: 'text-success', accent: 'from-success' },
+  info:     { iconBg: 'bg-sky-50 dark:bg-sky-900/25', iconColor: 'text-sky-600 dark:text-sky-400', accent: 'from-sky-500' },
 };
 
 function StatTile({
-  icon, label, value, hint, tone = 'default',
-}: { icon: React.ReactNode; label: string; value: string; hint?: string; tone?: keyof typeof TILE_TONE }) {
+  icon, label, value, hint, tone = 'default', stagger = 0,
+}: { icon: React.ReactNode; label: string; value: string; hint?: string; tone?: keyof typeof TILE_TONE; stagger?: number }) {
   const t = TILE_TONE[tone] || TILE_TONE.default;
   return (
-    <Card className="h-full hover:shadow-md transition-shadow duration-200">
-      <CardContent className="p-4 flex items-start gap-3">
-        <span className={cn('flex h-8 w-8 items-center justify-center rounded-xl shrink-0', t.iconBg, t.iconColor)}>
+    <Card className={cn(
+      'h-full group relative overflow-hidden',
+      'hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300',
+      'kd-animate-scale-in',
+      stagger && `kd-stagger-${stagger}`,
+    )}>
+      <div className={cn('absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b to-transparent', t.accent)} />
+      <CardContent className="p-4 pl-5 flex items-start gap-3">
+        <span className={cn(
+          'flex h-9 w-9 items-center justify-center rounded-xl shrink-0 ring-1 ring-black/[0.04] dark:ring-white/[0.06]',
+          'group-hover:scale-110 transition-transform duration-300',
+          t.iconBg, t.iconColor,
+        )}>
           {icon}
         </span>
         <div className="min-w-0">
-          <p className="text-2xs text-muted-foreground font-medium leading-tight">{label}</p>
-          <p className="text-lg font-bold tabular-nums leading-none mt-1">{value}</p>
-          {hint && <p className="text-2xs text-muted-foreground mt-1">{hint}</p>}
+          <p className="text-2xs text-muted-foreground font-medium leading-tight uppercase tracking-wider">{label}</p>
+          <p className="text-lg font-extrabold tabular-nums leading-none mt-1.5 tracking-tight">{value}</p>
+          {hint && <p className="text-2xs text-muted-foreground mt-1 font-medium">{hint}</p>}
         </div>
       </CardContent>
     </Card>

@@ -284,16 +284,25 @@ export const PayrollRunsTab = ({
             icon: AlertCircle,
             iconBg: 'bg-[#fdeaea]', iconFg: 'text-[#c23a3a]',
           },
-        ].map(({ label, value, sub, icon: Icon, iconBg, iconFg }) => (
-          <div key={label} className="rounded-xl border border-border/70 bg-card px-4 py-4 transition-shadow duration-200 hover:shadow-md">
-            <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${iconBg} ${iconFg} mb-2.5`}>
-              <Icon className="h-3.5 w-3.5" />
+        ].map(({ label, value, sub, icon: Icon, iconBg, iconFg }, i) => (
+          <div key={label} className={cn(
+            'rounded-xl border border-border/50 bg-card px-4 py-4 group',
+            'hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300',
+            'kd-animate-scale-in',
+            i > 0 && `kd-stagger-${i}`,
+          )}>
+            <span className={cn(
+              'flex h-8 w-8 items-center justify-center rounded-xl mb-3 ring-1 ring-black/[0.04] dark:ring-white/[0.06]',
+              'group-hover:scale-110 transition-transform duration-300',
+              iconBg, iconFg,
+            )}>
+              <Icon className="h-4 w-4" />
             </span>
-            <p className="kd-display text-xl font-extrabold tabular-nums tracking-tight text-foreground leading-none truncate">
+            <p className="kd-display text-xl font-black tabular-nums tracking-tighter text-foreground leading-none truncate">
               {value}
             </p>
-            <p className="mt-1.5 text-2xs text-muted-foreground truncate">{label}</p>
-            <p className="mt-0.5 text-2xs text-muted-foreground/70 tabular-nums truncate">{sub}</p>
+            <p className="mt-2 text-2xs text-muted-foreground font-semibold truncate uppercase tracking-wider">{label}</p>
+            <p className="mt-0.5 text-2xs text-muted-foreground/60 tabular-nums truncate">{sub}</p>
           </div>
         ))}
       </div>
@@ -306,28 +315,26 @@ export const PayrollRunsTab = ({
           previous flat-card convention. */}
       {latest && (
         <div
-          className="relative overflow-hidden rounded-xl px-5 py-5 sm:px-6 sm:py-5.5 text-white shadow-xl shadow-black/25 ring-1 ring-white/[0.06]"
+          className="relative overflow-hidden rounded-xl px-5 py-6 sm:px-7 sm:py-7 text-white shadow-2xl shadow-primary/20 ring-1 ring-white/[0.08] kd-animate-slide-up"
           style={{ background: 'linear-gradient(155deg, #00283d, #00405e 60%, #005579)' }}
         >
-          <div
-            className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full"
-            style={{ background: 'radial-gradient(circle, rgba(0,229,255,0.18), transparent 70%)' }}
-          />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_70%_-20%,hsl(186,100%,40%,0.12),transparent_70%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,hsl(200,90%,30%,0.08),transparent_50%)]" />
           <div className="relative">
-            <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
               <div>
-                <p className="text-xs font-semibold text-white/55 uppercase tracking-wide">
+                <p className="text-2xs font-bold text-white/40 uppercase tracking-[0.15em]">
                   {monthLabel(latest.period, latest.period_type)}
                 </p>
-                <p className="kd-display text-display-md font-extrabold tabular-nums mt-1.5">
+                <p className="kd-display text-3xl sm:text-4xl font-black tabular-nums mt-2 tracking-tighter bg-gradient-to-r from-white via-white to-cyan-200 bg-clip-text text-transparent">
                   {formatNaira(latest.total_burn_ngn)}
                 </p>
-                <p className="text-xs text-white/60 mt-0.5">{latest.employee_count ?? 0} employees</p>
+                <p className="text-xs text-white/45 mt-2 font-medium tracking-wide">{latest.employee_count ?? 0} employees</p>
               </div>
               <StatusBadge status={latest.status} />
             </div>
             <PayrollLifecycleRail status={latest.status} variant="dark" />
-            <p className="mt-4 text-xs text-white/70 border-t border-white/12 pt-3">
+            <p className="mt-5 text-xs text-white/60 border-t border-white/[0.08] pt-4 font-medium">
               {nextActionCopy(latest, canApprovePerm, canDisburse, isSelfApprovalBlocked(latest))}
             </p>
           </div>
@@ -340,20 +347,17 @@ export const PayrollRunsTab = ({
           redesign hadn't shipped at all. */}
       {!latest && (
         <div
-          className="relative overflow-hidden rounded-xl px-5 py-5 sm:px-6 sm:py-5.5 text-white"
+          className="relative overflow-hidden rounded-xl px-5 py-6 sm:px-7 sm:py-7 text-white shadow-2xl shadow-primary/20 ring-1 ring-white/[0.08] kd-animate-slide-up"
           style={{ background: 'linear-gradient(155deg, #00283d, #00405e 60%, #005579)' }}
         >
-          <div
-            className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full"
-            style={{ background: 'radial-gradient(circle, rgba(0,229,255,0.18), transparent 70%)' }}
-          />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_70%_-20%,hsl(186,100%,40%,0.12),transparent_70%)]" />
           <div className="relative flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold text-white/55 uppercase tracking-wide">No payroll runs yet</p>
-              <p className="kd-display text-xl font-extrabold mt-1.5">Draft your first run to see it here</p>
-              <p className="text-xs text-white/60 mt-1">PAYE, pension and NHF get computed the moment you draft.</p>
+              <p className="text-2xs font-bold text-white/40 uppercase tracking-[0.15em]">No payroll runs yet</p>
+              <p className="kd-display text-xl font-black mt-2 tracking-tight">Draft your first run to see it here</p>
+              <p className="text-xs text-white/45 mt-2 font-medium">PAYE, pension and NHF get computed the moment you draft.</p>
             </div>
-            <Button onClick={onNewRun} className="bg-white text-[#00283d] hover:bg-white/90 shrink-0">
+            <Button onClick={onNewRun} className="bg-white text-[#00283d] hover:bg-white/90 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 shrink-0 font-semibold">
               <Plus className="mr-1.5 h-4 w-4" /> New payroll run
             </Button>
           </div>
@@ -361,12 +365,14 @@ export const PayrollRunsTab = ({
       )}
 
       {trend.length >= 2 && (
-        <div className="rounded-lg border border-border/70 bg-card px-4 py-3.5">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-xs font-semibold text-muted-foreground">Burn trend — last 6 months</p>
-            <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+        <div className="rounded-xl border border-border/50 bg-card px-5 py-4 kd-animate-fade-in kd-stagger-3">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold text-muted-foreground tracking-tight">Burn trend — last 6 months</p>
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/5">
+              <TrendingUp className="h-3.5 w-3.5 text-primary/50" />
+            </span>
           </div>
-          <ResponsiveContainer width="100%" height={140}>
+          <ResponsiveContainer width="100%" height={160}>
             <BarChart data={trend} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
               <ChartGradients />
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
@@ -377,7 +383,7 @@ export const PayrollRunsTab = ({
                 formatter={(v: number) => formatNaira(v)}
                 cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
               />
-              <Bar dataKey="burn" fill="url(#kd-grad-primary)" name="Total burn" radius={[6, 6, 0, 0]} {...chartAnim} />
+              <Bar dataKey="burn" fill="url(#kd-grad-primary)" name="Total burn" radius={[8, 8, 0, 0]} {...chartAnim} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -499,7 +505,7 @@ export const PayrollRunsTab = ({
           ) : visibleRuns.length === 0 ? (
             <div className="p-6 text-center text-sm text-muted-foreground">No runs for this pay group yet.</div>
           ) : (
-            <div className="divide-y divide-border/60" data-testid="payroll-runs-list">
+            <div className="divide-y divide-border/40" data-testid="payroll-runs-list">
               {visibleRuns.map((r, idx) => {
                 const prev = visibleRuns[idx + 1];
                 const momPct = prev && prev.total_burn_ngn > 0
@@ -514,14 +520,14 @@ export const PayrollRunsTab = ({
                     type="button"
                     onClick={() => setOpenId(r.id)}
                     className={cn(
-                      'relative flex w-full items-center gap-3 px-4 py-4 text-left transition-colors duration-150 hover:bg-muted/40',
+                      'relative flex w-full items-center gap-3 px-4 py-[18px] text-left transition-all duration-200 hover:bg-muted/40 group/run',
                       isHighlighted && 'bg-primary/10 ring-2 ring-primary/40 ring-inset',
                     )}
                   >
-                    <span className={cn('absolute inset-y-0 left-0 w-1', STATUS_ACCENT[r.status] ?? 'bg-muted-foreground/40')} />
+                    <span className={cn('absolute inset-y-2 left-0 w-[3px] rounded-r-full transition-all', STATUS_ACCENT[r.status] ?? 'bg-muted-foreground/40')} />
                     <div className="min-w-0 flex-1 pl-1.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-sm">{monthLabel(r.period, r.period_type)}</span>
+                        <span className="font-bold text-sm tracking-tight">{monthLabel(r.period, r.period_type)}</span>
                         {showCompany && (
                           <CompanyBadge company={companies?.find((c) => c.id === r.company_id)} />
                         )}
@@ -556,12 +562,12 @@ export const PayrollRunsTab = ({
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-bold currency tabular-nums tracking-tight">{formatNaira(r.total_burn_ngn)}</p>
-                      <p className="text-2xs text-muted-foreground tabular-nums">
+                      <p className="text-sm font-extrabold currency tabular-nums tracking-tighter">{formatNaira(r.total_burn_ngn)}</p>
+                      <p className="text-2xs text-muted-foreground tabular-nums mt-0.5">
                         {r.employee_count ?? '—'} employee{r.employee_count === 1 ? '' : 's'}
                         {momPct !== null && (
                           <span
-                            className={cn('ml-1.5 inline-flex items-center gap-0.5', momPct >= 0 ? 'text-success' : 'text-destructive')}
+                            className={cn('ml-1.5 inline-flex items-center gap-0.5 font-semibold', momPct >= 0 ? 'text-success' : 'text-destructive')}
                             title={`${momPct >= 0 ? '+' : ''}${momPct.toFixed(1)}% vs prior run`}
                           >
                             {momPct >= 0 ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
@@ -570,21 +576,21 @@ export const PayrollRunsTab = ({
                         )}
                       </p>
                     </div>
-                    <div className="hidden sm:flex shrink-0 gap-0.5" aria-hidden="true" title={`Stage ${Math.max(realStepIndex(r.status), 0) + 1} of 4`}>
+                    <div className="hidden sm:flex shrink-0 gap-1" aria-hidden="true" title={`Stage ${Math.max(realStepIndex(r.status), 0) + 1} of 4`}>
                       {Array.from({ length: 4 }, (_, i) => (
                         <span
                           key={i}
-                          className={cn('h-1.5 w-4 rounded-full transition-colors', i <= realStepIndex(r.status) ? 'bg-primary' : 'bg-border/60')}
+                          className={cn('h-1.5 w-4 rounded-full transition-all duration-300', i <= realStepIndex(r.status) ? 'bg-primary shadow-sm shadow-primary/30' : 'bg-border/40')}
                         />
                       ))}
                     </div>
                     {needsAttention && (
-                      <span className="relative h-2 w-2 shrink-0" aria-label="Needs your attention">
-                        <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-40" />
-                        <span className="absolute inset-0 rounded-full bg-primary" />
+                      <span className="relative h-2.5 w-2.5 shrink-0" aria-label="Needs your attention">
+                        <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-30" />
+                        <span className="absolute inset-0 rounded-full bg-primary shadow-sm shadow-primary/40" />
                       </span>
                     )}
-                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40 group-hover/run:text-muted-foreground group-hover/run:translate-x-0.5 transition-all" />
                   </button>
                 );
               })}
