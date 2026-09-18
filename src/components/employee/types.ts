@@ -29,7 +29,6 @@ export interface EmployeeData {
   next_of_kin_email: string | null;
   employee_number: string | null;
   employment_type: string | null;
-  employee_category: string | null;
   start_date: string | null;
   nin: string | null;
   nin_last4: string | null;

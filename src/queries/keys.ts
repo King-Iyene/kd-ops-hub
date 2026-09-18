@@ -18,6 +18,10 @@ export const queryKeys = {
     all: ['company-settings'] as const,
     current: () => [...queryKeys.companySettings.all, 'current'] as const,
   },
+  companies: {
+    all: ['companies'] as const,
+    list: () => [...queryKeys.companies.all, 'list'] as const,
+  },
   payroll: {
     all: ['payroll'] as const,
     runs: () => [...queryKeys.payroll.all, 'runs'] as const,

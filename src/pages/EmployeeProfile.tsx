@@ -110,7 +110,6 @@ interface EmployeeData {
   next_of_kin_email: string | null;
   employee_number: string | null;
   employment_type: string | null;
-  employee_category: string | null;
   start_date: string | null;
   nin: string | null;
   nin_last4: string | null;
@@ -504,13 +503,13 @@ const EmployeeProfile = () => {
     setLoadError(null);
     let { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, first_name, last_name, email, phone, role, status, job_title, salary_ngn, next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, bank_name, bank_account_number, bank_account_name, pension_pin, annual_leave_days, department_id, photo_url, date_of_birth, gender, marital_status, address, next_of_kin_email, employee_number, employment_type, employee_category, start_date, nin, nin_last4, nhf_number, nhis_number, tin, pension_enabled, nhf_enabled, nhis_enabled, paye_enabled, tax_id, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, reporting_manager_id, contract_end_date, pfa_name, pfa_code, state_of_residence, pay_group_id, notice_period_days, voluntary_pension_pct, permissions, departments(name)')
+      .select('id, full_name, first_name, last_name, email, phone, role, status, job_title, salary_ngn, next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, bank_name, bank_account_number, bank_account_name, pension_pin, annual_leave_days, department_id, photo_url, date_of_birth, gender, marital_status, address, next_of_kin_email, employee_number, employment_type, start_date, nin, nin_last4, nhf_number, nhis_number, tin, pension_enabled, nhf_enabled, nhis_enabled, paye_enabled, tax_id, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, reporting_manager_id, contract_end_date, pfa_name, pfa_code, state_of_residence, pay_group_id, notice_period_days, voluntary_pension_pct, permissions, departments(name)')
       .eq('id', id)
       .single();
     if (error) {
       const fallback = await supabase
         .from('profiles')
-        .select('id, full_name, first_name, last_name, email, phone, role, status, job_title, salary_ngn, next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, bank_name, bank_account_number, bank_account_name, pension_pin, annual_leave_days, department_id, photo_url, date_of_birth, gender, marital_status, address, next_of_kin_email, employee_number, employment_type, employee_category, start_date, nin, nin_last4, nhf_number, nhis_number, tin, pension_enabled, nhf_enabled, nhis_enabled, paye_enabled, tax_id, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, reporting_manager_id, contract_end_date, pfa_name, pfa_code, state_of_residence, pay_group_id, notice_period_days, voluntary_pension_pct, permissions')
+        .select('id, full_name, first_name, last_name, email, phone, role, status, job_title, salary_ngn, next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, bank_name, bank_account_number, bank_account_name, pension_pin, annual_leave_days, department_id, photo_url, date_of_birth, gender, marital_status, address, next_of_kin_email, employee_number, employment_type, start_date, nin, nin_last4, nhf_number, nhis_number, tin, pension_enabled, nhf_enabled, nhis_enabled, paye_enabled, tax_id, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, reporting_manager_id, contract_end_date, pfa_name, pfa_code, state_of_residence, pay_group_id, notice_period_days, voluntary_pension_pct, permissions')
         .eq('id', id)
         .single();
       data = fallback.data;

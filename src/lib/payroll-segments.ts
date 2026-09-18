@@ -11,8 +11,6 @@
 import { supabase } from '@/lib/supabase';
 
 export interface PayrollSegmentFilterRules {
-  include_employee_categories?: string[];
-  exclude_employee_categories?: string[];
   include_department_ids?: string[];
   exclude_department_ids?: string[];
   include_employment_types?: string[];
@@ -33,7 +31,6 @@ export interface PayrollSegment {
 /** The subset of employee fields a segment filter can evaluate against. */
 export interface SegmentableEmployee {
   id: string;
-  employee_category?: string | null;
   department_id?: string | null;
   employment_type?: string | null;
   pay_group_id?: string | null;
@@ -47,12 +44,6 @@ export function matchesSegment(
   if (!rules) return true;
 
   if (rules.exclude_employee_ids?.includes(employee.id)) return false;
-
-  const category = employee.employee_category ?? null;
-  if (rules.include_employee_categories?.length) {
-    if (!category || !rules.include_employee_categories.includes(category)) return false;
-  }
-  if (category && rules.exclude_employee_categories?.includes(category)) return false;
 
   const dept = employee.department_id ?? null;
   if (rules.include_department_ids?.length) {

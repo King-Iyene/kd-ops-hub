@@ -78,7 +78,7 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { useCompanySettings } from '@/queries';
+import { useCompanySettings, useCompanies } from '@/queries';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -109,6 +109,7 @@ interface PensionPfaSlice {
 
 interface ComplianceFiling {
   id: string;
+  company_id: string;
   kind: Kind;
   period: string;
   due_date: string;
@@ -279,6 +280,7 @@ type RemittanceStatus = 'pending' | 'remitted' | 'confirmed' | 'late';
 
 interface TaxRemittance {
   id: string;
+  company_id: string;
   remittance_type: RemittanceType;
   period_month: string; // yyyy-mm-01
   amount_ngn: number;
@@ -296,6 +298,7 @@ interface TaxRemittance {
 
 interface PayrollRunTotals {
   id: string;
+  company_id: string;
   period: string; // yyyy-mm
   status: string;
   paye_ngn: number;
@@ -374,6 +377,12 @@ const Compliance = () => {
   const [penComSummary, setPenComSummary] = useState<{ employees: number; pfas: number; total: number } | null>(null);
 
   const { data: companySettings } = useCompanySettings();
+  const { data: companies = [] } = useCompanies();
+  // Manually-entered filings (VAT/CAC/TCC, seed placeholders) have no
+  // payroll run to derive a company from — default to the primary company,
+  // matching the migration's own backfill default. A per-filing company
+  // picker is planned for the full Compliance redesign.
+  const defaultCompanyId = companies[0]?.id;
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
   const canManageRemittances =
     profile?.role === 'super_admin' || profile?.role === 'admin' || profile?.role === 'finance';
@@ -393,7 +402,7 @@ const Compliance = () => {
     setError(null);
     const { data, error } = await supabase
       .from('compliance_filings')
-      .select('id, kind, period, due_date, filed_at, amount_ngn, notes, payroll_run_id, auto_calculated_at, breakdown_json')
+      .select('id, company_id, kind, period, due_date, filed_at, amount_ngn, notes, payroll_run_id, auto_calculated_at, breakdown_json')
       .order('due_date', { ascending: true })
       .limit(200);
     if (error) {
@@ -429,36 +438,38 @@ const Compliance = () => {
   useEffect(() => {
     if (loading) return;
     if (rows.length > 0) return;
+    if (!defaultCompanyId) return;
     const seed = async () => {
       const now = new Date();
       const monthOf = (m: number) => {
         const d = new Date(now.getFullYear(), now.getMonth() - m, 1);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       };
-      const batch: Array<{ kind: Kind; period: string; due_date: string }> = [];
+      const batch: Array<{ company_id: string; kind: Kind; period: string; due_date: string }> = [];
       for (let i = 1; i <= 3; i++) {
         const period = monthOf(i);
         for (const k of ['paye', 'pension', 'vat', 'nsitf', 'nhf'] as Kind[]) {
-          batch.push({ kind: k, period, due_date: dueDateFor(k, period) });
+          batch.push({ company_id: defaultCompanyId, kind: k, period, due_date: dueDateFor(k, period) });
         }
       }
       // Annual CAC / TCC / ITF for current year.
       for (const k of ['cac', 'tcc', 'itf'] as Kind[]) {
         batch.push({
+          company_id: defaultCompanyId,
           kind: k,
           period: String(now.getFullYear()),
           due_date: dueDateFor(k, String(now.getFullYear())),
         });
       }
       await supabase.from('compliance_filings').upsert(batch, {
-        onConflict: 'kind,period',
+        onConflict: 'company_id,kind,period',
         ignoreDuplicates: true,
       });
       load();
     };
     seed();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, rows.length]);
+  }, [loading, rows.length, defaultCompanyId]);
 
   useEffect(() => {
     load();
@@ -486,7 +497,7 @@ const Compliance = () => {
     try {
       const { data, error } = await supabase
         .from('tax_remittances')
-        .select('id, remittance_type, period_month, amount_ngn, due_date, remitted_at, receipt_url, provider_reference, notes, confirmed_at')
+        .select('id, company_id, remittance_type, period_month, amount_ngn, due_date, remitted_at, receipt_url, provider_reference, notes, confirmed_at')
         .order('period_month', { ascending: false })
         .limit(300);
       if (error) throw error;
@@ -496,14 +507,16 @@ const Compliance = () => {
       // have them yet — PAYE, pension (employee + employer), NHF.
       const { data: runsData, error: runsError } = await supabase
         .from('payroll_runs')
-        .select('id, period, status, paye_ngn, pension_ngn, nhf_ngn')
+        .select('id, company_id, period, status, paye_ngn, pension_ngn, nhf_ngn')
         .in('status', ['approved', 'paid'])
         .order('period', { ascending: false })
         .limit(60);
       if (runsError) throw runsError;
       const runs = (runsData as PayrollRunTotals[]) || [];
 
-      const existingKey = new Set(existing.map((r) => `${r.remittance_type}:${r.period_month}`));
+      // Keyed per-company so KD Squares and NDI each get their own remittance
+      // row for the same period/type instead of one shadowing the other.
+      const existingKey = new Set(existing.map((r) => `${r.company_id}:${r.remittance_type}:${r.period_month}`));
       const toInsert: Array<Record<string, unknown>> = [];
       for (const run of runs) {
         const periodMonth = `${run.period}-01`;
@@ -513,10 +526,11 @@ const Compliance = () => {
         if (companySettings?.nhf_enabled === true) candidates.push({ type: 'nhf', amount: run.nhf_ngn || 0 });
         for (const c of candidates) {
           if (c.amount <= 0) continue;
-          const key = `${c.type}:${periodMonth}`;
+          const key = `${run.company_id}:${c.type}:${periodMonth}`;
           if (existingKey.has(key)) continue;
           existingKey.add(key); // guard against dupes within this same batch
           toInsert.push({
+            company_id: run.company_id,
             remittance_type: c.type,
             period_month: periodMonth,
             amount_ngn: c.amount,
@@ -532,7 +546,7 @@ const Compliance = () => {
         const { data: inserted, error: insertError } = await supabase
           .from('tax_remittances')
           .insert(toInsert)
-          .select('id, remittance_type, period_month, amount_ngn, due_date, remitted_at, receipt_url, provider_reference, notes, confirmed_at');
+          .select('id, company_id, remittance_type, period_month, amount_ngn, due_date, remitted_at, receipt_url, provider_reference, notes, confirmed_at');
         if (insertError) {
           // Best-effort — a race with another tab/session shouldn't break the page.
           logWarn('KDOps', 'remittance auto-generation failed: ' + insertError.message);
@@ -719,14 +733,19 @@ const Compliance = () => {
       }
       toast({ title: 'Filing updated' });
     } else {
+      if (!defaultCompanyId) {
+        toast({ title: 'Could not add', description: 'No company found — set up a company first.', variant: 'destructive' });
+        return;
+      }
       const { error } = await supabase.from('compliance_filings').upsert(
         {
+          company_id: defaultCompanyId,
           kind: form.kind,
           period: form.period,
           due_date: due,
           amount_ngn: parseFloat(form.amount_ngn) || null,
         },
-        { onConflict: 'kind,period' },
+        { onConflict: 'company_id,kind,period' },
       );
       if (error) {
         toast({ title: 'Could not add', description: error.message, variant: 'destructive' });
@@ -806,11 +825,11 @@ const Compliance = () => {
   // This is read-only. It doesn't mark anything as filed and it doesn't
   // touch payments/payroll_run tables — only fetches them.
   type PackKind = 'lirs' | 'firs' | 'pssp' | 'nhf' | 'nsitf' | 'itf' | 'all';
-  const downloadFilingPack = async (period: string, which: PackKind) => {
-    const key = `${period}:${which}`;
+  const downloadFilingPack = async (period: string, companyId: string, which: PackKind) => {
+    const key = `${companyId}:${period}:${which}`;
     setDownloadingPack(key);
     try {
-      const data = await loadStatutoryRunData(period);
+      const data = await loadStatutoryRunData(period, companyId);
       if (!data) {
         toast({
           title: 'No approved payroll for this period',
@@ -1462,8 +1481,8 @@ const Compliance = () => {
                             <FilingPackMenu
                               period={r.period}
                               kind={r.kind}
-                              busy={downloadingPack?.startsWith(`${r.period}:`) ?? false}
-                              onPick={(w) => downloadFilingPack(r.period, w)}
+                              busy={downloadingPack?.startsWith(`${r.company_id}:${r.period}:`) ?? false}
+                              onPick={(w) => downloadFilingPack(r.period, r.company_id, w)}
                             />
                           )}
                           <Button
@@ -1598,8 +1617,8 @@ const Compliance = () => {
                         <FilingPackMenu
                           period={r.period}
                           kind={r.kind}
-                          busy={downloadingPack?.startsWith(`${r.period}:`) ?? false}
-                          onPick={(w) => downloadFilingPack(r.period, w)}
+                          busy={downloadingPack?.startsWith(`${r.company_id}:${r.period}:`) ?? false}
+                          onPick={(w) => downloadFilingPack(r.period, r.company_id, w)}
                         />
                       )}
                       <Button

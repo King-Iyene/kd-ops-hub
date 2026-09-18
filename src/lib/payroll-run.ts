@@ -13,6 +13,7 @@ export interface AllowancesSnapshot {
 export interface PayrollRun {
   id: string;
   period: string;
+  company_id?: string;
   updated_at?: string;
   period_type?: 'monthly' | 'quarterly' | 'annual';
   employee_count?: number;

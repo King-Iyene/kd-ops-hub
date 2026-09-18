@@ -9,7 +9,7 @@
  *
  * Zero dependencies on the payments module. Read-only against
  * payroll_runs, payroll_run_items, profiles, employee_benefits and
- * company_settings.
+ * companies.
  */
 
 import { supabase } from '@/lib/supabase';
@@ -94,22 +94,24 @@ export interface StatutoryExportFile {
 const round = (n: number | null | undefined): number => Math.round(Number(n || 0));
 
 /**
- * Load a full statutory snapshot for a payroll period.
+ * Load a full statutory snapshot for a payroll period, scoped to one company.
  *
  * Reads:
- *   - payroll_runs by period ('YYYY-MM')
+ *   - payroll_runs by (period, company_id)
  *   - payroll_run_items joined with profiles + active pension_pfa benefit
- *   - company_settings for the employer header
+ *   - companies for the employer header
  *
  * Returns null if the payroll run doesn't exist. Throws only on hard DB errors.
  */
 export async function loadStatutoryRunData(
   period: string,
+  companyId: string,
 ): Promise<StatutoryRunData | null> {
   const { data: run, error: runErr } = await supabase
     .from('payroll_runs')
     .select('id, period, status')
     .eq('period', period)
+    .eq('company_id', companyId)
     .maybeSingle();
   if (runErr) throw new Error(runErr.message);
   if (!run) return null;
@@ -143,15 +145,11 @@ export async function loadStatutoryRunData(
           .eq('status', 'active')
       : Promise.resolve({ data: [] as any[], error: null }),
     supabase
-      .from('company_settings')
+      .from('companies')
       .select(
-        // Includes both the new statutory-export fields (employer_tin,
-        // employer_rc_number, state_of_business, per-scheme employer codes)
-        // AND the pre-existing tin/rc_number/address so we can fall back
-        // when the finance team hasn't yet duplicated them.
-        'company_name, address, company_address, tin, rc_number, employer_tin, employer_rc_number, state_of_business, pencom_employer_code, nhf_employer_code, nsitf_employer_code, itf_employer_code',
+        'name, address, tin, rc_number, default_state, pencom_employer_code, nhf_employer_code, nsitf_employer_code, itf_employer_code',
       )
-      .eq('id', '00000000-0000-0000-0000-000000000001')
+      .eq('id', companyId)
       .maybeSingle(),
   ]);
 
@@ -242,16 +240,15 @@ export async function loadStatutoryRunData(
     period: run.period as string,
     payroll_run_id: run.id as string,
     employer: {
-      company_name: cs.company_name || 'KD Squares Ltd',
-      // Fall back to the canonical fields most sites already populate.
-      employer_tin: cs.employer_tin ?? cs.tin ?? null,
-      employer_rc_number: cs.employer_rc_number ?? cs.rc_number ?? null,
-      state_of_business: cs.state_of_business ?? null,
+      company_name: cs.name || 'KD Squares Ltd',
+      employer_tin: cs.tin ?? null,
+      employer_rc_number: cs.rc_number ?? null,
+      state_of_business: cs.default_state ?? null,
       pencom_employer_code: cs.pencom_employer_code ?? null,
       nhf_employer_code: cs.nhf_employer_code ?? null,
       nsitf_employer_code: cs.nsitf_employer_code ?? null,
       itf_employer_code: cs.itf_employer_code ?? null,
-      company_address: cs.company_address ?? cs.address ?? null,
+      company_address: cs.address ?? null,
     },
     items: lineItems,
     totals,

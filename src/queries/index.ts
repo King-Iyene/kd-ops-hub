@@ -3,4 +3,5 @@ export { useSupabaseQuery, useSupabaseMutation, useInvalidate } from './useSupab
 export { useEmployeeDirectory, useActiveEmployees, useEmployeeDetail } from './useEmployees';
 export { useDepartments } from './useDepartments';
 export { useCompanySettings, useUpdateCompanySettings } from './useCompanySettings';
+export { useCompanies, type Company } from './useCompanies';
 export { useContractors, useContractorDetail } from './useContractors';

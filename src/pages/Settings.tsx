@@ -34,6 +34,7 @@ import { logAudit } from '@/lib/audit';
 import { validateFile } from '@/lib/file-validation';
 import { errorMessage } from '@/lib/db-errors';
 import { setTimezoneCache } from '@/lib/format';
+import { useCompanies, useInvalidate, queryKeys } from '@/queries';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -83,9 +84,6 @@ const SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
 interface CompanySettings {
   id: string;
   company_name: string;
-  rc_number: string | null;
-  tin: string | null;
-  address: string | null;
   website: string | null;
   logo_url: string | null;
   fiscal_year_preset: 'jan_dec' | 'apr_mar';
@@ -123,11 +121,6 @@ interface CompanySettings {
   facebook_url: string | null;
   twitter_url: string | null;
   timezone: string;
-  state_of_business: string | null;
-  pencom_employer_code: string | null;
-  nhf_employer_code: string | null;
-  nsitf_employer_code: string | null;
-  itf_employer_code: string | null;
   pension_enabled: boolean;
   paye_enabled: boolean;
   nhf_enabled: boolean;
@@ -137,6 +130,18 @@ interface CompanySettings {
   development_levy_enabled: boolean;
   development_levy_annual_ngn: number;
   leave_carryover_max_days: number;
+}
+
+interface CompanyProfile {
+  id: string;
+  rc_number: string | null;
+  tin: string | null;
+  address: string | null;
+  default_state: string | null;
+  pencom_employer_code: string | null;
+  nhf_employer_code: string | null;
+  nsitf_employer_code: string | null;
+  itf_employer_code: string | null;
 }
 
 const NOTIF_EVENTS = [
@@ -161,12 +166,45 @@ const SettingsPage = () => {
 
   const [approverMfaStatus, setApproverMfaStatus] = useState<{ total: number; enrolled: number } | null>(null);
 
+  // Legal/statutory identity now lives per-company (companies table) instead
+  // of the single company_settings row — KD Squares and NDI each have their
+  // own RC number, TIN, address and statutory employer codes.
+  const { data: companies = [] } = useCompanies();
+  const invalidate = useInvalidate();
+  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
+
+  useEffect(() => {
+    if (!selectedCompanyId && companies.length > 0) {
+      setSelectedCompanyId(companies[0].id);
+    }
+  }, [companies, selectedCompanyId]);
+
+  useEffect(() => {
+    const c = companies.find((c) => c.id === selectedCompanyId);
+    if (!c) return;
+    setCompanyProfile({
+      id: c.id,
+      rc_number: c.rc_number,
+      tin: c.tin,
+      address: c.address,
+      default_state: c.default_state,
+      pencom_employer_code: c.pencom_employer_code,
+      nhf_employer_code: c.nhf_employer_code,
+      nsitf_employer_code: c.nsitf_employer_code,
+      itf_employer_code: c.itf_employer_code,
+    });
+  }, [companies, selectedCompanyId]);
+
+  const patchCompanyProfile = (p: Partial<CompanyProfile>) =>
+    setCompanyProfile((prev) => (prev ? { ...prev, ...p } : prev));
+
   const load = useCallback(async () => {
     setLoading(true);
     const [settingsRes, notifRes, mfaStatusRes] = await Promise.all([
       supabase
         .from('company_settings')
-        .select('company_name, rc_number, tin, address, website, logo_url, fiscal_year_preset, currency_code, usd_rate, cash_on_hand_ngn, external_monthly_burn_ngn, monthly_revenue_estimate_ngn, cash_updated_at, expense_limits, dual_approval_threshold_ngn, paystack_secret_configured, airtable_base_id, airtable_income_table_id, airtable_expenses_table_id, airtable_sync_enabled, paystack_funding_bank, paystack_funding_account_name, paystack_funding_account_number, resend_from_address, resend_api_key_configured, termii_sender_id, termii_api_key_configured, whatsapp_enabled, sms_enabled, smtp_host, smtp_port, smtp_username, smtp_from_address, session_timeout_minutes, audit_log_retention_days, mfa_required_for_all_users, approval_step_up_required, fuel_weekly_budgets, website_url, linkedin_url, instagram_url, facebook_url, twitter_url, timezone, state_of_business, pencom_employer_code, nhf_employer_code, nsitf_employer_code, itf_employer_code, pension_enabled, paye_enabled, nhf_enabled, nhis_enabled, nsitf_enabled, itf_enabled, development_levy_enabled, development_levy_annual_ngn, leave_carryover_max_days')
+        .select('company_name, website, logo_url, fiscal_year_preset, currency_code, usd_rate, cash_on_hand_ngn, external_monthly_burn_ngn, monthly_revenue_estimate_ngn, cash_updated_at, expense_limits, dual_approval_threshold_ngn, paystack_secret_configured, airtable_base_id, airtable_income_table_id, airtable_expenses_table_id, airtable_sync_enabled, paystack_funding_bank, paystack_funding_account_name, paystack_funding_account_number, resend_from_address, resend_api_key_configured, termii_sender_id, termii_api_key_configured, whatsapp_enabled, sms_enabled, smtp_host, smtp_port, smtp_username, smtp_from_address, session_timeout_minutes, audit_log_retention_days, mfa_required_for_all_users, approval_step_up_required, fuel_weekly_budgets, website_url, linkedin_url, instagram_url, facebook_url, twitter_url, timezone, pension_enabled, paye_enabled, nhf_enabled, nhis_enabled, nsitf_enabled, itf_enabled, development_levy_enabled, development_levy_annual_ngn, leave_carryover_max_days')
         .eq('id', SINGLETON_ID)
         .maybeSingle(),
       profile?.id
@@ -218,9 +256,6 @@ const SettingsPage = () => {
       .from('company_settings')
       .update({
         company_name: settings.company_name?.trim() || '',
-        rc_number: settings.rc_number?.trim() || null,
-        tin: settings.tin?.trim() || null,
-        address: settings.address?.trim() || null,
         website: settings.website?.trim() || null,
         logo_url: settings.logo_url,
         fiscal_year_preset: settings.fiscal_year_preset,
@@ -261,11 +296,6 @@ const SettingsPage = () => {
         facebook_url: settings.facebook_url || null,
         twitter_url: settings.twitter_url || null,
         timezone: settings.timezone || 'Africa/Lagos',
-        state_of_business: settings.state_of_business?.trim() || null,
-        pencom_employer_code: settings.pencom_employer_code?.trim() || null,
-        nhf_employer_code: settings.nhf_employer_code?.trim() || null,
-        nsitf_employer_code: settings.nsitf_employer_code?.trim() || null,
-        itf_employer_code: settings.itf_employer_code?.trim() || null,
         leave_carryover_max_days: settings.leave_carryover_max_days,
         pension_enabled: settings.pension_enabled ?? true,
         paye_enabled: settings.paye_enabled ?? true,
@@ -283,6 +313,29 @@ const SettingsPage = () => {
       setSaving(false);
       return;
     }
+
+    if (companyProfile) {
+      const { error: companyError } = await supabase
+        .from('companies')
+        .update({
+          rc_number: companyProfile.rc_number?.trim() || null,
+          tin: companyProfile.tin?.trim() || null,
+          address: companyProfile.address?.trim() || null,
+          default_state: companyProfile.default_state,
+          pencom_employer_code: companyProfile.pencom_employer_code?.trim() || null,
+          nhf_employer_code: companyProfile.nhf_employer_code?.trim() || null,
+          nsitf_employer_code: companyProfile.nsitf_employer_code?.trim() || null,
+          itf_employer_code: companyProfile.itf_employer_code?.trim() || null,
+        })
+        .eq('id', companyProfile.id);
+      if (companyError) {
+        toast({ title: 'Save failed', description: companyError.message, variant: 'destructive' });
+        setSaving(false);
+        return;
+      }
+      invalidate(queryKeys.companies.list());
+    }
+
     if (settings.timezone) setTimezoneCache(settings.timezone);
     await logAudit('company_settings_saved', 'Company settings saved', profile);
     toast({ title: 'Settings saved' });
@@ -409,7 +462,16 @@ const SettingsPage = () => {
 
         {/* COMPANY ------------------------------------------------------- */}
         <TabsContent value="company" className="mt-4 space-y-4">
-          <CompanyTab settings={settings} patch={patch} uploadLogo={uploadLogo} />
+          <CompanyTab
+            settings={settings}
+            patch={patch}
+            uploadLogo={uploadLogo}
+            companies={companies}
+            selectedCompanyId={selectedCompanyId}
+            onSelectCompany={setSelectedCompanyId}
+            companyProfile={companyProfile}
+            patchCompanyProfile={patchCompanyProfile}
+          />
         </TabsContent>
 
         {/* INTEGRATIONS (super_admin only) --------------------------------- */}

@@ -14,12 +14,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import OfferLetterTemplatesAdmin from '@/components/hr/OfferLetterTemplatesAdmin';
+import type { Company } from '@/queries';
 
 interface CompanySettings {
   company_name: string;
-  rc_number: string | null;
-  tin: string | null;
-  address: string | null;
   website: string | null;
   logo_url: string | null;
   fiscal_year_preset: 'jan_dec' | 'apr_mar';
@@ -28,11 +26,6 @@ interface CompanySettings {
   cash_updated_at: string | null;
   external_monthly_burn_ngn: number;
   monthly_revenue_estimate_ngn: number;
-  state_of_business: string | null;
-  pencom_employer_code: string | null;
-  nhf_employer_code: string | null;
-  nsitf_employer_code: string | null;
-  itf_employer_code: string | null;
   website_url: string | null;
   linkedin_url: string | null;
   instagram_url: string | null;
@@ -41,13 +34,39 @@ interface CompanySettings {
   [key: string]: any;
 }
 
+interface CompanyProfile {
+  id: string;
+  rc_number: string | null;
+  tin: string | null;
+  address: string | null;
+  default_state: string | null;
+  pencom_employer_code: string | null;
+  nhf_employer_code: string | null;
+  nsitf_employer_code: string | null;
+  itf_employer_code: string | null;
+}
+
 interface Props {
   settings: CompanySettings;
   patch: (p: Partial<CompanySettings>) => void;
   uploadLogo: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  companies: Company[];
+  selectedCompanyId: string;
+  onSelectCompany: (id: string) => void;
+  companyProfile: CompanyProfile | null;
+  patchCompanyProfile: (p: Partial<CompanyProfile>) => void;
 }
 
-export default function CompanyTab({ settings, patch, uploadLogo }: Props) {
+export default function CompanyTab({
+  settings,
+  patch,
+  uploadLogo,
+  companies,
+  selectedCompanyId,
+  onSelectCompany,
+  companyProfile,
+  patchCompanyProfile,
+}: Props) {
   return (
     <div className="space-y-4">
       {/* Company profile card */}
@@ -64,22 +83,9 @@ export default function CompanyTab({ settings, patch, uploadLogo }: Props) {
                 value={settings.company_name || ''}
                 onChange={(e) => patch({ company_name: e.target.value })}
               />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="rc_number">RC number</Label>
-              <Input
-                id="rc_number"
-                value={settings.rc_number || ''}
-                onChange={(e) => patch({ rc_number: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="company_tin">TIN</Label>
-              <Input
-                id="company_tin"
-                value={settings.tin || ''}
-                onChange={(e) => patch({ tin: e.target.value })}
-              />
+              <p className="text-3xs text-muted-foreground">
+                Platform-wide branding name — appears on receipts, exports and the app header.
+              </p>
             </div>
             <div className="space-y-1">
               <Label htmlFor="company_website">Website</Label>
@@ -89,15 +95,6 @@ export default function CompanyTab({ settings, patch, uploadLogo }: Props) {
                 onChange={(e) => patch({ website: e.target.value })}
               />
             </div>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="registered_address">Registered address</Label>
-            <Textarea
-              id="registered_address"
-              value={settings.address || ''}
-              onChange={(e) => patch({ address: e.target.value })}
-              rows={2}
-            />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
@@ -250,83 +247,137 @@ export default function CompanyTab({ settings, patch, uploadLogo }: Props) {
         </CardContent>
       </Card>
 
-      {/* Statutory filing identifiers */}
+      {/* Legal & statutory details — per company, since KD Squares and NDI
+          each have their own RC number, TIN and employer codes. */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Statutory filing identifiers</CardTitle>
+          <CardTitle className="text-base">Legal & statutory details</CardTitle>
           <p className="text-xs text-muted-foreground pt-1">
-            Employer codes printed on statutory return schedules
-            downloaded from the Compliance page. TIN and RC number are
-            shared with the Company profile above.
+            RC number, TIN and employer codes printed on statutory return
+            schedules downloaded from the Compliance page. Each company you
+            run payroll for has its own set.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {companies.length > 1 && (
             <div className="space-y-1">
-              <Label htmlFor="state_of_business">Default state of business</Label>
-              <Select
-                value={settings.state_of_business || '__none__'}
-                onValueChange={(v) =>
-                  patch({ state_of_business: v === '__none__' ? null : v })
-                }
-              >
-                <SelectTrigger id="state_of_business">
-                  <SelectValue placeholder="Select state…" />
+              <Label htmlFor="statutory_company">Editing details for</Label>
+              <Select value={selectedCompanyId} onValueChange={onSelectCompany}>
+                <SelectTrigger id="statutory_company" className="sm:w-64">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">— Not set —</SelectItem>
-                  {[
-                    'Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Benue','Borno',
-                    'Cross River','Delta','Ebonyi','Edo','Ekiti','Enugu','FCT - Abuja','Gombe',
-                    'Imo','Jigawa','Kaduna','Kano','Katsina','Kebbi','Kogi','Kwara','Lagos',
-                    'Nasarawa','Niger','Ogun','Ondo','Osun','Oyo','Plateau','Rivers','Sokoto',
-                    'Taraba','Yobe','Zamfara',
-                  ].map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                        {c.name}
+                      </span>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-3xs text-muted-foreground">
-                Used when an employee has no explicit state of residence.
-              </p>
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="pencom_employer_code">PenCom employer code</Label>
-              <Input
-                id="pencom_employer_code"
-                value={settings.pencom_employer_code || ''}
-                onChange={(e) => patch({ pencom_employer_code: e.target.value })}
-                placeholder="Prints on PSSP schedule"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="nhf_employer_code">NHF employer code</Label>
-              <Input
-                id="nhf_employer_code"
-                value={settings.nhf_employer_code || ''}
-                onChange={(e) => patch({ nhf_employer_code: e.target.value })}
-                placeholder="FMBN-issued"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="nsitf_employer_code">NSITF employer code</Label>
-              <Input
-                id="nsitf_employer_code"
-                value={settings.nsitf_employer_code || ''}
-                onChange={(e) => patch({ nsitf_employer_code: e.target.value })}
-                placeholder="NSITF ECS registration"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="itf_employer_code">ITF employer code</Label>
-              <Input
-                id="itf_employer_code"
-                value={settings.itf_employer_code || ''}
-                onChange={(e) => patch({ itf_employer_code: e.target.value })}
-                placeholder="ITF annual return"
-              />
-            </div>
-          </div>
+          )}
+          {!companyProfile ? (
+            <p className="text-sm text-muted-foreground">Loading company…</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="rc_number">RC number</Label>
+                  <Input
+                    id="rc_number"
+                    value={companyProfile.rc_number || ''}
+                    onChange={(e) => patchCompanyProfile({ rc_number: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="company_tin">TIN</Label>
+                  <Input
+                    id="company_tin"
+                    value={companyProfile.tin || ''}
+                    onChange={(e) => patchCompanyProfile({ tin: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="registered_address">Registered address</Label>
+                <Textarea
+                  id="registered_address"
+                  value={companyProfile.address || ''}
+                  onChange={(e) => patchCompanyProfile({ address: e.target.value })}
+                  rows={2}
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="state_of_business">Default state of business</Label>
+                  <Select
+                    value={companyProfile.default_state || '__none__'}
+                    onValueChange={(v) =>
+                      patchCompanyProfile({ default_state: v === '__none__' ? null : v })
+                    }
+                  >
+                    <SelectTrigger id="state_of_business">
+                      <SelectValue placeholder="Select state…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— Not set —</SelectItem>
+                      {[
+                        'Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Benue','Borno',
+                        'Cross River','Delta','Ebonyi','Edo','Ekiti','Enugu','FCT - Abuja','Gombe',
+                        'Imo','Jigawa','Kaduna','Kano','Katsina','Kebbi','Kogi','Kwara','Lagos',
+                        'Nasarawa','Niger','Ogun','Ondo','Osun','Oyo','Plateau','Rivers','Sokoto',
+                        'Taraba','Yobe','Zamfara',
+                      ].map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-3xs text-muted-foreground">
+                    Used when an employee has no explicit state of residence.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="pencom_employer_code">PenCom employer code</Label>
+                  <Input
+                    id="pencom_employer_code"
+                    value={companyProfile.pencom_employer_code || ''}
+                    onChange={(e) => patchCompanyProfile({ pencom_employer_code: e.target.value })}
+                    placeholder="Prints on PSSP schedule"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="nhf_employer_code">NHF employer code</Label>
+                  <Input
+                    id="nhf_employer_code"
+                    value={companyProfile.nhf_employer_code || ''}
+                    onChange={(e) => patchCompanyProfile({ nhf_employer_code: e.target.value })}
+                    placeholder="FMBN-issued"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="nsitf_employer_code">NSITF employer code</Label>
+                  <Input
+                    id="nsitf_employer_code"
+                    value={companyProfile.nsitf_employer_code || ''}
+                    onChange={(e) => patchCompanyProfile({ nsitf_employer_code: e.target.value })}
+                    placeholder="NSITF ECS registration"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="itf_employer_code">ITF employer code</Label>
+                  <Input
+                    id="itf_employer_code"
+                    value={companyProfile.itf_employer_code || ''}
+                    onChange={(e) => patchCompanyProfile({ itf_employer_code: e.target.value })}
+                    placeholder="ITF annual return"
+                  />
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

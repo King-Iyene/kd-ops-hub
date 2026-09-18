@@ -1,34 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { matchesSegment, filterEmployeesForSegment, isSegmentFilterEmpty } from './payroll-segments';
 
-const alice = { id: 'alice', employee_category: 'administrative', department_id: 'dept-ops', employment_type: 'full_time', pay_group_id: 'grp-staff' };
-const bob = { id: 'bob', employee_category: 'executive', department_id: 'dept-exec', employment_type: 'full_time', pay_group_id: 'grp-directors' };
-const carol = { id: 'carol', employee_category: 'domestic', department_id: null, employment_type: 'part_time', pay_group_id: null };
-const dave = { id: 'dave', employee_category: null, department_id: 'dept-ops', employment_type: 'full_time', pay_group_id: 'grp-staff' };
+const alice = { id: 'alice', department_id: 'dept-ops', employment_type: 'full_time', pay_group_id: 'grp-staff' };
+const bob = { id: 'bob', department_id: 'dept-exec', employment_type: 'full_time', pay_group_id: 'grp-directors' };
+const carol = { id: 'carol', department_id: null, employment_type: 'part_time', pay_group_id: null };
+const dave = { id: 'dave', department_id: 'dept-ops', employment_type: 'full_time', pay_group_id: 'grp-staff' };
 
 describe('matchesSegment', () => {
   it('matches everyone when rules are null or empty', () => {
     expect(matchesSegment(alice, null)).toBe(true);
     expect(matchesSegment(alice, {})).toBe(true);
-  });
-
-  it('excludes by employee_category', () => {
-    const rules = { exclude_employee_categories: ['executive'] };
-    expect(matchesSegment(alice, rules)).toBe(true);
-    expect(matchesSegment(bob, rules)).toBe(false);
-  });
-
-  it('includes only listed employee_categories', () => {
-    const rules = { include_employee_categories: ['administrative'] };
-    expect(matchesSegment(alice, rules)).toBe(true);
-    expect(matchesSegment(bob, rules)).toBe(false);
-    // Uncategorized employees don't match an include-list filter.
-    expect(matchesSegment(dave, rules)).toBe(false);
-  });
-
-  it('does not exclude uncategorized employees from an exclude-list filter', () => {
-    const rules = { exclude_employee_categories: ['executive'] };
-    expect(matchesSegment(dave, rules)).toBe(true);
   });
 
   it('excludes by department_id', () => {
@@ -58,6 +39,11 @@ describe('matchesSegment', () => {
     expect(matchesSegment(carol, rules)).toBe(true);
   });
 
+  it('does not exclude employees with no pay group from an exclude-list filter', () => {
+    const rules = { exclude_pay_group_ids: ['grp-directors'] };
+    expect(matchesSegment(carol, rules)).toBe(true);
+  });
+
   it('excludes specific employee ids as a manual override', () => {
     const rules = { exclude_employee_ids: ['alice'] };
     expect(matchesSegment(alice, rules)).toBe(false);
@@ -65,9 +51,9 @@ describe('matchesSegment', () => {
   });
 
   it('combines dimensions with AND semantics', () => {
-    const rules = { exclude_employee_categories: ['executive'], exclude_department_ids: ['dept-ops'] };
+    const rules = { exclude_pay_group_ids: ['grp-directors'], exclude_department_ids: ['dept-ops'] };
     expect(matchesSegment(alice, rules)).toBe(false); // excluded via department
-    expect(matchesSegment(bob, rules)).toBe(false);   // excluded via category
+    expect(matchesSegment(bob, rules)).toBe(false);   // excluded via pay group
     expect(matchesSegment(carol, rules)).toBe(true);  // neither excluded dimension applies
   });
 });
@@ -81,8 +67,8 @@ describe('filterEmployeesForSegment', () => {
 
   it('filters down to matching employees', () => {
     const list = [alice, bob, carol, dave];
-    const result = filterEmployeesForSegment(list, { exclude_employee_categories: ['executive', 'domestic'] });
-    expect(result.map((e) => e.id)).toEqual(['alice', 'dave']);
+    const result = filterEmployeesForSegment(list, { exclude_pay_group_ids: ['grp-directors'] });
+    expect(result.map((e) => e.id)).toEqual(['alice', 'carol', 'dave']);
   });
 });
 
@@ -94,10 +80,10 @@ describe('isSegmentFilterEmpty', () => {
   });
 
   it('treats rules with only empty arrays as empty', () => {
-    expect(isSegmentFilterEmpty({ exclude_employee_categories: [] })).toBe(true);
+    expect(isSegmentFilterEmpty({ exclude_pay_group_ids: [] })).toBe(true);
   });
 
   it('treats rules with at least one populated dimension as non-empty', () => {
-    expect(isSegmentFilterEmpty({ exclude_employee_categories: ['executive'] })).toBe(false);
+    expect(isSegmentFilterEmpty({ exclude_pay_group_ids: ['grp-directors'] })).toBe(false);
   });
 });

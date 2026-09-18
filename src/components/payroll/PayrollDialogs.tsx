@@ -75,14 +75,6 @@ const BONUS_TYPES = [
   'Other',
 ] as const;
 
-const PAYROLL_CATEGORY_LABELS: Record<string, string> = {
-  administrative: 'Administrative',
-  executive: 'Executive / Director',
-  domestic: 'Domestic staff',
-  security: 'Security',
-  contractor: 'Contractor',
-};
-
 interface DraftForm {
   period: string;
   period_type: 'monthly' | 'quarterly' | 'annual';
@@ -105,7 +97,6 @@ interface DraftForm {
 interface SegmentFormState {
   name: string;
   description: string;
-  exclude_employee_categories: string[];
   exclude_department_ids: string[];
   include_pay_group_ids: string[];
 }
@@ -151,11 +142,12 @@ export interface PayrollDialogsProps {
   setSegmentForm: React.Dispatch<React.SetStateAction<SegmentFormState>>;
   segmentSaving: boolean;
   segmentDepartments: { id: string; name: string }[];
-  segmentPayGroups: { id: string; name: string; frequency: string | null; memberCount: number; payableCount: number }[];
+  segmentPayGroups: { id: string; name: string; company_id: string; frequency: string | null; memberCount: number; payableCount: number }[];
+  selectedCompanyName?: string;
+  selectedCompanyColor?: string;
   segmentLiveRules: PayrollSegmentFilterRules;
   saveSegment: () => void;
   deleteSegment: (segmentId: string, name: string) => void;
-  toggleSegmentCategory: (cat: string) => void;
   toggleSegmentDepartment: (deptId: string) => void;
   toggleSegmentPayGroup: (groupId: string) => void;
 
@@ -235,10 +227,11 @@ export const PayrollDialogs = ({
   segmentSaving,
   segmentDepartments,
   segmentPayGroups,
+  selectedCompanyName,
+  selectedCompanyColor,
   segmentLiveRules,
   saveSegment,
   deleteSegment,
-  toggleSegmentCategory,
   toggleSegmentDepartment,
   toggleSegmentPayGroup,
   adjustRun,
@@ -372,12 +365,22 @@ export const PayrollDialogs = ({
               const currentSegment = segments.find((s) => s.id === form.payroll_segment_id);
               const currentRules = currentSegment?.filter_rules;
               const currentPayGroupId = currentRules?.include_pay_group_ids?.length === 1
-                && !currentRules.exclude_employee_categories?.length
                 && !currentRules.exclude_department_ids?.length
                 ? currentRules.include_pay_group_ids[0]
                 : '';
               return (
                 <>
+                  {selectedCompanyName && (
+                    <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{ backgroundColor: selectedCompanyColor || '#2D7FF9' }}
+                        aria-hidden
+                      />
+                      Drafting payroll for <strong>{selectedCompanyName}</strong>
+                      <span className="text-muted-foreground text-xs ml-auto">Switch company from the Payroll page header</span>
+                    </div>
+                  )}
                   <Label className="flex items-center gap-1.5">
                     Pay group
                     <InfoHint>Everyone in the picked Pay Group is included by default. Set up Pay Groups in Payroll → Setup → Pay Groups.</InfoHint>
@@ -776,24 +779,6 @@ export const PayrollDialogs = ({
                   </p>
                 </div>
               )}
-              <div className="space-y-1.5">
-                <Label className="text-xs">Exclude payroll categories</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(PAYROLL_CATEGORY_LABELS).map(([value, label]) => (
-                    <Badge
-                      key={value}
-                      variant={segmentForm.exclude_employee_categories.includes(value) ? 'default' : 'outline'}
-                      className="cursor-pointer kd-transition"
-                      onClick={() => toggleSegmentCategory(value)}
-                    >
-                      {label}
-                    </Badge>
-                  ))}
-                </div>
-                <p className="text-2xs text-muted-foreground">
-                  Employees are tagged with a payroll category on their profile page. Uncategorized employees are never excluded by this filter.
-                </p>
-              </div>
               {segmentDepartments.length > 0 && (
                 <div className="space-y-1.5">
                   <Label className="text-xs">Exclude departments</Label>

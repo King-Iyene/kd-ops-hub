@@ -5,7 +5,8 @@ import { errorMessage } from '@/lib/db-errors';
 import { logWarn } from '@/lib/logger';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { supabase } from '@/lib/supabase';
-import { useCompanySettings, useDepartments } from '@/queries';
+import { useCompanySettings, useDepartments, useCompanies } from '@/queries';
+import { CompanySwitcher } from '@/components/ui-kit/CompanySwitcher';
 import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
 import { burst } from '@/components/Burst';
@@ -183,15 +184,30 @@ const Payroll = () => {
   const [segmentDialog, setSegmentDialog] = useState(false);
   const { data: segmentDepartments = [] } = useDepartments();
   const { data: companySettings } = useCompanySettings();
+  const { data: companies = [] } = useCompanies();
+  // Which company this whole page (and any draft being built) is scoped to.
+  // Defaults to the first company (KD Squares, seeded first) the moment the
+  // list loads — payroll can never be run without a company selected, since
+  // pay groups, runs, and compliance filings are all company-scoped now.
+  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  useEffect(() => {
+    if (!selectedCompanyId && companies.length > 0) setSelectedCompanyId(companies[0].id);
+  }, [companies, selectedCompanyId]);
   const [segmentSaving, setSegmentSaving] = useState(false);
-  const [segmentPayGroups, setSegmentPayGroups] = useState<{ id: string; name: string; frequency: string | null; memberCount: number; payableCount: number }[]>([]);
+  const [segmentPayGroups, setSegmentPayGroups] = useState<{ id: string; name: string; company_id: string; frequency: string | null; memberCount: number; payableCount: number }[]>([]);
+  // Only the selected company's pay groups are offered as "who gets paid"
+  // quick-pick cards — a KD Squares run should never accidentally show an
+  // NDI pay group (or vice versa) as a selectable option.
+  const visiblePayGroups = useMemo(
+    () => segmentPayGroups.filter((g) => g.company_id === selectedCompanyId),
+    [segmentPayGroups, selectedCompanyId],
+  );
   const [segmentForm, setSegmentForm] = useState<{
     name: string;
     description: string;
-    exclude_employee_categories: string[];
     exclude_department_ids: string[];
     include_pay_group_ids: string[];
-  }>({ name: '', description: '', exclude_employee_categories: [], exclude_department_ids: [], include_pay_group_ids: [] });
+  }>({ name: '', description: '', exclude_department_ids: [], include_pay_group_ids: [] });
 
   const canGeneratePayslipsPerm = usePermission('payroll.generate_payslips');
 
@@ -205,7 +221,7 @@ const Payroll = () => {
     // cards (cadence + headcount at a glance) — a plain name list left every
     // card looking identical, so picking one was a guess.
     Promise.all([
-      supabase.from('pay_groups').select('id, name, pay_schedule:pay_schedules(frequency)').order('name'),
+      supabase.from('pay_groups').select('id, name, company_id, pay_schedule:pay_schedules(frequency)').order('name'),
       supabase.from('profiles')
         .select('pay_group_id, salary_ngn, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn')
         .eq('status', 'active')
@@ -223,6 +239,7 @@ const Payroll = () => {
       setSegmentPayGroups(((groupsRes.data ?? []) as any[]).map((g) => ({
         id: g.id,
         name: g.name,
+        company_id: g.company_id,
         frequency: g.pay_schedule?.frequency ?? null,
         memberCount: counts[g.id] ?? 0,
         payableCount: payableCounts[g.id] ?? 0,
@@ -234,19 +251,10 @@ const Payroll = () => {
   // so "who does this actually match" is never a guess before saving.
   const segmentLiveRules = useMemo(() => {
     const rules: PayrollSegmentFilterRules = {};
-    if (segmentForm.exclude_employee_categories.length > 0) rules.exclude_employee_categories = segmentForm.exclude_employee_categories;
     if (segmentForm.exclude_department_ids.length > 0) rules.exclude_department_ids = segmentForm.exclude_department_ids;
     if (segmentForm.include_pay_group_ids.length > 0) rules.include_pay_group_ids = segmentForm.include_pay_group_ids;
     return rules;
-  }, [segmentForm.exclude_employee_categories, segmentForm.exclude_department_ids, segmentForm.include_pay_group_ids]);
-
-  const toggleSegmentCategory = (cat: string) =>
-    setSegmentForm((f) => ({
-      ...f,
-      exclude_employee_categories: f.exclude_employee_categories.includes(cat)
-        ? f.exclude_employee_categories.filter((c) => c !== cat)
-        : [...f.exclude_employee_categories, cat],
-    }));
+  }, [segmentForm.exclude_department_ids, segmentForm.include_pay_group_ids]);
 
   const toggleSegmentDepartment = (deptId: string) =>
     setSegmentForm((f) => ({
@@ -272,9 +280,6 @@ const Payroll = () => {
     setSegmentSaving(true);
     try {
       const filter_rules: Record<string, string[]> = {};
-      if (segmentForm.exclude_employee_categories.length > 0) {
-        filter_rules.exclude_employee_categories = segmentForm.exclude_employee_categories;
-      }
       if (segmentForm.exclude_department_ids.length > 0) {
         filter_rules.exclude_department_ids = segmentForm.exclude_department_ids;
       }
@@ -289,7 +294,7 @@ const Payroll = () => {
       });
       if (error) throw error;
       toast({ title: 'Segment created' });
-      setSegmentForm({ name: '', description: '', exclude_employee_categories: [], exclude_department_ids: [], include_pay_group_ids: [] });
+      setSegmentForm({ name: '', description: '', exclude_department_ids: [], include_pay_group_ids: [] });
       loadSegments();
     } catch (err: unknown) {
       toast({ title: 'Could not create segment', description: errorMessage(err), variant: 'destructive' });
@@ -315,7 +320,6 @@ const Payroll = () => {
       const r = s.filter_rules || {};
       return r.include_pay_group_ids?.length === 1
         && r.include_pay_group_ids[0] === groupId
-        && !r.exclude_employee_categories?.length
         && !r.exclude_department_ids?.length;
     });
     if (existing) {
@@ -516,6 +520,10 @@ const Payroll = () => {
   //     ADD COLUMN IF NOT EXISTS allowances_json jsonb;
   const draftRun = async () => {
     if (!form.period) return;
+    if (!selectedCompanyId) {
+      toast({ title: 'Select a company first', description: 'Payroll runs now belong to a specific company.', variant: 'destructive' });
+      return;
+    }
     const [y, m] = form.period.split('-');
     const year = parseInt(y, 10);
     const month = parseInt(m, 10);
@@ -543,7 +551,7 @@ const Payroll = () => {
           .lte('date', end.toISOString()),
         supabase
           .from('profiles')
-          .select('id, salary_ngn, pension_enabled, nhf_enabled, paye_enabled, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, voluntary_pension_pct, department_id, employee_category, employment_type, pay_group_id, start_date')
+          .select('id, salary_ngn, pension_enabled, nhf_enabled, paye_enabled, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, voluntary_pension_pct, department_id, employment_type, pay_group_id, start_date')
           .eq('status', 'active')
           .neq('role', 'driver'),
         supabase
@@ -560,12 +568,28 @@ const Payroll = () => {
           .lte('start_period', form.period),
       ]);
 
-      // Apply the selected payroll segment's filter (if any). An empty
-      // selection (form.payroll_segment_id === '') matches legacy behavior
-      // exactly — every active, salaried, non-driver employee, unfiltered.
+      // Company is a hard boundary, applied before any segment filter: an
+      // employee's company is derived from their pay group, so only
+      // employees whose pay group belongs to the company this run is being
+      // drafted for are ever eligible — regardless of segment. An employee
+      // with no pay group yet has no company and is never included; they
+      // need to be assigned a pay group first (surfaced in the roster
+      // preview's exclusion reasons).
+      const companyPayGroupIds = new Set(
+        segmentPayGroups.filter((g) => g.company_id === selectedCompanyId).map((g) => g.id),
+      );
+      const companyEmployees = ((employeeRes.data || []) as any[]).filter(
+        (e) => e.pay_group_id && companyPayGroupIds.has(e.pay_group_id),
+      );
+
+      // Apply the selected payroll segment's filter (if any) on top of the
+      // company boundary. An empty selection (form.payroll_segment_id === '')
+      // means "everyone in this company" — the closest equivalent to the old
+      // "every active, salaried, non-driver employee" default now that a
+      // company must always be chosen.
       const selectedSegment = segments.find((s) => s.id === form.payroll_segment_id) || null;
       const filteredEmployees = filterEmployeesForSegment(
-        (employeeRes.data || []) as any[],
+        companyEmployees,
         selectedSegment?.filter_rules,
       );
 
@@ -763,6 +787,7 @@ const Payroll = () => {
         p_employer_pension_ngn: employerPension,
         p_total_burn_ngn: burn,
         p_created_by: profile?.id || null,
+        p_company_id: selectedCompanyId,
         p_run_options: runOptions,
         p_period_type: form.period_type,
         p_employee_count: empCount,
@@ -783,7 +808,7 @@ const Payroll = () => {
       // instead of closing — the wizard's whole point is that Draft ends on
       // a restated-totals review, not a blind save. Fetch the saved row
       // fresh so Submit-for-approval-now has a real id to act on.
-      let savedQuery = supabase.from('payroll_runs').select('*').eq('period', form.period);
+      let savedQuery = supabase.from('payroll_runs').select('*').eq('period', form.period).eq('company_id', selectedCompanyId);
       savedQuery = segmentId ? savedQuery.eq('payroll_segment_id', segmentId) : savedQuery.is('payroll_segment_id', null);
       const { data: savedRow } = await savedQuery.maybeSingle();
       setSavedRun((savedRow as PayrollRun) || null);
@@ -932,7 +957,7 @@ const Payroll = () => {
     try {
       const { data: employees, error } = await supabase
         .from('profiles')
-        .select('id, full_name, salary_ngn, bank_name, bank_account_number, department_id, employee_category, employment_type, pay_group_id, tax_id, pension_pin, nhf_number, pension_enabled')
+        .select('id, full_name, salary_ngn, bank_name, bank_account_number, department_id, employment_type, pay_group_id, tax_id, pension_pin, nhf_number, pension_enabled')
         .eq('status', 'active')
         .neq('role', 'driver')
         .limit(2000);
@@ -1046,7 +1071,7 @@ const Payroll = () => {
   ): Promise<{ fresh: boolean; liveCount: number; liveGross: number }> => {
     const { data: employees } = await supabase
       .from('profiles')
-      .select('id, salary_ngn, status, role, department_id, employee_category, employment_type, pay_group_id')
+      .select('id, salary_ngn, status, role, department_id, employment_type, pay_group_id')
       .eq('status', 'active')
       .neq('role', 'driver')
       .limit(2000);
@@ -1215,7 +1240,7 @@ const Payroll = () => {
           use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn,
           tax_id, pension_pin, nhf_number, employee_number,
           bank_name, bank_account_number, bank_account_name,
-          department_id, employee_category, employment_type, pay_group_id,
+          department_id, employment_type, pay_group_id,
           voluntary_pension_pct,
           department:departments!department_id(name)
         `)
@@ -1244,14 +1269,16 @@ const Payroll = () => {
       }
 
       // Pull every field the new Nigerian-standard payslip needs in
-      // one shot — RC + TIN + address + logo from company_settings.
+      // one shot — RC + TIN + address come from the run's own company
+      // (companies table), logo stays platform-wide on company_settings.
       // Each field is optional on the payslip (header degrades
       // gracefully when a tenant hasn't filled in their RC), so an
-      // empty company_settings row still produces a valid payslip.
-      const companyName    = (companySettings as any)?.company_name || 'KD Squares Ltd';
-      const companyRc      = (companySettings as any)?.rc_number    || null;
-      const companyTin     = (companySettings as any)?.tin          || null;
-      const companyAddress = (companySettings as any)?.address      || null;
+      // empty companies row still produces a valid payslip.
+      const runCompany     = companies.find((c) => c.id === run.company_id) || companies[0];
+      const companyName    = runCompany?.name || (companySettings as any)?.company_name || 'KD Squares Ltd';
+      const companyRc      = runCompany?.rc_number    || null;
+      const companyTin     = runCompany?.tin          || null;
+      const companyAddress = runCompany?.address      || null;
       const companyLogo    = (companySettings as any)?.logo_url     || null;
       const nsitfEnabled   = (companySettings as any)?.nsitf_enabled !== false;
       const itfEnabled     = (companySettings as any)?.itf_enabled !== false;
@@ -2379,7 +2406,10 @@ const Payroll = () => {
           </div>
           <p className="text-muted-foreground text-sm mt-1">Run payroll, pay statutory deductions, and disburse net salaries.</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          {companies.length > 1 && (
+            <CompanySwitcher companies={companies} value={selectedCompanyId} onChange={setSelectedCompanyId} />
+          )}
           <Button onClick={openNewDraft}>
             <Plus className="mr-2 h-4 w-4" /> New payroll run
           </Button>
@@ -2535,11 +2565,12 @@ const Payroll = () => {
         setSegmentForm={setSegmentForm}
         segmentSaving={segmentSaving}
         segmentDepartments={segmentDepartments}
-        segmentPayGroups={segmentPayGroups}
+        segmentPayGroups={visiblePayGroups}
+        selectedCompanyName={companies.find((c) => c.id === selectedCompanyId)?.name}
+        selectedCompanyColor={companies.find((c) => c.id === selectedCompanyId)?.color}
         segmentLiveRules={segmentLiveRules}
         saveSegment={saveSegment}
         deleteSegment={deleteSegment}
-        toggleSegmentCategory={toggleSegmentCategory}
         toggleSegmentDepartment={toggleSegmentDepartment}
         toggleSegmentPayGroup={toggleSegmentPayGroup}
         adjustRun={adjustRun}

@@ -60,7 +60,7 @@ function useRoster(rules: PayrollSegmentFilterRules | null) {
       while (true) {
         const { data } = await supabase
           .from('profiles')
-          .select('id, full_name, first_name, last_name, email, role, status, salary_ngn, bank_account_number, department_id, employee_category, employment_type, pay_group_id')
+          .select('id, full_name, first_name, last_name, email, role, status, salary_ngn, bank_account_number, department_id, employment_type, pay_group_id')
           .range(from, from + PAGE_SIZE - 1);
         if (cancelled) return;
         const rows = (data || []) as RosterEmployee[];

@@ -397,7 +397,6 @@ export default function JobPayTab({
                     job_title: form.job_title || null,
                     employee_number: form.employee_number || null,
                     employment_type: form.employment_type || null,
-                    employee_category: form.employee_category || null,
                     pay_group_id: form.pay_group_id || null,
                     start_date: form.start_date || null,
                     annual_leave_days: Math.max(6, form.annual_leave_days ?? 20),
@@ -482,37 +481,24 @@ export default function JobPayTab({
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="employee_category" className="text-xs">Payroll category</Label>
-                    <Select value={form.employee_category || undefined} onValueChange={(v) => patch({ employee_category: v || null })}>
-                      <SelectTrigger id="employee_category"><SelectValue placeholder="Uncategorized" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="administrative">Administrative</SelectItem>
-                        <SelectItem value="executive">Executive / Director</SelectItem>
-                        <SelectItem value="domestic">Domestic staff</SelectItem>
-                        <SelectItem value="security">Security</SelectItem>
-                        <SelectItem value="contractor">Contractor</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-2xs text-muted-foreground">Used by payroll segments.</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="pay_group_id" className="text-xs">Pay group</Label>
-                    <Select
-                      value={form.pay_group_id || '__none__'}
-                      onValueChange={(v) => patch({ pay_group_id: v === '__none__' ? null : v })}
-                    >
-                      <SelectTrigger id="pay_group_id"><SelectValue placeholder="No group" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">— No group —</SelectItem>
-                        {payGroups.map((g) => (
-                          <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-2xs text-muted-foreground">Pay schedule group (Payroll module).</p>
-                  </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="pay_group_id" className="text-xs">Pay group</Label>
+                  <Select
+                    value={form.pay_group_id || '__none__'}
+                    onValueChange={(v) => patch({ pay_group_id: v === '__none__' ? null : v })}
+                  >
+                    <SelectTrigger id="pay_group_id"><SelectValue placeholder="Not assigned yet" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— Not assigned yet —</SelectItem>
+                      {payGroups.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-2xs text-muted-foreground">
+                    Which company this person is paid by, on what schedule, and which payroll runs include them.
+                    Manage pay groups from Payroll → Pay Groups.
+                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">

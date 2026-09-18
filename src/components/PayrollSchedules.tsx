@@ -24,6 +24,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanySettings } from '@/queries/useCompanySettings';
+import { useCompanies } from '@/queries';
 import { formatDate, formatNaira } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -1496,6 +1497,7 @@ export function PayrollSchedules() {
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const { data: companySettings } = useCompanySettings();
+  const { data: companies = [] } = useCompanies();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [schedules, setSchedules] = useState<PaySchedule[]>([]);
@@ -1615,7 +1617,7 @@ export function PayrollSchedules() {
   };
 
   const setupItems: SetupItem[] = [
-    { key: 'company', label: 'Company details', done: !!(companySettings?.company_name && companySettings?.rc_number), action: () => navigate('/settings') },
+    { key: 'company', label: 'Company details', done: !!(companySettings?.company_name && companies.some((c) => c.rc_number)), action: () => navigate('/settings') },
     { key: 'schedule', label: 'Pay schedule', done: schedules.length > 0, action: () => { setInnerTab('list'); openCreate(); } },
     { key: 'groups', label: 'Pay groups', done: (payGroupCount ?? 0) > 0, action: () => setInnerTab('groups') },
     { key: 'holidays', label: 'Public holidays', done: (holidayCount ?? 0) > 0, action: () => setInnerTab('holidays') },
