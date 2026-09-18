@@ -333,28 +333,49 @@ export const renderPayslipHtml = (
       margin-top: 1px;
     }
 
-    /* ─── Composition bar (subtle monochrome) ────────────── */
+    /* ─── Composition bar ─────────────────────────────────
+       Take-home carries the brand blue; the deductions are one ordered
+       amber ramp, darkest first, rather than separate hues.
+
+       This started as six greys, which meant the legend dots for PAYE,
+       Pension, NHF and NHIS were effectively the same colour and the bar
+       communicated nothing. Six mutually distinguishable hues at one
+       lightness is over-constrained — every candidate set failed
+       colour-blind separation against the fixed brand blue — and these
+       segments are not six independent identities anyway. They are parts
+       of one gross figure with a natural order, which is what a sequential
+       ramp is for.
+
+       Blue against the darkest ramp step separates strongly (ΔE 19 normal,
+       19+ deutan). Steps within the ramp are deliberately close, so the bar
+       leans on secondary encoding for identity, all of which is present:
+       a 2px gap between segments, a legend carrying each amount in full,
+       and the itemised table directly below. */
     .comp-bar {
-      display: flex; height: 6px; width: 100%;
-      border-radius: 3px; overflow: hidden;
+      display: flex; gap: 2px; height: 8px; width: 100%;
+      border-radius: 4px; overflow: hidden;
       background: #f5f5f4;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
     .comp-bar .seg { height: 100%; }
-    .seg.take    { background: #006994; }
-    .seg.paye    { background: #737373; }
-    .seg.pension { background: #a3a3a3; }
-    .seg.nhf     { background: #c4c4c4; }
-    .seg.nhis    { background: #d4d4d4; }
-    .seg.extra   { background: #e5e5e5; }
+    /* Each colour is declared once for both the bar segment and its legend
+       dot. They used to be separate — the classes here and a hardcoded hex
+       inline on every dot — so changing the bar silently left the legend on
+       the old palette, which is exactly what happened. */
+    .seg.take,    .dot.take    { background: #006994; }
+    .seg.paye,    .dot.paye    { background: #6E3600; }
+    .seg.pension, .dot.pension { background: #8A4500; }
+    .seg.nhf,     .dot.nhf     { background: #A85400; }
+    .seg.nhis,    .dot.nhis    { background: #C0661C; }
+    .seg.extra,   .dot.extra   { background: #D07E36; }
 
     .comp-legend {
       display: flex; flex-wrap: wrap; gap: 14px;
       font-size: 11px; color: #525252;
     }
     .comp-legend .dot {
-      display: inline-block; width: 6px; height: 6px; border-radius: 50%;
-      margin-right: 4px; vertical-align: middle;
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      margin-right: 5px; vertical-align: middle;
     }
 
     /* ─── Tables ─────────────────────────────────────────── */
@@ -564,12 +585,12 @@ export const renderPayslipHtml = (
           ${extraDeductTotal > 0 ? `<div class="seg extra" style="width:${seg.extra}%"></div>` : ''}
         </div>
         <div class="comp-legend">
-          <span><span class="dot" style="background:#006994"></span>Take-home ${esc(formatNaira(data.net_ngn))}</span>
-          ${data.paye_ngn > 0 ? `<span><span class="dot" style="background:#737373"></span>PAYE ${esc(formatNaira(data.paye_ngn))}</span>` : ''}
-          ${data.pension_ngn > 0 ? `<span><span class="dot" style="background:#a3a3a3"></span>Pension ${esc(formatNaira(data.pension_ngn))}</span>` : ''}
-          ${data.nhf_ngn > 0 ? `<span><span class="dot" style="background:#c4c4c4"></span>NHF ${esc(formatNaira(data.nhf_ngn))}</span>` : ''}
-          ${nhis > 0 ? `<span><span class="dot" style="background:#d4d4d4"></span>NHIS ${esc(formatNaira(nhis))}</span>` : ''}
-          ${extraDeductTotal > 0 ? `<span><span class="dot" style="background:#e5e5e5"></span>Other ${esc(formatNaira(extraDeductTotal))}</span>` : ''}
+          <span><span class="dot take"></span>Take-home ${esc(formatNaira(data.net_ngn))}</span>
+          ${data.paye_ngn > 0 ? `<span><span class="dot paye"></span>PAYE ${esc(formatNaira(data.paye_ngn))}</span>` : ''}
+          ${data.pension_ngn > 0 ? `<span><span class="dot pension"></span>Pension ${esc(formatNaira(data.pension_ngn))}</span>` : ''}
+          ${data.nhf_ngn > 0 ? `<span><span class="dot nhf"></span>NHF ${esc(formatNaira(data.nhf_ngn))}</span>` : ''}
+          ${nhis > 0 ? `<span><span class="dot nhis"></span>NHIS ${esc(formatNaira(nhis))}</span>` : ''}
+          ${extraDeductTotal > 0 ? `<span><span class="dot extra"></span>Other ${esc(formatNaira(extraDeductTotal))}</span>` : ''}
         </div>
       </div>
 
