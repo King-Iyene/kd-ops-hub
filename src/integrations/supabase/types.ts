@@ -8398,6 +8398,7 @@ export type Database = {
       payroll_runs: {
         Row: {
           allowances_json: Json | null
+          approved_at: string | null
           approved_by: string | null
           bonuses_json: Json | null
           company_id: string
@@ -8413,11 +8414,11 @@ export type Database = {
           last_disbursement_error: string | null
           nhf_ngn: number
           notes: string | null
+          paid_at: string | null
           pay_date: string | null
           pay_group_id: string | null
           pay_schedule_id: string | null
           paye_ngn: number
-          paid_at: string | null
           payroll_segment_id: string | null
           pension_ngn: number
           period: string
@@ -8427,7 +8428,6 @@ export type Database = {
           scheduled_disburse_at: string | null
           status: string
           submitted_at: string | null
-          approved_at: string | null
           total_burn_ngn: number
           total_contractor_ngn: number
           total_employee_ngn: number
@@ -8436,6 +8436,7 @@ export type Database = {
         }
         Insert: {
           allowances_json?: Json | null
+          approved_at?: string | null
           approved_by?: string | null
           bonuses_json?: Json | null
           company_id: string
@@ -8451,11 +8452,11 @@ export type Database = {
           last_disbursement_error?: string | null
           nhf_ngn?: number
           notes?: string | null
+          paid_at?: string | null
           pay_date?: string | null
           pay_group_id?: string | null
           pay_schedule_id?: string | null
           paye_ngn?: number
-          paid_at?: string | null
           payroll_segment_id?: string | null
           pension_ngn?: number
           period: string
@@ -8465,7 +8466,6 @@ export type Database = {
           scheduled_disburse_at?: string | null
           status?: string
           submitted_at?: string | null
-          approved_at?: string | null
           total_burn_ngn?: number
           total_contractor_ngn?: number
           total_employee_ngn?: number
@@ -8474,6 +8474,7 @@ export type Database = {
         }
         Update: {
           allowances_json?: Json | null
+          approved_at?: string | null
           approved_by?: string | null
           bonuses_json?: Json | null
           company_id?: string
@@ -8489,11 +8490,11 @@ export type Database = {
           last_disbursement_error?: string | null
           nhf_ngn?: number
           notes?: string | null
+          paid_at?: string | null
           pay_date?: string | null
           pay_group_id?: string | null
           pay_schedule_id?: string | null
           paye_ngn?: number
-          paid_at?: string | null
           payroll_segment_id?: string | null
           pension_ngn?: number
           period?: string
@@ -8503,7 +8504,6 @@ export type Database = {
           scheduled_disburse_at?: string | null
           status?: string
           submitted_at?: string | null
-          approved_at?: string | null
           total_burn_ngn?: number
           total_contractor_ngn?: number
           total_employee_ngn?: number
@@ -16060,6 +16060,7 @@ export type Database = {
         Args: { p_run_id: string }
         Returns: {
           allowances_json: Json | null
+          approved_at: string | null
           approved_by: string | null
           bonuses_json: Json | null
           company_id: string
@@ -16075,6 +16076,7 @@ export type Database = {
           last_disbursement_error: string | null
           nhf_ngn: number
           notes: string | null
+          paid_at: string | null
           pay_date: string | null
           pay_group_id: string | null
           pay_schedule_id: string | null
@@ -16087,6 +16089,7 @@ export type Database = {
           run_type: string
           scheduled_disburse_at: string | null
           status: string
+          submitted_at: string | null
           total_burn_ngn: number
           total_contractor_ngn: number
           total_employee_ngn: number
@@ -16143,6 +16146,7 @@ export type Database = {
         Args: { p_run_id: string }
         Returns: {
           allowances_json: Json | null
+          approved_at: string | null
           approved_by: string | null
           bonuses_json: Json | null
           company_id: string
@@ -16158,6 +16162,7 @@ export type Database = {
           last_disbursement_error: string | null
           nhf_ngn: number
           notes: string | null
+          paid_at: string | null
           pay_date: string | null
           pay_group_id: string | null
           pay_schedule_id: string | null
@@ -16170,6 +16175,7 @@ export type Database = {
           run_type: string
           scheduled_disburse_at: string | null
           status: string
+          submitted_at: string | null
           total_burn_ngn: number
           total_contractor_ngn: number
           total_employee_ngn: number
@@ -16600,6 +16606,7 @@ export type Database = {
         Args: { p_new_status: string; p_run_id: string }
         Returns: {
           allowances_json: Json | null
+          approved_at: string | null
           approved_by: string | null
           bonuses_json: Json | null
           company_id: string
@@ -16615,6 +16622,7 @@ export type Database = {
           last_disbursement_error: string | null
           nhf_ngn: number
           notes: string | null
+          paid_at: string | null
           pay_date: string | null
           pay_group_id: string | null
           pay_schedule_id: string | null
@@ -16627,6 +16635,7 @@ export type Database = {
           run_type: string
           scheduled_disburse_at: string | null
           status: string
+          submitted_at: string | null
           total_burn_ngn: number
           total_contractor_ngn: number
           total_employee_ngn: number
@@ -16742,6 +16751,7 @@ export type Database = {
         Args: { p_run_id: string }
         Returns: {
           allowances_json: Json | null
+          approved_at: string | null
           approved_by: string | null
           bonuses_json: Json | null
           company_id: string
@@ -16757,6 +16767,7 @@ export type Database = {
           last_disbursement_error: string | null
           nhf_ngn: number
           notes: string | null
+          paid_at: string | null
           pay_date: string | null
           pay_group_id: string | null
           pay_schedule_id: string | null
@@ -16769,6 +16780,7 @@ export type Database = {
           run_type: string
           scheduled_disburse_at: string | null
           status: string
+          submitted_at: string | null
           total_burn_ngn: number
           total_contractor_ngn: number
           total_employee_ngn: number
@@ -17409,6 +17421,7 @@ export type Database = {
         Args: { p_at: string; p_run_id: string }
         Returns: {
           allowances_json: Json | null
+          approved_at: string | null
           approved_by: string | null
           bonuses_json: Json | null
           company_id: string
@@ -17424,6 +17437,7 @@ export type Database = {
           last_disbursement_error: string | null
           nhf_ngn: number
           notes: string | null
+          paid_at: string | null
           pay_date: string | null
           pay_group_id: string | null
           pay_schedule_id: string | null
@@ -17436,6 +17450,7 @@ export type Database = {
           run_type: string
           scheduled_disburse_at: string | null
           status: string
+          submitted_at: string | null
           total_burn_ngn: number
           total_contractor_ngn: number
           total_employee_ngn: number
