@@ -829,7 +829,7 @@ const ProfilePage = () => {
       // Fallback: rebuild from stored figures and open the printable version.
       openPayslipPrintWindow(fallbackPayslipData(p));
     } catch {
-      toast({ title: 'Could not build the PDF', description: 'Opening the printable version instead.', variant: 'destructive' });
+      toast({ title: 'Could not fetch your saved payslip', description: 'Opening a printable copy built from your stored figures instead. Use your browser\u2019s Print \u2192 Save as PDF to keep it.', variant: 'destructive' });
       openPayslipPrintWindow(fallbackPayslipData(p));
     } finally {
       setDownloadingSlip(null);
