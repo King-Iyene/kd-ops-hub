@@ -518,7 +518,14 @@ export const PayrollDialogs = ({
 
                   <div className="space-y-1">
                     <Label>Who gets paid <span className="font-normal text-muted-foreground">— everyone matching is included by default</span></Label>
-                    <PayrollRosterPreview payrollSegmentId={form.payroll_segment_id} companyId={selectedCompanyId} defaultExpanded />
+                    {/* Collapsed by default — a real pay group can run into the
+                        dozens, and this step is meant to be a quick "does this
+                        look right" glance, not a full roster review before
+                        you've even picked a period. The summary bar (count,
+                        total, excluded, missing-bank-details) still shows
+                        without expanding; the full name-by-name lists are one
+                        click away for anyone who wants them. */}
+                    <PayrollRosterPreview payrollSegmentId={form.payroll_segment_id} companyId={selectedCompanyId} />
                   </div>
                 </>
               );
