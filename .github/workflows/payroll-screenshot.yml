@@ -1,0 +1,68 @@
+name: Payroll Screenshot (manual)
+
+# Captures ONLY the payroll screen, desktop and phone, and prints each as
+# base64 into the job log as the last thing the job does.
+#
+# Why not just use "Guide Screenshots": that workflow walks 35 pages and then
+# runs the walkthrough step, so the payroll images land in the middle of a
+# long log. Anything that can only read the *tail* of a job log through the
+# API cannot reach them there. Here payroll is all there is and the print is
+# last, so the tail of this log is the payroll screen.
+#
+# Read-only. The spec navigates and screenshots; it never clicks a submit,
+# approve, delete or send control, and never touches a disbursement path.
+#
+# Uses the same secrets the E2E workflow already needs — nothing new:
+#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY,
+#   TEST_USER_EMAIL, TEST_USER_PASSWORD
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  payroll-shot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+      TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+      CI: true
+      BASE_URL: http://localhost:4173
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers (Chromium only)
+        run: npx playwright install --with-deps chromium
+
+      - name: Build app
+        run: npm run build
+
+      - name: Start preview server
+        run: npx vite preview --port 4173 &
+
+      - name: Wait for server to be ready
+        run: |
+          echo "Waiting for http://localhost:4173..."
+          for i in $(seq 1 60); do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:4173 | grep -q "^[23]"; then
+              echo "Server is ready."
+              break
+            fi
+            sleep 1
+          done
+
+      # Last step on purpose — see the header. Nothing may be added after it
+      # without breaking the "tail of the log is the screenshot" property.
+      - name: Print the payroll screen as base64
+        run: npx playwright test payroll-screenshot.spec.ts --project=chromium
