@@ -2159,35 +2159,24 @@ const Payroll = () => {
       return;
     }
     setConfirmPaidRun(null);
-    const { error, data: updatedRows } = await supabase
-      .from('payroll_runs')
-      .update({ status: 'paid' })
-      .eq('id', run.id)
-      .eq('status', 'approved')
-      .select('id');
+    // Marking paid and settling balances (employee_deductions
+    // .amount_deducted_to_date, employee_advances.outstanding_ngn and any
+    // linked staff_loans) happen inside ONE transaction, server-side.
+    //
+    // They used to be two round-trips from here, with a hand-rolled "revert
+    // to approved" if settlement failed. That revert could never work: a
+    // paid run is immutable (trg_fn_lock_paid_payroll_run), so the update
+    // was rejected, its error was never checked, and the operator was told
+    // the run had been rolled back when it was still paid with balances
+    // unsettled — and retrying just answered "Already marked paid". An
+    // employee could then be deducted again for an advance they had already
+    // repaid. Now a settlement failure rolls the status back with it, so
+    // "retry" is a real instruction.
+    const { error } = await supabase.rpc('mark_payroll_run_paid', { p_run_id: run.id });
     if (error) {
-      toast({ title: 'Could not update', description: error.message, variant: 'destructive' });
-      return;
-    }
-    if (!updatedRows || updatedRows.length === 0) {
-      toast({ title: 'Already marked paid', description: 'Another user may have already processed this run.', variant: 'destructive' });
-      load();
-      return;
-    }
-
-    // Settlement (employee_deductions.amount_deducted_to_date,
-    // employee_advances.outstanding_ngn, and any linked staff_loans) lives
-    // in one SECURITY DEFINER RPC shared with the real disbursement path
-    // (finalize_payroll_run_disbursement calls the same function) so there
-    // is exactly one implementation instead of two that can drift —
-    // idempotent via payroll_runs.deductions_settled_at.
-    const { error: settleError } = await supabase.rpc('settle_payroll_run_deductions', { p_run_id: run.id });
-    if (settleError) {
-      // Revert to approved so the run isn't stuck as 'paid' with unsettled balances.
-      await supabase.from('payroll_runs').update({ status: 'approved' }).eq('id', run.id);
       toast({
-        title: 'Settlement failed — reverted to Approved',
-        description: `${settleError.message} — deduction/advance/loan balances were not updated. The run has been reverted so you can retry.`,
+        title: 'Could not record as paid',
+        description: `${error.message} Nothing was changed — the run is still Approved, so you can fix the problem and try again.`,
         variant: 'destructive',
       });
       load();
