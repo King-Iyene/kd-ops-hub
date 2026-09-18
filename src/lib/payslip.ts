@@ -311,6 +311,13 @@ export const renderPayslipHtml = (
       padding-bottom: 6px;
       border-bottom: 1px solid #e5e5e5;
     }
+    .section-note {
+      font-size: 11px; color: #a3a3a3; margin: -6px 0 10px;
+    }
+    .row-hint {
+      display: block; font-size: 10px; color: #a3a3a3; font-weight: 400;
+      margin-top: 1px;
+    }
 
     /* ─── Composition bar (subtle monochrome) ────────────── */
     .comp-bar {
@@ -585,9 +592,19 @@ export const renderPayslipHtml = (
         </table>
       </div>
 
-      <!-- Deductions -->
+      <!-- Deductions — split into Statutory & Compliance (required by law,
+           remitted to government/regulators) vs Other (debts against pay:
+           advances, loans, unpaid leave) so it's obvious at a glance which
+           deductions are non-negotiable tax/pension law and which are this
+           employee's own repayment schedule. -->
+      ${(() => {
+        const statutoryTotal = data.paye_ngn + data.pension_ngn + avc + data.nhf_ngn + nhis;
+        const statutoryYtd = data.ytd ? data.ytd.paye_ngn + data.ytd.pension_ngn + data.ytd.nhf_ngn + (data.ytd.nhis_ngn ?? 0) : 0;
+        const otherTotal = extraDeductTotal + unpaidLeaveDeduction;
+        return `
       <div class="section">
-        <div class="section-title">Deductions</div>
+        <div class="section-title">Statutory &amp; Compliance Deductions</div>
+        <p class="section-note">Required by Nigerian law — income tax and retirement/housing fund contributions remitted on your behalf.</p>
         <table>
           <thead>
             <tr>
@@ -597,22 +614,60 @@ export const renderPayslipHtml = (
             </tr>
           </thead>
           <tbody>
-            ${data.paye_ngn > 0 ? `<tr class="deduction"><td>PAYE Income Tax</td><td class="right tabular">${esc(formatNaira(data.paye_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.paye_ngn))}</td>` : ''}</tr>` : ''}
-            ${data.pension_ngn > 0 ? `<tr class="deduction"><td>Pension (8% of pensionable earnings)</td><td class="right tabular">${esc(formatNaira(data.pension_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.pension_ngn))}</td>` : ''}</tr>` : ''}
-            ${avc > 0 ? `<tr class="deduction"><td>AVC — Voluntary Pension (PRA 2014)</td><td class="right tabular">${esc(formatNaira(avc))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>` : ''}
-            ${data.nhf_ngn > 0 ? `<tr class="deduction"><td>NHF (2.5%)</td><td class="right tabular">${esc(formatNaira(data.nhf_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.nhf_ngn))}</td>` : ''}</tr>` : ''}
-            ${nhis > 0 ? `<tr class="deduction"><td>NHIS (Employee)</td><td class="right tabular">${esc(formatNaira(nhis))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.nhis_ngn ?? 0))}</td>` : ''}</tr>` : ''}
-            ${unpaidLeaveDeduction > 0 ? `<tr class="deduction"><td>Unpaid Leave (${esc(data.unpaid_leave_days ?? '')} day${data.unpaid_leave_days === 1 ? '' : 's'})</td><td class="right tabular">${esc(formatNaira(unpaidLeaveDeduction))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>` : ''}
-            ${extraDeductions.map((d) => `<tr class="deduction"><td>${esc(d.description)}</td><td class="right tabular">${esc(formatNaira(d.amount_ngn))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>`).join('')}
-            ${totalDeductions === 0 ? `<tr class="deduction"><td colspan="${data.ytd ? 3 : 2}" style="color:#a3a3a3;font-style:italic">No deductions applied</td></tr>` : ''}
+            ${data.paye_ngn > 0 ? `<tr class="deduction"><td>PAYE Income Tax<span class="row-hint">Income tax — remitted to your state tax authority</span></td><td class="right tabular">${esc(formatNaira(data.paye_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.paye_ngn))}</td>` : ''}</tr>` : ''}
+            ${data.pension_ngn > 0 ? `<tr class="deduction"><td>Pension (8% of pensionable earnings)<span class="row-hint">Your contribution to your retirement savings account (RSA)</span></td><td class="right tabular">${esc(formatNaira(data.pension_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.pension_ngn))}</td>` : ''}</tr>` : ''}
+            ${avc > 0 ? `<tr class="deduction"><td>AVC — Voluntary Pension (PRA 2014)<span class="row-hint">Extra, optional top-up to your pension</span></td><td class="right tabular">${esc(formatNaira(avc))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>` : ''}
+            ${data.nhf_ngn > 0 ? `<tr class="deduction"><td>NHF (2.5%)<span class="row-hint">National Housing Fund — builds eligibility for an NHF home loan</span></td><td class="right tabular">${esc(formatNaira(data.nhf_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.nhf_ngn))}</td>` : ''}</tr>` : ''}
+            ${nhis > 0 ? `<tr class="deduction"><td>NHIS (Employee)<span class="row-hint">Your share of national health insurance premiums</span></td><td class="right tabular">${esc(formatNaira(nhis))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.nhis_ngn ?? 0))}</td>` : ''}</tr>` : ''}
+            ${statutoryTotal === 0 ? `<tr class="deduction"><td colspan="${data.ytd ? 3 : 2}" style="color:#a3a3a3;font-style:italic">No statutory deductions this period</td></tr>` : ''}
             <tr class="subtotal">
-              <td>Total Deductions</td>
-              <td class="right tabular">${esc(formatNaira(totalDeductions))}</td>
-              ${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.paye_ngn + data.ytd.pension_ngn + data.ytd.nhf_ngn + (data.ytd.nhis_ngn ?? 0)))}</td>` : ''}
+              <td>Statutory Total</td>
+              <td class="right tabular">${esc(formatNaira(statutoryTotal))}</td>
+              ${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(statutoryYtd))}</td>` : ''}
             </tr>
           </tbody>
         </table>
       </div>
+
+      ${otherTotal > 0 ? `
+      <div class="section">
+        <div class="section-title">Other Deductions</div>
+        <p class="section-note">Repayments and one-off adjustments for this period — not statutory.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th class="right">Amount (NGN)</th>
+              ${data.ytd ? '<th class="right ytd">YTD (NGN)</th>' : ''}
+            </tr>
+          </thead>
+          <tbody>
+            ${unpaidLeaveDeduction > 0 ? `<tr class="deduction"><td>Unpaid Leave (${esc(data.unpaid_leave_days ?? '')} day${data.unpaid_leave_days === 1 ? '' : 's'})</td><td class="right tabular">${esc(formatNaira(unpaidLeaveDeduction))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>` : ''}
+            ${extraDeductions.map((d) => `<tr class="deduction"><td>${esc(d.description)}</td><td class="right tabular">${esc(formatNaira(d.amount_ngn))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>`).join('')}
+            <tr class="subtotal">
+              <td>Other Total</td>
+              <td class="right tabular">${esc(formatNaira(otherTotal))}</td>
+              ${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      ` : ''}
+
+      <div class="section">
+        <table>
+          <tbody>
+            ${totalDeductions === 0 ? `<tr class="deduction"><td colspan="${data.ytd ? 3 : 2}" style="color:#a3a3a3;font-style:italic">No deductions applied</td></tr>` : ''}
+            <tr class="subtotal">
+              <td>Total Deductions (Statutory + Other)</td>
+              <td class="right tabular">${esc(formatNaira(totalDeductions))}</td>
+              ${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(statutoryYtd))}</td>` : ''}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+        `;
+      })()}
 
       <!-- Net pay panel -->
       <div class="net-panel">
