@@ -61,7 +61,7 @@ export function CompliancePanel({
                     <button
                       type="button"
                       onClick={() => setExpanded(isOpen ? null : c.key)}
-                      className="mt-1 inline-flex min-h-[28px] items-center gap-1 text-2xs font-semibold text-primary"
+                      className="mt-1 inline-flex min-h-[32px] items-center gap-1 pr-2 text-2xs font-semibold text-primary"
                       aria-expanded={isOpen}
                     >
                       {isOpen ? 'Hide' : `Show ${c.names.length} ${c.names.length === 1 ? 'person' : 'people'}`}

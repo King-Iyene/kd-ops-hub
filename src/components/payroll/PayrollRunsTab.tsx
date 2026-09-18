@@ -797,7 +797,7 @@ function RunPayslipsSection({
           type="button"
           onClick={downloadAll}
           disabled={zipProgress !== null}
-          className="inline-flex min-h-[32px] items-center gap-1.5 rounded-md px-2 py-1 text-2xs font-semibold text-primary transition-colors hover:bg-primary/10 disabled:opacity-60"
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md px-2.5 py-1 text-2xs font-semibold text-primary transition-colors hover:bg-primary/10 disabled:opacity-60"
         >
           {zipProgress ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
           {zipProgress ?? 'Download all'}
