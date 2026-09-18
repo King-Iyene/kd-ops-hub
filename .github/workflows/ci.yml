@@ -25,13 +25,18 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # Pre-existing debt: ~205 tsc errors across unrelated files (Fleet,
-      # EmployeeProfile, useOfflineQueue, Placements, etc. — confirmed count
-      # as of the 2026-08 forensic review, drifting from the "~150" this
-      # comment previously said, which nothing was tracking), predating this
-      # workflow and out of scope for the security hardening in this change.
-      # Non-blocking until that debt is paid down; lint/test/build above and
-      # below stay hard gates.
+      # Pre-existing debt: 993 tsc errors across unrelated files (Fleet,
+      # EmployeeProfile, useOfflineQueue, Placements, etc.), predating this
+      # workflow. Non-blocking until that debt is paid down; lint/test/build
+      # above and below stay hard gates.
+      #
+      # The count is stated exactly because it is the only way to tell
+      # whether a change made things worse: `npm run typecheck 2>&1 |
+      # grep -c "error TS"` against your branch and against main should
+      # give the same number. This comment previously said "~150", then
+      # "~205"; both were stale, and a stale figure is worse than none —
+      # it invites you to assume your new errors are part of the backlog.
+      # Measured 2026-09-18 on d279492. If you change it, measure it.
       - name: Type-check
         run: npm run typecheck
         continue-on-error: true
