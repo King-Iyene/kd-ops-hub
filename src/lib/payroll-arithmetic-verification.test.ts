@@ -160,3 +160,53 @@ describe('NTA 2025 s.58 — national minimum wage exemption', () => {
     expect(r.payeMonthlyNgn).toBeGreaterThan(0);
   });
 });
+
+/**
+ * Does the payslip add up as printed?
+ *
+ * Every figure on a payslip is rounded to whole Naira on its own. Round the
+ * parts independently and the printed sum can land a Naira away from the
+ * printed total — which to the person holding it is simply an arithmetic
+ * error, and the one kind of mistake that costs trust instantly even though
+ * the amount is trivial.
+ *
+ * Swept rather than sampled: a rounding seam shows up at specific figures,
+ * not at the round numbers a hand-written test would reach for.
+ */
+describe('a payslip reconciles as printed', () => {
+  it('gross minus every deduction shown equals the net shown, across the salary range', () => {
+    const offenders: string[] = [];
+    let checked = 0;
+
+    for (let gross = 71_000; gross <= 2_000_000; gross += 1_237) {
+      for (const useComponents of [false, true]) {
+        const r = computePayslip({
+          grossMonthlyNgn: gross,
+          useComponents,
+          basicMonthlyNgn: Math.round(gross * 0.5),
+          housingMonthlyNgn: Math.round(gross * 0.2),
+          transportMonthlyNgn: Math.round(gross * 0.1),
+          nhfEnabled: true,
+          nhisEnabled: true,
+        });
+
+        const shownDeductions =
+          r.payeMonthlyNgn +
+          r.pensionEmployeeMonthlyNgn +
+          r.nhfMonthlyNgn +
+          r.nhisEmployeeMonthlyNgn +
+          r.voluntaryPensionMonthlyNgn +
+          r.unpaidLeaveDeductionMonthlyNgn;
+
+        checked++;
+        const drift = gross - shownDeductions - r.netMonthlyNgn;
+        if (drift !== 0 && offenders.length < 5) {
+          offenders.push(`gross ${gross}, components=${useComponents}, off by ${drift}`);
+        }
+      }
+    }
+
+    expect(checked).toBeGreaterThan(3_000);
+    expect(offenders).toEqual([]);
+  });
+});
