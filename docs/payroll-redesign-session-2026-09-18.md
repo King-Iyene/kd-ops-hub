@@ -165,6 +165,27 @@ employees sharing a name would produce an archive silently missing one of
 them. Collisions get a numeric suffix, compared case-insensitively since an
 extracted ZIP lands on a case-insensitive filesystem on Windows and macOS.
 
+### Adjustments after approval are now visible
+
+Per-employee adjustments feed payslip generation, and payslips are what
+disbursement pays. Nothing restricts when one can be added — `payslip_adjustments`
+RLS checks the caller's role and nothing else — so `approve → add adjustment →
+regenerate → disburse` pays a different total than was signed off, with no second
+approval.
+
+Whether to block that is a policy call for the business (a last-minute bonus is a
+legitimate thing to want), so this surfaces it rather than forbidding it: the run
+detail panel now says how many adjustments were added after approval and what they
+are worth, above the disbursement controls. Only detectable because `approved_at`
+now exists.
+
+### "Fix now" links land on the field that is wrong
+
+The brief asks for links that go *directly* to the fix. Employee profile tabs are
+now deep-linkable via `?tab=`, so the roster's bank-account link points at Job &
+Pay and every compliance warning links each named employee to their Statutory tab,
+where Tax ID, PenCom PIN, NHF and NHIS numbers live.
+
 ### Compliance check before approval
 
 The review step said what a run would cost but nothing about whether it was
@@ -213,7 +234,7 @@ the working shown.
 
 ## 4. How this was verified
 
-- **489 unit tests** across 29 files, all passing (was 447/25).
+- **502 unit tests** across 30 files, all passing (was 447/25).
 - **Lint** clean (0 errors).
 - **Typecheck** unchanged against the pre-session baseline: 993 pre-existing
   errors before and after, same 6 in `Payroll.tsx`, no newly-failing file.
