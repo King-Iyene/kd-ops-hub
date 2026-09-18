@@ -630,6 +630,7 @@ const Payroll = () => {
       // describe a different set of people than the one being paid.
       setComplianceChecks(buildComplianceChecks(
         (filteredEmployees as any[]).map((r) => ({
+          id: r.id,
           name: displayName(r.first_name, r.last_name, r.full_name || r.email),
           gross: r.use_salary_components
             ? Number(r.basic_ngn || 0) + Number(r.housing_ngn || 0) + Number(r.transport_ngn || 0) + Number(r.other_allowances_ngn || 0)

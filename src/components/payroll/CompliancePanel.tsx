@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { CheckCircle2, AlertTriangle, Info, MinusCircle, ChevronDown } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Info, MinusCircle, ChevronDown, ArrowUpRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import type { ComplianceCheck, ComplianceStatus } from '@/lib/payroll-compliance';
 
@@ -47,7 +48,7 @@ export function CompliancePanel({
       <ul className="divide-y divide-border/50">
         {checks.map((c) => {
           const Icon = ICON[c.status];
-          const canExpand = c.names.length > 0;
+          const canExpand = c.people.length > 0;
           const isOpen = expanded === c.key;
           return (
             <li key={c.key} className="px-3.5 py-2.5">
@@ -64,14 +65,30 @@ export function CompliancePanel({
                       className="mt-1 inline-flex min-h-[32px] items-center gap-1 pr-2 text-2xs font-semibold text-primary"
                       aria-expanded={isOpen}
                     >
-                      {isOpen ? 'Hide' : `Show ${c.names.length} ${c.names.length === 1 ? 'person' : 'people'}`}
+                      {isOpen ? 'Hide' : `Show ${c.people.length} ${c.people.length === 1 ? 'person' : 'people'}`}
                       <ChevronDown className={cn('h-3 w-3 transition-transform', isOpen && 'rotate-180')} />
                     </button>
                   )}
                   {canExpand && isOpen && (
                     <ul className="mt-1 space-y-0.5 pl-0.5">
-                      {c.names.map((n) => (
-                        <li key={n} className="text-2xs text-muted-foreground">{n}</li>
+                      {c.people.map((person, i) => (
+                        <li key={person.id ?? `${person.name}-${i}`} className="text-2xs">
+                          {person.id ? (
+                            // Straight to the tab that holds the missing field,
+                            // rather than the profile's default tab.
+                            <Link
+                              to={`/employees/${person.id}${c.fixTab ? `?tab=${c.fixTab}` : ''}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex min-h-[24px] items-center gap-1 text-primary hover:underline"
+                            >
+                              {person.name}
+                              <ArrowUpRight className="h-3 w-3 shrink-0" aria-hidden />
+                            </Link>
+                          ) : (
+                            <span className="text-muted-foreground">{person.name}</span>
+                          )}
+                        </li>
                       ))}
                     </ul>
                   )}

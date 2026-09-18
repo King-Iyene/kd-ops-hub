@@ -26,7 +26,7 @@ describe('buildComplianceChecks — PAYE', () => {
   it('passes when everyone has a Tax ID', () => {
     const c = find(buildComplianceChecks([emp(), emp({ name: 'Bo' })]), 'paye');
     expect(c.status).toBe('ok');
-    expect(c.names).toEqual([]);
+    expect(c.people).toEqual([]);
   });
 
   it('warns and names employees with no Tax ID', () => {
@@ -35,7 +35,7 @@ describe('buildComplianceChecks — PAYE', () => {
       'paye',
     );
     expect(c.status).toBe('warn');
-    expect(c.names).toEqual(['Bo']);
+    expect(c.people.map((p) => p.name)).toEqual(['Bo']);
   });
 
   it('accepts a legacy TIN in place of the newer Tax ID', () => {
@@ -62,7 +62,7 @@ describe('buildComplianceChecks — Pension', () => {
   it('warns when a contributor has no PIN, because it cannot be remitted', () => {
     const c = find(buildComplianceChecks([emp({ pension_pin: null })]), 'pension');
     expect(c.status).toBe('warn');
-    expect(c.names).toEqual(['Ada Okoro']);
+    expect(c.people.map((p) => p.name)).toEqual(['Ada Okoro']);
   });
 
   it('ignores a missing PIN for someone exempt from pension', () => {
@@ -71,7 +71,7 @@ describe('buildComplianceChecks — Pension', () => {
       'pension',
     );
     expect(c.status).toBe('ok');
-    expect(c.names).toEqual([]);
+    expect(c.people).toEqual([]);
     expect(c.summary).toContain('exempt');
   });
 
@@ -107,7 +107,7 @@ describe('buildComplianceChecks — NHF', () => {
       'nhf',
     );
     expect(c.status).toBe('warn');
-    expect(c.names).toEqual(['Ada Okoro']);
+    expect(c.people.map((p) => p.name)).toEqual(['Ada Okoro']);
   });
 });
 
@@ -155,6 +155,34 @@ describe('buildComplianceChecks — scope and edge cases', () => {
   it('uses singular wording for one employee', () => {
     const c = find(buildComplianceChecks([emp({ tax_id: null, tin: null })]), 'paye');
     expect(c.summary).toContain('1 has no Tax ID');
+  });
+
+  it('carries the employee id so the UI can link straight to their record', () => {
+    const c = find(
+      buildComplianceChecks([emp({ id: 'emp-1', tax_id: null, tin: null })]),
+      'paye',
+    );
+    expect(c.people).toEqual([{ id: 'emp-1', name: 'Ada Okoro' }]);
+  });
+
+  it('points fixes at the tab that actually holds the field', () => {
+    // Tax ID, PenCom PIN, NHF and NHIS numbers all live on the Statutory tab.
+    // Linking to the profile's default tab instead would make a one-click fix
+    // into a hunt.
+    const checks = buildComplianceChecks([
+      emp({ id: 'a', tax_id: null, tin: null, pension_pin: null,
+            nhf_enabled: true, nhf_number: null,
+            nhis_enabled: true, nhis_number: null }),
+    ]);
+    for (const key of ['paye', 'pension', 'nhf', 'nhis']) {
+      expect(find(checks, key).fixTab).toBe('statutory');
+    }
+  });
+
+  it('still works when no employee id is available', () => {
+    const c = find(buildComplianceChecks([emp({ tax_id: null, tin: null })]), 'paye');
+    expect(c.people[0].id).toBeUndefined();
+    expect(c.people[0].name).toBe('Ada Okoro');
   });
 
   it('uses plural wording for several', () => {

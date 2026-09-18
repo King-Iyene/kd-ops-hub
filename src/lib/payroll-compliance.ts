@@ -23,6 +23,12 @@
 
 export type ComplianceStatus = 'ok' | 'warn' | 'info' | 'off';
 
+export interface CompliancePerson {
+  /** Employee id, when known — lets the UI link straight to their record. */
+  id?: string;
+  name: string;
+}
+
 export interface ComplianceCheck {
   key: string;
   /** Short label, e.g. "Pension". */
@@ -31,10 +37,19 @@ export interface ComplianceCheck {
   /** One line a non-specialist can act on. */
   summary: string;
   /** Employees this concerns, for an expandable list. Empty when not useful. */
-  names: string[];
+  people: CompliancePerson[];
+  /**
+   * Which tab of an employee's profile fixes this, for a direct link. All of
+   * the identifiers checked here (Tax ID, PenCom PIN, NHF and NHIS numbers)
+   * live on the Statutory tab; sending someone to the profile's default tab
+   * instead turns a one-click fix into a hunt.
+   */
+  fixTab?: 'statutory' | 'job_pay';
 }
 
 export interface ComplianceEmployee {
+  /** Employee id, when known. */
+  id?: string;
   name: string;
   /** Gross pay for the period; 0 means nothing to deduct from. */
   gross: number;
@@ -86,12 +101,12 @@ export function buildComplianceChecks(
       label: 'PAYE tax',
       status: 'off',
       summary: 'Turned off for this run — no income tax will be deducted.',
-      names: [],
+      people: [],
     });
   } else {
     // NRS replaced the old TIN framework with a 13-digit Tax ID from Jan
     // 2026; either column may hold it depending on when the record was set up.
-    const noTaxId = payable.filter((e) => !e.tax_id && !e.tin).map((e) => e.name);
+    const noTaxId = payable.filter((e) => !e.tax_id && !e.tin).map((e) => ({ id: e.id, name: e.name }));
     checks.push({
       key: 'paye',
       label: 'PAYE tax',
@@ -99,7 +114,8 @@ export function buildComplianceChecks(
       summary: noTaxId.length > 0
         ? `Calculated for all ${total}, but ${noTaxId.length} ${plural(noTaxId.length, 'has', 'have')} no Tax ID on file — needed on the remittance schedule, not for the deduction itself.`
         : `Calculated for all ${total} ${plural(total, 'employee')} using the 2026 tax bands.`,
-      names: noTaxId,
+      people: noTaxId,
+      fixTab: 'statutory',
     });
   }
 
@@ -112,11 +128,11 @@ export function buildComplianceChecks(
       label: 'Pension',
       status: 'off',
       summary: 'Turned off for this run — no pension will be deducted or matched.',
-      names: [],
+      people: [],
     });
   } else {
     const contributing = payable.filter(pensionOn);
-    const noPin = contributing.filter((e) => !e.pension_pin).map((e) => e.name);
+    const noPin = contributing.filter((e) => !e.pension_pin).map((e) => ({ id: e.id, name: e.name }));
     const exempt = payable.length - contributing.length;
     checks.push({
       key: 'pension',
@@ -125,7 +141,8 @@ export function buildComplianceChecks(
       summary: noPin.length > 0
         ? `${contributing.length} contributing at 8% employee + 10% employer, but ${noPin.length} ${plural(noPin.length, 'is', 'are')} missing a PenCom PIN — their contribution cannot be remitted to a PFA.`
         : `${contributing.length} contributing at 8% employee + 10% employer${exempt > 0 ? `, ${exempt} exempt` : ''}. All have a PenCom PIN.`,
-      names: noPin,
+      people: noPin,
+      fixTab: 'statutory',
     });
   }
 
@@ -139,11 +156,11 @@ export function buildComplianceChecks(
       label: 'NHF',
       status: 'off',
       summary: 'Turned off for this run.',
-      names: [],
+      people: [],
     });
   } else {
     const contributing = payable.filter(nhfOn);
-    const noNumber = contributing.filter((e) => !e.nhf_number).map((e) => e.name);
+    const noNumber = contributing.filter((e) => !e.nhf_number).map((e) => ({ id: e.id, name: e.name }));
     checks.push({
       key: 'nhf',
       label: 'NHF',
@@ -153,7 +170,8 @@ export function buildComplianceChecks(
         : contributing.length === 0
           ? 'Nobody is enrolled. NHF has been voluntary for private-sector staff since 2022, so this is expected unless someone opts in.'
           : `${contributing.length} ${plural(contributing.length, 'employee')} contributing 2.5% of basic salary, all with an NHF number.`,
-      names: noNumber,
+      people: noNumber,
+      fixTab: 'statutory',
     });
   }
 
@@ -161,7 +179,7 @@ export function buildComplianceChecks(
   // NHIA Act 2022 s.26: 5% employee + 10% employer of basic, where enrolled.
   const nhisContributing = payable.filter(nhisOn);
   if (options.include_nhis !== false && nhisContributing.length > 0) {
-    const noNumber = nhisContributing.filter((e) => !e.nhis_number).map((e) => e.name);
+    const noNumber = nhisContributing.filter((e) => !e.nhis_number).map((e) => ({ id: e.id, name: e.name }));
     checks.push({
       key: 'nhis',
       label: 'NHIS',
@@ -169,7 +187,8 @@ export function buildComplianceChecks(
       summary: noNumber.length > 0
         ? `${nhisContributing.length} enrolled, but ${noNumber.length} ${plural(noNumber.length, 'has', 'have')} no NHIS number on file.`
         : `${nhisContributing.length} enrolled at 5% employee + 10% employer of basic.`,
-      names: noNumber,
+      people: noNumber,
+      fixTab: 'statutory',
     });
   }
 
@@ -185,7 +204,7 @@ export function buildComplianceChecks(
       label: 'NSITF & ITF',
       status: 'info',
       summary: 'Employer-paid, not deducted from anyone. NSITF is 1% of gross monthly payroll; ITF is 1% of annual payroll, due 1 April.',
-      names: [],
+      people: [],
     });
   }
 

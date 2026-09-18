@@ -143,7 +143,7 @@ function RosterRow({ e }: { e: RosterEmployee }) {
           <AlertTriangle className="h-3 w-3 shrink-0" />
           No bank account on file
           <Link
-            to={`/employees/${e.id}`}
+            to={`/employees/${e.id}?tab=job_pay`}
             target="_blank"
             rel="noopener noreferrer"
             className="ml-auto font-semibold text-primary hover:underline"

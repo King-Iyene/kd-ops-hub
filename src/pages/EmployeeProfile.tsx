@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { errorMessage } from '@/lib/db-errors';
 import { Loader2, ChevronDown, Camera, History } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
@@ -139,6 +139,18 @@ interface EmployeeData {
   voluntary_pension_pct: number | null;
 }
 
+/** Every tab on this page, and the vocabulary accepted by ?tab=. */
+const EMPLOYEE_PROFILE_TABS = [
+  'job_pay', 'personal', 'statutory', 'documents', 'tasks', 'logs', 'leave',
+  'expenses', 'payroll', 'increments', 'permissions', 'advances', 'deductions',
+  'offboarding', 'total_cost', 'placements',
+] as const;
+export type EmployeeProfileTab = (typeof EMPLOYEE_PROFILE_TABS)[number];
+
+function isEmployeeProfileTab(v: string | null): v is EmployeeProfileTab {
+  return !!v && (EMPLOYEE_PROFILE_TABS as readonly string[]).includes(v);
+}
+
 const EmployeeProfile = () => {
   usePageTitle('Employee Profile');
   const { id } = useParams<{ id: string }>();
@@ -232,7 +244,17 @@ const EmployeeProfile = () => {
     reason: '',
     effective_date: new Date().toISOString().slice(0, 10),
   });
-  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'statutory'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'|'permissions'|'advances'|'deductions'|'offboarding'|'total_cost'|'placements'>('job_pay');
+  // Tabs are deep-linkable via ?tab=, so something that already knows which
+  // field is wrong can send someone straight to it. Payroll's "Fix now" links
+  // use this: a missing bank account belongs on Job & Pay, a missing Tax ID or
+  // PenCom PIN on Statutory, and landing on the wrong one turns a one-click fix
+  // into a hunt. An unrecognised value falls back to the default rather than
+  // rendering nothing, since the parameter can come from anywhere.
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<EmployeeProfileTab>(() => {
+    const requested = searchParams.get('tab');
+    return isEmployeeProfileTab(requested) ? requested : 'job_pay';
+  });
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement>(null);
   const loadedTabs = useRef(new Set<string>());
