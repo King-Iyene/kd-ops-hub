@@ -7,6 +7,7 @@ import { useUndoStore } from '../../lib/undo';
 import { coerceValue } from '../../lib/csv';
 import { ColumnHeader } from './ColumnHeader';
 import { GridCell } from './GridCell';
+import { getCellRenderer } from './cell-renderers';
 import { EditFieldDialog } from '../EditFieldDialog';
 import { BulkActionsBar } from './BulkActionsBar';
 import { GridSkeleton } from './GridSkeleton';
@@ -1337,28 +1338,34 @@ export default function GridView({
             return (
               <div
                 key={record.id}
-                className="absolute left-0 right-0 p-3 space-y-1.5 active:opacity-70"
+                className="absolute left-0 right-0 px-4 py-3 space-y-1 active:opacity-70 transition-colors duration-150 hover:bg-[var(--grid-hover)]"
                 style={{
                   top: virtualItem.start,
                   height: virtualItem.size,
                   borderBottom: `1px solid ${GRID_COLORS.border}`,
-                }}
+                  '--grid-hover': `${GRID_COLORS.primary}08`,
+                } as React.CSSProperties}
                 onClick={() => onExpandRow?.(record)}
               >
                 {fieldsWithWidths.slice(0, 6).map((field) => {
                   const cellVal = record[field.pg_column_name];
                   const isEmpty = cellVal == null || cellVal === '';
-                  const formatted = isEmpty ? '' : formatCellAriaValue(record, field);
+                  const useRenderer = !isEmpty && ['SingleSelect', 'MultiSelect', 'Checkbox', 'Rating', 'Percent', 'Links', 'Attachment', 'URL', 'Email'].includes(field.ui_type);
+                  const CellRenderer = useRenderer ? getCellRenderer(field.ui_type) : null;
                   return (
-                    <div key={field.id} className="flex justify-between gap-3 text-sm">
+                    <div key={field.id} className="flex justify-between items-center gap-3 text-sm min-h-[22px]">
                       <span className="shrink-0 font-medium" style={{ color: GRID_COLORS.muted, fontSize: 11 }}>
                         {field.name}
                       </span>
                       {isEmpty ? (
-                        <span className="text-right truncate italic" style={{ color: `${GRID_COLORS.muted}80`, fontSize: 12 }}>—</span>
+                        <span className="text-right italic" style={{ color: `${GRID_COLORS.muted}60`, fontSize: 12 }}>—</span>
+                      ) : CellRenderer ? (
+                        <div className="flex-1 flex justify-end overflow-hidden">
+                          <CellRenderer value={cellVal} field={field} record={record} rowHeight="short" />
+                        </div>
                       ) : (
-                        <span className="text-right truncate" style={{ color: GRID_COLORS.text }}>
-                          {formatted}
+                        <span className="text-right truncate" style={{ color: GRID_COLORS.text, fontSize: 13 }}>
+                          {formatCellAriaValue(record, field)}
                         </span>
                       )}
                     </div>
