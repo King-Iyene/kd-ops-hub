@@ -210,3 +210,84 @@ describe('a payslip reconciles as printed', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+/**
+ * Per-employee statutory switches.
+ *
+ * Every one of these is exposed per employee, because real payrolls have
+ * exemptions: someone already contributing to a scheme elsewhere, a
+ * non-resident, a director outside NHF. The switches are easy to get right
+ * on the line they name and easy to get wrong everywhere else, so what is
+ * pinned here is the side effects:
+ *
+ *   - switching off an employee contribution must also stop the EMPLOYER
+ *     being charged its matching share; billing the company for a scheme
+ *     nobody is enrolled in is money out the door for nothing.
+ *   - pension, NHF and NHIS are deductible before tax, so switching one off
+ *     must RAISE PAYE. If it does not, the deduction was never reaching the
+ *     chargeable-income calculation in the first place.
+ *   - NSITF is an employer levy with no per-employee opt-out, so it must
+ *     survive every switch being off.
+ */
+describe('per-employee statutory switches', () => {
+  const base = {
+    grossMonthlyNgn: 450_000,
+    useComponents: true,
+    basicMonthlyNgn: 225_000,
+    housingMonthlyNgn: 90_000,
+    transportMonthlyNgn: 45_000,
+    nhfEnabled: true,
+    nhisEnabled: true,
+  };
+  const allOn = computePayslip(base);
+
+  it('switches PAYE off without disturbing anything else', () => {
+    const r = computePayslip({ ...base, payeEnabled: false });
+    expect(r.payeMonthlyNgn).toBe(0);
+    expect(r.pensionEmployeeMonthlyNgn).toBe(allOn.pensionEmployeeMonthlyNgn);
+    expect(r.nhfMonthlyNgn).toBe(allOn.nhfMonthlyNgn);
+  });
+
+  it('stops charging the employer when the employee is out of pension', () => {
+    const r = computePayslip({ ...base, pensionEnabled: false });
+    expect(r.pensionEmployeeMonthlyNgn).toBe(0);
+    expect(r.pensionEmployerMonthlyNgn).toBe(0);
+    // Pension is deductible, so losing it makes more income chargeable.
+    expect(r.payeMonthlyNgn).toBeGreaterThan(allOn.payeMonthlyNgn);
+  });
+
+  it('stops charging the employer when the employee is out of NHIS', () => {
+    const r = computePayslip({ ...base, nhisEnabled: false });
+    expect(r.nhisEmployeeMonthlyNgn).toBe(0);
+    expect(r.nhisEmployerMonthlyNgn).toBe(0);
+    expect(r.payeMonthlyNgn).toBeGreaterThan(allOn.payeMonthlyNgn);
+  });
+
+  it('raises PAYE when NHF is switched off', () => {
+    const r = computePayslip({ ...base, nhfEnabled: false });
+    expect(r.nhfMonthlyNgn).toBe(0);
+    expect(r.payeMonthlyNgn).toBeGreaterThan(allOn.payeMonthlyNgn);
+  });
+
+  it('pays the full gross when every switch is off', () => {
+    const r = computePayslip({
+      ...base,
+      payeEnabled: false,
+      pensionEnabled: false,
+      nhfEnabled: false,
+      nhisEnabled: false,
+    });
+    expect(r.netMonthlyNgn).toBe(450_000);
+  });
+
+  it('keeps NSITF, which is an employer levy and not a per-employee choice', () => {
+    const r = computePayslip({
+      ...base,
+      payeEnabled: false,
+      pensionEnabled: false,
+      nhfEnabled: false,
+      nhisEnabled: false,
+    });
+    expect(r.nsitfMonthlyNgn).toBe(4_500); // 1% of NGN 450,000
+  });
+});
