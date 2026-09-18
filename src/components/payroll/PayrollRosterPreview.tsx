@@ -23,7 +23,37 @@ type RosterEmployee = SegmentableEmployee & {
   status: string | null;
   salary_ngn: number | null;
   bank_account_number: string | null;
+  use_salary_components: boolean | null;
+  basic_ngn: number | null;
+  housing_ngn: number | null;
+  transport_ngn: number | null;
+  other_allowances_ngn: number | null;
 };
+
+/**
+ * What this person is actually paid a month.
+ *
+ * Everywhere else that decides who gets paid derives gross this way — from
+ * the components when the employee is on the components plan, from
+ * salary_ngn otherwise. This panel used to read salary_ngn alone, which is
+ * correct only while salary_ngn is kept equal to the components total.
+ *
+ * It is, today: the compensation form writes the computed gross into
+ * salary_ngn on every save, and the CSV import only ever creates flat-salary
+ * employees. But nothing at the database level enforces it, and the failure
+ * mode if it ever breaks is the worst kind here — a components employee with
+ * salary_ngn of 0 is silently binned as "No salary configured" and quietly
+ * not paid, on the very screen whose job is to show who is getting paid.
+ * Deriving it the same way as everyone else removes the dependency rather
+ * than trusting it.
+ */
+const grossOf = (e: RosterEmployee): number =>
+  e.use_salary_components
+    ? Number(e.basic_ngn || 0)
+      + Number(e.housing_ngn || 0)
+      + Number(e.transport_ngn || 0)
+      + Number(e.other_allowances_ngn || 0)
+    : Number(e.salary_ngn || 0);
 
 type ExclusionReason = 'inactive' | 'driver' | 'no_salary' | 'segment' | 'other_company';
 
@@ -65,7 +95,7 @@ function useRoster(rules: PayrollSegmentFilterRules | null, companyId?: string |
       while (true) {
         const { data } = await supabase
           .from('profiles')
-          .select('id, full_name, first_name, last_name, email, role, status, salary_ngn, bank_account_number, department_id, employment_type, pay_group_id')
+          .select('id, full_name, first_name, last_name, email, role, status, salary_ngn, bank_account_number, department_id, employment_type, pay_group_id, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn')
           .range(from, from + PAGE_SIZE - 1);
         if (cancelled) return;
         const rows = (data || []) as RosterEmployee[];
@@ -99,14 +129,14 @@ function useRoster(rules: PayrollSegmentFilterRules | null, companyId?: string |
       if ((e.status ?? 'active') !== 'active') reason = 'inactive';
       else if (e.role === 'driver') reason = 'driver';
       else if (companyId && payGroupCompanyById[e.pay_group_id ?? ''] !== companyId) reason = 'other_company';
-      else if (!e.salary_ngn || Number(e.salary_ngn) <= 0) reason = 'no_salary';
+      else if (grossOf(e) <= 0) reason = 'no_salary';
       else if (rules && !matchesSegment(e, rules)) reason = 'segment';
 
       if (reason) excludedByReason[reason].push(e);
       else included.push(e);
     }
     const missingBankDetails = included.filter((e) => !e.bank_account_number);
-    const totalNgn = included.reduce((s, e) => s + Number(e.salary_ngn || 0), 0);
+    const totalNgn = included.reduce((s, e) => s + grossOf(e), 0);
     return { loading, included, excludedByReason, missingBankDetails, totalNgn };
   }, [employees, rules, loading, companyId, payGroupCompanyById]);
 }
@@ -137,7 +167,7 @@ function RosterRow({ e }: { e: RosterEmployee }) {
         {initials(name)}
       </span>
       <span className="min-w-0 truncate text-foreground" title={name}>{name}</span>
-      <span className="shrink-0 tabular-nums text-muted-foreground text-right w-[92px]">{formatNaira(e.salary_ngn)}</span>
+      <span className="shrink-0 tabular-nums text-muted-foreground text-right w-[92px]">{formatNaira(grossOf(e))}</span>
       {missingBank && (
         <span className="col-start-2 col-span-2 -mt-0.5 flex items-center gap-1 text-2xs text-warning">
           <AlertTriangle className="h-3 w-3 shrink-0" />
