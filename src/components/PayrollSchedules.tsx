@@ -1992,7 +1992,7 @@ function humaniseVarianceReason(reason: string): string {
 
 // ─── NextPayrollBanner ────────────────────────────────────────────────────────
 
-export function NextPayrollBanner({ onStartDraft, companyId }: { onStartDraft?: () => void; companyId?: string | null }) {
+export function NextPayrollBanner({ onStartDraft, companyId, companyName }: { onStartDraft?: () => void; companyId?: string | null; companyName?: string }) {
   const [next, setNext] = useState<{ date: Date; scheduleName: string; draftDate: Date; holiday: string | null } | null>(null);
   const [variance, setVariance] = useState<{ severity: 'warning' | 'critical'; runId: string; reason: string } | null>(null);
   const [nextPeriodHasDraft, setNextPeriodHasDraft] = useState(false);
@@ -2077,7 +2077,7 @@ export function NextPayrollBanner({ onStartDraft, companyId }: { onStartDraft?: 
           <CalendarClock className="h-4 w-4 shrink-0 opacity-90" />
           <div className="flex-1 min-w-0 text-xs">
             <span className="font-semibold">
-              {next.scheduleName} payroll due {daysUntil(next.date) === 0 ? 'today' : daysUntil(next.date) === 1 ? 'tomorrow' : `in ${daysUntil(next.date)}d`}
+              {companyName || next.scheduleName} payroll due {daysUntil(next.date) === 0 ? 'today' : daysUntil(next.date) === 1 ? 'tomorrow' : `in ${daysUntil(next.date)}d`}
             </span>
             <span className="opacity-75">
               {' '}({formatDate(next.date)})

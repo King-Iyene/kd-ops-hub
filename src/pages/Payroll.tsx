@@ -2593,7 +2593,7 @@ const Payroll = () => {
         </div>
       </div>
 
-      <NextPayrollBanner onStartDraft={openNewDraft} companyId={isAllCompanies ? null : selectedCompanyId} />
+      <NextPayrollBanner onStartDraft={openNewDraft} companyId={isAllCompanies ? null : selectedCompanyId} companyName={companies.find((c) => c.id === selectedCompanyId)?.name} />
 
       <Tabs defaultValue="dashboard">
         <TabsList className="h-9 bg-transparent border-b border-border/50 rounded-none w-full justify-start gap-0 p-0 overflow-x-auto scrollbar-none">

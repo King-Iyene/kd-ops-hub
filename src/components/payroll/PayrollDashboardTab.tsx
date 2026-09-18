@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Wallet, Users2, CalendarClock, Layers, BarChart3 } from 'lucide-react';
+import { ArrowRight, Wallet, Users2, CalendarClock, Layers, BarChart3, AlertTriangle, CheckCircle2, Clock, FileText } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -200,12 +200,30 @@ export function PayrollDashboardTab({
 
   const runsThisYear = runs.filter((r) => r.period.startsWith(String(new Date().getFullYear()))).length;
 
+  const attentionCount = useMemo(
+    () => runs.filter((r) => r.status === 'draft' || r.status === 'pending_approval').length,
+    [runs],
+  );
+
   return (
     <div className="space-y-3 sm:space-y-6">
-      {/* ── Greeting ──────────────────────────────────────────────── */}
-      <div>
-        <h2 className="text-xl font-bold tracking-tight">{greeting}, {firstName}</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Here's where payroll stands right now.</p>
+      {/* ── Greeting + quick status ─────────────────────────────── */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight">{greeting}, {firstName}</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Here's where payroll stands right now.</p>
+        </div>
+        {attentionCount > 0 ? (
+          <div className="flex items-center gap-2 rounded-full border border-warning/30 bg-warning/10 px-3 py-1.5 text-xs font-semibold text-warning">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {attentionCount} item{attentionCount !== 1 ? 's' : ''} need{attentionCount === 1 ? 's' : ''} attention
+          </div>
+        ) : runs.length > 0 ? (
+          <div className="flex items-center gap-2 rounded-full border border-success/30 bg-success/10 px-3 py-1.5 text-xs font-semibold text-success">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            All clear
+          </div>
+        ) : null}
       </div>
 
       {/* ── Hero + KPIs ───────────────────────────────────────────── */}
@@ -292,6 +310,44 @@ export function PayrollDashboardTab({
         </div>
       </div>
 
+      {/* ── Attention items (Deel-style pre-approval flags) ───── */}
+      {attentionCount > 0 && (
+        <Card className="border-warning/20 bg-warning/5">
+          <CardContent className="p-4 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <p className="text-sm font-semibold">Needs your attention</p>
+            </div>
+            {runs.filter((r) => r.status === 'draft').map((r) => (
+              <button key={r.id} type="button" onClick={() => onOpenRun(r.id)} className="flex w-full items-center gap-3 rounded-lg border border-border/40 bg-card px-3.5 py-2.5 text-left hover:bg-muted/40 transition-colors">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted-foreground/10">
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold">{monthLabel(r.period)} draft</p>
+                  <p className="text-2xs text-muted-foreground">Review the numbers and submit for approval</p>
+                </div>
+                <p className="text-xs font-semibold tabular-nums shrink-0">{formatNairaCompact(r.total_burn_ngn)}</p>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+              </button>
+            ))}
+            {runs.filter((r) => r.status === 'pending_approval').map((r) => (
+              <button key={r.id} type="button" onClick={() => onOpenRun(r.id)} className="flex w-full items-center gap-3 rounded-lg border border-border/40 bg-card px-3.5 py-2.5 text-left hover:bg-muted/40 transition-colors">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-warning/10">
+                  <Clock className="h-3.5 w-3.5 text-warning" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold">{monthLabel(r.period)} awaiting approval</p>
+                  <p className="text-2xs text-muted-foreground">Ready for review — approve to lock it in</p>
+                </div>
+                <p className="text-xs font-semibold tabular-nums shrink-0">{formatNairaCompact(r.total_burn_ngn)}</p>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* ── Trend + Roster ────────────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-12">
         {/* Burn history — 8 cols */}
@@ -377,6 +433,11 @@ export function PayrollDashboardTab({
                 </div>
               ))}
             </div>
+            {whoGetsPaid.length > 0 && headcount != null && headcount > whoGetsPaid.length && (
+              <p className="text-2xs text-muted-foreground text-center pt-2 border-t border-border/40 mt-3">
+                + {headcount - whoGetsPaid.length} more employee{headcount - whoGetsPaid.length !== 1 ? 's' : ''}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
