@@ -21,6 +21,12 @@ const PAGES: { path: string; name: string; width: number; height: number }[] = [
   { path: '/tasks', name: 'tasks-desktop', width: 1440, height: 900 },
   { path: '/dashboard', name: 'dashboard-mobile', width: 390, height: 844 },
   { path: '/attendance', name: 'attendance-mobile', width: 390, height: 844 },
+  // Payroll last, and deliberately so: a reader pulling these out of the job
+  // log can ask the API for just the tail and get these two without the
+  // preceding images, which matters when each one is a base64 blob. Keep any
+  // new entries above these two rather than after them.
+  { path: '/payroll', name: 'payroll-desktop', width: 1440, height: 900 },
+  { path: '/payroll', name: 'payroll-mobile', width: 390, height: 844 },
 ];
 
 test('print curated screenshots as base64 to the job log', async ({ page }) => {
