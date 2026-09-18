@@ -1,12 +1,23 @@
-import { Check, Lock, Sparkles } from 'lucide-react';
+import { Check, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// The 4 real backend states a payroll_run can actually be in, in order.
-// Matches runStepIndex()'s mapping: approved and processing share a step
-// since "Approve" is the human action — processing is what happens right
-// after, not a separate stage a person waits in.
-const REAL_STEPS = ['Draft', 'Review', 'Approve', 'Paid'] as const;
+// The four stages a payroll run actually moves through, in order.
+//
+// The backend has more statuses than this (`pending_approval`, `processing`)
+// but those are plumbing, not stages a person waits in:
+//   • "Calculated" is not a stage — totals are computed on the way from Draft
+//     to Review, automatically. There is nothing for a user to do about it, so
+//     showing it as a step only invites the question "why is it stuck there?"
+//   • "Locked" is not a stage either — a paid run is immutable the instant it
+//     hits 'paid' (trg_fn_lock_paid_payroll_run enforces that in the database).
+//     It is a property of Paid, shown as the padlock on the final step, not a
+//     fifth thing to wait for.
+// Keeping the rail to the four states a person can actually act on is what
+// makes it readable at a glance. This matches the compact 4-dot indicator in
+// PayrollRunsTab, which already described runs as "Stage N of 4".
+const STEPS = ['Draft', 'Review', 'Approved', 'Paid'] as const;
 
+/** Index into STEPS for a backend status, or -1 for rejected/cancelled/unknown. */
 export function realStepIndex(status: string): number {
   if (status === 'draft') return 0;
   if (status === 'pending_approval') return 1;
@@ -15,49 +26,19 @@ export function realStepIndex(status: string): number {
   return -1; // rejected/cancelled/unknown — no rail, a badge alone is enough
 }
 
-type RailPosition =
-  | { kind: 'real'; label: string; state: 'done' | 'current' | 'todo' }
-  | { kind: 'planned'; label: string };
-
-/**
- * Full target-state lifecycle: Draft → Calculated → Review → Approve →
- * Paid → Locked. "Calculated" has no backend state behind it yet and is
- * shown as a permanently dashed, non-interactive "planned" marker so the
- * rail is honest about what a run can actually be "at" right now, while
- * still showing where this is headed.
- *
- * "Locked" is different: a paid run is ALREADY immutable the instant it
- * hits 'paid' (trg_fn_lock_paid_payroll_run enforces this at the database
- * level — no separate "locked" status exists because none is needed). So
- * once a run is paid, this step reflects that reality instead of dangling
- * as a permanently-unfinished dashed step next to a run with nothing left
- * to do — which read as broken/incomplete to a real user watching for it.
- * For any run that isn't paid yet, it still shows as the planned, not-yet-
- * true marker.
- */
-function buildPositions(status: string): RailPosition[] {
-  const current = realStepIndex(status);
-  const real = (label: string, i: number): RailPosition =>
-    current < 0
-      ? { kind: 'real', label, state: 'todo' }
-      : { kind: 'real', label, state: i < current ? 'done' : i === current ? 'current' : 'todo' };
-
-  return [
-    real(REAL_STEPS[0], 0),
-    { kind: 'planned', label: 'Calculated' },
-    real(REAL_STEPS[1], 1),
-    real(REAL_STEPS[2], 2),
-    real(REAL_STEPS[3], 3),
-    status === 'paid'
-      ? { kind: 'real', label: 'Locked', state: 'done' }
-      : { kind: 'planned', label: 'Locked' },
-  ];
-}
+/** What each stage means, surfaced on hover so the rail teaches as it shows. */
+const STEP_HINT: Record<(typeof STEPS)[number], string> = {
+  Draft: 'Being prepared. Figures can still change and nobody has been paid.',
+  Review: 'Submitted for checking. Totals are calculated and waiting on a reviewer.',
+  Approved: 'Signed off and cleared for payment. Not disbursed yet.',
+  Paid: 'Money has gone out. The run is locked — corrections go through a new adjustment run.',
+};
 
 export function PayrollLifecycleRail({
   status,
   className,
   variant = 'light',
+  size = 'sm',
 }: {
   status: string;
   className?: string;
@@ -65,66 +46,80 @@ export function PayrollLifecycleRail({
       the default light-mode tokens (text-muted-foreground etc.) are tuned
       against a light card background and go low-contrast on a dark one. */
   variant?: 'light' | 'dark';
+  /** 'lg' is for the top of a run's own page, where this is the primary
+      wayfinding element and needs to be readable across the room. */
+  size?: 'sm' | 'lg';
 }) {
   const current = realStepIndex(status);
   if (current < 0) return null;
-  const positions = buildPositions(status);
+
   const dark = variant === 'dark';
+  const lg = size === 'lg';
 
   return (
     <div className={className}>
-      <div className="flex items-start">
-        {positions.map((p, i) => (
-          <div key={p.label} className="relative flex flex-1 flex-col items-center gap-1.5">
-            {i > 0 && (
-              <div
-                className={cn(
-                  'absolute top-[11px] right-1/2 h-0.5 w-full -z-0',
-                  p.kind === 'planned' || positions[i - 1].kind === 'planned'
-                    ? dark
-                      ? 'bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.25)_0_5px,transparent_5px_8px)]'
-                      : 'bg-[repeating-linear-gradient(90deg,hsl(var(--border))_0_5px,transparent_5px_8px)]'
-                    : (p.kind === 'real' && p.state !== 'todo') ? 'bg-success' : dark ? 'bg-white/15' : 'bg-border',
-                )}
-              />
-            )}
-            {p.kind === 'planned' ? (
-              <span
-                className={cn(
-                  'relative z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 border-dashed',
-                  dark ? 'border-white/25 bg-white/10 text-white/50' : 'border-border bg-muted text-muted-foreground',
-                )}
-                title={`${p.label} — design-only, not a state a run can be in today`}
-              >
-                {p.label === 'Locked' ? <Lock className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
-              </span>
-            ) : (
-              <span
-                className={cn(
-                  'relative z-10 flex h-6 w-6 items-center justify-center rounded-full text-3xs font-bold',
-                  p.state === 'done' ? 'bg-success text-success-foreground'
-                    : p.state === 'current' ? (dark ? 'bg-secondary text-[#00283d]' : 'bg-primary text-primary-foreground')
-                    : dark ? 'bg-white/10 text-white/40' : 'bg-muted text-muted-foreground',
-                )}
-              >
-                {p.state === 'done' ? (p.label === 'Locked' ? <Lock className="h-3 w-3" /> : <Check className="h-3 w-3" />) : null}
-              </span>
-            )}
-            <span
-              className={cn(
-                'text-center text-3xs font-medium leading-tight',
-                p.kind === 'planned'
-                  ? dark ? 'text-white/35' : 'text-muted-foreground/60'
-                  : p.state !== 'todo'
-                    ? dark ? 'text-white' : 'text-foreground'
-                    : dark ? 'text-white/45' : 'text-muted-foreground',
-              )}
+      <ol className="flex items-start">
+        {STEPS.map((label, i) => {
+          const state = i < current ? 'done' : i === current ? 'current' : 'todo';
+          const isPaidStep = label === 'Paid';
+          return (
+            <li
+              key={label}
+              className="relative flex flex-1 flex-col items-center gap-1.5"
+              aria-current={state === 'current' ? 'step' : undefined}
+              title={STEP_HINT[label]}
             >
-              {p.label}
-            </span>
-          </div>
-        ))}
-      </div>
+              {i > 0 && (
+                <div
+                  className={cn(
+                    'absolute right-1/2 -z-0 w-full',
+                    lg ? 'top-[15px] h-1' : 'top-[11px] h-0.5',
+                    state !== 'todo' ? 'bg-success' : dark ? 'bg-white/15' : 'bg-border',
+                  )}
+                />
+              )}
+              <span
+                className={cn(
+                  'relative z-10 flex items-center justify-center rounded-full font-bold',
+                  lg ? 'h-8 w-8 text-2xs' : 'h-6 w-6 text-3xs',
+                  state === 'done'
+                    ? 'bg-success text-success-foreground'
+                    : state === 'current'
+                      ? dark
+                        ? 'bg-secondary text-[#00283d]'
+                        : 'bg-primary text-primary-foreground'
+                      : dark
+                        ? 'bg-white/10 text-white/40'
+                        : 'bg-muted text-muted-foreground',
+                )}
+              >
+                {state === 'done' ? (
+                  isPaidStep ? (
+                    <Lock className={lg ? 'h-4 w-4' : 'h-3 w-3'} />
+                  ) : (
+                    <Check className={lg ? 'h-4 w-4' : 'h-3 w-3'} />
+                  )
+                ) : null}
+              </span>
+              <span
+                className={cn(
+                  'text-center font-medium leading-tight',
+                  lg ? 'text-xs' : 'text-3xs',
+                  state !== 'todo'
+                    ? dark
+                      ? 'text-white'
+                      : 'text-foreground'
+                    : dark
+                      ? 'text-white/45'
+                      : 'text-muted-foreground',
+                )}
+              >
+                {label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
