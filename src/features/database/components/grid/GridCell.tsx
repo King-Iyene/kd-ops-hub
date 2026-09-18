@@ -192,13 +192,15 @@ export const GridCell = React.memo(function GridCell({
         borderBottom: `1px solid ${GRID_COLORS.border}`,
         backgroundColor: isEditing ? GRID_COLORS.cellEditBg : frozen ? (rowBg ?? GRID_COLORS.bg) : (backgroundColor || (isSystemField ? GRID_COLORS.headerBg : undefined)),
         outline: isSelected ? `2px solid ${GRID_COLORS.primary}` : 'none',
-        boxShadow: isEditing ? `inset 0 0 0 2px ${GRID_COLORS.primary}` : undefined,
+        boxShadow: isEditing
+          ? `inset 0 0 0 2px ${GRID_COLORS.primary}${frozen ? ', 4px 0 8px rgba(0,0,0,0.08)' : ''}`
+          : frozen ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
         outlineOffset: -1,
         cursor: isSystemField ? 'default' : 'cell',
         fontSize: 13,
         lineHeight: '18px',
         color: GRID_COLORS.text,
-        ...(frozen ? { left: frozenLeft, boxShadow: '4px 0 8px rgba(0,0,0,0.08)' } : {}),
+        ...(frozen ? { left: frozenLeft } : {}),
       }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
