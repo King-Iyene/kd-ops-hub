@@ -143,6 +143,7 @@ export interface PayrollDialogsProps {
   segmentSaving: boolean;
   segmentDepartments: { id: string; name: string }[];
   segmentPayGroups: { id: string; name: string; company_id: string; frequency: string | null; memberCount: number; payableCount: number }[];
+  selectedCompanyId?: string;
   selectedCompanyName?: string;
   selectedCompanyColor?: string;
   segmentLiveRules: PayrollSegmentFilterRules;
@@ -227,6 +228,7 @@ export const PayrollDialogs = ({
   segmentSaving,
   segmentDepartments,
   segmentPayGroups,
+  selectedCompanyId,
   selectedCompanyName,
   selectedCompanyColor,
   segmentLiveRules,
@@ -516,7 +518,7 @@ export const PayrollDialogs = ({
 
                   <div className="space-y-1">
                     <Label>Who gets paid <span className="font-normal text-muted-foreground">— everyone matching is included by default</span></Label>
-                    <PayrollRosterPreview payrollSegmentId={form.payroll_segment_id} defaultExpanded />
+                    <PayrollRosterPreview payrollSegmentId={form.payroll_segment_id} companyId={selectedCompanyId} defaultExpanded />
                   </div>
                 </>
               );
@@ -799,7 +801,7 @@ export const PayrollDialogs = ({
 
               <div className="space-y-1">
                 <Label className="text-xs">Who this matches right now</Label>
-                <PayrollRosterPreview rulesOverride={segmentLiveRules} defaultExpanded />
+                <PayrollRosterPreview rulesOverride={segmentLiveRules} companyId={selectedCompanyId} defaultExpanded />
               </div>
 
               <Button size="sm" onClick={saveSegment} disabled={segmentSaving || !segmentForm.name.trim()}>

@@ -45,12 +45,17 @@ interface WhoGetsPaidRow {
 export function PayrollDashboardTab({
   runs,
   trend,
+  selectedCompanyId,
+  companyPayGroupIds,
   monthLabel,
   onOpenRun,
   onNewDraft,
 }: {
   runs: PayrollRunLite[];
   trend: { label: string; burn: number }[];
+  /** Which company's pay groups to scope "Pay groups" and "Who gets paid" to. */
+  selectedCompanyId?: string;
+  companyPayGroupIds: string[];
   monthLabel: (period: string, periodType?: string) => string;
   onOpenRun: (runId: string) => void;
   onNewDraft: () => void;
@@ -70,10 +75,15 @@ export function PayrollDashboardTab({
 
   useEffect(() => {
     let cancelled = false;
+    setPayGroupCount(null);
+    setNextPayDate(null);
+    setWhoGetsPaid([]);
+    if (!selectedCompanyId) return;
     (async () => {
       setLoadingExtras(true);
+      const safePayGroupIds = companyPayGroupIds.length > 0 ? companyPayGroupIds : ['00000000-0000-0000-0000-000000000000'];
       const [groupsRes, schedulesRes, expectedRes, roster] = await Promise.all([
-        supabase.from('pay_groups').select('id', { count: 'exact', head: true }).eq('is_active', true),
+        supabase.from('pay_groups').select('id', { count: 'exact', head: true }).eq('is_active', true).eq('company_id', selectedCompanyId),
         supabase.from('pay_schedules').select('id').eq('is_active', true).order('created_at', { ascending: true }),
         // "In" this period — approved & unbudgeted income the company expects,
         // reused from expenses/invoices would be a stretch; the honest, already
@@ -81,10 +91,11 @@ export function PayrollDashboardTab({
         supabase.from('company_settings').select('id').limit(1),
         supabase
           .from('profiles')
-          .select('id, full_name, first_name, last_name, email, photo_url, role, salary_ngn')
+          .select('id, full_name, first_name, last_name, email, photo_url, role, salary_ngn, pay_group_id')
           .eq('status', 'active')
           .neq('role', 'driver')
           .gt('salary_ngn', 0)
+          .in('pay_group_id', safePayGroupIds)
           .order('salary_ngn', { ascending: false })
           .limit(6),
       ]);
@@ -106,6 +117,7 @@ export function PayrollDashboardTab({
       }
       if (!cancelled) setNextPayDate(earliest);
 
+      if (cancelled) return;
       setWhoGetsPaid(
         ((roster.data || []) as any[]).map((r) => ({
           id: r.id,
@@ -129,10 +141,10 @@ export function PayrollDashboardTab({
       } else {
         setInflow(null);
       }
-      setLoadingExtras(false);
+      if (!cancelled) setLoadingExtras(false);
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [selectedCompanyId, companyPayGroupIds]);
 
   const firstName = profile?.full_name?.split(' ')?.[0] || 'there';
   const greetingHour = new Date().getHours();

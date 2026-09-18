@@ -25,13 +25,14 @@ type RosterEmployee = SegmentableEmployee & {
   bank_account_number: string | null;
 };
 
-type ExclusionReason = 'inactive' | 'driver' | 'no_salary' | 'segment';
+type ExclusionReason = 'inactive' | 'driver' | 'no_salary' | 'segment' | 'other_company';
 
 const REASON_LABEL: Record<ExclusionReason, string> = {
   inactive: 'Inactive',
   driver: 'Fleet Staff role (paid via Fleet, not Payroll)',
   no_salary: 'No salary configured (₦0 or empty)',
   segment: 'Outside the selected payroll segment',
+  other_company: 'Not part of the selected company',
 };
 
 // Same rotating palette the Pay Groups admin screen and the wizard's pay-
@@ -47,9 +48,13 @@ const AVATAR_COLOURS = [
 ];
 
 /** Fetches every employee (paginated) once and re-derives who's in/out whenever the filter changes. */
-function useRoster(rules: PayrollSegmentFilterRules | null) {
+function useRoster(rules: PayrollSegmentFilterRules | null, companyId?: string | null) {
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<RosterEmployee[]>([]);
+  // pay_group_id -> company_id, so "who gets paid" can be scoped to the
+  // company a run is being drafted for — an employee's company is derived
+  // from their pay group, there is no separate company field on profiles.
+  const [payGroupCompanyById, setPayGroupCompanyById] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -72,18 +77,28 @@ function useRoster(rules: PayrollSegmentFilterRules | null) {
       setLoading(false);
     }
     fetchAll();
+    supabase
+      .from('pay_groups')
+      .select('id, company_id')
+      .then(({ data }) => {
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        for (const g of (data || []) as { id: string; company_id: string }[]) map[g.id] = g.company_id;
+        setPayGroupCompanyById(map);
+      });
     return () => { cancelled = true; };
   }, []);
 
   return useMemo(() => {
     const included: RosterEmployee[] = [];
     const excludedByReason: Record<ExclusionReason, RosterEmployee[]> = {
-      inactive: [], driver: [], no_salary: [], segment: [],
+      inactive: [], driver: [], no_salary: [], segment: [], other_company: [],
     };
     for (const e of employees) {
       let reason: ExclusionReason | null = null;
       if ((e.status ?? 'active') !== 'active') reason = 'inactive';
       else if (e.role === 'driver') reason = 'driver';
+      else if (companyId && payGroupCompanyById[e.pay_group_id ?? ''] !== companyId) reason = 'other_company';
       else if (!e.salary_ngn || Number(e.salary_ngn) <= 0) reason = 'no_salary';
       else if (rules && !matchesSegment(e, rules)) reason = 'segment';
 
@@ -93,7 +108,7 @@ function useRoster(rules: PayrollSegmentFilterRules | null) {
     const missingBankDetails = included.filter((e) => !e.bank_account_number);
     const totalNgn = included.reduce((s, e) => s + Number(e.salary_ngn || 0), 0);
     return { loading, included, excludedByReason, missingBankDetails, totalNgn };
-  }, [employees, rules, loading]);
+  }, [employees, rules, loading, companyId, payGroupCompanyById]);
 }
 
 const empName = (e: RosterEmployee) => displayName(e.first_name, e.last_name, e.full_name || e.email || 'Unnamed');
@@ -155,10 +170,14 @@ function RosterRow({ e }: { e: RosterEmployee }) {
 export function PayrollRosterPreview({
   payrollSegmentId,
   rulesOverride,
+  companyId,
   defaultExpanded = false,
 }: {
   payrollSegmentId?: string | null;
   rulesOverride?: PayrollSegmentFilterRules | null;
+  /** Scope "who gets paid" to one company — an employee's company is derived
+   * from their pay group. Omit to show everyone regardless of company. */
+  companyId?: string | null;
   defaultExpanded?: boolean;
 }) {
   const [savedRules, setSavedRules] = useState<PayrollSegmentFilterRules | null>(null);
@@ -171,7 +190,7 @@ export function PayrollRosterPreview({
   }, [payrollSegmentId, rulesOverride]);
 
   const rules = rulesOverride !== undefined ? rulesOverride : savedRules;
-  const { loading, included, excludedByReason, missingBankDetails, totalNgn } = useRoster(rules);
+  const { loading, included, excludedByReason, missingBankDetails, totalNgn } = useRoster(rules, companyId);
 
   if (loading) {
     return <p className="text-xs text-muted-foreground">Checking who matches…</p>;
@@ -272,7 +291,7 @@ export function PayrollRosterPreview({
           // payroll review — naming all 16 former employees one by one is
           // just noise. No-salary/segment exclusions might mean a real
           // config problem, so those stay listed by name.
-          const listNames = reason === 'no_salary' || reason === 'segment';
+          const listNames = reason === 'no_salary' || reason === 'segment' || reason === 'other_company';
           return (
             <div key={reason}>
               <p className="font-medium text-muted-foreground mb-1">{REASON_LABEL[reason]} ({list.length})</p>

@@ -793,7 +793,7 @@ function RunDetailDrawer({
             </div>
             <div className="text-sm font-medium">{segmentName}</div>
             <div className="text-xs text-muted-foreground mt-0.5 mb-1.5">{r.employee_count ?? 0} employees in this run</div>
-            <PayrollRosterPreview payrollSegmentId={r.payroll_segment_id} />
+            <PayrollRosterPreview payrollSegmentId={r.payroll_segment_id} companyId={r.company_id} />
           </div>
 
           <RunPayslipsSection runId={r.id} refreshKey={r.updated_at} />

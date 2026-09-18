@@ -95,6 +95,7 @@ interface PayGroup {
   role_filter: string[];
   is_active: boolean;
   created_at: string;
+  company_id: string;
 }
 
 interface PublicHoliday {
@@ -517,6 +518,7 @@ function initialsOf(name: string): string {
 function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
   const { profile } = useAuthStore();
   const { toast } = useToast();
+  const { data: companies = [] } = useCompanies();
   const [groups, setGroups] = useState<PayGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
@@ -529,7 +531,8 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
     description: string;
     pay_schedule_id: string;
     role_filter: string[];
-  }>({ name: '', description: '', pay_schedule_id: '', role_filter: [] });
+    company_id: string;
+  }>({ name: '', description: '', pay_schedule_id: '', role_filter: [], company_id: '' });
   const [saving, setSaving] = useState(false);
 
   // Member management state
@@ -543,7 +546,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
   const load = useCallback(async () => {
     setLoading(true);
     const [groupsRes, countsRes] = await Promise.all([
-      supabase.from('pay_groups').select('id, name, description, pay_schedule_id, role_filter').order('created_at', { ascending: true }),
+      supabase.from('pay_groups').select('id, name, description, pay_schedule_id, role_filter, company_id').order('created_at', { ascending: true }),
       supabase
         .from('profiles')
         .select('pay_group_id, salary_ngn, status, full_name, email, photo_url')
@@ -569,7 +572,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: '', description: '', pay_schedule_id: '', role_filter: [] });
+    setForm({ name: '', description: '', pay_schedule_id: '', role_filter: [], company_id: companies[0]?.id || '' });
     setDialogOpen(true);
   };
 
@@ -580,6 +583,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
       description: g.description ?? '',
       pay_schedule_id: g.pay_schedule_id ?? '',
       role_filter: g.role_filter,
+      company_id: g.company_id,
     });
     setDialogOpen(true);
   };
@@ -589,6 +593,10 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
       toast({ title: 'Group name is required', variant: 'destructive' });
       return;
     }
+    if (!form.company_id) {
+      toast({ title: 'Company is required', description: 'Every pay group belongs to one company.', variant: 'destructive' });
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -596,6 +604,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
         description: form.description || null,
         pay_schedule_id: form.pay_schedule_id || null,
         role_filter: form.role_filter,
+        company_id: form.company_id,
         created_by: profile?.id,
       };
       if (editing) {
@@ -774,7 +783,22 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
                         <Users className="h-[18px] w-[18px]" />
                       </span>
                       <div className="min-w-0">
-                        <p className="text-base font-semibold">{g.name}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-base font-semibold">{g.name}</p>
+                          {companies.length > 1 && (() => {
+                            const company = companies.find((c) => c.id === g.company_id);
+                            if (!company) return null;
+                            return (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-2xs font-medium"
+                                style={{ borderColor: company.color, color: company.color }}
+                              >
+                                <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: company.color }} />
+                                {company.name}
+                              </span>
+                            );
+                          })()}
+                        </div>
                         {g.description && <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed max-w-md">{g.description}</p>}
                         {g.role_filter.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1.5">
@@ -879,6 +903,30 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
                 placeholder="e.g. Salaried Staff"
               />
             </div>
+            {companies.length > 1 && (
+              <div className="space-y-1.5">
+                <Label>Company</Label>
+                <Select
+                  value={form.company_id}
+                  onValueChange={(v) => setForm((f) => ({ ...f, company_id: v }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select a company…" /></SelectTrigger>
+                  <SelectContent>
+                    {companies.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        <span className="inline-flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                          {c.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-3xs text-muted-foreground">
+                  Everyone in this group is paid by this company. Cannot be split across companies.
+                </p>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label>Description (optional)</Label>
               <Textarea
@@ -1936,17 +1984,22 @@ export function PayrollSchedules() {
 
 // ─── NextPayrollBanner ────────────────────────────────────────────────────────
 
-export function NextPayrollBanner({ onStartDraft }: { onStartDraft?: () => void }) {
+export function NextPayrollBanner({ onStartDraft, companyId }: { onStartDraft?: () => void; companyId?: string | null }) {
   const [next, setNext] = useState<{ date: Date; scheduleName: string; draftDate: Date; holiday: string | null } | null>(null);
   const [variance, setVariance] = useState<{ severity: 'warning' | 'critical'; runId: string; reason: string } | null>(null);
   const [nextPeriodHasDraft, setNextPeriodHasDraft] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    setNext(null);
+    setVariance(null);
+    setNextPeriodHasDraft(false);
+    if (!companyId) return;
     (async () => {
       const { data } = await supabase
         .from('pay_schedules').select('id, name').eq('is_active', true)
         .order('created_at', { ascending: true });
-      if (!data?.length) return;
+      if (cancelled || !data?.length) return;
 
       let earliest: typeof next = null;
       for (const s of data as PaySchedule[]) {
@@ -1962,23 +2015,30 @@ export function NextPayrollBanner({ onStartDraft }: { onStartDraft?: () => void 
           };
         }
       }
+      if (cancelled) return;
       setNext(earliest);
 
       if (earliest) {
         const period = `${earliest.date.getFullYear()}-${String(earliest.date.getMonth() + 1).padStart(2, '0')}`;
         const { count: draftCount } = await supabase
           .from('payroll_runs').select('id', { count: 'exact', head: true })
-          .eq('period', period);
+          .eq('period', period)
+          .eq('company_id', companyId);
+        if (cancelled) return;
         setNextPeriodHasDraft((draftCount ?? 0) > 0);
       }
 
-      // Surface highest-severity recent variance
+      // Surface highest-severity recent variance — scoped to this company via
+      // its payroll run, since payroll_run_variance has no company_id of its
+      // own (it's 1:1 with payroll_runs, which does).
       const { data: vrows } = await supabase
         .from('payroll_run_variance')
-        .select('payroll_run_id, severity, reason')
+        .select('payroll_run_id, severity, reason, payroll_runs!inner(company_id)')
         .in('severity', ['warning', 'critical'])
+        .eq('payroll_runs.company_id', companyId)
         .order('computed_at', { ascending: false })
         .limit(1);
+      if (cancelled) return;
       if (vrows?.[0]) {
         setVariance({
           severity: vrows[0].severity,
@@ -1987,7 +2047,8 @@ export function NextPayrollBanner({ onStartDraft }: { onStartDraft?: () => void 
         });
       }
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [companyId]);
 
   if (!next && !variance) return null;
 

@@ -202,6 +202,7 @@ const Payroll = () => {
     () => segmentPayGroups.filter((g) => g.company_id === selectedCompanyId),
     [segmentPayGroups, selectedCompanyId],
   );
+  const visiblePayGroupIds = useMemo(() => visiblePayGroups.map((g) => g.id), [visiblePayGroups]);
   const [segmentForm, setSegmentForm] = useState<{
     name: string;
     description: string;
@@ -2263,19 +2264,27 @@ const Payroll = () => {
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
 
-  const latest = runs[0];
+  // Every dashboard/report figure below must only reflect the company
+  // currently selected — payroll_runs.company_id now exists specifically so
+  // KD Squares and NDI never bleed into each other's numbers.
+  const visibleRuns = useMemo(
+    () => runs.filter((r) => r.company_id === selectedCompanyId),
+    [runs, selectedCompanyId],
+  );
+
+  const latest = visibleRuns[0];
   const trend = useMemo(
     () =>
-      runs
+      visibleRuns
         .slice(0, 6)
         .map((r) => ({ label: monthLabel(r.period), burn: r.total_burn_ngn }))
         .reverse(),
-    [runs],
+    [visibleRuns],
   );
 
   const annualSummary = useMemo(() => {
     const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const yearRuns = runs.filter((r) => {
+    const yearRuns = visibleRuns.filter((r) => {
       const [y] = r.period.split('-');
       return parseInt(y) === summaryYear && r.status !== 'draft';
     });
@@ -2304,13 +2313,13 @@ const Payroll = () => {
       { gross: 0, paye: 0, pension: 0, nhf: 0, contractors: 0, burn: 0 },
     );
     return { byMonth, totals };
-  }, [runs, summaryYear]);
+  }, [visibleRuns, summaryYear]);
 
   // Burn split by pay-group/segment for the selected year — same "who is
   // this money actually going to" breakdown as the Runs tab's filter chips,
   // reused here since Reports never showed it at all.
   const bySegment = useMemo(() => {
-    const yearRuns = runs.filter((r) => {
+    const yearRuns = visibleRuns.filter((r) => {
       const [y] = r.period.split('-');
       return parseInt(y) === summaryYear && r.status !== 'draft';
     });
@@ -2330,7 +2339,7 @@ const Payroll = () => {
         headcount: g.headcount,
       }))
       .sort((a, b) => b.burn - a.burn);
-  }, [runs, summaryYear, segments]);
+  }, [visibleRuns, summaryYear, segments]);
 
   // Trend chart granularity — independent of the year-scoped month-by-month
   // table above, since "how has burn moved over the company's whole
@@ -2340,7 +2349,7 @@ const Payroll = () => {
   // the point of asking for them.
   const [reportGranularity, setReportGranularity] = useState<'monthly' | 'quarterly' | 'yearly' | 'all-time'>('monthly');
   const trendSeries = useMemo(() => {
-    const nonDraft = runs.filter((r) => r.status !== 'draft');
+    const nonDraft = visibleRuns.filter((r) => r.status !== 'draft');
     if (reportGranularity === 'all-time') {
       const burn = nonDraft.reduce((s, r) => s + (r.total_burn_ngn || 0), 0);
       return [{ label: 'All time', burn }];
@@ -2369,14 +2378,14 @@ const Payroll = () => {
     }
     // monthly — scoped to the selected year, matching the table below it.
     return annualSummary.byMonth.map((m) => ({ label: m.label, burn: m.burn }));
-  }, [runs, reportGranularity, annualSummary]);
+  }, [visibleRuns, reportGranularity, annualSummary]);
 
   // Plain-language "why did burn change" read, replacing a bare number with
   // an actual explanation — the two most recent non-draft runs, attributing
   // the delta to bonuses vs. headcount vs. everything else (PAYE/pension
   // drift, allowance changes) rather than leaving HR to guess.
   const burnExplainer = useMemo(() => {
-    const settled = runs.filter((r) => r.status !== 'draft').sort((a, b) => (a.period < b.period ? 1 : -1));
+    const settled = visibleRuns.filter((r) => r.status !== 'draft').sort((a, b) => (a.period < b.period ? 1 : -1));
     if (settled.length < 2) return null;
     const [latest, prev] = settled;
     const deltaNgn = latest.total_burn_ngn - prev.total_burn_ngn;
@@ -2387,13 +2396,13 @@ const Payroll = () => {
     const headcountDelta = (latest.employee_count || 0) - (prev.employee_count || 0);
     const residualNgn = deltaNgn - bonusDeltaNgn;
     return { latest, prev, deltaNgn, deltaPct, bonusDeltaNgn, headcountDelta, residualNgn };
-  }, [runs]);
+  }, [visibleRuns]);
 
   const availableYears = useMemo(() => {
-    const years = new Set(runs.map((r) => parseInt(r.period.split('-')[0])));
+    const years = new Set(visibleRuns.map((r) => parseInt(r.period.split('-')[0])));
     if (years.size === 0) years.add(new Date().getFullYear());
     return Array.from(years).sort((a, b) => b - a);
-  }, [runs]);
+  }, [visibleRuns]);
 
 
   return (
@@ -2416,7 +2425,7 @@ const Payroll = () => {
         </div>
       </div>
 
-      <NextPayrollBanner onStartDraft={openNewDraft} />
+      <NextPayrollBanner onStartDraft={openNewDraft} companyId={selectedCompanyId} />
 
       <Tabs defaultValue="dashboard">
         <TabsList className="h-9 bg-transparent border-b border-border/50 rounded-none w-full justify-start gap-0 p-0">
@@ -2461,12 +2470,14 @@ const Payroll = () => {
 
         <TabsContent value="dashboard" className="space-y-6 mt-6">
           <PayrollDashboardTab
-            runs={runs}
+            runs={visibleRuns}
             trend={trend}
+            selectedCompanyId={selectedCompanyId}
+            companyPayGroupIds={visiblePayGroupIds}
             monthLabel={monthLabel}
             onNewDraft={openNewDraft}
             onOpenRun={(runId) => {
-              const run = runs.find((r) => r.id === runId);
+              const run = visibleRuns.find((r) => r.id === runId);
               if (!run) return;
               if (run.status === 'draft') editDraft(run);
               else if (run.status === 'pending_approval') setConfirmApproveRun(run);
@@ -2482,7 +2493,7 @@ const Payroll = () => {
 
         <TabsContent value="runs" className="space-y-6 mt-6">
           <PayrollRunsTab
-            runs={runs}
+            runs={visibleRuns}
             segments={segments}
             loading={loading}
             latest={latest}
@@ -2566,6 +2577,7 @@ const Payroll = () => {
         segmentSaving={segmentSaving}
         segmentDepartments={segmentDepartments}
         segmentPayGroups={visiblePayGroups}
+        selectedCompanyId={selectedCompanyId}
         selectedCompanyName={companies.find((c) => c.id === selectedCompanyId)?.name}
         selectedCompanyColor={companies.find((c) => c.id === selectedCompanyId)?.color}
         segmentLiveRules={segmentLiveRules}
