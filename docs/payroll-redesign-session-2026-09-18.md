@@ -293,3 +293,130 @@ effect only in a **new** session.
    the UI, bulk salary adjustments, payroll calendar view) were not built.
    They were judged lower value than the correctness defects above, which is
    a judgement call worth revisiting.
+
+---
+
+# Continuation session — same day, after the above
+
+Picked up from the summary above. The environment constraint that shaped
+the previous session had not changed: `ops.kdsquares.com` and
+`supabase.com` are still refused by the egress proxy (403 on CONNECT),
+and there are still no Supabase credentials locally, so the app still
+cannot be booted against real data from here.
+
+## 1. Browser verification, which turned out to be possible after all
+
+The previous session recorded browser testing as impossible and deferred
+it to "a new session with a different network policy". The policy is
+unchanged — but the conclusion was too strong. **GitHub's runners are not
+behind this proxy**, and the repo already carries read-only workflows that
+log into the real app with the real test account and drive a real
+Chromium. Dispatching those gets browser evidence without needing any
+network access from here.
+
+`Playwright E2E Tests`, run against `main`:
+
+> **88 passed, 3 failed, 3 skipped** (8.0m)
+
+**Every payroll test passed**, in a real browser, against the live
+database — including the wizard opening and advancing past step 1, the
+runs list, and opening a run. That is the first actual browser evidence
+this redesign has.
+
+The three failures are not payroll and not from this work:
+
+| Failing test | Module |
+|---|---|
+| `dashboard.spec.ts` — Create Payment Batch navigates to wizard | Payments |
+| `database-bases.spec.ts` — /data sidebar lists bases | Bases (/data) |
+| `database-bases.spec.ts` — UPDATE edit an existing cell value | Bases (/data) |
+
+The previous dispatch of this suite (run #1600, 5 September, well before
+any of this payroll work) also concluded `failure`, so these are
+pre-existing. They are left alone deliberately: they are outside the
+payroll brief, and two of them are in the `/data` bases module, which is
+a different subsystem. They are worth someone's attention separately.
+
+**What is still not verified:** nothing has been clicked through *as an
+HR person* — the E2E suite asserts that screens load and the wizard
+advances, not that the redesign reads well. And `payroll-live-verification`
+was deliberately **not** dispatched: its own header says it mutates real
+production payroll data and it drives draft → submit → **approve**, which
+is not something to trigger unattended against a live payroll system.
+
+## 2. The payroll calendar was unreachable
+
+`PayrollCalendar.tsx` — 510 lines, with holiday overlays, pay-day and
+cutoff markers, a preview cadence for tenants with no schedule yet, and a
+responsive two-column layout — was imported by **nothing**. Its own header
+comment says it was written "for the Payroll page's new Calendar tab". That
+tab was never added, so no user could open it.
+
+Wiring it in as it stood would have reintroduced the bug fixed in
+`0136bd2`: its `payroll_runs` query had no company filter, so it would have
+shown NDI's pay days while the rest of the page was scoped to KD Squares.
+It now takes a `companyId` and scopes that read, following the same
+`isAllCompanies ? null : selectedCompanyId` convention the page already
+passes to `NextPayrollBanner`.
+
+`pay_schedules` has no company column — schedule definitions are shared
+between companies by design (see `20261220700000`) — so the upcoming dates
+derived from it stay company-agnostic. Said so in the code so the next
+reader does not take it for an oversight.
+
+## 3. Capped deductions could write down more debt than was withheld
+
+`payroll-deductions.ts` exists to guarantee that nothing is recorded as
+collected beyond what a payslip had room to withhold. That guarantee did
+not hold once more than one line was capped.
+
+`capDiscretionaryAmount` rounds each line independently and `Math.round`
+breaks ties upward, so the rounded lines could sum past the available
+budget. Smallest case, confirmed by running the real functions before
+changing anything: two ₦1 debts against ₦1 of available pay gives a factor
+of 0.5, each line rounds to ₦1, and ₦2 is recorded as collected where only
+₦1 existed.
+
+Net pay was never at risk — the caller already clamps it at zero. The
+damage lands on the balances settlement then writes down: an advance or
+loan balance drops by more than actually came out of the employee's pay,
+so the difference is never collected in a later period either. It is
+bounded by roughly half a Naira per line, which is why it would never
+arrive as a complaint — only as balances that quietly drift.
+
+Lines now go through one per-employee allocator holding a running budget,
+so a line can never take more than is left. It is a drop-in for the
+existing `capAmt` at the single call site. Six tests cover the multi-line
+invariant the existing single-line tests could not see.
+
+The existing test file's own header claims this invariant. It only ever
+tested one line at a time, which is exactly why the gap survived.
+
+## 4. Smaller things
+
+- The mobile screenshot tour never raised its timeout while the desktop
+  one takes 180s, so it sat near the 30s default and would have been
+  killed outright after payroll was added to it. A test-level timeout is
+  not catchable by the per-page `try/catch`, so it loses every remaining
+  screenshot.
+- `guide-screenshots-inline` (the base64-in-log channel that exists
+  precisely because artifact blob storage is unreachable from here) did
+  not include payroll, so the module under redesign was the one page that
+  could not be looked at. Added at both widths, placed last so a reader
+  can request only the log tail.
+
+## 5. Still open
+
+Carried forward from the previous session, still true:
+
+1. **Audit hash-chain ordering within a transaction** — unchanged,
+   pre-existing, cross-module.
+2. **Phase 6 items not built.** The payroll calendar is now done (it
+   existed already; it just was not reachable). Still not built: bulk
+   salary adjustments, employee self-service payslip history, and a
+   payslip QR code. The QR code was deliberately dropped rather than
+   deferred: there is no employee-facing payslip route anywhere in the
+   app, so a QR "linking to the online version" would point at nothing.
+   It should only be built after self-service exists.
+3. **No HR-eyes walkthrough.** Automated tests say the screens load; they
+   do not say the redesign is understandable. That still needs a person.
