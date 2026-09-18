@@ -453,8 +453,8 @@ const Payroll = () => {
   // allowances. editDraft() below hydrates the form from the existing row
   // first so a re-save reproduces what was there, not an empty overwrite.
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
-  // Wizard step for the Draft dialog: 0 Pay group & period, 1 Bonuses &
-  // adjustments, 2 Review & submit. draftRun() computes real figures and
+  // Wizard step for the Draft dialog: 0 Who are you paying, 1 Anything
+  // extra, 2 Check and submit. draftRun() computes real figures and
   // lands on step 2 instead of closing the dialog, so creating a run ends
   // on a restated-totals review rather than a blind save.
   const [draftStep, setDraftStep] = useState(0);

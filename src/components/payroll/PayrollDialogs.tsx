@@ -30,10 +30,15 @@ import type { PayrollRun, BonusLine } from '@/lib/payroll-run';
 // number before anything is saved as a submittable run. "Who" and "Period"
 // share a step because together they're one decision — which month, for
 // which people — not two; splitting them just added a click.
+// Titles are the question the step asks, in the words someone running
+// payroll for the first time would use. "Pay group & period" named the two
+// database fields being filled in, which is only obvious once you already
+// know what a pay group is — and step 1 is precisely where a new operator
+// gets stuck.
 const DRAFT_STEPS = [
-  { title: 'Pay group & period', desc: 'Pick a pay group, add who and when' },
-  { title: 'Bonuses & adjustments', desc: 'Anything extra this run' },
-  { title: 'Review & submit', desc: 'Confirm the real numbers — PAYE, pension and NHF are already computed' },
+  { title: 'Who are you paying?', desc: 'Choose the group of people and the month' },
+  { title: 'Anything extra?', desc: 'Bonuses, allowances or one-off deductions' },
+  { title: 'Check and submit', desc: 'Confirm the real numbers — PAYE, pension and NHF are already computed' },
 ] as const;
 const LAST_STEP = DRAFT_STEPS.length - 1;
 
