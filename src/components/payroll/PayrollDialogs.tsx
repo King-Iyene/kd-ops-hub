@@ -4,6 +4,8 @@ import { InfoHint } from '@/components/ui-kit/InfoHint';
 import type { PayrollSegment } from '@/lib/payroll-segments';
 import type { PayrollSegmentFilterRules } from '@/lib/payroll-segments';
 import { formatNaira, getTimezone, utcIsoToOrgWallClock } from '@/lib/format';
+import { CompliancePanel } from '@/components/payroll/CompliancePanel';
+import type { ComplianceCheck } from '@/lib/payroll-compliance';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -133,6 +135,8 @@ export interface PayrollDialogsProps {
     totalExpenses: number; burn: number;
   } | null;
   finishDraftReview: () => void;
+  /** Statutory readiness for the roster this run actually covers. */
+  complianceChecks?: ComplianceCheck[];
   submitDraftForApprovalNow: () => void;
 
   // Segment dialog
@@ -220,6 +224,7 @@ export const PayrollDialogs = ({
   selectPayGroupQuickFilter,
   computedPreview,
   finishDraftReview,
+  complianceChecks,
   submitDraftForApprovalNow,
   segmentDialog,
   setSegmentDialog,
@@ -696,6 +701,10 @@ export const PayrollDialogs = ({
                       ))}
                     </div>
                   </div>
+                )}
+
+                {complianceChecks && complianceChecks.length > 0 && (
+                  <CompliancePanel checks={complianceChecks} />
                 )}
 
                 {/* Statutory remittance deadlines — approving a run creates

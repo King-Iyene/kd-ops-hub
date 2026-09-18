@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useCompanySettings, useDepartments, useCompanies } from '@/queries';
 import { CompanySwitcher, ALL_COMPANIES } from '@/components/ui-kit/CompanySwitcher';
 import { CompanyChoiceDialog, type CompanyRunStats } from '@/components/payroll/CompanyChoiceDialog';
+import { buildComplianceChecks, type ComplianceCheck } from '@/lib/payroll-compliance';
 import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
 import { burst } from '@/components/Burst';
@@ -464,6 +465,7 @@ const Payroll = () => {
     totalExpenses: number; burn: number;
   } | null>(null);
   const [savedRun, setSavedRun] = useState<PayrollRun | null>(null);
+  const [complianceChecks, setComplianceChecks] = useState<ComplianceCheck[]>([]);
 
   // Starting a run needs ONE company. When the page is filtered to "All
   // companies" there isn't one, so ask before opening the wizard rather than
@@ -475,6 +477,7 @@ const Payroll = () => {
     setEditingDraftId(null);
     setDraftStep(0);
     setComputedPreview(null);
+    setComplianceChecks([]);
     setSavedRun(null);
     setForm({
       period: monthPeriod(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)),
@@ -514,6 +517,7 @@ const Payroll = () => {
     setEditingDraftId(run.id);
     setDraftStep(0);
     setComputedPreview(null);
+    setComplianceChecks([]);
     setSavedRun(null);
     const ro = run.run_options;
     setForm({
@@ -579,7 +583,7 @@ const Payroll = () => {
           .lte('date', end.toISOString()),
         supabase
           .from('profiles')
-          .select('id, salary_ngn, pension_enabled, nhf_enabled, paye_enabled, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, voluntary_pension_pct, department_id, employment_type, pay_group_id, start_date')
+          .select('id, full_name, first_name, last_name, email, salary_ngn, pension_enabled, nhf_enabled, paye_enabled, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, voluntary_pension_pct, department_id, employment_type, pay_group_id, start_date, tax_id, tin, pension_pin, nhf_number, nhis_enabled, nhis_number')
           .eq('status', 'active')
           .neq('role', 'driver'),
         supabase
@@ -620,6 +624,32 @@ const Payroll = () => {
         companyEmployees,
         selectedSegment?.filter_rules,
       );
+
+      // Compliance summary for the review step — computed from the same
+      // filtered roster the figures above come from, so it can never
+      // describe a different set of people than the one being paid.
+      setComplianceChecks(buildComplianceChecks(
+        (filteredEmployees as any[]).map((r) => ({
+          name: displayName(r.first_name, r.last_name, r.full_name || r.email),
+          gross: r.use_salary_components
+            ? Number(r.basic_ngn || 0) + Number(r.housing_ngn || 0) + Number(r.transport_ngn || 0) + Number(r.other_allowances_ngn || 0)
+            : Number(r.salary_ngn || 0),
+          tax_id: r.tax_id,
+          tin: r.tin,
+          pension_enabled: r.pension_enabled,
+          pension_pin: r.pension_pin,
+          nhf_enabled: r.nhf_enabled,
+          nhf_number: r.nhf_number,
+          nhis_enabled: r.nhis_enabled,
+          nhis_number: r.nhis_number,
+        })),
+        {
+          include_paye: form.include_paye,
+          include_pension: form.include_pension,
+          include_nhf: form.include_nhf,
+          include_nhis: form.include_nhis,
+        },
+      ));
 
       const totalContractor =
         (contractorRes.data || []).reduce(
@@ -1072,6 +1102,7 @@ const Payroll = () => {
     setEditingDraftId(null);
     setDraftStep(0);
     setComputedPreview(null);
+    setComplianceChecks([]);
     setSavedRun(null);
   };
   const submitDraftForApprovalNow = () => {
@@ -2599,6 +2630,7 @@ const Payroll = () => {
       <PayrollDialogs
         dialog={dialog}
         setDialog={setDialog}
+        complianceChecks={complianceChecks}
         working={working}
         draftRun={draftRun}
         editingDraftId={editingDraftId}
