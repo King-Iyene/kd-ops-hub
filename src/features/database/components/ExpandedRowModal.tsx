@@ -185,28 +185,66 @@ function InlineSelectEditor({
   onCommit: (v: string | null) => void;
 }) {
   const choices: SelectChoice[] = field.options?.choices || [];
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  const filtered = search ? choices.filter((c) => c.title.toLowerCase().includes(search.toLowerCase())) : choices;
+
+  const selectedChoice = value ? choices.find((c) => c.title === value) : null;
+  const selectedColor = selectedChoice ? getPillColor(selectedChoice.color) : null;
+
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {choices.map((c) => {
-        const color = getPillColor(c.color);
-        const isSelected = value === c.title;
-        return (
-          <button
-            key={c.title}
-            type="button"
-            onClick={() => onCommit(isSelected ? null : c.title)}
-            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium transition-all"
-            style={{
-              backgroundColor: color.bg,
-              color: color.text,
-              outline: isSelected ? `2px solid ${color.text}` : 'none',
-              outlineOffset: 1,
-            }}
-          >
-            {c.title}
+    <div className="flex items-center gap-1.5 min-h-[28px] flex-wrap">
+      {selectedChoice && selectedColor && (
+        <span
+          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium"
+          style={{ backgroundColor: selectedColor.bg, color: selectedColor.text }}
+        >
+          {selectedChoice.title}
+          <button type="button" onClick={() => onCommit(null)} className="ml-0.5 hover:opacity-70">
+            <X size={12} />
           </button>
-        );
-      })}
+        </span>
+      )}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => { setOpen(!open); setTimeout(() => searchRef.current?.focus(), 0); }}
+          className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[#9AA2AF] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,18%)] transition-colors"
+        >
+          <ChevronDown size={14} />
+        </button>
+        {open && (
+          <div className="absolute top-full left-0 mt-1 z-50 min-w-[200px] max-h-[240px] overflow-auto rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] shadow-lg">
+            <div className="p-1.5">
+              <input
+                ref={searchRef}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
+                placeholder="Find an option..."
+                className="w-full px-2 py-1 text-xs rounded border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)] focus:border-[#2D7FF9]"
+              />
+            </div>
+            {filtered.map((c) => {
+              const color = getPillColor(c.color);
+              return (
+                <button
+                  key={c.title}
+                  type="button"
+                  onClick={() => { onCommit(c.title); setOpen(false); setSearch(''); }}
+                  className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,18%)] transition-colors"
+                >
+                  <span className="inline-flex items-center px-2 rounded-full text-xs font-medium" style={{ backgroundColor: color.bg, color: color.text, height: 22, lineHeight: '22px' }}>
+                    {c.title}
+                  </span>
+                  {value === c.title && <Check size={14} className="ml-auto text-[#2D7FF9]" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -222,36 +260,68 @@ function InlineMultiSelectEditor({
 }) {
   const choices: SelectChoice[] = field.options?.choices || [];
   const selected = Array.isArray(value) ? value : [];
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  const filtered = search ? choices.filter((c) => c.title.toLowerCase().includes(search.toLowerCase())) : choices;
 
+  const remove = (title: string) => onCommit(selected.filter((t) => t !== title));
   const toggle = (title: string) => {
-    const next = selected.includes(title)
-      ? selected.filter((t) => t !== title)
-      : [...selected, title];
-    onCommit(next);
+    onCommit(selected.includes(title) ? selected.filter((t) => t !== title) : [...selected, title]);
   };
 
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {choices.map((c) => {
-        const color = getPillColor(c.color);
-        const isSelected = selected.includes(c.title);
+    <div className="flex items-center gap-1.5 min-h-[28px] flex-wrap">
+      {selected.map((title) => {
+        const choice = choices.find((c) => c.title === title);
+        const color = choice ? getPillColor(choice.color) : getPillColor('');
         return (
-          <button
-            key={c.title}
-            type="button"
-            onClick={() => toggle(c.title)}
-            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium transition-all ${!isSelected ? 'bg-[#F4F4F5] dark:bg-[hsl(200,25%,18%)]' : ''}`}
-            style={{
-              backgroundColor: isSelected ? color.bg : undefined,
-              color: isSelected ? color.text : '#9AA2AF',
-              outline: isSelected ? `2px solid ${color.text}` : 'none',
-              outlineOffset: 1,
-            }}
-          >
-            {c.title}
-          </button>
+          <span key={title} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: color.bg, color: color.text }}>
+            {title}
+            <button type="button" onClick={() => remove(title)} className="ml-0.5 hover:opacity-70"><X size={12} /></button>
+          </span>
         );
       })}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => { setOpen(!open); setTimeout(() => searchRef.current?.focus(), 0); }}
+          className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[#9AA2AF] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,18%)] transition-colors"
+        >
+          <ChevronDown size={14} />
+        </button>
+        {open && (
+          <div className="absolute top-full left-0 mt-1 z-50 min-w-[200px] max-h-[240px] overflow-auto rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] shadow-lg">
+            <div className="p-1.5">
+              <input
+                ref={searchRef}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
+                placeholder="Find an option..."
+                className="w-full px-2 py-1 text-xs rounded border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)] focus:border-[#2D7FF9]"
+              />
+            </div>
+            {filtered.map((c) => {
+              const color = getPillColor(c.color);
+              const isSelected = selected.includes(c.title);
+              return (
+                <button
+                  key={c.title}
+                  type="button"
+                  onClick={() => toggle(c.title)}
+                  className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,18%)] transition-colors"
+                >
+                  <span className={`inline-flex items-center px-2 rounded-full text-xs font-medium ${!isSelected ? 'opacity-50' : ''}`} style={{ backgroundColor: color.bg, color: color.text, height: 22, lineHeight: '22px' }}>
+                    {c.title}
+                  </span>
+                  {isSelected && <Check size={14} className="ml-auto text-[#2D7FF9]" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
