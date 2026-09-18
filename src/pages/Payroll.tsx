@@ -6,7 +6,8 @@ import { logWarn } from '@/lib/logger';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { supabase } from '@/lib/supabase';
 import { useCompanySettings, useDepartments, useCompanies } from '@/queries';
-import { CompanySwitcher } from '@/components/ui-kit/CompanySwitcher';
+import { CompanySwitcher, ALL_COMPANIES } from '@/components/ui-kit/CompanySwitcher';
+import { CompanyChoiceDialog, type CompanyRunStats } from '@/components/payroll/CompanyChoiceDialog';
 import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
 import { burst } from '@/components/Burst';
@@ -198,9 +199,15 @@ const Payroll = () => {
   // Only the selected company's pay groups are offered as "who gets paid"
   // quick-pick cards — a KD Squares run should never accidentally show an
   // NDI pay group (or vice versa) as a selectable option.
+  // "All companies" is a read-only view mode for the dashboard and the runs
+  // list. Anything that writes (drafting a run, creating a pay group) needs
+  // one specific company and must resolve it first — see openNewDraft.
+  const isAllCompanies = selectedCompanyId === ALL_COMPANIES;
   const visiblePayGroups = useMemo(
-    () => segmentPayGroups.filter((g) => g.company_id === selectedCompanyId),
-    [segmentPayGroups, selectedCompanyId],
+    () => (isAllCompanies
+      ? segmentPayGroups
+      : segmentPayGroups.filter((g) => g.company_id === selectedCompanyId)),
+    [segmentPayGroups, selectedCompanyId, isAllCompanies],
   );
   const visiblePayGroupIds = useMemo(() => visiblePayGroups.map((g) => g.id), [visiblePayGroups]);
   const [segmentForm, setSegmentForm] = useState<{
@@ -458,7 +465,13 @@ const Payroll = () => {
   } | null>(null);
   const [savedRun, setSavedRun] = useState<PayrollRun | null>(null);
 
-  const openNewDraft = () => {
+  // Starting a run needs ONE company. When the page is filtered to "All
+  // companies" there isn't one, so ask before opening the wizard rather than
+  // quietly drafting against whichever company happens to be first — that is
+  // how a KD Squares run ends up holding NDI's employees.
+  const [companyChoiceOpen, setCompanyChoiceOpen] = useState(false);
+
+  const beginNewDraft = () => {
     setEditingDraftId(null);
     setDraftStep(0);
     setComputedPreview(null);
@@ -481,6 +494,20 @@ const Payroll = () => {
       include_ewa: true,
     });
     setDialog(true);
+  };
+
+  const openNewDraft = () => {
+    if (selectedCompanyId === ALL_COMPANIES) {
+      setCompanyChoiceOpen(true);
+      return;
+    }
+    beginNewDraft();
+  };
+
+  const pickCompanyForNewDraft = (companyId: string) => {
+    setSelectedCompanyId(companyId);
+    setCompanyChoiceOpen(false);
+    beginNewDraft();
   };
 
   const editDraft = (run: PayrollRun) => {
@@ -521,8 +548,8 @@ const Payroll = () => {
   //     ADD COLUMN IF NOT EXISTS allowances_json jsonb;
   const draftRun = async () => {
     if (!form.period) return;
-    if (!selectedCompanyId) {
-      toast({ title: 'Select a company first', description: 'Payroll runs now belong to a specific company.', variant: 'destructive' });
+    if (!selectedCompanyId || selectedCompanyId === ALL_COMPANIES) {
+      toast({ title: 'Select a company first', description: 'A payroll run belongs to one specific company — pick one before drafting.', variant: 'destructive' });
       return;
     }
     const [y, m] = form.period.split('-');
@@ -2268,9 +2295,27 @@ const Payroll = () => {
   // currently selected — payroll_runs.company_id now exists specifically so
   // KD Squares and NDI never bleed into each other's numbers.
   const visibleRuns = useMemo(
-    () => runs.filter((r) => r.company_id === selectedCompanyId),
-    [runs, selectedCompanyId],
+    () => (isAllCompanies ? runs : runs.filter((r) => r.company_id === selectedCompanyId)),
+    [runs, selectedCompanyId, isAllCompanies],
   );
+
+  // Headcount + last-run label per company, for the "which company?" cards.
+  // Both are derived from data already loaded for the page — no extra query.
+  const companyRunStats = useMemo(() => {
+    const out: Record<string, CompanyRunStats> = {};
+    for (const c of companies) {
+      const employees = segmentPayGroups
+        .filter((g) => g.company_id === c.id)
+        .reduce((sum, g) => sum + g.payableCount, 0);
+      // `runs` is ordered by period descending, so the first match is latest.
+      const last = runs.find((r) => r.company_id === c.id);
+      out[c.id] = {
+        employees,
+        lastRunLabel: last ? monthLabel(last.period, last.period_type) : null,
+      };
+    }
+    return out;
+  }, [companies, segmentPayGroups, runs]);
 
   const latest = visibleRuns[0];
   const trend = useMemo(
@@ -2417,7 +2462,7 @@ const Payroll = () => {
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           {companies.length > 1 && (
-            <CompanySwitcher companies={companies} value={selectedCompanyId} onChange={setSelectedCompanyId} />
+            <CompanySwitcher companies={companies} value={selectedCompanyId} onChange={setSelectedCompanyId} allowAll />
           )}
           <Button onClick={openNewDraft}>
             <Plus className="mr-2 h-4 w-4" /> New payroll run
@@ -2425,7 +2470,7 @@ const Payroll = () => {
         </div>
       </div>
 
-      <NextPayrollBanner onStartDraft={openNewDraft} companyId={selectedCompanyId} />
+      <NextPayrollBanner onStartDraft={openNewDraft} companyId={isAllCompanies ? null : selectedCompanyId} />
 
       <Tabs defaultValue="dashboard">
         <TabsList className="h-9 bg-transparent border-b border-border/50 rounded-none w-full justify-start gap-0 p-0">
@@ -2510,7 +2555,7 @@ const Payroll = () => {
             runRefs={runRefs}
             monthLabel={monthLabel}
             setBannerDismissed={setBannerDismissed}
-            setDialog={setDialog}
+            onNewRun={openNewDraft}
             submit={runPreflight}
             editDraft={editDraft}
             deleteDraft={deleteDraft}
@@ -2529,6 +2574,8 @@ const Payroll = () => {
             printRun={printRun}
             actOnAdvance={actOnAdvance}
             isSelfApprovalBlocked={isSelfApprovalBlocked}
+            companies={companies}
+            showCompany={isAllCompanies && companies.length > 1}
           />
         </TabsContent>
 
@@ -2551,6 +2598,14 @@ const Payroll = () => {
           />
         </TabsContent>
       </Tabs>
+
+      <CompanyChoiceDialog
+        open={companyChoiceOpen}
+        companies={companies}
+        stats={companyRunStats}
+        onPick={pickCompanyForNewDraft}
+        onClose={() => setCompanyChoiceOpen(false)}
+      />
 
       <PayrollDialogs
         dialog={dialog}

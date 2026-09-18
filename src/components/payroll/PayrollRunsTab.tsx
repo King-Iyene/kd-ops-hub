@@ -57,6 +57,8 @@ import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
+import { CompanyBadge } from '@/components/ui-kit/CompanySwitcher';
+import type { Company } from '@/queries';
 import { PENSION_EMPLOYER_RATE as EMPLOYER_PENSION_RATE } from '@/lib/tax';
 import type { PayrollRun } from '@/lib/payroll-run';
 
@@ -77,7 +79,12 @@ interface PayrollRunsTabProps {
   runRefs: React.MutableRefObject<Map<string, HTMLElement | null>>;
   monthLabel: (period: string, periodType?: string) => string;
   setBannerDismissed: (v: boolean) => void;
-  setDialog: (v: boolean) => void;
+  /** Starts a brand-new payroll run. Must go through the page's
+      openNewDraft rather than flipping the dialog open directly: that
+      resets the wizard form (otherwise a previously-edited draft's figures
+      leak into the new run) and resolves which company the run belongs to
+      when the page is filtered to "All companies". */
+  onNewRun: () => void;
   submit: (run: PayrollRun) => void;
   editDraft: (run: PayrollRun) => void;
   deleteDraft: (run: PayrollRun) => void;
@@ -97,6 +104,15 @@ interface PayrollRunsTabProps {
   actOnAdvance: (id: string, action: 'approve' | 'reject' | 'paid') => void;
   isSelfApprovalBlocked: (run: PayrollRun) => boolean;
   segments: { id: string; name: string }[];
+  /** All companies, for labelling which company a run belongs to. */
+  companies?: Company[];
+  /** True when the page is showing more than one company's runs at once, so
+      each row has to say whose payroll it is. The left accent stripe already
+      encodes status, so company is shown as a labelled badge rather than a
+      second colour — one stripe meaning two different things would be worse
+      than no colour-coding at all, and a colour-only cue is unreadable to
+      anyone who cannot distinguish the two brand colours. */
+  showCompany?: boolean;
 }
 
 // An Autopilot-created shell: pay_schedules' cron drops a ₦0 draft on the
@@ -163,7 +179,7 @@ export const PayrollRunsTab = ({
   runRefs,
   monthLabel,
   setBannerDismissed,
-  setDialog,
+  onNewRun,
   submit,
   editDraft,
   deleteDraft,
@@ -183,6 +199,8 @@ export const PayrollRunsTab = ({
   actOnAdvance,
   isSelfApprovalBlocked,
   segments,
+  companies,
+  showCompany,
 }: PayrollRunsTabProps) => {
   const [openId, setOpenId] = useState<string | null>(null);
   const openRun = runs.find((r) => r.id === openId) ?? null;
@@ -333,7 +351,7 @@ export const PayrollRunsTab = ({
               <p className="kd-display text-xl font-extrabold mt-1.5">Draft your first run to see it here</p>
               <p className="text-xs text-white/60 mt-1">PAYE, pension and NHF get computed the moment you draft.</p>
             </div>
-            <Button onClick={() => setDialog(true)} className="bg-white text-[#00283d] hover:bg-white/90 shrink-0">
+            <Button onClick={onNewRun} className="bg-white text-[#00283d] hover:bg-white/90 shrink-0">
               <Plus className="mr-1.5 h-4 w-4" /> New payroll run
             </Button>
           </div>
@@ -426,7 +444,7 @@ export const PayrollRunsTab = ({
         <div className="flex items-center justify-between">
           <h2 className="text-xs-plus font-semibold tracking-tight">Payroll runs</h2>
           {runs.length > 0 && (
-            <Button size="sm" onClick={() => setDialog(true)} className="gap-1.5">
+            <Button size="sm" onClick={onNewRun} className="gap-1.5">
               <Plus className="h-3.5 w-3.5" /> New run
             </Button>
           )}
@@ -471,7 +489,7 @@ export const PayrollRunsTab = ({
               title="No payroll runs yet"
               description="Create a payroll run to calculate monthly salary costs and generate payslips — PAYE, pension and NHF are computed for you automatically."
               action={
-                <Button onClick={() => setDialog(true)}>
+                <Button onClick={onNewRun}>
                   <Plus className="mr-2 h-4 w-4" /> Create Payroll Run
                 </Button>
               }
@@ -502,6 +520,9 @@ export const PayrollRunsTab = ({
                     <div className="min-w-0 flex-1 pl-1.5">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-sm">{monthLabel(r.period, r.period_type)}</span>
+                        {showCompany && (
+                          <CompanyBadge company={companies?.find((c) => c.id === r.company_id)} />
+                        )}
                         <StatusBadge status={r.status} />
                         {isUncomputedAutoDraft(r) && (
                           <Badge variant="outline" className="gap-1 text-3xs border-purple-300 text-purple-700 bg-purple-50 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-700">

@@ -17,6 +17,7 @@ import { useAuthStore } from '@/store/authStore';
 import { formatNaira, formatNairaCompact, daysUntil } from '@/lib/format';
 import { displayName } from '@/lib/name';
 import { PayrollLifecycleRail, realStepIndex } from '@/components/payroll/PayrollLifecycleRail';
+import { ALL_COMPANIES } from '@/components/ui-kit/CompanySwitcher';
 import { cn } from '@/lib/utils';
 
 interface PayrollRunLite {
@@ -62,6 +63,7 @@ export function PayrollDashboardTab({
 }) {
   const { profile } = useAuthStore();
   const navigate = useNavigate();
+  const isAllCompanies = selectedCompanyId === ALL_COMPANIES;
   const [payGroupCount, setPayGroupCount] = useState<number | null>(null);
   const [nextPayDate, setNextPayDate] = useState<Date | null>(null);
   const [inflow, setInflow] = useState<number | null>(null);
@@ -82,8 +84,15 @@ export function PayrollDashboardTab({
     (async () => {
       setLoadingExtras(true);
       const safePayGroupIds = companyPayGroupIds.length > 0 ? companyPayGroupIds : ['00000000-0000-0000-0000-000000000000'];
+      // In "All companies" mode selectedCompanyId is a sentinel, not a uuid —
+      // counting groups must not filter by it (Postgres would reject the
+      // comparison outright and the tile would silently render blank).
+      const groupsQuery = supabase
+        .from('pay_groups')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_active', true);
       const [groupsRes, schedulesRes, expectedRes, roster] = await Promise.all([
-        supabase.from('pay_groups').select('id', { count: 'exact', head: true }).eq('is_active', true).eq('company_id', selectedCompanyId),
+        isAllCompanies ? groupsQuery : groupsQuery.eq('company_id', selectedCompanyId),
         supabase.from('pay_schedules').select('id').eq('is_active', true).order('created_at', { ascending: true }),
         // "In" this period — approved & unbudgeted income the company expects,
         // reused from expenses/invoices would be a stretch; the honest, already
@@ -144,7 +153,7 @@ export function PayrollDashboardTab({
       if (!cancelled) setLoadingExtras(false);
     })();
     return () => { cancelled = true; };
-  }, [selectedCompanyId, companyPayGroupIds]);
+  }, [selectedCompanyId, companyPayGroupIds, isAllCompanies]);
 
   const firstName = profile?.full_name?.split(' ')?.[0] || 'there';
   const greetingHour = new Date().getHours();
