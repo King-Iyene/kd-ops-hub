@@ -670,6 +670,8 @@ interface InfiniteRecordsPage {
   page: number;
 }
 
+const infiniteLinkCache = new Map<string, { includeIds: string[] | null; excludeIds: string[] | null; nonLinkFilters: Filter[]; sortIds: string[] | null; nonLinkSorts: Sort[]; ts: number }>();
+
 export function useInfiniteRecords(params: UseInfiniteRecordsParams) {
   const { baseId, tableId, pageSize = 100, filters, filterGroups, sorts, search } = params;
 
@@ -687,47 +689,54 @@ export function useInfiniteRecords(params: UseInfiniteRecordsParams) {
         resolveFieldsMeta(tableId),
       ]);
 
-      // Pre-resolve linked record filters
-      let infLinkIncludeIds: string[] | null = null;
-      let infLinkExcludeIds: string[] | null = null;
-      const infNonLinkFilters: Filter[] = [];
+      // Pre-resolve linked record filters (cached across pages)
+      const linkCacheKey = JSON.stringify({ tableId, filters, sorts });
+      let linkResolved = infiniteLinkCache.get(linkCacheKey);
+      if (!linkResolved || Date.now() - linkResolved.ts > 30_000) {
+        let infLinkIncludeIds: string[] | null = null;
+        let infLinkExcludeIds: string[] | null = null;
+        const infNonLinkFilters: Filter[] = [];
 
-      if (filters && filters.length > 0) {
-        for (const filter of filters) {
-          const field = fieldMap.get(filter.field_id);
-          if (!field) continue;
-          if (filter.operator === 'linkContains' && filter.value) {
-            const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
-              body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
-            });
-            infLinkIncludeIds = lqData?.ids ?? [];
-          } else if (filter.operator === 'linkDoesNotContain' && filter.value) {
-            const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
-              body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
-            });
-            infLinkExcludeIds = lqData?.ids ?? [];
-          } else {
-            infNonLinkFilters.push(filter);
+        if (filters && filters.length > 0) {
+          for (const filter of filters) {
+            const field = fieldMap.get(filter.field_id);
+            if (!field) continue;
+            if (filter.operator === 'linkContains' && filter.value) {
+              const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+                body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
+              });
+              infLinkIncludeIds = lqData?.ids ?? [];
+            } else if (filter.operator === 'linkDoesNotContain' && filter.value) {
+              const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+                body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
+              });
+              infLinkExcludeIds = lqData?.ids ?? [];
+            } else {
+              infNonLinkFilters.push(filter);
+            }
           }
         }
-      }
 
-      // Pre-resolve linked record sort
-      let infLinkSortIds: string[] | null = null;
-      const infNonLinkSorts: Sort[] = [];
-      if (sorts && sorts.length > 0) {
-        for (const sort of sorts) {
-          const field = fieldMap.get(sort.field_id);
-          if (field?.ui_type === 'Links') {
-            const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
-              body: { action: 'linkedQuery', fieldId: field.id, mode: 'sort', direction: sort.direction },
-            });
-            infLinkSortIds = lqData?.ids ?? [];
-          } else {
-            infNonLinkSorts.push(sort);
+        let infLinkSortIds: string[] | null = null;
+        const infNonLinkSorts: Sort[] = [];
+        if (sorts && sorts.length > 0) {
+          for (const sort of sorts) {
+            const field = fieldMap.get(sort.field_id);
+            if (field?.ui_type === 'Links') {
+              const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+                body: { action: 'linkedQuery', fieldId: field.id, mode: 'sort', direction: sort.direction },
+              });
+              infLinkSortIds = lqData?.ids ?? [];
+            } else {
+              infNonLinkSorts.push(sort);
+            }
           }
         }
+
+        linkResolved = { includeIds: infLinkIncludeIds, excludeIds: infLinkExcludeIds, nonLinkFilters: infNonLinkFilters, sortIds: infLinkSortIds, nonLinkSorts: infNonLinkSorts, ts: Date.now() };
+        infiniteLinkCache.set(linkCacheKey, linkResolved);
       }
+      const { includeIds: infLinkIncludeIds, excludeIds: infLinkExcludeIds, nonLinkFilters: infNonLinkFilters, sortIds: infLinkSortIds, nonLinkSorts: infNonLinkSorts } = linkResolved;
 
       let q = supabase
         .schema(ctx.schemaName)
