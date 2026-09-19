@@ -109,7 +109,7 @@ function LinkRow({ icon: Icon, title, sub, url, badge }: {
         <p className="text-xs text-muted-foreground truncate font-mono">{url}</p>
         {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
       </div>
-      <a href={url} target="_blank" rel="noreferrer" className="shrink-0">
+      <a href={url} target="_blank" rel="noopener noreferrer" className="shrink-0">
         <Button size="icon" variant="ghost" aria-label="Open link">
           <ExternalLink className="h-3.5 w-3.5" />
         </Button>

@@ -166,7 +166,7 @@ const SECTIONS: TroubleshootingSection[] = [
           <div className="space-y-3">
             <ul className="space-y-1.5 text-sm text-zinc-600 dark:text-zinc-400">
               <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Make sure your JSON is valid (no trailing commas, all strings in double quotes)</li>
-              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Use a JSON validator: <a href="https://jsonlint.com" target="_blank" rel="noopener" className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">jsonlint.com <ExternalLink size={10} /></a></li>
+              <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Use a JSON validator: <a href="https://jsonlint.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">jsonlint.com <ExternalLink size={10} /></a></li>
               <li className="flex gap-2"><span className="text-amber-500 mt-0.5"><AlertCircle size={14} /></span>Common mistake: sending form-encoded data instead of JSON &mdash; set <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">Content-Type: application/json</code></li>
             </ul>
           </div>

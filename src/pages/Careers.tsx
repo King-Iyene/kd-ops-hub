@@ -131,7 +131,7 @@ const Careers = () => {
             <a
               href={safeHref(company.website_url)}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="hover:text-foreground inline-flex items-center gap-1"
             >
               Website <ExternalLink className="h-3 w-3" />
@@ -141,7 +141,7 @@ const Careers = () => {
             <a
               href={safeHref(company.linkedin_url)}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="hover:text-foreground inline-flex items-center gap-1"
             >
               LinkedIn <ExternalLink className="h-3 w-3" />
