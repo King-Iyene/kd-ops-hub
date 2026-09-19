@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense, useDeferredValue } from 'react';
 import { Toolbar } from '../components/Toolbar';
 import { ViewBar } from '../components/ViewBar';
 import { useDatabaseUI } from '../lib/store';
@@ -73,6 +73,7 @@ export function TableView() {
     fieldWidths,
     fieldOrder,
   } = useDatabaseUI();
+  const deferredSearch = useDeferredValue(searchQuery);
   useActiveView(activeTableId);
   useRealtimeRecords(activeBaseId ?? undefined, activeTableId ?? undefined);
   const { data: fields } = useFields(activeTableId);
@@ -171,7 +172,7 @@ export function TableView() {
     filters: filters.length > 0 ? filters : undefined,
     filterGroups: filterGroups.length > 0 ? filterGroups : undefined,
     sorts: sorts.length > 0 ? sorts : undefined,
-    search: searchQuery || undefined,
+    search: deferredSearch || undefined,
   });
 
   const createRecord = useCreateRecord();
