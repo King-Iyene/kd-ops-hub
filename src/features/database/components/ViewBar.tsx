@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import { logWarn } from '@/lib/logger';
 import { Grid3X3, LayoutGrid, Columns3, FileText, Calendar, Plus, Pencil, Trash2, Copy, Lock, Unlock, GanttChart, Clock } from 'lucide-react';
 import {
   DndContext,
@@ -189,7 +190,7 @@ export function ViewBar() {
             });
           },
           onError: (err) => {
-            console.error('Failed to create view:', err);
+            logWarn('[Database] Failed to create view:', err);
           },
         },
       );

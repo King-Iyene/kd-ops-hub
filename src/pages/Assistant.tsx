@@ -26,6 +26,7 @@ import {
   FileSearch,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { logWarn } from '@/lib/logger';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -141,7 +142,7 @@ export default function Assistant() {
       .order('created_at', { ascending: false })
       .limit(100);
     if (error) {
-      console.error('fetchMessages error:', error);
+      logWarn('[Assistant] fetchMessages error:', error);
       toast({ title: 'Could not load messages', description: error.message, variant: 'destructive' });
     }
     const dbMsgs = ((data ?? []) as Message[]).reverse();

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { X, Upload, Trash2, FileText, File, Image as ImageIcon, Paperclip, FileSpreadsheet, FileCode, FileArchive, FileVideo, FileAudio, Presentation } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { logWarn } from '@/lib/logger';
 import AttachmentLightbox from './AttachmentLightbox';
 
 export interface AttachmentMeta {
@@ -74,7 +75,7 @@ export function AttachmentManager({
       const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
       for (const file of Array.from(files)) {
         if (file.size > MAX_FILE_SIZE) {
-          console.error(`File "${file.name}" exceeds 50MB limit`);
+          logWarn(`[Database] File "${file.name}" exceeds 50MB limit`);
           continue;
         }
         const ts = Date.now();
@@ -83,7 +84,7 @@ export function AttachmentManager({
           .from('attachments')
           .upload(path, file, { upsert: false });
         if (error) {
-          console.error('Upload failed:', error.message);
+          logWarn('[Database] Upload failed:', error.message);
           continue;
         }
         const { data: urlData } = supabase.storage
