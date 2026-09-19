@@ -376,7 +376,7 @@ function TaskRow({
           task.priority === 'high' && 'bg-warning',
           task.priority === 'normal' && 'bg-primary',
           task.priority === 'low' && 'bg-muted-foreground/60',
-        )} />
+        )} role="img" aria-label={`${task.priority} priority`} />
 
         {/* Due date */}
         {task.due_date && (
