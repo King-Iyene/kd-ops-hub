@@ -204,9 +204,11 @@ function AppRoutes() {
       <Route
         path="/unauthorized"
         element={
-          <AuthGuard>
-            <Unauthorized />
-          </AuthGuard>
+          <ErrorBoundary>
+            <AuthGuard>
+              <Unauthorized />
+            </AuthGuard>
+          </ErrorBoundary>
         }
       />
 

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { logWarn } from '@/lib/logger';
 
 // Registers the service worker and surfaces it when a new version is
 // waiting — registerType "prompt" (vite.config.ts) means the SW does NOT
@@ -27,7 +28,7 @@ export function PwaUpdatePrompt() {
       window.addEventListener('focus', check);
     },
     onRegisterError(error) {
-      console.error('Service worker registration failed', error);
+      logWarn('[PWA] Service worker registration failed', error);
     },
   });
 
