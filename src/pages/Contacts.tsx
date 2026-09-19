@@ -24,6 +24,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { logWarn } from '@/lib/logger';
 import { formatDate } from '@/lib/format';
 import { safeHref } from '@/lib/safe-href';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -146,11 +147,12 @@ const Contacts = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('contacts')
       .select('id, full_name, first_name, last_name, email, phone, contact_type, source, tags, notes, status, created_at')
       .order('created_at', { ascending: false })
       .limit(200);
+    if (error) logWarn('Contacts', 'load failed:', error.message);
     setContacts((data as Contact[]) || []);
     setLoading(false);
   }, []);
@@ -795,10 +797,11 @@ export function WhatsAppGroupsTab() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('whatsapp_groups')
       .select('id, name, description, invite_link, member_count, group_type, status')
       .order('name');
+    if (error) logWarn('Contacts', 'WhatsApp groups load failed:', error.message);
     setGroups((data as WaGroup[]) || []);
     setLoading(false);
   }, []);

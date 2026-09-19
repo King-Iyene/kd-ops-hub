@@ -24,6 +24,7 @@ import { AuroraHero } from '@/components/AuroraHero';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { logWarn } from '@/lib/logger';
 import { errorMessage } from '@/lib/db-errors';
 import { roleLabel, type Role } from '@/lib/roles';
 import { formatDate } from '@/lib/format';
@@ -282,7 +283,8 @@ const Employees = () => {
     supabase
       .from('pay_groups')
       .select('id, company_id')
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) logWarn('Employees', 'pay_groups fetch failed:', error.message);
         const map: Record<string, string> = {};
         for (const g of (data || []) as { id: string; company_id: string }[]) map[g.id] = g.company_id;
         payGroupCompanyByIdRef.current = map;

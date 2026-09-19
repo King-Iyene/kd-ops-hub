@@ -8,6 +8,7 @@ import {
   PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { logWarn } from '@/lib/logger';
 import { useAuthStore } from '@/store/authStore';
 import { errorMessage } from '@/lib/db-errors';
 import { confirm } from '@/hooks/use-confirm';
@@ -273,7 +274,8 @@ const Tasks = () => {
         load();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, () => {
-        supabase.from('task_comments').select('task_id').limit(20000).then(({ data }) => {
+        supabase.from('task_comments').select('task_id').limit(20000).then(({ data, error }) => {
+          if (error) { logWarn('Tasks', 'comment counts reload failed:', error.message); return; }
           if (!data) return;
           const counts = new Map<string, number>();
           for (const row of data) counts.set(row.task_id, (counts.get(row.task_id) ?? 0) + 1);
@@ -291,7 +293,8 @@ const Tasks = () => {
       .from('task_comments')
       .select('task_id')
       .limit(20000)
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) { logWarn('Tasks', 'comment counts fetch failed:', error.message); return; }
         if (!data) return;
         const counts = new Map<string, number>();
         for (const row of data) {
@@ -309,14 +312,16 @@ const Tasks = () => {
       .select('item_id')
       .eq('user_id', profile.id)
       .eq('item_type', 'space')
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) { logWarn('Tasks', 'favorites fetch failed:', error.message); return; }
         if (data) setFavoriteSpaceIds(new Set(data.map((r: any) => r.item_id)));
       });
   }, [profile?.id, spaces]);
 
   // Load project-space mapping
   useEffect(() => {
-    supabase.from('projects').select('id, space_id').limit(5000).then(({ data }) => {
+    supabase.from('projects').select('id, space_id').limit(5000).then(({ data, error }) => {
+      if (error) { logWarn('Tasks', 'project-space map fetch failed:', error.message); return; }
       if (!data) return;
       const m = new Map<string, string | null>();
       for (const p of data) m.set(p.id, p.space_id);
