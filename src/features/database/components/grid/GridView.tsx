@@ -297,11 +297,12 @@ const SummaryRow = React.memo(function SummaryRow({
               minWidth: field.width,
               borderRight: isLastFroz ? `1px solid ${colors.border}` : `1px solid ${colors.border}`,
               backgroundColor: colors.headerBg,
-              ...(isFroz ? { position: 'sticky' as const, left: cellLeft, zIndex: 10, boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined } : {}),
+              ...(isFroz ? { position: 'sticky' as const, left: cellLeft, zIndex: 10, boxShadow: isLastFroz ? GRID_COLORS.frozenShadow : undefined } : {}),
             }}
           >
             <button
               data-summary-field={field.id}
+              aria-label={`Summary for ${field.name}`}
               className="w-full h-full flex flex-col justify-center px-2 text-left"
               style={{ minHeight: 32 }}
               onClick={() => setSummaryDropdown(isOpen ? null : field.id)}
@@ -1492,7 +1493,7 @@ function GridViewInner({
                       zIndex: 25,
                       backgroundColor: GRID_COLORS.headerBg,
                       borderRight: isLastFrozen ? `1px solid ${GRID_COLORS.border}` : undefined,
-                      boxShadow: isLastFrozen ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
+                      boxShadow: isLastFrozen ? GRID_COLORS.frozenShadow : undefined,
                     } : {}),
                   }}
                   onDragOver={(e) => handleColDragOver(e, colIdx)}
@@ -1760,7 +1761,7 @@ function GridViewInner({
                               left: cellLeft,
                               zIndex: 5,
                               borderRight: isLastFroz ? `1px solid ${GRID_COLORS.border}` : undefined,
-                              boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
+                              boxShadow: isLastFroz ? GRID_COLORS.frozenShadow : undefined,
                             } : {}),
                           }}
                         >
@@ -1936,7 +1937,7 @@ function GridViewInner({
                             left: cellLeft,
                             zIndex: 5,
                             borderRight: isLastFroz ? `1px solid ${GRID_COLORS.border}` : undefined,
-                            boxShadow: isLastFroz ? '4px 0 8px rgba(0,0,0,0.08)' : undefined,
+                            boxShadow: isLastFroz ? GRID_COLORS.frozenShadow : undefined,
                           } : {}),
                         }}
                       >

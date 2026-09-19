@@ -944,8 +944,8 @@ export function ExpandedRowModal({
           <button
             type="button"
             onClick={handleBtnClick}
-            className="inline-flex items-center px-4 py-1.5 rounded text-xs font-medium transition-colors hover:opacity-90"
-            style={{ backgroundColor: '#2D7FF9', color: '#FFFFFF', cursor: urlTemplate ? 'pointer' : 'default' }}
+            className="inline-flex items-center px-4 py-1.5 rounded text-xs font-medium transition-colors hover:opacity-90 bg-[#2D7FF9] text-white"
+            style={{ cursor: urlTemplate ? 'pointer' : 'default' }}
           >
             {btnLabel}
           </button>

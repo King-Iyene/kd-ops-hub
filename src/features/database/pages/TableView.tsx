@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense, useDeferredValue } from 'react';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Toolbar } from '../components/Toolbar';
 import { ViewBar } from '../components/ViewBar';
 import { useDatabaseUI } from '../lib/store';
@@ -577,7 +578,7 @@ export function TableView() {
               Retry
             </button>
           </div>
-        ) : <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-[#2D7FF9] border-t-transparent rounded-full animate-spin" /></div>}>{renderView()}</Suspense>}
+        ) : <ErrorBoundary context="The table view encountered an error."><Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-[#2D7FF9] border-t-transparent rounded-full animate-spin" /></div>}>{renderView()}</Suspense></ErrorBoundary>}
       </div>
       <Suspense fallback={null}>
         {!!expandedRecord && (

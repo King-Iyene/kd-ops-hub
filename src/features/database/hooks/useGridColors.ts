@@ -30,6 +30,7 @@ const LIGHT = {
   highlightBg: '#FEF08A',
   linkPillBg: '#DBE7FD',
   linkPillText: '#1D4ED8',
+  frozenShadow: '4px 0 8px rgba(0,0,0,0.08)',
 };
 
 const DARK = {
@@ -61,6 +62,7 @@ const DARK = {
   highlightBg: 'hsl(45, 80%, 25%)',
   linkPillBg: 'hsl(220, 40%, 20%)',
   linkPillText: '#93B4F8',
+  frozenShadow: '4px 0 8px rgba(0,0,0,0.3)',
 };
 
 export type GridColorTokens = typeof LIGHT;
