@@ -17,6 +17,7 @@ import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, Calenda
 
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -193,7 +194,9 @@ export default function FinanceDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold currency">{formatNairaCompact(pulse?.cash_on_hand_ngn ?? 0)}</p>
+            {loading ? <Skeleton className="h-8 w-32" /> : (
+              <p className="text-2xl font-bold currency">{formatNairaCompact(pulse?.cash_on_hand_ngn ?? 0)}</p>
+            )}
             {pulse?.cash_is_stale && (
               <p className="text-xs text-warning mt-1">Not updated in over 7 days</p>
             )}
@@ -207,7 +210,9 @@ export default function FinanceDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold currency">{formatNairaCompact(pulse?.net_monthly_burn_ngn ?? 0)}</p>
+            {loading ? <Skeleton className="h-8 w-28" /> : (
+              <p className="text-2xl font-bold currency">{formatNairaCompact(pulse?.net_monthly_burn_ngn ?? 0)}</p>
+            )}
             <p className="text-xs text-muted-foreground mt-1">External burn − revenue estimate</p>
           </CardContent>
         </Card>
@@ -219,12 +224,14 @@ export default function FinanceDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-end gap-2">
-              <p className="text-2xl font-bold">
-                {pulse?.runway_weeks == null ? '—' : `${pulse.runway_weeks.toFixed(1)}w`}
-              </p>
-              <Badge variant="outline" className={cn('mb-1', bandStyle.tone)}>{bandStyle.label}</Badge>
-            </div>
+            {loading ? <Skeleton className="h-8 w-24" /> : (
+              <div className="flex items-end gap-2">
+                <p className="text-2xl font-bold">
+                  {pulse?.runway_weeks == null ? '—' : `${pulse.runway_weeks.toFixed(1)}w`}
+                </p>
+                <Badge variant="outline" className={cn('mb-1', bandStyle.tone)}>{bandStyle.label}</Badge>
+              </div>
+            )}
             <p className="text-xs text-muted-foreground mt-1">
               Critical &lt; {RUNWAY_CRITICAL_WEEKS}w · Warning &lt; {RUNWAY_WARNING_WEEKS}w
             </p>
@@ -238,7 +245,9 @@ export default function FinanceDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{pulse?.total_headcount ?? 0}</p>
+            {loading ? <Skeleton className="h-8 w-16" /> : (
+              <p className="text-2xl font-bold">{pulse?.total_headcount ?? 0}</p>
+            )}
             <p className="text-xs text-muted-foreground mt-1">Active, salaried, excl. drivers</p>
           </CardContent>
         </Card>
@@ -250,9 +259,11 @@ export default function FinanceDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
-              {pulse?.revenue_per_employee_ngn == null ? '—' : formatNairaCompact(pulse.revenue_per_employee_ngn)}
-            </p>
+            {loading ? <Skeleton className="h-8 w-28" /> : (
+              <p className="text-2xl font-bold">
+                {pulse?.revenue_per_employee_ngn == null ? '—' : formatNairaCompact(pulse.revenue_per_employee_ngn)}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground mt-1">Monthly revenue estimate ÷ headcount</p>
           </CardContent>
         </Card>
@@ -264,9 +275,11 @@ export default function FinanceDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
-              {pulse?.payroll_pct_of_revenue == null ? '—' : `${pulse.payroll_pct_of_revenue.toFixed(0)}%`}
-            </p>
+            {loading ? <Skeleton className="h-8 w-16" /> : (
+              <p className="text-2xl font-bold">
+                {pulse?.payroll_pct_of_revenue == null ? '—' : `${pulse.payroll_pct_of_revenue.toFixed(0)}%`}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground mt-1">Latest approved payroll run</p>
           </CardContent>
         </Card>
