@@ -16,18 +16,18 @@ export const GRID_COLORS_LIGHT = {
 } as const;
 
 export const GRID_COLORS_DARK = {
-  bg: 'hsl(200, 30%, 8%)',
-  headerBg: 'hsl(200, 25%, 11%)',
-  border: 'hsl(200, 25%, 18%)',
+  bg: 'hsl(220, 20%, 8%)',
+  headerBg: 'hsl(220, 20%, 11%)',
+  border: 'hsl(220, 20%, 18%)',
   selected: '#2D7FF9',
   primary: '#2D7FF9',
   hoverRow: 'hsl(220, 40%, 15%)',
-  text: 'hsl(200, 25%, 88%)',
-  headerText: 'hsl(200, 20%, 65%)',
-  muted: 'hsl(200, 15%, 50%)',
-  groupHeaderBg: 'hsl(200, 25%, 13%)',
+  text: 'hsl(220, 20%, 88%)',
+  headerText: 'hsl(220, 15%, 65%)',
+  muted: 'hsl(220, 15%, 50%)',
+  groupHeaderBg: 'hsl(220, 20%, 13%)',
   cellEditorBg: 'hsl(220, 20%, 12%)',
-  cellEditorText: 'hsl(210, 20%, 92%)',
+  cellEditorText: 'hsl(220, 20%, 92%)',
   selectedRowBg: 'hsl(220, 40%, 18%)',
   altRowBg: 'hsl(220, 20%, 11%)',
 } as const;

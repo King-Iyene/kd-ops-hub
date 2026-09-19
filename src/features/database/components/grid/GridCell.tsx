@@ -224,7 +224,7 @@ export const GridCell = React.memo(function GridCell({
         </span>
       )}
       {validationError && (
-        <div className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-destructive/30 rounded px-2 py-1 shadow text-2xs text-red-600 whitespace-nowrap">
+        <div className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(220,20%,10%)] border border-destructive/30 rounded px-2 py-1 shadow text-2xs text-red-600 whitespace-nowrap">
           {validationError}
         </div>
       )}

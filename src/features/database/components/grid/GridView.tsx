@@ -1622,7 +1622,7 @@ function GridViewInner({
                           {item.groupValue}
                         </span>
                       ) : (
-                        <span className="text-[#374151] dark:text-[hsl(200,25%,88%)]" style={{ fontSize: 12, fontWeight: 600, marginLeft: 2 }}>
+                        <span className="text-[#374151] dark:text-[hsl(220,20%,88%)]" style={{ fontSize: 12, fontWeight: 600, marginLeft: 2 }}>
                           {item.groupValue}
                         </span>
                       )}
@@ -1712,12 +1712,12 @@ function GridViewInner({
                           <div className="absolute inset-0 flex items-center justify-center gap-0.5 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 transition-opacity">
                             <input type="checkbox" className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1" style={{ outlineColor: GRID_COLORS.primary }} checked={false} onChange={() => toggleRowSelection(record.id)} aria-label={`Select row ${rowNum}`} />
                             {onExpandRow && (
-                              <button className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)]" onClick={(e) => { e.stopPropagation(); onExpandRow(record); }} aria-label={`Expand row ${rowNum}`}>
+                              <button className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(220,20%,18%)]" onClick={(e) => { e.stopPropagation(); onExpandRow(record); }} aria-label={`Expand row ${rowNum}`}>
                                 <Expand size={12} />
                               </button>
                             )}
                             <button
-                              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)]"
+                              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(220,20%,18%)]"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setRowMenu({ x: e.clientX, y: e.clientY, record });
@@ -1856,7 +1856,7 @@ function GridViewInner({
                         <div className="absolute inset-0 flex items-center justify-center gap-0.5 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 transition-opacity">
                           <span
                             draggable
-                            className="cursor-grab active:cursor-grabbing px-0.5 text-[#9AA2AF] hover:text-[#374151] dark:text-[hsl(200,20%,55%)] dark:hover:text-[hsl(200,25%,88%)]"
+                            className="cursor-grab active:cursor-grabbing px-0.5 text-[#9AA2AF] hover:text-[#374151] dark:text-[hsl(220,15%,55%)] dark:hover:text-[hsl(220,20%,88%)]"
                             onDragStart={(e) => handleRowDragStart(e, record.id)}
                             onDragEnd={handleRowDragEnd}
                             style={{ fontSize: 13 }}
@@ -1875,7 +1875,7 @@ function GridViewInner({
                           />
                           {onExpandRow && (
                             <button
-                              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)]"
+                              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(220,20%,18%)]"
                               onClick={(e) => { e.stopPropagation(); onExpandRow(record); }}
                               aria-label={`Expand row ${rowNum}`}
                             >
@@ -1883,7 +1883,7 @@ function GridViewInner({
                             </button>
                           )}
                           <button
-                            className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,25%,18%)]"
+                            className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(220,20%,18%)]"
                             onClick={(e) => {
                               e.stopPropagation();
                               setRowMenu({ x: e.clientX, y: e.clientY, record });
