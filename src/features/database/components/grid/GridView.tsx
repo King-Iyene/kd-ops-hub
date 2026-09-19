@@ -1328,7 +1328,7 @@ function GridViewInner({
 
   if (records.length === 0 && !isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4" style={{ backgroundColor: GRID_COLORS.bg }}>
+      <div className="flex flex-col items-center justify-center flex-1 min-h-64 gap-4" style={{ backgroundColor: GRID_COLORS.bg }}>
         <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ backgroundColor: GRID_COLORS.groupHeaderBg }}>
           <Rows3 size={28} style={{ color: GRID_COLORS.muted }} />
         </div>
@@ -1342,10 +1342,8 @@ function GridViewInner({
         </div>
         <button
           onClick={() => onAddRow()}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           style={{ backgroundColor: GRID_COLORS.primary }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
         >
           <Plus size={14} /> Add row
         </button>
@@ -2007,17 +2005,19 @@ function GridViewInner({
 
           {/* Add row button */}
           <button
-            className="flex items-center w-full text-left cursor-pointer transition-colors"
+            className="group/add flex items-center w-full text-left cursor-pointer transition-colors focus-visible:outline-none"
             style={{
               height: rowHeightPx,
               borderBottom: `1px solid ${GRID_COLORS.border}`,
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = GRID_COLORS.hoverRow; const span = e.currentTarget.querySelector('span'); if (span) span.style.color = GRID_COLORS.primary; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ''; const span = e.currentTarget.querySelector('span'); if (span) span.style.color = GRID_COLORS.muted; }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = GRID_COLORS.hoverRow; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ''; }}
+            onFocus={(e) => { e.currentTarget.style.backgroundColor = GRID_COLORS.hoverRow; }}
+            onBlur={(e) => { e.currentTarget.style.backgroundColor = ''; }}
             onClick={() => onAddRow()}
           >
             <span
-              className="flex items-center gap-1.5 px-3"
+              className="flex items-center gap-1.5 px-3 transition-colors"
               style={{ color: GRID_COLORS.muted, fontSize: 13 }}
             >
               <Plus size={14} /> New row

@@ -34,6 +34,14 @@ export function BulkActionsBar({
   const count = selectedRowIds.size;
   const allSelected = count === records.length && records.length === totalCount;
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); onClearSelection(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClearSelection]);
+
   // Close update dropdown on outside click
   useEffect(() => {
     if (!showUpdateField) return;
@@ -145,6 +153,8 @@ export function BulkActionsBar({
 
   return (
     <div
+      role="toolbar"
+      aria-label={`Bulk actions for ${count} selected row${count === 1 ? '' : 's'}`}
       className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-wrap items-center justify-center gap-2 px-4 py-2.5 rounded-xl border shadow-lg backdrop-blur-sm max-w-[calc(100vw-1.5rem)]"
       style={{
         animation: 'bulkBarSlideUp 200ms ease-out',

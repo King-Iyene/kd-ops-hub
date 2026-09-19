@@ -154,6 +154,18 @@ export function DateCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   const [selected, setSelected] = useState<Date | undefined>(initial);
   const colors = useGridColors();
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === ';') {
+        e.preventDefault();
+        const today = new Date();
+        onCommit(today.toISOString().split('T')[0]);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onCommit]);
+
   return (
     <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
       <PopoverTrigger asChild>
@@ -186,14 +198,14 @@ export function DateCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         <div style={{ height: 1, backgroundColor: colors.border }} />
         <div className="flex items-center justify-between px-3 py-2">
           <button
-            className="text-xs transition-colors"
+            className="text-xs transition-colors hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded px-1"
             style={{ color: colors.muted }}
             onClick={() => onCommit(null)}
           >
             Clear
           </button>
           <button
-            className="text-xs px-3 py-1 rounded"
+            className="text-xs px-3 py-1 rounded transition-opacity hover:opacity-90 active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             style={{ backgroundColor: colors.primary, color: '#fff' }}
             onClick={() => {
               const today = new Date();
@@ -1102,6 +1114,17 @@ export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProp
     const d = new Date(day);
     d.setHours(parseInt(h, 10) || 0, parseInt(m, 10) || 0, 0, 0);
     onCommit(d.toISOString());
+  }, [onCommit]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === ';') {
+        e.preventDefault();
+        onCommit(new Date().toISOString());
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [onCommit]);
 
   return (
