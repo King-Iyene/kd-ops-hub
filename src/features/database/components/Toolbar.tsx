@@ -984,7 +984,8 @@ export function Toolbar() {
   const rowColorRules = useDatabaseUI((s) => s.rowColorRules);
   const { undo, redo, stack, redoStack } = useUndoStore();
   const { data: fieldsData } = useFields(activeTableId);
-  const { data: recordsData } = useRecords({ baseId: activeBaseId!, tableId: activeTableId!, pageSize: 10000 });
+  const [exportNeeded, setExportNeeded] = useState(false);
+  const { data: recordsData } = useRecords({ baseId: activeBaseId!, tableId: activeTableId!, pageSize: 10000, enabled: exportNeeded });
   const { data: tablesData } = useTables(activeBaseId);
   const tableName = tablesData?.find((t) => t.id === activeTableId)?.name ?? 'table';
   const [searchOpen, setSearchOpen] = useState(false);
@@ -1162,7 +1163,7 @@ export function Toolbar() {
               variant="ghost"
               size="sm"
               className="h-7 text-xs text-zinc-500 dark:text-zinc-400 gap-1"
-              onClick={() => { setMoreOpen(!moreOpen); closeAllPanels(); }}
+              onClick={() => { if (!moreOpen) setExportNeeded(true); setMoreOpen(!moreOpen); closeAllPanels(); }}
               aria-label="More options"
             >
               <MoreHorizontal size={14} />
