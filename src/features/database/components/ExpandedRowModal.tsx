@@ -83,7 +83,7 @@ function InlineTextEditor({
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(text);
       }}
-      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#2D7FF9]"
+      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9]"
     />
   );
 }
@@ -103,7 +103,7 @@ function InlineLongTextEditor({
       onChange={(e) => setText(e.target.value)}
       onBlur={() => onCommit(text)}
       rows={4}
-      className="w-full px-2 py-1.5 text-sm rounded border outline-none resize-y bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#2D7FF9]"
+      className="w-full px-2 py-1.5 text-sm rounded border outline-none resize-y bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9]"
     />
   );
 }
@@ -127,7 +127,7 @@ function InlineNumberEditor({
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
       }}
-      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#2D7FF9]"
+      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9]"
     />
   );
 }
@@ -164,7 +164,7 @@ function InlineDateEditor({
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(date || null);
       }}
-      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] focus:border-[#2D7FF9]"
+      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9]"
     />
   );
 }
@@ -221,12 +221,12 @@ function InlineSelectEditor({
         <button
           type="button"
           onClick={() => { setOpen(!open); setTimeout(() => searchRef.current?.focus(), 0); }}
-          className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[#9AA2AF] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,18%)] transition-colors"
+          className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[#9AA2AF] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,18%)] transition-colors"
         >
           <ChevronDown size={14} />
         </button>
         {open && (
-          <div className="absolute top-full left-0 mt-1 z-50 min-w-[200px] max-h-[240px] overflow-auto rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] shadow-lg">
+          <div className="absolute top-full left-0 mt-1 z-50 min-w-[200px] max-h-[240px] overflow-auto rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] bg-white dark:bg-[hsl(220,20%,10%)] shadow-lg">
             <div className="p-1.5">
               <input
                 ref={searchRef}
@@ -234,7 +234,7 @@ function InlineSelectEditor({
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
                 placeholder="Find an option..."
-                className="w-full px-2 py-1 text-xs rounded border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)] focus:border-[#2D7FF9]"
+                className="w-full px-2 py-1 text-xs rounded border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-[#2D7FF9]"
               />
             </div>
             {filtered.map((c) => {
@@ -244,7 +244,7 @@ function InlineSelectEditor({
                   key={c.title}
                   type="button"
                   onClick={() => { onCommit(c.title); setOpen(false); setSearch(''); }}
-                  className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,18%)] transition-colors"
+                  className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,18%)] transition-colors"
                 >
                   <span className="inline-flex items-center px-2 rounded-full text-xs font-medium" style={{ backgroundColor: color.bg, color: color.text, height: 22, lineHeight: '22px' }}>
                     {c.title}
@@ -297,12 +297,12 @@ function InlineMultiSelectEditor({
         <button
           type="button"
           onClick={() => { setOpen(!open); setTimeout(() => searchRef.current?.focus(), 0); }}
-          className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[#9AA2AF] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,18%)] transition-colors"
+          className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[#9AA2AF] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,18%)] transition-colors"
         >
           <ChevronDown size={14} />
         </button>
         {open && (
-          <div className="absolute top-full left-0 mt-1 z-50 min-w-[200px] max-h-[240px] overflow-auto rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] shadow-lg">
+          <div className="absolute top-full left-0 mt-1 z-50 min-w-[200px] max-h-[240px] overflow-auto rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] bg-white dark:bg-[hsl(220,20%,10%)] shadow-lg">
             <div className="p-1.5">
               <input
                 ref={searchRef}
@@ -310,7 +310,7 @@ function InlineMultiSelectEditor({
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
                 placeholder="Find an option..."
-                className="w-full px-2 py-1 text-xs rounded border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)] focus:border-[#2D7FF9]"
+                className="w-full px-2 py-1 text-xs rounded border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-[#2D7FF9]"
               />
             </div>
             {filtered.map((c) => {
@@ -321,7 +321,7 @@ function InlineMultiSelectEditor({
                   key={c.title}
                   type="button"
                   onClick={() => toggle(c.title)}
-                  className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,18%)] transition-colors"
+                  className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,18%)] transition-colors"
                 >
                   <span className={`inline-flex items-center px-2 rounded-full text-xs font-medium ${!isSelected ? 'opacity-50' : ''}`} style={{ backgroundColor: color.bg, color: color.text, height: 22, lineHeight: '22px' }}>
                     {c.title}
@@ -387,7 +387,7 @@ function InlineAttachmentEditor({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors border-[#E5E5E5] text-[#6A7184] hover:border-[#2D7FF9] hover:text-[#2D7FF9] dark:border-[hsl(200,25%,18%)] dark:text-[#9AA2AF] dark:hover:border-[#2D7FF9] dark:hover:text-[#2D7FF9]"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors border-[#E5E5E5] text-[#6A7184] hover:border-[#2D7FF9] hover:text-[#2D7FF9] dark:border-[hsl(220,20%,18%)] dark:text-[#9AA2AF] dark:hover:border-[#2D7FF9] dark:hover:text-[#2D7FF9]"
       >
         <Paperclip size={14} />
         {attachments.length > 0
@@ -399,7 +399,7 @@ function InlineAttachmentEditor({
           {attachments.map((att, i) => {
             const isImage = att.type?.startsWith('image/');
             return (
-              <div key={att.url || i} className="w-12 h-12 rounded border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] overflow-hidden bg-[#FAFAFA] dark:bg-[hsl(200,30%,12%)]">
+              <div key={att.url || i} className="w-12 h-12 rounded border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] overflow-hidden bg-[#FAFAFA] dark:bg-[hsl(220,20%,12%)]">
                 {isImage ? (
                   <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
                 ) : (
@@ -434,7 +434,7 @@ function Tooltip({ text, children }: { text: string; children: React.ReactNode }
     >
       {children}
       {show && (
-        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-3xs rounded bg-[#374151] dark:bg-[hsl(200,25%,88%)] text-white dark:text-[hsl(200,30%,10%)] whitespace-nowrap z-50 pointer-events-none shadow">
+        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-3xs rounded bg-[#374151] dark:bg-[hsl(220,20%,88%)] text-white dark:text-[hsl(220,20%,10%)] whitespace-nowrap z-50 pointer-events-none shadow">
           {text}
         </span>
       )}
@@ -558,7 +558,7 @@ function ActivitySection({ record, fields }: { record: RecordRow; fields: FieldM
             <Clock size={10} className="text-success" />
           </div>
           <div>
-            <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Record created</p>
+            <p className="text-xs font-medium text-[#374151] dark:text-[hsl(220,20%,88%)]">Record created</p>
             <p className="text-3xs text-[#9AA2AF]">{fmt(createdAt)}</p>
           </div>
         </div>
@@ -568,7 +568,7 @@ function ActivitySection({ record, fields }: { record: RecordRow; fields: FieldM
               <Clock size={10} className="text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Last modified</p>
+              <p className="text-xs font-medium text-[#374151] dark:text-[hsl(220,20%,88%)]">Last modified</p>
               <p className="text-3xs text-[#9AA2AF]">{fmt(modifiedAt)}</p>
             </div>
           </div>
@@ -591,11 +591,11 @@ function SystemFieldsAccordion({
   if (fields.length === 0) return null;
 
   return (
-    <div className="border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] pt-4">
+    <div className="border-t border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] pt-4">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-1.5 text-3xs font-semibold text-[#9AA2AF] uppercase tracking-wider mb-3 hover:text-[#6A7184] dark:hover:text-[hsl(200,25%,70%)] transition-colors"
+        className="flex items-center gap-1.5 text-3xs font-semibold text-[#9AA2AF] uppercase tracking-wider mb-3 hover:text-[#6A7184] dark:hover:text-[hsl(220,20%,70%)] transition-colors"
       >
         <Clock size={12} />
         System Fields
@@ -609,7 +609,7 @@ function SystemFieldsAccordion({
             return (
               <div key={field.id}>
                 <label className="block text-3xs font-medium text-[#9AA2AF] mb-0.5">{field.name}</label>
-                <div className="text-xs text-[#6A7184] dark:text-[hsl(200,25%,70%)]">
+                <div className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,70%)]">
                   <Renderer value={val} field={field} record={record} rowHeight="medium" />
                 </div>
               </div>
@@ -644,9 +644,9 @@ function RightSidebar({
   ];
 
   return (
-    <div className="lg:w-[320px] shrink-0 lg:overflow-y-auto border-t lg:border-t-0 border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] flex flex-col">
+    <div className="lg:w-[320px] shrink-0 lg:overflow-y-auto border-t lg:border-t-0 border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] flex flex-col">
       {/* Tab bar */}
-      <div className="flex border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] px-3 pt-2 gap-1 shrink-0">
+      <div className="flex border-b border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] px-3 pt-2 gap-1 shrink-0">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -654,7 +654,7 @@ function RightSidebar({
             className={`flex items-center gap-1.5 px-3 py-2 text-2xs font-medium rounded-t transition-colors ${
               activeTab === tab.id
                 ? 'text-[#2D7FF9] border-b-2 border-[#2D7FF9] -mb-px'
-                : 'text-[#9AA2AF] hover:text-[#6A7184] dark:hover:text-[hsl(200,25%,70%)]'
+                : 'text-[#9AA2AF] hover:text-[#6A7184] dark:hover:text-[hsl(220,20%,70%)]'
             }`}
           >
             {tab.icon}
@@ -979,7 +979,7 @@ export function ExpandedRowModal({
 
         <div className="flex items-start gap-2">
           {isDraggable && (
-            <div className="mt-0.5 shrink-0 cursor-grab text-[#C0C5CE] dark:text-[hsl(200,15%,35%)] hover:text-[#9AA2AF] dark:hover:text-[hsl(200,15%,50%)] transition-colors">
+            <div className="mt-0.5 shrink-0 cursor-grab text-[#C0C5CE] dark:text-[hsl(220,15%,35%)] hover:text-[#9AA2AF] dark:hover:text-[hsl(220,15%,50%)] transition-colors">
               <GripVertical size={14} />
             </div>
           )}
@@ -995,7 +995,7 @@ export function ExpandedRowModal({
               {field.name}
               {field.is_required && <span className="text-red-400">*</span>}
             </label>
-            <div className="text-sm text-[#374151] dark:text-[hsl(200,25%,88%)] min-h-[28px] flex items-center">
+            <div className="text-sm text-[#374151] dark:text-[hsl(220,20%,88%)] min-h-[28px] flex items-center">
               {renderEditor(field)}
             </div>
           </div>
@@ -1024,12 +1024,12 @@ export function ExpandedRowModal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative bg-white dark:bg-[hsl(200,30%,10%)] rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] animate-[panelSlideDown_150ms_ease-out]"
+        className="relative bg-white dark:bg-[hsl(220,20%,10%)] rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] animate-[panelSlideDown_150ms_ease-out]"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <h2 id={titleId} className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
+            <h2 id={titleId} className="text-sm font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)] truncate">
               {title || 'Untitled'}
             </h2>
             {records && records.length > 0 && currentIndex >= 0 && (
@@ -1085,7 +1085,7 @@ export function ExpandedRowModal({
         {/* Body — two-column on lg */}
         <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row">
           {/* Left: Fields */}
-          <div className="flex-1 lg:overflow-y-auto p-5 lg:border-r border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
+          <div className="flex-1 lg:overflow-y-auto p-5 lg:border-r border-[#E5E5E5] dark:border-[hsl(220,20%,18%)]">
             {/* Primary fields */}
             {primaryFields.length > 0 && (
               <div className="space-y-4 mb-6">

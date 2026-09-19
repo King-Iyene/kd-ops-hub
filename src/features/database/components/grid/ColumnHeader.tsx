@@ -40,7 +40,7 @@ function getAutoFitWidth(uiType: string): number {
 }
 
 const menuItemClass =
-  'w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-[#F1F5F9] dark:hover:bg-[hsl(200,25%,14%)] transition-colors text-[#374151] dark:text-[hsl(200,25%,88%)]';
+  'w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-[#F1F5F9] dark:hover:bg-[hsl(220,20%,14%)] transition-colors text-[#374151] dark:text-[hsl(220,20%,88%)] focus:bg-[#F1F5F9] dark:focus:bg-[hsl(220,20%,14%)] focus:outline-none';
 
 export const ColumnHeader = React.memo(function ColumnHeader({
   field,
@@ -211,7 +211,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
         <span className="relative shrink-0 group/info">
           <Info
             size={12}
-            className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] hover:text-[#6A7184] dark:hover:text-[hsl(200,20%,70%)] cursor-help"
+            className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)] hover:text-[#6A7184] dark:hover:text-[hsl(220,15%,70%)] cursor-help"
             onClick={(e) => {
               e.stopPropagation();
               setDescriptionDraft(field.description ?? '');
@@ -220,12 +220,12 @@ export const ColumnHeader = React.memo(function ColumnHeader({
           />
           {isEditingDescription ? (
             <span
-              className="block absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white dark:bg-[hsl(200,30%,12%)] shadow-lg rounded-md p-1.5 min-w-[200px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]"
+              className="block absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white dark:bg-[hsl(220,20%,12%)] shadow-lg rounded-md p-1.5 min-w-[200px] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)]"
               onClick={(e) => e.stopPropagation()}
             >
               <textarea
                 autoFocus
-                className="w-full text-2xs font-normal text-[#374151] dark:text-[hsl(200,25%,88%)] bg-transparent border-0 outline-none resize-none leading-snug"
+                className="w-full text-2xs font-normal text-[#374151] dark:text-[hsl(220,20%,88%)] bg-transparent border-0 outline-none resize-none leading-snug"
                 rows={2}
                 value={descriptionDraft}
                 placeholder="Add a description..."
@@ -245,11 +245,11 @@ export const ColumnHeader = React.memo(function ColumnHeader({
               />
             </span>
           ) : (
-            <span className="hidden group-hover/info:flex items-start gap-1 absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white dark:bg-[hsl(200,30%,12%)] shadow-lg rounded-md px-2.5 py-1.5 text-2xs text-[#374151] dark:text-[hsl(200,25%,88%)] font-normal max-w-[200px] whitespace-normal leading-snug border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
+            <span className="hidden group-hover/info:flex items-start gap-1 absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white dark:bg-[hsl(220,20%,12%)] shadow-lg rounded-md px-2.5 py-1.5 text-2xs text-[#374151] dark:text-[hsl(220,20%,88%)] font-normal max-w-[200px] whitespace-normal leading-snug border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)]">
               <span className="flex-1">{field.description}</span>
               <Pencil
                 size={11}
-                className="shrink-0 mt-0.5 cursor-pointer text-[#9AA2AF] hover:text-[#6A7184] dark:hover:text-[hsl(200,20%,70%)]"
+                className="shrink-0 mt-0.5 cursor-pointer text-[#9AA2AF] hover:text-[#6A7184] dark:hover:text-[hsl(220,15%,70%)]"
                 onClick={(e) => {
                   e.stopPropagation();
                   setDescriptionDraft(field.description ?? '');
@@ -311,38 +311,38 @@ export const ColumnHeader = React.memo(function ColumnHeader({
             onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
           />
           <div
-            className="fixed z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[180px] animate-[panelSlideDown_150ms_ease-out]"
+            className="fixed z-50 bg-white dark:bg-[hsl(220,20%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg py-1 min-w-[180px] animate-[panelSlideDown_150ms_ease-out]"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             <div className="px-3 py-1.5 text-2xs font-medium tracking-wide uppercase flex items-center gap-2" style={{ color: colors.muted }}>
               <Icon size={12} className="shrink-0" />
               {field.ui_type.replace(/([A-Z])/g, ' $1').trim()}
             </div>
-            <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] my-1" />
+            <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(220,20%,18%)] my-1" />
             <button
-              className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(220,20%,88%)]"
               onClick={handleSortAsc}
             >
-              <ArrowUp size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Sort A → Z
+              <ArrowUp size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /> Sort A → Z
             </button>
             <button
-              className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(220,20%,88%)]"
               onClick={handleSortDesc}
             >
-              <ArrowDown size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Sort Z → A
+              <ArrowDown size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /> Sort Z → A
             </button>
-            <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] my-1" />
+            <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(220,20%,18%)] my-1" />
             <button
-              className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(220,20%,88%)]"
               onClick={() => {
                 setFilters([...filters, { field_id: field.id, operator: 'isNotEmpty', value: '', conjunction: 'and' }]);
                 setContextMenu(null);
               }}
             >
-              <Filter size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Filter by this field
+              <Filter size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /> Filter by this field
             </button>
             <button
-              className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(220,20%,88%)]"
               onClick={() => {
                 if (!groupByLevels.some((g) => g.field_id === field.id)) {
                   setGroupByLevels([...groupByLevels, { field_id: field.id, direction: 'asc' }]);
@@ -350,58 +350,58 @@ export const ColumnHeader = React.memo(function ColumnHeader({
                 setContextMenu(null);
               }}
             >
-              <Group size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Group by this field
+              <Group size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /> Group by this field
             </button>
-            <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] my-1" />
+            <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(220,20%,18%)] my-1" />
             {!field.is_system && onEditField && (
               <button
-                className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(220,20%,88%)]"
                 onClick={() => { onEditField(field); setContextMenu(null); }}
               >
-                <Pencil size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Edit field
+                <Pencil size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /> Edit field
               </button>
             )}
             {!field.is_primary && !field.is_system && onDuplicateField && (
               <button
-                className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(220,20%,88%)]"
                 onClick={() => { onDuplicateField(field.id); setContextMenu(null); }}
               >
-                <Copy size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Duplicate field
+                <Copy size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /> Duplicate field
               </button>
             )}
             <button
-              className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(220,20%,88%)]"
               onClick={() => {
                 setDescriptionDraft(field.description ?? '');
                 setIsEditingDescription(true);
                 setContextMenu(null);
               }}
             >
-              <Info size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> {field.description ? 'Edit description' : 'Add description'}
+              <Info size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /> {field.description ? 'Edit description' : 'Add description'}
             </button>
             {!field.is_system && (
               <button
-                className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(220,20%,88%)]"
                 onClick={handleHide}
               >
-                <EyeOff size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> Hide field
+                <EyeOff size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /> Hide field
               </button>
             )}
             {columnIndex != null && onFreezeUpTo && (
               <button
-                className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,14%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(220,20%,88%)]"
                 onClick={() => {
                   onFreezeUpTo(isFrozen ? 0 : columnIndex + 1);
                   setContextMenu(null);
                 }}
               >
-                {isFrozen ? <Unlock size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /> : <Lock size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />}
+                {isFrozen ? <Unlock size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /> : <Lock size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />}
                 {isFrozen ? 'Unfreeze columns' : `Freeze up to this column`}
               </button>
             )}
             {!field.is_primary && !field.is_system && (
               <>
-                <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] my-1" />
+                <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(220,20%,18%)] my-1" />
                 <button
                   className="w-full text-left px-3 py-1.5 text-xs-plus hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-red-500"
                   onClick={handleDelete}

@@ -181,21 +181,21 @@ export function BulkActionsBar({
         }
         :root:not([data-theme="light"]) {
           @media (prefers-color-scheme: dark) {
-            --bulk-bar-bg: hsl(200, 30%, 12%);
-            --bulk-bar-border: hsl(200, 25%, 18%);
-            --bulk-bar-text: hsl(200, 25%, 88%);
-            --bulk-bar-muted: hsl(200, 15%, 55%);
-            --bulk-bar-hover: hsl(200, 25%, 16%);
-            --bulk-bar-dropdown-bg: hsl(200, 30%, 12%);
+            --bulk-bar-bg: hsl(220, 20%, 12%);
+            --bulk-bar-border: hsl(220, 20%, 18%);
+            --bulk-bar-text: hsl(220, 20%, 88%);
+            --bulk-bar-muted: hsl(220, 15%, 55%);
+            --bulk-bar-hover: hsl(220, 20%, 16%);
+            --bulk-bar-dropdown-bg: hsl(220, 20%, 12%);
           }
         }
         [data-theme="dark"] {
-          --bulk-bar-bg: hsl(200, 30%, 12%);
-          --bulk-bar-border: hsl(200, 25%, 18%);
-          --bulk-bar-text: hsl(200, 25%, 88%);
-          --bulk-bar-muted: hsl(200, 15%, 55%);
-          --bulk-bar-hover: hsl(200, 25%, 16%);
-          --bulk-bar-dropdown-bg: hsl(200, 30%, 12%);
+          --bulk-bar-bg: hsl(220, 20%, 12%);
+          --bulk-bar-border: hsl(220, 20%, 18%);
+          --bulk-bar-text: hsl(220, 20%, 88%);
+          --bulk-bar-muted: hsl(220, 15%, 55%);
+          --bulk-bar-hover: hsl(220, 20%, 16%);
+          --bulk-bar-dropdown-bg: hsl(220, 20%, 12%);
         }
       `}</style>
 

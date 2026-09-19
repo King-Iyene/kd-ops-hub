@@ -16,7 +16,7 @@ interface RowContextMenuProps {
 }
 
 const menuItemClass =
-  'flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] transition-colors focus:bg-[#F4F4F5] dark:focus:bg-[hsl(200,25%,15%)] focus:outline-none';
+  'flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs-plus text-[#374151] dark:text-[hsl(220,20%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,15%)] transition-colors focus:bg-[#F4F4F5] dark:focus:bg-[hsl(220,20%,15%)] focus:outline-none';
 
 export function RowContextMenu({
   x,
@@ -73,7 +73,7 @@ export function RowContextMenu({
     <div className="fixed inset-0 z-50" onClick={onClose}>
       <div
         ref={menuRef}
-        className="fixed rounded-lg shadow-lg bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] animate-[panelSlideDown_150ms_ease-out]"
+        className="fixed rounded-lg shadow-lg bg-white dark:bg-[hsl(220,20%,13%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] animate-[panelSlideDown_150ms_ease-out]"
         style={{ left: x, top: y, minWidth: 200, zIndex: 51 }}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
@@ -97,11 +97,11 @@ export function RowContextMenu({
               onClose();
             }}
           >
-            <Expand size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+            <Expand size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
             Expand record
           </button>
 
-          <div className="my-1 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]" />
+          <div className="my-1 border-t border-[#E5E5E5] dark:border-[hsl(220,20%,18%)]" />
 
           {onInsertAbove && (
             <button
@@ -112,7 +112,7 @@ export function RowContextMenu({
                 onClose();
               }}
             >
-              <ArrowUp size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+              <ArrowUp size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
               Insert record above
             </button>
           )}
@@ -126,7 +126,7 @@ export function RowContextMenu({
                 onClose();
               }}
             >
-              <ArrowDown size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+              <ArrowDown size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
               Insert record below
             </button>
           )}
@@ -139,23 +139,23 @@ export function RowContextMenu({
               onClose();
             }}
           >
-            <Copy size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+            <Copy size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
             Duplicate record
           </button>
 
-          <div className="my-1 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]" />
+          <div className="my-1 border-t border-[#E5E5E5] dark:border-[hsl(220,20%,18%)]" />
 
           <button role="menuitem" className={menuItemClass} onClick={handleCopyRowData}>
-            <ClipboardCopy size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+            <ClipboardCopy size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
             Copy row data
           </button>
 
           <button role="menuitem" className={menuItemClass} onClick={handleCopyRowLink}>
-            <Link size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+            <Link size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
             Copy record URL
           </button>
 
-          <div className="my-1 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]" />
+          <div className="my-1 border-t border-[#E5E5E5] dark:border-[hsl(220,20%,18%)]" />
 
           <button
             role="menuitem"

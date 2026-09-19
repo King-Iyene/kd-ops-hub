@@ -216,7 +216,7 @@ export function ViewBar() {
   return (
     <>
       <div
-        className="flex items-center gap-0.5 px-2 shrink-0 overflow-x-auto bg-white dark:bg-[hsl(200,30%,8%)] border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]"
+        className="flex items-center gap-0.5 px-2 shrink-0 overflow-x-auto bg-white dark:bg-[hsl(220,20%,8%)] border-b border-[#E5E5E5] dark:border-[hsl(220,20%,18%)]"
         style={{ height: 34 }}
       >
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -263,7 +263,7 @@ export function ViewBar() {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setAddMenuOpen(false)} />
           <div
-            className="fixed z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[160px]"
+            className="fixed z-50 bg-white dark:bg-[hsl(220,20%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg py-1 min-w-[160px]"
             style={{
               left: addBtnRef.current?.getBoundingClientRect().left ?? 0,
               top: (addBtnRef.current?.getBoundingClientRect().bottom ?? 0) + 4,
@@ -274,7 +274,7 @@ export function ViewBar() {
               return (
                 <button
                   key={opt.type}
-                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(220,20%,88%)]"
                   onClick={() => handleAddView(opt.type)}
                 >
                   <Icon size={13} className="text-[#9AA2AF]" />
@@ -291,11 +291,11 @@ export function ViewBar() {
         <>
           <div className="fixed inset-0 z-50" onClick={() => setContextMenu(null)} />
           <div
-            className="fixed z-50 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg py-1 min-w-[140px]"
+            className="fixed z-50 bg-white dark:bg-[hsl(220,20%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg py-1 min-w-[140px]"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             <button
-              className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(220,20%,88%)]"
               onClick={() => {
                 const view = sorted.find((v) => v.id === contextMenu.viewId);
                 if (view) {
@@ -308,7 +308,7 @@ export function ViewBar() {
               <Pencil size={12} className="text-[#9AA2AF]" /> Rename
             </button>
             <button
-              className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(220,20%,88%)]"
               onClick={() => {
                 if (!activeTableId) return;
                 const view = sorted.find((v) => v.id === contextMenu.viewId);
@@ -332,7 +332,7 @@ export function ViewBar() {
               <Copy size={12} className="text-[#9AA2AF]" /> Duplicate
             </button>
             <button
-              className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(200,25%,88%)]"
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,15%)] flex items-center gap-2 text-[#374151] dark:text-[hsl(220,20%,88%)]"
               onClick={() => {
                 if (!activeTableId) return;
                 const view = sorted.find((v) => v.id === contextMenu.viewId);
