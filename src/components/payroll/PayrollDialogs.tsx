@@ -950,11 +950,10 @@ export const PayrollDialogs = ({
                 </p>
               )}
               {adjustForm.kind !== 'deduction' && adjustForm.kind !== 'exclude' && (
-                <label className="sm:col-span-2 flex items-center gap-2 text-sm text-muted-foreground">
-                  <input
-                    type="checkbox"
+                <label className="sm:col-span-2 flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                  <Switch
                     checked={adjustForm.taxable}
-                    onChange={(e) => setAdjustForm((f) => ({ ...f, taxable: e.target.checked }))}
+                    onCheckedChange={(v) => setAdjustForm((f) => ({ ...f, taxable: v }))}
                   />
                   Taxable (adds to PAYE base)
                 </label>

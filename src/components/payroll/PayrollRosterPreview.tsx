@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronDown, Users, UserX, AlertTriangle, Search, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn, initials } from '@/lib/utils';
 import {
@@ -274,11 +275,12 @@ export function PayrollRosterPreview({
         {included.length > 6 && (
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <input
+            <Input
               value={query}
               onChange={(ev) => setQuery(ev.target.value)}
               placeholder="Find someone…"
-              className="w-full rounded-md border border-border bg-card py-1.5 pl-8 pr-2.5 text-xs outline-none focus:border-primary/50"
+              aria-label="Search employees"
+              className="w-full py-1.5 pl-8 pr-2.5 text-xs h-auto"
             />
           </div>
         )}
