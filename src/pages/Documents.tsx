@@ -1047,7 +1047,7 @@ const Documents = () => {
                         {pagination.slice.map((r) => {
                           const canDelete = canManage || r.uploaded_by === profile?.id;
                           return (
-                            <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40 kd-transition" onClick={() => openDetail(r)}>
+                            <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40 kd-transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset" tabIndex={0} role="button" onClick={() => openDetail(r)} onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openDetail(r); } }}>
                               <TableCell>
                                 <div className="flex items-center gap-3">
                                   <DocThumbnail doc={r} />

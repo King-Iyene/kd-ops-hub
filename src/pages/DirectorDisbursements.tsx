@@ -557,7 +557,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
                   </TableHeader>
                   <TableBody>
                     {filteredRows.map((r) => (
-                      <TableRow key={r.id} className="cursor-pointer" onClick={() => viewDetail(r)}>
+                      <TableRow key={r.id} className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset" tabIndex={0} role="button" onClick={() => viewDetail(r)} onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); viewDetail(r); } }}>
                         <TableCell>{formatDateTime(r.created_at)}</TableCell>
                         <TableCell><Badge variant="outline">{directorDisbursementCategoryLabel(r.payment_category)}</Badge></TableCell>
                         <TableCell className="max-w-[280px] truncate" title={r.payment_description || '—'}>{r.payment_description || '—'}</TableCell>
@@ -1511,7 +1511,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                   </TableHeader>
                   <TableBody>
                     {paginatedRows.map((r) => (
-                      <TableRow key={r.id} className="cursor-pointer" onClick={() => logPersonalTransferDetailView(r, profile)}>
+                      <TableRow key={r.id} className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset" tabIndex={0} role="button" onClick={() => logPersonalTransferDetailView(r, profile)} onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); logPersonalTransferDetailView(r, profile); } }}>
                         <TableCell className="whitespace-nowrap">{formatDateTime(r.created_at)}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">

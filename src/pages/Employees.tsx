@@ -771,7 +771,7 @@ const Employees = () => {
                 </TableHeader>
                 <TableBody>
                   {employees.map((e) => (
-                    <TableRow key={e.id} className="group kd-transition cursor-pointer hover:bg-white/[0.02] dark:hover:bg-white/[0.02]" onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)} onAuxClick={(ev) => { if (ev.button === 1 && e.status !== 'invited') { window.open(`/employees/${e.id}`, '_blank'); ev.preventDefault(); } }}>
+                    <TableRow key={e.id} className="group kd-transition cursor-pointer hover:bg-white/[0.02] dark:hover:bg-white/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset" tabIndex={e.status !== 'invited' ? 0 : undefined} role={e.status !== 'invited' ? 'link' : undefined} onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)} onKeyDown={(ev) => { if ((ev.key === 'Enter' || ev.key === ' ') && e.status !== 'invited') { ev.preventDefault(); navigate(`/employees/${e.id}`); } }} onAuxClick={(ev) => { if (ev.button === 1 && e.status !== 'invited') { window.open(`/employees/${e.id}`, '_blank'); ev.preventDefault(); } }}>
                       <TableCell className="font-medium py-2.5">
                         <div className="flex items-center gap-3 min-w-0">
                           <EmployeeAvatar

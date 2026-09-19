@@ -79,7 +79,7 @@ export default function PlacementsTab({ empPlacements, empPlacementPayments }: P
                 </TableHeader>
                 <TableBody>
                   {empPlacements.map((p: any) => (
-                    <TableRow key={p.id} className="cursor-pointer" onClick={() => navigate(`/clients/${p.client_id}`)} onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/clients/${p.client_id}`, '_blank'); ev.preventDefault(); } }}>
+                    <TableRow key={p.id} className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset" tabIndex={0} role="link" onClick={() => navigate(`/clients/${p.client_id}`)} onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); navigate(`/clients/${p.client_id}`); } }} onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/clients/${p.client_id}`, '_blank'); ev.preventDefault(); } }}>
                       <TableCell className="pl-4 font-medium"><Link to={`/clients/${p.client_id}`} className="hover:underline" onClick={(e) => e.preventDefault()}>{p.clients?.name || '—'}</Link></TableCell>
                       <TableCell>
                         <Badge variant="secondary">{catLabels[p.placement_category] || p.placement_category}</Badge>

@@ -508,7 +508,7 @@ const ClientProfile = () => {
                     </TableHeader>
                     <TableBody>
                       {placements.map((p) => (
-                        <TableRow key={p.id} className="hover:bg-muted/40 kd-transition cursor-pointer" onClick={() => navigate(`/employees/${p.employee_id}`)} onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/employees/${p.employee_id}`, '_blank'); ev.preventDefault(); } }}>
+                        <TableRow key={p.id} className="hover:bg-muted/40 kd-transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset" tabIndex={0} role="link" onClick={() => navigate(`/employees/${p.employee_id}`)} onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); navigate(`/employees/${p.employee_id}`); } }} onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/employees/${p.employee_id}`, '_blank'); ev.preventDefault(); } }}>
                           <TableCell>
                             <div>
                               <p className="font-medium"><Link to={`/employees/${p.employee_id}`} className="hover:underline" onClick={(e) => e.preventDefault()}>{(p.profiles as any)?.full_name || 'Unknown'}</Link></p>
