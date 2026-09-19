@@ -141,9 +141,9 @@ export function RecordHistoryPanel({ baseId, tableId, recordId, fields }: Record
   if (!entries || entries.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-10 text-center">
-        <Inbox size={28} className="text-[#D1D5DB] dark:text-[hsl(200,20%,30%)] mb-2" />
+        <Inbox size={28} className="text-[#D1D5DB] dark:text-[hsl(220,20%,30%)] mb-2" />
         <p className="text-xs-plus font-medium text-[#6A7184] dark:text-[#9AA2AF]">No history available</p>
-        <p className="text-2xs text-[#9AA2AF] dark:text-[hsl(200,20%,50%)] mt-1">
+        <p className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,50%)] mt-1">
           Changes to this record will appear here
         </p>
       </div>
@@ -155,10 +155,10 @@ export function RecordHistoryPanel({ baseId, tableId, recordId, fields }: Record
       {entries.map((entry, i) => (
         <div
           key={entry.id}
-          className={`relative pl-6 pb-4 ${i < entries.length - 1 ? 'border-l-2 border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] ml-2' : 'ml-2'}`}
+          className={`relative pl-6 pb-4 ${i < entries.length - 1 ? 'border-l-2 border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] ml-2' : 'ml-2'}`}
         >
           {/* Timeline dot */}
-          <div className="absolute -left-[5px] top-0.5 w-2.5 h-2.5 rounded-full bg-[#2D7FF9] border-2 border-white dark:border-[hsl(200,30%,10%)]" />
+          <div className="absolute -left-[5px] top-0.5 w-2.5 h-2.5 rounded-full bg-[#2D7FF9] border-2 border-white dark:border-[hsl(220,30%,10%)]" />
 
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">

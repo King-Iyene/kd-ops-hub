@@ -45,7 +45,7 @@ function ListSkeleton() {
       {Array.from({ length: 8 }).map((_, i) => (
         <div
           key={i}
-          className="h-14 rounded-lg animate-pulse bg-gray-100 dark:bg-[hsl(200,25%,13%)]"
+          className="h-14 rounded-lg animate-pulse bg-gray-100 dark:bg-[hsl(220,25%,13%)]"
         />
       ))}
     </div>
@@ -118,13 +118,13 @@ export default function ListView({
                   type="button"
                   onClick={() => handleClick(record)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left
-                    hover:bg-gray-50 dark:hover:bg-[hsl(200,25%,13%)]
-                    border border-transparent hover:border-gray-200 dark:hover:border-[hsl(200,25%,18%)]
+                    hover:bg-gray-50 dark:hover:bg-[hsl(220,25%,13%)]
+                    border border-transparent hover:border-gray-200 dark:hover:border-[hsl(220,25%,18%)]
                     transition-colors group"
                 >
                   {/* Optional cover thumbnail */}
                   {coverUrl ? (
-                    <div className="w-10 h-10 rounded-md overflow-hidden shrink-0 bg-gray-100 dark:bg-[hsl(200,25%,15%)]">
+                    <div className="w-10 h-10 rounded-md overflow-hidden shrink-0 bg-gray-100 dark:bg-[hsl(220,25%,15%)]">
                       <img
                         src={coverUrl}
                         alt=""
@@ -132,20 +132,20 @@ export default function ListView({
                       />
                     </div>
                   ) : attachmentField ? (
-                    <div className="w-10 h-10 rounded-md shrink-0 bg-gray-100 dark:bg-[hsl(200,25%,15%)] flex items-center justify-center">
-                      <ImageIcon size={16} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+                    <div className="w-10 h-10 rounded-md shrink-0 bg-gray-100 dark:bg-[hsl(220,25%,15%)] flex items-center justify-center">
+                      <ImageIcon size={16} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
                     </div>
                   ) : null}
 
                   {/* Text content */}
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-[#111827] dark:text-[hsl(200,25%,88%)] truncate">
+                    <div className="text-sm font-medium text-[#111827] dark:text-[hsl(220,25%,88%)] truncate">
                       {primaryValue != null && primaryValue !== ''
                         ? String(primaryValue)
                         : 'Untitled'}
                     </div>
                     {secondaryValue != null && secondaryValue !== '' && (
-                      <div className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] truncate mt-0.5">
+                      <div className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] truncate mt-0.5">
                         {String(secondaryValue)}
                       </div>
                     )}
@@ -154,7 +154,7 @@ export default function ListView({
                   {/* Expand chevron */}
                   <ChevronRight
                     size={16}
-                    className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                    className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                   />
                 </button>
               </li>
@@ -166,8 +166,8 @@ export default function ListView({
             <button
               type="button"
               onClick={() => onAddRow()}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]
-                hover:bg-gray-50 dark:hover:bg-[hsl(200,25%,13%)] hover:text-[#6A7184] dark:hover:text-[hsl(200,20%,70%)]
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]
+                hover:bg-gray-50 dark:hover:bg-[hsl(220,25%,13%)] hover:text-[#6A7184] dark:hover:text-[hsl(220,20%,70%)]
                 transition-colors"
             >
               <Plus size={14} />
@@ -179,7 +179,7 @@ export default function ListView({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 dark:border-[hsl(200,25%,18%)] text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+        <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 dark:border-[hsl(220,25%,18%)] text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
           <span>
             {(page - 1) * pageSize + 1}&#8211;{Math.min(page * pageSize, totalCount)} of {totalCount}
           </span>
@@ -187,14 +187,14 @@ export default function ListView({
             <button
               disabled={page <= 1}
               onClick={() => onPageChange(page - 1)}
-              className="px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)] disabled:opacity-40"
+              className="px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-[hsl(220,25%,15%)] disabled:opacity-40"
             >
               Prev
             </button>
             <button
               disabled={page >= totalPages}
               onClick={() => onPageChange(page + 1)}
-              className="px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)] disabled:opacity-40"
+              className="px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-[hsl(220,25%,15%)] disabled:opacity-40"
             >
               Next
             </button>

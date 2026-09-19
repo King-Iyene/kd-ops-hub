@@ -92,7 +92,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                 </p>
               </div>
               <div className="flex gap-2">
-                <code className="flex-1 px-3 py-1.5 rounded-md bg-white dark:bg-[hsl(200,30%,10%)] border border-[#F59E0B]/30 text-2xs text-[#92400E] dark:text-[#FCD34D] font-mono break-all select-all">
+                <code className="flex-1 px-3 py-1.5 rounded-md bg-white dark:bg-[hsl(220,30%,10%)] border border-[#F59E0B]/30 text-2xs text-[#92400E] dark:text-[#FCD34D] font-mono break-all select-all">
                   {revealedKey}
                 </code>
                 <Button
@@ -110,29 +110,29 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
 
           <div className="space-y-1">
             {(keys ?? []).length === 0 && !showCreate && (
-              <p className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] text-center py-4">
+              <p className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] text-center py-4">
                 No API keys yet. Create one to get started.
               </p>
             )}
             {(keys ?? []).map((k) => (
               <div
                 key={k.id}
-                className="flex items-center gap-3 p-2.5 rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9F9FA] dark:bg-[hsl(200,25%,12%)]"
+                className="flex items-center gap-3 p-2.5 rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-[#F9F9FA] dark:bg-[hsl(220,25%,12%)]"
               >
-                <Key size={14} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)] shrink-0" />
+                <Key size={14} className="text-[#6A7184] dark:text-[hsl(220,20%,55%)] shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                  <p className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(220,25%,88%)]">
                     {k.name}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <code className="text-2xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] font-mono">
+                    <code className="text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] font-mono">
                       {k.key_prefix}...
                     </code>
-                    <span className="text-3xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+                    <span className="text-3xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
                       {k.scopes.join(', ')}
                     </span>
                     {k.last_used_at && (
-                      <span className="text-3xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+                      <span className="text-3xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
                         Used {timeAgo(k.last_used_at)}
                       </span>
                     )}
@@ -172,9 +172,9 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
           </div>
 
           {showCreate ? (
-            <div className="space-y-3 p-3 rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
+            <div className="space-y-3 p-3 rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
               <div>
-                <label className="text-xs font-medium text-[#4A5268] dark:text-[hsl(200,25%,70%)] mb-1 block">
+                <label className="text-xs font-medium text-[#4A5268] dark:text-[hsl(220,25%,70%)] mb-1 block">
                   Key name
                 </label>
                 <input
@@ -182,22 +182,22 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. n8n integration"
-                  className="w-full px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,8%)] text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#6A7184] dark:placeholder:text-[hsl(200,20%,40%)]"
+                  className="w-full px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,8%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#6A7184] dark:placeholder:text-[hsl(220,20%,40%)]"
                   onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-[#4A5268] dark:text-[hsl(200,25%,70%)] mb-1.5 block">
+                <label className="text-xs font-medium text-[#4A5268] dark:text-[hsl(220,25%,70%)] mb-1.5 block">
                   Scopes
                 </label>
                 <div className="flex gap-3">
                   {SCOPE_OPTIONS.map((s) => (
-                    <label key={s} className="flex items-center gap-1.5 text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] cursor-pointer">
+                    <label key={s} className="flex items-center gap-1.5 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] cursor-pointer">
                       <input
                         type="checkbox"
                         checked={scopes.has(s)}
                         onChange={() => toggleScope(s)}
-                        className="rounded border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-[#2D7FF9]"
+                        className="rounded border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-[#2D7FF9]"
                       />
                       {s}
                     </label>

@@ -252,37 +252,37 @@ const calendarStyles = `
 /* ===== Dark theme ===== */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .calendar-root {
-    --cal-bg: hsl(200, 30%, 10%);
-    --cal-bg-alt: hsl(200, 28%, 12%);
-    --cal-border: hsl(200, 25%, 18%);
-    --cal-text: hsl(200, 25%, 88%);
-    --cal-text-muted: hsl(200, 20%, 60%);
-    --cal-text-faint: hsl(200, 15%, 45%);
+    --cal-bg: hsl(220, 30%, 10%);
+    --cal-bg-alt: hsl(220, 28%, 12%);
+    --cal-border: hsl(220, 25%, 18%);
+    --cal-text: hsl(220, 25%, 88%);
+    --cal-text-muted: hsl(220, 20%, 60%);
+    --cal-text-faint: hsl(220, 15%, 45%);
     --cal-primary: #5588FF;
     --cal-primary-hover: #4477EE;
     --cal-primary-light: hsl(220, 50%, 20%);
     --cal-primary-light-hover: hsl(220, 50%, 25%);
     --cal-today-bg: hsl(220, 40%, 14%);
-    --cal-cell-hover: hsl(200, 25%, 15%);
-    --cal-tooltip-bg: hsl(200, 20%, 22%);
-    --cal-tooltip-text: hsl(200, 25%, 90%);
+    --cal-cell-hover: hsl(220, 25%, 15%);
+    --cal-tooltip-bg: hsl(220, 20%, 22%);
+    --cal-tooltip-text: hsl(220, 25%, 90%);
   }
 }
 :root[data-theme="dark"] .calendar-root {
-  --cal-bg: hsl(200, 30%, 10%);
-  --cal-bg-alt: hsl(200, 28%, 12%);
-  --cal-border: hsl(200, 25%, 18%);
-  --cal-text: hsl(200, 25%, 88%);
-  --cal-text-muted: hsl(200, 20%, 60%);
-  --cal-text-faint: hsl(200, 15%, 45%);
+  --cal-bg: hsl(220, 30%, 10%);
+  --cal-bg-alt: hsl(220, 28%, 12%);
+  --cal-border: hsl(220, 25%, 18%);
+  --cal-text: hsl(220, 25%, 88%);
+  --cal-text-muted: hsl(220, 20%, 60%);
+  --cal-text-faint: hsl(220, 15%, 45%);
   --cal-primary: #5588FF;
   --cal-primary-hover: #4477EE;
   --cal-primary-light: hsl(220, 50%, 20%);
   --cal-primary-light-hover: hsl(220, 50%, 25%);
   --cal-today-bg: hsl(220, 40%, 14%);
-  --cal-cell-hover: hsl(200, 25%, 15%);
-  --cal-tooltip-bg: hsl(200, 20%, 22%);
-  --cal-tooltip-text: hsl(200, 25%, 90%);
+  --cal-cell-hover: hsl(220, 25%, 15%);
+  --cal-tooltip-bg: hsl(220, 20%, 22%);
+  --cal-tooltip-text: hsl(220, 25%, 90%);
 }
 
 /* ===== Empty state ===== */
@@ -742,16 +742,16 @@ const calendarStyles = `
 function CalendarSkeleton() {
   return (
     <div className="p-1.5 h-full">
-      <div className="grid grid-cols-7 gap-px rounded-lg overflow-hidden bg-gray-200 dark:bg-[hsl(200,25%,18%)]">
+      <div className="grid grid-cols-7 gap-px rounded-lg overflow-hidden bg-gray-200 dark:bg-[hsl(220,25%,18%)]">
         {DAYS.map((d) => (
-          <div key={d} className="bg-gray-100 dark:bg-[hsl(200,28%,12%)] px-2 py-1">
-            <div className="h-2.5 w-6 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+          <div key={d} className="bg-gray-100 dark:bg-[hsl(220,28%,12%)] px-2 py-1">
+            <div className="h-2.5 w-6 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
           </div>
         ))}
         {Array.from({ length: 35 }).map((_, i) => (
-          <div key={i} className="bg-white dark:bg-[hsl(200,30%,10%)]" style={{ minHeight: 90 }}>
+          <div key={i} className="bg-white dark:bg-[hsl(220,30%,10%)]" style={{ minHeight: 90 }}>
             <div className="p-1">
-              <div className="h-4 w-4 rounded-full animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+              <div className="h-4 w-4 rounded-full animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
             </div>
           </div>
         ))}

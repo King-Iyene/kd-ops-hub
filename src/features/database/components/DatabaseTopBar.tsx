@@ -125,17 +125,17 @@ export function DatabaseTopBar() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
-              <Lock size={14} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)] shrink-0" />
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-[#F9F9FA] dark:bg-[hsl(220,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
+              <Lock size={14} className="text-[#6A7184] dark:text-[hsl(220,20%,55%)] shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Private to workspace</p>
-                <p className="text-2xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Only workspace members can access</p>
+                <p className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(220,25%,88%)]">Private to workspace</p>
+                <p className="text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Only workspace members can access</p>
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-[#4A5268] dark:text-[hsl(200,20%,55%)] mb-1.5 block">Copy link</label>
+              <label className="text-xs font-medium text-[#4A5268] dark:text-[hsl(220,20%,55%)] mb-1.5 block">Copy link</label>
               <div className="flex gap-2">
-                <div className="flex-1 px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] truncate">
+                <div className="flex-1 px-3 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] truncate">
                   {typeof window !== 'undefined' ? window.location.href : ''}
                 </div>
                 <Button
@@ -149,8 +149,8 @@ export function DatabaseTopBar() {
                 </Button>
               </div>
             </div>
-            <div className="border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] pt-3">
-              <p className="text-xs font-medium text-[#4A5268] dark:text-[hsl(200,20%,55%)] mb-2">People with access</p>
+            <div className="border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] pt-3">
+              <p className="text-xs font-medium text-[#4A5268] dark:text-[hsl(220,20%,55%)] mb-2">People with access</p>
               <div className="flex items-center gap-2 py-1.5">
                 <AvatarBubble
                   photoUrl={profile?.photo_url ?? null}
@@ -158,8 +158,8 @@ export function DatabaseTopBar() {
                   size={28}
                 />
                 <div className="flex-1">
-                  <p className="text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)] font-medium">{profile?.full_name ?? 'You'}</p>
-                  <p className="text-2xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Owner</p>
+                  <p className="text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] font-medium">{profile?.full_name ?? 'You'}</p>
+                  <p className="text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Owner</p>
                 </div>
               </div>
             </div>
@@ -201,8 +201,8 @@ export function DatabaseTopBar() {
               ['Drag column header', 'Reorder columns'],
             ].map(([shortcut, desc]) => (
               <div key={shortcut} className="flex items-center justify-between py-1.5 px-1">
-                <span className="text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)]">{desc}</span>
-                <kbd className="px-2 py-0.5 rounded bg-[#F4F4F5] dark:bg-[hsl(200,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-2xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] font-mono">
+                <span className="text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)]">{desc}</span>
+                <kbd className="px-2 py-0.5 rounded bg-[#F4F4F5] dark:bg-[hsl(220,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] font-mono">
                   {shortcut}
                 </kbd>
               </div>

@@ -1073,7 +1073,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
         {step === 'token' && (
           <div className="space-y-4 py-2">
-            <p className="text-xs-plus text-[#6A7184] dark:text-[hsl(200,20%,55%)] leading-relaxed">
+            <p className="text-xs-plus text-[#6A7184] dark:text-[hsl(220,20%,55%)] leading-relaxed">
               Enter your Airtable Personal Access Token to import bases, tables, and all records.
               Create one at{' '}
               <a
@@ -1091,7 +1091,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               </p>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-[#4A5268] dark:text-[hsl(200,20%,55%)]">
+              <Label className="text-xs font-medium text-[#4A5268] dark:text-[hsl(220,20%,55%)]">
                 Personal Access Token
               </Label>
               <div className="relative">
@@ -1116,7 +1116,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
         {step === 'select' && !selectedBaseId && (
           <div className="space-y-3 py-2">
-            <p className="text-xs-plus text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+            <p className="text-xs-plus text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
               Select a base to import ({bases.length} base{bases.length !== 1 ? 's' : ''} found):
             </p>
             {bases.length > 5 && (
@@ -1134,7 +1134,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               {bases.filter((b) => !baseSearch || b.name.toLowerCase().includes(baseSearch.toLowerCase())).map((base) => (
                 <button
                   key={base.id}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] hover:border-[#2D7FF9] hover:bg-[#F0F3FF] dark:hover:bg-[hsl(220,30%,14%)] transition-all text-left group"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] hover:border-[#2D7FF9] hover:bg-[#F0F3FF] dark:hover:bg-[hsl(220,30%,14%)] transition-all text-left group"
                   onClick={() => fetchTables(base.id)}
                   disabled={loading}
                 >
@@ -1142,7 +1142,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                     <Database size={16} className="text-[#2D7FF9]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate group-hover:text-[#2D7FF9]">
+                    <p className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] truncate group-hover:text-[#2D7FF9]">
                       {base.name}
                     </p>
                     <p className="text-2xs text-[#9AA2AF]">{base.permissionLevel}</p>
@@ -1180,14 +1180,14 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               </div>
               <div className="flex items-center gap-1">
                 <button
-                  className="text-2xs px-2 py-0.5 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] text-[#2D7FF9] font-medium"
+                  className="text-2xs px-2 py-0.5 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] text-[#2D7FF9] font-medium"
                   onClick={allSelected ? deselectAll : selectAll}
                 >
                   {allSelected ? 'Deselect all' : 'Select all'}
                 </button>
               </div>
             </div>
-            <p className="text-xs-plus text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+            <p className="text-xs-plus text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
               {selectedCount} of {tables.length} table{tables.length !== 1 ? 's' : ''} selected
               <span className="text-[#9AA2AF]"> · {selectedTotalFields} fields total</span>
             </p>
@@ -1210,18 +1210,18 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                     'w-full flex items-center gap-3 px-3 py-2 rounded-lg border transition-all text-left',
                     table.selected
                       ? 'border-[#2D7FF9] bg-[#F0F3FF] dark:bg-[hsl(220,30%,14%)]'
-                      : 'border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,10%)] hover:border-[#2D7FF9]/50'
+                      : 'border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] hover:border-[#2D7FF9]/50'
                   )}
                   onClick={() => toggleTable(table.id)}
                 >
                   <div className="shrink-0 text-[#2D7FF9]">
                     {table.selected
                       ? <CheckSquare size={18} />
-                      : <Square size={18} className="text-[#D1D5DB] dark:text-[hsl(200,25%,25%)]" />
+                      : <Square size={18} className="text-[#D1D5DB] dark:text-[hsl(220,25%,25%)]" />
                     }
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
+                    <p className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] truncate">
                       {table.name}
                     </p>
                     <p className="text-2xs text-[#9AA2AF]">
@@ -1245,7 +1245,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             <div className="flex items-center gap-3">
               <Loader2 size={24} className="animate-spin text-[#2D7FF9] shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
+                <p className="text-sm font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] truncate">
                   {progress.tableName}
                 </p>
                 <p className="text-xs text-[#9AA2AF]">
@@ -1264,7 +1264,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                 <span>Tables</span>
                 <span>{progress.tableIndex} / {progress.tableCount}</span>
               </div>
-              <div className="w-full bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] rounded-full h-2">
+              <div className="w-full bg-[#E5E5E5] dark:bg-[hsl(220,25%,18%)] rounded-full h-2">
                 <div
                   className="bg-[#2D7FF9] h-2 rounded-full transition-all duration-300"
                   style={{ width: `${progress.phase === 'metadata' ? 100 : progress.tableCount ? (progress.tableIndex / progress.tableCount) * 100 : 0}%` }}
@@ -1279,7 +1279,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                   <span>Records</span>
                   <span>{formatNumber(progress.recordsInserted)} / {formatNumber(progress.totalRecords)}</span>
                 </div>
-                <div className="w-full bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] rounded-full h-1.5">
+                <div className="w-full bg-[#E5E5E5] dark:bg-[hsl(220,25%,18%)] rounded-full h-1.5">
                   <div
                     className="bg-success h-1.5 rounded-full transition-all duration-300"
                     style={{ width: `${(progress.recordsInserted / progress.totalRecords) * 100}%` }}
@@ -1320,7 +1320,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             <div className="mx-auto w-12 h-12 rounded-full bg-success/10 dark:bg-success/10 flex items-center justify-center">
               <CheckCircle2 size={24} className="text-success" />
             </div>
-            <p className="text-sm font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
+            <p className="text-sm font-medium text-[#374151] dark:text-[hsl(220,25%,88%)]">
               Import complete!
             </p>
             <p className="text-xs text-[#9AA2AF]">

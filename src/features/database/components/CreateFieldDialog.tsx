@@ -111,7 +111,7 @@ function SortableOption({ choice, onRemove, onColorChange, isEditing, editValue,
       {isEditing ? (
         <input
           autoFocus
-          className="flex-1 min-w-0 px-2.5 py-0.5 rounded-full text-xs font-medium border border-[#2D7FF9] outline-none bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
+          className="flex-1 min-w-0 px-2.5 py-0.5 rounded-full text-xs font-medium border border-[#2D7FF9] outline-none bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)]"
           value={editValue}
           onChange={(e) => onEditChange(e.target.value)}
           onKeyDown={(e) => {
@@ -497,11 +497,11 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) resetForm(); onOpenChange(isOpen); }}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-base font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Add Field</DialogTitle>
+          <DialogTitle className="text-base font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)]">Add Field</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-1">
           <div className="space-y-1.5">
-            <Label htmlFor="field-name" className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Field Name</Label>
+            <Label htmlFor="field-name" className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Field Name</Label>
             <Input
               id="field-name"
               value={name}
@@ -514,7 +514,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="field-desc" className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Description <span className="text-[#9AA2AF]">(optional)</span></Label>
+            <Label htmlFor="field-desc" className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Description <span className="text-[#9AA2AF]">(optional)</span></Label>
             <textarea
               id="field-desc"
               value={description}
@@ -522,16 +522,16 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 if (e.target.value.length <= 500) setDescription(e.target.value);
               }}
               placeholder="Describe this field..."
-              className="w-full rounded-md border border-[#E5E5E5] bg-white dark:bg-[hsl(200,30%,10%)] px-3 py-2 text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9] focus:border-transparent resize-none"
+              className="w-full rounded-md border border-[#E5E5E5] bg-white dark:bg-[hsl(220,30%,10%)] px-3 py-2 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9] focus:border-transparent resize-none"
               rows={2}
               maxLength={500}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Field Type</Label>
-            <div className="border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg overflow-hidden">
-              <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)]">
+            <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Field Type</Label>
+            <div className="border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-lg overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-[#F9F9FA] dark:bg-[hsl(220,25%,13%)]">
                 <Search size={13} className="text-[#9AA2AF] shrink-0" />
                 <input
                   type="text"
@@ -546,7 +546,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                     }
                   }}
                   placeholder="Search field types..."
-                  className="w-full bg-transparent text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] placeholder:text-[#9AA2AF] outline-none"
+                  className="w-full bg-transparent text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF] outline-none"
                 />
                 {typeSearch && (
                   <button type="button" onClick={() => setTypeSearch('')} className="text-[#9AA2AF] hover:text-[#374151]">
@@ -562,7 +562,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                   if (items.length === 0) return null;
                   return (
                     <div key={group}>
-                      <div className="px-3 py-1 text-3xs font-semibold text-[#9AA2AF] uppercase tracking-wider bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)] sticky top-0">
+                      <div className="px-3 py-1 text-3xs font-semibold text-[#9AA2AF] uppercase tracking-wider bg-[#F9F9FA] dark:bg-[hsl(220,25%,13%)] sticky top-0">
                         {group}
                       </div>
                       {items.map((opt) => {
@@ -575,7 +575,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                               'w-full flex items-center gap-2 px-3 py-1.5 text-xs-plus text-left transition-colors',
                               uiType === opt.value
                                 ? 'bg-[#2D7FF9]/10 text-[#2D7FF9] font-medium'
-                                : 'text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)]',
+                                : 'text-[#374151] dark:text-[hsl(220,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,14%)]',
                             )}
                             onClick={() => handleTypeChange(opt.value)}
                           >
@@ -602,13 +602,13 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 checked={richText}
                 onChange={(e) => setRichText(e.target.checked)}
               />
-              <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)]">Rich text formatting</span>
+              <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Rich text formatting</span>
             </label>
           )}
 
           {isSelectType && (
             <div className="space-y-2">
-              <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Options</Label>
+              <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Options</Label>
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -666,11 +666,11 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
           {isLinksType && (
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Target Table</Label>
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Target Table</Label>
                 <select
                   value={targetTableId}
                   onChange={(e) => setTargetTableId(e.target.value)}
-                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
                 >
                   <option value="">Select a table...</option>
                   {tables
@@ -681,7 +681,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 </select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Relation Type</Label>
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Relation Type</Label>
                 <div className="flex gap-1">
                   {([
                     { value: 'one_to_one' as const, label: 'One-to-One' },
@@ -695,7 +695,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                         'flex-1 px-2 py-1.5 rounded-md text-xs font-medium border transition-colors',
                         relationType === opt.value
                           ? 'bg-[#2D7FF9]/10 text-[#2D7FF9] border-[#2D7FF9]/30'
-                          : 'text-[#6A7184] dark:text-[hsl(200,20%,55%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)]',
+                          : 'text-[#6A7184] dark:text-[hsl(220,20%,55%)] border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,14%)]',
                       )}
                       onClick={() => setRelationType(opt.value)}
                     >
@@ -709,7 +709,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
 
           {isFormula && (
             <div className="space-y-2">
-              <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Formula</Label>
+              <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Formula</Label>
               <FormulaEditor
                 value={formulaExpression}
                 onChange={handleFormulaChange}
@@ -725,7 +725,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 <div className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-[#2D7FF9] rounded-r-md p-3 flex items-start gap-2.5">
                   <Info size={16} className="text-[#2D7FF9] shrink-0 mt-0.5" />
                   <div className="space-y-2 min-w-0">
-                    <p className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] leading-relaxed">
+                    <p className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] leading-relaxed">
                       This table has no Link fields yet. Create a Link to Another Record field first, then set up your {isLookup ? 'Lookup' : isCount ? 'Count' : 'Rollup'}.
                     </p>
                     <button
@@ -739,11 +739,11 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 </div>
               ) : (
               <div className="space-y-1.5">
-                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Link Field</Label>
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Link Field</Label>
                 <select
                   value={linkFieldId}
                   onChange={(e) => { setLinkFieldId(e.target.value); setLookupFieldId(''); setRollupFieldId(''); }}
-                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
                 >
                   <option value="">Select a link field...</option>
                   {linkFields.map((f: FieldMeta) => (
@@ -754,11 +754,11 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
               )}
               {isLookup && linkFieldId && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Lookup Field</Label>
+                  <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Lookup Field</Label>
                   <select
                     value={lookupFieldId}
                     onChange={(e) => setLookupFieldId(e.target.value)}
-                    className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                    className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
                   >
                     <option value="">Select a field...</option>
                     {targetFields.map((f: FieldMeta) => (
@@ -770,11 +770,11 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
               {isRollup && linkFieldId && (
                 <>
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Function</Label>
+                    <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Function</Label>
                     <select
                       value={rollupFn}
                       onChange={(e) => { setRollupFn(e.target.value); if (e.target.value === 'COUNT' || e.target.value === 'COUNTALL') setRollupFieldId(''); }}
-                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
                     >
                       {['COUNT', 'COUNTALL', 'SUM', 'AVG', 'MIN', 'MAX', 'COUNTA', 'CONCATENATE', 'ARRAY_UNIQUE'].map((fn) => (
                         <option key={fn} value={fn}>{fn}</option>
@@ -783,11 +783,11 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                   </div>
                   {rollupFn !== 'COUNT' && rollupFn !== 'COUNTALL' && (
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Rollup Field</Label>
+                      <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Rollup Field</Label>
                       <select
                         value={rollupFieldId}
                         onChange={(e) => setRollupFieldId(e.target.value)}
-                        className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                        className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
                       >
                         <option value="">Select a field...</option>
                         {(['SUM', 'AVG', 'MIN', 'MAX'].includes(rollupFn) ? numericTargetFields : targetFields).map((f: FieldMeta) => (
@@ -804,11 +804,11 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
           {uiType === 'Currency' && (
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Currency</Label>
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Currency</Label>
                 <select
                   value={currencyCode}
                   onChange={(e) => setCurrencyCode(e.target.value)}
-                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
                 >
                   {[
                     { code: 'USD', label: 'US Dollar ($)' },
@@ -837,11 +837,11 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 </select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Decimal Places</Label>
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Decimal Places</Label>
                 <select
                   value={precision}
                   onChange={(e) => setPrecision(Number(e.target.value))}
-                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
                 >
                   <option value={0}>0 (1,000)</option>
                   <option value={1}>1 (1,000.0)</option>
@@ -855,11 +855,11 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
 
           {uiType === 'Duration' && (
             <div className="space-y-1.5">
-              <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Duration Format</Label>
+              <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Duration Format</Label>
               <select
                 value={durationFormat}
                 onChange={(e) => setDurationFormat(e.target.value)}
-                className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(200,30%,10%)] dark:border-[hsl(200,25%,18%)] dark:text-[hsl(200,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
               >
                 <option value="h:mm">h:mm (e.g., 1:30)</option>
                 <option value="h:mm:ss">h:mm:ss (e.g., 1:30:00)</option>
@@ -879,7 +879,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                   onChange={(e) => setAllowMultiple(e.target.checked)}
                   className="rounded border-gray-300"
                 />
-                <span className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Allow multiple people</span>
+                <span className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Allow multiple people</span>
               </label>
             </div>
           )}
@@ -887,7 +887,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
           {uiType === 'Button' && (
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Button Label</Label>
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Button Label</Label>
                 <Input
                   value={buttonLabel}
                   onChange={(e) => setButtonLabel(e.target.value)}
@@ -896,7 +896,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">URL Template</Label>
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">URL Template</Label>
                 <Input
                   value={buttonUrl}
                   onChange={(e) => setButtonUrl(e.target.value)}

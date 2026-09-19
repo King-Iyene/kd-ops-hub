@@ -42,17 +42,17 @@ function KanbanSkeleton() {
       {Array.from({ length: 4 }).map((_, colIdx) => (
         <div
           key={colIdx}
-          className="flex flex-col shrink-0 rounded-lg overflow-hidden bg-gray-100 dark:bg-[hsl(200,28%,13%)]"
+          className="flex flex-col shrink-0 rounded-lg overflow-hidden bg-gray-100 dark:bg-[hsl(220,28%,13%)]"
           style={{ width: 280 }}
         >
-          <div className="h-9 px-3 flex items-center border-b border-gray-200 dark:border-[hsl(200,25%,18%)]">
-            <div className="h-3 w-20 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+          <div className="h-9 px-3 flex items-center border-b border-gray-200 dark:border-[hsl(220,25%,18%)]">
+            <div className="h-3 w-20 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
           </div>
           <div className="flex-1 p-2 space-y-2">
             {Array.from({ length: 3 }).map((_, cardIdx) => (
               <div
                 key={cardIdx}
-                className="h-16 rounded-md animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]"
+                className="h-16 rounded-md animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]"
               />
             ))}
           </div>
@@ -293,33 +293,33 @@ export default function KanbanView({
         }
         @media (prefers-color-scheme: dark) {
           :root:not([data-theme="light"]) .kanban-root {
-            --kanban-bg: hsl(200,30%,12%);
-            --kanban-card-bg: hsl(200,28%,14%);
-            --kanban-border: hsl(200,25%,18%);
-            --kanban-text: hsl(200,25%,88%);
-            --kanban-muted: hsl(200,20%,60%);
-            --kanban-subtle: hsl(200,15%,50%);
+            --kanban-bg: hsl(220,30%,12%);
+            --kanban-card-bg: hsl(220,28%,14%);
+            --kanban-border: hsl(220,25%,18%);
+            --kanban-text: hsl(220,25%,88%);
+            --kanban-muted: hsl(220,20%,60%);
+            --kanban-subtle: hsl(220,15%,50%);
             --kanban-primary: #5588FF;
             --kanban-primary-hover: #2D7FF9;
-            --kanban-empty-border: hsl(200,20%,25%);
+            --kanban-empty-border: hsl(220,20%,25%);
             --kanban-card-shadow: 0 1px 2px rgba(0,0,0,0.3);
             --kanban-card-shadow-hover: 0 4px 12px rgba(0,0,0,0.4);
-            --kanban-collapsed-bg: hsl(200,28%,13%);
+            --kanban-collapsed-bg: hsl(220,28%,13%);
           }
         }
         :root[data-theme="dark"] .kanban-root {
-          --kanban-bg: hsl(200,30%,12%);
-          --kanban-card-bg: hsl(200,28%,14%);
-          --kanban-border: hsl(200,25%,18%);
-          --kanban-text: hsl(200,25%,88%);
-          --kanban-muted: hsl(200,20%,60%);
-          --kanban-subtle: hsl(200,15%,50%);
+          --kanban-bg: hsl(220,30%,12%);
+          --kanban-card-bg: hsl(220,28%,14%);
+          --kanban-border: hsl(220,25%,18%);
+          --kanban-text: hsl(220,25%,88%);
+          --kanban-muted: hsl(220,20%,60%);
+          --kanban-subtle: hsl(220,15%,50%);
           --kanban-primary: #5588FF;
           --kanban-primary-hover: #2D7FF9;
-          --kanban-empty-border: hsl(200,20%,25%);
+          --kanban-empty-border: hsl(220,20%,25%);
           --kanban-card-shadow: 0 1px 2px rgba(0,0,0,0.3);
           --kanban-card-shadow-hover: 0 4px 12px rgba(0,0,0,0.4);
-          --kanban-collapsed-bg: hsl(200,28%,13%);
+          --kanban-collapsed-bg: hsl(220,28%,13%);
         }
         .kanban-muted-text { color: var(--kanban-muted); }
       `}</style>

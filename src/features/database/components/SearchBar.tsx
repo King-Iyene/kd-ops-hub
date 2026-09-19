@@ -45,7 +45,7 @@ export function SearchBar() {
   if (!open && !searchQuery) {
     return (
       <button
-        className="h-7 px-2 rounded text-xs flex items-center gap-1 hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]"
+        className="h-7 px-2 rounded text-xs flex items-center gap-1 hover:bg-gray-100 dark:hover:bg-[hsl(220,25%,15%)]"
         style={{ color: '#6A7184' }}
         onClick={handleOpen}
       >
@@ -66,11 +66,11 @@ export function SearchBar() {
         onChange={(e) => setLocalValue(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Escape') handleClear(); }}
         placeholder="Search records..."
-        className="flex-1 text-xs outline-none bg-transparent text-[#374151] dark:text-[hsl(200,25%,88%)]"
+        className="flex-1 text-xs outline-none bg-transparent text-[#374151] dark:text-[hsl(220,25%,88%)]"
       />
       {localValue && (
-        <button onClick={handleClear} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]">
-          <X size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+        <button onClick={handleClear} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(220,25%,15%)]">
+          <X size={12} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
         </button>
       )}
     </div>

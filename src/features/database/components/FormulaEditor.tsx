@@ -229,7 +229,7 @@ export function FormulaEditor({ value, onChange, fields, error, sampleRecords: s
         onKeyDown={handleKeyDown}
         onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
         placeholder='e.g. IF({Status} = "Done", 1, 0)'
-        className="w-full h-24 px-3 py-2 border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg text-xs-plus font-mono resize-y focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9] bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
+        className="w-full h-24 px-3 py-2 border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-lg text-xs-plus font-mono resize-y focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9] bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)]"
         spellCheck={false}
       />
       {isValid && (
@@ -241,7 +241,7 @@ export function FormulaEditor({ value, onChange, fields, error, sampleRecords: s
       {showSuggestions && suggestions.length > 0 && (
         <div
           ref={suggestionsRef}
-          className="absolute left-0 right-0 z-50 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg overflow-hidden"
+          className="absolute left-0 right-0 z-50 mt-1 bg-white dark:bg-[hsl(220,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-lg shadow-lg overflow-hidden"
         >
           {suggestions.map((sug, idx) => (
             <button
@@ -261,7 +261,7 @@ export function FormulaEditor({ value, onChange, fields, error, sampleRecords: s
               }`}>
                 {sug.type === 'field' ? 'field' : 'fn'}
               </span>
-              <span className="text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)]">
+              <span className="text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)]">
                 {sug.type === 'field' ? `{${sug.label}}` : `${sug.label}()`}
               </span>
             </button>
@@ -290,7 +290,7 @@ export function FormulaEditor({ value, onChange, fields, error, sampleRecords: s
           </p>
           <div className="space-y-0.5">
             {preview.rows.map((r) => (
-              <p key={r.index} className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] font-mono">
+              <p key={r.index} className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] font-mono">
                 <span className="text-[#9AA2AF] mr-1.5">Row {r.index}:</span>
                 {r.value == null ? <span className="text-[#9AA2AF] italic">empty</span> : String(r.value)}
               </p>

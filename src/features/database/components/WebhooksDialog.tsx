@@ -172,14 +172,14 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
       <DialogContent className="sm:max-w-3xl p-0 gap-0 overflow-hidden">
         <div className="flex h-[520px]">
           {/* Left sidebar */}
-          <div className="w-[240px] shrink-0 border-r border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] flex flex-col bg-[#FAFAFA] dark:bg-[hsl(200,30%,8%)]">
-            <div className="flex items-center justify-between px-3 py-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
+          <div className="w-[240px] shrink-0 border-r border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] flex flex-col bg-[#FAFAFA] dark:bg-[hsl(220,30%,8%)]">
+            <div className="flex items-center justify-between px-3 py-3 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
               <div className="flex items-center gap-1.5">
                 <Webhook size={14} className="text-[#2D7FF9]" />
-                <span className="text-xs-plus font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Webhooks</span>
+                <span className="text-xs-plus font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)]">Webhooks</span>
               </div>
               <button
-                className="p-1 rounded hover:bg-[#E5E5E5] dark:hover:bg-[hsl(200,25%,18%)] text-[#6A7184] dark:text-[hsl(200,20%,55%)] transition-colors"
+                className="p-1 rounded hover:bg-[#E5E5E5] dark:hover:bg-[hsl(220,25%,18%)] text-[#6A7184] dark:text-[hsl(220,20%,55%)] transition-colors"
                 onClick={startNew}
                 title="Add webhook"
               >
@@ -190,30 +190,30 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
             <div className="flex-1 overflow-y-auto">
               {webhooks.length === 0 && !isNew && (
                 <div className="px-3 py-8 text-center">
-                  <Webhook size={28} className="mx-auto mb-2 text-[#D1D5DB] dark:text-[hsl(200,25%,30%)]" />
-                  <p className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">No webhooks yet</p>
-                  <p className="text-2xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] mt-1">Click + to create one</p>
+                  <Webhook size={28} className="mx-auto mb-2 text-[#D1D5DB] dark:text-[hsl(220,25%,30%)]" />
+                  <p className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">No webhooks yet</p>
+                  <p className="text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] mt-1">Click + to create one</p>
                 </div>
               )}
               {webhooks.map((wh) => (
                 <div
                   key={wh.id}
-                  className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] transition-colors ${
+                  className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] transition-colors ${
                     selectedId === wh.id
                       ? 'bg-[#EBF0FF] dark:bg-[hsl(220,40%,18%)]'
-                      : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)]'
+                      : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,14%)]'
                   }`}
                   onClick={() => loadWebhook(wh)}
                 >
                   <div className="flex-1 min-w-0">
                     <p
                       className={`text-xs font-medium truncate ${
-                        wh.is_active ? 'text-[#374151] dark:text-[hsl(200,25%,88%)]' : 'text-[#9CA3AF] dark:text-[hsl(200,25%,50%)]'
+                        wh.is_active ? 'text-[#374151] dark:text-[hsl(220,25%,88%)]' : 'text-[#9CA3AF] dark:text-[hsl(220,25%,50%)]'
                       }`}
                     >
                       {wh.name}
                     </p>
-                    <p className="text-3xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] mt-0.5 truncate">
+                    <p className="text-3xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] mt-0.5 truncate">
                       {wh.events.map((e) => EVENTS.find((ev) => ev.value === e)?.label).filter(Boolean).join(', ')}
                     </p>
                   </div>
@@ -227,7 +227,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                     title={wh.is_active ? 'Disable' : 'Enable'}
                   >
                     <span
-                      className="absolute top-0.5 w-3 h-3 rounded-full bg-white dark:bg-[hsl(200,25%,88%)] shadow transition-transform"
+                      className="absolute top-0.5 w-3 h-3 rounded-full bg-white dark:bg-[hsl(220,25%,88%)] shadow transition-transform"
                       style={{ left: wh.is_active ? '13px' : '2px' }}
                     />
                   </button>
@@ -237,23 +237,23 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
           </div>
 
           {/* Right panel */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-[hsl(200,30%,10%)]">
+          <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-[hsl(220,30%,10%)]">
             {!showPanel ? (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
-                  <Webhook size={36} className="mx-auto mb-3 text-[#D1D5DB] dark:text-[hsl(200,25%,30%)]" />
-                  <p className="text-xs-plus text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Select a webhook or create a new one</p>
+                  <Webhook size={36} className="mx-auto mb-3 text-[#D1D5DB] dark:text-[hsl(220,25%,30%)]" />
+                  <p className="text-xs-plus text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Select a webhook or create a new one</p>
                 </div>
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
+                  <h3 className="text-sm font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)]">
                     {isNew ? 'New Webhook' : 'Edit Webhook'}
                   </h3>
                   {!isNew && selectedId && (
                     <button
-                      className="p-1.5 rounded hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#991B1B] dark:hover:text-[#FCA5A5] transition-colors"
+                      className="p-1.5 rounded hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)] text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#991B1B] dark:hover:text-[#FCA5A5] transition-colors"
                       onClick={() => handleDelete(selectedId)}
                       title="Delete webhook"
                     >
@@ -264,7 +264,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
 
                 {/* Name */}
                 <div>
-                  <Label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Name</Label>
+                  <Label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Name</Label>
                   <Input
                     className="mt-1 h-8 text-xs-plus"
                     placeholder="e.g. Notify Slack on new record"
@@ -275,18 +275,18 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
 
                 {/* Events (multi-select checkboxes) */}
                 <div>
-                  <Label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Events</Label>
+                  <Label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Events</Label>
                   <div className="mt-1.5 space-y-1.5">
                     {EVENTS.map((ev) => (
                       <label
                         key={ev.value}
-                        className="flex items-center gap-2 cursor-pointer text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                        className="flex items-center gap-2 cursor-pointer text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)]"
                       >
                         <input
                           type="checkbox"
                           checked={events.includes(ev.value)}
                           onChange={() => handleToggleEvent(ev.value)}
-                          className="rounded border-[#D1D5DB] dark:border-[hsl(200,25%,30%)] text-[#2D7FF9] focus:ring-[#2D7FF9] h-3.5 w-3.5"
+                          className="rounded border-[#D1D5DB] dark:border-[hsl(220,25%,30%)] text-[#2D7FF9] focus:ring-[#2D7FF9] h-3.5 w-3.5"
                         />
                         {ev.label}
                       </label>
@@ -296,7 +296,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
 
                 {/* URL */}
                 <div>
-                  <Label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">URL</Label>
+                  <Label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)]">URL</Label>
                   <Input
                     className="mt-1 h-8 text-xs-plus"
                     placeholder="https://example.com/webhook"
@@ -307,7 +307,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
 
                 {/* Secret */}
                 <div>
-                  <Label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Signing Secret (optional)</Label>
+                  <Label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Signing Secret (optional)</Label>
                   <Input
                     className="mt-1 h-8 text-xs-plus font-mono"
                     placeholder="whsec_..."
@@ -315,22 +315,22 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                     value={secret}
                     onChange={(e) => setSecret(e.target.value)}
                   />
-                  <p className="text-3xs text-[#9CA3AF] dark:text-[hsl(200,20%,45%)] mt-1">
+                  <p className="text-3xs text-[#9CA3AF] dark:text-[hsl(220,20%,45%)] mt-1">
                     Used to sign payloads via X-KDOps-Signature header
                   </p>
                 </div>
 
                 {/* Headers */}
                 <div>
-                  <Label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(200,20%,55%)]">Headers</Label>
+                  <Label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Headers</Label>
                   <div className="mt-1 space-y-1.5">
                     {Object.entries(headers).map(([k, v]) => (
                       <div key={k} className="flex items-center gap-2">
-                        <span className="flex-1 text-xs font-mono px-2 py-1 rounded bg-[#F4F4F5] dark:bg-[hsl(200,25%,14%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
+                        <span className="flex-1 text-xs font-mono px-2 py-1 rounded bg-[#F4F4F5] dark:bg-[hsl(220,25%,14%)] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-[#374151] dark:text-[hsl(220,25%,88%)] truncate">
                           {k}: {v}
                         </span>
                         <button
-                          className="shrink-0 text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#991B1B] dark:hover:text-[#FCA5A5] transition-colors"
+                          className="shrink-0 text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#991B1B] dark:hover:text-[#FCA5A5] transition-colors"
                           onClick={() => handleRemoveHeader(k)}
                         >
                           <Trash2 size={12} />
@@ -361,7 +361,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
 
                 {/* Last triggered info */}
                 {!isNew && selected?.last_triggered_at && (
-                  <p className="text-3xs text-[#9CA3AF] dark:text-[hsl(200,20%,45%)]">
+                  <p className="text-3xs text-[#9CA3AF] dark:text-[hsl(220,20%,45%)]">
                     Last triggered: {new Date(selected.last_triggered_at).toLocaleString()}
                     {selected.failure_count > 0 && (
                       <span className="ml-2 text-[#DC2626] dark:text-[#FCA5A5]">

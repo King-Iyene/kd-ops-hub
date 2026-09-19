@@ -98,7 +98,7 @@ export function LinkedRecordPicker({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-base font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] flex items-center gap-2">
+          <DialogTitle className="text-base font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)] flex items-center gap-2">
             <Link2 size={16} className="text-[#2D7FF9]" />
             Link Records
           </DialogTitle>
@@ -158,7 +158,7 @@ export function LinkedRecordPicker({
         )}
 
         {/* Record list */}
-        <div className="flex-1 overflow-y-auto border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg max-h-[300px]">
+        <div className="flex-1 overflow-y-auto border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-lg max-h-[300px]">
           {isLoading ? (
             <div className="p-4 flex items-center justify-center text-xs text-[#9AA2AF] gap-1.5">
               <Loader2 size={14} className="animate-spin" />
@@ -176,7 +176,7 @@ export function LinkedRecordPicker({
                   <button
                     key={record.id}
                     type="button"
-                    className="w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] last:border-b-0 transition-colors"
+                    className="w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,14%)] border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] last:border-b-0 transition-colors"
                     onClick={() => toggle(record.id)}
                   >
                     {isSingleSelect ? (
@@ -205,7 +205,7 @@ export function LinkedRecordPicker({
                         {isChecked ? '✓' : ''}
                       </span>
                     )}
-                    <span className="text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
+                    <span className="text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] truncate">
                       {getRecordDisplayValue(record, primaryField)}
                     </span>
                   </button>

@@ -150,12 +150,12 @@ export function AttachmentManager({
           className="absolute inset-0 bg-black/30"
           onClick={() => onOpenChange(false)}
         />
-        <div className="relative bg-white dark:bg-[hsl(200,30%,10%)] rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
+        <div className="relative bg-white dark:bg-[hsl(220,30%,10%)] rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
             <div className="flex items-center gap-2">
               <Paperclip size={14} className="text-[#6A7184]" />
-              <h2 className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
+              <h2 className="text-sm font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)]">
                 Attachments
               </h2>
               {attachments.length > 0 && (
@@ -215,7 +215,7 @@ export function AttachmentManager({
                   return (
                     <div
                       key={att.url || i}
-                      className="relative group rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] overflow-hidden bg-[#FAFAFA] dark:bg-[hsl(200,30%,12%)]"
+                      className="relative group rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] overflow-hidden bg-[#FAFAFA] dark:bg-[hsl(220,30%,12%)]"
                     >
                       {/* Preview area */}
                       <div
@@ -238,8 +238,8 @@ export function AttachmentManager({
                         )}
                       </div>
                       {/* Info */}
-                      <div className="px-2 py-1.5 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
-                        <p className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
+                      <div className="px-2 py-1.5 border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
+                        <p className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] truncate">
                           {att.name}
                         </p>
                         <p className="text-3xs text-[#9AA2AF]">{formatSize(att.size)}</p>

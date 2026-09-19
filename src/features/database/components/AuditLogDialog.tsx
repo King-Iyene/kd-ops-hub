@@ -60,19 +60,19 @@ function ChangeDiff({ changes }: { changes: Record<string, { old: any; new: any 
   if (entries.length === 0) return null;
 
   return (
-    <div className="mt-2 rounded-md border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] overflow-hidden text-xs">
+    <div className="mt-2 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] overflow-hidden text-xs">
       {entries.map(([field, { old: oldVal, new: newVal }]) => (
         <div
           key={field}
-          className="flex gap-2 px-2.5 py-1.5 border-b last:border-b-0 border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#FAFAFA] dark:bg-[hsl(200,30%,12%)]"
+          className="flex gap-2 px-2.5 py-1.5 border-b last:border-b-0 border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-[#FAFAFA] dark:bg-[hsl(220,30%,12%)]"
         >
-          <span className="font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] shrink-0 w-[120px] truncate" title={field}>
+          <span className="font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] shrink-0 w-[120px] truncate" title={field}>
             {field}
           </span>
           <span className="text-red-500 dark:text-red-400 line-through truncate max-w-[180px]" title={String(oldVal ?? '')}>
             {oldVal === null || oldVal === undefined ? '(empty)' : String(oldVal)}
           </span>
-          <span className="text-[#6A7184] dark:text-[hsl(200,25%,60%)]">&rarr;</span>
+          <span className="text-[#6A7184] dark:text-[hsl(220,25%,60%)]">&rarr;</span>
           <span className="text-success truncate max-w-[180px]" title={String(newVal ?? '')}>
             {newVal === null || newVal === undefined ? '(empty)' : String(newVal)}
           </span>
@@ -89,7 +89,7 @@ function EntryRow({ entry }: { entry: AuditLogEntry }) {
   const IconComp = meta.Icon;
 
   return (
-    <div className="flex gap-3 px-4 py-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] last:border-b-0 hover:bg-[#F9F9FA] dark:hover:bg-[hsl(200,30%,12%)] transition-colors">
+    <div className="flex gap-3 px-4 py-3 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] last:border-b-0 hover:bg-[#F9F9FA] dark:hover:bg-[hsl(220,30%,12%)] transition-colors">
       {/* Icon */}
       <div
         className="mt-0.5 h-7 w-7 rounded-full flex items-center justify-center shrink-0"
@@ -102,7 +102,7 @@ function EntryRow({ entry }: { entry: AuditLogEntry }) {
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
+          <span className="text-xs-plus font-medium text-[#374151] dark:text-[hsl(220,25%,88%)]">
             {entry.user_email ?? entry.user_id?.slice(0, 8) ?? 'System'}
           </span>
           <span
@@ -114,11 +114,11 @@ function EntryRow({ entry }: { entry: AuditLogEntry }) {
           >
             {meta.label}
           </span>
-          <span className="text-2xs text-[#6A7184] dark:text-[hsl(200,25%,60%)] ml-auto shrink-0">
+          <span className="text-2xs text-[#6A7184] dark:text-[hsl(220,25%,60%)] ml-auto shrink-0">
             {formatTimestamp(entry.created_at)}
           </span>
         </div>
-        <p className="text-xs text-[#6A7184] dark:text-[hsl(200,25%,60%)] mt-0.5 truncate">
+        <p className="text-xs text-[#6A7184] dark:text-[hsl(220,25%,60%)] mt-0.5 truncate">
           {entry.description ?? entry.action}
         </p>
         {entry.action === 'UPDATE' && entry.old_value && entry.new_value && (
@@ -156,7 +156,7 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0">
         {/* Header */}
-        <DialogHeader className="px-4 pt-4 pb-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] shrink-0">
+        <DialogHeader className="px-4 pt-4 pb-3 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] shrink-0">
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <History size={16} className="text-[#2D7FF9]" />
             Audit Log
@@ -164,22 +164,22 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
         </DialogHeader>
 
         {/* Filters */}
-        <div className="px-4 py-2.5 flex items-center gap-2 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] shrink-0 flex-wrap">
+        <div className="px-4 py-2.5 flex items-center gap-2 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] shrink-0 flex-wrap">
           <div className="relative flex-1 min-w-[160px]">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6A7184] dark:text-[hsl(200,25%,60%)]" />
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6A7184] dark:text-[hsl(220,25%,60%)]" />
             <Input
               placeholder="Search actions..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-              className="h-8 pl-8 text-xs border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]"
+              className="h-8 pl-8 text-xs border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]"
             />
           </div>
           <Select
             value={actionFilter}
             onValueChange={(v) => { setActionFilter(v as ActionType | 'ALL'); setPage(0); }}
           >
-            <SelectTrigger className="h-8 w-[160px] text-xs border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
-              <Filter size={12} className="mr-1 text-[#6A7184] dark:text-[hsl(200,25%,60%)]" />
+            <SelectTrigger className="h-8 w-[160px] text-xs border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
+              <Filter size={12} className="mr-1 text-[#6A7184] dark:text-[hsl(220,25%,60%)]" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -194,19 +194,19 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
         {/* Feed */}
         <div className="flex-1 overflow-y-auto min-h-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-16 text-[#6A7184] dark:text-[hsl(200,25%,60%)]">
+            <div className="flex items-center justify-center py-16 text-[#6A7184] dark:text-[hsl(220,25%,60%)]">
               <Loader2 size={20} className="animate-spin mr-2" />
               Loading...
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-              <div className="h-12 w-12 rounded-full bg-[#F4F4F5] dark:bg-[hsl(200,30%,14%)] flex items-center justify-center mb-3">
-                <History size={24} className="text-[#6A7184] dark:text-[hsl(200,25%,50%)]" />
+              <div className="h-12 w-12 rounded-full bg-[#F4F4F5] dark:bg-[hsl(220,30%,14%)] flex items-center justify-center mb-3">
+                <History size={24} className="text-[#6A7184] dark:text-[hsl(220,25%,50%)]" />
               </div>
-              <p className="text-sm font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
+              <p className="text-sm font-medium text-[#374151] dark:text-[hsl(220,25%,88%)]">
                 No audit entries
               </p>
-              <p className="text-xs text-[#6A7184] dark:text-[hsl(200,25%,60%)] mt-1">
+              <p className="text-xs text-[#6A7184] dark:text-[hsl(220,25%,60%)] mt-1">
                 {search || actionFilter !== 'ALL'
                   ? 'Try adjusting your filters.'
                   : 'Actions performed on this base will appear here.'}
@@ -219,21 +219,21 @@ export function AuditLogDialog({ open, onOpenChange, baseId }: AuditLogDialogPro
 
         {/* Pagination */}
         {(page > 0 || hasMore) && (
-          <div className="px-4 py-2.5 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] flex items-center justify-between shrink-0">
+          <div className="px-4 py-2.5 border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] flex items-center justify-between shrink-0">
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,25%,60%)]"
+              className="h-7 text-xs text-[#6A7184] dark:text-[hsl(220,25%,60%)]"
               disabled={page === 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
             >
               Previous
             </Button>
-            <span className="text-2xs text-[#6A7184] dark:text-[hsl(200,25%,60%)]">Page {page + 1}</span>
+            <span className="text-2xs text-[#6A7184] dark:text-[hsl(220,25%,60%)]">Page {page + 1}</span>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs text-[#6A7184] dark:text-[hsl(200,25%,60%)]"
+              className="h-7 text-xs text-[#6A7184] dark:text-[hsl(220,25%,60%)]"
               disabled={!hasMore}
               onClick={() => setPage((p) => p + 1)}
             >

@@ -53,7 +53,7 @@ export function SaveStatusIndicator() {
       {visible === 'saving' && (
         <>
           <Loader2 size={12} className="animate-spin text-primary" />
-          <span className="text-[#6A7184] dark:text-[hsl(200,25%,55%)]">Saving…</span>
+          <span className="text-[#6A7184] dark:text-[hsl(220,25%,55%)]">Saving…</span>
         </>
       )}
       {visible === 'saved' && (

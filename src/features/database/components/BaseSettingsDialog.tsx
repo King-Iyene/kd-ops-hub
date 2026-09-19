@@ -112,13 +112,13 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
         </DialogHeader>
 
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] mb-4">
+        <div className="flex gap-1 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] mb-4">
           <button
             className={cn(
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'general'
                 ? 'border-[#2D7FF9] text-[#2D7FF9]'
-                : 'border-transparent text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
+                : 'border-transparent text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)]',
             )}
             onClick={() => setTab('general')}
           >
@@ -129,7 +129,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'backups'
                 ? 'border-[#2D7FF9] text-[#2D7FF9]'
-                : 'border-transparent text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
+                : 'border-transparent text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)]',
             )}
             onClick={() => setTab('backups')}
           >
@@ -140,7 +140,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'api'
                 ? 'border-[#2D7FF9] text-[#2D7FF9]'
-                : 'border-transparent text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
+                : 'border-transparent text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)]',
             )}
             onClick={() => setTab('api')}
           >
@@ -151,7 +151,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'webhooks'
                 ? 'border-[#2D7FF9] text-[#2D7FF9]'
-                : 'border-transparent text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
+                : 'border-transparent text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)]',
             )}
             onClick={() => setTab('webhooks')}
           >
@@ -162,7 +162,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'danger'
                 ? 'border-red-500 text-red-500'
-                : 'border-transparent text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]',
+                : 'border-transparent text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)]',
             )}
             onClick={() => setTab('danger')}
           >
@@ -197,7 +197,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
                     title={c.name}
                     className={cn(
                       'w-7 h-7 rounded-full transition-transform',
-                      color === c.value && 'ring-2 ring-offset-2 ring-[#2D7FF9] dark:ring-offset-[hsl(200,30%,10%)] scale-110',
+                      color === c.value && 'ring-2 ring-offset-2 ring-[#2D7FF9] dark:ring-offset-[hsl(220,30%,10%)] scale-110',
                     )}
                     style={{ backgroundColor: c.value }}
                     onClick={() => setColor(c.value)}
@@ -215,7 +215,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
                     key={emoji}
                     type="button"
                     className={cn(
-                      'w-8 h-8 rounded flex items-center justify-center text-base hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)] transition-colors',
+                      'w-8 h-8 rounded flex items-center justify-center text-base hover:bg-gray-100 dark:hover:bg-[hsl(220,25%,15%)] transition-colors',
                       icon === emoji && 'ring-2 ring-[#2D7FF9] bg-[#2D7FF9]/5',
                     )}
                     onClick={() => setIcon(emoji)}
@@ -525,8 +525,8 @@ function WebhooksTab({ baseId }: { baseId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(200,30%,8%)] p-3 space-y-1">
-        <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] flex items-center gap-1.5">
+      <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(220,30%,8%)] p-3 space-y-1">
+        <p className="text-xs font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] flex items-center gap-1.5">
           <Webhook size={13} className="text-[#2D7FF9]" /> Webhooks
         </p>
         <p className="text-2xs text-[#9AA2AF]">
@@ -573,7 +573,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
                     'px-2 py-1 rounded text-2xs border transition-colors',
                     newEvents.includes(ev.value)
                       ? 'bg-[#2D7FF9] text-white border-[#2D7FF9]'
-                      : 'bg-white dark:bg-[hsl(200,30%,10%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-[#6A7184]',
+                      : 'bg-white dark:bg-[hsl(220,30%,10%)] border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-[#6A7184]',
                   )}
                   onClick={() => toggleEvent(ev.value)}
                 >
@@ -667,9 +667,9 @@ function WebhooksTab({ baseId }: { baseId: string }) {
         </div>
       </div>
 
-      <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(200,30%,8%)] p-3 space-y-2">
-        <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Webhook Payload</p>
-        <pre className="text-3xs font-mono bg-white dark:bg-[hsl(200,30%,10%)] border rounded p-2 overflow-x-auto whitespace-pre text-[#374151] dark:text-[hsl(200,25%,88%)]">{`{
+      <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(220,30%,8%)] p-3 space-y-2">
+        <p className="text-xs font-medium text-[#374151] dark:text-[hsl(220,25%,88%)]">Webhook Payload</p>
+        <pre className="text-3xs font-mono bg-white dark:bg-[hsl(220,30%,10%)] border rounded p-2 overflow-x-auto whitespace-pre text-[#374151] dark:text-[hsl(220,25%,88%)]">{`{
   "event": "record.created",
   "timestamp": "2026-09-05T12:00:00Z",
   "base_id": "uuid",
@@ -682,7 +682,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
   }
 }`}</pre>
         <p className="text-3xs text-[#9AA2AF]">
-          If a secret is set, requests include an <code className="bg-white dark:bg-[hsl(200,30%,10%)] px-1 rounded">X-KDOps-Signature</code> header (SHA-256 of body + secret).
+          If a secret is set, requests include an <code className="bg-white dark:bg-[hsl(220,30%,10%)] px-1 rounded">X-KDOps-Signature</code> header (SHA-256 of body + secret).
         </p>
       </div>
     </div>
@@ -779,10 +779,10 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(200,30%,8%)] p-3 space-y-2">
-        <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">API Base URL</p>
+      <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(220,30%,8%)] p-3 space-y-2">
+        <p className="text-xs font-medium text-[#374151] dark:text-[hsl(220,25%,88%)]">API Base URL</p>
         <div className="flex items-center gap-2">
-          <code className="flex-1 text-2xs bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-2 py-1.5 font-mono text-[#374151] dark:text-[hsl(200,25%,88%)] select-all overflow-x-auto">
+          <code className="flex-1 text-2xs bg-white dark:bg-[hsl(220,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded px-2 py-1.5 font-mono text-[#374151] dark:text-[hsl(220,25%,88%)] select-all overflow-x-auto">
             {apiBaseUrl}
           </code>
           <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => handleCopy(apiBaseUrl)}>
@@ -790,7 +790,7 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
           </Button>
         </div>
         <p className="text-2xs text-[#9AA2AF]">
-          Use with header: <code className="bg-white dark:bg-[hsl(200,30%,10%)] px-1 rounded text-3xs">Authorization: Bearer kdops_xxx</code>
+          Use with header: <code className="bg-white dark:bg-[hsl(220,30%,10%)] px-1 rounded text-3xs">Authorization: Bearer kdops_xxx</code>
         </p>
       </div>
 
@@ -800,7 +800,7 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
             API key created — copy it now, you won't see it again
           </p>
           <div className="flex items-center gap-2">
-            <code className="flex-1 text-2xs font-mono bg-white dark:bg-[hsl(200,30%,10%)] border rounded px-2 py-1.5 overflow-x-auto">
+            <code className="flex-1 text-2xs font-mono bg-white dark:bg-[hsl(220,30%,10%)] border rounded px-2 py-1.5 overflow-x-auto">
               {showKey ? createdKey : createdKey.substring(0, 12) + '•'.repeat(30)}
             </code>
             <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => setShowKey(!showKey)}>
@@ -871,9 +871,9 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
         </div>
       </div>
 
-      <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(200,30%,8%)] p-3 space-y-2">
-        <p className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">Quick Start</p>
-        <pre className="text-3xs font-mono bg-white dark:bg-[hsl(200,30%,10%)] border rounded p-2 overflow-x-auto whitespace-pre text-[#374151] dark:text-[hsl(200,25%,88%)]">{`# List records
+      <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(220,30%,8%)] p-3 space-y-2">
+        <p className="text-xs font-medium text-[#374151] dark:text-[hsl(220,25%,88%)]">Quick Start</p>
+        <pre className="text-3xs font-mono bg-white dark:bg-[hsl(220,30%,10%)] border rounded p-2 overflow-x-auto whitespace-pre text-[#374151] dark:text-[hsl(220,25%,88%)]">{`# List records
 curl "${apiBaseUrl}/bases/${baseSchemaName}/tables/TABLE_SLUG/records" \\
   -H "Authorization: Bearer kdops_YOUR_KEY"
 

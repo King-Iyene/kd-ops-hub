@@ -85,34 +85,34 @@ const ganttStyles = `
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .gantt-root {
-    --g-bg: hsl(200,30%,10%);
-    --g-bg-alt: hsl(200,28%,12%);
-    --g-border: hsl(200,25%,18%);
-    --g-text: hsl(200,25%,88%);
-    --g-text-muted: hsl(200,20%,60%);
-    --g-text-faint: hsl(200,15%,45%);
+    --g-bg: hsl(220,30%,10%);
+    --g-bg-alt: hsl(220,28%,12%);
+    --g-border: hsl(220,25%,18%);
+    --g-text: hsl(220,25%,88%);
+    --g-text-muted: hsl(220,20%,60%);
+    --g-text-faint: hsl(220,15%,45%);
     --g-primary: #5588FF;
     --g-primary-hover: #4477EE;
-    --g-cell-hover: hsl(200,25%,15%);
-    --g-tooltip-bg: hsl(200,20%,22%);
-    --g-tooltip-text: hsl(200,25%,90%);
-    --g-weekend: hsl(200,28%,11%);
+    --g-cell-hover: hsl(220,25%,15%);
+    --g-tooltip-bg: hsl(220,20%,22%);
+    --g-tooltip-text: hsl(220,25%,90%);
+    --g-weekend: hsl(220,28%,11%);
     --g-handle: rgba(255,255,255,0.3);
   }
 }
 :root[data-theme="dark"] .gantt-root {
-  --g-bg: hsl(200,30%,10%);
-  --g-bg-alt: hsl(200,28%,12%);
-  --g-border: hsl(200,25%,18%);
-  --g-text: hsl(200,25%,88%);
-  --g-text-muted: hsl(200,20%,60%);
-  --g-text-faint: hsl(200,15%,45%);
+  --g-bg: hsl(220,30%,10%);
+  --g-bg-alt: hsl(220,28%,12%);
+  --g-border: hsl(220,25%,18%);
+  --g-text: hsl(220,25%,88%);
+  --g-text-muted: hsl(220,20%,60%);
+  --g-text-faint: hsl(220,15%,45%);
   --g-primary: #5588FF;
   --g-primary-hover: #4477EE;
-  --g-cell-hover: hsl(200,25%,15%);
-  --g-tooltip-bg: hsl(200,20%,22%);
-  --g-tooltip-text: hsl(200,25%,90%);
-  --g-weekend: hsl(200,28%,11%);
+  --g-cell-hover: hsl(220,25%,15%);
+  --g-tooltip-bg: hsl(220,20%,22%);
+  --g-tooltip-text: hsl(220,25%,90%);
+  --g-weekend: hsl(220,28%,11%);
   --g-handle: rgba(255,255,255,0.3);
 }
 
@@ -288,19 +288,19 @@ function GanttSkeleton() {
     <div className="gantt-root">
       <style>{ganttStyles}</style>
       <div className="flex items-center gap-3 px-3 h-9 border-b border-[var(--g-border,#E5E5E5)]">
-        <div className="h-3 w-32 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+        <div className="h-3 w-32 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
       </div>
       <div className="flex flex-1 min-h-0">
         <div className="shrink-0 border-r border-[var(--g-border,#E5E5E5)] p-2 space-y-3" style={{ width: 200 }}>
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-3 w-28 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+            <div key={i} className="h-3 w-28 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
           ))}
         </div>
         <div className="flex-1 p-3 space-y-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="h-5 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]"
+              className="h-5 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]"
               style={{ width: `${20 + ((i * 37) % 50)}%`, marginLeft: `${(i * 13) % 30}%` }}
             />
           ))}

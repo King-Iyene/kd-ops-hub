@@ -378,14 +378,14 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
     <Dialog open={open} onOpenChange={(v) => { if (!importing) onOpenChange(v); }}>
       <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-[#374151] dark:text-[hsl(200,25%,88%)]">Import CSV</DialogTitle>
+          <DialogTitle className="text-[#374151] dark:text-[hsl(220,25%,88%)]">Import CSV</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-3">
           {!parsed ? (
             <div className="space-y-3">
               <textarea
-                className="w-full h-40 text-xs font-mono border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-[#2D7FF9] resize-none bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)] text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                className="w-full h-40 text-xs font-mono border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-[#2D7FF9] resize-none bg-[#F9F9FA] dark:bg-[hsl(220,25%,13%)] text-[#374151] dark:text-[hsl(220,25%,88%)]"
                 placeholder="Paste CSV text here..."
                 value={csvText}
                 onChange={(e) => setCsvText(e.target.value)}
@@ -406,7 +406,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                   className="hidden"
                   onChange={handleFileUpload}
                 />
-                <span className="text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+                <span className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
                   or paste above
                 </span>
               </div>
@@ -414,7 +414,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+              <div className="flex items-center gap-2 text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
                 <FileText size={14} />
                 <span>
                   {parsed.headers.length} columns, {parsed.rows.length} rows
@@ -422,18 +422,18 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               </div>
 
               {/* Data preview — first 5 columns × first 5 rows */}
-              <div className="overflow-x-auto border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg">
+              <div className="overflow-x-auto border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-lg">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-[#F9F9FA] dark:bg-[hsl(200,25%,13%)]">
+                    <tr className="bg-[#F9F9FA] dark:bg-[hsl(220,25%,13%)]">
                       {previewHeaders.map((h, i) => (
                         <th
                           key={i}
-                          className="text-left px-3 py-2 font-semibold border-b border-r border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] whitespace-nowrap text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                          className="text-left px-3 py-2 font-semibold border-b border-r border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] whitespace-nowrap text-[#374151] dark:text-[hsl(220,25%,88%)]"
                         >
                           <div className="truncate max-w-[140px]">{h}</div>
                           <select
-                            className="mt-1 text-3xs font-normal bg-transparent border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:text-[hsl(200,20%,55%)]"
+                            className="mt-1 text-3xs font-normal bg-transparent border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:text-[hsl(220,20%,55%)]"
                             value={columnTypes[i] ?? 'SingleLineText'}
                             onChange={(e) => {
                               const next = [...columnTypes];
@@ -448,7 +448,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                         </th>
                       ))}
                       {remainingHeaders.length > 0 && (
-                        <th className="text-left px-3 py-2 font-normal text-3xs border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] whitespace-nowrap text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+                        <th className="text-left px-3 py-2 font-normal text-3xs border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] whitespace-nowrap text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
                           +{remainingHeaders.length} more
                         </th>
                       )}
@@ -456,17 +456,17 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                   </thead>
                   <tbody>
                     {previewRows.map((row, ri) => (
-                      <tr key={ri} className="hover:bg-[#F9F9FA] dark:hover:bg-[hsl(200,25%,15%)]">
+                      <tr key={ri} className="hover:bg-[#F9F9FA] dark:hover:bg-[hsl(220,25%,15%)]">
                         {previewHeaders.map((_, ci) => (
                           <td
                             key={ci}
-                            className="px-3 py-1.5 border-b border-r border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] whitespace-nowrap max-w-[140px] truncate text-[#374151] dark:text-[hsl(200,25%,88%)]"
+                            className="px-3 py-1.5 border-b border-r border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] whitespace-nowrap max-w-[140px] truncate text-[#374151] dark:text-[hsl(220,25%,88%)]"
                           >
                             {row[ci] ?? ''}
                           </td>
                         ))}
                         {remainingHeaders.length > 0 && (
-                          <td className="px-3 py-1.5 border-b text-3xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">…</td>
+                          <td className="px-3 py-1.5 border-b text-3xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">…</td>
                         )}
                       </tr>
                     ))}
@@ -480,12 +480,12 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
                   <summary className="cursor-pointer text-[#2D7FF9] hover:underline">
                     All column mappings ({parsed.headers.length})
                   </summary>
-                  <div className="mt-2 max-h-48 overflow-y-auto border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg divide-y divide-[#E5E5E5] dark:divide-[hsl(200,25%,18%)]">
+                  <div className="mt-2 max-h-48 overflow-y-auto border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-lg divide-y divide-[#E5E5E5] dark:divide-[hsl(220,25%,18%)]">
                     {parsed.headers.map((h, i) => (
                       <div key={i} className="flex items-center gap-2 px-3 py-1.5">
-                        <span className="flex-1 truncate text-[#374151] dark:text-[hsl(200,25%,88%)]">{h}</span>
+                        <span className="flex-1 truncate text-[#374151] dark:text-[hsl(220,25%,88%)]">{h}</span>
                         <select
-                          className="text-3xs bg-transparent border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:text-[hsl(200,20%,55%)]"
+                          className="text-3xs bg-transparent border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:text-[hsl(220,20%,55%)]"
                           value={columnTypes[i] ?? 'SingleLineText'}
                           onChange={(e) => {
                             const next = [...columnTypes];
@@ -506,17 +506,17 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
               {/* Progress bar */}
               {importing && (
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+                  <div className="flex items-center justify-between text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
                     <span>{progress.label}</span>
                     <span>{elapsed}s</span>
                   </div>
-                  <div className="w-full h-2 bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-[#E5E5E5] dark:bg-[hsl(220,25%,18%)] rounded-full overflow-hidden">
                     <div
                       className="h-full bg-[#2D7FF9] rounded-full transition-all duration-300"
                       style={{ width: progress.total > 0 ? `${Math.round((progress.done / progress.total) * 100)}%` : '0%' }}
                     />
                   </div>
-                  <div className="flex items-center justify-between text-3xs text-[#6A7184] dark:text-[hsl(200,20%,55%)]">
+                  <div className="flex items-center justify-between text-3xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
                     <span>
                       {phase === 'fields' && 'Creating fields...'}
                       {phase === 'records' && `${progress.done} / ${progress.total} rows`}

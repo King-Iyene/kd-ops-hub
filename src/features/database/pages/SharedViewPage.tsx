@@ -142,7 +142,7 @@ export default function SharedViewPage() {
 
   if (sharedViewQuery.isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#FAFAFA] dark:bg-[hsl(200,30%,6%)]">
+      <div className="flex items-center justify-center h-screen bg-[#FAFAFA] dark:bg-[hsl(220,30%,6%)]">
         <div className="animate-spin h-8 w-8 border-2 border-[#2D7FF9] border-t-transparent rounded-full" />
       </div>
     );
@@ -150,10 +150,10 @@ export default function SharedViewPage() {
 
   if (!sharedView) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#FAFAFA] dark:bg-[hsl(200,30%,6%)]">
+      <div className="flex items-center justify-center h-screen bg-[#FAFAFA] dark:bg-[hsl(220,30%,6%)]">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-[#374151] dark:text-[hsl(200,25%,88%)] mb-2">View not found</h1>
-          <p className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]">This shared view may have been disabled or deleted.</p>
+          <h1 className="text-2xl font-bold text-[#374151] dark:text-[hsl(220,25%,88%)] mb-2">View not found</h1>
+          <p className="text-[#6A7184] dark:text-[hsl(220,20%,55%)]">This shared view may have been disabled or deleted.</p>
         </div>
       </div>
     );
@@ -161,16 +161,16 @@ export default function SharedViewPage() {
 
   if (needsPassword) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#FAFAFA] dark:bg-[hsl(200,30%,6%)]">
-        <div className="bg-white dark:bg-[hsl(200,30%,8%)] rounded-xl shadow-lg p-8 w-[360px] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
-          <h2 className="text-lg font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] mb-4">This view is password protected</h2>
+      <div className="flex items-center justify-center h-screen bg-[#FAFAFA] dark:bg-[hsl(220,30%,6%)]">
+        <div className="bg-white dark:bg-[hsl(220,30%,8%)] rounded-xl shadow-lg p-8 w-[360px] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
+          <h2 className="text-lg font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)] mb-4">This view is password protected</h2>
           <form onSubmit={(e) => { e.preventDefault(); verifyPassword.mutate(password); }}>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
-              className="w-full border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg px-3 py-2 text-sm bg-white dark:bg-[hsl(200,30%,10%)] text-[#374151] dark:text-[hsl(200,25%,88%)] mb-3"
+              className="w-full border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-lg px-3 py-2 text-sm bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)] mb-3"
             />
             <button
               type="submit"
@@ -209,9 +209,9 @@ export default function SharedViewPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-[#FAFAFA] dark:bg-[hsl(200,30%,6%)]">
-      <header className="flex items-center h-11 px-4 bg-white dark:bg-[hsl(200,30%,8%)] border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] shrink-0">
-        <span className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
+    <div className="h-screen flex flex-col bg-[#FAFAFA] dark:bg-[hsl(220,30%,6%)]">
+      <header className="flex items-center h-11 px-4 bg-white dark:bg-[hsl(220,30%,8%)] border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] shrink-0">
+        <span className="text-sm font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)]">
           {view?.name ?? 'Shared View'}
         </span>
       </header>

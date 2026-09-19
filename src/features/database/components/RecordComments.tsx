@@ -64,10 +64,10 @@ export function RecordComments({ baseId, tableId, recordId, userEmail }: RecordC
       {/* Comment list */}
       <div className="flex-1 overflow-y-auto space-y-3 mb-3">
         {isLoading && (
-          <p className="text-xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] text-center py-4">Loading...</p>
+          <p className="text-xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] text-center py-4">Loading...</p>
         )}
         {!isLoading && (!comments || comments.length === 0) && (
-          <div className="flex flex-col items-center justify-center py-8 text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">
+          <div className="flex flex-col items-center justify-center py-8 text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">
             <MessageSquare size={28} className="mb-2 opacity-40" />
             <p className="text-sm">No comments yet</p>
           </div>
@@ -85,19 +85,19 @@ export function RecordComments({ baseId, tableId, recordId, userEmail }: RecordC
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-[#374151] dark:text-[hsl(200,25%,88%)] truncate">
+                  <span className="text-xs font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] truncate">
                     {email}
                   </span>
-                  <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] shrink-0">
+                  <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] shrink-0">
                     {timeAgo(c.created_at)}
                   </span>
                   {c.user_email === userEmail && (
                     <button
                       onClick={() => { setEditingId(c.id); setEditText(c.comment); }}
-                      className="ml-auto p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] transition-opacity"
+                      className="ml-auto p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,14%)] transition-opacity"
                       title="Edit comment"
                     >
-                      <Pencil size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+                      <Pencil size={12} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
                     </button>
                   )}
                   <button
@@ -111,7 +111,7 @@ export function RecordComments({ baseId, tableId, recordId, userEmail }: RecordC
                     className={`${c.user_email === userEmail ? '' : 'ml-auto '}p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-900/20 transition-opacity`}
                     title="Delete comment"
                   >
-                    <Trash2 size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] hover:text-red-500" />
+                    <Trash2 size={12} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] hover:text-red-500" />
                   </button>
                 </div>
                 {editingId === c.id ? (
@@ -128,7 +128,7 @@ export function RecordComments({ baseId, tableId, recordId, userEmail }: RecordC
                         if (e.key === 'Escape') setEditingId(null);
                       }}
                       autoFocus
-                      className="flex-1 px-2 py-0.5 text-sm rounded border border-[#2D7FF9] bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none"
+                      className="flex-1 px-2 py-0.5 text-sm rounded border border-[#2D7FF9] bg-white dark:bg-[hsl(220,30%,12%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none"
                     />
                     <button
                       onClick={() => { updateComment.mutate({ commentId: c.id, tableId, recordId, comment: editText.trim() }); setEditingId(null); }}
@@ -136,12 +136,12 @@ export function RecordComments({ baseId, tableId, recordId, userEmail }: RecordC
                     >
                       <Check size={14} />
                     </button>
-                    <button onClick={() => setEditingId(null)} className="p-0.5 text-[#9AA2AF] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded">
+                    <button onClick={() => setEditingId(null)} className="p-0.5 text-[#9AA2AF] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,14%)] rounded">
                       <X size={14} />
                     </button>
                   </div>
                 ) : (
-                  <p className="text-sm text-[#374151] dark:text-[hsl(200,25%,88%)] mt-0.5 whitespace-pre-wrap break-words">
+                  <p className="text-sm text-[#374151] dark:text-[hsl(220,25%,88%)] mt-0.5 whitespace-pre-wrap break-words">
                     {c.comment}
                   </p>
                 )}
@@ -152,7 +152,7 @@ export function RecordComments({ baseId, tableId, recordId, userEmail }: RecordC
       </div>
 
       {/* Input area */}
-      <div className="flex items-center gap-2 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] pt-3">
+      <div className="flex items-center gap-2 border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] pt-3">
         <input
           type="text"
           value={text}
@@ -164,7 +164,7 @@ export function RecordComments({ baseId, tableId, recordId, userEmail }: RecordC
             }
           }}
           placeholder="Write a comment..."
-          className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] outline-none focus:border-[#2D7FF9] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(200,20%,40%)]"
+          className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,12%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:border-[#2D7FF9] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(220,20%,40%)]"
         />
         <button
           onClick={handleSubmit}

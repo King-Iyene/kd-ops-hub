@@ -166,7 +166,7 @@ export function DuplicateDetectionDialog({ open, onOpenChange, records, fields, 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={() => onOpenChange(false)}>
       <div
-        className="bg-white dark:bg-[hsl(200,30%,10%)] rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700/50 w-[600px] max-h-[80vh] flex flex-col"
+        className="bg-white dark:bg-[hsl(220,30%,10%)] rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700/50 w-[600px] max-h-[80vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

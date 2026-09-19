@@ -122,7 +122,7 @@ export function NotificationsPanel() {
         variant="ghost"
         size="icon"
         aria-label="Notifications"
-        className="h-7 w-7 text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] relative"
+        className="h-7 w-7 text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] relative"
         onClick={() => setOpen((v) => !v)}
       >
         <Bell size={15} />
@@ -134,10 +134,10 @@ export function NotificationsPanel() {
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-[340px] bg-white dark:bg-[hsl(200,30%,10%)] rounded-lg shadow-xl border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 w-[340px] bg-white dark:bg-[hsl(220,30%,10%)] rounded-lg shadow-xl border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] z-50 overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
-            <span className="text-xs-plus font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
+            <span className="text-xs-plus font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)]">
               Notifications
             </span>
             {notifications.length > 0 && (
@@ -153,7 +153,7 @@ export function NotificationsPanel() {
           {/* List */}
           <div className="max-h-[320px] overflow-y-auto">
             {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">
+              <div className="flex flex-col items-center justify-center py-10 text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">
                 <Bell size={28} className="mb-2 opacity-40" />
                 <span className="text-xs-plus">No notifications</span>
               </div>
@@ -163,7 +163,7 @@ export function NotificationsPanel() {
                 return (
                   <div
                     key={n.id}
-                    className={`flex items-start gap-2.5 px-3 py-2.5 border-b border-[#F4F4F5] dark:border-[hsl(200,25%,15%)] last:border-0 ${
+                    className={`flex items-start gap-2.5 px-3 py-2.5 border-b border-[#F4F4F5] dark:border-[hsl(220,25%,15%)] last:border-0 ${
                       !n.read ? 'bg-[#F0F4FF] dark:bg-[hsl(220,40%,12%)]' : ''
                     }`}
                   >
@@ -174,10 +174,10 @@ export function NotificationsPanel() {
                       <Icon size={13} style={{ color: ICON_COLORS[n.type] }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-[#374151] dark:text-[hsl(200,25%,85%)] leading-snug">
+                      <p className="text-xs text-[#374151] dark:text-[hsl(220,25%,85%)] leading-snug">
                         {n.message}
                       </p>
-                      <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] mt-0.5 block">
+                      <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] mt-0.5 block">
                         {relativeTime(n.timestamp)}
                       </span>
                     </div>

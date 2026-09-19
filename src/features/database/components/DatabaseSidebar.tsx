@@ -64,7 +64,7 @@ function InlineRenameInput({
   return (
     <input
       ref={ref}
-      className="bg-white dark:bg-[hsl(200,30%,12%)] border border-[#2D7FF9] rounded px-1.5 py-0.5 text-xs-plus w-full outline-none text-[#374151] dark:text-[hsl(200,25%,88%)]"
+      className="bg-white dark:bg-[hsl(220,30%,12%)] border border-[#2D7FF9] rounded px-1.5 py-0.5 text-xs-plus w-full outline-none text-[#374151] dark:text-[hsl(220,25%,88%)]"
       value={text}
       onChange={(e) => setText(e.target.value)}
       onBlur={commit}
@@ -179,7 +179,7 @@ export function DatabaseSidebar() {
 
   return (
     <aside
-      className="relative bg-[#F9F9FA] dark:bg-[hsl(200,35%,6%)] border-r border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] flex flex-col shrink-0 overflow-hidden select-none"
+      className="relative bg-[#F9F9FA] dark:bg-[hsl(220,35%,6%)] border-r border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] flex flex-col shrink-0 overflow-hidden select-none"
       style={{
         width: effectiveWidth,
         minWidth: effectiveWidth,
@@ -187,11 +187,11 @@ export function DatabaseSidebar() {
       }}
     >
       {/* Header */}
-      <div className="h-11 flex items-center justify-between px-3 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
+      <div className="h-11 flex items-center justify-between px-3 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
         {!sidebarCollapsed && (
           <a
             href="/data"
-            className="flex items-center gap-1.5 text-xs-plus font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] hover:text-[#2D7FF9] transition-colors"
+            className="flex items-center gap-1.5 text-xs-plus font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)] hover:text-[#2D7FF9] transition-colors"
             onClick={(e) => { e.preventDefault(); navigateToBase(null); }}
             title="Go to home"
           >
@@ -204,7 +204,7 @@ export function DatabaseSidebar() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)] hover:bg-[#E5E5E5] dark:hover:bg-[hsl(200,25%,18%)]"
+              className="h-6 w-6 p-0 text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)] hover:bg-[#E5E5E5] dark:hover:bg-[hsl(220,25%,18%)]"
               onClick={() => setCreateBaseOpen(true)}
               title="Create base"
             >
@@ -214,7 +214,7 @@ export function DatabaseSidebar() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 w-6 p-0 text-[#6A7184] hover:text-[#374151] hover:bg-[#E5E5E5] dark:hover:bg-[hsl(200,25%,18%)]"
+            className="h-6 w-6 p-0 text-[#6A7184] hover:text-[#374151] hover:bg-[#E5E5E5] dark:hover:bg-[hsl(220,25%,18%)]"
             onClick={toggleSidebarCollapsed}
             title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
@@ -238,7 +238,7 @@ export function DatabaseSidebar() {
               sidebarCollapsed && 'justify-center mx-0.5 px-0',
               base.id === activeBaseId
                 ? 'bg-[#2D7FF9]/10 dark:bg-[hsl(220,50%,14%)]'
-                : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,12%)]',
+                : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,12%)]',
             )}
             onClick={(e) => { e.preventDefault(); navigateToBase(base.id); }}
             title={sidebarCollapsed ? base.name : undefined}
@@ -274,7 +274,7 @@ export function DatabaseSidebar() {
                       'text-xs-plus font-medium truncate flex-1',
                       base.id === activeBaseId
                         ? 'text-[#2D7FF9]'
-                        : 'text-[#374151] dark:text-[hsl(200,25%,88%)]',
+                        : 'text-[#374151] dark:text-[hsl(220,25%,88%)]',
                     )}
                   >
                     {base.name}
@@ -295,10 +295,10 @@ export function DatabaseSidebar() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#D5D5D9] dark:hover:bg-[hsl(200,25%,20%)] transition-opacity shrink-0"
+                      className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#D5D5D9] dark:hover:bg-[hsl(220,25%,20%)] transition-opacity shrink-0"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <MoreHorizontal size={14} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]" />
+                      <MoreHorizontal size={14} className="text-[#6A7184] dark:text-[hsl(220,20%,55%)]" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-40">

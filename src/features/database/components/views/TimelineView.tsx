@@ -81,33 +81,33 @@ const timelineStyles = `
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .tl-root {
-    --tl-bg: hsl(200,30%,10%);
-    --tl-bg-alt: hsl(200,28%,12%);
-    --tl-border: hsl(200,25%,18%);
-    --tl-text: hsl(200,25%,88%);
-    --tl-text-muted: hsl(200,20%,60%);
-    --tl-text-faint: hsl(200,15%,45%);
+    --tl-bg: hsl(220,30%,10%);
+    --tl-bg-alt: hsl(220,28%,12%);
+    --tl-border: hsl(220,25%,18%);
+    --tl-text: hsl(220,25%,88%);
+    --tl-text-muted: hsl(220,20%,60%);
+    --tl-text-faint: hsl(220,15%,45%);
     --tl-primary: #5588FF;
     --tl-primary-hover: #4477EE;
-    --tl-cell-hover: hsl(200,25%,15%);
-    --tl-tooltip-bg: hsl(200,20%,22%);
-    --tl-tooltip-text: hsl(200,25%,90%);
-    --tl-weekend: hsl(200,28%,11%);
+    --tl-cell-hover: hsl(220,25%,15%);
+    --tl-tooltip-bg: hsl(220,20%,22%);
+    --tl-tooltip-text: hsl(220,25%,90%);
+    --tl-weekend: hsl(220,28%,11%);
   }
 }
 :root[data-theme="dark"] .tl-root {
-  --tl-bg: hsl(200,30%,10%);
-  --tl-bg-alt: hsl(200,28%,12%);
-  --tl-border: hsl(200,25%,18%);
-  --tl-text: hsl(200,25%,88%);
-  --tl-text-muted: hsl(200,20%,60%);
-  --tl-text-faint: hsl(200,15%,45%);
+  --tl-bg: hsl(220,30%,10%);
+  --tl-bg-alt: hsl(220,28%,12%);
+  --tl-border: hsl(220,25%,18%);
+  --tl-text: hsl(220,25%,88%);
+  --tl-text-muted: hsl(220,20%,60%);
+  --tl-text-faint: hsl(220,15%,45%);
   --tl-primary: #5588FF;
   --tl-primary-hover: #4477EE;
-  --tl-cell-hover: hsl(200,25%,15%);
-  --tl-tooltip-bg: hsl(200,20%,22%);
-  --tl-tooltip-text: hsl(200,25%,90%);
-  --tl-weekend: hsl(200,28%,11%);
+  --tl-cell-hover: hsl(220,25%,15%);
+  --tl-tooltip-bg: hsl(220,20%,22%);
+  --tl-tooltip-text: hsl(220,25%,90%);
+  --tl-weekend: hsl(220,28%,11%);
 }
 
 /* Empty */
@@ -266,14 +266,14 @@ function TimelineSkeleton() {
     <div className="tl-root">
       <style>{timelineStyles}</style>
       <div className="flex items-center gap-3 px-3 h-9 border-b border-[var(--tl-border,#E5E5E5)]">
-        <div className="h-3 w-32 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+        <div className="h-3 w-32 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
       </div>
       <div className="flex-1 p-4 space-y-3">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3">
-            <div className="h-3 w-28 shrink-0 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+            <div className="h-3 w-28 shrink-0 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
             <div
-              className="h-5 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]"
+              className="h-5 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]"
               style={{ width: `${20 + ((i * 37) % 50)}%`, marginLeft: `${(i * 13) % 30}%` }}
             />
           </div>

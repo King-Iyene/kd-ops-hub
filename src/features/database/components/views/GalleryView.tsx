@@ -114,25 +114,25 @@ function Dropdown({
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border
-          border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,12%)]
-          text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-gray-50 dark:hover:bg-[hsl(200,30%,15%)]
+          border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,12%)]
+          text-[#374151] dark:text-[hsl(220,25%,88%)] hover:bg-gray-50 dark:hover:bg-[hsl(220,30%,15%)]
           transition-colors"
       >
-        <span className="text-[#9AA2AF] dark:text-[hsl(200,25%,55%)]">{label}:</span>
+        <span className="text-[#9AA2AF] dark:text-[hsl(220,25%,55%)]">{label}:</span>
         <span className="font-medium">{current?.label ?? value}</span>
         <ChevronDown size={12} />
       </button>
       {open && (
         <div
           className="absolute top-full left-0 mt-1 z-50 min-w-[160px] rounded-lg border
-            border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] bg-white dark:bg-[hsl(200,30%,12%)]
+            border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,12%)]
             shadow-lg py-1"
         >
           {options.map((opt) => (
             <button
               key={opt.value}
-              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F3F4F6] dark:hover:bg-[hsl(200,30%,16%)]
-                transition-colors ${opt.value === value ? 'text-[#2D7FF9] font-medium' : 'text-[#374151] dark:text-[hsl(200,25%,88%)]'}`}
+              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F3F4F6] dark:hover:bg-[hsl(220,30%,16%)]
+                transition-colors ${opt.value === value ? 'text-[#2D7FF9] font-medium' : 'text-[#374151] dark:text-[hsl(220,25%,88%)]'}`}
               onClick={() => { onChange(opt.value); setOpen(false); }}
             >
               {opt.label}
@@ -152,7 +152,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
   const { ui_type } = field;
 
   if (value === null || value === undefined || value === '') {
-    return <span className="text-[#D1D5DB] dark:text-[hsl(200,25%,35%)] italic text-2xs">Empty</span>;
+    return <span className="text-[#D1D5DB] dark:text-[hsl(220,25%,35%)] italic text-2xs">Empty</span>;
   }
 
   // Checkbox
@@ -160,7 +160,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
     return value ? (
       <Check size={14} className="text-[#2D7FF9]" />
     ) : (
-      <div className="w-3.5 h-3.5 rounded border border-[#D1D5DB] dark:border-[hsl(200,25%,30%)]" />
+      <div className="w-3.5 h-3.5 rounded border border-[#D1D5DB] dark:border-[hsl(220,25%,30%)]" />
     );
   }
 
@@ -174,7 +174,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
           <Star
             key={i}
             size={13}
-            className={i < num ? 'text-amber-400 fill-amber-400' : 'text-[#D1D5DB] dark:text-[hsl(200,25%,30%)]'}
+            className={i < num ? 'text-amber-400 fill-amber-400' : 'text-[#D1D5DB] dark:text-[hsl(220,25%,30%)]'}
           />
         ))}
       </div>
@@ -219,7 +219,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
 
   // Date / DateTime
   if (ui_type === 'Date' || ui_type === 'DateTime' || ui_type === 'CreatedTime' || ui_type === 'LastModifiedTime') {
-    return <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)]">{formatDate(value)}</span>;
+    return <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">{formatDate(value)}</span>;
   }
 
   // URL
@@ -249,15 +249,15 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
     if (url) {
       return (
         <div className="flex items-center gap-1.5">
-          <img src={url} alt="" className="w-8 h-8 rounded object-cover border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]" />
-          <span className="text-2xs text-[#6A7184] dark:text-[hsl(200,25%,55%)]">
+          <img src={url} alt="" className="w-8 h-8 rounded object-cover border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]" />
+          <span className="text-2xs text-[#6A7184] dark:text-[hsl(220,25%,55%)]">
             {Array.isArray(value) ? `${(value as unknown[]).length} file(s)` : '1 file'}
           </span>
         </div>
       );
     }
     return (
-      <span className="flex items-center gap-1 text-xs text-[#6A7184] dark:text-[hsl(200,25%,55%)]">
+      <span className="flex items-center gap-1 text-xs text-[#6A7184] dark:text-[hsl(220,25%,55%)]">
         <Paperclip size={11} /> Attachment
       </span>
     );
@@ -274,7 +274,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
       formatted = value.toLocaleString();
     }
     return (
-      <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] font-variant-numeric tabular-nums">
+      <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] font-variant-numeric tabular-nums">
         {formatted}
       </span>
     );
@@ -282,7 +282,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
 
   // Default
   return (
-    <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] line-clamp-2">
+    <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] line-clamp-2">
       {String(value)}
     </span>
   );
@@ -318,14 +318,14 @@ function GalleryCard({
 
   return (
     <div
-      className="relative bg-white dark:bg-[hsl(200,30%,12%)] rounded-lg border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]
+      className="relative bg-white dark:bg-[hsl(220,30%,12%)] rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]
         overflow-hidden cursor-pointer hover:shadow-md dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)]
         transition-all duration-200 group"
       onClick={() => onExpand?.(record)}
     >
       {/* Cover image */}
       {coverUrl ? (
-        <div className="w-full h-36 bg-[#F3F4F6] dark:bg-[hsl(200,30%,8%)] overflow-hidden">
+        <div className="w-full h-36 bg-[#F3F4F6] dark:bg-[hsl(220,30%,8%)] overflow-hidden">
           <img src={coverUrl} alt="" className="w-full h-full object-cover" />
         </div>
       ) : (
@@ -340,16 +340,16 @@ function GalleryCard({
       >
         <button
           title="Expand"
-          className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(200,30%,15%)]/90 border border-[#E5E5E5] dark:border-[hsl(200,25%,22%)]
-            text-[#6A7184] dark:text-[hsl(200,25%,70%)] hover:text-[#2D7FF9] hover:border-[#2D7FF9]/30 transition-colors shadow-sm"
+          className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(220,30%,15%)]/90 border border-[#E5E5E5] dark:border-[hsl(220,25%,22%)]
+            text-[#6A7184] dark:text-[hsl(220,25%,70%)] hover:text-[#2D7FF9] hover:border-[#2D7FF9]/30 transition-colors shadow-sm"
           onClick={() => onExpand?.(record)}
         >
           <Expand size={13} />
         </button>
         <button
           title="Duplicate"
-          className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(200,30%,15%)]/90 border border-[#E5E5E5] dark:border-[hsl(200,25%,22%)]
-            text-[#6A7184] dark:text-[hsl(200,25%,70%)] hover:text-[#2D7FF9] hover:border-[#2D7FF9]/30 transition-colors shadow-sm"
+          className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(220,30%,15%)]/90 border border-[#E5E5E5] dark:border-[hsl(220,25%,22%)]
+            text-[#6A7184] dark:text-[hsl(220,25%,70%)] hover:text-[#2D7FF9] hover:border-[#2D7FF9]/30 transition-colors shadow-sm"
           onClick={() => onDuplicate?.(record)}
         >
           <Copy size={13} />
@@ -367,8 +367,8 @@ function GalleryCard({
         ) : (
           <button
             title="Delete"
-            className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(200,30%,15%)]/90 border border-[#E5E5E5] dark:border-[hsl(200,25%,22%)]
-              text-[#6A7184] dark:text-[hsl(200,25%,70%)] hover:text-destructive hover:border-destructive/20 dark:hover:border-destructive transition-colors shadow-sm"
+            className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(220,30%,15%)]/90 border border-[#E5E5E5] dark:border-[hsl(220,25%,22%)]
+              text-[#6A7184] dark:text-[hsl(220,25%,70%)] hover:text-destructive hover:border-destructive/20 dark:hover:border-destructive transition-colors shadow-sm"
             onClick={() => setConfirmDelete(true)}
           >
             <Trash2 size={13} />
@@ -378,14 +378,14 @@ function GalleryCard({
 
       {/* Card content */}
       <div className="p-4">
-        <div className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,90%)] truncate mb-3">
+        <div className="text-sm font-semibold text-[#374151] dark:text-[hsl(220,25%,90%)] truncate mb-3">
           {titleField ? record[titleField.pg_column_name] ?? (
-            <span className="text-[#D1D5DB] dark:text-[hsl(200,25%,35%)] italic font-normal">(empty)</span>
+            <span className="text-[#D1D5DB] dark:text-[hsl(220,25%,35%)] italic font-normal">(empty)</span>
           ) : record.id}
         </div>
         {previewFields.map((f) => (
           <div key={f.id} className="mb-2.5 last:mb-0">
-            <div className="text-3xs font-semibold text-[#9AA2AF] dark:text-[hsl(200,25%,50%)] uppercase tracking-wider mb-0.5">
+            <div className="text-3xs font-semibold text-[#9AA2AF] dark:text-[hsl(220,25%,50%)] uppercase tracking-wider mb-0.5">
               {f.name}
             </div>
             <FieldValue field={f} value={record[f.pg_column_name]} />
@@ -406,12 +406,12 @@ function GallerySkeleton() {
       {Array.from({ length: 9 }).map((_, i) => (
         <div
           key={i}
-          className="rounded-lg overflow-hidden border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]"
+          className="rounded-lg overflow-hidden border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]"
         >
-          <div className="h-28 w-full animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+          <div className="h-28 w-full animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
           <div className="p-3 space-y-2">
-            <div className="h-3 w-3/4 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
-            <div className="h-2.5 w-1/2 rounded animate-pulse bg-gray-200 dark:bg-[hsl(200,25%,15%)]" />
+            <div className="h-3 w-3/4 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
+            <div className="h-2.5 w-1/2 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
           </div>
         </div>
       ))}
@@ -477,13 +477,13 @@ export default function GalleryView({
   }, []);
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-[hsl(200,30%,10%)]">
+    <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-[hsl(220,30%,10%)]">
       {/* Toolbar */}
       <div
-        className="flex items-center gap-3 px-4 shrink-0 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]"
+        className="flex items-center gap-3 px-4 shrink-0 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]"
         style={{ height: 44 }}
       >
-        <LayoutGrid size={14} className="text-[#6A7184] dark:text-[hsl(200,25%,55%)]" />
+        <LayoutGrid size={14} className="text-[#6A7184] dark:text-[hsl(220,25%,55%)]" />
 
         {coverFieldOptions.length > 1 && (
           <Dropdown
@@ -514,14 +514,14 @@ export default function GalleryView({
           /* Empty state */
           <div className="flex flex-col items-center justify-center h-full text-center py-20">
             <div
-              className="w-16 h-16 rounded-2xl bg-[#F3F4F6] dark:bg-[hsl(200,30%,14%)] flex items-center justify-center mb-4"
+              className="w-16 h-16 rounded-2xl bg-[#F3F4F6] dark:bg-[hsl(220,30%,14%)] flex items-center justify-center mb-4"
             >
-              <Database size={28} className="text-[#D1D5DB] dark:text-[hsl(200,25%,30%)]" />
+              <Database size={28} className="text-[#D1D5DB] dark:text-[hsl(220,25%,30%)]" />
             </div>
-            <h3 className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] mb-1">
+            <h3 className="text-sm font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)] mb-1">
               No records yet
             </h3>
-            <p className="text-xs text-[#6A7184] dark:text-[hsl(200,25%,55%)] mb-4 max-w-[260px]">
+            <p className="text-xs text-[#6A7184] dark:text-[hsl(220,25%,55%)] mb-4 max-w-[260px]">
               Add your first record to see it appear as a card in the gallery.
             </p>
             <button
@@ -551,8 +551,8 @@ export default function GalleryView({
             ))}
             <button
               className="flex items-center justify-center gap-1 rounded-lg border-2 border-dashed
-                border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] min-h-[140px]
-                text-[#9AA2AF] dark:text-[hsl(200,25%,45%)]
+                border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] min-h-[140px]
+                text-[#9AA2AF] dark:text-[hsl(220,25%,45%)]
                 hover:border-[#2D7FF9] hover:text-[#2D7FF9] dark:hover:border-[#2D7FF9] dark:hover:text-[#2D7FF9]
                 transition-colors text-sm"
               onClick={() => onAddRow()}
@@ -566,16 +566,16 @@ export default function GalleryView({
       {/* Footer / pagination */}
       <div
         className="flex items-center justify-between px-4 shrink-0 border-t
-          border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]
-          bg-[#F9F9FA] dark:bg-[hsl(200,30%,8%)]"
+          border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]
+          bg-[#F9F9FA] dark:bg-[hsl(220,30%,8%)]"
         style={{ height: 40, fontSize: 13 }}
       >
-        <span className="text-[#6A7184] dark:text-[hsl(200,25%,55%)]">
+        <span className="text-[#6A7184] dark:text-[hsl(220,25%,55%)]">
           {totalCount} record{totalCount !== 1 ? 's' : ''}
         </span>
-        <div className="flex items-center gap-2 text-[#6A7184] dark:text-[hsl(200,25%,55%)]">
+        <div className="flex items-center gap-2 text-[#6A7184] dark:text-[hsl(220,25%,55%)]">
           <button
-            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,30%,16%)] disabled:opacity-40 transition-colors"
+            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-[hsl(220,30%,16%)] disabled:opacity-40 transition-colors"
             disabled={page === 0}
             onClick={() => onPageChange(page - 1)}
           >
@@ -585,7 +585,7 @@ export default function GalleryView({
             Page {page + 1} of {totalPages}
           </span>
           <button
-            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-[hsl(200,30%,16%)] disabled:opacity-40 transition-colors"
+            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-[hsl(220,30%,16%)] disabled:opacity-40 transition-colors"
             disabled={page >= totalPages - 1}
             onClick={() => onPageChange(page + 1)}
           >

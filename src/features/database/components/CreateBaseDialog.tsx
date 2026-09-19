@@ -127,7 +127,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
           <div className="flex flex-col items-center gap-4 py-8">
             <Loader2 className="h-8 w-8 animate-spin text-[#2D7FF9]" />
             <div className="text-center">
-              <p className="text-sm font-medium text-[#374151] dark:text-[hsl(200,25%,88%)]">
+              <p className="text-sm font-medium text-[#374151] dark:text-[hsl(220,25%,88%)]">
                 Setting up {template.baseName}
               </p>
               <p className="text-xs text-[#6A7184] mt-1">{statusMsg}</p>
@@ -153,7 +153,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label htmlFor="base-name" className="text-xs font-medium text-[#4A5268] dark:text-[hsl(200,20%,55%)]">
+            <Label htmlFor="base-name" className="text-xs font-medium text-[#4A5268] dark:text-[hsl(220,20%,55%)]">
               Base name
             </Label>
             <Input
@@ -175,7 +175,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
                   key={emoji}
                   type="button"
                   className={cn(
-                    'w-8 h-8 rounded flex items-center justify-center text-base hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)] transition-colors',
+                    'w-8 h-8 rounded flex items-center justify-center text-base hover:bg-gray-100 dark:hover:bg-[hsl(220,25%,15%)] transition-colors',
                     icon === emoji && 'ring-2 ring-[#2D7FF9] bg-[#2D7FF9]/5'
                   )}
                   onClick={() => setIcon(emoji)}
