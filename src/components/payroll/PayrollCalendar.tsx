@@ -261,48 +261,48 @@ export function PayrollCalendar({ companyId = null }: PayrollCalendarProps) {
       // or holiday already get bumped to the previous business day.
       // Errors are silenced — if the RPC isn't deployed on a tenant
       // the calendar still shows holidays + past runs.
-      for (const s of (schedRes.data ?? []) as any[]) {
-        try {
-          const { data: pdRows } = await supabase.rpc('next_pay_dates', {
-            p_schedule_id: s.id,
-            p_count: 6,
-          });
-          for (const row of (pdRows ?? []) as any[]) {
-            // Avoid duplicating a date we already added from
-            // payroll_runs (the RPC will return the same date the
-            // run was scheduled on).
-            const payDateExists = out.some((e) =>
-              e.date === row.pay_date && e.kind === 'pay_day',
+      const schedPayDates = await Promise.all(
+        ((schedRes.data ?? []) as any[]).map(async (s) => {
+          try {
+            const { data: pdRows } = await supabase.rpc('next_pay_dates', {
+              p_schedule_id: s.id,
+              p_count: 6,
+            });
+            return { schedule: s, rows: (pdRows ?? []) as any[] };
+          } catch {
+            return { schedule: s, rows: [] };
+          }
+        }),
+      );
+      for (const { schedule: s, rows } of schedPayDates) {
+        for (const row of rows) {
+          const payDateExists = out.some((e) =>
+            e.date === row.pay_date && e.kind === 'pay_day',
+          );
+          if (!payDateExists) {
+            const detail = row.adjusted_from && row.adjusted_from !== row.pay_date
+              ? `Upcoming · rolled from ${formatDate(row.adjusted_from)}${row.holiday_name ? ` (${row.holiday_name})` : ''}`
+              : 'Upcoming pay day';
+            out.push({
+              date: row.pay_date,
+              kind: 'pay_day',
+              label: `Pay day · ${s.name}`,
+              detail,
+            });
+          }
+          if (row.cutoff_date) {
+            const cutoffExists = out.some((e) =>
+              e.date === row.cutoff_date && e.kind === 'cutoff',
             );
-            if (!payDateExists) {
-              const detail = row.adjusted_from && row.adjusted_from !== row.pay_date
-                ? `Upcoming · rolled from ${formatDate(row.adjusted_from)}${row.holiday_name ? ` (${row.holiday_name})` : ''}`
-                : 'Upcoming pay day';
+            if (!cutoffExists) {
               out.push({
-                date: row.pay_date,
-                kind: 'pay_day',
-                label: `Pay day · ${s.name}`,
-                detail,
+                date: row.cutoff_date,
+                kind: 'cutoff',
+                label: `Cutoff · ${s.name}`,
+                detail: 'Last day to add overtime / variable pay',
               });
             }
-            // Cutoff for the same pay period — typically a few days
-            // before the pay date depending on processing_lead_days.
-            if (row.cutoff_date) {
-              const cutoffExists = out.some((e) =>
-                e.date === row.cutoff_date && e.kind === 'cutoff',
-              );
-              if (!cutoffExists) {
-                out.push({
-                  date: row.cutoff_date,
-                  kind: 'cutoff',
-                  label: `Cutoff · ${s.name}`,
-                  detail: 'Last day to add overtime / variable pay',
-                });
-              }
-            }
           }
-        } catch {
-          /* RPC missing → skip this schedule */
         }
       }
 

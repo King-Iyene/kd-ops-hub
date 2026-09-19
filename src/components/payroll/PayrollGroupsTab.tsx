@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { supabase } from '@/lib/supabase';
 import { formatNaira } from '@/lib/format';
 import { displayName } from '@/lib/name';
+import { initials } from '@/lib/utils';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -449,12 +450,6 @@ function ManageMembersDialog({
   );
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 function ordinal(n: number): string {
   const s = ['th', 'st', 'nd', 'rd'];

@@ -38,6 +38,7 @@ import { buildPaymentInstructions, instructionsToCsv } from '@/lib/bank-payment'
 import { renderPayslipHtml } from '@/lib/payslip';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { prompt } from '@/hooks/use-prompt';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { confirm } from '@/hooks/use-confirm';
 import {
@@ -407,8 +408,15 @@ const Payroll = () => {
         if (error) throw error;
         toast({ title: 'Advance approved', description: 'Pay it in the next batch, then mark it paid to start repayment.' });
       } else if (action === 'reject') {
-        const reason = window.prompt('Reason for rejecting this advance request?') || '';
-        if (!reason.trim()) { setAdvanceBusy(null); return; }
+        const reason = await prompt({
+          title: 'Reject advance',
+          description: 'Reason for rejecting this advance request?',
+          placeholder: 'Enter reason…',
+          minLength: 1,
+          variant: 'destructive',
+          confirmLabel: 'Reject',
+        });
+        if (!reason) { setAdvanceBusy(null); return; }
         const { error } = await (supabase as any).rpc('reject_advance_request', { p_request_id: id, p_reason: reason });
         if (error) throw error;
         toast({ title: 'Advance rejected' });

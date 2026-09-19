@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { PwaUpdatePrompt } from '@/components/PwaUpdatePrompt';
 import { ConfirmDialogHost } from '@/components/ui/confirm-dialog';
+import { PromptDialogHost } from '@/components/ui/prompt-dialog';
 import { StepUpDialog } from '@/components/ui/step-up-dialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useAuthStore } from '@/store/authStore';
@@ -1013,6 +1014,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <ConfirmDialogHost />
+      <PromptDialogHost />
       <StepUpDialog />
       <PwaUpdatePrompt />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

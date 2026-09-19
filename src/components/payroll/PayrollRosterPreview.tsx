@@ -4,7 +4,7 @@ import { ChevronDown, Users, UserX, AlertTriangle, Search, CheckCircle2 } from '
 import { supabase } from '@/lib/supabase';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { cn } from '@/lib/utils';
+import { cn, initials } from '@/lib/utils';
 import {
   fetchSegmentRules,
   matchesSegment,
@@ -143,12 +143,6 @@ function useRoster(rules: PayrollSegmentFilterRules | null, companyId?: string |
 
 const empName = (e: RosterEmployee) => displayName(e.first_name, e.last_name, e.full_name || e.email || 'Unnamed');
 
-const initials = (name: string) => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const first = parts[0]?.[0] ?? '?';
-  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
-  return (first + last).toUpperCase();
-};
 
 // Deterministic so the same person always gets the same colour across
 // renders/sessions, without needing to store anything.

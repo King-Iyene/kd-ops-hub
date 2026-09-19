@@ -19,7 +19,7 @@ import { displayName } from '@/lib/name';
 import { PayrollLifecycleRail, realStepIndex } from '@/components/payroll/PayrollLifecycleRail';
 import { ALL_COMPANIES } from '@/components/ui-kit/CompanySwitcher';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
-import { cn } from '@/lib/utils';
+import { cn, initials } from '@/lib/utils';
 
 interface PayrollRunLite {
   id: string;
@@ -124,13 +124,9 @@ export function PayrollDashboardTab({
         .neq('role', 'driver')
         .gt('salary_ngn', 0)
         .in('pay_group_id', safePayGroupIds);
-      const [groupsRes, schedulesRes, expectedRes, roster, headcountRes] = await Promise.all([
+      const [groupsRes, schedulesRes, roster, headcountRes] = await Promise.all([
         isAllCompanies ? groupsQuery : groupsQuery.eq('company_id', selectedCompanyId),
         supabase.from('pay_schedules').select('id').eq('is_active', true).order('created_at', { ascending: true }),
-        // "In" this period — approved & unbudgeted income the company expects,
-        // reused from expenses/invoices would be a stretch; the honest, already
-        // -wired number here is incoming cash tracked as approved company revenue.
-        supabase.from('company_settings').select('id').limit(1),
         supabase
           .from('profiles')
           .select('id, full_name, first_name, last_name, email, photo_url, role, job_title, salary_ngn, pay_group_id')
@@ -145,15 +141,19 @@ export function PayrollDashboardTab({
       if (cancelled) return;
       setPayGroupCount(groupsRes.count ?? 0);
       setHeadcount(headcountRes.count ?? 0);
-      void expectedRes;
 
       // Next pay date — earliest upcoming date across all active schedules,
       // via the same next_pay_dates RPC the Setup tab's banner already uses.
       const schedules = (schedulesRes.data || []) as { id: string }[];
+      const payDateResults = await Promise.all(
+        schedules.map((s) =>
+          supabase.rpc('next_pay_dates', { p_schedule_id: s.id, p_count: 1 })
+            .then(({ data }) => (data as { pay_date: string }[] | null)?.[0] ?? null)
+            .catch(() => null),
+        ),
+      );
       let earliest: Date | null = null;
-      for (const s of schedules) {
-        const { data } = await supabase.rpc('next_pay_dates', { p_schedule_id: s.id, p_count: 1 });
-        const row = (data as { pay_date: string }[] | null)?.[0];
+      for (const row of payDateResults) {
         if (row) {
           const d = new Date(row.pay_date);
           if (!earliest || d < earliest) earliest = d;
@@ -450,12 +450,6 @@ export function PayrollDashboardTab({
   );
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 const TILE_TONE: Record<string, { iconBg: string; iconColor: string; accent: string }> = {
   default:  { iconBg: 'bg-muted',        iconColor: 'text-muted-foreground', accent: 'from-border' },

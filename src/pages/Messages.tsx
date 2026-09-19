@@ -24,7 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
+import { cn, initials } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -56,10 +56,6 @@ interface MessageRow {
   created_at: string;
 }
 
-function initials(name: string | null): string {
-  if (!name) return '?';
-  return name.trim().slice(0, 1).toUpperCase();
-}
 
 function displayName(conv: Pick<ConversationRow, 'name' | 'otherParticipants'>): string {
   if (conv.name) return conv.name;
