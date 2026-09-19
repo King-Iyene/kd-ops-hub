@@ -78,7 +78,7 @@ function FilterValueInput({
   ) {
     return (
       <select
-        className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1 max-w-[120px]"
+        className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)] flex-1 max-w-[120px]"
         value={filter.value ?? ''}
         onChange={(e) => onChange(e.target.value)}
       >
@@ -95,7 +95,7 @@ function FilterValueInput({
     return (
       <input
         type="date"
-        className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1 max-w-[130px]"
+        className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)] flex-1 max-w-[130px]"
         value={filter.value ?? ''}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -107,7 +107,7 @@ function FilterValueInput({
     return (
       <input
         type="number"
-        className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1 max-w-[120px]"
+        className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)] flex-1 max-w-[120px]"
         value={filter.value ?? ''}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Value"
@@ -117,7 +117,7 @@ function FilterValueInput({
 
   return (
     <input
-      className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1 max-w-[120px]"
+      className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)] flex-1 max-w-[120px]"
       value={filter.value ?? ''}
       onChange={(e) => onChange(e.target.value)}
       placeholder="Value"
@@ -149,7 +149,7 @@ function FilterRuleRow({
     >
       {index > 0 ? (
         <select
-          className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:text-[hsl(200,20%,55%)] dark:bg-[hsl(200,30%,12%)]"
+          className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:text-[hsl(220,15%,55%)] dark:bg-[hsl(220,20%,12%)]"
           value={filter.conjunction}
           onChange={(e) => onUpdate(filter.id, { conjunction: e.target.value as 'and' | 'or' })}
         >
@@ -157,10 +157,10 @@ function FilterRuleRow({
           <option value="or">Or</option>
         </select>
       ) : (
-        <span className="text-2xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] w-8">Where</span>
+        <span className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,15%,55%)] w-8">Where</span>
       )}
       <select
-        className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1 max-w-[120px]"
+        className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)] flex-1 max-w-[120px]"
         value={filter.field_id}
         onChange={(e) => {
           const newField = filterableFields.find((f) => f.id === e.target.value);
@@ -173,7 +173,7 @@ function FilterRuleRow({
         ))}
       </select>
       <select
-        className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)]"
+        className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)]"
         value={filter.operator}
         onChange={(e) => onUpdate(filter.id, { operator: e.target.value as FilterOperator })}
       >
@@ -187,7 +187,7 @@ function FilterRuleRow({
         onChange={(value) => onUpdate(filter.id, { value })}
       />
       <button onClick={() => onRemove(filter.id)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5" aria-label="Remove filter">
-        <X size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+        <X size={12} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
       </button>
     </div>
   );
@@ -271,19 +271,19 @@ function FilterGroupBlock({
       {depth > 0 && (
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-1.5">
-            <ChevronRight size={10} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+            <ChevronRight size={10} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
             <select
-              className="text-3xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:bg-[hsl(200,30%,12%)] font-medium"
+              className="text-3xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:bg-[hsl(220,20%,12%)] font-medium"
               value={group.conjunction}
               onChange={(e) => onUpdateGroup(group.id, { ...group, conjunction: e.target.value as 'and' | 'or' })}
             >
               <option value="and">AND</option>
               <option value="or">OR</option>
             </select>
-            <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">group</span>
+            <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]">group</span>
           </div>
           <button onClick={() => onRemoveGroup(group.id)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5">
-            <X size={11} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+            <X size={11} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
           </button>
         </div>
       )}
@@ -384,16 +384,16 @@ function FilterPanel({ onClose, onSaveAsView }: { onClose: () => void; onSaveAsV
   };
 
   return (
-    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[480px] max-h-[420px] overflow-y-auto animate-[panelSlideDown_150ms_ease-out]">
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(220,20%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg p-3 min-w-[480px] max-h-[420px] overflow-y-auto animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Filters</span>
+        <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)]">Filters</span>
         <div className="flex items-center gap-2">
           {totalFilterCount > 0 && (
-            <button onClick={clearAll} className="text-3xs text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(200,25%,88%)]">
+            <button onClick={clearAll} className="text-3xs text-[#6A7184] dark:text-[hsl(220,15%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,20%,88%)]">
               Clear all
             </button>
           )}
-          <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /></button>
+          <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /></button>
         </div>
       </div>
 
@@ -434,7 +434,7 @@ function FilterPanel({ onClose, onSaveAsView }: { onClose: () => void; onSaveAsV
 
       {/* Save as view */}
       {totalFilterCount > 0 && (
-        <div className="mt-3 pt-2 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
+        <div className="mt-3 pt-2 border-t border-[#E5E5E5] dark:border-[hsl(220,20%,18%)]">
           <button
             className="flex items-center gap-1.5 text-2xs text-[#2D7FF9] hover:underline"
             onClick={onSaveAsView}
@@ -475,15 +475,15 @@ function QuickFilterBar() {
   };
 
   return (
-    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F4F4F5] dark:bg-[hsl(200,35%,8%)] border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] overflow-x-auto shrink-0">
-      <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] shrink-0 mr-0.5">Filtered by:</span>
+    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F4F4F5] dark:bg-[hsl(220,20%,8%)] border-b border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] overflow-x-auto shrink-0">
+      <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(220,15%,55%)] shrink-0 mr-0.5">Filtered by:</span>
       {filters.map((filter) => (
         <button
           key={filter.id}
           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-medium border shrink-0 transition-colors ${
             focusedFilterId === filter.id
               ? 'bg-[#2D7FF9]/10 border-[#2D7FF9]/30 text-[#2D7FF9]'
-              : 'bg-white dark:bg-[hsl(200,30%,12%)] border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-[#374151] dark:text-[hsl(200,25%,88%)] hover:border-[#2D7FF9]/40'
+              : 'bg-white dark:bg-[hsl(220,20%,12%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] text-[#374151] dark:text-[hsl(220,20%,88%)] hover:border-[#2D7FF9]/40'
           }`}
           onClick={() => setFocusedFilterId(focusedFilterId === filter.id ? null : filter.id)}
           title={formatPill(filter)}
@@ -539,23 +539,23 @@ function SaveFilterAsViewDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-xl p-4 w-80">
-        <h3 className="text-sm font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)] mb-3">Save filters as view</h3>
+      <div className="bg-white dark:bg-[hsl(220,20%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-xl p-4 w-80">
+        <h3 className="text-sm font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)] mb-3">Save filters as view</h3>
         <input
           type="text"
           autoFocus
           placeholder="View name"
-          className="w-full px-2 py-1.5 text-xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] focus:border-[#2D7FF9] mb-3"
+          className="w-full px-2 py-1.5 text-xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-[#2D7FF9] mb-3"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
         />
-        <p className="text-3xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] mb-3">
+        <p className="text-3xs text-[#9AA2AF] dark:text-[hsl(220,15%,55%)] mb-3">
           {filters.length} filter{filters.length !== 1 ? 's' : ''}{filterGroups.length > 0 ? ` + ${filterGroups.length} group${filterGroups.length > 1 ? 's' : ''}` : ''} will be saved to this view.
         </p>
         <div className="flex items-center justify-end gap-2">
           <button
-            className="px-3 py-1 text-2xs rounded border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] text-[#6A7184] dark:text-[hsl(200,20%,55%)] hover:bg-gray-50 dark:hover:bg-white/5"
+            className="px-3 py-1 text-2xs rounded border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] text-[#6A7184] dark:text-[hsl(220,15%,55%)] hover:bg-gray-50 dark:hover:bg-white/5"
             onClick={onClose}
           >
             Cancel
@@ -598,15 +598,15 @@ function SortPanel({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[320px] animate-[panelSlideDown_150ms_ease-out]">
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(220,20%,13%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg p-3 min-w-[320px] animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Sort</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /></button>
+        <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)]">Sort</span>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(220,20%,15%)]"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /></button>
       </div>
       {sorts.map((sort, i) => (
         <div key={`${sort.field_id}-${i}`} className="flex items-center gap-2 mb-2">
           <select
-            className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1"
+            className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)] flex-1"
             value={sort.field_id}
             onChange={(e) => updateSort(i, { field_id: e.target.value })}
           >
@@ -615,15 +615,15 @@ function SortPanel({ onClose }: { onClose: () => void }) {
             ))}
           </select>
           <select
-            className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)]"
+            className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)]"
             value={sort.direction}
             onChange={(e) => updateSort(i, { direction: e.target.value as 'asc' | 'desc' })}
           >
             <option value="asc">A → Z</option>
             <option value="desc">Z → A</option>
           </select>
-          <button onClick={() => removeSort(i)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]">
-            <X size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+          <button onClick={() => removeSort(i)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(220,20%,15%)]">
+            <X size={12} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
           </button>
         </div>
       ))}
@@ -660,20 +660,20 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
   const availableFields = groupableFields.filter((f) => !usedFieldIds.has(f.id));
 
   return (
-    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[320px] animate-[panelSlideDown_150ms_ease-out]">
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(220,20%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg p-3 min-w-[320px] animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Group by</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /></button>
+        <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)]">Group by</span>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /></button>
       </div>
       {groupableFields.length === 0 ? (
-        <p className="text-2xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">No fields available for grouping.</p>
+        <p className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]">No fields available for grouping.</p>
       ) : (
         <>
           {groupByLevels.map((level, i) => (
             <div key={`${level.field_id}-${i}`} className="flex items-center gap-2 mb-2">
-              <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] w-10 shrink-0">{i === 0 ? 'Group' : 'Then'}</span>
+              <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(220,15%,55%)] w-10 shrink-0">{i === 0 ? 'Group' : 'Then'}</span>
               <select
-                className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1"
+                className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)] flex-1"
                 value={level.field_id}
                 onChange={(e) => updateLevel(i, { field_id: e.target.value })}
               >
@@ -682,7 +682,7 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
                 ))}
               </select>
               <select
-                className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)]"
+                className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)]"
                 value={level.direction}
                 onChange={(e) => updateLevel(i, { direction: e.target.value as 'asc' | 'desc' })}
               >
@@ -690,7 +690,7 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
                 <option value="desc">Z &rarr; A</option>
               </select>
               <button onClick={() => removeLevel(i)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5">
-                <X size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+                <X size={12} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
               </button>
             </div>
           ))}
@@ -698,7 +698,7 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
             groupByLevels.length === 0 ? (
               <div className="flex items-center gap-2">
                 <select
-                  className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1"
+                  className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)] flex-1"
                   value=""
                   onChange={(e) => addLevel(e.target.value)}
                 >
@@ -718,7 +718,7 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
             )
           )}
           {groupByLevels.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
+            <div className="mt-2 pt-2 border-t border-[#E5E5E5] dark:border-[hsl(220,20%,18%)]">
               <button
                 className="text-2xs text-[#2D7FF9] hover:underline"
                 onClick={() => setGroupByLevels([])}
@@ -792,17 +792,17 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
     : orderedFields;
 
   return (
-    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[280px] max-h-[360px] flex flex-col animate-[panelSlideDown_150ms_ease-out]">
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(220,20%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg p-3 min-w-[280px] max-h-[360px] flex flex-col animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Fields</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /></button>
+        <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)]">Fields</span>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /></button>
       </div>
       <input
         type="text"
         placeholder="Search fields..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        className="w-full px-2 py-1 mb-2 text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded outline-none bg-white dark:bg-[hsl(200,30%,12%)] text-[#374151] dark:text-[hsl(200,25%,88%)] focus:border-[#2D7FF9]"
+        className="w-full px-2 py-1 mb-2 text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-[#2D7FF9]"
       />
       <div className="flex items-center gap-2 mb-2">
         <button
@@ -812,7 +812,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
         >
           Show all
         </button>
-        <span className="text-3xs text-[#E5E5E5] dark:text-[hsl(200,25%,18%)]">|</span>
+        <span className="text-3xs text-[#E5E5E5] dark:text-[hsl(220,20%,18%)]">|</span>
         <button
           className="text-3xs text-[#2D7FF9] hover:underline disabled:opacity-40"
           onClick={hideAll}
@@ -824,21 +824,21 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
       <div className="flex-1 overflow-y-auto">
         {filtered.map((f, i) => (
           <div key={f.id} className="flex items-center gap-1 py-1 hover:bg-[#F4F4F5] dark:hover:bg-white/5 rounded px-1 -mx-1">
-            <GripVertical size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)] shrink-0 cursor-grab" />
+            <GripVertical size={12} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)] shrink-0 cursor-grab" />
             <input
               type="checkbox"
               className="w-3.5 h-3.5 accent-[#2D7FF9] shrink-0"
               checked={!hiddenFieldIds.has(f.id)}
               onChange={() => toggleHiddenField(f.id)}
             />
-            <span className="text-xs text-[#374151] dark:text-[hsl(200,25%,88%)] truncate flex-1">{f.name}</span>
+            <span className="text-xs text-[#374151] dark:text-[hsl(220,20%,88%)] truncate flex-1">{f.name}</span>
             <button
               className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-white/10 disabled:opacity-20"
               disabled={!searchTerm && i === 0}
               onClick={() => moveField(f.id, 'up')}
               title="Move up"
             >
-              <ChevronUp size={12} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]" />
+              <ChevronUp size={12} className="text-[#6A7184] dark:text-[hsl(220,15%,55%)]" />
             </button>
             <button
               className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-white/10 disabled:opacity-20"
@@ -846,7 +846,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
               onClick={() => moveField(f.id, 'down')}
               title="Move down"
             >
-              <ChevronDown size={12} className="text-[#6A7184] dark:text-[hsl(200,20%,55%)]" />
+              <ChevronDown size={12} className="text-[#6A7184] dark:text-[hsl(220,15%,55%)]" />
             </button>
           </div>
         ))}
@@ -897,17 +897,17 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded-lg shadow-lg p-3 min-w-[440px] animate-[panelSlideDown_150ms_ease-out]">
+    <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(220,20%,13%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg p-3 min-w-[440px] animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(200,25%,88%)]">Row coloring</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" /></button>
+        <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)]">Row coloring</span>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(220,20%,15%)]"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /></button>
       </div>
       {rowColorRules.map((rule) => {
         const ops = COLOR_OPERATORS;
         return (
           <div key={rule.id} className="flex items-center gap-2 mb-2">
             <select
-              className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1 max-w-[110px]"
+              className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)] flex-1 max-w-[110px]"
               value={rule.field_id}
               onChange={(e) => updateRule(rule.id, { field_id: e.target.value })}
             >
@@ -916,7 +916,7 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
               ))}
             </select>
             <select
-              className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)]"
+              className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)]"
               value={rule.operator}
               onChange={(e) => updateRule(rule.id, { operator: e.target.value as FilterOperator })}
             >
@@ -926,7 +926,7 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
             </select>
             {rule.operator !== 'isEmpty' && rule.operator !== 'isNotEmpty' && (
               <input
-                className="text-2xs border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(200,25%,88%)] dark:bg-[hsl(200,30%,12%)] flex-1 max-w-[90px]"
+                className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)] flex-1 max-w-[90px]"
                 value={rule.value ?? ''}
                 onChange={(e) => updateRule(rule.id, { value: e.target.value })}
                 placeholder="Value"
@@ -947,8 +947,8 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
                 />
               ))}
             </div>
-            <button onClick={() => removeRule(rule.id)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(200,25%,15%)]">
-              <X size={12} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
+            <button onClick={() => removeRule(rule.id)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(220,20%,15%)]">
+              <X size={12} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
             </button>
           </div>
         );

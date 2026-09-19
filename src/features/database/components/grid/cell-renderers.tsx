@@ -584,7 +584,7 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
         }}
       >
         <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>{truncated}</span>
-        <Copy size={11} className="opacity-0 group-hover:opacity-100 shrink-0" />
+        <Copy size={11} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
       </span>
     );
   }
@@ -645,7 +645,7 @@ export const ComputedCellRenderer = React.memo(function ComputedCellRenderer({
 }: CellRendererProps) {
   if (value == null || value === '') return null;
   return (
-    <span className="truncate text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]">
+    <span className="truncate text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]">
       {String(value)}
     </span>
   );
@@ -665,7 +665,7 @@ export const RatingCellRenderer = React.memo(function RatingCellRenderer({
           size={14}
           fill={i < rating ? '#F59E0B' : 'none'}
           stroke={i < rating ? '#F59E0B' : undefined}
-          className={i < rating ? '' : 'stroke-[#D1D5DB] dark:stroke-[hsl(200,20%,35%)]'}
+          className={i < rating ? '' : 'stroke-[#D1D5DB] dark:stroke-[hsl(220,15%,35%)]'}
           strokeWidth={1.5}
         />
       ))}
@@ -889,7 +889,7 @@ export const LinksCellRenderer = React.memo(function LinksCellRenderer({
         return (
           <span
             key={i}
-            className="inline-flex items-center px-2 rounded-sm text-xs font-medium truncate cursor-pointer hover:opacity-80"
+            className="inline-flex items-center px-2 rounded-sm text-xs font-medium truncate cursor-pointer hover:opacity-80 transition-opacity"
             title={label}
             style={{
               height: 22,

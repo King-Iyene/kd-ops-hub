@@ -1019,21 +1019,21 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
     onCommit(val);
   }, [onCommit]);
 
-  const btnClass = "px-1.5 py-0.5 text-2xs text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,14%)] rounded";
+  const btnClass = "px-1.5 py-0.5 text-2xs text-[#6A7184] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,14%)] rounded";
 
   const editor = pos ? createPortal(
     <div
-      className="fixed z-[9999] shadow-xl rounded-md bg-white dark:bg-[hsl(200,30%,10%)]"
+      className="fixed z-[9999] shadow-xl rounded-md bg-white dark:bg-[hsl(220,20%,10%)]"
       style={{ top: pos.top, left: pos.left, width: pos.width, border: '2px solid #2D7FF9' }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <div className="flex items-center gap-0.5 px-1.5 py-1 border-b border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]">
+      <div className="flex items-center gap-0.5 px-1.5 py-1 border-b border-[#E5E5E5] dark:border-[hsl(220,20%,18%)]">
         <button type="button" className={`${btnClass} font-bold`} onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '**', '**', setText); }} title="Bold (⌘B)">B</button>
         <button type="button" className={`${btnClass} italic`} onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '*', '*', setText); }} title="Italic (⌘I)">I</button>
         <button type="button" className={`${btnClass} line-through`} onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '~~', '~~', setText); }} title="Strikethrough">S</button>
-        <div className="w-px h-3 bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] mx-0.5" />
+        <div className="w-px h-3 bg-[#E5E5E5] dark:bg-[hsl(220,20%,18%)] mx-0.5" />
         <button type="button" className={btnClass} onMouseDown={(e) => { e.preventDefault(); if (ref.current) wrapSelection(ref.current, '`', '`', setText); }} title="Code">&lt;/&gt;</button>
-        <div className="w-px h-3 bg-[#E5E5E5] dark:bg-[hsl(200,25%,18%)] mx-0.5" />
+        <div className="w-px h-3 bg-[#E5E5E5] dark:bg-[hsl(220,20%,18%)] mx-0.5" />
         <button type="button" className={btnClass} onMouseDown={(e) => { e.preventDefault(); if (ref.current) insertLinePrefix(ref.current, '• ', setText); }} title="Bullet list">•</button>
         <button type="button" className={btnClass} onMouseDown={(e) => { e.preventDefault(); if (ref.current) insertLinePrefix(ref.current, '1. ', setText); }} title="Numbered list">1.</button>
         <button type="button" className={btnClass} onMouseDown={(e) => { e.preventDefault(); if (ref.current) insertLinePrefix(ref.current, 'a. ', setText); }} title="Lettered list">a.</button>
