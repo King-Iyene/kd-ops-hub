@@ -10,18 +10,32 @@ export function useLinkDisplayLookup(
   fields: FieldMeta[] | undefined,
 ) {
   const linkFields = useMemo(
-    () => (fields ?? []).filter((f) => f.ui_type === 'Links' && f.options?.relatedTableId),
+    () => (fields ?? []).filter((f) => f.ui_type === 'Links' && (f.options?.relatedTableId || f.options?.linkedTableName)),
     [fields],
   );
 
   const relatedTableIds = useMemo(
-    () => [...new Set(linkFields.map((f) => f.options.relatedTableId as string))],
+    () => [...new Set(linkFields.map((f) => f.options.relatedTableId as string).filter(Boolean))],
     [linkFields],
   );
 
+  const linkedTableNames = useMemo(
+    () => [...new Set(
+      linkFields
+        .filter((f) => !f.options?.relatedTableId && f.options?.linkedTableName)
+        .map((f) => f.options.linkedTableName as string),
+    )],
+    [linkFields],
+  );
+
+  const cacheKey = useMemo(
+    () => [...relatedTableIds, ...linkedTableNames].sort().join(','),
+    [relatedTableIds, linkedTableNames],
+  );
+
   const { data: lookupMap } = useQuery({
-    queryKey: ['nc', 'link-display-lookup', baseId, relatedTableIds.join(',')],
-    enabled: !!baseId && relatedTableIds.length > 0,
+    queryKey: ['nc', 'link-display-lookup', baseId, cacheKey],
+    enabled: !!baseId && (relatedTableIds.length > 0 || linkedTableNames.length > 0),
     staleTime: 60_000,
     gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,
@@ -36,9 +50,25 @@ export function useLinkDisplayLookup(
         .single();
       if (!baseMeta?.schema_name) return map;
 
+      // Resolve linkedTableNames to table IDs
+      let allTableIds = [...relatedTableIds];
+      if (linkedTableNames.length > 0) {
+        const { data: nameMatches } = await supabase
+          .schema('nc_meta')
+          .from('tables')
+          .select('id, name')
+          .eq('base_id', baseId)
+          .in('name', linkedTableNames);
+        if (nameMatches) {
+          for (const t of nameMatches) {
+            if (!allTableIds.includes(t.id)) allTableIds.push(t.id);
+          }
+        }
+      }
+
       // Batch-fetch all table metadata in parallel
       const tableResults = await Promise.all(
-        relatedTableIds.map(async (tableId) => {
+        allTableIds.map(async (tableId) => {
           try {
             const { data: tableMeta } = await supabase
               .schema('nc_meta')
