@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Task, ProfileRow } from '@/lib/task-types';
-import { STATUS_DOT, PRIORITY_BORDER } from '@/lib/task-types';
+import { STATUS_DOT, STATUS_LABEL, PRIORITY_BORDER } from '@/lib/task-types';
 
 interface TaskCalendarViewProps {
   tasks: Task[];
@@ -133,7 +133,7 @@ export function TaskCalendarView({ tasks, profiles, onTaskClick }: TaskCalendarV
                       PRIORITY_BORDER[t.priority],
                     )}
                   >
-                    <span className={cn('inline-block h-1.5 w-1.5 rounded-full mr-1 shrink-0', STATUS_DOT[t.status])} />
+                    <span className={cn('inline-block h-1.5 w-1.5 rounded-full mr-1 shrink-0', STATUS_DOT[t.status])} role="img" aria-label={STATUS_LABEL[t.status]} />
                     {t.title}
                   </button>
                 ))}

@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import type { Task, TaskStatus, Priority, ProfileRow, Tag, TaskList, SpaceFolder } from '@/lib/task-types';
-import { STATUSES, PRIORITY_OPTIONS, STATUS_DOT, PRIORITY_CLASS, STATUS_CLASS } from '@/lib/task-types';
+import { STATUSES, PRIORITY_OPTIONS, STATUS_DOT, STATUS_LABEL, PRIORITY_CLASS, STATUS_CLASS } from '@/lib/task-types';
 import { TaskContextMenu } from './TaskContextMenu';
 import type { Space } from './TaskSidebar';
 
@@ -366,7 +366,7 @@ function ListRow({
 
       {/* Task name + tags — clickable to open detail */}
       <button onClick={onClick} className="flex items-center gap-2 min-w-0 text-left">
-        <div className={cn('h-2 w-2 rounded-full shrink-0', STATUS_DOT[task.status])} />
+        <div className={cn('h-2 w-2 rounded-full shrink-0', STATUS_DOT[task.status])} role="img" aria-label={STATUS_LABEL[task.status]} />
         <span className={cn(
           'text-sm font-medium truncate',
           task.status === 'complete' && 'line-through text-muted-foreground',

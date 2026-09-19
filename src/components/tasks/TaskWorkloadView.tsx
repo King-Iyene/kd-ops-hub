@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Task, ProfileRow } from '@/lib/task-types';
-import { PRIORITY_CLASS, STATUS_DOT } from '@/lib/task-types';
+import { PRIORITY_CLASS, STATUS_DOT, STATUS_LABEL } from '@/lib/task-types';
 
 interface TaskWorkloadViewProps {
   tasks: Task[];
@@ -237,7 +237,7 @@ export function TaskWorkloadView({ tasks, profiles, onTaskClick }: TaskWorkloadV
                         (s) =>
                           (w.statusCounts[s] ?? 0) > 0 && (
                             <div key={s} className="flex items-center gap-0.5" title={`${s}: ${w.statusCounts[s]}`}>
-                              <span className={cn('inline-block h-2 w-2 rounded-full', STATUS_DOT[s])} />
+                              <span className={cn('inline-block h-2 w-2 rounded-full', STATUS_DOT[s])} role="img" aria-label={STATUS_LABEL[s]} />
                               <span className="text-3xs text-muted-foreground">{w.statusCounts[s]}</span>
                             </div>
                           ),
@@ -278,7 +278,7 @@ export function TaskWorkloadView({ tasks, profiles, onTaskClick }: TaskWorkloadV
                             onClick={() => onTaskClick(t)}
                             className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/80 transition-colors text-left group"
                           >
-                            <span className={cn('inline-block h-2 w-2 rounded-full shrink-0', STATUS_DOT[t.status])} />
+                            <span className={cn('inline-block h-2 w-2 rounded-full shrink-0', STATUS_DOT[t.status])} role="img" aria-label={STATUS_LABEL[t.status]} />
                             <span className="text-xs truncate flex-1">{t.title}</span>
                             {isOverdue && <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />}
                             <Badge variant="secondary" className={cn('text-3xs px-1.5 py-0 h-4', PRIORITY_CLASS[t.priority])}>

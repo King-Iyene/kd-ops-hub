@@ -8,7 +8,7 @@ import { formatDate, daysUntil } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import type { Task, TaskStatus, ProfileRow, Tag } from '@/lib/task-types';
-import { STATUS_DOT } from '@/lib/task-types';
+import { STATUS_DOT, STATUS_LABEL } from '@/lib/task-types';
 
 interface MyTasksViewProps {
   tasks: Task[];
@@ -318,7 +318,7 @@ function TaskRow({
       )}
     >
       {/* Status dot */}
-      <div className={cn('h-2.5 w-2.5 rounded-full shrink-0 ring-2 ring-background', STATUS_DOT[task.status])} />
+      <div className={cn('h-2.5 w-2.5 rounded-full shrink-0 ring-2 ring-background', STATUS_DOT[task.status])} role="img" aria-label={STATUS_LABEL[task.status]} />
 
       {/* Title + tags */}
       <div className="flex-1 min-w-0">

@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { Task, ProfileRow, TaskDependency } from '@/lib/task-types';
-import { STATUS_DOT, PRIORITY_BORDER } from '@/lib/task-types';
+import { STATUS_DOT, STATUS_LABEL, PRIORITY_BORDER } from '@/lib/task-types';
 
 interface TaskGanttViewProps {
   tasks: Task[];
@@ -190,7 +190,7 @@ export function TaskGanttView({ tasks, profiles, onTaskClick, dependencies = [] 
               className="flex items-center gap-2 w-full px-2 py-1.5 border-b text-left hover:bg-muted/50 transition-colors"
               style={{ height: 32 }}
             >
-              <span className={cn('h-2 w-2 rounded-full shrink-0', STATUS_DOT[t.status])} />
+              <span className={cn('h-2 w-2 rounded-full shrink-0', STATUS_DOT[t.status])} role="img" aria-label={STATUS_LABEL[t.status]} />
               <span className="text-xs truncate">{t.title}</span>
             </button>
           ))}

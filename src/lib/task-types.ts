@@ -206,6 +206,13 @@ export const STATUS_DOT: Record<TaskStatus, string> = {
   complete: 'bg-green-500',
 };
 
+export const STATUS_LABEL: Record<TaskStatus, string> = {
+  open: 'Open',
+  in_progress: 'In Progress',
+  blocked: 'Blocked',
+  complete: 'Complete',
+};
+
 export const PRIORITY_BORDER: Record<Priority, string> = {
   critical: 'border-l-destructive',
   high: 'border-l-warning',

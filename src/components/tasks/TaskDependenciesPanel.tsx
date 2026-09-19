@@ -10,7 +10,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import type { Task, TaskDependency, DependencyType } from '@/lib/task-types';
-import { STATUS_DOT } from '@/lib/task-types';
+import { STATUS_DOT, STATUS_LABEL } from '@/lib/task-types';
 
 interface TaskDependenciesPanelProps {
   taskId: string;
@@ -138,7 +138,7 @@ export function TaskDependenciesPanel({ taskId, allTasks, onUpdate }: TaskDepend
             key={dep.id}
             className="group flex items-center gap-1.5 rounded px-1.5 py-1 hover:bg-muted/50"
           >
-            <span className={cn('h-2 w-2 rounded-full shrink-0', STATUS_DOT[task.status])} />
+            <span className={cn('h-2 w-2 rounded-full shrink-0', STATUS_DOT[task.status])} role="img" aria-label={STATUS_LABEL[task.status]} />
             <span className="text-xs truncate flex-1">{task.title}</span>
             <Badge variant="secondary" className="text-3xs px-1.5 py-0 h-4 shrink-0">
               {task.status.replace('_', ' ')}
@@ -212,7 +212,7 @@ export function TaskDependenciesPanel({ taskId, allTasks, onUpdate }: TaskDepend
                 className="w-full flex items-center gap-1.5 rounded px-1.5 py-1 text-left hover:bg-muted/60 transition-colors"
                 onClick={() => addDep(t.id)}
               >
-                <span className={cn('h-2 w-2 rounded-full shrink-0', STATUS_DOT[t.status])} />
+                <span className={cn('h-2 w-2 rounded-full shrink-0', STATUS_DOT[t.status])} role="img" aria-label={STATUS_LABEL[t.status]} />
                 <span className="text-xs truncate">{t.title}</span>
               </button>
             ))}

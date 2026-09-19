@@ -28,7 +28,7 @@ import type {
   Task, TaskStatus, Priority, ProfileRow, Tag, TaskComment,
   TaskDependency, TaskChecklist, TaskTimeEntry, DependencyType, TaskType,
 } from '@/lib/task-types';
-import { STATUSES, PRIORITY_OPTIONS, STATUS_DOT } from '@/lib/task-types';
+import { STATUSES, PRIORITY_OPTIONS, STATUS_DOT, STATUS_LABEL } from '@/lib/task-types';
 import { RecurrenceEditor } from '@/components/tasks/RecurrenceEditor';
 import { CustomFieldsPanel } from '@/components/tasks/CustomFieldsPanel';
 import { MarkdownRenderer } from '@/components/tasks/MarkdownRenderer';
@@ -1238,7 +1238,7 @@ function DependencySection({
         >
           {t.title}
         </button>
-        <div className={cn('h-2 w-2 rounded-full shrink-0', STATUS_DOT[t.status])} />
+        <div className={cn('h-2 w-2 rounded-full shrink-0', STATUS_DOT[t.status])} role="img" aria-label={STATUS_LABEL[t.status]} />
         <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" aria-label="Remove dependency" onClick={() => onRemove(dep.id)}>
           <X className="h-3 w-3" />
         </Button>
