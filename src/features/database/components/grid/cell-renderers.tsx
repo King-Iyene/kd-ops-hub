@@ -1139,7 +1139,7 @@ export function getCellRenderer(uiType: string) {
     case 'Formula':
       return FormulaCellRenderer;
     case 'Links':
-      return LinkCellRenderer;
+      return LinksCellRenderer;
     case 'Lookup':
       return SmartLookupCellRenderer as any;
     case 'Rollup':

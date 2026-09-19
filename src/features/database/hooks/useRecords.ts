@@ -602,10 +602,9 @@ export function useRecords(params: UseRecordsParams) {
         }
       }
 
-      // When sorting by linked record, fetch all matching records (no server pagination)
-      // and apply pagination client-side after reordering
+      // When sorting by linked record, fetch up to 5000 records and reorder client-side
       if (linkSortOrderIds !== null) {
-        const { data: allData, error: allError, count: allCount } = await query;
+        const { data: allData, error: allError, count: allCount } = await query.limit(5000);
         if (allError) throw allError;
 
         const sortedRecords = (allData ?? []) as RecordRow[];
@@ -768,7 +767,7 @@ export function useInfiniteRecords(params: UseInfiniteRecordsParams) {
       }
 
       if (infLinkSortIds !== null) {
-        const { data: allData, error: allError, count: allCount } = await q;
+        const { data: allData, error: allError, count: allCount } = await q.limit(5000);
         if (allError) throw allError;
         const sorted = (allData ?? []) as RecordRow[];
         const orderMap = new Map(infLinkSortIds.map((id, idx) => [id, idx]));

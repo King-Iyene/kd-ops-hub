@@ -215,6 +215,7 @@ export const GridCell = React.memo(function GridCell({
           onMouseLeave={(e) => (e.currentTarget.style.color = GRID_COLORS.muted)}
           onClick={(e) => {
             e.stopPropagation();
+            e.preventDefault();
             const expandEvent = new CustomEvent('grid:expand-row', { detail: record });
             window.dispatchEvent(expandEvent);
           }}
