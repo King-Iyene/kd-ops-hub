@@ -21,7 +21,7 @@ export function AuthAtmosphere({ children }: { children: React.ReactNode }) {
     <div className="kd-aurora min-h-screen flex items-center justify-center px-4 relative isolate overflow-hidden">
       {/* Base deep-space gradient — `isolate` above is what makes this
           reliably paint above .kd-aurora's own light-mode background. */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(201,100%,6%)] via-[hsl(200,100%,11%)] to-[hsl(186,100%,9%)] -z-10" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(221,100%,6%)] via-[hsl(220,100%,11%)] to-[hsl(206,100%,9%)] -z-10" />
 
       {/* Square-grid texture, tinted to the current time-of-day glow. */}
       <div className="pointer-events-none absolute inset-0 kd-square-grid" />

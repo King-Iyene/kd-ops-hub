@@ -207,7 +207,7 @@ export function PayrollGroupsTab() {
             </div>
 
             <div className="flex flex-wrap gap-1.5">
-              <AllowanceChip label="Housing" value={g.housing} color="hsl(200,80%,45%)" />
+              <AllowanceChip label="Housing" value={g.housing} color="hsl(220,80%,45%)" />
               <AllowanceChip label="Transport" value={g.transport} color="hsl(150,60%,38%)" />
               <AllowanceChip label="Other" value={g.other} color="hsl(35,90%,45%)" />
               <AllowanceChip label="Pension" value={g.pension} color="hsl(270,55%,50%)" />

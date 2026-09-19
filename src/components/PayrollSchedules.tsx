@@ -2073,7 +2073,7 @@ export function NextPayrollBanner({ onStartDraft, companyId, companyName }: { on
   return (
     <div className="space-y-2">
       {next && (
-        <div className="flex items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-white bg-gradient-to-br from-[hsl(200,100%,29%)] to-[hsl(200,90%,20%)] shadow-sm">
+        <div className="flex items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-white bg-gradient-to-br from-[hsl(220,100%,29%)] to-[hsl(220,90%,20%)] shadow-sm">
           <CalendarClock className="h-4 w-4 shrink-0 opacity-90" />
           <div className="flex-1 min-w-0 text-xs">
             <span className="font-semibold">
@@ -2086,7 +2086,7 @@ export function NextPayrollBanner({ onStartDraft, companyId, companyName }: { on
             </span>
           </div>
           {onStartDraft && !nextPeriodHasDraft && (
-            <Button size="sm" variant="secondary" onClick={onStartDraft} className="h-7 px-2.5 text-xs bg-white text-[hsl(200,100%,29%)] hover:bg-white/90 shrink-0">
+            <Button size="sm" variant="secondary" onClick={onStartDraft} className="h-7 px-2.5 text-xs bg-white text-[hsl(220,100%,29%)] hover:bg-white/90 shrink-0">
               Start draft
             </Button>
           )}

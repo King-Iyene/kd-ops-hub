@@ -44,7 +44,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed z-50 grid w-full gap-4 border border-border/60 bg-card p-6 shadow-[0_8px_32px_-4px_rgba(0,0,0,0.2),0_4px_12px_-2px_rgba(0,0,0,0.1)] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 overflow-y-auto dark:bg-[hsl(200_28%_13%/0.92)] dark:backdrop-blur-xl dark:border-[hsl(200_22%_22%)]",
+        "fixed z-50 grid w-full gap-4 border border-border/60 bg-card p-6 shadow-[0_8px_32px_-4px_rgba(0,0,0,0.2),0_4px_12px_-2px_rgba(0,0,0,0.1)] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 overflow-y-auto dark:bg-[hsl(220_28%_13%/0.92)] dark:backdrop-blur-xl dark:border-[hsl(220_22%_22%)]",
         // Mobile: bottom sheet slide-up
         "max-md:bottom-0 max-md:left-0 max-md:right-0 max-md:top-auto max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-t-2xl max-md:rounded-b-none max-md:max-h-[85vh] max-md:data-[state=closed]:slide-out-to-bottom max-md:data-[state=open]:slide-in-from-bottom",
         // Desktop: centered modal

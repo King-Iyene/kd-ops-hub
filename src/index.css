@@ -574,7 +574,7 @@ input[type=number] {
 
   /* Gradient backgrounds */
   .kd-gradient-primary {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(200 100% 22%) 100%);
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(220 100% 22%) 100%);
   }
 
   .kd-gradient-brand {
@@ -1188,7 +1188,7 @@ input[type=number] {
 
   /* Dark mode: card-tech gets a brighter border so it lifts off the bg */
   html.dark .kd-card-tech {
-    border-color: hsl(200 22% 22%);
+    border-color: hsl(220 22% 22%);
   }
   html.dark .kd-card-tech::before {
     opacity: 0.9;
