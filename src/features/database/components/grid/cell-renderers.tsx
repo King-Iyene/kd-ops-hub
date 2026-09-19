@@ -550,20 +550,6 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
   );
 });
 
-export const JSONCellRenderer = React.memo(function JSONCellRenderer({
-  value,
-}: CellRendererProps) {
-  const colors = useGridColors();
-  if (value == null || value === '') return null;
-  const text = typeof value === 'string' ? value : JSON.stringify(value);
-  const display = text.length > 60 ? text.slice(0, 60) + '...' : text;
-  return (
-    <span className="truncate font-mono text-xs" style={{ color: colors.muted }}>
-      {display}
-    </span>
-  );
-});
-
 export const SystemCellRenderer = React.memo(function SystemCellRenderer({
   value,
   field,
@@ -955,12 +941,13 @@ export const ButtonCellRenderer = React.memo(function ButtonCellRenderer({
     <button
       type="button"
       onClick={handleClick}
-      className="inline-flex items-center px-3 rounded text-xs font-medium transition-colors"
+      className="inline-flex items-center px-3 rounded text-xs font-medium hover:opacity-90 active:scale-[0.97]"
       style={{
         height: 24,
         backgroundColor: '#2D7FF9',
         color: '#FFFFFF',
         cursor: urlTemplate ? 'pointer' : 'default',
+        transition: 'opacity 120ms ease, transform 80ms ease',
       }}
     >
       {label}

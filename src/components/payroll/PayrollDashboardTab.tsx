@@ -68,7 +68,6 @@ export function PayrollDashboardTab({
   const isAllCompanies = selectedCompanyId === ALL_COMPANIES;
   const [payGroupCount, setPayGroupCount] = useState<number | null>(null);
   const [nextPayDate, setNextPayDate] = useState<Date | null>(null);
-  const [inflow, setInflow] = useState<number | null>(null);
   const [whoGetsPaid, setWhoGetsPaid] = useState<WhoGetsPaidRow[]>([]);
   // Everyone who would be paid in scope, not the hero run's count: the tile
   // is labelled "On payroll" and a run's count is a different number the
@@ -174,19 +173,6 @@ export function PayrollDashboardTab({
         })),
       );
 
-      // "In" tile — this month's recorded revenue (finance's revenue_entries
-      // ledger, the same table the Finance dashboard reads from).
-      const now = new Date();
-      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const { data: incomeRows, error: incomeErr } = await supabase
-        .from('revenue_entries')
-        .select('amount_ngn')
-        .eq('month', currentMonth);
-      if (!incomeErr) {
-        setInflow((incomeRows || []).reduce((s: number, r: any) => s + Number(r.amount_ngn || 0), 0));
-      } else {
-        setInflow(null);
-      }
       if (!cancelled) setLoadingExtras(false);
     })();
     return () => { cancelled = true; };
@@ -229,9 +215,9 @@ export function PayrollDashboardTab({
       {/* ── Hero + KPIs ───────────────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-12 kd-animate-slide-up">
         {/* Hero run summary — takes 8 of 12 cols */}
-        <Card className="lg:col-span-8 overflow-hidden border-0 bg-gradient-to-br from-[hsl(200,90%,14%)] via-[hsl(200,95%,10%)] to-[hsl(205,90%,7%)] text-white shadow-2xl shadow-primary/20 ring-1 ring-white/[0.08] relative group">
+        <Card className="lg:col-span-8 overflow-hidden border-0 bg-gradient-to-br from-[hsl(220,90%,14%)] via-[hsl(220,95%,10%)] to-[hsl(220,90%,7%)] text-white shadow-2xl shadow-primary/20 ring-1 ring-white/[0.08] relative group">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_70%_-20%,hsl(186,100%,40%,0.12),transparent_70%)] pointer-events-none" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,hsl(200,90%,30%,0.08),transparent_50%)] pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,hsl(220,90%,30%,0.08),transparent_50%)] pointer-events-none" />
           <CardContent className="p-5 sm:p-7 space-y-5 sm:space-y-6 relative">
             {heroRun ? (
               <>

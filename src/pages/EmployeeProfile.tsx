@@ -866,8 +866,8 @@ const EmployeeProfile = () => {
         expires_at: docForm.expires_at || null,
         storage_path: path,
         file_url: urlData.publicUrl,
-        mime_type: compressed.type || null,
-        file_size_bytes: compressed.size,
+        mime_type: fileToUpload.type || null,
+        file_size_bytes: fileToUpload.size,
         employee_id: id,
         uploaded_by: currentUser?.id || null,
       });

@@ -1497,6 +1497,16 @@ input[type=number] {
     color: var(--pill-dark-text) !important;
   }
 
+  .select-pill {
+    transition: filter 120ms ease;
+  }
+  .select-pill:hover {
+    filter: brightness(0.92);
+  }
+  html.dark .select-pill:hover {
+    filter: brightness(1.15);
+  }
+
   /* Button press — tactile micro-feedback */
   .kd-btn-press:active {
     transform: scale(0.97);

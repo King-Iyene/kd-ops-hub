@@ -319,7 +319,7 @@ export const PayrollRunsTab = ({
           style={{ background: 'linear-gradient(155deg, #00283d, #00405e 60%, #005579)' }}
         >
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_70%_-20%,hsl(186,100%,40%,0.12),transparent_70%)]" />
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,hsl(200,90%,30%,0.08),transparent_50%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,hsl(220,90%,30%,0.08),transparent_50%)]" />
           <div className="relative">
             <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
               <div>
@@ -585,7 +585,7 @@ export const PayrollRunsTab = ({
                       ))}
                     </div>
                     {needsAttention && (
-                      <span className="relative h-2.5 w-2.5 shrink-0" aria-label="Needs your attention">
+                      <span className="relative h-2.5 w-2.5 shrink-0" role="status" aria-label="Needs your attention">
                         <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-30" />
                         <span className="absolute inset-0 rounded-full bg-primary shadow-sm shadow-primary/40" />
                       </span>
@@ -859,7 +859,7 @@ function RunPayslipsSection({
           type="button"
           onClick={downloadAll}
           disabled={zipProgress !== null}
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md px-2.5 py-1 text-2xs font-semibold text-primary transition-colors hover:bg-primary/10 disabled:opacity-60"
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md px-2.5 py-1 text-2xs font-semibold text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
         >
           {zipProgress ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
           {zipProgress ?? 'Download all'}
@@ -872,7 +872,7 @@ function RunPayslipsSection({
             type="button"
             onClick={() => viewPayslip(slip)}
             disabled={openingId === slip.id}
-            className="w-full flex items-center justify-between gap-2 px-2.5 py-2 text-sm text-left hover:bg-muted/40 transition-colors disabled:opacity-60"
+            className="w-full flex items-center justify-between gap-2 px-2.5 py-2 text-sm text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset transition-colors disabled:opacity-60"
           >
             <span className="font-medium truncate">{slip.employee_name}</span>
             <span className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">

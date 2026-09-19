@@ -51,7 +51,7 @@ export function useLinkDisplayLookup(
       if (!baseMeta?.schema_name) return map;
 
       // Resolve linkedTableNames to table IDs
-      let allTableIds = [...relatedTableIds];
+      const allTableIds = [...relatedTableIds];
       if (linkedTableNames.length > 0) {
         const { data: nameMatches } = await supabase
           .schema('nc_meta')

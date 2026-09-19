@@ -217,7 +217,7 @@ export function PayrollGroupsTab() {
                 {g.members.slice(0, 5).map((m) => (
                   <Avatar key={m.id} className="h-7 w-7 border-2 border-background">
                     {m.photo_url && <AvatarImage src={m.photo_url} alt={m.name} />}
-                    <AvatarFallback className="text-3xs font-semibold bg-[hsl(200,60%,92%)] text-[hsl(200,90%,25%)]">
+                    <AvatarFallback className="text-3xs font-semibold bg-[hsl(220,60%,92%)] text-[hsl(220,90%,25%)]">
                       {initials(m.name)}
                     </AvatarFallback>
                   </Avatar>
@@ -379,6 +379,7 @@ function ManageMembersDialog({
                   className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
                   disabled={saving}
                   onClick={() => removeMember(m)}
+                  aria-label={`Remove ${m.name}`}
                 >
                   <UserMinus className="h-3.5 w-3.5" />
                 </Button>
@@ -401,7 +402,7 @@ function ManageMembersDialog({
               className="pl-8 h-8 text-sm"
             />
             {search && (
-              <button className="absolute right-2 top-1/2 -translate-y-1/2" onClick={() => setSearch('')}>
+              <button className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setSearch('')} aria-label="Clear search">
                 <X className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
             )}
@@ -434,6 +435,7 @@ function ManageMembersDialog({
                     className="text-primary hover:text-primary hover:bg-primary/10 shrink-0"
                     disabled={saving}
                     onClick={() => addMember(emp)}
+                    aria-label={`Add ${emp.name}`}
                   >
                     <UserPlus className="h-3.5 w-3.5" />
                   </Button>
