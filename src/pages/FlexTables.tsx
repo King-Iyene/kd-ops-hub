@@ -1827,7 +1827,7 @@ function GridView({
                       </span>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button className="text-muted-foreground hover:text-foreground shrink-0"><MoreHorizontal className="h-3.5 w-3.5" /></button>
+                          <button className="text-muted-foreground hover:text-foreground shrink-0" aria-label="Field options"><MoreHorizontal className="h-3.5 w-3.5" /></button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => onEditField(f)}>Edit field</DropdownMenuItem>
