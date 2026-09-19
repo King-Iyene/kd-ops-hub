@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { X, ChevronLeft, ChevronRight, Star, MessageSquare, ChevronDown, Paperclip, Link2, Trash2, Clock, Activity, Copy, GripVertical } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, MessageSquare, ChevronDown, Paperclip, Link2, Trash2, Clock, Activity, Copy, GripVertical, Check } from 'lucide-react';
 import { RecordComments } from './RecordComments';
 import { RecordHistoryPanel } from './RecordHistoryPanel';
 import { LinkCellRenderer } from './grid/LinkCellRenderer';
@@ -73,6 +73,7 @@ function InlineTextEditor({
   onCommit: (v: string) => void;
 }) {
   const [text, setText] = useState(value ?? '');
+  useEffect(() => { setText(value ?? ''); }, [value]);
   return (
     <input
       type="text"
@@ -95,6 +96,7 @@ function InlineLongTextEditor({
   onCommit: (v: string) => void;
 }) {
   const [text, setText] = useState(value ?? '');
+  useEffect(() => { setText(value ?? ''); }, [value]);
   return (
     <textarea
       value={text}
@@ -114,6 +116,7 @@ function InlineNumberEditor({
   onCommit: (v: number | null) => void;
 }) {
   const [num, setNum] = useState(value != null ? String(value) : '');
+  useEffect(() => { setNum(value != null ? String(value) : ''); }, [value]);
   return (
     <input
       type="text"
@@ -144,6 +147,14 @@ function InlineDateEditor({
       : new Date(value).toISOString().split('T')[0]
     : '';
   const [date, setDate] = useState(initial);
+  useEffect(() => {
+    const next = value
+      ? showTime
+        ? new Date(value).toISOString().slice(0, 16)
+        : new Date(value).toISOString().split('T')[0]
+      : '';
+    setDate(next);
+  }, [value, showTime]);
   return (
     <input
       type={showTime ? 'datetime-local' : 'date'}

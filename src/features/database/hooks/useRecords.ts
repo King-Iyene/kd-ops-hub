@@ -676,6 +676,7 @@ export function useInfiniteRecords(params: UseInfiniteRecordsParams) {
     queryKey: ['nc', 'records', baseId, tableId, 'infinite', pageSize, filters, filterGroups, sorts, search],
     enabled: !!baseId && !!tableId,
     staleTime: 30_000,
+    gcTime: 60_000,
     refetchOnWindowFocus: false,
     initialPageParam: 0,
     queryFn: async ({ pageParam }): Promise<InfiniteRecordsPage> => {

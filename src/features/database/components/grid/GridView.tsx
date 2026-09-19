@@ -1050,6 +1050,9 @@ export default function GridView({
 
       if (!selectedCellId) return;
       // Don't navigate when a cell is being edited — let the editor handle arrow keys
+      if (editingCellId && e.key === 'Tab') {
+        setEditingCell(null);
+      }
       if (editingCellId && (e.key.startsWith('Arrow') || e.key === 'Home' || e.key === 'End' || e.key === 'PageUp' || e.key === 'PageDown')) return;
       const [rowId, fieldId] = selectedCellId.split(':');
       const rowIdx = records.findIndex((r) => r.id === rowId);
