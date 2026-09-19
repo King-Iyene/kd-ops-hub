@@ -104,8 +104,8 @@ export function NumberCellEditor({ value, field, onCommit, onCancel }: CellEdito
       }}
       onBlur={() => onCommit(num === '' ? null : Number(num))}
       placeholder="0"
-      className="w-full h-full px-2 outline-none bg-transparent text-right"
-      style={{ fontSize: 14, color: 'inherit' }}
+      className="w-full h-full px-2 outline-none border-none bg-transparent text-right"
+      style={{ fontSize: 13, color: 'inherit' }}
     />
   );
 }
@@ -453,6 +453,8 @@ export function RatingCellEditor({ value, field, onCommit, onCancel }: CellEdito
         if (e.key === 'Escape') onCancel();
         if (e.key === 'Tab') onCommit(rating);
         if (e.key === 'Enter') onCommit(rating);
+        if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); onCommit(Math.min(rating + 1, max)); }
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); onCommit(Math.max(rating - 1, 0)); }
       }}
       onBlur={() => onCommit(rating)}
     >
@@ -874,7 +876,7 @@ export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps
         onKeyDown={(e) => { if (e.key === 'Enter') onCommit(num === '' ? null : Number(num)); if (e.key === 'Escape') onCancel(); if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); } }}
         onBlur={() => onCommit(num === '' ? null : Number(num))}
         placeholder="0"
-        className="w-full h-full px-2 outline-none border-none bg-transparent text-right" style={{ fontSize: 13 }}
+        className="w-full h-full px-2 outline-none border-none bg-transparent text-right" style={{ fontSize: 13, color: 'inherit' }}
       />
       <span className="pr-2 text-xs text-[#9AA2AF]">%</span>
     </div>
@@ -1080,8 +1082,8 @@ export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEdit
       }}
       onBlur={() => onCommit(num === '' ? null : Number(num))}
       placeholder="0.00"
-      className="w-full h-full px-2 outline-none bg-transparent text-right"
-      style={{ fontSize: 14, color: 'inherit' }}
+      className="w-full h-full px-2 outline-none border-none bg-transparent text-right"
+      style={{ fontSize: 13, color: 'inherit' }}
     />
   );
 }

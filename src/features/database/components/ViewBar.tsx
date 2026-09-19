@@ -104,11 +104,10 @@ function SortableViewTab({
       {...listeners}
       onClick={onSelect}
       onContextMenu={onContextMenu}
-      className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors"
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
       style={{
         ...style,
         color: isActive ? '#2D7FF9' : '#6A7184',
-        backgroundColor: isActive ? 'transparent' : 'transparent',
         borderBottom: isActive ? '2px solid #2D7FF9' : '2px solid transparent',
       }}
     >

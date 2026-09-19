@@ -74,6 +74,8 @@ export const ColumnHeader = React.memo(function ColumnHeader({
   const [descriptionDraft, setDescriptionDraft] = useState(field.description ?? '');
 
   const currentSort = sorts.find((s) => s.field_id === field.id);
+  const hasFilter = filters.some((f) => f.field_id === field.id);
+  const hasGroup = groupByLevels.some((g) => g.field_id === field.id);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -267,6 +269,16 @@ export const ColumnHeader = React.memo(function ColumnHeader({
           )}
         </span>
       )}
+      {hasFilter && (
+        <span className="shrink-0" style={{ color: colors.primary }}>
+          <Filter size={11} />
+        </span>
+      )}
+      {hasGroup && (
+        <span className="shrink-0" style={{ color: colors.primary }}>
+          <Group size={11} />
+        </span>
+      )}
 
       <div
         className="absolute right-0 top-0 h-full flex justify-center"
@@ -288,7 +300,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
           onResize(field.id, getAutoFitWidth(field.ui_type));
         }}
       >
-        <div className="h-full pointer-events-none" style={{ width: 4, backgroundColor: 'transparent' }} />
+        <div className="h-full pointer-events-none" style={{ width: 4, backgroundColor: 'transparent', transition: 'background-color 150ms ease' }} />
       </div>
 
       {contextMenu && (

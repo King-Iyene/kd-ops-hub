@@ -196,7 +196,7 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
     }
   }
   if (rowHeight === 'short') {
-    return <span className="truncate" style={{ fontSize: 13, lineHeight: '18px' }}>{text}</span>;
+    return <span className="truncate" title={text} style={{ fontSize: 13, lineHeight: '18px' }}>{text}</span>;
   }
   const maxLines = rowHeight === 'tall' ? 3 : rowHeight === 'extra-tall' ? 5 : 2;
   const lines = text.split('\n');
@@ -204,6 +204,7 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
   if (hasLists) {
     return (
       <div
+        title={text}
         style={{
           fontSize: 13,
           lineHeight: '18px',
@@ -220,6 +221,7 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
   return (
     <span
       className="whitespace-pre-line"
+      title={text}
       style={{
         fontSize: 13,
         lineHeight: '18px',

@@ -16,7 +16,7 @@ interface RowContextMenuProps {
 }
 
 const menuItemClass =
-  'flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] transition-colors';
+  'flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs-plus text-[#374151] dark:text-[hsl(200,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(200,25%,15%)] transition-colors focus:bg-[#F4F4F5] dark:focus:bg-[hsl(200,25%,15%)] focus:outline-none';
 
 export function RowContextMenu({
   x,
@@ -42,6 +42,10 @@ export function RowContextMenu({
     if (rect.bottom > window.innerHeight) {
       el.style.top = `${window.innerHeight - rect.height - 8}px`;
     }
+
+    requestAnimationFrame(() => {
+      el.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    });
   }, [x, y]);
 
   const handleCopyRowData = () => {
@@ -72,9 +76,21 @@ export function RowContextMenu({
         className="fixed rounded-lg shadow-lg bg-white dark:bg-[hsl(200,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(200,25%,18%)] animate-[panelSlideDown_150ms_ease-out]"
         style={{ left: x, top: y, minWidth: 200, zIndex: 51 }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') { onClose(); return; }
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            const items = menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]');
+            if (!items?.length) return;
+            const cur = Array.from(items).indexOf(document.activeElement as HTMLElement);
+            const next = e.key === 'ArrowDown' ? (cur + 1) % items.length : (cur - 1 + items.length) % items.length;
+            items[next].focus();
+          }
+        }}
       >
-        <div className="py-1">
+        <div className="py-1" role="menu">
           <button
+            role="menuitem"
             className={menuItemClass}
             onClick={() => {
               onExpandRow(record);
@@ -89,6 +105,7 @@ export function RowContextMenu({
 
           {onInsertAbove && (
             <button
+              role="menuitem"
               className={menuItemClass}
               onClick={() => {
                 onInsertAbove(record);
@@ -102,6 +119,7 @@ export function RowContextMenu({
 
           {onInsertBelow && (
             <button
+              role="menuitem"
               className={menuItemClass}
               onClick={() => {
                 onInsertBelow(record);
@@ -114,6 +132,7 @@ export function RowContextMenu({
           )}
 
           <button
+            role="menuitem"
             className={menuItemClass}
             onClick={() => {
               onDuplicateRow(record);
@@ -126,12 +145,12 @@ export function RowContextMenu({
 
           <div className="my-1 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]" />
 
-          <button className={menuItemClass} onClick={handleCopyRowData}>
+          <button role="menuitem" className={menuItemClass} onClick={handleCopyRowData}>
             <ClipboardCopy size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
             Copy row data
           </button>
 
-          <button className={menuItemClass} onClick={handleCopyRowLink}>
+          <button role="menuitem" className={menuItemClass} onClick={handleCopyRowLink}>
             <Link size={14} className="text-[#9AA2AF] dark:text-[hsl(200,20%,55%)]" />
             Copy record URL
           </button>
@@ -139,7 +158,8 @@ export function RowContextMenu({
           <div className="my-1 border-t border-[#E5E5E5] dark:border-[hsl(200,25%,18%)]" />
 
           <button
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs-plus text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs-plus text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors focus:bg-red-50 dark:focus:bg-red-900/20 focus:outline-none"
             onClick={async () => {
               onClose();
               const confirmed = await confirm({ description: 'Are you sure you want to delete this record? This action cannot be undone.', variant: 'destructive' });

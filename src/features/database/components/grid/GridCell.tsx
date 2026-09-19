@@ -190,7 +190,7 @@ export const GridCell = React.memo(function GridCell({
         padding: '0 8px',
         borderRight: `1px solid ${GRID_COLORS.border}`,
         borderBottom: `1px solid ${GRID_COLORS.border}`,
-        backgroundColor: isEditing ? GRID_COLORS.cellEditBg : frozen ? (rowBg ?? GRID_COLORS.bg) : (backgroundColor || (isSystemField ? GRID_COLORS.headerBg : undefined)),
+        backgroundColor: isEditing ? GRID_COLORS.cellEditorBg : frozen ? (rowBg ?? GRID_COLORS.bg) : (backgroundColor || (isSystemField ? GRID_COLORS.headerBg : undefined)),
         outline: isSelected && !isEditing ? `2px solid ${GRID_COLORS.primary}` : 'none',
         boxShadow: isEditing
           ? `inset 0 0 0 2px ${GRID_COLORS.primary}${frozen ? `, ${GRID_COLORS.frozenShadow}` : ''}`
