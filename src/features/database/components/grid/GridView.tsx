@@ -1529,8 +1529,11 @@ export default function GridView({
                   const choiceColor = isSelectType && choices
                     ? choices.find((c: { title: string; color?: string }) => c.title === item.groupValue)?.color
                     : undefined;
-                  const pillBg = choiceColor || (isSelectType ? GROUP_PILL_COLORS[Math.abs(item.groupValue.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % GROUP_PILL_COLORS.length] + '20' : undefined);
-                  const pillText = choiceColor ? '#FFFFFF' : (isSelectType ? GROUP_PILL_COLORS[Math.abs(item.groupValue.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % GROUP_PILL_COLORS.length] : undefined);
+                  const hashColor = isSelectType && !choiceColor
+                    ? GROUP_PILL_COLORS[Math.abs(item.groupValue.split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0)) % GROUP_PILL_COLORS.length]
+                    : undefined;
+                  const pillBg = choiceColor || (hashColor ? hashColor + '20' : undefined);
+                  const pillText = choiceColor ? '#FFFFFF' : hashColor;
 
                   // Compute summary for numeric fields if configured
                   const summaryParts: string[] = [];
@@ -1881,18 +1884,16 @@ export default function GridView({
                   {fieldsWithWidths.map((field, colIdx) => {
                     const isFroz = colIdx < frozenCount;
                     const isLastFroz = colIdx === frozenCount - 1;
-                    let cellLeft = ROW_NUMBER_WIDTH;
-                    if (isFroz) {
-                      for (let i = 0; i < colIdx; i++) cellLeft += fieldsWithWidths[i].width;
-                    }
+                    const cellLeft = isFroz ? frozenLeftOffsets[colIdx] : ROW_NUMBER_WIDTH;
                     const isFlash = flashCells.has(`${record.id}:${field.id}`);
-                    const isInRange = selectionRange && (() => {
+                    let isInRange = false;
+                    if (selectionRange) {
                       const r1 = Math.min(selectionRange.startRow, selectionRange.endRow);
                       const r2 = Math.max(selectionRange.startRow, selectionRange.endRow);
                       const c1 = Math.min(selectionRange.startCol, selectionRange.endCol);
                       const c2 = Math.max(selectionRange.startCol, selectionRange.endCol);
-                      return virtualRow.index >= r1 && virtualRow.index <= r2 && colIdx >= c1 && colIdx <= c2;
-                    })();
+                      isInRange = virtualRow.index >= r1 && virtualRow.index <= r2 && colIdx >= c1 && colIdx <= c2;
+                    }
                     return (
                       <div
                         key={field.id}

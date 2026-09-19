@@ -963,8 +963,25 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+const ROW_HEIGHT_OPTIONS: { value: 'short' | 'medium' | 'tall' | 'extra-tall'; label: string; px: number }[] = [
+  { value: 'short', label: 'Short', px: 32 },
+  { value: 'medium', label: 'Medium', px: 44 },
+  { value: 'tall', label: 'Tall', px: 64 },
+  { value: 'extra-tall', label: 'Extra Tall', px: 100 },
+];
+
 export function Toolbar() {
-  const { rowHeight, setRowHeight, searchQuery, setSearchQuery, filters, filterGroups, sorts, groupByLevels, activeBaseId, activeTableId, rowColorRules } = useDatabaseUI();
+  const rowHeight = useDatabaseUI((s) => s.rowHeight);
+  const setRowHeight = useDatabaseUI((s) => s.setRowHeight);
+  const searchQuery = useDatabaseUI((s) => s.searchQuery);
+  const setSearchQuery = useDatabaseUI((s) => s.setSearchQuery);
+  const filters = useDatabaseUI((s) => s.filters);
+  const filterGroups = useDatabaseUI((s) => s.filterGroups);
+  const sorts = useDatabaseUI((s) => s.sorts);
+  const groupByLevels = useDatabaseUI((s) => s.groupByLevels);
+  const activeBaseId = useDatabaseUI((s) => s.activeBaseId);
+  const activeTableId = useDatabaseUI((s) => s.activeTableId);
+  const rowColorRules = useDatabaseUI((s) => s.rowColorRules);
   const { undo, redo, stack, redoStack } = useUndoStore();
   const { data: fieldsData } = useFields(activeTableId);
   const { data: recordsData } = useRecords({ baseId: activeBaseId!, tableId: activeTableId!, pageSize: 10000 });
@@ -997,16 +1014,9 @@ export function Toolbar() {
     setColorOpen(false);
   }, []);
 
-  const totalFilterCount = filters.length + filterGroups.reduce(function countGroup(acc: number, g: FilterGroup): number {
+  const totalFilterCount = useMemo(() => filters.length + filterGroups.reduce(function countGroup(acc: number, g: FilterGroup): number {
     return acc + g.filters.length + g.groups.reduce(countGroup, 0);
-  }, 0);
-
-  const ROW_HEIGHT_OPTIONS: { value: 'short' | 'medium' | 'tall' | 'extra-tall'; label: string; px: number }[] = [
-    { value: 'short', label: 'Short', px: 32 },
-    { value: 'medium', label: 'Medium', px: 44 },
-    { value: 'tall', label: 'Tall', px: 64 },
-    { value: 'extra-tall', label: 'Extra Tall', px: 100 },
-  ];
+  }, 0), [filters, filterGroups]);
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value),

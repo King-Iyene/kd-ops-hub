@@ -61,7 +61,13 @@ export const ColumnHeader = React.memo(function ColumnHeader({
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
-  const { sorts, setSorts, toggleHiddenField, filters, setFilters, groupByLevels, setGroupByLevels } = useDatabaseUI();
+  const sorts = useDatabaseUI((s) => s.sorts);
+  const setSorts = useDatabaseUI((s) => s.setSorts);
+  const toggleHiddenField = useDatabaseUI((s) => s.toggleHiddenField);
+  const filters = useDatabaseUI((s) => s.filters);
+  const setFilters = useDatabaseUI((s) => s.setFilters);
+  const groupByLevels = useDatabaseUI((s) => s.groupByLevels);
+  const setGroupByLevels = useDatabaseUI((s) => s.setGroupByLevels);
   const colors = useGridColors();
   const updateField = useUpdateField();
   const [isEditingDescription, setIsEditingDescription] = useState(false);
