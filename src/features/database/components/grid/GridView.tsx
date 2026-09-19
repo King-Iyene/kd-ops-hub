@@ -383,6 +383,7 @@ export default function GridView({
   onReorderRows,
 }: GridViewProps) {
   const GRID_COLORS = useGridColors();
+  const mobileCardHoverStyle = useMemo(() => ({ '--grid-hover': `${GRID_COLORS.primary}08` }), [GRID_COLORS.primary]);
   const rowHeight = useDatabaseUI((s) => s.rowHeight);
   const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
   const setSelectedCell = useDatabaseUI((s) => s.setSelectedCell);
@@ -1343,7 +1344,7 @@ export default function GridView({
                   top: virtualItem.start,
                   height: virtualItem.size,
                   borderBottom: `1px solid ${GRID_COLORS.border}`,
-                  '--grid-hover': `${GRID_COLORS.primary}08`,
+                  ...mobileCardHoverStyle,
                 } as React.CSSProperties}
                 onClick={() => onExpandRow?.(record)}
               >

@@ -218,25 +218,16 @@ export function TableView() {
     [patchedFields, hiddenFieldIds],
   );
 
-  const records = useMemo(() => {
-    const raw = infiniteRecords;
-    if (!patchedFields || patchedFields.length === 0) return raw;
-
-    const hasLookup = linkLookup && Object.keys(linkLookup).length > 0;
-
+  const formulaParsed = useMemo(() => {
+    if (!patchedFields || patchedFields.length === 0) return null;
     const formulaFields = patchedFields.filter(
       (f) => f.ui_type === 'Formula' && (f.options?.expression || f.options?.formula),
     );
-    if (formulaFields.length === 0) {
-      if (!hasLookup) return raw;
-      return raw.map((r) => ({ ...r, __linkLookup: linkLookup }) as RecordRow);
-    }
-
+    if (formulaFields.length === 0) return null;
     const fieldMap: Record<string, string> = {};
     for (const f of patchedFields) {
       if (f.pg_column_name) fieldMap[f.name] = f.pg_column_name;
     }
-
     const parsed = formulaFields.map((f) => {
       try {
         return { col: f.pg_column_name, ast: parseFormula((f.options.expression || f.options.formula)!) };
@@ -244,7 +235,21 @@ export function TableView() {
         return { col: f.pg_column_name, ast: null };
       }
     });
+    return { parsed, fieldMap };
+  }, [patchedFields]);
 
+  const records = useMemo(() => {
+    const raw = infiniteRecords;
+    if (!patchedFields || patchedFields.length === 0) return raw;
+
+    const hasLookup = linkLookup && Object.keys(linkLookup).length > 0;
+
+    if (!formulaParsed) {
+      if (!hasLookup) return raw;
+      return raw.map((r) => ({ ...r, __linkLookup: linkLookup }) as RecordRow);
+    }
+
+    const { parsed, fieldMap } = formulaParsed;
     return raw.map((record) => {
       const patched = { ...record, __linkLookup: linkLookup } as any;
       for (const { col, ast } of parsed) {
@@ -260,7 +265,7 @@ export function TableView() {
       }
       return patched as RecordRow;
     });
-  }, [infiniteRecords, patchedFields, linkLookup]);
+  }, [infiniteRecords, patchedFields, linkLookup, formulaParsed]);
 
   // Auto-expand record from URL deep link (?rowId=...)
   const deepLinkedRef = useRef(false);
@@ -380,6 +385,11 @@ export function TableView() {
       });
     },
     [activeBaseId, activeTableId, duplicateRecord, deleteRecord, pushUndo],
+  );
+
+  const handleDuplicateAndClose = useCallback(
+    (record: RecordRow) => { handleDuplicateRow(record); setExpandedRecord(null); },
+    [handleDuplicateRow],
   );
 
   const handleBulkDeleteRows = useCallback(
@@ -583,12 +593,8 @@ export function TableView() {
             records={records}
             onNavigate={setExpandedRecord}
             onDeleteRecord={handleDeleteRow}
-            onDuplicateRecord={(record) => { handleDuplicateRow(record); setExpandedRecord(null); }}
-            onReorderFields={(fieldIds) => {
-              if (activeTableId) {
-                reorderFields.mutate({ table_id: activeTableId, fieldIds });
-              }
-            }}
+            onDuplicateRecord={handleDuplicateAndClose}
+            onReorderFields={handleReorderFields}
           />
         )}
       </Suspense>
