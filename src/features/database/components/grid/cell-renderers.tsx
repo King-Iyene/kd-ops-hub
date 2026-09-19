@@ -366,6 +366,7 @@ export const SelectCellRenderer = React.memo(function SelectCellRenderer({
   return (
     <span
       className="inline-flex items-center px-2.5 rounded-full text-xs font-medium truncate select-pill"
+      title={String(value)}
       style={{
         '--pill-bg': sc.bg,
         '--pill-text': sc.text,
@@ -406,6 +407,7 @@ export const MultiSelectCellRenderer = React.memo(function MultiSelectCellRender
           <span
             key={v}
             className="inline-flex items-center px-2 rounded-full text-xs font-medium truncate select-pill"
+            title={v}
             style={{
               '--pill-bg': sc.bg,
               '--pill-text': sc.text,
@@ -886,6 +888,7 @@ export const LinksCellRenderer = React.memo(function LinksCellRenderer({
           <span
             key={i}
             className="inline-flex items-center px-2 rounded-sm text-xs font-medium truncate cursor-pointer hover:opacity-80"
+            title={label}
             style={{
               height: 22,
               lineHeight: '22px',
@@ -900,7 +903,15 @@ export const LinksCellRenderer = React.memo(function LinksCellRenderer({
         );
       })}
       {value.length > 3 && (
-        <span className="text-xs shrink-0" style={{ color: colors.muted }}>
+        <span
+          className="text-xs shrink-0"
+          style={{ color: colors.muted }}
+          title={value.slice(3).map((item: any) => {
+            if (typeof item === 'object' && item !== null) return item.title || item.name || item.id;
+            const id = String(item);
+            return (lookup && lookup[id]) || id;
+          }).join(', ')}
+        >
           +{value.length - 3}
         </span>
       )}

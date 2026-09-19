@@ -542,7 +542,7 @@ export function TableView() {
             onBulkDeleteRows={handleBulkDeleteRows}
             onReorderFields={handleReorderFields}
             onPasteRows={handlePasteRows}
-            onLoadMore={() => fetchNextPage()}
+            onLoadMore={fetchNextPage}
             hasMore={!!hasNextPage}
             isLoadingMore={isFetchingNextPage}
             onReorderRows={handleReorderRows}

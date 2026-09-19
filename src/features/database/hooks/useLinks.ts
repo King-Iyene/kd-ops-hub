@@ -12,6 +12,8 @@ export function usePrimaryField(tableId: string | null | undefined, enabled = tr
   return useQuery({
     queryKey: ['nc', 'primary-field', tableId],
     enabled: !!tableId && enabled,
+    staleTime: Infinity,
+    gcTime: 10 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .schema('nc_meta')
@@ -690,6 +692,8 @@ function useLinkedTableMeta(
   return useQuery({
     queryKey: ['nc', 'linked-table-meta', baseId, targetTableId],
     enabled: !!baseId && !!targetTableId,
+    staleTime: Infinity,
+    gcTime: 10 * 60_000,
     queryFn: async () => {
       const { data: base, error: baseError } = await supabase
         .schema('nc_meta')
