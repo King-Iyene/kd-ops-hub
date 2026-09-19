@@ -950,7 +950,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
                   id="third_party"
                   checked={form.third_party_involved}
                   onChange={(e) => setForm((f) => ({ ...f, third_party_involved: e.target.checked }))}
-                  className="h-4 w-4 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-border"
                 />
                 <Label htmlFor="third_party" className="cursor-pointer">Third party involved</Label>
               </div>
@@ -971,7 +971,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
                   id="vehicle_driveable"
                   checked={form.vehicle_driveable}
                   onChange={(e) => setForm((f) => ({ ...f, vehicle_driveable: e.target.checked }))}
-                  className="h-4 w-4 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-border"
                 />
                 <Label htmlFor="vehicle_driveable" className="cursor-pointer">Vehicle is still driveable</Label>
               </div>
@@ -984,7 +984,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
                   id="injuries"
                   checked={form.injuries_reported}
                   onChange={(e) => setForm((f) => ({ ...f, injuries_reported: e.target.checked }))}
-                  className="h-4 w-4 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-border"
                 />
                 <Label htmlFor="injuries" className="cursor-pointer">Injuries reported</Label>
               </div>

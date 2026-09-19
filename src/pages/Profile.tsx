@@ -24,6 +24,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { errorMessage } from '@/lib/db-errors';
+import { logWarn } from '@/lib/logger';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatNaira, formatDateTime, toIsoDate } from '@/lib/format';
 import { computePayslip } from '@/lib/tax';
@@ -650,7 +651,7 @@ const ProfilePage = () => {
       try {
         await supabase.auth.signOut({ scope: 'others' });
       } catch (signOutErr) {
-        console.warn('[Profile] signOut(others) failed:', signOutErr);
+        logWarn('Profile', 'signOut(others) failed:', signOutErr);
         toast({ title: 'Could not revoke other sessions', description: 'Sign out manually from other devices.', variant: 'destructive' });
       }
       await logAudit('profile_password_changed', 'Password changed', profile);

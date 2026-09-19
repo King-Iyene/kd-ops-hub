@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
+import { logWarn } from '@/lib/logger';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
@@ -250,7 +251,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
       setVehicles((vRes.data as Vehicle[]) || []);
       setAllEmployees((dRes.data as FieldStaff[]) || []);
     } catch (err) {
-      console.error('[Fleet] VehiclesTab load failed:', err);
+      logWarn('Fleet', 'VehiclesTab load failed:', err);
     } finally {
       setLoading(false);
     }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { errorMessage } from '@/lib/db-errors';
+import { logWarn } from '@/lib/logger';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useCompanySettings } from '@/queries';
@@ -162,7 +163,7 @@ const Payments = () => {
       // Logged (not just silently flagged) so the actual reason — e.g. a
       // stale/invalid Paystack secret key — is visible in devtools instead
       // of only ever showing the generic "Could not load balance" card.
-      console.error('[Paystack] Failed to load balance:', err instanceof Error ? err.message : err);
+      logWarn('Paystack', 'Failed to load balance:', err instanceof Error ? err.message : err);
       if (!isRetry) {
         // Race condition: session may not be restored yet on first mount.
         // One auto-retry after a short pause usually resolves it.

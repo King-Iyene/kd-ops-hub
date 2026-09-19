@@ -19,6 +19,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { logWarn } from '@/lib/logger';
 import { useCompanySettings } from '@/queries';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -128,7 +129,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
       if (history) setSwitchHistory(history as any);
       await refreshBalances();
     } catch (e) {
-      console.error('[PaymentRails] load failed:', e);
+      logWarn('PaymentRails', 'load failed:', e);
     } finally {
       setLoading(false);
     }

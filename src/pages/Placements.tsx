@@ -134,7 +134,7 @@ const CATEGORY_COLORS: Record<PlacementCategory, string> = {
   administrative: 'bg-sky-500/10 text-sky-600',
   hospitality: 'bg-pink-500/10 text-pink-600',
   maintenance: 'bg-orange-500/10 text-orange-600',
-  general: 'bg-slate-500/10 text-slate-600',
+  general: 'bg-slate-500/10 text-slate-600 dark:text-slate-300',
 };
 
 const TYPE_LABELS: Record<PlacementType, string> = {
@@ -168,7 +168,7 @@ const PAYMENT_STATUS_TONE: Record<PaymentStatus, string> = {
   paid: 'bg-success/10 text-success',
   overdue: 'bg-destructive/10 text-destructive',
   partial: 'bg-orange-500/10 text-orange-600',
-  waived: 'bg-slate-500/10 text-slate-600',
+  waived: 'bg-slate-500/10 text-slate-600 dark:text-slate-300',
 };
 
 const emptyForm = {

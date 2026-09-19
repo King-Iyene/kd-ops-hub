@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from '@/hooks/useDebounce';
+import { logWarn } from '@/lib/logger';
 import {
   Search,
   Download,
@@ -197,7 +198,7 @@ const Transactions = () => {
 
     const { data, error } = await q;
     if (error) {
-      console.error('[transactions] view error:', error.message);
+      logWarn('Transactions', 'view error:', error.message);
       setRows([]);
     } else {
       setRows((data as unknown as Transaction[]) || []);

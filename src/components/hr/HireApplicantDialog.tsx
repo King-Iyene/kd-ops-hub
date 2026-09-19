@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { logWarn } from '@/lib/logger';
 import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { formatNairaCompact } from '@/lib/format';
 import { roleLabel } from '@/lib/roles';
@@ -175,7 +176,7 @@ export const HireApplicantDialog = ({
       if (seedErr) {
         // The RPC might be gated in some envs — fall through to a plain upsert
         // so the flow still works.
-        console.warn('[HireApplicant] seed_invited_profile RPC failed:', seedErr.message);
+        logWarn('HireApplicant', 'seed_invited_profile RPC failed:', seedErr.message);
       }
 
       // 3. Enrich the profile with the hire details.
@@ -228,7 +229,7 @@ export const HireApplicantDialog = ({
           .select('id')
           .single();
         if (cErr) {
-          console.warn('[HireApplicant] onboarding checklist skipped:', cErr.message);
+          logWarn('HireApplicant', 'onboarding checklist skipped:', cErr.message);
         } else {
           const items = DEFAULT_ONBOARDING_ITEMS.map((it, i) => ({
             checklist_id: (checklist as any).id,
@@ -255,7 +256,7 @@ export const HireApplicantDialog = ({
           },
         });
         if (otpErr) {
-          console.warn('[HireApplicant] OTP email failed:', otpErr.message);
+          logWarn('HireApplicant', 'OTP email failed:', otpErr.message);
         }
       }
 

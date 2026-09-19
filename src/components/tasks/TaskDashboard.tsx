@@ -152,7 +152,7 @@ export function TaskDashboard({ tasks, allTasks, profiles, currentUserId, onTask
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {overdueTasks.sort((a, b) => (daysUntil(a.due_date!) ?? 0) - (daysUntil(b.due_date!) ?? 0)).slice(0, 15).map((t) => {
+              {[...overdueTasks].sort((a, b) => (daysUntil(a.due_date!) ?? 0) - (daysUntil(b.due_date!) ?? 0)).slice(0, 15).map((t) => {
                 const d = daysUntil(t.due_date!) ?? 0;
                 const assignee = t.assignee_id ? profiles.get(t.assignee_id) : null;
                 return (

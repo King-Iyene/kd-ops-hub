@@ -877,7 +877,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                   type="checkbox"
                   checked={allowMultiple}
                   onChange={(e) => setAllowMultiple(e.target.checked)}
-                  className="rounded border-gray-300"
+                  className="rounded border-border"
                 />
                 <span className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Allow multiple people</span>
               </label>

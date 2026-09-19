@@ -30,7 +30,7 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; lab
   otp_blocked:              { bg: 'bg-purple-50 border border-purple-200/80 dark:bg-purple-500/10 dark:border-purple-500/25', text: 'text-purple-700 dark:text-purple-300', dot: 'bg-purple-400',  label: 'OTP Required' },
 };
 
-const FALLBACK = { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400', label: '' };
+const FALLBACK = { bg: 'bg-slate-100 dark:bg-slate-500/10', text: 'text-slate-600 dark:text-slate-300', dot: 'bg-slate-400', label: '' };
 
 export function statusColor(status: string): string {
   const c = STATUS_CONFIG[status] ?? FALLBACK;

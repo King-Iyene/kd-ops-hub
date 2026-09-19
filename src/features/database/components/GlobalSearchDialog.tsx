@@ -118,7 +118,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
               onClick={() => setQuery('')}
               className="p-1 rounded hover:bg-gray-100 dark:hover:bg-[hsl(220,25%,15%)]"
             >
-              <X size={14} className="text-gray-400" />
+              <X size={14} className="text-muted-foreground" />
             </button>
           )}
           <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-3xs font-medium

@@ -249,10 +249,7 @@ export function ViewBar() {
         <div className="relative" ref={addBtnRef}>
           <button
             onClick={() => setAddMenuOpen(!addMenuOpen)}
-            className="flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-gray-100 whitespace-nowrap transition-colors"
-            style={{ color: '#999999' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#333333')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#999999')}
+            className="flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-muted whitespace-nowrap transition-colors text-muted-foreground hover:text-foreground"
           >
             <Plus size={12} />
           </button>

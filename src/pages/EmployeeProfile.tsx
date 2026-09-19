@@ -1359,7 +1359,7 @@ const EmployeeProfile = () => {
                 className={
                   employee.status === 'active'
                     ? 'bg-success/10 text-success hover:bg-success/10'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-100'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-100 dark:bg-slate-500/10 dark:text-slate-300 dark:hover:bg-slate-500/10'
                 }
               >
                 {employee.status === 'active' ? 'Active' : 'Inactive'}
