@@ -361,7 +361,7 @@ const SummaryRow = React.memo(function SummaryRow({
   );
 });
 
-export default function GridView({
+function GridViewInner({
   fields,
   records,
   totalCount,
@@ -2168,3 +2168,6 @@ export default function GridView({
     </div>
   );
 }
+
+const GridView = React.memo(GridViewInner);
+export default GridView;

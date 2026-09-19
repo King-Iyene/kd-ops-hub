@@ -75,6 +75,7 @@ interface UseRecordsParams {
   filterGroups?: FilterGroup[];
   sorts?: Sort[];
   search?: string;
+  enabled?: boolean;
 }
 
 interface RecordsResult {
@@ -503,11 +504,11 @@ function applyFilterGroup(
 }
 
 export function useRecords(params: UseRecordsParams) {
-  const { baseId, tableId, page = 0, pageSize = 50, filters, filterGroups, sorts, search } = params;
+  const { baseId, tableId, page = 0, pageSize = 50, filters, filterGroups, sorts, search, enabled } = params;
 
   return useQuery({
     queryKey: ['nc', 'records', baseId, tableId, page, pageSize, filters, filterGroups, sorts, search],
-    enabled: !!baseId && !!tableId,
+    enabled: (enabled ?? true) && !!baseId && !!tableId,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
     queryFn: async (): Promise<RecordsResult> => {
