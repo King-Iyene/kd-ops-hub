@@ -938,7 +938,7 @@ const Tasks = () => {
             size="icon"
             className="h-7 w-7"
             onClick={toggleModuleSidebarCollapsed}
-            title="Expand sidebar"
+            aria-label="Expand sidebar"
           >
             <PanelLeftOpen className="h-4 w-4" />
           </Button>
@@ -954,7 +954,7 @@ const Tasks = () => {
               size="icon"
               className="h-6 w-6"
               onClick={toggleModuleSidebarCollapsed}
-              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
             >
               <PanelLeftClose className="h-3.5 w-3.5" />
             </Button>

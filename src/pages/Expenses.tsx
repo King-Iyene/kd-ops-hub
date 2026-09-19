@@ -1310,6 +1310,7 @@ const Expenses = () => {
                 variant="ghost"
                 size="icon"
                 onClick={manualRefresh}
+                aria-label="Refresh expenses"
                 className="h-9 w-9 text-muted-foreground"
               >
                 <RefreshCw className="h-4 w-4" />

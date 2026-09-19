@@ -29,7 +29,7 @@ import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { supabase } from '@/lib/supabase';
 import { formatNaira, formatDate } from '@/lib/format';
-import { cn } from '@/lib/utils';
+import { cn, localYearMonth } from '@/lib/utils';
 
 interface PendingBatch {
   id: string;
@@ -178,7 +178,7 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
 
   const monthPlanned = useMemo(() => {
     if (summary) return paidThisMonth + summary.monthPending;
-    const ymPrefix = new Date().toISOString().slice(0, 7);
+    const ymPrefix = localYearMonth(new Date());
     const monthPending = batches
       .filter((b) => b.payment_date?.startsWith(ymPrefix))
       .reduce((s, b) => s + Number(b.total_amount || 0), 0);

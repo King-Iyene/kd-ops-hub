@@ -66,6 +66,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { confirm } from '@/hooks/use-confirm';
 import { startImpersonation } from '@/lib/impersonation';
 import { cn } from '@/lib/utils';
 import { getBankCode } from '@/lib/paystack';
@@ -1409,8 +1410,8 @@ const EmployeeProfile = () => {
               )}
               {isSuperAdmin && currentUser?.id !== id && employee?.status === 'active' && (
                 <DropdownMenuItem
-                  onClick={() => {
-                    if (window.confirm(`Log in as ${employee?.full_name || 'this user'}? You'll see and act on the app exactly as they do until you exit.`)) {
+                  onClick={async () => {
+                    if (await confirm({ title: 'Impersonate user', description: `Log in as ${employee?.full_name || 'this user'}? You'll see and act on the app exactly as they do until you exit.`, confirmLabel: 'Log in as user' })) {
                       handleImpersonate();
                     }
                   }}

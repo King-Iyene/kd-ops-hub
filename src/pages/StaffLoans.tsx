@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { confirm } from '@/hooks/use-confirm';
 import { Progress } from '@/components/ui/progress';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -279,7 +280,7 @@ export default function StaffLoans() {
   };
 
   const handleApprove = async (loan: StaffLoan) => {
-    if (!window.confirm(`Approve this ${formatNaira(loan.principal_ngn)} loan? This commits the company to the repayment terms shown.`)) {
+    if (!(await confirm({ title: 'Approve loan', description: `Approve this ${formatNaira(loan.principal_ngn)} loan? This commits the company to the repayment terms shown.`, confirmLabel: 'Approve' }))) {
       return;
     }
     setSubmitting(true);
@@ -298,7 +299,7 @@ export default function StaffLoans() {
   };
 
   const handleMarkDisbursed = async (loan: StaffLoan) => {
-    if (!window.confirm(`Mark this ${formatNaira(loan.principal_ngn)} loan as disbursed? Only confirm once the funds have actually been sent.`)) {
+    if (!(await confirm({ title: 'Mark as disbursed', description: `Mark this ${formatNaira(loan.principal_ngn)} loan as disbursed? Only confirm once the funds have actually been sent.`, confirmLabel: 'Mark disbursed', variant: 'destructive' }))) {
       return;
     }
     setSubmitting(true);

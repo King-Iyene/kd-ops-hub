@@ -93,7 +93,7 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
-import { cn } from '@/lib/utils';
+import { cn, localYearMonth } from '@/lib/utils';
 import { FilePreviewTrigger } from '@/components/FilePreview';
 import { errorMessage } from '@/lib/db-errors';
 
@@ -358,7 +358,7 @@ const Compliance = () => {
     amount_ngn: string;
   }>({
     kind: 'paye',
-    period: new Date().toISOString().slice(0, 7),
+    period: localYearMonth(new Date()),
     due_date: '',
     amount_ngn: '',
   });
@@ -757,7 +757,7 @@ const Compliance = () => {
     setEditingFiling(null);
     setForm({
       kind: 'paye',
-      period: new Date().toISOString().slice(0, 7),
+      period: localYearMonth(new Date()),
       due_date: '',
       amount_ngn: '',
     });

@@ -357,7 +357,7 @@ export function LiveTrackingTab() {
         )}
         <div className="ml-auto relative w-full sm:w-72">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter by driver or plate…" className="pl-8 h-9" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter by driver or plate…" aria-label="Filter by driver or plate" className="pl-8 h-9" />
         </div>
       </div>
 

@@ -36,7 +36,7 @@ import { supabase } from '@/lib/supabase';
 import { formatDate } from '@/lib/format';
 import { getNigerianHolidaysInRange, type NgHoliday } from '@/lib/holidays';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
-import { cn } from '@/lib/utils';
+import { cn, localYearMonth } from '@/lib/utils';
 
 interface CalendarEvent {
   date: string;       // YYYY-MM-DD
@@ -196,8 +196,8 @@ export function PayrollCalendar({ companyId = null }: PayrollCalendarProps) {
           // "upcoming" dates below stay company-agnostic by design.
           let q = supabase.from('payroll_runs')
             .select('id, period, status, pay_date, cutoff_date')
-            .gte('period', start.toISOString().slice(0, 7))
-            .lte('period', end.toISOString().slice(0, 7));
+            .gte('period', localYearMonth(start))
+            .lte('period', localYearMonth(end));
           if (companyId) q = q.eq('company_id', companyId);
           return q.order('period', { ascending: true });
         })(),
@@ -370,7 +370,7 @@ export function PayrollCalendar({ companyId = null }: PayrollCalendarProps) {
 
   // Events visible in the active month — for the right-side list.
   const monthEvents = useMemo(() => {
-    const ym = month.toISOString().slice(0, 7);
+    const ym = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
     return events
       .filter((e) => e.date.startsWith(ym))
       .sort((a, b) => a.date.localeCompare(b.date));

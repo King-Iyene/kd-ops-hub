@@ -12,6 +12,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import { localYearMonth } from '@/lib/utils';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -117,7 +118,7 @@ export function computeVendorSpend(
     for (let i = 0; i < trailingMonths; i++) {
       const now = new Date();
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const m = d.toISOString().slice(0, 7);
+      const m = localYearMonth(d);
       v.monthSet.add(m);
       if (!monthlyMap.has(vendor)) monthlyMap.set(vendor, new Map());
       const mm = monthlyMap.get(vendor)!;

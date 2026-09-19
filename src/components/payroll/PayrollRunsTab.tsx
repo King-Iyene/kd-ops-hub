@@ -261,28 +261,28 @@ export const PayrollRunsTab = ({
             value: latest ? formatNaira(latest.total_burn_ngn) : '—',
             sub: latest ? monthLabel(latest.period, latest.period_type) : 'Run payroll to get started',
             icon: Banknote,
-            iconBg: 'bg-[#e6f2f7]', iconFg: 'text-[#006394]',
+            iconBg: 'bg-blue-50 dark:bg-blue-950/40', iconFg: 'text-blue-700 dark:text-blue-300',
           },
           {
             label: 'PAYE (est.)',
             value: latest ? formatNaira(latest.paye_ngn) : '—',
             sub: 'Due 10th next month',
             icon: Landmark,
-            iconBg: 'bg-[#fdf0e0]', iconFg: 'text-[#a15c00]',
+            iconBg: 'bg-amber-50 dark:bg-amber-950/40', iconFg: 'text-amber-700 dark:text-amber-300',
           },
           {
             label: 'Active employees',
             value: latest?.employee_count ?? '—',
             sub: latest ? `Pension ${formatNaira(latest.pension_ngn)}` : 'No runs yet',
             icon: Users2,
-            iconBg: 'bg-[#f2ecfb]', iconFg: 'text-[#6b3fb8]',
+            iconBg: 'bg-violet-50 dark:bg-violet-950/40', iconFg: 'text-violet-700 dark:text-violet-300',
           },
           {
             label: 'Needs your attention',
             value: runs.filter((r) => r.status === 'draft' || r.status === 'pending_approval').length,
             sub: 'Draft or pending approval',
             icon: AlertCircle,
-            iconBg: 'bg-[#fdeaea]', iconFg: 'text-[#c23a3a]',
+            iconBg: 'bg-red-50 dark:bg-red-950/40', iconFg: 'text-red-700 dark:text-red-300',
           },
         ].map(({ label, value, sub, icon: Icon, iconBg, iconFg }, i) => (
           <div key={label} className={cn(
@@ -316,9 +316,9 @@ export const PayrollRunsTab = ({
       {latest && (
         <div
           className="relative overflow-hidden rounded-xl px-5 py-6 sm:px-7 sm:py-7 text-white shadow-2xl shadow-primary/20 ring-1 ring-white/[0.08] kd-animate-slide-up"
-          style={{ background: 'linear-gradient(155deg, #00283d, #00405e 60%, #005579)' }}
+          style={{ background: 'linear-gradient(155deg, hsl(220,100%,12%), hsl(220,100%,18%) 60%, hsl(220,90%,22%))' }}
         >
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_70%_-20%,hsl(186,100%,40%,0.12),transparent_70%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_70%_-20%,hsl(220,100%,40%,0.12),transparent_70%)]" />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,hsl(220,90%,30%,0.08),transparent_50%)]" />
           <div className="relative">
             <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
@@ -326,7 +326,7 @@ export const PayrollRunsTab = ({
                 <p className="text-2xs font-bold text-white/40 uppercase tracking-[0.15em]">
                   {monthLabel(latest.period, latest.period_type)}
                 </p>
-                <p className="kd-display text-3xl sm:text-4xl font-black tabular-nums mt-2 tracking-tighter bg-gradient-to-r from-white via-white to-cyan-200 bg-clip-text text-transparent">
+                <p className="kd-display text-3xl sm:text-4xl font-black tabular-nums mt-2 tracking-tighter bg-gradient-to-r from-white via-white to-blue-200 bg-clip-text text-transparent">
                   {formatNaira(latest.total_burn_ngn)}
                 </p>
                 <p className="text-xs text-white/45 mt-2 font-medium tracking-wide">{latest.employee_count ?? 0} employees</p>
@@ -348,16 +348,16 @@ export const PayrollRunsTab = ({
       {!latest && (
         <div
           className="relative overflow-hidden rounded-xl px-5 py-6 sm:px-7 sm:py-7 text-white shadow-2xl shadow-primary/20 ring-1 ring-white/[0.08] kd-animate-slide-up"
-          style={{ background: 'linear-gradient(155deg, #00283d, #00405e 60%, #005579)' }}
+          style={{ background: 'linear-gradient(155deg, hsl(220,100%,12%), hsl(220,100%,18%) 60%, hsl(220,90%,22%))' }}
         >
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_70%_-20%,hsl(186,100%,40%,0.12),transparent_70%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_70%_-20%,hsl(220,100%,40%,0.12),transparent_70%)]" />
           <div className="relative flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-2xs font-bold text-white/40 uppercase tracking-[0.15em]">No payroll runs yet</p>
               <p className="kd-display text-xl font-black mt-2 tracking-tight">Draft your first run to see it here</p>
               <p className="text-xs text-white/45 mt-2 font-medium">PAYE, pension and NHF get computed the moment you draft.</p>
             </div>
-            <Button onClick={onNewRun} className="bg-white text-[#00283d] hover:bg-white/90 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 shrink-0 font-semibold">
+            <Button onClick={onNewRun} className="bg-white text-[hsl(220,100%,12%)] hover:bg-white/90 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 shrink-0 font-semibold">
               <Plus className="mr-1.5 h-4 w-4" /> New payroll run
             </Button>
           </div>

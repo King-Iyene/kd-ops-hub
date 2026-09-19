@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
-import { cn } from '@/lib/utils';
+import { cn, localYearMonth } from '@/lib/utils';
 import { errorMessage } from '@/lib/db-errors';
 import { supabase } from '@/lib/supabase';
 import { Receipt, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react';
@@ -106,7 +106,7 @@ export default function ProfitLossTab() {
         for (let i = 0; i < n; i++) {
           const d = new Date();
           d.setMonth(d.getMonth() - (n - 1 - i));
-          const key = d.toISOString().slice(0, 7);
+          const key = localYearMonth(d);
           const label = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
           monthMap.set(key, {
             month: label,

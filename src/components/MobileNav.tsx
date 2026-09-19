@@ -218,11 +218,13 @@ export function MobileNav() {
               value={mobileSearch}
               onChange={(e) => setMobileSearch(e.target.value)}
               placeholder="Search modules…"
+              aria-label="Search modules"
               className="w-full h-10 pl-9 pr-9 rounded-xl border border-border/60 bg-muted/40 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 kd-transition"
             />
             {mobileSearch ? (
               <button
                 onClick={() => setMobileSearch('')}
+                aria-label="Clear search"
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground kd-transition"
               >
                 <X className="h-4 w-4" />

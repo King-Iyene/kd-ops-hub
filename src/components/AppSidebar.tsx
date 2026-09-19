@@ -408,11 +408,13 @@ export function AppSidebar() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search modules…"
+                    aria-label="Search modules"
                     className="w-full h-8 pl-8 pr-7 rounded-lg bg-white/[0.06] border border-white/[0.06] text-xs text-sidebar-foreground placeholder:text-sidebar-foreground/30 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--sidebar-ring)/0.5)] focus:bg-white/[0.08] kd-transition"
                   />
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery('')}
+                      aria-label="Clear search"
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-sidebar-foreground/30 hover:text-sidebar-foreground/60 kd-transition"
                     >
                       <X className="h-3.5 w-3.5" />
