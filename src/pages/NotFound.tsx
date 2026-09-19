@@ -4,13 +4,14 @@ import { ArrowLeft } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { AuthAtmosphere } from '@/components/AuthAtmosphere';
 import { LostRobot } from '@/components/LostRobot';
+import { logWarn } from '@/lib/logger';
 
 const NotFound = () => {
   usePageTitle('Page Not Found');
   const location = useLocation();
 
   useEffect(() => {
-    console.warn('[KDOps] 404:', location.pathname);
+    logWarn('NotFound', '404:', location.pathname);
   }, [location.pathname]);
 
   return (

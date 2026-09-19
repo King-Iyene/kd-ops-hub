@@ -28,7 +28,7 @@ export function PwaUpdatePrompt() {
       window.addEventListener('focus', check);
     },
     onRegisterError(error) {
-      logWarn('[PWA] Service worker registration failed', error);
+      logWarn('PWA', 'Service worker registration failed', error);
     },
   });
 

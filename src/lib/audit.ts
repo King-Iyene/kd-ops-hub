@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { logWarn } from '@/lib/logger';
 
 export type AuditActionType =
   | 'batch_created'
@@ -246,13 +247,13 @@ export async function logAudit(
     });
     if (error) {
       const wrapped = new Error(`log_audit RPC failed: ${error.message}`);
-      console.warn('[KDOps]', wrapped.message);
+      logWarn('Audit', wrapped.message);
       (window as any).Sentry?.captureException?.(wrapped, {
         extra: { actionType, description },
       });
     }
   } catch (err) {
-    console.warn('[KDOps] audit log exception:', err);
+    logWarn('Audit', 'audit log exception:', err);
     (window as any).Sentry?.captureException?.(err, {
       extra: { actionType, description },
     });

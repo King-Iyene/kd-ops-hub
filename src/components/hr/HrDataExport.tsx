@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
+import { logWarn } from '@/lib/logger';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { downloadCsv, toCsv } from '@/lib/csv';
@@ -91,12 +92,12 @@ async function safeSelect<T = any>(
   try {
     const { data, error } = await supabase.from(table as any).select(select);
     if (error) {
-      console.warn(`[HrDataExport] ${table}:`, error.message);
+      logWarn('HR', `${table}:`, error.message);
       return [];
     }
     return (data ?? []) as T[];
   } catch (e) {
-    console.warn(`[HrDataExport] ${table} threw`, e);
+    logWarn('HR', `${table} threw`, e);
     return [];
   }
 }

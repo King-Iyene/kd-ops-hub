@@ -15,10 +15,10 @@
 
 import { sendTemplatedEmail } from '@/lib/email-templates';
 import { supabase } from '@/lib/supabase';
+import { logWarn } from '@/lib/logger';
 
 const swallow = (where: string) => (err: unknown) => {
-  // eslint-disable-next-line no-console
-  console.warn(`[notify-events:${where}] swallowed`, err);
+  logWarn('Notifications', `${where} swallowed`, err);
 };
 
 export async function notifyRequestApproved(args: {

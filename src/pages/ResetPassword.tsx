@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { logWarn } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -133,7 +134,7 @@ const ResetPassword = () => {
       try {
         await supabase.auth.signOut({ scope: 'others' });
       } catch (signOutErr) {
-        console.warn('[ResetPassword] signOut(others) failed:', signOutErr);
+        logWarn('ResetPassword', 'signOut(others) failed:', signOutErr);
         toast({ title: 'Could not revoke other sessions', description: 'Sign out manually from other devices.', variant: 'destructive' });
       }
       toast({ title: 'Password set', description: 'Welcome! Taking you to your dashboard.' });

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { logWarn } from '@/lib/logger';
 import GridView from '../components/grid/GridView';
 import FormView from '../components/views/FormView';
 import { fireAutomations } from '../hooks/useRecords';
@@ -122,7 +123,7 @@ export default function SharedViewPage() {
       supabase.functions.invoke('webhook-dispatcher', {
         body: { event: 'table.form_submitted', baseId: base.id, tableId: table.id, record: data, shareToken: token },
       }).catch((err) => {
-        console.warn('[KDOps] Webhook dispatch failed:', err?.message ?? err);
+        logWarn('Webhooks', 'Webhook dispatch failed:', err?.message ?? err);
       });
     },
   });

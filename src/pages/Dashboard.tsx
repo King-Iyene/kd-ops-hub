@@ -43,6 +43,7 @@ import {
   Legend,
 } from 'recharts';
 import { supabase } from '@/lib/supabase';
+import { logWarn } from '@/lib/logger';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { useApprovalStore } from '@/store/approvalStore';
 import { daysUntil, formatDate, formatDateTime, formatNaira, formatNairaCompact } from '@/lib/format';
@@ -249,7 +250,7 @@ const Dashboard = () => {
           assignedTasks: taskRes.count ?? 0,
           pendingFuel: fuelRes.count ?? 0,
         });
-      }).catch((err) => console.error('[KDOps] personal KPI load failed:', err))
+      }).catch((err) => logWarn('Dashboard', 'personal KPI load failed:', err))
         .finally(() => setPersonalLoading(false));
     };
 
@@ -433,7 +434,7 @@ const Dashboard = () => {
       });
       setBudgetUtil(util);
     } catch (err) {
-      console.error('[KDOps] dashboard load failed:', err);
+      logWarn('Dashboard', 'dashboard load failed:', err);
       setLoadError(true);
     } finally {
       setLoading(false);

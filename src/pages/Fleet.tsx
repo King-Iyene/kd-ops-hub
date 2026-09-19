@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { logWarn } from '@/lib/logger';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanySettings } from '@/queries';
 import { formatDate } from '@/lib/format';
@@ -177,7 +178,7 @@ const Fleet = () => {
       const fleetMedian = impliedPrices.length >= 3 ? median(impliedPrices) : null;
       setFuelPriceBenchmark(blendBenchmark(fleetMedian, externalPrice));
     } catch (err) {
-      console.error('[Fleet] fetchData failed:', err);
+      logWarn('Fleet', 'fetchData failed:', err);
       if (!hasFetchedRef.current) setLoadError(true);
     } finally {
       hasFetchedRef.current = true;

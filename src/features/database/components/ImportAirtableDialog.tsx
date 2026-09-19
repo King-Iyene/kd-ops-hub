@@ -27,6 +27,7 @@ import {
   Search,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { logWarn } from '@/lib/logger';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDatabaseNavigate } from '../hooks/useNavigate';
 
@@ -166,16 +167,16 @@ async function invokeDDL(body: Record<string, unknown>, timeoutMs = 45000): Prom
     );
     const { data, error } = await Promise.race([rpcPromise, timeoutPromise]);
     if (error) {
-      console.error(`[import] ${body.action} failed:`, error.message);
+      logWarn('Database', `${body.action} failed:`, error.message);
       return { data: null, error };
     }
     if (data && !data.success) {
-      console.error(`[import] ${body.action} failed:`, data.error);
+      logWarn('Database', `${body.action} failed:`, data.error);
       return { data, error: new Error(data.error) };
     }
     return { data, error: null };
   } catch (e: any) {
-    console.error(`[import] ${body.action} timed out or failed:`, e?.message);
+    logWarn('Database', `${body.action} timed out or failed:`, e?.message);
     return { data: null, error: e };
   }
 }
@@ -875,7 +876,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             junction_table_id: junctionTableId,
             type: linkType,
           }, { onConflict: 'field_id' });
-          if (linkErr) console.warn(`[Import] Link upsert skipped for ${f.name}:`, linkErr.message);
+          if (linkErr) logWarn('Database', `Link upsert skipped for ${f.name}:`, linkErr.message);
 
           // Update field options with resolved KDOps IDs so renderers work
           await supabase.schema('nc_meta').from('fields').update({

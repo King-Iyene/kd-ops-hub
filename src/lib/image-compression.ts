@@ -15,6 +15,8 @@
  * upload, and it sticks.
  */
 
+import { logWarn } from '@/lib/logger';
+
 const STORAGE_KEY = 'kd_image_compression_enabled';
 const MIN_BYTES_TO_COMPRESS = 200 * 1024; // 200 KB
 
@@ -65,7 +67,7 @@ export async function compressImage(
     const newName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
     return new File([blob], newName, { type: 'image/jpeg', lastModified: Date.now() });
   } catch (err) {
-    console.warn('[image-compression] falling back to original:', err);
+    logWarn('ImageUtil', 'falling back to original:', err);
     return file;
   }
 }

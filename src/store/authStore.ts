@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { logAudit } from '@/lib/audit';
+import { logWarn } from '@/lib/logger';
 import type { User } from '@supabase/supabase-js';
 
 export type UserRole =
@@ -150,7 +151,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .eq('id', userId)
       .maybeSingle();
     if (error) {
-      console.error('[KDOps] fetchProfile error:', error.message, error);
+      logWarn('Auth', 'fetchProfile error: ' + error.message, error);
       set({ profileLoading: false });
       return 'error';
     }

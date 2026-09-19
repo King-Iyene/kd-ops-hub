@@ -142,7 +142,7 @@ export default function Assistant() {
       .order('created_at', { ascending: false })
       .limit(100);
     if (error) {
-      logWarn('[Assistant] fetchMessages error:', error);
+      logWarn('Assistant', 'fetchMessages error:', error);
       toast({ title: 'Could not load messages', description: error.message, variant: 'destructive' });
     }
     const dbMsgs = ((data ?? []) as Message[]).reverse();

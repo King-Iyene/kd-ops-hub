@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
+import { logWarn } from '@/lib/logger';
 
 export type AnomalySeverity = 'low' | 'medium' | 'high' | 'critical';
 export type AnomalyStatus = 'open' | 'acknowledged' | 'dismissed' | 'escalated';
@@ -135,12 +136,12 @@ export async function scanEwaAnomaliesSafe(ewaRequestId: string): Promise<number
   try {
     const { data, error } = await supabase.rpc('scan_ewa_anomalies', { p_ewa_id: ewaRequestId });
     if (error) {
-      console.warn('[anomalies] scan_ewa_anomalies failed:', error.message);
+      logWarn('Anomalies', 'scan_ewa_anomalies failed:', error.message);
       return 0;
     }
     return Number(data ?? 0);
   } catch (err: unknown) {
-    console.warn('[anomalies] scan_ewa_anomalies threw:', errorMessage(err));
+    logWarn('Anomalies', 'scan_ewa_anomalies threw:', errorMessage(err));
     return 0;
   }
 }
@@ -150,12 +151,12 @@ export async function scanExpenseAnomaliesSafe(): Promise<number> {
   try {
     const { data, error } = await supabase.rpc('scan_expense_anomalies');
     if (error) {
-      console.warn('[anomalies] scan_expense_anomalies failed:', error.message);
+      logWarn('Anomalies', 'scan_expense_anomalies failed:', error.message);
       return 0;
     }
     return Number(data ?? 0);
   } catch (err: unknown) {
-    console.warn('[anomalies] scan_expense_anomalies threw:', errorMessage(err));
+    logWarn('Anomalies', 'scan_expense_anomalies threw:', errorMessage(err));
     return 0;
   }
 }
@@ -166,12 +167,12 @@ export async function scanPayrollRunAnomaliesSafe(payrollRunId: string): Promise
       p_run_id: payrollRunId,
     });
     if (error) {
-      console.warn('[anomalies] scan_payroll_run_anomalies failed:', error.message);
+      logWarn('Anomalies', 'scan_payroll_run_anomalies failed:', error.message);
       return 0;
     }
     return Number(data ?? 0);
   } catch (err: unknown) {
-    console.warn('[anomalies] scan_payroll_run_anomalies threw:', errorMessage(err));
+    logWarn('Anomalies', 'scan_payroll_run_anomalies threw:', errorMessage(err));
     return 0;
   }
 }

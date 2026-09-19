@@ -18,7 +18,7 @@ const TONE_CLASS: Record<Announcement['tone'], string> = {
   success: 'bg-success/10 text-success border-success/40',
   warning: 'bg-warning/10 text-warning border-warning/40',
   danger: 'bg-destructive/10 text-destructive border-destructive/40',
-  gold: 'bg-[#D6AC50]/15 text-[#3a2e12] border-[#D6AC50]/50',
+  gold: 'bg-[#D6AC50]/15 text-[#3a2e12] border-[#D6AC50]/50 dark:bg-[#D6AC50]/20 dark:text-[#f0e0b8] dark:border-[#D6AC50]/40',
 };
 
 /**

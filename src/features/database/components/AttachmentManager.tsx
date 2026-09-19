@@ -84,7 +84,7 @@ export function AttachmentManager({
           .from('attachments')
           .upload(path, file, { upsert: false });
         if (error) {
-          logWarn('[Database] Upload failed:', error.message);
+          logWarn('Database', 'Upload failed:', error.message);
           continue;
         }
         const { data: urlData } = supabase.storage

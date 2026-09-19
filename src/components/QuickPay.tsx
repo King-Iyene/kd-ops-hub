@@ -3,6 +3,7 @@ import { Zap, Loader2, CheckCircle2, XCircle, ShieldAlert } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { logWarn } from '@/lib/logger';
 import {
   createTransferRecipient,
   initiateTransferIdempotent,
@@ -474,7 +475,7 @@ export function QuickPayDialog() {
         .update(updatePayload)
         .eq('id', insertedItem.id);
       if (updateErr) {
-        console.warn('[KDOps] could not stamp transfer_code on batch_item:', updateErr.message);
+        logWarn('Payments', 'could not stamp transfer_code on batch_item:', updateErr.message);
       }
 
       // 6. Flip batch funded → processing via the SECURITY DEFINER RPC. The
@@ -484,7 +485,7 @@ export function QuickPayDialog() {
       try {
         await startBatchProcessing((batch as any).id);
       } catch (claimErr: unknown) {
-        console.warn('[KDOps] start_batch_processing failed:', errorMessage(claimErr));
+        logWarn('Payments', 'start_batch_processing failed:', errorMessage(claimErr));
       }
 
       await logAudit(

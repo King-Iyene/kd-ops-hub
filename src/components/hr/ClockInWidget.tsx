@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
+import { logWarn } from '@/lib/logger';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { Button } from '@/components/ui/button';
@@ -193,7 +194,7 @@ export const ClockInWidget = ({ lateThreshold = '09:15' }: ClockInWidgetProps) =
         const { error: upErr } = await supabase.storage
           .from(BUCKET)
           .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
-        if (upErr) console.warn('[ClockIn] selfie upload failed:', upErr.message);
+        if (upErr) logWarn('Clock', 'selfie upload failed:', upErr.message);
         else selfiePath = path;
       }
       // Late detection — anything after lateThreshold flags status='late'.

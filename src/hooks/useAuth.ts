@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { logWarn } from '@/lib/logger';
 import { listMfaFactors, isDeviceTrusted } from '@/lib/mfa';
 
 export const useAuth = () => {
@@ -102,7 +103,7 @@ export const useAuth = () => {
       } catch (e) {
         // If the MFA check itself errors, fail open: log and continue. The
         // alternative is locking the user out on a transient network blip.
-        console.warn('[KDOps] MFA check failed:', e);
+        logWarn('Auth', 'MFA check failed:', e);
       }
 
       // Profile fetch still failing after retries — fail OPEN, never closed.
@@ -110,8 +111,9 @@ export const useAuth = () => {
       // legitimate employee out. The realtime profile listener (and any later
       // navigation / refresh) will recover the row once the backend responds.
       if (result === 'error') {
-        console.warn(
-          '[KDOps] profile fetch failed repeatedly; keeping session to avoid a false logout',
+        logWarn(
+          'Auth',
+          'profile fetch failed repeatedly; keeping session to avoid a false logout',
         );
         useAuthStore.getState().setProfileFetchFailed(true);
         setLoading(false);
@@ -169,7 +171,7 @@ export const useAuth = () => {
       // refresh token is still stored, keep the user and let auto-refresh
       // recover; only fall back to /login when storage has no session at all.
       if (sessionError) {
-        console.warn('[KDOps] session error:', sessionError.message);
+        logWarn('Auth', 'session error:', sessionError.message);
         if (hasPersistedSession()) {
           setLoading(false);
           return;
@@ -227,11 +229,11 @@ export const useAuth = () => {
       // Couldn't refresh (e.g. sustained 429). If the refresh token is still
       // in storage, DO NOT log out — unblock the UI and let auto-refresh retry.
       if (hasPersistedSession()) {
-        console.warn('[KDOps] token refresh rate-limited (429); keeping session, will auto-recover');
+        logWarn('Auth', 'token refresh rate-limited (429); keeping session, will auto-recover');
         setLoading(false);
         return;
       }
-      console.warn('[KDOps] no persisted session; redirecting to login');
+      logWarn('Auth', 'no persisted session; redirecting to login');
       setUser(null);
       useAuthStore.getState().setProfile(null);
       setLoading(false);

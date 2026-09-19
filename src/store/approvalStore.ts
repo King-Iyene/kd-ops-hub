@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
+import { logWarn } from '@/lib/logger';
 
 interface ApprovalCounts {
   batches: number;
@@ -78,7 +79,7 @@ export const useApprovalStore = create<ApprovalState>((set) => ({
         loading: false,
       });
     } catch (err) {
-      console.warn('[KDOps] approval counts refresh failed:', err);
+      logWarn('Approval', 'approval counts refresh failed:', err);
       set({ loading: false });
     }
   },

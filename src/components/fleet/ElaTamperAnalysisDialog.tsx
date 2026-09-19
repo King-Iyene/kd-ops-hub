@@ -100,7 +100,7 @@ export function ElaTamperAnalysisDialog({ target, onClose }: ElaTamperAnalysisDi
                   <p className="font-medium text-foreground">What the colors mean:</p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div className="flex items-start gap-2">
-                      <span className="mt-0.5 h-3 w-3 shrink-0 rounded-sm" style={{ background: '#111' }} />
+                      <span className="mt-0.5 h-3 w-3 shrink-0 rounded-sm border border-border" style={{ background: '#111' }} />
                       <div>
                         <p className="font-medium text-foreground">Dark / black</p>
                         <p>Consistent compression — this area hasn't been altered.</p>

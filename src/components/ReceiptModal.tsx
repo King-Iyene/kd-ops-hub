@@ -35,6 +35,7 @@ import { formatNaira, formatReceiptDateTime } from '@/lib/format';
 import { stampDutyFor } from '@/lib/paystack';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
+import { logWarn } from '@/lib/logger';
 import { useToast } from '@/hooks/use-toast';
 import {
   providerOf,
@@ -128,7 +129,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
       } catch (e) {
         // Silent — receipt still renders, just without the fee row
         // populated. Operators can hit Reconcile from Payments instead.
-        console.warn('[receipt] fee backfill failed:', e);
+        logWarn('Receipt', 'fee backfill failed:', e);
       }
     })();
     return () => { cancelled = true; };

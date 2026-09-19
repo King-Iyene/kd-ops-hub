@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatDateTime } from '@/lib/format';
 import { sha256 } from '@/lib/e-sign';
+import { logWarn } from '@/lib/logger';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -97,7 +98,7 @@ export const SignedDocumentsList = ({
       }
       const { data, error } = await q;
       if (error) {
-        console.warn('[SignedDocumentsList]', error.message);
+        logWarn('Documents', error.message);
         setDocs([]);
       } else {
         setDocs((data ?? []) as any[]);

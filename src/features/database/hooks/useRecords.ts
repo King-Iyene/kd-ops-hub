@@ -1,5 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { logWarn } from '@/lib/logger';
 import type { RecordRow, Filter, FilterGroup, Sort } from '../types';
 import { toast } from '../components/Toast';
 import { useUndoStore } from '../lib/undo';
@@ -28,7 +29,7 @@ export function fireAutomations(event: string, baseId: string, tableId: string, 
   supabase.functions.invoke('automation-runner', {
     body: { event, baseId, tableId, record, oldRecord },
   }).catch((err) => {
-    console.warn('[KDOps] Automation failed:', err?.message ?? err);
+    logWarn('Database', 'Automation failed:', err?.message ?? err);
   });
 }
 
@@ -36,7 +37,7 @@ export function fireWebhooks(event: string, baseId: string, tableId: string, rec
   supabase.functions.invoke('webhook-dispatcher', {
     body: { event, baseId, tableId, record, oldRecord },
   }).catch((err) => {
-    console.warn('[KDOps] Webhook dispatch failed:', err?.message ?? err);
+    logWarn('Webhooks', 'Webhook dispatch failed:', err?.message ?? err);
   });
 }
 
@@ -61,7 +62,7 @@ function logRecordAudit(action: string, baseId: string, tableId: string, recordI
       new_value: newValue ?? null,
       description: `${action} record${recordId ? ` ${recordId.slice(0, 8)}` : ''}`,
     }).then(({ error }) => {
-      if (error) console.warn('[KDOps] Audit log failed:', error.message);
+      if (error) logWarn('Audit', 'Audit log failed:', error.message);
     });
   }).catch(() => {});
 }

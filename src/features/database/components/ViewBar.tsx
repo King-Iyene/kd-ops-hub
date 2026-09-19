@@ -190,7 +190,7 @@ export function ViewBar() {
             });
           },
           onError: (err) => {
-            logWarn('[Database] Failed to create view:', err);
+            logWarn('Database', 'Failed to create view:', err);
           },
         },
       );

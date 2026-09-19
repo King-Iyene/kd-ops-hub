@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { logWarn } from '@/lib/logger';
 
 const PLATFORM_BASE_ID = '00000000-0000-0000-0000-000000000000';
 const PLATFORM_TABLE_ID = '00000000-0000-0000-0000-000000000000';
@@ -21,7 +22,7 @@ export function dispatchPlatformWebhook(
       },
     })
     .catch((err) => {
-      console.warn('[KDOps] Platform webhook dispatch failed:', err?.message ?? err);
+      logWarn('Webhooks', 'Platform webhook dispatch failed:', err?.message ?? err);
     });
 }
 
@@ -45,6 +46,6 @@ export function dispatchFormWebhook(
       },
     })
     .catch((err) => {
-      console.warn('[KDOps] Form webhook dispatch failed:', err?.message ?? err);
+      logWarn('Webhooks', 'Form webhook dispatch failed:', err?.message ?? err);
     });
 }

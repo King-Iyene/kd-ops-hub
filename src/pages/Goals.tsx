@@ -1083,7 +1083,7 @@ export function MyGoalsWidget() {
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-full flex items-center justify-center text-sm font-bold"
                    style={{
-                     background: `conic-gradient(#006994 ${avg * 3.6}deg, #e5e7eb 0)`,
+                     background: `conic-gradient(#006994 ${avg * 3.6}deg, hsl(var(--muted)) 0)`,
                    }}>
                 <span className="h-10 w-10 rounded-full bg-background flex items-center justify-center">
                   {avg}%
