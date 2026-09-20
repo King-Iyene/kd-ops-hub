@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { Upload, FileSpreadsheet, Check, AlertCircle, X } from 'lucide-react';
+import { Upload, FileSpreadsheet, Check, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { parseCsv, matchFieldsByHeader, coerceValue } from '../lib/csv';

@@ -5,9 +5,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDate, daysUntil } from '@/lib/format';
-import { Badge } from '@/components/ui/badge';
+
 import { EmptyState } from '@/components/ui-kit/EmptyState';
-import type { Task, TaskStatus, ProfileRow, Tag } from '@/lib/task-types';
+import type { Task, ProfileRow, Tag } from '@/lib/task-types';
 import { STATUS_DOT, STATUS_LABEL } from '@/lib/task-types';
 
 interface MyTasksViewProps {

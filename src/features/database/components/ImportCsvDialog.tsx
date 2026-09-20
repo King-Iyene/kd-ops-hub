@@ -13,7 +13,7 @@ import { useFields, useBulkCreateRecords } from '../hooks';
 import { useDatabaseUI } from '../lib/store';
 import { supabase } from '@/lib/supabase';
 import { UI_TYPE_TO_PG_TYPE, VIRTUAL_TYPES } from '../types';
-import type { UIType, FieldMeta } from '../types';
+import type { UIType } from '../types';
 
 function toSnakeCase(name: string): string {
   let result = name

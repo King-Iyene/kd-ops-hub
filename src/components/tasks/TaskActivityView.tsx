@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Task, ProfileRow, TaskComment } from '@/lib/task-types';
 

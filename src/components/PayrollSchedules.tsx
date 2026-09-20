@@ -10,7 +10,7 @@ import {
   Loader2,
   ToggleLeft,
   ToggleRight,
-  Calendar,
+
   AlertTriangle,
   Zap,
   Users,
@@ -248,8 +248,6 @@ function anchorLabel(s: PaySchedule | FormState): string {
   }
   return s.anchor_day === 99 ? 'Last working day' : `${ordinal(s.anchor_day)} of month`;
 }
-
-const MONTH_BASED_FREQUENCIES: PayFrequency[] = ['monthly', 'semimonthly', 'bimonthly', 'quarterly', 'triannual', 'biannual', 'annual'];
 
 // ─── RPC helpers ──────────────────────────────────────────────────────────────
 

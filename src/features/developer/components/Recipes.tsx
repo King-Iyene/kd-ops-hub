@@ -544,8 +544,6 @@ function CopyButton({ text }: { text: string }) {
 
 function RecipeCard({ recipe }: { recipe: Recipe }) {
   const [expanded, setExpanded] = useState(false);
-  const Icon = recipe.icon;
-
   return (
     <Card
       className={cn(

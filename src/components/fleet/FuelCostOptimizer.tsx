@@ -4,8 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
 import {
-  TrendingDown,
-  TrendingUp,
   Fuel,
   MapPin,
   BarChart2,

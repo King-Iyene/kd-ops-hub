@@ -12,7 +12,7 @@ import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { isValidRejectionReason } from '@/lib/rejections';
-import { formatDate, maskAccountNumber } from '@/lib/format';
+import { formatDate } from '@/lib/format';
 import { safeHref } from '@/lib/safe-href';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -126,7 +126,7 @@ export function ContractorApplications() {
     try {
       // Extract a usable LinkedIn handle from the URL.
       const linkedIn = linkedInUrl(app) ?? '';
-      const linkedinHandle = linkedIn.replace(/\/$/, '').split('/').pop() || linkedIn;
+      const _linkedinHandle = linkedIn.replace(/\/$/, '').split('/').pop() || linkedIn;
 
       let contractorId = app.contractor_id;
 

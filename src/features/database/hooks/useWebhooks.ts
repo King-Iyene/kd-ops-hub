@@ -66,7 +66,7 @@ export function useUpdateWebhook() {
         Pick<WebhookMeta, 'name' | 'events' | 'url' | 'headers' | 'is_active' | 'secret'>
       >,
     ) => {
-      const { id, table_id, ...updates } = params;
+      const { id, table_id: _table_id, ...updates } = params;
       const { data, error } = await supabase
         .schema('nc_meta')
         .from('webhooks')

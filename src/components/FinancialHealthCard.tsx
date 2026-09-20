@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Activity, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useCompanySettings } from '@/queries';
-import { daysUntil, formatNaira, formatNairaCompact } from '@/lib/format';
+import { daysUntil, formatNairaCompact } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';

@@ -65,8 +65,8 @@ export interface AnomaliesTabProps {
 export function AnomaliesTab({
   anomalousTrips,
   anomalousFuelReqs,
-  vehicles,
-  staff,
+  vehicles: _vehicles,
+  staff: _staff,
   onRefresh,
 }: AnomaliesTabProps) {
   const { profile } = useAuthStore();

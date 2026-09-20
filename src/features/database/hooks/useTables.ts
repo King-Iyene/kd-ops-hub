@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
-import type { TableMeta, FieldMeta, ViewMeta } from '../types';
+import type { TableMeta, FieldMeta } from '../types';
 import { primeTableName } from './useRecords';
 
 function toSnakeCase(name: string): string {

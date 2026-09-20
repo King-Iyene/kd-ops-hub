@@ -40,7 +40,7 @@ import {
   Send,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { EVENT_GROUPS, ALL_EVENTS, EVENT_HINTS, eventColor, eventModule } from '../webhookEvents';
+import { EVENT_GROUPS, EVENT_HINTS, eventColor, eventModule } from '../webhookEvents';
 
 // Nil UUID sentinel for platform-wide webhooks (same for base_id and table_id)
 const PLATFORM_SENTINEL = '00000000-0000-0000-0000-000000000000';
@@ -119,7 +119,7 @@ export default function WebhooksManager() {
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [testDialogOpen, setTestDialogOpen] = useState(false);
   const [testUrl, setTestUrl] = useState('');
-  const [testSecret, setTestSecret] = useState<string | undefined>();
+  const [_testSecret, setTestSecret] = useState<string | undefined>();
   const [testResult, setTestResult] = useState<any>(null);
   const [testing, setTesting] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -374,7 +374,7 @@ export default function WebhooksManager() {
 
     return (
       <div className="flex flex-wrap gap-1.5">
-        {Array.from(grouped.entries()).map(([mod, evts]) =>
+        {Array.from(grouped.entries()).map(([_mod, evts]) =>
           evts.map((e) => (
             <Badge key={e} variant="outline" className={cn('text-2xs font-mono border', eventColor(e))}>
               {e}

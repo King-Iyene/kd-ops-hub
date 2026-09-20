@@ -186,7 +186,7 @@ export function RowColorPanel({ fields, rules, onRulesChange }: RowColorPanelPro
       <PopoverContent className="w-[520px] max-h-[400px] overflow-y-auto p-3 shadow-lg" align="start">
         <div className="space-y-2">
           {rules.map((rule) => {
-            const Icon = getFieldTypeIcon(fieldMap.get(rule.field_id)?.ui_type ?? 'SingleLineText');
+            const _Icon = getFieldTypeIcon(fieldMap.get(rule.field_id)?.ui_type ?? 'SingleLineText');
             const operators = getOperators(rule.field_id);
 
             return (

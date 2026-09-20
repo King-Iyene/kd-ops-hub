@@ -7,7 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
   ResponsiveContainer, ReferenceLine, Cell,
 } from 'recharts';
-import { Calculator, TrendingUp, TrendingDown, AlertTriangle, Info } from 'lucide-react';
+import { Calculator, Info } from 'lucide-react';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { ChartGradients, GlassTooltip, axisTick, chartTheme, fmtNairaTick } from '@/components/ChartKit';
 

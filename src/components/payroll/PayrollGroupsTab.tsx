@@ -280,7 +280,7 @@ interface AvailableEmployee {
 
 function ManageMembersDialog({
   group,
-  onClose,
+  onClose: _onClose,
   onSaved,
   toast,
 }: {

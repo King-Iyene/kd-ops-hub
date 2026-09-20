@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -148,7 +148,6 @@ interface ApiKey {
 }
 
 export default function ApiKeysManager() {
-  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const [createOpen, setCreateOpen] = useState(false);

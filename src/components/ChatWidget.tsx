@@ -11,9 +11,6 @@ import {
   Plus,
   MessageSquare,
   ChevronLeft,
-  TrendingUp,
-  BookOpen,
-  Zap,
   ArrowUpRight,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';

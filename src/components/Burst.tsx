@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 
 /**
  * Particle burst — call burst({ x, y }) and watch a brief shower of TOD-glow

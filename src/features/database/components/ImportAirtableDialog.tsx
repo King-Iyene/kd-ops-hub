@@ -568,8 +568,6 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           columns: fieldRows.map((fr) => ({ columnName: fr.pg_column_name, columnType: fr.pg_type })),
         });
 
-        const allColNames = fieldRows.map((fr) => fr.pg_column_name).filter(Boolean);
-
         const { data: createdFields } = await supabase
           .schema('nc_meta')
           .from('fields')

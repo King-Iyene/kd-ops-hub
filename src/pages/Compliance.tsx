@@ -9,17 +9,14 @@ import {
   Download,
   Pencil,
   Trash2,
-  Info,
   Sparkles,
   ChevronDown,
   FileDown,
   Package,
   Landmark,
-  Receipt,
   UploadCloud,
   BadgeCheck,
   Wallet,
-  ExternalLink,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -79,7 +76,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useCompanySettings, useCompanies } from '@/queries';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { ErrorState } from '@/components/ui-kit/ErrorState';

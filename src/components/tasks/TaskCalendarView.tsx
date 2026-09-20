@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import type { Task, ProfileRow } from '@/lib/task-types';
 import { STATUS_DOT, STATUS_LABEL, PRIORITY_BORDER } from '@/lib/task-types';
 
@@ -22,7 +22,7 @@ function toDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export function TaskCalendarView({ tasks, profiles, onTaskClick }: TaskCalendarViewProps) {
+export function TaskCalendarView({ tasks, profiles: _profiles, onTaskClick }: TaskCalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();

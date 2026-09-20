@@ -54,15 +54,6 @@ const HUB_ICONS: Record<string, typeof Users> = {
 
 const UNGROUPED_SET = new Set(['Dashboard', 'Approvals', 'My Portal', 'Finance']);
 
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .slice(0, 2)
-    .map((w) => w[0] ?? '')
-    .join('')
-    .toUpperCase();
-}
-
 export function AppSidebar() {
   const { state, setOpenMobile, setOpen, isMobile, width } = useSidebar();
   const sidebarCollapsed = state === 'collapsed' || (!isMobile && width < SIDEBAR_AUTO_ICON_WIDTH_PX);

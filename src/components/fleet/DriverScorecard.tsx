@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Shield, TrendingUp, Fuel, AlertTriangle, Award } from 'lucide-react';
+import { Shield, Award } from 'lucide-react';
 import { formatNaira } from '@/lib/format';
 
 interface DriverScore {
@@ -23,12 +23,6 @@ function scoreColor(score: number): string {
   if (score >= 90) return 'text-success';
   if (score >= 70) return 'text-warning';
   return 'text-destructive';
-}
-
-function scoreBg(score: number): string {
-  if (score >= 90) return 'bg-success';
-  if (score >= 70) return 'bg-warning';
-  return 'bg-destructive';
 }
 
 function scoreLabel(score: number): string {

@@ -23,7 +23,7 @@ import {
   useUpdateField,
 } from '../hooks';
 import GridView from '../components/grid/GridView';
-import type { RecordRow, FieldMeta } from '../types';
+import type { RecordRow } from '../types';
 import { useRealtimeRecords } from '../hooks/useRealtime';
 import { parseFormula, evaluateFormula } from '../lib/formula';
 import { useLinkDisplayLookup } from '../hooks/useLinkDisplayLookup';

@@ -1,6 +1,6 @@
 import { useState, useCallback, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Cable, Key, Webhook, Zap, Copy, Check, ChevronRight, ArrowRight, BookOpen, Code2, Plug, Globe, FileJson, Send, Trash2, Pencil, List, Sparkles, ArrowLeft, Shield } from 'lucide-react';
+import { Cable, Key, Webhook, Zap, Copy, Check, ChevronRight, ArrowRight, BookOpen, Code2, Plug, Globe, Send, Trash2, Pencil, List, Sparkles, Shield } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { supabase } from '@/lib/supabase';
 
@@ -146,21 +146,6 @@ function MethodBadge({ method }: { method: HttpMethod }) {
     DELETE: 'bg-destructive/10 text-destructive dark:bg-destructive/10 dark:text-destructive',
   };
   return <span className={`text-3xs font-bold px-1.5 py-0.5 rounded ${colors[method]}`}>{method}</span>;
-}
-
-function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1.5 text-2xs font-medium rounded-lg transition-all ${
-        active
-          ? 'bg-primary text-white shadow-sm'
-          : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-      }`}
-    >
-      {children}
-    </button>
-  );
 }
 
 function SectionHeader({ icon: Icon, title, subtitle }: { icon: React.ElementType; title: string; subtitle?: string }) {

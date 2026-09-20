@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { cn } from '@/lib/utils';
 import { formatDate, formatTime } from '@/lib/format';
-import { Loader2, MapPin, RotateCcw, Play, Pause, AlertTriangle, Gauge, Zap, ParkingCircle, Map as MapIcon } from 'lucide-react';
+import { Loader2, RotateCcw, Play, Pause, AlertTriangle, Gauge, Zap, ParkingCircle, Map as MapIcon } from 'lucide-react';
 import { type TripLog, type BreadcrumbRow, type TripEvent, formatCoords, formatDuration, haversineKm, reverseGeocode, computeIdleMinutes } from '@/lib/fleet-utils';
 
 const EVENT_LABEL: Record<string, string> = {
@@ -24,7 +24,7 @@ function TripGoogleMap({ trail, startPos, endPos, events, replayStep = null }: {
   replayStep?: number | null;
 }) {
   const { isLoaded } = useJsApiLoader({ id: 'kd-gmaps', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
-  const [gmap, setGmap] = useState<google.maps.Map | null>(null);
+  const [_gmap, setGmap] = useState<google.maps.Map | null>(null);
 
   const center: google.maps.LatLngLiteral = useMemo(() => {
     if (trail.length > 0) return { lat: trail[Math.floor(trail.length / 2)][0], lng: trail[Math.floor(trail.length / 2)][1] };

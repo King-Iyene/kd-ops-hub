@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { errorMessage } from '@/lib/db-errors';
@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Plus, Search, RefreshCw, ArrowRight, Users, Trash2, Loader2,
+  Plus, Search, RefreshCw, ArrowRight, Trash2, Loader2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { QuickPayDialog } from '@/components/QuickPay';
@@ -34,7 +34,7 @@ import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { getPaystackBalance } from '@/lib/paystack';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { usePermission, useFeatureAccess } from '@/hooks/usePermission';
+import { useFeatureAccess } from '@/hooks/usePermission';
 import { APPROVER_ROLES } from '@/lib/roles';
 import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';

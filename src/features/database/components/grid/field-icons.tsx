@@ -1,9 +1,9 @@
 import { forwardRef } from 'react';
 import {
   Type, Hash, DollarSign, Calendar, CheckSquare,
-  Paperclip, Mail, Phone, Globe, Clock, User, FileText, Star,
+  Paperclip, Mail, Phone, Globe, Clock, FileText, Star,
   Percent, Barcode, Users, MousePointerClick,
-  Search, ListOrdered, UserPlus, UserCog, LucideIcon,
+  ListOrdered, UserPlus, UserCog, LucideIcon,
   Sigma, CornerRightDown, Tags, CircleDot,
   ListChecks, Braces, TableProperties, ListTodo,
 } from 'lucide-react';

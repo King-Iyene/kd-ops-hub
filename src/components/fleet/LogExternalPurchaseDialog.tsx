@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Loader2, Fuel, Wrench, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/image-compression';
-import { friendlyDbError, errorMessage } from '@/lib/db-errors';
+import { friendlyDbError } from '@/lib/db-errors';
 import { logAudit } from '@/lib/audit';
 import { validateFile } from '@/lib/file-validation';
 import { formatNaira } from '@/lib/format';

@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -68,9 +68,6 @@ const READINESS_LABEL: Record<string, string> = {
 type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 type PlanStatus = 'active' | 'filled' | 'archived';
 type Readiness = 'ready_now' | '6_months' | '1_year' | '2_years';
-
-interface Profile { id: string; full_name: string; }
-interface Department { id: string; name: string; }
 
 interface SuccessionPlan {
   id: string;

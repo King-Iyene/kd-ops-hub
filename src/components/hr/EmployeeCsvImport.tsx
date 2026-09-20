@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Upload, FileText, CheckCircle2, AlertTriangle, Loader2, Download, X,
+  Upload, FileText, CheckCircle2, AlertTriangle, Loader2, Download,
   ArrowRight, ArrowLeft, Wand2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';

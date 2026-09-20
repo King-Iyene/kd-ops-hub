@@ -8,7 +8,7 @@ import {
   Copy,
   Check,
   Star,
-  Image as ImageIcon,
+
   ChevronDown,
   LayoutGrid,
   Link2,

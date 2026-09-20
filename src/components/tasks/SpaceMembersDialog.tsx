@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Users, X, Loader2, UserPlus, Shield, Eye, Crown, Trash2,
+  Users, Loader2, UserPlus, Shield, Eye, Crown, Trash2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';

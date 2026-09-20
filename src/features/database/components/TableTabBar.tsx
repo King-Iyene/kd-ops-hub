@@ -245,17 +245,7 @@ export function TableTabBar() {
     [duplicateTable, activeBaseId, navigateToTable],
   );
 
-  const handleAddTable = useCallback(() => {
-    if (!activeBaseId) return;
-    createTable.mutate(
-      {
-        base_id: activeBaseId,
-        name: `Table ${(tables?.length ?? 0) + 1}`,
-        position: tables?.length ?? 0,
-      },
-      { onSuccess: (newTable) => navigateToTable(newTable.id) },
-    );
-  }, [activeBaseId, createTable, tables, navigateToTable]);
+
 
   // Auto-select first table when base changes
   useEffect(() => {

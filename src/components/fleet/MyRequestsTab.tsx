@@ -23,7 +23,6 @@ import {
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
 import { AlertTriangle, Plus, Wrench, Upload, Receipt } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import {
   type FuelRequest,
   type TripLog,
@@ -74,8 +73,8 @@ export interface MyRequestsTabProps {
 
 export function MyRequestsTab({
   myFuelRequests,
-  myTripLogs,
-  vehicles,
+  myTripLogs: _myTripLogs,
+  vehicles: _vehicles,
   profile,
   onNewFuelRequest,
   onNewRepairRequest,

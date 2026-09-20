@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { FieldMeta, RecordRow } from '../types';
@@ -427,17 +427,6 @@ export function useLinks(tableId: string | null | undefined) {
       return all;
     },
   });
-}
-
-function toSnakeCase(name: string): string {
-  let result = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_|_$/g, '');
-  if (/^[0-9]/.test(result)) {
-    result = 'f_' + result;
-  }
-  return result.substring(0, 63);
 }
 
 export function useCreateLink() {

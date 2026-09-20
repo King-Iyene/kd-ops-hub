@@ -117,8 +117,6 @@ interface Review {
   acknowledged_at: string | null;
 }
 
-interface Profile { id: string; full_name: string; }
-
 interface Goal {
   id: string;
   title: string;
@@ -393,8 +391,6 @@ export default function Performance() {
   }, [reviews]);
 
   const reviewCompletionRate = totalReviews > 0 ? Math.round((submitted / totalReviews) * 100) : 0;
-  const pipsActive = plans.filter(p => p.category === 'other' && p.status === 'in_progress' && p.title.toLowerCase().includes('pip')).length;
-
   return (
     <div className="p-4 md:p-6 space-y-3 sm:space-y-6 max-w-5xl mx-auto">
       <PageHeader

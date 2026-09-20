@@ -22,7 +22,7 @@ import {
   Code2,
   Terminal,
   Globe,
-  Gauge,
+
   Layers,
   Radio,
   Clock,

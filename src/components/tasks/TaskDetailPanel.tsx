@@ -25,7 +25,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import type {
-  Task, TaskStatus, Priority, ProfileRow, Tag, TaskComment,
+  Task, TaskStatus, ProfileRow, Tag, TaskComment,
   TaskDependency, TaskChecklist, TaskTimeEntry, DependencyType, TaskType,
 } from '@/lib/task-types';
 import { STATUSES, PRIORITY_OPTIONS, STATUS_DOT, STATUS_LABEL } from '@/lib/task-types';
@@ -425,7 +425,6 @@ export function TaskDetailPanel({
   };
 
   // ─── Computed ───────────────────────────────────────────────
-  const assignee = task.assignee_id ? profiles.get(task.assignee_id) : null;
   const creator = task.created_by ? profiles.get(task.created_by) : null;
   const d = task.due_date ? daysUntil(task.due_date) : null;
   const overdue = task.status !== 'complete' && d !== null && d < 0;

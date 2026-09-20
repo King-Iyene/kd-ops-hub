@@ -1058,28 +1058,6 @@ const EmployeeProfile = () => {
     load();
   };
 
-  const openAddDependent = () => {
-    setEditingDependent(null);
-    setDependentForm(emptyDependentForm);
-    setShowDependentDialog(true);
-  };
-
-  const openEditDependent = (dep: any) => {
-    setEditingDependent(dep);
-    setDependentForm({
-      full_name: dep.full_name || '',
-      relationship: dep.relationship || 'child',
-      date_of_birth: dep.date_of_birth || '',
-      gender: dep.gender || '',
-      phone: dep.phone || '',
-      is_beneficiary: !!dep.is_beneficiary,
-      is_hmo_enrolled: !!dep.is_hmo_enrolled,
-      hmo_plan_id: dep.hmo_plan_id || '',
-      notes: dep.notes || '',
-    });
-    setShowDependentDialog(true);
-  };
-
   const saveDependent = async () => {
     if (!id || !dependentForm.full_name.trim()) {
       toast({ title: 'Name is required', variant: 'destructive' });
@@ -1158,14 +1136,6 @@ const EmployeeProfile = () => {
   const relationshipLabel = (rel: string) =>
     ({ spouse: 'Spouse', child: 'Child', parent: 'Parent', sibling: 'Sibling', other: 'Other' } as Record<string, string>)[rel] || rel;
 
-  const yoyGrowth = useMemo(() => {
-    if (increments.length === 0 || !employee?.salary_ngn) return null;
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-    const past = increments.find((i) => new Date(i.effective_date) <= oneYearAgo);
-    if (!past) return null;
-    return ((employee.salary_ngn - past.new_salary_ngn) / past.new_salary_ngn) * 100;
-  }, [increments, employee]);
 
   if (loading) {
     return (

@@ -67,7 +67,7 @@ export function GroupPanel({ fields, groups, onGroupsChange }: GroupPanelProps) 
       <PopoverContent className="w-[360px] p-3 shadow-lg" align="start">
         <div className="space-y-2">
           {groups.map((group, idx) => {
-            const field = fieldMap.get(group.field_id);
+            const _field = fieldMap.get(group.field_id);
 
             return (
               <div key={`${group.field_id}-${idx}`} className="flex items-center gap-1.5">

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FileText, ExternalLink, Download, TrendingUp, Wallet,
   ArrowDownRight, ArrowUpRight, CheckCircle2, Clock, XCircle,
-  AlertCircle, RotateCcw, Filter, Banknote, Receipt, ChevronDown,
+  AlertCircle, RotateCcw, Banknote, Receipt, ChevronDown,
   ChevronUp, CreditCard,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui-kit/EmptyState';

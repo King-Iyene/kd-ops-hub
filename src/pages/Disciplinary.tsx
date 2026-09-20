@@ -66,8 +66,6 @@ interface DisciplinaryResponse {
   responded_at: string;
 }
 
-interface Profile { id: string; full_name: string; }
-
 const EMPTY_FORM = {
   employee_id: '__none__',
   incident_date: format(new Date(), 'yyyy-MM-dd'),
@@ -106,7 +104,7 @@ export default function Disciplinary() {
   const [expungeTarget, setExpungeTarget] = useState<DisciplinaryRecord | null>(null);
   const [expungeReason, setExpungeReason] = useState('');
 
-  const { errors, setError, clearError, clearAll, hasErrors } = useFieldErrors<'employee_id' | 'subject'>();
+  const { errors, setError, clearError, clearAll } = useFieldErrors<'employee_id' | 'subject'>();
 
   // Response
   const [responseTarget, setResponseTarget] = useState<string | null>(null);

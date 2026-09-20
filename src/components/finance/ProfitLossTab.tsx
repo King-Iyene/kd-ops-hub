@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip as ReTooltip, Legend, Cell,
+  CartesianGrid, Tooltip as ReTooltip, Legend,
   AreaChart, Area, ReferenceLine,
 } from 'recharts';
 import { SERIES, fmtMillions } from '@/lib/chart-theme';
 import { ChartGradients, GlassTooltip, chartTheme, axisTick, chartAnim } from '@/components/ChartKit';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';

@@ -4,8 +4,7 @@
 // changes, update this table to match — it is documentation, not a
 // live query against the router, so it can drift if forgotten.
 import { Users, Shield, ShieldCheck, ShieldAlert, KeyRound, Eye } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { SectionIntro, RoleBadges, Callout, RefTable, RefSection, VideoEmbed, guideVideoUrl, type Role } from '@/components/guide/shared';
 
 const ROLE_SUMMARY: { role: Role; blurb: string }[] = [

@@ -12,7 +12,6 @@ import { Search, X, Link2, Loader2, Plus } from 'lucide-react';
 import { useLinkedRecordsPaginated, getRecordDisplayValue } from '../hooks/useLinks';
 import { useFields } from '../hooks/useFields';
 import { useCreateRecord } from '../hooks/useRecords';
-import type { RecordRow } from '../types';
 
 interface LinkedRecordPickerProps {
   open: boolean;

@@ -15,7 +15,7 @@ import {
   CalendarDays, ScrollText, PiggyBank, Layers, Contact2, Gift, ArrowUpDown,
   Settings, Plus, Zap, CalendarClock, HelpCircle, FileSpreadsheet, Wallet,
   CircleDollarSign, AlertTriangle, LineChart, Store, Award, Boxes,
-  GraduationCap, FolderKanban, HeartHandshake, UserPlus, Briefcase, Link2,
+  GraduationCap, HeartHandshake, UserPlus, Briefcase, Link2,
   Handshake, Clock, AlertOctagon, Mail, ClipboardList, MessageSquareWarning,
   HandCoins, CalendarRange, GitBranch, BookMarked, Clock3, LayoutGrid,
   Workflow, Megaphone, Building2, Landmark, User as UserIcon, Bot,

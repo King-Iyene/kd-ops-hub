@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+
 import { useToast } from '@/hooks/use-toast';
 import type { SavedView } from '@/lib/task-types';
 
@@ -37,7 +37,7 @@ export function SavedViewsPanel({
   const [views, setViews] = useState<SavedView[]>([]);
   const [showSave, setShowSave] = useState(false);
   const [saveName, setSaveName] = useState('');
-  const [saveShared, setSaveShared] = useState(false);
+  const [saveShared, _setSaveShared] = useState(false);
 
   const load = useCallback(async () => {
     let q = supabase.from('saved_views').select('id, name, view_type, is_shared, filters').order('created_at', { ascending: false });

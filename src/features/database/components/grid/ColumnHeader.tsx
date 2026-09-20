@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ArrowUp, ArrowDown, EyeOff, Pencil, Trash2, Copy, ArrowLeftRight, Info, Lock, Unlock, Filter, Group } from 'lucide-react';
+import { ArrowUp, ArrowDown, EyeOff, Pencil, Trash2, Copy, Info, Lock, Unlock, Filter, Group } from 'lucide-react';
 import type { FieldMeta } from '@/features/database/types';
 import { getFieldTypeIcon } from './field-icons';
 import { useDatabaseUI } from '../../lib/store';
@@ -39,9 +39,6 @@ function getAutoFitWidth(uiType: string): number {
   return AUTO_FIT_WIDTHS[uiType] ?? 180;
 }
 
-const menuItemClass =
-  'w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-[#F1F5F9] dark:hover:bg-[hsl(220,20%,14%)] transition-colors text-[#374151] dark:text-[hsl(220,20%,88%)] focus:bg-[#F1F5F9] dark:focus:bg-[hsl(220,20%,14%)] focus:outline-none';
-
 export const ColumnHeader = React.memo(function ColumnHeader({
   field,
   onResize,
@@ -49,7 +46,7 @@ export const ColumnHeader = React.memo(function ColumnHeader({
   onDelete,
   onEditField,
   onDuplicateField,
-  onContextMenu,
+  onContextMenu: _onContextMenu,
   draggable: isDraggable,
   onDragStart,
   onDragEnd,
@@ -153,11 +150,6 @@ export const ColumnHeader = React.memo(function ColumnHeader({
     if (confirmed) onDelete(field.id);
     setContextMenu(null);
   }, [field.id, field.name, onDelete]);
-
-  const handleEdit = useCallback(() => {
-    onEditField?.(field);
-    setContextMenu(null);
-  }, [field, onEditField]);
 
   const handleSaveDescription = useCallback(() => {
     const trimmed = descriptionDraft.trim();

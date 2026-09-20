@@ -3,7 +3,7 @@ import {
   Users, UserCheck, CheckSquare, CalendarDays, Receipt, Banknote,
   Truck, FileText, Building2, UserPlus, Database, CreditCard,
   Copy, Check, ChevronRight, AlertTriangle, Lightbulb, Info,
-  ExternalLink, ChevronDown, Search, Webhook,
+  ExternalLink, Search, Webhook,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -874,7 +874,6 @@ const modules: ModuleDef[] = [
 export default function ModuleGuides() {
   const [activeModuleId, setActiveModuleId] = useState(modules[0].id);
   const [searchQuery, setSearchQuery] = useState('');
-  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const mainRef = useRef<HTMLDivElement>(null);
 
   const activeModule = useMemo(

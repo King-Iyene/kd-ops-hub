@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { AuroraHero } from '@/components/AuroraHero';
-import { Loader2, Radio, Search, MapPin, Gauge, Truck, Clock, AlertTriangle, Map as MapIcon } from 'lucide-react';
+import { Loader2, Radio, Search, MapPin, Truck, Clock, AlertTriangle, Map as MapIcon } from 'lucide-react';
 import { useJsApiLoader, GoogleMap, Polyline as GPolyline } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS, MAPS_LIBRARIES } from '@/lib/maps';
 import { cn } from '@/lib/utils';

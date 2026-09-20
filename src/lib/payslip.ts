@@ -106,15 +106,9 @@ const monthLabel = (period: string) => {
   return period;
 };
 
-const initials = (name: string) =>
-  name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
-
 // Time-of-day greeting — small human touch at the top.
 const greeting = (hour: number) =>
   hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-
-// Turn a number into a % width for the waterfall bars. Guards against 0.
-const pct = (n: number, of: number) => (of > 0 ? Math.max(1, Math.min(100, (n / of) * 100)) : 0);
 
 /**
  * "RC 1234567" from whatever the company actually typed into the RC number

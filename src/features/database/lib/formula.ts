@@ -499,7 +499,7 @@ const BUILTIN_FUNCTIONS: Record<string, (args: any[]) => any> = {
       .replace(/mm/g, String(dt.getMinutes()).padStart(2, '0'))
       .replace(/ss/g, String(dt.getSeconds()).padStart(2, '0'));
   },
-  DATETIME_PARSE: ([s, fmt]) => {
+  DATETIME_PARSE: ([s, _fmt]) => {
     const str = toString(s);
     if (!str) return null;
     const dt = new Date(str);

@@ -75,7 +75,7 @@ export function ContractorFormDialog({
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   type Field = 'first_name' | 'last_name' | 'bank';
-  const { errors, setError, clearError, clearAll, hasErrors } = useFieldErrors<Field>();
+  const { errors, setError, clearError, clearAll } = useFieldErrors<Field>();
 
   // Seed (or reset) internal form state whenever the dialog opens — for
   // "edit", from the contractor being edited; for "add" (editing === null),

@@ -98,10 +98,10 @@ function RecordCard({
 }
 
 export const LinkCellRenderer = React.memo(function LinkCellRenderer({
-  value,
+  value: _value,
   field,
   record,
-  rowHeight,
+  rowHeight: _rowHeight,
 }: LinkCellRendererProps) {
   const colors = useGridColors();
   const { activeBaseId } = useDatabaseUI();

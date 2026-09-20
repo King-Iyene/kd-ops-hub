@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useAuthStore } from '@/store/authStore';
 import { format, parseISO, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
@@ -11,13 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Plus, ChevronLeft, ChevronRight, CalendarDays, Clock,
+  Plus, ChevronLeft, ChevronRight, Clock,
   Users, AlertTriangle, XCircle, Pencil, Trash2,
 } from 'lucide-react';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
@@ -88,7 +87,6 @@ const EMPTY_SHIFT_FORM = {
 
 export default function Shifts() {
   usePageTitle('Shifts');
-  const { user } = useAuthStore();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);

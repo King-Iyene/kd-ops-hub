@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Printer, CheckCircle2, AlertTriangle, XCircle, MinusCircle, TrendingUp, TrendingDown } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {

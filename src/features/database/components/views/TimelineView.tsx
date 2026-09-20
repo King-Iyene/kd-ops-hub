@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback, useRef } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '../../types';
 import { PILL_COLORS } from '../../types';
 
@@ -356,7 +355,7 @@ export default function TimelineView({
   }, [records, resolvedStartField, resolvedEndField, resolvedColorField, titleField]);
 
   // Determine timeline range
-  const { rangeStart, rangeEnd, totalDays } = useMemo(() => {
+  const { rangeStart, rangeEnd: _rangeEnd, totalDays } = useMemo(() => {
     if (bars.length === 0) {
       const today = startOfDay(new Date());
       const rs = addDays(today, -14);

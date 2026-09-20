@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, Save, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Loader2, Save } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useCompanySettings, useInvalidate, queryKeys } from '@/queries';
 import { useToast } from '@/hooks/use-toast';

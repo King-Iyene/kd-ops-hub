@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { Task, ProfileRow, TaskDependency } from '@/lib/task-types';
-import { STATUS_DOT, STATUS_LABEL, PRIORITY_BORDER } from '@/lib/task-types';
+import { STATUS_DOT, STATUS_LABEL } from '@/lib/task-types';
 
 interface TaskGanttViewProps {
   tasks: Task[];
@@ -28,7 +28,7 @@ function toDateStr(d: Date): string {
 
 const DAY_WIDTH = 32;
 
-export function TaskGanttView({ tasks, profiles, onTaskClick, dependencies = [] }: TaskGanttViewProps) {
+export function TaskGanttView({ tasks, _profiles, onTaskClick, dependencies = [] }: TaskGanttViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [viewStart, setViewStart] = useState(() => {
     const d = new Date();
@@ -36,7 +36,6 @@ export function TaskGanttView({ tasks, profiles, onTaskClick, dependencies = [] 
     return d;
   });
   const totalDays = 60;
-  const viewEnd = addDays(viewStart, totalDays);
   const today = new Date();
   const todayStr = toDateStr(today);
 

@@ -1,11 +1,10 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import {
-  Clock, Timer, TrendingUp, Users, ArrowUpDown, ChevronDown, ChevronUp,
+  Clock, Timer, TrendingUp, Users, ArrowUpDown,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import {
@@ -79,10 +78,6 @@ function getDateRange(preset: DateRangePreset): { start: Date; end: Date } {
 
 function toIsoString(d: Date): string {
   return d.toISOString();
-}
-
-function toDateKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function formatShortDate(d: Date): string {

@@ -91,11 +91,6 @@ function toLocalDateStr(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function toLocalTimeStr(d: Date): string {
-  const h = String(d.getHours()).padStart(2, '0');
-  const min = String(d.getMinutes()).padStart(2, '0');
-  return `${h}:${min}`;
-}
 
 // ── Component ─────────────────────────────────────────────────────────
 

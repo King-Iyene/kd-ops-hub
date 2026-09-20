@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { X, Copy, Trash2, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Loader2, ScanSearch } from 'lucide-react';
+import { X, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Loader2, ScanSearch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { FieldMeta } from '../types';
 

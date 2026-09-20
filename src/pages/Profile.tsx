@@ -19,7 +19,7 @@ import {
   FileText, Camera, Receipt, Truck, ChevronRight, Inbox,
   CheckCircle2, Clock, XCircle, ExternalLink, UserCog, Ban,
 } from 'lucide-react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -29,7 +29,7 @@ import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatNaira, formatDateTime, toIsoDate } from '@/lib/format';
 import { computePayslip } from '@/lib/tax';
 import { compressImage } from '@/lib/image-compression';
-import { openPayslipPrintWindow, downloadPayslipPdfFromHtml, downloadStoredPayslipHtml } from '@/lib/payslip';
+import { openPayslipPrintWindow, downloadStoredPayslipHtml } from '@/lib/payslip';
 import { PayslipPreviewDialog, type PayslipPreviewState } from '@/components/PayslipPreviewDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -208,7 +208,6 @@ const EnrolBadge = ({ on }: { on: boolean }) => (
 const ProfilePage = () => {
   usePageTitle('Profile');
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const profile = useAuthStore((s) => s.profile);
   const setProfile = useAuthStore((s) => s.setProfile);

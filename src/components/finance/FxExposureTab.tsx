@@ -9,7 +9,7 @@ import { Coins, Activity, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip as UiTooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate, formatFxRate, formatNairaCompact } from '@/lib/format';
+import { formatFxRate, formatNairaCompact } from '@/lib/format';
 import { fetchFxExposureBoard, type FxExposureBoard } from '@/lib/fx-exposure';
 import { errorMessage } from '@/lib/db-errors';
 

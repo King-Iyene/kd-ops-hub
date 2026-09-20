@@ -25,8 +25,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useDatabaseUI } from '../lib/store';
 import { EmojiPicker } from './EmojiPicker';
-import { useBases, useCreateBase, useDeleteBase, useUpdateBase, useDuplicateBase } from '../hooks';
-import { useWorkspaces } from '../hooks';
+import { useBases, useDeleteBase, useUpdateBase, useDuplicateBase } from '../hooks';
 import { useDatabaseNavigate, toShort } from '../hooks/useNavigate';
 import { CreateBaseDialog } from './CreateBaseDialog';
 import type { Base } from '../types';
@@ -83,8 +82,6 @@ export function DatabaseSidebar() {
   const { data: bases } = useBases();
   const deleteBase = useDeleteBase();
   const updateBase = useUpdateBase();
-  const createBase = useCreateBase();
-  const { data: workspaces } = useWorkspaces();
   const duplicateBase = useDuplicateBase();
 
   const [createBaseOpen, setCreateBaseOpen] = useState(false);

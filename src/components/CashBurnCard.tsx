@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Flame, TrendingDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { formatNaira, formatNairaCompact } from '@/lib/format';
+import { formatNairaCompact } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 /**

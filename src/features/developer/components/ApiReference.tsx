@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   Search, Copy, Check, ChevronDown, ChevronRight, Lock,
-  Database, Webhook, Shield, ArrowRight, ExternalLink,
+  Database, Webhook, Shield, ArrowRight,
   Table2, Rows3, Columns3,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';

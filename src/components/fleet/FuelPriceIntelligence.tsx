@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine, Area, AreaChart,
+  ResponsiveContainer, Area, AreaChart,
 } from 'recharts';
 import { TrendingUp, TrendingDown, AlertTriangle, Fuel, Zap, Target } from 'lucide-react';
 import { formatNaira } from '@/lib/format';

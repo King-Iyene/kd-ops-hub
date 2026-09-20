@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useDepartments, useEmployeeDirectory } from '@/queries';
 import {
   Plus, Search, Download, Pencil, Trash2, Package,
-  AlertTriangle, CheckCircle2, Archive, TrendingDown,
+  AlertTriangle, CheckCircle2, TrendingDown,
   Calendar, User,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -70,9 +70,6 @@ interface Asset {
   created_at: string;
 }
 
-interface Profile { id: string; full_name: string; }
-interface Department { id: string; name: string; }
-
 function bookValue(asset: Asset): number {
   if (asset.status !== 'active') return 0;
   const months = differenceInMonths(new Date(), parseISO(asset.purchase_date));
@@ -132,7 +129,7 @@ export default function Assets() {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const { errors, setError, clearError, clearAll, hasErrors } = useFieldErrors<'name' | 'purchase_date' | 'cost_ngn'>();
+  const { errors, setError, clearError, clearAll } = useFieldErrors<'name' | 'purchase_date' | 'cost_ngn'>();
 
   const load = useCallback(async () => {
     setLoading(true);

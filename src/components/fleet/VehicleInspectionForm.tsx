@@ -7,7 +7,6 @@ import { logAudit } from '@/lib/audit';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -22,7 +21,6 @@ import {
   Loader2,
   ClipboardCheck,
   AlertTriangle,
-  Camera,
 } from 'lucide-react';
 
 export interface InspectionItem {
@@ -79,7 +77,6 @@ export function VehicleInspectionForm({
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   const hasDefects = items.some((i) => i.status === 'fail');
-  const allChecked = items.every((i) => i.status !== 'pass' || i.status === 'pass');
 
   const setItemStatus = useCallback((key: string, status: 'pass' | 'fail' | 'na') => {
     setItems((prev) => prev.map((i) => (i.key === key ? { ...i, status } : i)));

@@ -400,7 +400,7 @@ export default function GanttView({
   }, [records, resolvedStartField, resolvedEndField, resolvedColorField, titleField]);
 
   // Timeline range
-  const { rangeStart, rangeEnd, totalDays } = useMemo(() => {
+  const { rangeStart, totalDays } = useMemo(() => {
     if (bars.length === 0) {
       const today = startOfDay(new Date());
       const rs = addDays(today, -14);

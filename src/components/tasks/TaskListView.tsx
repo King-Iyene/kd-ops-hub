@@ -13,7 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
-import type { Task, TaskStatus, Priority, ProfileRow, Tag, TaskList, SpaceFolder } from '@/lib/task-types';
+import type { Task, TaskStatus, ProfileRow, Tag, TaskList, SpaceFolder } from '@/lib/task-types';
 import { STATUSES, PRIORITY_OPTIONS, STATUS_DOT, STATUS_LABEL, PRIORITY_CLASS, STATUS_CLASS } from '@/lib/task-types';
 import { TaskContextMenu } from './TaskContextMenu';
 import type { Space } from './TaskSidebar';

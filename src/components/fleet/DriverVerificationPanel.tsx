@@ -16,7 +16,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { UserCheck, AlertTriangle, CheckCircle, XCircle, ShieldCheck, Pencil, Loader2, Car } from 'lucide-react';
+import { UserCheck, CheckCircle, XCircle, ShieldCheck, Pencil, Loader2, Car } from 'lucide-react';
 import {
   MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
@@ -195,10 +195,6 @@ export function DriverVerificationPanel() {
 
   const totalDrivers = drivers.length;
   const verifiedCount = drivers.filter((d) => getOverallStatus(d) === 'verified').length;
-  const pendingCount = drivers.filter((d) => {
-    const vs = d.verification_status;
-    return !vs || vs === 'pending';
-  }).length;
   const expiringCount = drivers.filter((d) => {
     if (!d.driver_license_expiry) return false;
     const days = daysUntil(d.driver_license_expiry);

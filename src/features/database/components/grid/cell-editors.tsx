@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from
 import { createPortal } from 'react-dom';
 import { Paperclip, Star, Check, X } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
-import { PILL_COLORS, SELECT_COLOR_NAMES, SELECT_COLORS } from '@/features/database/types';
+import { SELECT_COLOR_NAMES, SELECT_COLORS } from '@/features/database/types';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
@@ -40,11 +40,7 @@ interface CellEditorProps {
   onFieldUpdate?: (fieldId: string, tableId: string, updates: Partial<FieldMeta['options']>) => void;
 }
 
-function getPillColor(colorName: string) {
-  return PILL_COLORS.find((c) => c.name === colorName) || PILL_COLORS[7];
-}
-
-export function TextCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+export function TextCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
 
@@ -82,7 +78,7 @@ export function TextCellEditor({ value, field, onCommit, onCancel }: CellEditorP
   );
 }
 
-export function NumberCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+export function NumberCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   const [num, setNum] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
 
@@ -985,7 +981,7 @@ function insertLinePrefix(textarea: HTMLTextAreaElement, prefix: string, setText
   });
 }
 
-export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+export function LongTextCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const ref = useRef<HTMLTextAreaElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
@@ -1071,7 +1067,7 @@ export function LongTextCellEditor({ value, field, onCommit, onCancel }: CellEdi
   );
 }
 
-export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+export function DecimalCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   const [num, setNum] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
 

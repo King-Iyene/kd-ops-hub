@@ -51,7 +51,7 @@ export function useUpdateAutomation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (params: { id: string; table_id: string } & Partial<Pick<Automation, 'name' | 'enabled' | 'trigger_type' | 'trigger_config' | 'actions'>>) => {
-      const { id, table_id, ...updates } = params;
+      const { id, table_id: _table_id, ...updates } = params;
       const { data, error } = await supabase
         .schema('nc_meta')
         .from('automations')

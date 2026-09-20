@@ -3,7 +3,7 @@ import {
   Plus, Layers, FolderOpen, ChevronRight, ChevronDown,
   User, Gauge,
   MoreHorizontal, Pencil, Trash2,
-  Lock, Users, FolderKanban, ListTodo, Palette, Star,
+  FolderKanban, ListTodo, Star,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';

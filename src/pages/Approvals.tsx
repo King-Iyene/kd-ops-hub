@@ -12,7 +12,6 @@ import {
   Loader2,
   Calendar,
   ShieldCheck,
-  Activity,
   RefreshCw,
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -83,7 +82,6 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
-import { StickyActionBar, StickyActionBarSpacer } from '@/components/ui-kit/StickyActionBar';
 import { useEmployeeDirectory } from '@/queries';
 
 type Kind = 'batch' | 'expense' | 'fuel' | 'budget' | 'leave';

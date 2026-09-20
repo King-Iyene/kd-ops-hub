@@ -22,7 +22,6 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { BankCombobox } from '@/components/BankCombobox';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -43,7 +42,7 @@ const JoinForm = () => {
   const [submitting, setSubmitting] = useState(false);
 
   type FormField = 'first_name' | 'last_name' | 'email' | 'phone' | 'linkedin_url' | 'linkedin_email' | 'heyreach_password' | 'bank_name' | 'account_number' | 'bank_verified';
-  const { errors, setError, clearError, clearAll, hasErrors } = useFieldErrors<FormField>();
+  const { errors, setError, clearError, clearAll } = useFieldErrors<FormField>();
 
   const [form, setForm] = useState({
     first_name: '',

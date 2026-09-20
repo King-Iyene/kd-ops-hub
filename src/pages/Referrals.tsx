@@ -6,7 +6,6 @@ import {
   Users,
   Loader2,
   Download,
-  Pencil,
   Star,
   Clock,
 } from 'lucide-react';
@@ -15,7 +14,7 @@ import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { formatDate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

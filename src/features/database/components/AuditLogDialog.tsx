@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Plus, Pencil, Trash2, Table, Columns, History, Search,
-  Filter, ChevronDown, Loader2,
+  Filter, Loader2,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Download, FileText, X, Loader2, AlertCircle } from 'lucide-react';
+import { ExternalLink, Download, FileText, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
 import { supabase } from '@/lib/supabase';

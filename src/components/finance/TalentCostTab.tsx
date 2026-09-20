@@ -16,7 +16,6 @@ import { Tooltip as UiTooltip, TooltipTrigger, TooltipContent, TooltipProvider }
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
 import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
-import { cn } from '@/lib/utils';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import {
   fetchTerminationRecords,

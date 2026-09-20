@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+
 import { useToast } from '@/hooks/use-toast';
 
 // Every genuinely public, unauthenticated URL in KDOps, in one place. Before

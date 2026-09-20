@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -25,7 +24,7 @@ import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCa
 import { supabase } from '@/lib/supabase';
 import { useCompanySettings } from '@/queries';
 import {
-  Beaker, Plus, Trash2, TrendingUp, TrendingDown, Users,
+  Beaker, Plus, Trash2, TrendingUp, Users,
   DollarSign, Building2, AlertTriangle,
 } from 'lucide-react';
 
@@ -108,13 +107,6 @@ export default function ScenarioPlannerTab() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const netBurn = useMemo(() => {
-    const weeklyBurn = baseForecast.length >= 2
-      ? (baseForecast[0].balance - baseForecast[baseForecast.length - 1].balance) / baseForecast.length
-      : 0;
-    return weeklyBurn > 0 ? weeklyBurn : monthlyRevenueEstimate / 4.33;
-  }, [baseForecast, monthlyRevenueEstimate]);
 
   const addAdjustment = useCallback(() => {
     setAdjustments(prev => [...prev, defaultAdj()]);
@@ -254,7 +246,6 @@ export default function ScenarioPlannerTab() {
             <div className="space-y-3">
               {adjustments.map(adj => {
                 const typeDef = ADJUSTMENT_TYPES.find(t => t.value === adj.type);
-                const Icon = typeDef?.icon ?? DollarSign;
                 return (
                   <div key={adj.id} className="flex flex-wrap items-end gap-2 p-3 rounded-lg border bg-muted/30">
                     <div className="space-y-1 min-w-[140px]">

@@ -2,8 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  Mail,
-  Phone,
   CalendarDays,
   Save,
   Loader2,
@@ -34,7 +32,7 @@ import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { MaskedAccountNumber } from '@/components/ui-kit/MaskedAccountNumber';
 import { logAudit } from '@/lib/audit';
-import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/lib/format';
+import { formatDate, formatDateTime, formatNaira } from '@/lib/format';
 import { safeHref } from '@/lib/safe-href';
 import { displayName, initialsOf } from '@/lib/name';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

@@ -298,7 +298,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   }, [choices]);
 
   const relatedTableId = selectedLinkField?.options?.relatedTableId ?? null;
-  const { data: relatedTableFields } = useFields(relatedTableId);
+  useFields(relatedTableId);
 
   const resetForm = useCallback(() => {
     setName('');
