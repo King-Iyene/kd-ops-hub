@@ -10,7 +10,7 @@ import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
 import { usePlatformTasks } from '../../hooks/usePlatformTasks';
 import { normalizeLinkedTasks, type LinkedTaskValue } from './cell-renderers';
-import { toLocalDateString } from '@/lib/format';
+import { toLocalDateString, getTimezone, orgWallClockToUtcIso } from '@/lib/format';
 
 /** Strip non-numeric chars, keeping at most one minus (leading) and one dot. */
 function sanitizeNumeric(raw: string): string {
@@ -1100,20 +1100,44 @@ export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEdit
   );
 }
 
+function getOrgTimeParts(d: Date): { hour24: number; minute: number } {
+  const tz = getTimezone();
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour12: false,
+    hour: '2-digit', minute: '2-digit',
+  }).formatToParts(d);
+  const get = (t: string) => parseInt(parts.find((p) => p.type === t)?.value ?? '0', 10);
+  return { hour24: get('hour') % 24, minute: get('minute') };
+}
+
+function to12h(h24: number): { display: number; period: 'AM' | 'PM' } {
+  const period: 'AM' | 'PM' = h24 >= 12 ? 'PM' : 'AM';
+  let display = h24 % 12;
+  if (display === 0) display = 12;
+  return { display, period };
+}
+
+function to24h(display12: number, period: 'AM' | 'PM'): number {
+  let h = display12 % 12;
+  if (period === 'PM') h += 12;
+  return h;
+}
+
 export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   const initialDate = value ? new Date(value) : undefined;
-  const initialHour = initialDate ? String(initialDate.getHours()).padStart(2, '0') : '12';
-  const initialMin = initialDate ? String(initialDate.getMinutes()).padStart(2, '0') : '00';
+  const orgTime = initialDate ? getOrgTimeParts(initialDate) : { hour24: 12, minute: 0 };
+  const init12 = to12h(orgTime.hour24);
   const [selected, setSelected] = useState<Date | undefined>(initialDate);
-  const [hour, setHour] = useState(initialHour);
-  const [minute, setMinute] = useState(initialMin);
+  const [hour, setHour] = useState(String(init12.display));
+  const [minute, setMinute] = useState(String(orgTime.minute).padStart(2, '0'));
+  const [period, setPeriod] = useState<'AM' | 'PM'>(init12.period);
   const colors = useGridColors();
 
-  const commitDateTime = useCallback((day: Date | undefined, h: string, m: string) => {
+  const commitDateTime = useCallback((day: Date | undefined, h: string, m: string, p: 'AM' | 'PM') => {
     if (!day) { onCommit(null); return; }
-    const d = new Date(day);
-    d.setHours(parseInt(h, 10) || 0, parseInt(m, 10) || 0, 0, 0);
-    onCommit(d.toISOString());
+    const h24 = to24h(parseInt(h, 10) || 12, p);
+    const wallClock = `${toLocalDateString(day)}T${String(h24).padStart(2, '0')}:${m.padStart(2, '0')}`;
+    onCommit(orgWallClockToUtcIso(wallClock));
   }, [onCommit]);
 
   useEffect(() => {
@@ -1158,7 +1182,10 @@ export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProp
             type="text"
             inputMode="numeric"
             value={hour}
-            onChange={(e) => setHour(e.target.value.replace(/[^0-9]/g, ''))}
+            onChange={(e) => {
+              const v = e.target.value.replace(/[^0-9]/g, '');
+              if (v === '' || (parseInt(v, 10) >= 1 && parseInt(v, 10) <= 12)) setHour(v);
+            }}
             className="w-10 text-center text-xs rounded outline-none bg-transparent"
             style={{ border: `1px solid ${colors.border}`, color: colors.text, padding: '2px 4px' }}
           />
@@ -1167,10 +1194,37 @@ export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProp
             type="text"
             inputMode="numeric"
             value={minute}
-            onChange={(e) => setMinute(e.target.value.replace(/[^0-9]/g, ''))}
+            onChange={(e) => {
+              const v = e.target.value.replace(/[^0-9]/g, '');
+              if (v === '' || parseInt(v, 10) <= 59) setMinute(v);
+            }}
             className="w-10 text-center text-xs rounded outline-none bg-transparent"
             style={{ border: `1px solid ${colors.border}`, color: colors.text, padding: '2px 4px' }}
           />
+          <button
+            type="button"
+            className="text-xs px-2 py-0.5 rounded font-medium transition-colors"
+            style={{
+              backgroundColor: period === 'AM' ? colors.primary : 'transparent',
+              color: period === 'AM' ? '#fff' : colors.muted,
+              border: `1px solid ${period === 'AM' ? colors.primary : colors.border}`,
+            }}
+            onClick={() => setPeriod('AM')}
+          >
+            AM
+          </button>
+          <button
+            type="button"
+            className="text-xs px-2 py-0.5 rounded font-medium transition-colors"
+            style={{
+              backgroundColor: period === 'PM' ? colors.primary : 'transparent',
+              color: period === 'PM' ? '#fff' : colors.muted,
+              border: `1px solid ${period === 'PM' ? colors.primary : colors.border}`,
+            }}
+            onClick={() => setPeriod('PM')}
+          >
+            PM
+          </button>
         </div>
         <div style={{ height: 1, backgroundColor: colors.border }} />
         <div className="flex items-center justify-between px-3 py-2">
@@ -1181,13 +1235,31 @@ export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProp
           >
             Clear
           </button>
-          <button
-            className="text-xs px-3 py-1 rounded"
-            style={{ backgroundColor: colors.primary, color: '#fff' }}
-            onClick={() => commitDateTime(selected, hour, minute)}
-          >
-            Done
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              className="text-xs px-2 py-1 rounded transition-colors"
+              style={{ color: colors.muted }}
+              onClick={() => {
+                const now = new Date();
+                const nowOrg = getOrgTimeParts(now);
+                const now12 = to12h(nowOrg.hour24);
+                setSelected(now);
+                setHour(String(now12.display));
+                setMinute(String(nowOrg.minute).padStart(2, '0'));
+                setPeriod(now12.period);
+                commitDateTime(now, String(now12.display), String(nowOrg.minute).padStart(2, '0'), now12.period);
+              }}
+            >
+              Now
+            </button>
+            <button
+              className="text-xs px-3 py-1 rounded"
+              style={{ backgroundColor: colors.primary, color: '#fff' }}
+              onClick={() => commitDateTime(selected, hour, minute, period)}
+            >
+              Done
+            </button>
+          </div>
         </div>
       </PopoverContent>
     </Popover>
