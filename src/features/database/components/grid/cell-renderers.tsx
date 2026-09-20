@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Check, ExternalLink, Copy, Plus, Star, Clock, AlertTriangle, Barcode, FileText, FileSpreadsheet, FileCode, FileArchive, FileVideo, FileAudio, File, FileImage, Presentation } from 'lucide-react';
 import AttachmentLightbox from '../AttachmentLightbox';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
@@ -8,6 +8,7 @@ import { SELECT_COLORS } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
+import { formatDate, formatDateTime, formatTime as formatTimeUtil } from '@/lib/format';
 
 interface CellRendererProps {
   value: any;
@@ -321,15 +322,16 @@ export const DateCellRenderer = React.memo(function DateCellRenderer({
   field,
 }: CellRendererProps) {
   if (value == null || value === '') return null;
-  const date = new Date(value);
-  if (isNaN(date.getTime())) return <span className="truncate">{String(value)}</span>;
-  const opts: Intl.DateTimeFormatOptions =
-    field.ui_type === 'DateTime'
-      ? { dateStyle: 'medium', timeStyle: 'short' }
-      : { dateStyle: 'medium' };
-  const formatted = date.toLocaleString(undefined, opts);
+  const formatted = useMemo(() => {
+    try {
+      if (field.ui_type === 'DateTime') return formatDateTime(value);
+      return formatDate(value);
+    } catch {
+      return String(value);
+    }
+  }, [value, field.ui_type]);
   return (
-    <span className="truncate text-[#374151] dark:text-[hsl(210,18%,78%)]" style={{ fontSize: 13, letterSpacing: '-0.01em' }}>
+    <span className="truncate text-foreground" style={{ fontSize: 13, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>
       {formatted}
     </span>
   );
@@ -576,11 +578,9 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
   }
 
   if (field.ui_type === 'CreatedTime' || field.ui_type === 'LastModifiedTime') {
-    const date = new Date(value);
-    if (isNaN(date.getTime())) return <span style={{ color: colors.systemText }}>{String(value)}</span>;
-    const formatted = date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    const formatted = formatDateTime(value);
     return (
-      <span className="truncate" style={{ fontSize: 12, color: colors.systemText }}>
+      <span className="truncate" style={{ fontSize: 12, color: colors.systemText, fontVariantNumeric: 'tabular-nums' }}>
         {formatted}
       </span>
     );
@@ -718,14 +718,33 @@ export const TimeCellRenderer = React.memo(function TimeCellRenderer({
   value,
 }: CellRendererProps) {
   if (value == null || value === '') return null;
-  return <span className="truncate">{String(value)}</span>;
+  const formatted = useMemo(() => {
+    const str = String(value);
+    const match = str.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (!match) return str;
+    let h = parseInt(match[1], 10);
+    const m = match[2];
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    if (h === 0) h = 12;
+    else if (h > 12) h -= 12;
+    return `${h}:${m} ${ampm}`;
+  }, [value]);
+  return (
+    <span className="truncate text-foreground" style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
+      {formatted}
+    </span>
+  );
 });
 
 export const YearCellRenderer = React.memo(function YearCellRenderer({
   value,
 }: CellRendererProps) {
   if (value == null || value === '') return null;
-  return <span className="truncate">{String(value)}</span>;
+  return (
+    <span className="truncate text-foreground" style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
+      {String(value).slice(0, 4)}
+    </span>
+  );
 });
 
 

@@ -256,6 +256,46 @@ export const toIsoDate = (d: Date | string): string => {
   return date.toISOString().slice(0, 10);
 };
 
+/**
+ * Extract YYYY-MM-DD from a Date using LOCAL date components (not UTC).
+ * `toISOString().split('T')[0]` converts to UTC first, which silently
+ * shifts the date by one day for users in positive UTC offsets late at
+ * night (e.g. selecting Sep 20 at 11 PM WAT → toISOString gives Sep 20
+ * at 22:00 UTC, fine — but selecting Sep 20 at 11:30 PM in UTC+1 →
+ * toISOString gives Sep 21 in UTC).
+ */
+export function toLocalDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * "Today" as YYYY-MM-DD in the org's configured timezone, not the
+ * browser's local date. Ensures the date picker's Today button and
+ * auto-populate both use the same "today" the rest of the app shows.
+ */
+export function orgToday(): string {
+  const tz = getTimezone();
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '01';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+/**
+ * Current moment as a full ISO timestamp, correctly offset so it
+ * represents "now" regardless of the browser's timezone.
+ */
+export function orgNowIso(): string {
+  return new Date().toISOString();
+}
+
 /** Days until a date (can be negative if in the past). */
 export const daysUntil = (d: string | Date | null | undefined): number | null => {
   if (!d) return null;

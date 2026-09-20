@@ -23,10 +23,11 @@ import {
   useUpdateField,
 } from '../hooks';
 import GridView from '../components/grid/GridView';
-import type { RecordRow } from '../types';
+import type { RecordRow, FieldMeta } from '../types';
 import { useRealtimeRecords } from '../hooks/useRealtime';
 import { parseFormula, evaluateFormula } from '../lib/formula';
 import { useLinkDisplayLookup } from '../hooks/useLinkDisplayLookup';
+import { orgToday, orgNowIso } from '@/lib/format';
 
 const KanbanView = lazy(() => import('../components/views/KanbanView'));
 const GalleryView = lazy(() => import('../components/views/GalleryView'));
@@ -328,7 +329,14 @@ export function TableView() {
   const handleAddRow = useCallback(
     (record?: Record<string, any>) => {
       if (!activeBaseId || !activeTableId) return;
-      createRecord.mutateAsync({ baseId: activeBaseId, tableId: activeTableId, record: record ?? {} }).then((created) => {
+      const defaults: Record<string, any> = {};
+      for (const f of fields ?? []) {
+        if (f.is_system) continue;
+        if (f.ui_type === 'Date') defaults[f.pg_column_name] = orgToday();
+        else if (f.ui_type === 'DateTime') defaults[f.pg_column_name] = orgNowIso();
+      }
+      const merged = { ...defaults, ...record };
+      createRecord.mutateAsync({ baseId: activeBaseId, tableId: activeTableId, record: merged }).then((created) => {
         pushUndo({
           type: 'row_create',
           payload: { recordId: created.id },
@@ -336,12 +344,12 @@ export function TableView() {
             deleteRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, recordId: created.id });
           },
           redo: async () => {
-            createRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record: record ?? {} });
+            createRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, record: merged });
           },
         });
       });
     },
-    [activeBaseId, activeTableId, createRecord, deleteRecord, pushUndo],
+    [activeBaseId, activeTableId, createRecord, deleteRecord, pushUndo, fields],
   );
 
   const handlePasteRows = useCallback(

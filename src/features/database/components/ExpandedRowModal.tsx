@@ -9,6 +9,7 @@ import { PILL_COLORS } from '../types';
 import { getCellRenderer } from './grid/cell-renderers';
 import { getFieldTypeIcon } from './grid/field-icons';
 import { AttachmentManager, type AttachmentMeta } from './AttachmentManager';
+import { toLocalDateString, utcIsoToOrgWallClock, orgWallClockToUtcIso } from '@/lib/format';
 
 /** Strip non-numeric chars, keeping at most one minus (leading) and one dot. */
 function sanitizeNumeric(raw: string): string {
@@ -141,30 +142,34 @@ function InlineDateEditor({
   onCommit: (v: string | null) => void;
   showTime?: boolean;
 }) {
-  const initial = value
-    ? showTime
-      ? new Date(value).toISOString().slice(0, 16)
-      : new Date(value).toISOString().split('T')[0]
-    : '';
-  const [date, setDate] = useState(initial);
-  useEffect(() => {
-    const next = value
-      ? showTime
-        ? new Date(value).toISOString().slice(0, 16)
-        : new Date(value).toISOString().split('T')[0]
-      : '';
-    setDate(next);
-  }, [value, showTime]);
+  const toInputValue = useCallback((v: string | null) => {
+    if (!v) return '';
+    if (showTime) return utcIsoToOrgWallClock(v);
+    return toLocalDateString(new Date(v));
+  }, [showTime]);
+
+  const [date, setDate] = useState(() => toInputValue(value));
+  useEffect(() => { setDate(toInputValue(value)); }, [value, toInputValue]);
+
+  const commit = useCallback((raw: string) => {
+    if (!raw) { onCommit(null); return; }
+    if (showTime) {
+      onCommit(orgWallClockToUtcIso(raw));
+    } else {
+      onCommit(raw);
+    }
+  }, [onCommit, showTime]);
+
   return (
     <input
       type={showTime ? 'datetime-local' : 'date'}
       value={date}
       onChange={(e) => setDate(e.target.value)}
-      onBlur={() => onCommit(date || null)}
+      onBlur={() => commit(date)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(date || null);
+        if (e.key === 'Enter') commit(date);
       }}
-      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9]"
+      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-foreground border-border focus:border-[#2D7FF9]"
     />
   );
 }

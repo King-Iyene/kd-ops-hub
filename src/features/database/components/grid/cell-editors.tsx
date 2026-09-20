@@ -10,6 +10,7 @@ import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
 import { usePlatformTasks } from '../../hooks/usePlatformTasks';
 import { normalizeLinkedTasks, type LinkedTaskValue } from './cell-renderers';
+import { toLocalDateString } from '@/lib/format';
 
 /** Strip non-numeric chars, keeping at most one minus (leading) and one dot. */
 function sanitizeNumeric(raw: string): string {
@@ -158,8 +159,7 @@ export function DateCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === ';') {
         e.preventDefault();
-        const today = new Date();
-        onCommit(today.toISOString().split('T')[0]);
+        onCommit(toLocalDateString(new Date()));
       }
     };
     window.addEventListener('keydown', handler);
@@ -190,7 +190,7 @@ export function DateCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
           onSelect={(day) => {
             setSelected(day);
             if (day) {
-              onCommit(day.toISOString().split('T')[0]);
+              onCommit(toLocalDateString(day));
             }
           }}
           defaultMonth={selected || new Date()}
@@ -210,7 +210,7 @@ export function DateCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
             onClick={() => {
               const today = new Date();
               setSelected(today);
-              onCommit(today.toISOString().split('T')[0]);
+              onCommit(toLocalDateString(today));
             }}
           >
             Today
