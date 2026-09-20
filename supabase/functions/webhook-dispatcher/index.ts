@@ -3,6 +3,13 @@
  *
  * Dispatches webhooks to external URLs when database events occur.
  * Called from the client after record create/update/delete events.
+ *
+ * AUTH: deployed --no-verify-jwt because public form submissions
+ * (FlexFormPublic, SharedViewPage) call this without a user JWT —
+ * the function validates auth in code (formToken / shareToken paths).
+ *
+ * Deploy:
+ *   supabase functions deploy webhook-dispatcher --no-verify-jwt
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -152,7 +159,8 @@ Deno.serve(async (req) => {
   const uniqueWebhooks = webhooks ?? [];
 
   if (uniqueWebhooks.length === 0) {
-    return json({ dispatched: 0 }, 200, req);
+    console.warn(`[webhook-dispatcher] 0 webhooks matched event=${event} baseId=${baseId} tableId=${tableId}`);
+    return json({ dispatched: 0, event, hint: 'No active webhooks match this event. Check event name in Developer > Webhooks.' }, 200, req);
   }
 
   let dispatched = 0;

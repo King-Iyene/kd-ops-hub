@@ -120,10 +120,16 @@ export default function SharedViewPage() {
       // subscribed to table.form_submitted was otherwise never notified
       // by this, the most common way records get created in a Base.
       fireAutomations('table.form_submitted', base.id, table.id, data);
-      supabase.functions.invoke('webhook-dispatcher', {
-        body: { event: 'table.form_submitted', baseId: base.id, tableId: table.id, record: data, shareToken: token },
+      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-dispatcher`;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+      fetch(fnUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${anonKey}`, 'apikey': anonKey },
+        body: JSON.stringify({ event: 'table.form_submitted', baseId: base.id, tableId: table.id, record: data, shareToken: token }),
+      }).then(async (res) => {
+        if (!res.ok) logWarn('Webhooks', `SharedView dispatch HTTP ${res.status}`);
       }).catch((err) => {
-        logWarn('Webhooks', 'Webhook dispatch failed:', err?.message ?? err);
+        logWarn('Webhooks', 'SharedView dispatch failed:', err?.message ?? err);
       });
     },
   });

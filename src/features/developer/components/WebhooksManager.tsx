@@ -483,6 +483,20 @@ export default function WebhooksManager() {
                     {/* Events */}
                     <EventBadges events={wh.events || []} />
 
+                    {/* Mismatch warnings */}
+                    {wh.events?.includes('task.form_submitted') && !wh.events?.includes('table.form_submitted') && (
+                      <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                        This webhook listens for <span className="font-mono font-medium">task.form_submitted</span> (task intake forms at /forms/:id) — if you meant Tables module forms (/t/f/:token), add <span className="font-mono font-medium">table.form_submitted</span> instead.
+                      </p>
+                    )}
+                    {wh.events?.includes('table.form_submitted') && !wh.events?.includes('task.form_submitted') && !wh.last_triggered_at && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5 shrink-0" />
+                        Listening for Tables module form submissions (/t/f/:token). Never triggered yet.
+                      </p>
+                    )}
+
                     {/* Meta */}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                       {wh.secret && (
