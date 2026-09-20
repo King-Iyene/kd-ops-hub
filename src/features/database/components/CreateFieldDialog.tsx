@@ -218,6 +218,10 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [buttonLabel, setButtonLabel] = useState('Click');
   const [buttonUrl, setButtonUrl] = useState('');
   const [allowMultiple, setAllowMultiple] = useState(false);
+  const [dateFormat, setDateFormat] = useState<string>('friendly');
+  const [includeTime, setIncludeTime] = useState(false);
+  const [displayTimezone, setDisplayTimezone] = useState(false);
+  const [defaultToCurrentDate, setDefaultToCurrentDate] = useState(false);
   const [typeSearch, setTypeSearch] = useState('');
   const [error, setError] = useState('');
   const { activeTableId, activeBaseId } = useDatabaseUI();
@@ -324,6 +328,10 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setButtonLabel('Click');
     setButtonUrl('');
     setAllowMultiple(false);
+    setDateFormat('friendly');
+    setIncludeTime(false);
+    setDisplayTimezone(false);
+    setDefaultToCurrentDate(false);
   }, []);
 
   const handleTypeChange = (type: UIType) => {
@@ -379,6 +387,12 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     }
     if (uiType === 'User') {
       opts.allowMultiple = allowMultiple;
+    }
+    if (uiType === 'Date' || uiType === 'DateTime') {
+      opts.dateFormat = dateFormat as any;
+      opts.includeTime = includeTime;
+      opts.displayTimezone = displayTimezone;
+      opts.defaultToCurrentDate = defaultToCurrentDate;
     }
     return opts;
   };
@@ -867,6 +881,64 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 <option value="h:mm:ss.ss">h:mm:ss.ss (e.g., 1:30:00.00)</option>
                 <option value="h:mm:ss.sss">h:mm:ss.sss (e.g., 1:30:00.000)</option>
               </select>
+            </div>
+          )}
+
+          {(uiType === 'Date' || uiType === 'DateTime') && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Date format</Label>
+                <select
+                  value={dateFormat}
+                  onChange={(e) => setDateFormat(e.target.value)}
+                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                >
+                  <option value="friendly">Friendly (September 20, 2026)</option>
+                  <option value="local">Local (20/09/2026)</option>
+                  <option value="us">US (09/20/2026)</option>
+                  <option value="european">European (20/9/2026)</option>
+                  <option value="iso">ISO (2026-09-20)</option>
+                </select>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                  checked={includeTime}
+                  onChange={(e) => {
+                    setIncludeTime(e.target.checked);
+                    if (!e.target.checked) setDisplayTimezone(false);
+                  }}
+                />
+                <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Include time</span>
+              </label>
+              {includeTime && (
+                <label className="flex items-center gap-2 cursor-pointer ml-5">
+                  <input
+                    type="checkbox"
+                    className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                    checked={displayTimezone}
+                    onChange={(e) => setDisplayTimezone(e.target.checked)}
+                  />
+                  <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Display time zone</span>
+                </label>
+              )}
+              <div className="border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] pt-2.5">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                    checked={defaultToCurrentDate}
+                    onChange={(e) => setDefaultToCurrentDate(e.target.checked)}
+                  />
+                  <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Default to current date</span>
+                </label>
+                {defaultToCurrentDate && (
+                  <p className="text-2xs text-[#9AA2AF] mt-1 ml-5">
+                    New rows will automatically use today's date for this field.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

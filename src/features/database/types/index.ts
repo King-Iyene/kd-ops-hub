@@ -88,6 +88,10 @@ export interface FieldOptions {
   currencyCode?: string;
   locale?: string;
   use12h?: boolean;
+  dateFormat?: 'local' | 'friendly' | 'us' | 'european' | 'iso';
+  includeTime?: boolean;
+  displayTimezone?: boolean;
+  defaultToCurrentDate?: boolean;
   max?: number;
   icon?: string;
   choices?: SelectChoice[];

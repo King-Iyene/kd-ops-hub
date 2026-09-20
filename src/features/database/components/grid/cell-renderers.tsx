@@ -8,7 +8,7 @@ import { SELECT_COLORS } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
-import { formatDate, formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime, formatDateWithOptions } from '@/lib/format';
 
 interface CellRendererProps {
   value: any;
@@ -335,12 +335,20 @@ export const DateCellRenderer = React.memo(function DateCellRenderer({
   const formatted = useMemo(() => {
     if (value == null || value === '') return null;
     try {
+      const opts = field.options as any;
+      if (opts?.dateFormat) {
+        return formatDateWithOptions(value, {
+          dateFormat: opts.dateFormat,
+          includeTime: opts.includeTime ?? field.ui_type === 'DateTime',
+          displayTimezone: opts.displayTimezone,
+        });
+      }
       if (field.ui_type === 'DateTime') return formatDateTime(value);
       return formatDate(value);
     } catch {
       return String(value);
     }
-  }, [value, field.ui_type]);
+  }, [value, field.ui_type, field.options]);
   if (formatted == null) return null;
   return (
     <span className="truncate text-foreground" style={{ fontSize: 13, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>
@@ -874,7 +882,22 @@ export const LinksCellRenderer = React.memo(function LinksCellRenderer({
   record,
 }: CellRendererProps) {
   const colors = useGridColors();
-  if (!Array.isArray(value) || value.length === 0) return null;
+  const expandRow = React.useCallback(() => {
+    window.dispatchEvent(new CustomEvent('grid:expand-row', { detail: record }));
+  }, [record]);
+  if (!Array.isArray(value) || value.length === 0) {
+    return (
+      <button
+        type="button"
+        className="opacity-0 group-hover/row:opacity-100 transition-opacity"
+        style={{ color: colors.muted, fontSize: 13 }}
+        onClick={(e) => { e.stopPropagation(); expandRow(); }}
+        aria-label="Add linked record"
+      >
+        <Plus size={14} />
+      </button>
+    );
+  }
   const lookup = (record as any)?.__linkLookup as Record<string, string> | undefined;
   return (
     <div className="flex items-center gap-1 overflow-hidden">
@@ -891,6 +914,7 @@ export const LinksCellRenderer = React.memo(function LinksCellRenderer({
             key={i}
             className="inline-flex items-center px-2 rounded-sm text-xs font-medium truncate cursor-pointer hover:opacity-80 transition-opacity"
             title={label}
+            onClick={(e) => { e.stopPropagation(); expandRow(); }}
             style={{
               height: 22,
               lineHeight: '22px',
@@ -917,6 +941,15 @@ export const LinksCellRenderer = React.memo(function LinksCellRenderer({
           +{value.length - 3}
         </span>
       )}
+      <button
+        type="button"
+        className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity ml-0.5"
+        style={{ color: colors.muted }}
+        onClick={(e) => { e.stopPropagation(); expandRow(); }}
+        aria-label="Edit linked records"
+      >
+        <Plus size={14} />
+      </button>
     </div>
   );
 });

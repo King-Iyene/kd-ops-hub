@@ -115,6 +115,73 @@ export function formatDateTime(
   }
 }
 
+export type DateFormatOption = 'local' | 'friendly' | 'us' | 'european' | 'iso';
+
+export function formatDateWithOptions(
+  date: string | Date | null | undefined,
+  opts?: { dateFormat?: DateFormatOption; includeTime?: boolean; displayTimezone?: boolean },
+): string {
+  if (!date) return '—';
+  try {
+    const fmt = opts?.dateFormat ?? 'friendly';
+    const withTime = opts?.includeTime ?? false;
+    const withTz = opts?.displayTimezone ?? false;
+    const tz = getTimezone();
+    const d = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)
+      ? new Date(date + 'T00:00:00')
+      : new Date(date);
+
+    let datePart: string;
+    switch (fmt) {
+      case 'local':
+        datePart = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', ...(withTime ? { timeZone: tz } : {}) });
+        break;
+      case 'us':
+        datePart = d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', ...(withTime ? { timeZone: tz } : {}) });
+        break;
+      case 'european':
+        datePart = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', ...(withTime ? { timeZone: tz } : {}) });
+        break;
+      case 'iso':
+        if (withTime) {
+          const isoFull = d.toLocaleString('sv-SE', { timeZone: tz });
+          datePart = isoFull.replace(' ', 'T').slice(0, 16);
+        } else {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const dy = String(d.getDate()).padStart(2, '0');
+          datePart = `${y}-${m}-${dy}`;
+        }
+        return datePart;
+      case 'friendly':
+      default:
+        datePart = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', ...(withTime ? { timeZone: tz } : {}) });
+        break;
+    }
+
+    if (!withTime || (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date))) return datePart;
+
+    const timePart = new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: tz,
+    }).format(d);
+
+    let result = `${datePart}, ${timePart}`;
+    if (withTz) {
+      const tzAbbr = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        timeZoneName: 'short',
+      }).formatToParts(d).find((p) => p.type === 'timeZoneName')?.value ?? '';
+      if (tzAbbr) result += ` (${tzAbbr})`;
+    }
+    return result;
+  } catch {
+    return '—';
+  }
+}
+
 /**
  * "9:45 AM" — time only, 12-hour, org timezone, no date.
  * Used in tables and cards where the date is already shown separately.

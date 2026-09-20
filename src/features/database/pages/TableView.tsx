@@ -332,8 +332,11 @@ export function TableView() {
       const defaults: Record<string, any> = {};
       for (const f of fields ?? []) {
         if (f.is_system) continue;
-        if (f.ui_type === 'Date') defaults[f.pg_column_name] = orgToday();
-        else if (f.ui_type === 'DateTime') defaults[f.pg_column_name] = orgNowIso();
+        const opts = f.options as any;
+        if (opts?.defaultToCurrentDate) {
+          if (f.ui_type === 'Date') defaults[f.pg_column_name] = orgToday();
+          else if (f.ui_type === 'DateTime') defaults[f.pg_column_name] = orgNowIso();
+        }
       }
       const merged = { ...defaults, ...record };
       createRecord.mutateAsync({ baseId: activeBaseId, tableId: activeTableId, record: merged }).then((created) => {
