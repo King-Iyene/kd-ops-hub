@@ -40,7 +40,7 @@ import {
   Send,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { EVENT_GROUPS, ALL_EVENTS, eventColor, eventModule } from '../webhookEvents';
+import { EVENT_GROUPS, ALL_EVENTS, EVENT_HINTS, eventColor, eventModule } from '../webhookEvents';
 
 // Nil UUID sentinel for platform-wide webhooks (same for base_id and table_id)
 const PLATFORM_SENTINEL = '00000000-0000-0000-0000-000000000000';
@@ -609,6 +609,9 @@ export default function WebhooksManager() {
                                 onCheckedChange={() => toggleEvent(event)}
                               />
                               <code className="text-xs">{event}</code>
+                              {EVENT_HINTS[event] && (
+                                <span className="text-2xs text-muted-foreground">— {EVENT_HINTS[event]}</span>
+                              )}
                             </label>
                           ))}
                         </div>

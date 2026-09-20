@@ -30,6 +30,17 @@ export const EVENT_GROUPS: { module: string; color: string; events: string[] }[]
 
 export const ALL_EVENTS = EVENT_GROUPS.flatMap((g) => g.events);
 
+/** Short descriptions shown in the event picker to disambiguate similar
+ *  event names (e.g. task.form_submitted vs table.form_submitted). */
+export const EVENT_HINTS: Record<string, string> = {
+  'task.form_submitted': 'Task intake form (/forms/:id)',
+  'table.form_submitted': 'Tables module form (/t/f/:token)',
+  'record.created': 'Per-table webhook (Database module)',
+  'record.updated': 'Per-table webhook (Database module)',
+  'record.deleted': 'Per-table webhook (Database module)',
+  'record.bulk_created': 'Per-table webhook (Database module)',
+};
+
 export function eventColor(event: string): string {
   for (const g of EVENT_GROUPS) {
     if (g.events.includes(event)) return g.color;

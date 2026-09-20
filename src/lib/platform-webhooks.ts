@@ -21,8 +21,11 @@ export function dispatchPlatformWebhook(
         record: payload,
       },
     })
+    .then(({ error }) => {
+      if (error) logWarn('Webhooks', `dispatch ${event} failed:`, error.message);
+    })
     .catch((err) => {
-      logWarn('Webhooks', 'Platform webhook dispatch failed:', err?.message ?? err);
+      logWarn('Webhooks', `dispatch ${event} failed:`, err?.message ?? err);
     });
 }
 
@@ -45,7 +48,10 @@ export function dispatchFormWebhook(
         record: payload,
       },
     })
+    .then(({ error }) => {
+      if (error) logWarn('Webhooks', `form dispatch ${event} failed:`, error.message);
+    })
     .catch((err) => {
-      logWarn('Webhooks', 'Form webhook dispatch failed:', err?.message ?? err);
+      logWarn('Webhooks', `form dispatch ${event} failed:`, err?.message ?? err);
     });
 }
