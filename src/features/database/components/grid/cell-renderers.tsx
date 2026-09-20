@@ -332,8 +332,8 @@ export const DateCellRenderer = React.memo(function DateCellRenderer({
   value,
   field,
 }: CellRendererProps) {
-  if (value == null || value === '') return null;
   const formatted = useMemo(() => {
+    if (value == null || value === '') return null;
     try {
       if (field.ui_type === 'DateTime') return formatDateTime(value);
       return formatDate(value);
@@ -341,6 +341,7 @@ export const DateCellRenderer = React.memo(function DateCellRenderer({
       return String(value);
     }
   }, [value, field.ui_type]);
+  if (formatted == null) return null;
   return (
     <span className="truncate text-foreground" style={{ fontSize: 13, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>
       {formatted}
@@ -728,8 +729,8 @@ export const DurationCellRenderer = React.memo(function DurationCellRenderer({
 export const TimeCellRenderer = React.memo(function TimeCellRenderer({
   value,
 }: CellRendererProps) {
-  if (value == null || value === '') return null;
   const formatted = useMemo(() => {
+    if (value == null || value === '') return null;
     const str = String(value);
     const match = str.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
     if (!match) return str;
@@ -740,6 +741,7 @@ export const TimeCellRenderer = React.memo(function TimeCellRenderer({
     else if (h > 12) h -= 12;
     return `${h}:${m} ${ampm}`;
   }, [value]);
+  if (formatted == null) return null;
   return (
     <span className="truncate text-foreground" style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
       {formatted}
