@@ -3,18 +3,16 @@ import { useDepartments } from '@/queries';
 import {
   Plus,
   Search,
-  PiggyBank,
   Loader2,
   Trash2,
   Pencil,
   CheckCircle2,
   Lock,
   Unlock,
-  Info,
 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { ACTUAL_DISBURSED_STATUSES, actualDisbursedForBatch, fetchSucceededBatchSums } from '@/lib/cfo-dashboard';
@@ -53,7 +51,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
+
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
@@ -62,8 +60,7 @@ import {
   MobileCard,
   MobileCardHeader,
   MobileCardTitle,
-  MobileCardMeta,
-  MobileCardRow,
+
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
 import { usePagination } from '@/hooks/usePagination';
@@ -99,10 +96,6 @@ interface ItemDraft {
   allocated_ngn: string;
 }
 
-interface Department {
-  id: string;
-  name: string;
-}
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',

@@ -1,7 +1,7 @@
 import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, ChevronRight, ChevronDown, Loader2, Expand, Copy, Trash2, MoreHorizontal, Sigma, Lock, ChevronsUpDown, ChevronsDownUp, Rows3, ClipboardCopy, PlusCircle } from 'lucide-react';
-import type { FieldMeta, RecordRow, RowColorRule, UIType, ConditionalFormatRule, Group } from '@/features/database/types';
+import { Plus, ChevronRight, Loader2, Expand, MoreHorizontal, Sigma, Lock, ChevronsUpDown, ChevronsDownUp, Rows3 } from 'lucide-react';
+import type { FieldMeta, RecordRow, RowColorRule, UIType, ConditionalFormatRule } from '@/features/database/types';
 import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
 import { useUndoStore } from '../../lib/undo';
 import { coerceValue } from '../../lib/csv';
@@ -14,7 +14,6 @@ import { GridSkeleton } from './GridSkeleton';
 import { RowContextMenu } from './RowContextMenu';
 import { useGridColors, type GridColorTokens } from '../../hooks/useGridColors';
 import { useUpdateField } from '../../hooks/useFields';
-import { confirm as styledConfirm } from '@/hooks/use-confirm';
 import { formatDate, formatDateTime } from '@/lib/format';
 
 const _ariaFmtMap = new Map<string, Intl.NumberFormat>();
@@ -467,14 +466,6 @@ function GridViewInner({
     });
   }, [records]);
 
-  const handleBulkDelete = useCallback(async () => {
-    if (selectedRowIds.size === 0 || !onBulkDeleteRows) return;
-    const ok = await styledConfirm({ description: `Delete ${selectedRowIds.size} selected record(s)?`, variant: 'destructive' });
-    if (!ok) return;
-    onBulkDeleteRows(Array.from(selectedRowIds));
-    setSelectedRowIds(new Set());
-  }, [selectedRowIds, onBulkDeleteRows]);
-
   const handleRowDragStart = useCallback((e: React.DragEvent, recordId: string) => {
     setDragRowId(recordId);
     e.dataTransfer.effectAllowed = 'move';
@@ -681,10 +672,6 @@ function GridViewInner({
   );
 
   const frozenCount = Math.min(frozenColumns, fieldsWithWidths.length);
-  const frozenFields = useMemo(() => fieldsWithWidths.slice(0, frozenCount), [fieldsWithWidths, frozenCount]);
-  const scrollableFields = useMemo(() => fieldsWithWidths.slice(frozenCount), [fieldsWithWidths, frozenCount]);
-  const frozenWidth = useMemo(() => frozenFields.reduce((sum, f) => sum + f.width, 0), [frozenFields]);
-
   const totalWidth = useMemo(
     () => ROW_NUMBER_WIDTH + fieldsWithWidths.reduce((sum, f) => sum + f.width, 0) + 44,
     [fieldsWithWidths],

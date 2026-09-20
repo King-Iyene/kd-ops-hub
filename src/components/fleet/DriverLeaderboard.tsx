@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Award, TrendingUp, TrendingDown, Minus, Flame, Star, Zap } from 'lucide-react';
+import { Award } from 'lucide-react';
 import { formatNaira } from '@/lib/format';
 
 interface DriverPerf {
@@ -220,8 +219,6 @@ export function DriverLeaderboard() {
   if (drivers.length === 0) return null;
 
   const topDrivers = drivers.slice(0, 10);
-  const maxScore = topDrivers[0]?.composite_score || 100;
-
   return (
     <Card>
       <CardHeader className="pb-2 pt-4">

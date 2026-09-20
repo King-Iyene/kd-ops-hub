@@ -855,22 +855,7 @@ const Payroll = () => {
         include_deductions: form.include_deductions,
         include_ewa: form.include_ewa,
       };
-      const runPayload: Record<string, unknown> = {
-        period: form.period,
-        total_contractor_ngn: totalContractor,
-        total_employee_ngn: totalEmployee,
-        total_expenses_ngn: totalExpenses,
-        paye_ngn: paye,
-        pension_ngn: pension,
-        nhf_ngn: nhf,
-        employer_pension_ngn: employerPension,
-        total_burn_ngn: burn,
-        status: 'draft',
-        created_by: profile?.id || null,
-        payroll_segment_id: segmentId,
-        run_options: runOptions,
-      };
-      const { data: upsertedId, error } = await supabase.rpc('upsert_payroll_draft', {
+      const { error } = await supabase.rpc('upsert_payroll_draft', {
         p_period: form.period,
         p_segment_id: segmentId,
         p_total_contractor_ngn: totalContractor,
@@ -1424,7 +1409,7 @@ const Payroll = () => {
       const companyAddress = runCompany?.address      || null;
       const companyLogo    = (companySettings as any)?.logo_url     || null;
       const nsitfEnabled   = (companySettings as any)?.nsitf_enabled !== false;
-      const itfEnabled     = (companySettings as any)?.itf_enabled !== false;
+      // ITF is annual + conditional — computed at the company level, not per-employee.
       // Dry-run / correction escape hatch — payslips still generate and
       // save normally, only the employee-facing notification fan-out
       // (email/in-app/WhatsApp/SMS) is skipped. Flip back off afterward.
@@ -1467,7 +1452,7 @@ const Payroll = () => {
           const prev = unpaidLeaveDaysByEmployee.get(r.employee_id) || 0;
           unpaidLeaveDaysByEmployee.set(r.employee_id, prev + overlapDays);
         }
-      } catch (leaveErr: unknown) {
+      } catch {
         toast({
           title: 'Unpaid leave lookup failed',
           description: 'Could not load unpaid leave records. Payslip generation aborted to prevent overpayment. Please try again.',
@@ -1722,8 +1707,6 @@ const Payroll = () => {
               : undefined,
             cumulativePayeWithheldYtdNgn: cumulativeOn && empYtd ? empYtd.paye : undefined,
           });
-          const pensionBaseM  = empBreak.pensionBaseMonthlyNgn;
-          const nhfBaseM      = empBreak.nhfBaseMonthlyNgn;
           const empUnpaidLeaveDeduction = empBreak.unpaidLeaveDeductionMonthlyNgn;
           const empPaye    = effPayeOn    ? empBreak.payeMonthlyNgn             : 0;
           const empPension = effPensionOn ? empBreak.pensionEmployeeMonthlyNgn : 0;

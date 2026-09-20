@@ -1,16 +1,12 @@
 import { useState, useCallback, useMemo } from 'react';
 import {
-  Plug, Copy, Check, ChevronRight, ExternalLink, AlertTriangle,
-  Lightbulb, Code2, Terminal, Globe, ArrowRight, Zap,
+  Plug, Copy, Check, ChevronRight, AlertTriangle,
+  Lightbulb, Code2, Terminal, Globe, Zap,
   Users, ListTodo, Calendar, Receipt, Car, FileText, Building2, Database,
-  Play, BookOpen, Shield, Hash, Clock, ChevronDown,
+  Shield, Hash, Clock,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 /* ─── Constants ─── */

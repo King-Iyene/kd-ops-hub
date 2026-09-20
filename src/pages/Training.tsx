@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useEmployeeDirectory } from '@/queries';
 import {
   Plus, Search, Download, Pencil, Trash2, GraduationCap,
-  Award, AlertTriangle, CheckCircle2, Clock, Loader2,
+  Award, AlertTriangle, CheckCircle2, Clock,
   DollarSign, BarChart3, TrendingUp,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -63,7 +63,6 @@ interface TrainingRecord {
   created_at: string;
 }
 
-interface Profile { id: string; full_name: string; }
 
 function effectiveStatus(r: TrainingRecord): TrainingRecord['status'] {
   if (r.record_type === 'certification' && r.expiry_date && parseISO(r.expiry_date) < new Date()) return 'expired';

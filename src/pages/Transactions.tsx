@@ -8,12 +8,10 @@ import {
   ArrowUpDown,
   CreditCard,
   Zap,
-  Receipt,
   X,
   Copy,
   Check,
   Printer,
-  FileDown,
   Info,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -21,7 +19,7 @@ import { friendlyPaystackError, paystackTransferFee } from '@/lib/paystack';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
-import { formatDate, formatDateTime, formatNaira, formatNairaCompact, toIsoDate, maskAccountNumber } from '@/lib/format';
+import { formatDate, formatNaira, formatNairaCompact, toIsoDate, maskAccountNumber } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -123,12 +121,6 @@ const typeLabel = (t: string) => {
   if (t === 'quick_pay') return 'Quick Pay';
   return t.replace(/_/g, ' ');
 };
-
-const FILTER_TABS: { value: FilterTab; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'transfer', label: 'Transfers' },
-  { value: 'quick_pay', label: 'Quick Pay' },
-];
 
 // Stamp duty: ₦50 on every transfer ≥ ₦10,000 (Nigeria Tax Act 2025).
 // Pass-through to FIRS — Paystack collects this on every successful

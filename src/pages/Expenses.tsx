@@ -23,9 +23,7 @@ import {
   CarFront,
   AlertTriangle,
   CreditCard,
-  ExternalLink,
   Paperclip,
-  Info,
   Trash2,
   RefreshCw,
   RotateCcw,
@@ -92,7 +90,6 @@ import {
 } from '@/components/ui/table';
 import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
 import { useToast } from '@/hooks/use-toast';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
@@ -204,10 +201,6 @@ const Expenses = () => {
     }
     return cleaned;
   }, [companySettingsData]);
-  const dualThreshold = useMemo(() => {
-    const raw = Number((companySettingsData as any)?.dual_approval_threshold_ngn ?? 0);
-    return Number.isFinite(raw) && raw > 0 ? raw : 0;
-  }, [companySettingsData]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
@@ -240,7 +233,7 @@ const Expenses = () => {
   const [bankBannerDismissed, setBankBannerDismissed] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   type ExpenseField = 'category' | 'amount_ngn' | 'mileage_km' | 'rate_per_km_ngn' | 'description' | 'receipt';
-  const { errors: fieldErrors, setError: setFieldError, clearError: clearFieldError, clearAll: clearFieldErrors, hasErrors: hasFieldErrors } = useFieldErrors<ExpenseField>();
+  const { errors: fieldErrors, setError: setFieldError, clearError: clearFieldError, clearAll: clearFieldErrors } = useFieldErrors<ExpenseField>();
   const [confirmPayment, setConfirmPayment] = useState<Expense | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [bulkApproveConfirm, setBulkApproveConfirm] = useState<{ count: number; total: number } | null>(null);

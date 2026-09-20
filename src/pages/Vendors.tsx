@@ -1,15 +1,15 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   Plus, Search, Download, Pencil, Trash2, Building2,
-  AlertTriangle, CheckCircle2, Ban, FileText, Phone, Mail,
-  Calendar, DollarSign, Tag, Store,
+  AlertTriangle, CheckCircle2, Ban, Phone, Mail,
+  Calendar, Store,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter } from '@/components/ui-kit/MobileCard';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatNaira } from '@/lib/format';
-import { format, parseISO, differenceInDays, addDays } from 'date-fns';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';

@@ -18,23 +18,17 @@ import {
   Grid3X3,
   List,
   Eye,
-  Tag,
   Clock,
-  BarChart2,
   Users,
   Building2,
   Car,
   Briefcase,
   ChevronRight,
-  ArrowLeft,
   Link2,
-  Filter,
   X,
   Copy,
   MoreVertical,
   Pencil,
-  Star,
-  StarOff,
   FolderIcon,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -44,7 +38,7 @@ import { logAudit } from '@/lib/audit';
 import { errorMessage } from '@/lib/db-errors';
 import { useConfirm } from '@/hooks/use-confirm';
 import { daysUntil, formatBytes, formatDate, toIsoDate } from '@/lib/format';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -97,7 +91,7 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
-import { FilePreviewTrigger } from '@/components/FilePreview';
+
 
 interface DocumentRow {
   id: string;

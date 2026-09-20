@@ -4,7 +4,6 @@ import { supabase } from '@/lib/supabase';
 import { logWarn } from '@/lib/logger';
 import { compressImage } from '@/lib/image-compression';
 import { friendlyDbError, errorMessage } from '@/lib/db-errors';
-import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { validateFile } from '@/lib/file-validation';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
@@ -118,7 +117,6 @@ import {
   getFuelFee,
   getReceiptDebt,
   exportCsv,
-  daysSinceIso,
   displayFuelStatus,
 } from '@/lib/fleet-utils';
 
@@ -317,8 +315,8 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
   const [repairMaintenanceItemId, setRepairMaintenanceItemId] = useState('');
 
   // Receipt accountability
-  const [myReceiptDebt, setMyReceiptDebt] = useState<ReceiptDebt | null>(null);
-  const [myOpenRepairs, setMyOpenRepairs] = useState<Array<{
+  const [, setMyReceiptDebt] = useState<ReceiptDebt | null>(null);
+  const [, setMyOpenRepairs] = useState<Array<{
     id: string; description: string | null; amount_ngn: number; created_at: string;
     vehicle_id: string | null; service_type: string | null;
     maintenance_item_id: string | null; repair_odometer_km: number | null;
@@ -1874,30 +1872,6 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
     await logAudit('fuel_request_deleted', `Fuel request for ${r.employee_name} deleted (${formatNaira(r.amount_ngn || 0)})`, profile);
     toast({ title: 'Fuel request deleted' });
     setConfirmDeleteFuel(null);
-    onRefresh();
-  };
-
-  // ── Anomaly review handlers ────────────────────────────────────────────
-
-  const revertAnomalyReview = async (type: 'trip' | 'fuel', id: string, label: string) => {
-    const table = type === 'trip' ? 'trip_logs' : 'fuel_requests';
-    const { error } = await supabase.from(table).update({
-      anomaly_reviewed_by: null,
-      anomaly_reviewed_at: null,
-      anomaly_review_note: null,
-    }).eq('id', id);
-    if (error) { toast({ title: 'Revert failed', description: error.message, variant: 'destructive' }); return; }
-    await logAudit('anomaly_review_reverted', `Anomaly review reverted for ${type} "${label}"`, profile);
-    toast({ title: 'Review reverted — item marked unreviewed again' });
-    onRefresh();
-  };
-
-  const deleteAnomalyRecord = async (type: 'trip' | 'fuel', id: string, label: string) => {
-    const table = type === 'trip' ? 'trip_logs' : 'fuel_requests';
-    const { error } = await supabase.from(table).delete().eq('id', id);
-    if (error) { toast({ title: 'Delete failed', description: error.message, variant: 'destructive' }); return; }
-    await logAudit('anomaly_record_deleted', `${type} "${label}" deleted from anomalies`, profile);
-    toast({ title: 'Record deleted' });
     onRefresh();
   };
 

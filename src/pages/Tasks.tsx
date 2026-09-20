@@ -3,8 +3,8 @@ import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import {
   Plus, Search, Loader2, ListTodo, Flag,
   Check, X, Filter, Trash2, Target,
-  User, ArrowRight, Download, CalendarDays, FileText,
-  LayoutGrid, List, GanttChart, Weight, BarChart3,
+  User, ArrowRight, Download, CalendarDays,
+  LayoutGrid, List, GanttChart, Weight,
   PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';

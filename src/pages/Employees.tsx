@@ -10,13 +10,11 @@ import {
   Mail,
   AlertTriangle,
   UserX,
-  Info,
   Check,
   Upload,
   ChevronRight,
 } from 'lucide-react';
 import EmployeeCsvImport from '@/components/hr/EmployeeCsvImport';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 import { AuroraHero } from '@/components/AuroraHero';
@@ -28,7 +26,6 @@ import { logWarn } from '@/lib/logger';
 import { errorMessage } from '@/lib/db-errors';
 import { roleLabel, type Role } from '@/lib/roles';
 import { formatDate } from '@/lib/format';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -58,23 +55,15 @@ import {
 } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { MobileFilterBar } from '@/components/ui-kit/MobileFilterBar';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Pagination } from '@/components/ui-kit/Pagination';
-import {
-  MobileCard,
-  MobileCardHeader,
-  MobileCardTitle,
-  MobileCardRow,
-  MobileCardFooter,
-} from '@/components/ui-kit/MobileCard';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useDepartments, useCompanies } from '@/queries';
 import { CompanyBadge } from '@/components/ui-kit/CompanySwitcher';
 import { cn } from '@/lib/utils';
-import { deptBadgeStyle, deptDotStyle } from '@/lib/dept-colors';
+import { deptDotStyle } from '@/lib/dept-colors';
 
 interface Tag {
   id: string;
@@ -116,8 +105,6 @@ const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [
 // DEPARTMENTS used to be a hardcoded list — now sourced from the
 // public.departments table so HR/admin can manage it from
 // Settings → Departments and the change reflects everywhere.
-interface DeptOption { id: string; name: string }
-
 const FALLBACK_DEPARTMENTS = [
   'Finance',
   'Operations',
@@ -178,7 +165,7 @@ const Employees = () => {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const { data: departments = [] } = useDepartments();
   const { data: companies = [] } = useCompanies();
-  const { errors: fieldErrors, setError: setFieldError, clearError: clearFieldError, clearAll: clearFieldErrors, hasErrors: hasFieldErrors } = useFieldErrors<'first_name' | 'email' | 'role'>();
+  const { errors: fieldErrors, setError: setFieldError, clearError: clearFieldError, clearAll: clearFieldErrors } = useFieldErrors<'first_name' | 'email' | 'role'>();
 
   const isSuperAdmin = profile?.role === 'super_admin';
   const isAdmin = profile?.role === 'admin' || isSuperAdmin;

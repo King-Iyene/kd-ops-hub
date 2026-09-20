@@ -1,8 +1,8 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import {
-  CheckCircle, Star, GripVertical, ImageIcon, RotateCcw, Eye, EyeOff,
-  Settings2, Share2, ExternalLink, Copy, Check, Palette, Type,
-  Upload, Paperclip, X, FileText,
+  CheckCircle, GripVertical, RotateCcw, Eye, EyeOff,
+  Share2, Check, Palette,
+  Upload, X, FileText,
 } from 'lucide-react';
 import type { FieldMeta, ViewMeta, FormConfig, FormFieldConfig, FormFieldCondition } from '../../types';
 import { PILL_COLORS, VIRTUAL_TYPES } from '../../types';
@@ -415,7 +415,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
   const [values, setValues] = useState<Record<string, any>>({});
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showBuilder, setShowBuilder] = useState(!isPublic);
+  const [showBuilder] = useState(!isPublic);
   const [copiedLink, setCopiedLink] = useState(false);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
 

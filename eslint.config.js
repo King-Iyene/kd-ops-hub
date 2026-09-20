@@ -24,7 +24,12 @@ export default tseslint.config(
       // --max-warnings flag, so this surfaces dead code/imports in output
       // without blocking the build. Was fully "off"; re-enabling as a warning
       // per the forensic review's code-health finding.
-      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        caughtErrorsIgnorePattern: "^_",
+        destructuredArrayIgnorePattern: "^_",
+      }],
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-empty-object-type": "off",

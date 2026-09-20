@@ -13,11 +13,9 @@ import {
   Library,
   Plus,
   Loader2,
-  Info,
 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { SubPageHeader } from '@/components/SubPageHeader';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   BarChart,
   Bar,
@@ -49,7 +47,6 @@ import { useCompanySettings } from '@/queries';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { StatCard } from '@/components/ui-kit/StatCard';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
@@ -1086,7 +1083,7 @@ function PnLReport({ range }: { range: DateRange }) {
 // Cash Flow Forecast report
 // -----------------------------------------------------------------------------
 
-function CashFlowReport({ range: _range }: { range: DateRange }) {
+function CashFlowReport({ range: _ }: { range: DateRange }) {
   const { data: companySettings } = useCompanySettings();
   const cashOnHand = useMemo(
     () => Number((companySettings as any)?.cash_on_hand_ngn || 0),

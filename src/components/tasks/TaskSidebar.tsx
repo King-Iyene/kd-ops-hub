@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import {
   Plus, Layers, FolderOpen, ChevronRight, ChevronDown,
-  LayoutGrid, List, BarChart3, User, Table2, Gauge,
+  User, Gauge,
   MoreHorizontal, Pencil, Trash2,
-  Lock, Users, FolderKanban, ListTodo, Palette, Star, CalendarDays, GanttChart,
-  Activity, Weight, Timer,
+  Lock, Users, FolderKanban, ListTodo, Palette, Star,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -79,10 +78,10 @@ export function TaskSidebar({
   spaces, folders, lists, selectedSpace, selectedList, currentView,
   taskCounts, spaceTaskCounts, listTaskCounts,
   onSelectSpace, onSelectList, onChangeView, onCreateSpace,
-  onEditSpace, onDeleteSpace, onManageMembers, onManageStatuses,
+  onEditSpace, onDeleteSpace,
   onCreateFolder, onCreateList, onRenameFolder, onDeleteFolder,
-  onRenameList, onDeleteList, favoriteSpaceIds, onToggleFavorite,
-  unorganizedCount, showTeamDashboard, iconOnly,
+  onRenameList, onDeleteList, favoriteSpaceIds,
+  showTeamDashboard, iconOnly,
 }: TaskSidebarProps) {
   const [spacesExpanded, setSpacesExpanded] = useState(true);
   const [expandedSpaces, setExpandedSpaces] = useState<Set<string>>(new Set());
@@ -445,96 +444,6 @@ function ListItem({ list, count, active, onClick, onRename, onDelete, iconOnly }
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-    </div>
-  );
-}
-
-function SpaceItem({
-  space, count, active, expanded, hasChildren,
-  onToggle, onClick, onEdit, onDelete, onManageMembers,
-  onManageStatuses, onCreateFolder, onCreateList,
-  isFavorite, onToggleFavorite,
-}: {
-  space: Space;
-  count: number;
-  active: boolean;
-  expanded: boolean;
-  hasChildren: boolean;
-  onToggle: () => void;
-  onClick: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onManageMembers?: () => void;
-  onManageStatuses?: () => void;
-  onCreateFolder?: () => void;
-  onCreateList?: () => void;
-  isFavorite?: boolean;
-  onToggleFavorite?: () => void;
-}) {
-  return (
-    <div className="group flex items-center">
-      <button
-        onClick={onToggle}
-        className="h-5 w-5 flex items-center justify-center shrink-0 text-muted-foreground/50 hover:text-muted-foreground"
-      >
-        {hasChildren ? (
-          expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />
-        ) : (
-          <span className="h-3 w-3" />
-        )}
-      </button>
-      <button
-        onClick={onClick}
-        className={cn(
-          'flex items-center gap-2 flex-1 min-w-0 px-1.5 py-1.5 rounded-md text-xs-plus font-medium transition-all text-left',
-          active
-            ? 'bg-primary/10 text-primary'
-            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
-        )}
-      >
-        <div className="h-3 w-3 rounded shrink-0" style={{ backgroundColor: space.color }} />
-        <span className="flex-1 truncate">{space.name}</span>
-        {space.is_private && <Lock className="h-2.5 w-2.5 text-muted-foreground/60 shrink-0" />}
-        <span className="text-3xs tabular-nums opacity-50">{count}</span>
-      </button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0 ml-0.5"
-            aria-label="Space options"
-          >
-            <MoreHorizontal className="h-3 w-3" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuItem onClick={onEdit}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
-          {onToggleFavorite && (
-            <DropdownMenuItem onClick={onToggleFavorite}>
-              <Star className={cn('h-3.5 w-3.5 mr-2', isFavorite && 'fill-warning text-warning')} />
-              {isFavorite ? 'Unfavorite' : 'Favorite'}
-            </DropdownMenuItem>
-          )}
-          {onManageMembers && (
-            <DropdownMenuItem onClick={onManageMembers}><Users className="h-3.5 w-3.5 mr-2" /> Members</DropdownMenuItem>
-          )}
-          {onManageStatuses && (
-            <DropdownMenuItem onClick={onManageStatuses}><Palette className="h-3.5 w-3.5 mr-2" /> Statuses</DropdownMenuItem>
-          )}
-          <DropdownMenuSeparator />
-          {onCreateFolder && (
-            <DropdownMenuItem onClick={onCreateFolder}><FolderKanban className="h-3.5 w-3.5 mr-2" /> New folder</DropdownMenuItem>
-          )}
-          {onCreateList && (
-            <DropdownMenuItem onClick={onCreateList}><ListTodo className="h-3.5 w-3.5 mr-2" /> New list</DropdownMenuItem>
-          )}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive" onClick={onDelete}>
-            <Trash2 className="h-3.5 w-3.5 mr-2" /> Remove
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
     </div>
   );
 }

@@ -15,13 +15,10 @@ import {
   Wrench,
   Zap,
   Target,
-  Clock,
   Car,
   Activity,
   CheckCircle2,
-  XCircle,
   ArrowRight,
-  Info,
   HelpCircle,
 } from 'lucide-react';
 
@@ -60,12 +57,6 @@ function healthColor(score: number) {
   return 'text-destructive';
 }
 
-function healthBg(score: number) {
-  if (score >= 85) return 'bg-success';
-  if (score >= 65) return 'bg-warning';
-  return 'bg-destructive';
-}
-
 function healthLabel(score: number) {
   if (score >= 90) return 'Excellent';
   if (score >= 75) return 'Good';
@@ -80,7 +71,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
   const [insights, setInsights] = useState<FleetInsight[]>([]);
   const [overallHealth, setOverallHealth] = useState(0);
   const [weekOverWeekChange, setWeekOverWeekChange] = useState<number | null>(null);
-  const [totalSavingsOpportunity, setTotalSavingsOpportunity] = useState(0);
+  const [, setTotalSavingsOpportunity] = useState(0);
 
   useEffect(() => {
     if (!vehicles.length) { setLoading(false); return; }
@@ -147,7 +138,6 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
       const healths: VehicleHealth[] = vehicles.map((v) => {
         const issues: string[] = [];
         const vFuels = fuels.filter((f) => f.vehicle_id === v.id && new Date(f.created_at) >= thirtyDaysAgo);
-        const vTrips = trips.filter((t) => t.vehicle_id === v.id);
         const vMaints = maints.filter((m) => m.vehicle_id === v.id);
         const vInsps = insps.filter((i) => i.vehicle_id === v.id);
 

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useEmployeeDirectory } from '@/queries';
 import {
-  Plus, Search, Download, Eye, Pencil, Trash2,
+  Plus, Search, Download, Eye, Trash2,
   ShieldAlert, AlertTriangle, Scale, FileText,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -72,8 +72,6 @@ interface Grievance {
   updated_at: string;
 }
 
-interface Profile { id: string; full_name: string; }
-
 const EMPTY_FORM = {
   subject: '',
   description: '',
@@ -99,7 +97,7 @@ export default function Grievances() {
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
-  const { errors: fe, setError, clearError, clearAll: clearFieldErrors, hasErrors } = useFieldErrors<'subject' | 'description'>();
+  const { errors: fe, setError, clearError, clearAll: clearFieldErrors } = useFieldErrors<'subject' | 'description'>();
 
   const [viewTarget, setViewTarget] = useState<Grievance | null>(null);
   const [updateStatus, setUpdateStatus] = useState<Status>('open');

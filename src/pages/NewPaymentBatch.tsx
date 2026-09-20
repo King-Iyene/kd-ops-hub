@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useFeatureAccess } from '@/hooks/usePermission';
 import { APPROVER_ROLES } from '@/lib/roles';
-import { formatNaira, formatDate, maskAccountNumber, currentYearMonth } from '@/lib/format';
+import { formatNaira, currentYearMonth } from '@/lib/format';
 import { logAudit } from '@/lib/audit';
 import { errorMessage } from '@/lib/db-errors';
 import { cn } from '@/lib/utils';
@@ -15,7 +15,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -24,7 +23,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { useDebounce } from '@/hooks/useDebounce';
 import {
   Loader2, Trash2, ArrowLeft, ArrowRight, Check, Search, Plus, Upload,
-  Users, Banknote, Gift, AlertTriangle, Building2, ReceiptText,
+  Banknote, Gift, AlertTriangle, Building2, ReceiptText,
 } from 'lucide-react';
 import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
 import { StickyActionBar, StickyActionBarSpacer } from '@/components/ui-kit/StickyActionBar';
@@ -234,7 +233,7 @@ const NewPaymentBatch = () => {
 
   // Inline field-level validation
   type BatchField = 'batchName' | 'paymentDate';
-  const { errors: batchErrors, setError: setBatchError, clearError: clearBatchError, clearAll: clearBatchErrors, hasErrors: hasBatchErrors } = useFieldErrors<BatchField>();
+  const { errors: batchErrors, setError: setBatchError, clearError: clearBatchError, clearAll: clearBatchErrors } = useFieldErrors<BatchField>();
 
   type AdHocField = 'bank' | 'amount';
   const { errors: adHocErrors, setError: setAdHocError, clearError: clearAdHocError, clearAll: clearAdHocErrors } = useFieldErrors<AdHocField>();

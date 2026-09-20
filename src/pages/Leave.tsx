@@ -22,7 +22,7 @@ import { SubPageHeader } from '@/components/SubPageHeader';
 import LeaveCalendar from '@/components/leave/LeaveCalendar';
 import { cn } from '@/lib/utils';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
@@ -33,7 +33,7 @@ import { writeRejectionNotification, isValidRejectionReason } from '@/lib/reject
 import { notifyUser, notifyRoles, notifyChannels } from '@/lib/notify';
 import { notifyRequestApproved } from '@/lib/notify-events';
 import { useApprovalStore } from '@/store/approvalStore';
-import { MANAGER_ROLES, hasRole } from '@/lib/roles';
+
 import { formatDate, toIsoDate } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -82,7 +82,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
+
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
@@ -584,7 +584,7 @@ const Leave = () => {
       }
       try {
         await updateBalanceFor(req, accrualCap);
-      } catch (balErr: unknown) {
+      } catch {
         // Atomic cap check failed — revert the approval
         await supabase.from('leave_requests').update({ status: 'pending', reviewed_by: null }).eq('id', req.id);
         const who = profiles.get(req.employee_id)?.full_name || 'this employee';

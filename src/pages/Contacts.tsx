@@ -4,7 +4,6 @@ import { displayName } from '@/lib/name';
 import {
   Plus,
   Search,
-  UserPlus,
   Users,
   Loader2,
   Pencil,
@@ -12,15 +11,14 @@ import {
   MessageSquare,
   Trash2,
   Link as LinkIcon,
-  Info,
   Send,
   FlaskConical,
   CheckCircle2,
   XCircle,
 } from 'lucide-react';
-import { InfoHint } from '@/components/ui-kit/InfoHint';
+
 import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -1021,7 +1019,6 @@ interface TestResult {
 }
 
 function NotifyTestTab({ contacts }: { contacts: Contact[] }) {
-  const { toast } = useToast();
   const [contactId, setContactId] = useState('');
   const [channel, setChannel] = useState<TestChannel>('whatsapp');
   const [message, setMessage] = useState('Hi, this is a test message from KD Squares. Please ignore.');

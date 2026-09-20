@@ -2,16 +2,15 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useDepartments, useEmployeeDirectory } from '@/queries';
 import {
   Plus, Search, Download, Pencil, Trash2, FolderKanban,
-  CheckCircle2, Clock, PauseCircle, XCircle, ChevronDown,
-  ChevronUp, Flag, Link as LinkIcon, LayoutGrid, List,
-  FolderOpen, Layers, MoreHorizontal, GripVertical,
-  CalendarDays, Users, Target, BarChart3, ArrowUpRight,
-  Hash, Settings, Palette,
+  CheckCircle2, Clock, PauseCircle, XCircle,
+  Flag, Link as LinkIcon, LayoutGrid, List,
+  FolderOpen, Layers, MoreHorizontal,
+  CalendarDays,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
-import { formatNaira, formatDate, daysUntil } from '@/lib/format';
+import { formatNaira, daysUntil } from '@/lib/format';
 import { format, parseISO, isPast } from 'date-fns';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -21,7 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -95,8 +94,6 @@ interface Milestone {
 
 interface TaskRow { id: string; title: string; status: string; project_id: string | null; due_date: string | null; parent_id: string | null; }
 interface Client { id: string; name: string; }
-interface Profile { id: string; full_name: string; }
-interface Department { id: string; name: string; }
 
 type ViewMode = 'grid' | 'list';
 
@@ -127,7 +124,6 @@ export default function Projects() {
   const [statusFilter, setStatusFilter] = useState('active');
   const [selectedSpace, setSelectedSpace] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>('grid');
-  const [expandedProject, setExpandedProject] = useState<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
@@ -141,7 +137,6 @@ export default function Projects() {
   const [savingSpace, setSavingSpace] = useState(false);
   const [deleteSpaceTarget, setDeleteSpaceTarget] = useState<Space | null>(null);
 
-  const [msDialog, setMsDialog] = useState(false);
   const [msProjectId, setMsProjectId] = useState('');
   const [msTitle, setMsTitle] = useState('');
   const [msDueDate, setMsDueDate] = useState('');
