@@ -10,7 +10,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import { MfaChallengeDialog } from '@/components/MfaChallengeDialog';
-import AppLayout from '@/components/AppLayout';
+const AppLayout = lazy(() => import('@/components/AppLayout'));
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { RoleGuard } from '@/components/RoleGuard';
 import { ADMIN_ONLY_ROLES, ALL_AUTH_ROLES, APPROVER_ROLES, MANAGER_ROLES, PAYMENT_ROLES } from '@/lib/roles';
