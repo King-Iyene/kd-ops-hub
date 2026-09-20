@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip,
@@ -201,7 +201,7 @@ export default function TaskTeamDashboard() {
   useEffect(() => { setPage(1); }, [search, statusClickFilter, assigneeFilter, fromDate, toDate]);
 
   const profilesById = useMemo(() => new Map(profiles.map((p) => [p.id, p])), [profiles]);
-  const nameFor = (id: string | null) => (id ? profilesById.get(id)?.full_name || 'Unknown' : 'Unassigned');
+  const nameFor = useCallback((id: string | null) => (id ? profilesById.get(id)?.full_name || 'Unknown' : 'Unassigned'), [profilesById]);
 
   const baseFiltered = useMemo(
     () => tasks.filter((t) => (assigneeFilter === 'all' || t.assignee_id === assigneeFilter) && inPeriod(t, fromDate, toDate)),
@@ -222,7 +222,7 @@ export default function TaskTeamDashboard() {
     [tasks, assigneeFilter, prevRange],
   );
 
-  const stat = (list: TaskRow[]) => {
+  const stat = useCallback((list: TaskRow[]) => {
     const total = list.length;
     const completed = list.filter((t) => t.status === 'complete').length;
     return {
@@ -234,9 +234,9 @@ export default function TaskTeamDashboard() {
       unassigned: list.filter((t) => !t.assignee_id).length,
       rate: total === 0 ? 0 : Math.round((completed / total) * 100),
     };
-  };
-  const cur = useMemo(() => stat(baseFiltered), [baseFiltered, todayIso]);
-  const prev = useMemo(() => stat(prevFiltered), [prevFiltered, todayIso]);
+  }, [todayIso]);
+  const cur = useMemo(() => stat(baseFiltered), [stat, baseFiltered]);
+  const prev = useMemo(() => stat(prevFiltered), [stat, prevFiltered]);
 
   // Row 2
   const statusDist = useMemo(() => {
@@ -255,7 +255,7 @@ export default function TaskTeamDashboard() {
       row.total++;
     });
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [baseFiltered, profilesById, todayIso]);
+  }, [baseFiltered, nameFor, todayIso]);
 
   // Row 3
   const dueBuckets = useMemo(() => {
@@ -270,7 +270,7 @@ export default function TaskTeamDashboard() {
       else row.Later++;
     });
     return Array.from(map.values());
-  }, [baseFiltered, profilesById, todayIso, today]);
+  }, [baseFiltered, nameFor, todayIso, today]);
 
   const weeklyCompletion = useMemo(() => {
     const weeks = weekBucketsBetween(fromDate, toDate);
@@ -291,7 +291,7 @@ export default function TaskTeamDashboard() {
       map.get(id)!.overdue++;
     });
     return Array.from(map.values()).sort((a, b) => b.overdue - a.overdue);
-  }, [baseFiltered, profilesById, todayIso]);
+  }, [baseFiltered, nameFor, todayIso]);
 
   const avgAge = useMemo(() => {
     const map = new Map<string, { id: string; name: string; totalDays: number; count: number }>();
@@ -303,7 +303,7 @@ export default function TaskTeamDashboard() {
       row.count++;
     });
     return Array.from(map.values()).map((r) => ({ id: r.id, name: r.name, avgAge: r.count ? Math.round(r.totalDays / r.count) : 0 })).sort((a, b) => b.avgAge - a.avgAge);
-  }, [baseFiltered, profilesById, today]);
+  }, [baseFiltered, nameFor, today]);
 
   // Row 5 — blocked tasks. Note: there's no dedicated "blocked at" or
   // "escalation status" column in the schema, so Date Blocked is
@@ -316,7 +316,7 @@ export default function TaskTeamDashboard() {
       id: t.id, title: t.title, assigneeName: nameFor(t.assignee_id),
       dateBlocked: t.created_at, daysBlocked, blockerDescription: t.blocked_reason || '—', escalation,
     };
-  }).sort((a, b) => b.daysBlocked - a.daysBlocked), [baseFiltered, profilesById, today]);
+  }).sort((a, b) => b.daysBlocked - a.daysBlocked), [baseFiltered, nameFor, today]);
 
   // Row 6
   const completionTrend = useMemo(() => {
@@ -333,7 +333,7 @@ export default function TaskTeamDashboard() {
       return row;
     });
     return { data, names };
-  }, [tasks, fromDate, toDate, assigneeFilter, profilesById]);
+  }, [tasks, fromDate, toDate, assigneeFilter, nameFor]);
 
   // Row 7
   const detailRowsAll = useMemo(() => baseFiltered
@@ -348,7 +348,7 @@ export default function TaskTeamDashboard() {
       completed_at: t.completed_at,
       daysOpen: daysBetween(t.completed_at ? new Date(t.completed_at) : today, new Date(t.created_at)),
       blocked: t.status === 'blocked',
-    })), [baseFiltered, statusClickFilter, todayIso, profilesById, today]);
+    })), [baseFiltered, statusClickFilter, todayIso, nameFor, today]);
 
   const detailRows = useMemo(() => {
     let rows = detailRowsAll;

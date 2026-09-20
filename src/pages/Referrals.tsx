@@ -117,7 +117,7 @@ const Referrals = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     load();

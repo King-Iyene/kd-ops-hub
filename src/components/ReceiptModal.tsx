@@ -133,7 +133,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
       }
     })();
     return () => { cancelled = true; };
-  }, [open, item?.id, item?.status, item?.paystack_reference, item?.flutterwave_reference, item?.paystack_fee_ngn, item?.flutterwave_fee_ngn]);
+  }, [open, item]);
 
   if (!item) return null;
 

@@ -320,7 +320,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
   const noneSelected = tables.every((t) => !t.selected);
   const selectedCount = tables.filter((t) => t.selected).length;
 
-  const fetchAllRecords = async (
+  const fetchAllRecords = useCallback(async (
     baseId: string,
     tableId: string,
     onBatch: (count: number) => void,
@@ -343,7 +343,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
       if (offset) await new Promise((r) => setTimeout(r, RATE_LIMIT_DELAY));
     } while (offset);
     return records;
-  };
+  }, [token]);
 
   const startImport = useCallback(async () => {
     const selectedTables = tables.filter((t) => t.selected);
@@ -1045,7 +1045,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
       setError(e?.message ?? 'Import failed');
       setStep('select');
     }
-  }, [tables, bases, selectedBaseId, token, qc, navigateToBase]);
+  }, [tables, bases, selectedBaseId, qc, navigateToBase, fetchAllRecords]);
 
   const selectedTotalFields = tables.filter((t) => t.selected).reduce((sum, t) => sum + t.fields.length, 0);
 

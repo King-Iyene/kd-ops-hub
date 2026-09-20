@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -194,6 +194,7 @@ const BatchDetail = () => {
         title: 'Resolution undone',
         description: 'Item is back to its original status.',
       });
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define -- runtime-only: fetchBatch is defined before any click handler fires
       await fetchBatch();
     } catch (err: unknown) {
       toast({ title: 'Undo failed', description: errorMessage(err) ?? '', variant: 'destructive' });
@@ -235,7 +236,7 @@ const BatchDetail = () => {
     itemsRef.current = items;
   }, [items]);
 
-  async function fetchBatch() {
+  const fetchBatch = useCallback(async () => {
     // Filter archived (soft-deleted) batches at the query layer so a leaked
     // URL can't open a row that has been removed from the active workflow.
     // RLS will also enforce this for non-admin roles (see migration
@@ -370,7 +371,7 @@ const BatchDetail = () => {
         setCoThreshold(null);
       }
     }
-  };
+  }, [id, profile]);
 
   useEffect(() => {
     fetchBatch();
@@ -383,7 +384,7 @@ const BatchDetail = () => {
         }
       })
       .catch((err) => logWarn('BatchDetail', 'company settings fetch failed', err));
-  }, [id]);
+  }, [id, fetchBatch]);
 
   const canApprove =
     !!profile && APPROVER_ROLES.includes(profile.role as any) && canApprovePerm;

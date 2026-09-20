@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Paperclip, Star, Check, X } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
@@ -494,7 +494,7 @@ function getSelectColorStyle(colorName: string) {
 }
 
 export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpdate }: CellEditorProps) {
-  const choices: SelectChoice[] = field.options?.choices || [];
+  const choices: SelectChoice[] = useMemo(() => field.options?.choices || [], [field.options?.choices]);
   const [search, setSearch] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -730,7 +730,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
         handleCreateOption();
       }
     }
-  }, [onCommit, filtered, focusedIndex, exactMatch, search, handleCreateOption, toggle]);
+  }, [onCancel, filtered, focusedIndex, exactMatch, search, handleCreateOption, toggle]);
 
   return (
     <>

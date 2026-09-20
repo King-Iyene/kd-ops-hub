@@ -362,7 +362,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
       setInsights(smartInsights);
       setLoading(false);
     })();
-  }, [vehicles]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [vehicles]);
 
   if (loading) {
     return (

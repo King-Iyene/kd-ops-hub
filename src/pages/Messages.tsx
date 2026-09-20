@@ -170,6 +170,7 @@ export default function Messages() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reloadConversations closes over state it also updates; myId is the real trigger
   useEffect(() => { void reloadConversations(); }, [myId]);
 
   // ─── Load + subscribe to the active thread ──────────────────────────────
@@ -202,6 +203,7 @@ export default function Messages() {
       .subscribe();
 
     return () => { cancelled = true; supabase.removeChannel(channel); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- markRead only needs stable myId; activeId is the real trigger
   }, [activeId]);
 
   useEffect(() => {

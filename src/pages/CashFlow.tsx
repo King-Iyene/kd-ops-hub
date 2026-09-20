@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -78,7 +78,7 @@ export default function CashFlow() {
     [companySettingsData],
   );
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const [f, h] = await Promise.all([
@@ -92,11 +92,11 @@ export default function CashFlow() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const handleRefreshSnapshot = async () => {
     setRefreshing(true);

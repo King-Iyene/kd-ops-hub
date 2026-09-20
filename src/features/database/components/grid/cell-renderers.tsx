@@ -511,7 +511,7 @@ export const AttachmentCellRenderer = React.memo(function AttachmentCellRenderer
                   const img = e.target as HTMLImageElement;
                   const parent = img.parentElement;
                   if (parent) {
-                    const { Icon, color, bg } = getFileIcon(f.type, f.name);
+                    const { color, bg } = getFileIcon(f.type, f.name);
                     const fallback = document.createElement('span');
                     fallback.className = 'h-7 w-7 rounded-[4px] flex items-center justify-center shrink-0 cursor-pointer';
                     fallback.style.backgroundColor = bg;

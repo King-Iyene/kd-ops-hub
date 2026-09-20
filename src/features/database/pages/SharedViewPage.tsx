@@ -134,7 +134,7 @@ export default function SharedViewPage() {
     },
   });
 
-  const fields = fieldsQuery.data ?? [];
+  const fields = useMemo(() => fieldsQuery.data ?? [], [fieldsQuery.data]);
   const records = recordsQuery.data ?? [];
   const totalCount = recordsCountQuery.data ?? records.length;
 

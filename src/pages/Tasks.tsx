@@ -285,7 +285,7 @@ const Tasks = () => {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [load]);
 
   // Load comment counts
   useEffect(() => {
@@ -353,7 +353,7 @@ const Tasks = () => {
         description: 'Stay on track — check your tasks.',
       });
     }
-  }, [profile?.id, tasks]);
+  }, [profile?.id, tasks, toast]);
 
   // ─── Favorites ───────────────────────────────────────────────────────
 
@@ -371,6 +371,18 @@ const Tasks = () => {
     }
   };
 
+  // ─── Task create helpers (above keyboard shortcuts so the hook order is valid) ─
+
+  const reset = useCallback(() => {
+    setEditing(null);
+    setSelectedTagIds([]);
+    setFormAssignees([]);
+    setFormRecurrence(null);
+    setForm({ title: '', description: '', assignee_id: '', due_date: '', priority: 'normal', status: 'open', goal_id: '' });
+  }, []);
+
+  const openCreate = useCallback(() => { reset(); setDialog(true); }, [reset]);
+
   // ─── Keyboard shortcuts ──────────────────────────────────────────────
 
   useEffect(() => {
@@ -384,7 +396,7 @@ const Tasks = () => {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [detailTask, selectedTasks]);
+  }, [detailTask, selectedTasks, openCreate]);
 
   // ─── Computed ────────────────────────────────────────────────────────
 
@@ -478,19 +490,9 @@ const Tasks = () => {
         name.toLowerCase().includes(q)
       );
     });
-  }, [tasks, search, selectedSpace, selectedList, assigneeFilter, statusFilter, priorityFilter, tagFilter, profiles, projectSpaceMap]);
+  }, [tasks, search, selectedSpace, selectedList, assigneeFilter, statusFilter, priorityFilter, tagFilter, profiles, projectSpaceMap, listSpaceMap]);
 
   // ─── Task CRUD ───────────────────────────────────────────────────────
-
-  const reset = () => {
-    setEditing(null);
-    setSelectedTagIds([]);
-    setFormAssignees([]);
-    setFormRecurrence(null);
-    setForm({ title: '', description: '', assignee_id: '', due_date: '', priority: 'normal', status: 'open', goal_id: '' });
-  };
-
-  function openCreate() { reset(); setDialog(true); }
 
   const openCreateWithStatus = (status: TaskStatus) => {
     reset();

@@ -1,6 +1,14 @@
--- RPC functions for the webhook-dispatcher edge function.
--- Run as SECURITY DEFINER so they have direct nc_meta access regardless
--- of the calling role or PostgREST schema exposure configuration.
+-- Fix: grant service_role access to nc_meta schema.
+-- The original GRANT USAGE (migration 20261128000003) only covered
+-- authenticated and anon roles. Edge functions use service_role, which
+-- was blocked with "permission denied for schema nc_meta" (42501).
+-- This is the root cause of webhooks never firing on form submissions.
+
+GRANT USAGE ON SCHEMA nc_meta TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA nc_meta TO service_role;
+
+-- Also create RPC functions as a more robust fallback for future edge
+-- functions that need nc_meta access.
 
 -- 1. Find matching webhooks for an event
 CREATE OR REPLACE FUNCTION public.get_matching_webhooks(

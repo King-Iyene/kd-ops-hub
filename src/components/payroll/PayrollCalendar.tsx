@@ -350,7 +350,7 @@ export function PayrollCalendar({ companyId = null }: PayrollCalendarProps) {
       }
     })();
     return () => { cancelled = true; };
-  }, [month.getFullYear(), month.getMonth(), companyId]);
+  }, [month, companyId]);
 
   const eventMap = useMemo(() => indexEvents(events), [events]);
 

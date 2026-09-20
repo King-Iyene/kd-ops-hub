@@ -386,8 +386,8 @@ function conditionMatches(answer: any, target: string): boolean {
 
 export default function FormView({ fields, onAddRow, isLoading, view, isPublic, publicToken, publicPassword }: FormViewProps) {
   const updateView = useUpdateView();
-  const formConfig: FormConfig = view?.form_config ?? {};
-  const fieldConfigs = formConfig.field_configs ?? {};
+  const formConfig: FormConfig = useMemo(() => view?.form_config ?? {}, [view?.form_config]);
+  const fieldConfigs = useMemo(() => formConfig.field_configs ?? {}, [formConfig.field_configs]);
 
   const allEditableFields = useMemo(
     () =>

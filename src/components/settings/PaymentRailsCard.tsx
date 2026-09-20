@@ -117,7 +117,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const [reason, setReason] = useState('');
   const [applying, setApplying] = useState(false);
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { loadAll(); }, []);  // eslint-disable-line react-hooks/exhaustive-deps -- mount-only load
 
   async function loadAll() {
     setLoading(true);

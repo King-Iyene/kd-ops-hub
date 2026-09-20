@@ -104,7 +104,7 @@ export function ContractorFormDialog({
       setBank(EMPTY_BANK);
       setSelectedTagIds([]);
     }
-  }, [open, editing]);
+  }, [open, editing, clearAll]);
 
   const handleSave = async () => {
     clearAll();

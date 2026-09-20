@@ -150,7 +150,7 @@ export function TableView() {
       });
     }, 2000);
     return () => clearTimeout(saveTimerRef.current);
-  }, [filters, sorts, groupByLevels, hiddenFieldIds, fieldWidths, fieldOrder, activeViewId, activeTableId]);
+  }, [filters, sorts, groupByLevels, hiddenFieldIds, fieldWidths, fieldOrder, activeViewId, activeTableId, updateView]);
 
   // Reset initialized flag when view changes
   useEffect(() => {
@@ -398,7 +398,7 @@ export function TableView() {
 
   const handleDuplicateAndClose = useCallback(
     (record: RecordRow) => { handleDuplicateRow(record); setExpandedRecord(null); },
-    [handleDuplicateRow],
+    [handleDuplicateRow, setExpandedRecord],
   );
 
   const handleBulkDeleteRows = useCallback(

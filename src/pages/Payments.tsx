@@ -210,7 +210,7 @@ const Payments = () => {
     });
   };
 
-  const fetchBatches = async () => {
+  const fetchBatches = useCallback(async () => {
     setLoading(true);
     try {
       let query = supabase
@@ -298,7 +298,7 @@ const Payments = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, page, effectiveRole, toast, profile]);
 
   const reconcileNow = async () => {
     if (reconciling) return;
@@ -365,7 +365,7 @@ const Payments = () => {
   };
 
   useEffect(() => { fetchBalance(); }, [fetchBalance]);
-  useEffect(() => { fetchBatches(); fetchStats(); }, [statusFilter, page, effectiveRole]);
+  useEffect(() => { fetchBatches(); fetchStats(); }, [fetchBatches, statusFilter, page, effectiveRole]);
 
   const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchBatches);
 

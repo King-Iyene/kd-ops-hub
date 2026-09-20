@@ -127,7 +127,7 @@ export const HireApplicantDialog = ({
     } else {
       setMonthlySalary('');
     }
-    setStartDate(today);
+    setStartDate(new Date().toISOString().slice(0, 10));
     setSeedChecklist(true);
     setSendInvite(true);
     setNotes('');

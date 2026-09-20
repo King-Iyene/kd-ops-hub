@@ -30,21 +30,21 @@ export default function DatabasePage() {
     } else if (!rawBase && activeBaseId) {
       setActiveBase(null);
     }
-  }, [baseId, rawBase, isLoading]);
+  }, [baseId, rawBase, isLoading, activeBaseId, setActiveBase]);
 
   useEffect(() => {
     if (isLoading) return;
     if (tableId && tableId !== activeTableId) {
       setActiveTable(tableId);
     }
-  }, [tableId, isLoading]);
+  }, [tableId, isLoading, activeTableId, setActiveTable]);
 
   useEffect(() => {
     if (isLoading) return;
     if (viewId) {
       setActiveView(viewId);
     }
-  }, [viewId, isLoading]);
+  }, [viewId, isLoading, setActiveView]);
 
   if (isLoading) {
     return (

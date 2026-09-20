@@ -163,8 +163,8 @@ export default function Projects() {
 
   useEffect(() => { load(); }, [load]);
 
-  const nameOf = (id: string | null) => id ? (profiles.find(p => p.id === id)?.full_name ?? 'Unknown') : '—';
-  const clientOf = (id: string | null) => id ? (clients.find(c => c.id === id)?.name ?? '—') : '—';
+  const nameOf = useCallback((id: string | null) => id ? (profiles.find(p => p.id === id)?.full_name ?? 'Unknown') : '—', [profiles]);
+  const clientOf = useCallback((id: string | null) => id ? (clients.find(c => c.id === id)?.name ?? '—') : '—', [clients]);
   const f = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
   const taskCountsByProject = useMemo(() => {
@@ -193,7 +193,7 @@ export default function Projects() {
       }
       return true;
     });
-  }, [projects, selectedSpace, statusFilter, search, clients, profiles]);
+  }, [projects, selectedSpace, statusFilter, search, clientOf, nameOf]);
 
   const stats = useMemo(() => {
     const src = selectedSpace !== null

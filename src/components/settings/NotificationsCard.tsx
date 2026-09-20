@@ -39,23 +39,26 @@ export function NotificationsCard() {
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
 
-  const fetchStatus = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('vapid-keys', {
-        body: { action: 'status' },
-      });
-      if (error) throw error;
-      setPublicKey((data as any)?.public_key ?? null);
-      if ((data as any)?.subject) setSubject((data as any).subject);
-    } catch (err: unknown) {
-      toast({ title: 'Could not check notification status', description: errorMessage(err), variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchStatus(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('vapid-keys', {
+          body: { action: 'status' },
+        });
+        if (error) throw error;
+        if (cancelled) return;
+        setPublicKey((data as any)?.public_key ?? null);
+        if ((data as any)?.subject) setSubject((data as any).subject);
+      } catch (err: unknown) {
+        if (!cancelled) toast({ title: 'Could not check notification status', description: errorMessage(err), variant: 'destructive' });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [toast]);
 
   const handleGenerate = async () => {
     setConfirmOpen(false);

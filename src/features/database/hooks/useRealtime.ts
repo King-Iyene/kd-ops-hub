@@ -45,7 +45,7 @@ export function useRealtimeRecords(baseId: string | undefined, tableId: string |
         channelRef.current = null;
       }
     };
-  }, [resolved, qc]);
+  }, [resolved, qc, baseId, tableId]);
 }
 
 export function useRealtimeMetadata() {

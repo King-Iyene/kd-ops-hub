@@ -142,7 +142,7 @@ const Employees = () => {
   // there is no separate company field on profiles), otherwise a company id.
   const [companyFilter, setCompanyFilter] = useState<'all' | 'none' | string>('all');
   const payGroupCompanyByIdRef = useRef<Record<string, string>>({});
-  const [payGroupsLoaded, setPayGroupsLoaded] = useState(false);
+  const [, setPayGroupsLoaded] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [showCsvImport, setShowCsvImport] = useState(false);
@@ -262,7 +262,7 @@ const Employees = () => {
     setTotalCount(employeesRes.count ?? 0);
     setAvailableTags((tagsRes.data as Tag[]) || []);
     setLoading(false);
-  }, [page, showInactive, roleFilter, deptFilter, companyFilter, payGroupsLoaded, debouncedSearch, toast]);
+  }, [page, showInactive, roleFilter, deptFilter, companyFilter, debouncedSearch, toast]);
 
   // Pay group → company lookup, fetched once — an employee's company is
   // derived from their pay group, there's no separate company column to join.

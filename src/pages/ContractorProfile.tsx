@@ -215,14 +215,15 @@ const ContractorProfile = () => {
     }
   }, [activeProvider]);
 
+  const bankAccountNumber = bankForm.account_number;
+  const bankBankCode = bankForm.bank_code;
   useEffect(() => {
     const verify = async () => {
       setBankVerified(false);
       setBankVerifiedName(null);
       setBankError(null);
       if (!bankEditMode) return;
-      const { account_number, bank_code } = bankForm;
-      if (account_number.length !== 10 || !bank_code) return;
+      if (bankAccountNumber.length !== 10 || !bankBankCode) return;
       setBankVerifying(true);
       try {
         // Route to the active provider — was previously hardcoded to
@@ -232,7 +233,7 @@ const ContractorProfile = () => {
         // we call here.
         const fnName = activeProvider === 'flutterwave' ? 'flutterwave-transfer' : 'paystack-transfer';
         const { data, error } = await supabase.functions.invoke(fnName, {
-          body: { action: 'resolve_account', account_number, bank_code },
+          body: { action: 'resolve_account', account_number: bankAccountNumber, bank_code: bankBankCode },
         });
         if (error || !data?.ok || !data?.data?.account_name) {
           throw new Error(data?.error || error?.message || 'Verification failed');
@@ -246,7 +247,7 @@ const ContractorProfile = () => {
       }
     };
     void verify();
-  }, [bankForm.account_number, bankForm.bank_code, bankEditMode, activeProvider]);
+  }, [bankAccountNumber, bankBankCode, bankEditMode, activeProvider]);
 
   const beginEdit = () => {
     if (!contractor) return;

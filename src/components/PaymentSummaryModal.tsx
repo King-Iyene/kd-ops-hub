@@ -223,7 +223,7 @@ export function PaymentSummaryModal({
         setBalanceLoading(false);
       }
     })();
-  }, [open, configuredProvider]);
+  }, [open, configuredProvider, fetchWalletBalance, hideProviderBalance, items]);
 
   const cost = batchCostBreakdown(
     items.map((i) => Number(i.amount_ngn) || 0),
@@ -262,6 +262,7 @@ export function PaymentSummaryModal({
    
   useEffect(() => {
     if (open) setCustomNarration(sampleNarration);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: sampleNarration intentionally excluded to avoid clobbering user edits
   }, [open]);
 
   const narrationLen = customNarration.length;

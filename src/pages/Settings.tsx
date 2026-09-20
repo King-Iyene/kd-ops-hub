@@ -239,7 +239,7 @@ const SettingsPage = () => {
       setNotifPrefs(prefs);
     }
     setLoading(false);
-  }, [profile?.id]);
+  }, [profile?.id, profile?.role]);
 
   useEffect(() => {
     load();

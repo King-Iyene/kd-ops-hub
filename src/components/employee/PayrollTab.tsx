@@ -108,7 +108,7 @@ export default function PayrollTab({ payslips, payments = [], loading, humanPeri
       nhf: yearSlips.reduce((sum, s) => sum + (Number(s.nhf_ngn) || 0), 0),
       months: yearSlips.length,
     };
-  }, [payslips]);
+  }, [sortedPayslips]);
 
   const totalDisbursed = useMemo(() => {
     const currentYear = new Date().getFullYear().toString();

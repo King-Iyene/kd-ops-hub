@@ -253,9 +253,15 @@ function PaymentReport({ range }: { range: DateRange }) {
     return { batches, succeededByBatch, feesByBatch };
   }, [range.start, range.end]);
 
-  const batches = data?.batches || [];
-  const succeededByBatch = data?.succeededByBatch || new Map<string, number>();
-  const feesByBatch = data?.feesByBatch || new Map<string, number>();
+  const batches = useMemo(() => data?.batches || [], [data?.batches]);
+  const succeededByBatch = useMemo(
+    () => data?.succeededByBatch || new Map<string, number>(),
+    [data?.succeededByBatch],
+  );
+  const feesByBatch = useMemo(
+    () => data?.feesByBatch || new Map<string, number>(),
+    [data?.feesByBatch],
+  );
 
   const byMonth = useMemo(() => {
     const acc: Record<string, { amount: number; batches: number }> = {};
@@ -480,8 +486,10 @@ function FleetReport({ range }: { range: DateRange }) {
     return { fuel: fuel.data || [], trips: trips.data || [] };
   }, [range.start, range.end]);
 
-  const approvedFuel =
-    (data?.fuel as any[])?.filter((f) => f.status === 'approved') || [];
+  const approvedFuel = useMemo(
+    () => (data?.fuel as any[])?.filter((f) => f.status === 'approved') || [],
+    [data?.fuel],
+  );
   const fuelTotal = approvedFuel.reduce(
     (s, f) => s + Number(f.amount_ngn || 0),
     0,

@@ -19,7 +19,6 @@
  * Pure function — independently tested in financial-health.test.ts.
  */
 
-import { supabase } from '@/lib/supabase';
 import type { CccBand } from '@/lib/cash-conversion';
 import type { ConcentrationBand } from '@/lib/revenue-concentration';
 

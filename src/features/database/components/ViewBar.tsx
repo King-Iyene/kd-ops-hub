@@ -196,7 +196,7 @@ export function ViewBar() {
       );
       setAddMenuOpen(false);
     },
-    [activeTableId, createView, views],
+    [activeTableId, createView, views, setActiveView],
   );
 
   const handleRename = useCallback(

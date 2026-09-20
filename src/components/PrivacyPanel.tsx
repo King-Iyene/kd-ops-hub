@@ -9,7 +9,7 @@
 //
 // All actions are recorded so we can prove compliance under NDPR Article 25.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ShieldCheck,
@@ -68,7 +68,7 @@ export default function PrivacyPanel() {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     const { data } = await supabase
@@ -77,9 +77,9 @@ export default function PrivacyPanel() {
       .order('created_at', { ascending: false });
     setRequests((data ?? []) as DsrRow[]);
     setLoading(false);
-  };
+  }, [user]);
 
-  useEffect(() => { void reload(); }, [user]);
+  useEffect(() => { void reload(); }, [reload]);
 
   const submit = async () => {
     if (!user) return;

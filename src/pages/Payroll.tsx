@@ -398,7 +398,7 @@ const Payroll = () => {
       name: displayName(r.profiles?.first_name, r.profiles?.last_name, r.profiles?.full_name || r.profiles?.email),
     })));
     setLoading(false);
-  }, []);
+  }, [toast]);
 
   const actOnAdvance = async (id: string, action: 'approve' | 'reject' | 'paid') => {
     setAdvanceBusy(id);

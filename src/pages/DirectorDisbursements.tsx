@@ -215,7 +215,8 @@ function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnT
     }
   };
 
-  useEffect(() => { void load();   }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only
+  useEffect(() => { void load(); }, []);
 
   const toggleHistory = async () => {
     const next = !historyOpen;
@@ -468,7 +469,8 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
     setLoading(false);
   };
 
-  useEffect(() => { void load();   }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only
+  useEffect(() => { void load(); }, []);
 
   const viewDetail = async (row: DisbursementRow) => {
     await logAudit(

@@ -570,7 +570,7 @@ const EmployeeProfile = () => {
       .catch(() => {});
 
     setLoading(false);
-  }, [id, navigate, toast]);
+  }, [id]);
 
   const load = useCallback(async () => {
     loadedTabs.current.clear();

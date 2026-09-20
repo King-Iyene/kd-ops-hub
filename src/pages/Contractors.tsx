@@ -959,7 +959,7 @@ const Contractors = () => {
     await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
     setVerifying(false);
     return next;
-  }, []);
+  }, [activeProvider]);
 
   const handleFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

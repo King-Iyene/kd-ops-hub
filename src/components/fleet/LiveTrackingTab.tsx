@@ -215,7 +215,7 @@ export function LiveTrackingTab() {
         markerRefs.current.set(t.id, overlay);
       }
     }
-  }, [googleMap, tripList, selectedId]);
+  }, [googleMap, tripList, selectedId, trips]);
 
   const lastFitVersion = useRef('');
   useEffect(() => {
