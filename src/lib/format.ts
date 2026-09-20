@@ -253,7 +253,7 @@ export const formatReceiptDateTime = (
 /** ISO yyyy-mm-dd, accepting Date or ISO string; used when writing to the DB. */
 export const toIsoDate = (d: Date | string): string => {
   const date = typeof d === 'string' ? new Date(d) : d;
-  return date.toISOString().slice(0, 10);
+  return toLocalDateString(date);
 };
 
 /**

@@ -3,6 +3,27 @@ import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useLookupValue, useRollupValue } from '../../hooks/useLookupRollup';
 import { useGridColors } from '../../hooks/useGridColors';
 
+const SYMBOL_TO_ISO: Record<string, string> = {
+  '₦': 'NGN', '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', '₹': 'INR',
+  '₩': 'KRW', '₽': 'RUB', '₺': 'TRY', '₴': 'UAH', '₸': 'KZT', '₫': 'VND',
+  '₵': 'GHS', 'R': 'ZAR', 'Fr': 'CHF', 'kr': 'SEK', 'zł': 'PLN', 'Kč': 'CZK',
+};
+
+const _fmtCache = new Map<string, Intl.NumberFormat>();
+function getCurrencyFmt(code: string, precision: number, narrow: boolean): Intl.NumberFormat {
+  const key = `${code}:${precision}:${narrow ? 1 : 0}`;
+  let fmt = _fmtCache.get(key);
+  if (!fmt) {
+    fmt = new Intl.NumberFormat('en-US', {
+      style: 'currency', currency: code,
+      minimumFractionDigits: precision, maximumFractionDigits: precision,
+      ...(narrow ? { currencyDisplay: 'narrowSymbol' } : {}),
+    });
+    _fmtCache.set(key, fmt);
+  }
+  return fmt;
+}
+
 interface LookupRollupCellRendererProps {
   value: any;
   field: FieldMeta;
@@ -76,26 +97,14 @@ export const RollupCellRenderer = React.memo(function RollupCellRenderer({
     const resultType = field.options?.result?.type;
     if (resultType === 'currency') {
       const sym = field.options?.result?.options?.symbol ?? '$';
-      const SYMBOL_TO_ISO: Record<string, string> = {
-        '₦': 'NGN', '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', '₹': 'INR',
-        '₩': 'KRW', '₽': 'RUB', '₺': 'TRY', '₴': 'UAH', '₸': 'KZT', '₫': 'VND',
-        '₵': 'GHS', 'R': 'ZAR', 'Fr': 'CHF', 'kr': 'SEK', 'zł': 'PLN', 'Kč': 'CZK',
-      };
       const trimmed = (sym as string).trim();
       const code = /^[A-Z]{3}$/.test(trimmed) ? trimmed : (SYMBOL_TO_ISO[trimmed] ?? 'USD');
       const precision = field.options?.result?.options?.precision ?? 0;
       try {
-        displayValue = new Intl.NumberFormat('en-US', {
-          style: 'currency', currency: code,
-          minimumFractionDigits: precision, maximumFractionDigits: precision,
-          currencyDisplay: 'narrowSymbol',
-        }).format(result);
+        displayValue = getCurrencyFmt(code, precision, true).format(result);
       } catch {
         try {
-          displayValue = new Intl.NumberFormat('en-US', {
-            style: 'currency', currency: code,
-            minimumFractionDigits: precision, maximumFractionDigits: precision,
-          }).format(result);
+          displayValue = getCurrencyFmt(code, precision, false).format(result);
         } catch {
           displayValue = `${sym}${result.toLocaleString()}`;
         }

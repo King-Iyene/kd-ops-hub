@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { X, Copy, Trash2, Download, Pencil, ChevronDown } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '@/features/database/types';
 
@@ -13,7 +13,7 @@ export interface BulkActionsBarProps {
   onCellUpdate: (recordId: string, fieldId: string, value: any) => void;
 }
 
-export function BulkActionsBar({
+export const BulkActionsBar = React.memo(function BulkActionsBar({
   selectedRowIds,
   records,
   fields,
@@ -57,10 +57,11 @@ export function BulkActionsBar({
     return () => document.removeEventListener('mousedown', handler);
   }, [showUpdateField]);
 
-  const selectedRecords = records.filter((r) => selectedRowIds.has(r.id));
+  const selectedRecords = useMemo(() => records.filter((r) => selectedRowIds.has(r.id)), [records, selectedRowIds]);
 
-  const editableFields = fields.filter(
-    (f) => !f.is_system && !f.is_primary && !f.is_hidden,
+  const editableFields = useMemo(
+    () => fields.filter((f) => !f.is_system && !f.is_primary && !f.is_hidden),
+    [fields],
   );
 
   const handleCopy = useCallback(() => {
@@ -502,4 +503,4 @@ export function BulkActionsBar({
       </button>
     </div>
   );
-}
+});

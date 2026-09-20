@@ -20,10 +20,13 @@ interface CellRendererProps {
 function HighlightedText({ text, style, className }: { text: string; style?: React.CSSProperties; className?: string }) {
   const searchQuery = useDatabaseUI((s) => s.searchQuery);
   const colors = useGridColors();
-  if (!searchQuery) {
+  const regex = useMemo(
+    () => searchQuery ? new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi') : null,
+    [searchQuery],
+  );
+  if (!regex) {
     return <span className={className} style={style}>{text}</span>;
   }
-  const regex = new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
   const parts = text.split(regex);
   if (parts.length === 1) {
     return <span className={className} style={style}>{text}</span>;
@@ -49,6 +52,21 @@ function getSelectColor(colorName: string) {
 }
 
 const EMAIL_VALID_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const _fmtCache = new Map<string, Intl.NumberFormat>();
+function getCurrencyFormatter(code: string, precision: number, narrow: boolean): Intl.NumberFormat {
+  const key = `${code}:${precision}:${narrow ? 1 : 0}`;
+  let fmt = _fmtCache.get(key);
+  if (!fmt) {
+    fmt = new Intl.NumberFormat('en-US', {
+      style: 'currency', currency: code,
+      minimumFractionDigits: precision, maximumFractionDigits: precision,
+      ...(narrow ? { currencyDisplay: 'narrowSymbol' } : {}),
+    });
+    _fmtCache.set(key, fmt);
+  }
+  return fmt;
+}
 
 export const TextCellRenderer = React.memo(function TextCellRenderer({
   value,
@@ -287,17 +305,10 @@ export const CurrencyCellRenderer = React.memo(function CurrencyCellRenderer({
   const precision = field.options?.precision ?? 2;
   let formatted: string;
   try {
-    formatted = new Intl.NumberFormat('en-US', {
-      style: 'currency', currency: code,
-      minimumFractionDigits: precision, maximumFractionDigits: precision,
-      currencyDisplay: 'narrowSymbol',
-    }).format(num);
+    formatted = getCurrencyFormatter(code, precision, true).format(num);
   } catch {
     try {
-      formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency', currency: code,
-        minimumFractionDigits: precision, maximumFractionDigits: precision,
-      }).format(num);
+      formatted = getCurrencyFormatter(code, precision, false).format(num);
     } catch {
       formatted = `${rawCode}${num.toLocaleString()}`;
     }
@@ -822,13 +833,9 @@ export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({
   }
   // Date strings (ISO format)
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
-    const date = new Date(value);
-    if (!isNaN(date.getTime())) {
-      return (
-        <span className="truncate">
-          {date.toLocaleDateString(undefined, { dateStyle: 'medium' })}
-        </span>
-      );
+    const d = new Date(value);
+    if (!isNaN(d.getTime())) {
+      return <span className="truncate">{formatDate(value)}</span>;
     }
   }
   return <span className="truncate">{String(value)}</span>;

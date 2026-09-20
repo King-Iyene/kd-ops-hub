@@ -13,7 +13,19 @@ import { BulkActionsBar } from './BulkActionsBar';
 import { GridSkeleton } from './GridSkeleton';
 import { RowContextMenu } from './RowContextMenu';
 import { useGridColors, type GridColorTokens } from '../../hooks/useGridColors';
+import { useUpdateField } from '../../hooks/useFields';
 import { confirm as styledConfirm } from '@/hooks/use-confirm';
+import { formatDate, formatDateTime } from '@/lib/format';
+
+const _ariaFmtMap = new Map<string, Intl.NumberFormat>();
+function _ariaFmtCache(code: string): Intl.NumberFormat {
+  let fmt = _ariaFmtMap.get(code);
+  if (!fmt) {
+    fmt = new Intl.NumberFormat(undefined, { style: 'currency', currency: code });
+    _ariaFmtMap.set(code, fmt);
+  }
+  return fmt;
+}
 
 export interface GridViewProps {
   fields: FieldMeta[];
@@ -96,17 +108,17 @@ function formatCellAriaValue(record: RecordRow, field: FieldMeta): string {
   if (field.ui_type === 'Date' || field.ui_type === 'DateTime' || field.ui_type === 'CreatedTime' || field.ui_type === 'LastModifiedTime') {
     const d = new Date(val);
     if (!isNaN(d.getTime())) {
-      return field.ui_type === 'DateTime' || field.ui_type === 'LastModifiedTime'
-        ? d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-        : d.toLocaleString(undefined, { dateStyle: 'medium' });
+      return (field.ui_type === 'DateTime' || field.ui_type === 'LastModifiedTime')
+        ? formatDateTime(String(val))
+        : formatDate(String(val));
     }
   }
   if (field.ui_type === 'Currency') {
     const n = Number(val);
     if (!isNaN(n)) {
       const sym = field.options?.currencySymbol || '₦';
-      const code = sym === '₦' ? 'NGN' : sym === '$' ? 'USD' : sym === '€' ? 'EUR' : sym === '£' ? 'GBP' : undefined;
-      try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: code || 'NGN' }).format(n); } catch { /* fall through */ }
+      const code = sym === '₦' ? 'NGN' : sym === '$' ? 'USD' : sym === '€' ? 'EUR' : sym === '£' ? 'GBP' : 'NGN';
+      try { return _ariaFmtCache(code).format(n); } catch { /* fall through */ }
     }
   }
   if (field.ui_type === 'Checkbox') return val ? 'Yes' : 'No';
@@ -399,6 +411,14 @@ function GridViewInner({
   const setFieldWidth = useDatabaseUI((s) => s.setFieldWidth);
   const frozenColumns = useDatabaseUI((s) => s.frozenColumns);
   const setFrozenColumns = useDatabaseUI((s) => s.setFrozenColumns);
+
+  const updateFieldMutation = useUpdateField();
+  const handleFieldUpdate = useCallback(
+    (fieldId: string, tableId: string, updates: any) => {
+      updateFieldMutation.mutate({ id: fieldId, table_id: tableId, updates: { options: updates } });
+    },
+    [updateFieldMutation],
+  );
 
   const parentRef = useRef<HTMLDivElement>(null);
   const mobileParentRef = useRef<HTMLDivElement>(null);
@@ -1772,7 +1792,7 @@ function GridViewInner({
                               } : {}),
                             }}
                           >
-                            <GridCell field={field} record={record} onCellUpdate={onCellUpdate} backgroundColor={getCellColor(record, field.id)} colors={GRID_COLORS} frozen={isFroz} frozenLeft={cellLeft} />
+                            <GridCell field={field} record={record} onCellUpdate={onCellUpdate} onFieldUpdate={handleFieldUpdate} backgroundColor={getCellColor(record, field.id)} colors={GRID_COLORS} frozen={isFroz} frozenLeft={cellLeft} />
                           </div>
                         </div>
                       );
@@ -1972,6 +1992,7 @@ function GridViewInner({
                             field={field}
                             record={record}
                             onCellUpdate={onCellUpdate}
+                            onFieldUpdate={handleFieldUpdate}
                             backgroundColor={getCellColor(record, field.id)}
                             frozen={isFroz}
                             frozenLeft={cellLeft}

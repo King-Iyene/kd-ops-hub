@@ -5,7 +5,6 @@ import { useDatabaseUI } from '../../lib/store';
 import { getCellRenderer } from './cell-renderers';
 import { getCellEditor } from './cell-editors';
 import type { GridColorTokens } from '../../hooks/useGridColors';
-import { useUpdateField } from '../../hooks/useFields';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SINGLE_CLICK_EDIT_TYPES = new Set([
@@ -52,6 +51,7 @@ interface GridCellProps {
   field: FieldMeta;
   record: RecordRow;
   onCellUpdate: (recordId: string, fieldId: string, value: any) => void;
+  onFieldUpdate: (fieldId: string, tableId: string, updates: any) => void;
   backgroundColor?: string;
   frozen?: boolean;
   frozenLeft?: number;
@@ -63,6 +63,7 @@ export const GridCell = React.memo(function GridCell({
   field,
   record,
   onCellUpdate,
+  onFieldUpdate,
   backgroundColor,
   frozen = false,
   frozenLeft = 0,
@@ -137,7 +138,6 @@ export const GridCell = React.memo(function GridCell({
   );
 
   const [validationError, setValidationError] = useState<string | null>(null);
-  const updateFieldMutation = useUpdateField();
 
   const handleCommit = useCallback(
     (newValue: any) => {
@@ -157,13 +157,6 @@ export const GridCell = React.memo(function GridCell({
   const handleCancel = useCallback(() => {
     setEditingCell(null);
   }, [setEditingCell]);
-
-  const handleFieldUpdate = useCallback(
-    (fieldId: string, tableId: string, updates: any) => {
-      updateFieldMutation.mutate({ id: fieldId, table_id: tableId, updates: { options: updates } });
-    },
-    [updateFieldMutation],
-  );
 
   const cellRef = useRef<HTMLDivElement>(null);
 
@@ -234,7 +227,7 @@ export const GridCell = React.memo(function GridCell({
           field={field}
           onCommit={handleCommit}
           onCancel={handleCancel}
-          onFieldUpdate={handleFieldUpdate}
+          onFieldUpdate={onFieldUpdate}
         />
       ) : (
         <Renderer
