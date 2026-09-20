@@ -184,7 +184,7 @@ const Invoices = () => {
   const [notes, setNotes] = useState('');
 
   type InvoiceField = 'clientName' | 'dueDate' | 'lineItems';
-  const { errors, setError, clearError, clearAll, hasErrors } = useFieldErrors<InvoiceField>();
+  const { errors, setError, clearError, clearAll } = useFieldErrors<InvoiceField>();
 
   const load = useCallback(async () => {
     setLoading(true);

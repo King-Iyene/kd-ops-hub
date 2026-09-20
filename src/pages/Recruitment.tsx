@@ -3,7 +3,7 @@ import { useDepartments, useEmployeeDirectory } from '@/queries';
 import {
   Plus, Search, Download, Pencil, Trash2, UserPlus2,
   Briefcase, Users, ChevronDown, ChevronUp, Calendar,
-  CheckCircle2, XCircle, ArrowRight, Sparkles, Link2,
+  CheckCircle2, ArrowRight, Sparkles, Link2,
 } from 'lucide-react';
 import HireApplicantDialog from '@/components/hr/HireApplicantDialog';
 import OfferLetterDialog from '@/components/hr/OfferLetterDialog';
@@ -106,8 +106,6 @@ interface JobApplicant {
   created_at: string;
 }
 
-interface Department { id: string; name: string; }
-interface Profile { id: string; full_name: string; }
 
 const EMPTY_OPENING_FORM = {
   title: '',

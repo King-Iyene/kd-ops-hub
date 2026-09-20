@@ -520,7 +520,7 @@ export default function Assistant() {
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {attachments.map((a, i) => (
                     <div
-                      key={i}
+                      key={`${a.name}-${a.size}`}
                       className="flex items-center gap-1.5 rounded-lg border bg-muted/50 px-2.5 py-1 text-xs kd-transition"
                     >
                       {a.mime_type.startsWith('image/')

@@ -186,7 +186,7 @@ function FilterRuleRow({
         field={field}
         onChange={(value) => onUpdate(filter.id, { value })}
       />
-      <button onClick={() => onRemove(filter.id)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5" aria-label="Remove filter">
+      <button onClick={() => onRemove(filter.id)} className="p-0.5 rounded hover:bg-muted" aria-label="Remove filter">
         <X size={12} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
       </button>
     </div>
@@ -282,7 +282,7 @@ function FilterGroupBlock({
             </select>
             <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]">group</span>
           </div>
-          <button onClick={() => onRemoveGroup(group.id)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5">
+          <button onClick={() => onRemoveGroup(group.id)} className="p-0.5 rounded hover:bg-muted">
             <X size={11} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
           </button>
         </div>
@@ -393,7 +393,7 @@ function FilterPanel({ onClose, onSaveAsView }: { onClose: () => void; onSaveAsV
               Clear all
             </button>
           )}
-          <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5" aria-label="Close filters"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /></button>
+          <button onClick={onClose} className="p-0.5 rounded hover:bg-muted" aria-label="Close filters"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /></button>
         </div>
       </div>
 
@@ -555,7 +555,7 @@ function SaveFilterAsViewDialog({
         </p>
         <div className="flex items-center justify-end gap-2">
           <button
-            className="px-3 py-1 text-2xs rounded border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] text-[#6A7184] dark:text-[hsl(220,15%,55%)] hover:bg-gray-50 dark:hover:bg-white/5"
+            className="px-3 py-1 text-2xs rounded border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] text-[#6A7184] dark:text-[hsl(220,15%,55%)] hover:bg-muted/50"
             onClick={onClose}
           >
             Cancel
@@ -601,7 +601,7 @@ function SortPanel({ onClose }: { onClose: () => void }) {
     <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(220,20%,13%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg p-3 min-w-[320px] animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)]">Sort</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(220,20%,15%)]" aria-label="Close sort"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /></button>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-muted" aria-label="Close sort"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /></button>
       </div>
       {sorts.map((sort, i) => (
         <div key={`${sort.field_id}-${i}`} className="flex items-center gap-2 mb-2">
@@ -622,7 +622,7 @@ function SortPanel({ onClose }: { onClose: () => void }) {
             <option value="asc">A → Z</option>
             <option value="desc">Z → A</option>
           </select>
-          <button onClick={() => removeSort(i)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(220,20%,15%)]">
+          <button onClick={() => removeSort(i)} className="p-0.5 rounded hover:bg-muted">
             <X size={12} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
           </button>
         </div>
@@ -663,7 +663,7 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
     <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(220,20%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg p-3 min-w-[320px] animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)]">Group by</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5" aria-label="Close group"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /></button>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-muted" aria-label="Close group"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /></button>
       </div>
       {groupableFields.length === 0 ? (
         <p className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]">No fields available for grouping.</p>
@@ -689,7 +689,7 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
                 <option value="asc">A &rarr; Z</option>
                 <option value="desc">Z &rarr; A</option>
               </select>
-              <button onClick={() => removeLevel(i)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5">
+              <button onClick={() => removeLevel(i)} className="p-0.5 rounded hover:bg-muted">
                 <X size={12} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
               </button>
             </div>
@@ -795,7 +795,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
     <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(220,20%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg p-3 min-w-[280px] max-h-[360px] flex flex-col animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)]">Fields</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-white/5" aria-label="Close fields"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /></button>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-muted" aria-label="Close fields"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /></button>
       </div>
       <input
         type="text"
@@ -833,7 +833,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
             />
             <span className="text-xs text-[#374151] dark:text-[hsl(220,20%,88%)] truncate flex-1">{f.name}</span>
             <button
-              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-white/10 disabled:opacity-20"
+              className="p-0.5 rounded hover:bg-accent disabled:opacity-20"
               disabled={!searchTerm && i === 0}
               onClick={() => moveField(f.id, 'up')}
               title="Move up"
@@ -841,7 +841,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
               <ChevronUp size={12} className="text-[#6A7184] dark:text-[hsl(220,15%,55%)]" />
             </button>
             <button
-              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-white/10 disabled:opacity-20"
+              className="p-0.5 rounded hover:bg-accent disabled:opacity-20"
               disabled={!searchTerm && i === filtered.length - 1}
               onClick={() => moveField(f.id, 'down')}
               title="Move down"
@@ -900,7 +900,7 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
     <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(220,20%,13%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg p-3 min-w-[440px] animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)]">Row coloring</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(220,20%,15%)]" aria-label="Close row coloring"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /></button>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-muted" aria-label="Close row coloring"><X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" /></button>
       </div>
       {rowColorRules.map((rule) => {
         const ops = COLOR_OPERATORS;
@@ -947,7 +947,7 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
                 />
               ))}
             </div>
-            <button onClick={() => removeRule(rule.id)} className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-[hsl(220,20%,15%)]">
+            <button onClick={() => removeRule(rule.id)} className="p-0.5 rounded hover:bg-muted">
               <X size={12} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
             </button>
           </div>

@@ -1029,7 +1029,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
               {photoFiles.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
                   {photoFiles.map((file, idx) => (
-                    <div key={idx} className="relative group">
+                    <div key={`${file.name}-${file.size}`} className="relative group">
                       <img
                         src={URL.createObjectURL(file)}
                         alt={`Evidence ${idx + 1}`}

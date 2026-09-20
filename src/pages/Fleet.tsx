@@ -89,7 +89,7 @@ const Fleet = () => {
   const [tripLogs, setTripLogs] = useState<TripLog[]>([]);
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<VehicleSummary[]>([]);
-  const [fuelPriceBenchmark, setFuelPriceBenchmark] = useState<number | null>(null);
+  const [_fuelPriceBenchmark, setFuelPriceBenchmark] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const hasFetchedRef = useRef(false);

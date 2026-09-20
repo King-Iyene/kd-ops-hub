@@ -1719,12 +1719,12 @@ function GridViewInner({
                           <div className="absolute inset-0 flex items-center justify-center gap-0.5 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 transition-opacity">
                             <input type="checkbox" className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1" style={{ outlineColor: GRID_COLORS.primary }} checked={false} onChange={() => toggleRowSelection(record.id)} aria-label={`Select row ${rowNum}`} />
                             {onExpandRow && (
-                              <button className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(220,20%,18%)]" onClick={(e) => { e.stopPropagation(); onExpandRow(record); }} aria-label={`Expand row ${rowNum}`}>
+                              <button className="p-0.5 rounded hover:bg-accent" onClick={(e) => { e.stopPropagation(); onExpandRow(record); }} aria-label={`Expand row ${rowNum}`}>
                                 <Expand size={12} />
                               </button>
                             )}
                             <button
-                              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(220,20%,18%)]"
+                              className="p-0.5 rounded hover:bg-accent"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setRowMenu({ x: e.clientX, y: e.clientY, record });
@@ -1882,7 +1882,7 @@ function GridViewInner({
                           />
                           {onExpandRow && (
                             <button
-                              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(220,20%,18%)]"
+                              className="p-0.5 rounded hover:bg-accent"
                               onClick={(e) => { e.stopPropagation(); onExpandRow(record); }}
                               aria-label={`Expand row ${rowNum}`}
                             >
@@ -1890,7 +1890,7 @@ function GridViewInner({
                             </button>
                           )}
                           <button
-                            className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[hsl(220,20%,18%)]"
+                            className="p-0.5 rounded hover:bg-accent"
                             onClick={(e) => {
                               e.stopPropagation();
                               setRowMenu({ x: e.clientX, y: e.clientY, record });

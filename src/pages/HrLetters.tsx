@@ -104,7 +104,7 @@ export default function HrLetters() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<HrLetter | null>(null);
   const [signingLetter, setSigningLetter] = useState<HrLetter | null>(null);
-  const { errors, setError, clearError, clearAll, hasErrors } = useFieldErrors<'employee_id' | 'title' | 'body_html'>();
+  const { errors, setError, clearError, clearAll } = useFieldErrors<'employee_id' | 'title' | 'body_html'>();
 
   const load = useCallback(async () => {
     setLoading(true);

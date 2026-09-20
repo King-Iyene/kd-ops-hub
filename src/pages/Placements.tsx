@@ -729,23 +729,6 @@ function Placements() {
     fetchAllPayments();
   }
 
-  async function markPaymentStatus(paymentId: string, newStatus: PaymentStatus) {
-    const update: any = { status: newStatus };
-    if (newStatus === 'paid') {
-      update.paid_at = new Date().toISOString();
-      update.verified_by = profile?.id;
-      update.verified_at = new Date().toISOString();
-    }
-    const { error } = await supabase.from('placement_payments').update(update).eq('id', paymentId);
-    if (error) {
-      toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: `Payment marked as ${newStatus}` });
-      setPayments((prev) => prev.map((pp) => (pp.id === paymentId ? { ...pp, ...update } : pp)));
-      setAllPayments((prev) => prev.map((pp) => (pp.id === paymentId ? { ...pp, ...update } : pp)));
-    }
-  }
-
   async function toggleClientPaid(paymentId: string, paid: boolean) {
     const update: Record<string, unknown> = {
       client_paid: paid,

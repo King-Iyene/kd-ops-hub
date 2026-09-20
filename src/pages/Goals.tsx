@@ -142,15 +142,6 @@ const yearOptions = (): number[] => {
   return years;
 };
 
-const quarterOptions = (): string[] => {
-  const years = yearOptions();
-  const opts: string[] = [];
-  for (const y of years) {
-    for (const q of QUARTERS) opts.push(`${y}-${q}`);
-  }
-  return opts;
-};
-
 const parseQuarter = (q: string): { year: string; quarter: string } => {
   const parts = q.split('-');
   return { year: parts[0] || String(new Date().getFullYear()), quarter: parts[1] || 'Q1' };

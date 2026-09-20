@@ -90,7 +90,6 @@ interface OnboardingItem {
   created_at: string;
 }
 
-interface Profile { id: string; full_name: string; }
 
 const EMPTY_FORM = {
   employee_id: '__none__',

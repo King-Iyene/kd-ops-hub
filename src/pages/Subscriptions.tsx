@@ -122,8 +122,6 @@ interface SubPayment {
 
 const CATEGORIES = ['software', 'hosting', 'office', 'telecom', 'finance', 'other'];
 const CYCLES: Subscription['billing_cycle'][] = ['monthly', 'quarterly', 'yearly'];
-const PRIORITIES: Subscription['priority'][] = ['high', 'medium', 'low'];
-
 /* ─────────────────────── Helpers ─────────────────────── */
 
 const cycleLabel = (c: string) =>
@@ -163,9 +161,6 @@ const monthlyEquivalentUsd = (sub: Subscription): number => {
       return sub.amount_usd;
   }
 };
-
-const monthKey = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
 const monthLabel = (iso: string) => {
   const [y, m] = iso.split('-');

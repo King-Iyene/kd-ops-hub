@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import {
   CheckCircle2, Flag, X, Target, TrendingUp,
   AlertTriangle, ArrowUpRight, Users,
@@ -19,7 +18,7 @@ interface TaskDashboardProps {
   onTaskClick?: (task: Task) => void;
 }
 
-export function TaskDashboard({ tasks, allTasks, profiles, currentUserId, onTaskClick }: TaskDashboardProps) {
+export function TaskDashboard({ tasks, allTasks: _allTasks, profiles, currentUserId: _currentUserId, onTaskClick }: TaskDashboardProps) {
   const now = Date.now();
   const weekMs = 7 * 864e5;
   const topLevel = tasks;

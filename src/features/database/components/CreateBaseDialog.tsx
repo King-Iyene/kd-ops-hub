@@ -175,7 +175,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
                   key={emoji}
                   type="button"
                   className={cn(
-                    'w-8 h-8 rounded flex items-center justify-center text-base hover:bg-gray-100 dark:hover:bg-[hsl(220,25%,15%)] transition-colors',
+                    'w-8 h-8 rounded flex items-center justify-center text-base hover:bg-muted transition-colors',
                     icon === emoji && 'ring-2 ring-[#2D7FF9] bg-[#2D7FF9]/5'
                   )}
                   onClick={() => setIcon(emoji)}

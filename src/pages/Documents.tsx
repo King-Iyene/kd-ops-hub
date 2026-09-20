@@ -1214,7 +1214,7 @@ const Documents = () => {
               {files.length > 0 && (
                 <div className="space-y-1 mt-2">
                   {files.map((f, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground bg-muted rounded px-2 py-1">
+                    <div key={`${f.name}-${f.size}`} className="flex items-center gap-2 text-xs text-muted-foreground bg-muted rounded px-2 py-1">
                       <FileIcon className="h-3 w-3 shrink-0" />
                       <span className="truncate flex-1" title={f.name}>{f.name}</span>
                       <span className="shrink-0">{formatBytes(f.size)}</span>

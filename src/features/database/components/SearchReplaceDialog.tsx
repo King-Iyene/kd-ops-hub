@@ -221,7 +221,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
       className={`w-7 h-7 flex items-center justify-center rounded text-xs transition-colors ${
         active
           ? 'bg-[#2D7FF9]/10 text-[#2D7FF9] dark:bg-[#2D7FF9]/20'
-          : 'text-[#9AA2AF] hover:text-[#6A7184] hover:bg-gray-100 dark:hover:bg-white/5 dark:hover:text-[hsl(220,25%,70%)]'
+          : 'text-[#9AA2AF] hover:text-[#6A7184] hover:bg-muted'
       }`}
     >
       {children}
@@ -258,7 +258,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
               <button
                 onClick={goToPrev}
                 disabled={matches.length === 0}
-                className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-30 transition-colors"
+                className="p-1.5 rounded hover:bg-muted disabled:opacity-30 transition-colors"
                 title="Previous match (Shift+Enter)"
               >
                 <ChevronUp size={16} className="text-[#6A7184] dark:text-[#9AA2AF]" />
@@ -266,7 +266,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
               <button
                 onClick={goToNext}
                 disabled={matches.length === 0}
-                className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-30 transition-colors"
+                className="p-1.5 rounded hover:bg-muted disabled:opacity-30 transition-colors"
                 title="Next match (Enter)"
               >
                 <ChevronDown size={16} className="text-[#6A7184] dark:text-[#9AA2AF]" />

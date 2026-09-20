@@ -463,7 +463,7 @@ function CopyLinkButton({ recordId }: { recordId: string }) {
   return (
     <button
       onClick={copy}
-      className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+      className="p-1.5 rounded hover:bg-muted transition-colors"
       title="Copy record link"
     >
       {copied ? (
@@ -497,7 +497,7 @@ function DeleteRecordButton({
         </button>
         <button
           onClick={() => setConfirming(false)}
-          className="px-2 py-1 rounded text-2xs font-medium text-[#6A7184] hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+          className="px-2 py-1 rounded text-2xs font-medium text-[#6A7184] hover:bg-muted transition-colors"
         >
           Cancel
         </button>
@@ -1042,7 +1042,7 @@ export function ExpandedRowModal({
                 <button
                   onClick={goToPrev}
                   disabled={!hasPrev}
-                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="p-1 rounded hover:bg-muted disabled:opacity-30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <ChevronLeft size={16} className="text-[#6A7184] dark:text-[#9AA2AF]" />
                 </button>
@@ -1052,7 +1052,7 @@ export function ExpandedRowModal({
                 <button
                   onClick={goToNext}
                   disabled={!hasNext}
-                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="p-1 rounded hover:bg-muted disabled:opacity-30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <ChevronRight size={16} className="text-[#6A7184] dark:text-[#9AA2AF]" />
                 </button>
@@ -1064,7 +1064,7 @@ export function ExpandedRowModal({
             {onDuplicateRecord && record && (
               <button
                 onClick={() => onDuplicateRecord(record)}
-                className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="p-1.5 rounded hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 title="Duplicate record"
               >
                 <Copy size={15} className="text-[#6A7184] dark:text-[#9AA2AF]" />
@@ -1080,7 +1080,7 @@ export function ExpandedRowModal({
             )}
             <button
               onClick={() => onOpenChange(false)}
-              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="p-1.5 rounded hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <X size={16} className="text-[#6A7184] dark:text-[#9AA2AF]" />
             </button>

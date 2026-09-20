@@ -133,7 +133,7 @@ const Clients = () => {
   const [pendingDelete, setPendingDelete] = useState<Client | null>(null);
 
   const canManage = hasRole(profile?.role, MANAGER_ROLES);
-  const { errors: fe, setError: setFieldError, clearError, clearAll: clearFieldErrors, hasErrors: hasFieldErrors } = useFieldErrors<'name' | 'email'>();
+  const { errors: fe, setError: setFieldError, clearError, clearAll: clearFieldErrors } = useFieldErrors<'name' | 'email'>();
 
   const load = useCallback(async () => {
     setLoading(true);

@@ -245,7 +245,7 @@ export default function ScenarioPlannerTab() {
           ) : (
             <div className="space-y-3">
               {adjustments.map(adj => {
-                const typeDef = ADJUSTMENT_TYPES.find(t => t.value === adj.type);
+                const _typeDef = ADJUSTMENT_TYPES.find(t => t.value === adj.type);
                 return (
                   <div key={adj.id} className="flex flex-wrap items-end gap-2 p-3 rounded-lg border bg-muted/30">
                     <div className="space-y-1 min-w-[140px]">

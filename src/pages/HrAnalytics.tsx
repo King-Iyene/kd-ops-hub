@@ -495,7 +495,7 @@ const HrAnalytics = () => {
 
 // Minimal recursive tree — one column per level, indented lists inside each.
 function OrgTree({
-  nodes,
+  nodes: _nodes,
   reports,
 }: {
   nodes: EmployeeSummary[];

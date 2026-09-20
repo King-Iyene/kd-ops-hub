@@ -44,7 +44,7 @@ import {
 } from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { logWarn } from '@/lib/logger';
-import { useAuthStore, useEffectiveRole } from '@/store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { useApprovalStore } from '@/store/approvalStore';
 import { daysUntil, formatDate, formatDateTime, formatNaira, formatNairaCompact } from '@/lib/format';
 import ComplianceCard from '@/components/ComplianceCard';
@@ -179,7 +179,6 @@ const Dashboard = () => {
   usePageTitle('Dashboard');
   const navigate = useNavigate();
   const { profile } = useAuthStore();
-  const effectiveRole = useEffectiveRole();
   // Only super_admin/admin see the company-wide dashboard (financials,
   // headcount, full audit log, contract/document expiries). Operations and
   // Field Staff get the scoped personal view — their own tasks, requests,

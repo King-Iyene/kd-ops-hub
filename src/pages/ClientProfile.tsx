@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Mail, Phone, Globe, MapPin, Save, Loader2, Trash2,
-  Building2, CalendarDays, DollarSign, Users, TrendingUp, TrendingDown,
+  Building2, CalendarDays, DollarSign, Users, TrendingUp,
   Briefcase, CheckCircle2, Clock, AlertTriangle, BarChart3, ChevronRight,
 } from 'lucide-react';
 import {

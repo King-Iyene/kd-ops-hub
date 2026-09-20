@@ -44,6 +44,7 @@ interface ApiModule {
 }
 
 interface QueryParam {
+  id: string;
   key: string;
   value: string;
 }
@@ -228,7 +229,7 @@ export default function ApiExplorer() {
   const [showKey, setShowKey] = useState(false);
   const [headersOpen, setHeadersOpen] = useState(false);
   const [headers, setHeaders] = useState<QueryParam[]>([
-    { key: "Content-Type", value: "application/json" },
+    { id: crypto.randomUUID(), key: "Content-Type", value: "application/json" },
   ]);
   const [queryParams, setQueryParams] = useState<QueryParam[]>([]);
   const [body, setBody] = useState<string>("");
@@ -285,7 +286,7 @@ export default function ApiExplorer() {
 
   const addParam = (
     setter: React.Dispatch<React.SetStateAction<QueryParam[]>>,
-  ) => setter((p) => [...p, { key: "", value: "" }]);
+  ) => setter((p) => [...p, { id: crypto.randomUUID(), key: "", value: "" }]);
 
   const removeParam = (
     list: QueryParam[],
@@ -475,7 +476,7 @@ export default function ApiExplorer() {
         {headersOpen && (
           <div className="mb-4 space-y-2 rounded-md border border-slate-700/60 bg-slate-800/50 p-3">
             {headers.map((h, i) => (
-              <div key={i} className="flex items-center gap-2">
+              <div key={h.id} className="flex items-center gap-2">
                 <Input
                   value={h.key}
                   onChange={(e) =>
@@ -522,7 +523,7 @@ export default function ApiExplorer() {
             </label>
             <div className="mb-4 space-y-2 rounded-md border border-slate-700/60 bg-slate-800/50 p-3">
               {queryParams.map((p, i) => (
-                <div key={i} className="flex items-center gap-2">
+                <div key={p.id} className="flex items-center gap-2">
                   <Input
                     value={p.key}
                     onChange={(e) =>

@@ -2,13 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { Check, ExternalLink, Copy, Plus, Star, Clock, AlertTriangle, Barcode, FileText, FileSpreadsheet, FileCode, FileArchive, FileVideo, FileAudio, File, FileImage, Presentation } from 'lucide-react';
 import AttachmentLightbox from '../AttachmentLightbox';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
-import { LinkCellRenderer } from './LinkCellRenderer';
 import { LookupCellRenderer as SmartLookupCellRenderer, RollupCellRenderer as SmartRollupCellRenderer } from './LookupRollupCellRenderer';
 import { SELECT_COLORS } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
-import { formatDate, formatDateTime, formatTime as formatTimeUtil } from '@/lib/format';
+import { formatDate, formatDateTime } from '@/lib/format';
 
 interface CellRendererProps {
   value: any;

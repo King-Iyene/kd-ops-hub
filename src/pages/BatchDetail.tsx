@@ -19,7 +19,6 @@ import {
 import { notifyUser, notifyRoles } from '@/lib/notify';
 import {
   approvePaymentBatch,
-  confirmSecondApproval,
   rejectPaymentBatch,
   resetBatchToDraft,
   markBatchFunded,
@@ -55,7 +54,6 @@ import { DiagnosisDialog } from '@/components/DiagnosisDialog';
 import { BatchRiskFlags } from '@/components/BatchRiskFlags';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -224,7 +222,7 @@ const BatchDetail = () => {
   const [companyName, setCompanyName] = useState('KD Squares Ltd');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const itemsRef = useRef<any[]>([]);
-  const [secondApprovers, setSecondApprovers] = useState<EligibleApprover[]>([]);
+  const [_secondApprovers, setSecondApprovers] = useState<EligibleApprover[]>([]);
   const [firstApproverName, setFirstApproverName] = useState<string | null>(null);
   const [secondApproverName, setSecondApproverName] = useState<string | null>(null);
   // Pre-flight cap + co-approval preview shown above the Approve button.
@@ -508,32 +506,6 @@ const BatchDetail = () => {
     } catch (err: unknown) {
       toast({
         title: 'Approval failed',
-        description: errorMessage(err) || 'Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  /** Second approval — routes through confirm_second_approval RPC. */
-  const confirmSecondApproveBatch = async () => {
-    if (!id) return;
-    setActionLoading(true);
-    try {
-      await confirmSecondApproval(id);
-      burst({ palette: 'success', count: 70 });
-      toast({ title: 'Batch fully approved' });
-      const amountTxt = formatNaira(batch?.total_amount || 0);
-      await logAudit(
-        'batch_second_approved',
-        `Batch "${batch?.name}" second-approved (${amountTxt})`,
-        profile,
-      );
-      fetchBatch();
-    } catch (err: unknown) {
-      toast({
-        title: 'Second approval failed',
         description: errorMessage(err) || 'Please try again.',
         variant: 'destructive',
       });
@@ -1328,7 +1300,7 @@ const BatchDetail = () => {
         profile,
       );
       // If everything is now succeeded, flip the batch to processed.
-      const refreshed = await supabase
+      await supabase
         .from('batch_items')
         .select('status')
         .eq('batch_id', id);

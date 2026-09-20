@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
 import {
-  BookOpen,
   Plus,
   Search,
   Pencil,

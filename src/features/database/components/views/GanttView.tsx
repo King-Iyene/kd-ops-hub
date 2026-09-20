@@ -288,19 +288,19 @@ function GanttSkeleton() {
     <div className="gantt-root">
       <style>{ganttStyles}</style>
       <div className="flex items-center gap-3 px-3 h-9 border-b border-[var(--g-border,#E5E5E5)]">
-        <div className="h-3 w-32 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
+        <div className="h-3 w-32 rounded animate-pulse bg-muted" />
       </div>
       <div className="flex flex-1 min-h-0">
         <div className="shrink-0 border-r border-[var(--g-border,#E5E5E5)] p-2 space-y-3" style={{ width: 200 }}>
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-3 w-28 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
+            <div key={i} className="h-3 w-28 rounded animate-pulse bg-muted" />
           ))}
         </div>
         <div className="flex-1 p-3 space-y-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="h-5 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]"
+              className="h-5 rounded animate-pulse bg-muted"
               style={{ width: `${20 + ((i * 37) % 50)}%`, marginLeft: `${(i * 13) % 30}%` }}
             />
           ))}

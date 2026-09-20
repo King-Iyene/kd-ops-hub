@@ -42,17 +42,17 @@ function KanbanSkeleton() {
       {Array.from({ length: 4 }).map((_, colIdx) => (
         <div
           key={colIdx}
-          className="flex flex-col shrink-0 rounded-lg overflow-hidden bg-gray-100 dark:bg-[hsl(220,28%,13%)]"
+          className="flex flex-col shrink-0 rounded-lg overflow-hidden bg-muted"
           style={{ width: 280 }}
         >
-          <div className="h-9 px-3 flex items-center border-b border-gray-200 dark:border-[hsl(220,25%,18%)]">
-            <div className="h-3 w-20 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
+          <div className="h-9 px-3 flex items-center border-b border-border">
+            <div className="h-3 w-20 rounded animate-pulse bg-muted" />
           </div>
           <div className="flex-1 p-2 space-y-2">
             {Array.from({ length: 3 }).map((_, cardIdx) => (
               <div
                 key={cardIdx}
-                className="h-16 rounded-md animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]"
+                className="h-16 rounded-md animate-pulse bg-muted"
               />
             ))}
           </div>

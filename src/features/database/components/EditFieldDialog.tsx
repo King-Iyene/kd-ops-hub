@@ -112,7 +112,7 @@ function SortableOption({ choice, onRemove, onColorChange, isEditing, editValue,
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="w-5 h-5 rounded-full border-2 border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform shrink-0"
+            className="w-5 h-5 rounded-full border-2 border-border hover:scale-110 transition-transform shrink-0"
             style={{ backgroundColor: sc.bg }}
             title="Change color"
           />

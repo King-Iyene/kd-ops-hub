@@ -42,7 +42,6 @@ import { useDatabaseNavigate, toShort } from '../hooks/useNavigate';
 import {
   useTables,
   useBases,
-  useCreateTable,
   useDeleteTable,
   useUpdateTable,
   useDuplicateTable,
@@ -135,7 +134,6 @@ export function TableTabBar() {
   const { data: bases } = useBases();
   const activeBase = bases?.find((b: any) => b.id === activeBaseId);
   const baseColor = activeBase?.color || '#2D7FF9';
-  const createTable = useCreateTable();
   const deleteTable = useDeleteTable();
   const updateTable = useUpdateTable();
   const duplicateTable = useDuplicateTable();

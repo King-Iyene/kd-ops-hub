@@ -45,7 +45,6 @@ import {
   Star,
   Package,
   GraduationCap,
-  FolderKanban,
   HeartPulse,
   UserCheck,
   UserPlus2,

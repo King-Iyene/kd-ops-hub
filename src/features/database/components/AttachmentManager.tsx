@@ -165,7 +165,7 @@ export function AttachmentManager({
             </div>
             <button
               onClick={() => onOpenChange(false)}
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5"
+              className="p-1 rounded hover:bg-muted"
             >
               <X size={16} className="text-[#6A7184]" />
             </button>

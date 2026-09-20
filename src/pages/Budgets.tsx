@@ -90,7 +90,7 @@ interface BudgetItemRow {
 }
 
 interface ItemDraft {
-  id?: string;
+  id: string;
   category: string;
   description: string;
   allocated_ngn: string;
@@ -151,7 +151,7 @@ const Budgets = () => {
     notes: '',
   });
   const [itemsDraft, setItemsDraft] = useState<ItemDraft[]>([
-    { category: 'payroll', description: '', allocated_ngn: '' },
+    { id: crypto.randomUUID(), category: 'payroll', description: '', allocated_ngn: '' },
   ]);
   const [confirmDelete, setConfirmDelete] = useState<BudgetRow | null>(null);
   const [acting, setActing] = useState<string | null>(null);
@@ -240,7 +240,7 @@ const Budgets = () => {
       department_id: 'none',
       notes: '',
     });
-    setItemsDraft([{ category: 'payroll', description: '', allocated_ngn: '' }]);
+    setItemsDraft([{ id: crypto.randomUUID(), category: 'payroll', description: '', allocated_ngn: '' }]);
     setDialog(true);
   };
 
@@ -273,7 +273,7 @@ const Budgets = () => {
             description: it.description || '',
             allocated_ngn: String(it.allocated_ngn || 0),
           }))
-        : [{ category: 'payroll', description: '', allocated_ngn: '' }],
+        : [{ id: crypto.randomUUID(), category: 'payroll', description: '', allocated_ngn: '' }],
     );
     setDialog(true);
   };
@@ -282,7 +282,7 @@ const Budgets = () => {
     clearFe('line_items');
     setItemsDraft((prev) => [
       ...prev,
-      { category: 'other', description: '', allocated_ngn: '' },
+      { id: crypto.randomUUID(), category: 'other', description: '', allocated_ngn: '' },
     ]);
   };
 
@@ -965,7 +965,7 @@ const Budgets = () => {
                   </TableHeader>
                   <TableBody>
                     {itemsDraft.map((it, idx) => (
-                      <TableRow key={idx}>
+                      <TableRow key={it.id}>
                         <TableCell>
                           <Input
                             list="budget-categories"

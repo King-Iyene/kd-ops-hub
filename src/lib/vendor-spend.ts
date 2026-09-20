@@ -83,7 +83,6 @@ export function computeVendorSpend(
 
   for (const e of expenses) {
     const vendor = (e.description || e.category).trim().toLowerCase();
-    const displayVendor = e.description || e.category;
     const month = e.date.slice(0, 7);
     const key = vendor;
 

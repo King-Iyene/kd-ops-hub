@@ -91,7 +91,7 @@ interface FormState {
   url: string;
   events: string[];
   secret: string;
-  headers: { key: string; value: string }[];
+  headers: { id: string; key: string; value: string }[];
   is_active: boolean;
 }
 
@@ -268,7 +268,7 @@ export default function WebhooksManager() {
       url: wh.url,
       events: wh.events || [],
       secret: wh.secret || '',
-      headers: Object.entries(wh.headers || {}).map(([key, value]) => ({ key, value })),
+      headers: Object.entries(wh.headers || {}).map(([key, value]) => ({ id: crypto.randomUUID(), key, value })),
       is_active: wh.is_active,
     });
     setShowSecret(false);
@@ -337,7 +337,7 @@ export default function WebhooksManager() {
   }
 
   function addHeader() {
-    setForm((f) => ({ ...f, headers: [...f.headers, { key: '', value: '' }] }));
+    setForm((f) => ({ ...f, headers: [...f.headers, { id: crypto.randomUUID(), key: '', value: '' }] }));
   }
 
   function removeHeader(idx: number) {
@@ -696,7 +696,7 @@ export default function WebhooksManager() {
               {form.headers.length > 0 && (
                 <div className="space-y-2">
                   {form.headers.map((h, idx) => (
-                    <div key={idx} className="flex gap-2 items-center">
+                    <div key={h.id} className="flex gap-2 items-center">
                       <Input
                         placeholder="Header name"
                         value={h.key}

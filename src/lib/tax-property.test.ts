@@ -3,8 +3,6 @@ import {
   computePayslip,
   applyTaxBands,
   PENSION_EMPLOYEE_RATE,
-  PENSION_EMPLOYER_RATE,
-  NHF_RATE,
   NHIS_EMPLOYEE_RATE,
   NHIS_EMPLOYER_RATE,
   NSITF_RATE,

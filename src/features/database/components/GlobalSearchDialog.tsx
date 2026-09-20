@@ -96,12 +96,12 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
       <div
         className="relative w-full max-w-lg rounded-xl shadow-2xl border overflow-hidden
           bg-white dark:bg-[hsl(220,30%,10%)]
-          border-gray-200 dark:border-[hsl(220,25%,18%)]
+          border-border
           animate-[panelSlideDown_150ms_ease-out]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search input */}
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-[hsl(220,25%,18%)]">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
           <Search size={18} className="text-muted-foreground/70 shrink-0" />
           <input
             ref={inputRef}
@@ -110,21 +110,21 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
             onKeyDown={handleKeyDown}
             placeholder="Search across all bases and tables..."
             className="flex-1 text-sm outline-none bg-transparent
-              text-gray-900 dark:text-[hsl(220,25%,88%)]
-              placeholder:text-gray-400 dark:placeholder:text-[hsl(220,20%,45%)]"
+              text-foreground
+              placeholder:text-muted-foreground"
           />
           {query && (
             <button
               onClick={() => setQuery('')}
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-[hsl(220,25%,15%)]"
+              className="p-1 rounded hover:bg-muted"
             >
               <X size={14} className="text-muted-foreground" />
             </button>
           )}
           <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-3xs font-medium
-            bg-gray-100 dark:bg-[hsl(220,25%,15%)]
+            bg-muted
             text-muted-foreground
-            border border-gray-200 dark:border-[hsl(220,25%,22%)]">
+            border border-border">
             ESC
           </kbd>
         </div>
@@ -158,7 +158,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
                   className={`flex items-start gap-3 px-4 py-2.5 cursor-pointer transition-colors
                     ${idx === selectedIdx
                       ? 'bg-blue-50 dark:bg-[hsl(220,50%,18%)]'
-                      : 'hover:bg-gray-50 dark:hover:bg-[hsl(220,25%,12%)]'
+                      : 'hover:bg-muted/50'
                     }`}
                   onClick={() => navigateToResult(idx)}
                   onMouseEnter={() => setSelectedIdx(idx)}
@@ -172,11 +172,11 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
                     }`}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 dark:text-[hsl(220,25%,88%)] truncate">
+                    <div className="text-sm font-medium text-foreground truncate">
                       {highlight(r.title, query)}
                     </div>
                     {r.matchValue && r.matchField && (
-                      <div className="text-xs text-gray-500 dark:text-[hsl(220,20%,55%)] truncate mt-0.5">
+                      <div className="text-xs text-muted-foreground truncate mt-0.5">
                         <span className="font-medium">{r.matchField}:</span>{' '}
                         {highlight(r.matchValue, query)}
                       </div>
@@ -196,18 +196,18 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 dark:border-[hsl(220,25%,18%)]
+        <div className="flex items-center justify-between px-4 py-2 border-t border-border
           text-3xs text-muted-foreground/50">
           <span>
-            <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-[hsl(220,25%,15%)] border border-gray-200 dark:border-[hsl(220,25%,22%)] font-mono">↑↓</kbd>
+            <kbd className="px-1 py-0.5 rounded bg-muted border border-border font-mono">↑↓</kbd>
             {' '}navigate
           </span>
           <span>
-            <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-[hsl(220,25%,15%)] border border-gray-200 dark:border-[hsl(220,25%,22%)] font-mono">↵</kbd>
+            <kbd className="px-1 py-0.5 rounded bg-muted border border-border font-mono">↵</kbd>
             {' '}open
           </span>
           <span>
-            <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-[hsl(220,25%,15%)] border border-gray-200 dark:border-[hsl(220,25%,22%)] font-mono">⌘K</kbd>
+            <kbd className="px-1 py-0.5 rounded bg-muted border border-border font-mono">⌘K</kbd>
             {' '}toggle
           </span>
         </div>

@@ -59,7 +59,7 @@ import { MobileFilterBar } from '@/components/ui-kit/MobileFilterBar';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Pagination } from '@/components/ui-kit/Pagination';
-import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardRow } from '@/components/ui-kit/MobileCard';
+import { MobileCard, MobileCardHeader, MobileCardTitle } from '@/components/ui-kit/MobileCard';
 import { usePagination } from '@/hooks/usePagination';
 import { cn } from '@/lib/utils';
 

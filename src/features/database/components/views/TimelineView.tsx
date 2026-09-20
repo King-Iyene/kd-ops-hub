@@ -265,14 +265,14 @@ function TimelineSkeleton() {
     <div className="tl-root">
       <style>{timelineStyles}</style>
       <div className="flex items-center gap-3 px-3 h-9 border-b border-[var(--tl-border,#E5E5E5)]">
-        <div className="h-3 w-32 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
+        <div className="h-3 w-32 rounded animate-pulse bg-muted" />
       </div>
       <div className="flex-1 p-4 space-y-3">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3">
-            <div className="h-3 w-28 shrink-0 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
+            <div className="h-3 w-28 shrink-0 rounded animate-pulse bg-muted" />
             <div
-              className="h-5 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]"
+              className="h-5 rounded animate-pulse bg-muted"
               style={{ width: `${20 + ((i * 37) % 50)}%`, marginLeft: `${(i * 13) % 30}%` }}
             />
           </div>

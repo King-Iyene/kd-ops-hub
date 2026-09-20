@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -176,7 +175,6 @@ const DEFAULT_WORKFLOWS: WorkflowConfig[] = [
 
 export default function ApprovalWorkflows() {
   usePageTitle('Approval Workflows');
-  const { profile } = useAuthStore();
   const { toast } = useToast();
 
   const [workflows, setWorkflows] = useState<WorkflowConfig[]>([]);

@@ -141,7 +141,7 @@ const Payments = () => {
       return next;
     });
   };
-  const [stats, setStats] = useState<BatchStats>({
+  const [_stats, setStats] = useState<BatchStats>({
     pendingCount: 0, pendingAmount: 0, processingCount: 0, thisMonthAmount: 0,
   });
 

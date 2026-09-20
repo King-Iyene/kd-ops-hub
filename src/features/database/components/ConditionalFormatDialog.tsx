@@ -83,7 +83,7 @@ export function ConditionalFormatDialog({ open, onOpenChange }: ConditionalForma
           </span>
           <button
             onClick={() => onOpenChange(false)}
-            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5"
+            className="p-1 rounded hover:bg-muted"
           >
             <X size={16} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
           </button>
@@ -148,7 +148,7 @@ export function ConditionalFormatDialog({ open, onOpenChange }: ConditionalForma
               </div>
               <button
                 onClick={() => removeRule(rule.id)}
-                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5 self-start"
+                className="p-1 rounded hover:bg-muted self-start"
               >
                 <X size={14} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
               </button>

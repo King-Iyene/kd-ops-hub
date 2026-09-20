@@ -115,7 +115,7 @@ function Dropdown({
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border
           border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,12%)]
-          text-[#374151] dark:text-[hsl(220,25%,88%)] hover:bg-gray-50 dark:hover:bg-[hsl(220,30%,15%)]
+          text-[#374151] dark:text-[hsl(220,25%,88%)] hover:bg-muted/50
           transition-colors"
       >
         <span className="text-[#9AA2AF] dark:text-[hsl(220,25%,55%)]">{label}:</span>
@@ -408,10 +408,10 @@ function GallerySkeleton() {
           key={i}
           className="rounded-lg overflow-hidden border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]"
         >
-          <div className="h-28 w-full animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
+          <div className="h-28 w-full animate-pulse bg-muted" />
           <div className="p-3 space-y-2">
-            <div className="h-3 w-3/4 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
-            <div className="h-2.5 w-1/2 rounded animate-pulse bg-gray-200 dark:bg-[hsl(220,25%,15%)]" />
+            <div className="h-3 w-3/4 rounded animate-pulse bg-muted" />
+            <div className="h-2.5 w-1/2 rounded animate-pulse bg-muted" />
           </div>
         </div>
       ))}
@@ -575,7 +575,7 @@ export default function GalleryView({
         </span>
         <div className="flex items-center gap-2 text-[#6A7184] dark:text-[hsl(220,25%,55%)]">
           <button
-            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-[hsl(220,30%,16%)] disabled:opacity-40 transition-colors"
+            className="p-1 rounded hover:bg-accent disabled:opacity-40 transition-colors"
             disabled={page === 0}
             onClick={() => onPageChange(page - 1)}
           >
@@ -585,7 +585,7 @@ export default function GalleryView({
             Page {page + 1} of {totalPages}
           </span>
           <button
-            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-[hsl(220,30%,16%)] disabled:opacity-40 transition-colors"
+            className="p-1 rounded hover:bg-accent disabled:opacity-40 transition-colors"
             disabled={page >= totalPages - 1}
             onClick={() => onPageChange(page + 1)}
           >
